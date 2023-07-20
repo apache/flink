@@ -170,7 +170,7 @@ public class YarnConfigOptions {
                                     + " (for example for environments sharing a Flink installation between users).");
 
     /**
-     * The config parameter defining the Akka actor system port for the ApplicationMaster and
+     * The config parameter defining the Pekko actor system port for the ApplicationMaster and
      * JobManager. The port can either be a port, such as "9123", a range of ports: "50100-50200" or
      * a list of ranges and or points: "50100-50200,50300-50400,51234". Setting the port to 0 will
      * let the OS choose an available port.

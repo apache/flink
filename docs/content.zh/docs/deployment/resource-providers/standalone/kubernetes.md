@@ -309,8 +309,8 @@ data:
     # 下面几行将公共 libraries 或 connectors 的日志级别保持在 INFO 级别。
     # root logger 的配置不会覆盖此处配置。
     # 你必须手动修改这里的日志级别。
-    logger.akka.name = akka
-    logger.akka.level = INFO
+    logger.pekko.name = org.apache.pekko
+    logger.pekko.level = INFO
     logger.kafka.name= org.apache.kafka
     logger.kafka.level = INFO
     logger.hadoop.name = org.apache.hadoop
@@ -380,8 +380,8 @@ data:
     # 下面几行将公共 libraries 或 connectors 的日志级别保持在 INFO 级别。
     # root logger 的配置不会覆盖此处配置。
     # 你必须手动修改这里的日志级别。
-    logger.akka.name = akka
-    logger.akka.level = INFO
+    logger.pekko.name = org.apache.pekko
+    logger.pekko.level = INFO
     logger.kafka.name= org.apache.kafka
     logger.kafka.level = INFO
     logger.hadoop.name = org.apache.hadoop

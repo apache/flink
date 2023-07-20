@@ -23,7 +23,7 @@ import org.apache.pekko.dispatch.DispatcherConfigurator;
 import org.apache.pekko.dispatch.DispatcherPrerequisites;
 
 /**
- * Akka dispatcher threads creates threads with configurable priority.
+ * Pekko dispatcher threads creates threads with configurable priority.
  *
  * <p>Example of configuration:
  *
@@ -42,12 +42,12 @@ import org.apache.pekko.dispatch.DispatcherPrerequisites;
  *   }
  * </pre>
  *
- * <p>Two arguments constructor (the primary constructor) is automatically called by Akka when it
+ * <p>Two arguments constructor (the primary constructor) is automatically called by Pekko when it
  * finds:
  *
  * <pre>
  *   abcde-dispatcher {
- *     type = org.apache.flink.runtime.rpc.akka.PriorityThreadsDispatcher <-- the class that Akka will instantiate
+ *     type = org.apache.flink.runtime.rpc.akka.PriorityThreadsDispatcher <-- the class that Pekko will instantiate
  *     ...
  *   }
  * </pre>

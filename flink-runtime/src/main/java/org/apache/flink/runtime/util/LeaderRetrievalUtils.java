@@ -110,7 +110,7 @@ public class LeaderRetrievalUtils {
 
     /**
      * Helper class which is used by the retrieveLeaderInformation method to retrieve the leader's
-     * akka URL and the current leader session ID.
+     * rpc URL and the current leader session ID.
      */
     public static class LeaderInformationListener implements LeaderRetrievalListener {
         private final CompletableFuture<LeaderInformation> connectionInfoFuture =

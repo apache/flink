@@ -60,7 +60,7 @@ class AkkaUtilsTest {
 
     @Test
     void getHostFromAkkaURLThrowsExceptionIfAddressCannotBeRetrieved() throws Exception {
-        final String localAkkaURL = "akka://flink/user/actor";
+        final String localAkkaURL = "pekko://flink/user/actor";
 
         assertThatThrownBy(() -> AkkaUtils.getInetSocketAddressFromAkkaURL(localAkkaURL))
                 .isInstanceOf(Exception.class);
@@ -68,7 +68,7 @@ class AkkaUtilsTest {
 
     @Test
     void getHostFromAkkaURLReturnsHostAfterAtSign() throws Exception {
-        final String url = "akka.tcp://flink@localhost:1234/user/jobmanager";
+        final String url = "pekko.tcp://flink@localhost:1234/user/jobmanager";
         final InetSocketAddress expected = new InetSocketAddress("localhost", 1234);
 
         final InetSocketAddress result = AkkaUtils.getInetSocketAddressFromAkkaURL(url);
@@ -78,7 +78,7 @@ class AkkaUtilsTest {
 
     @Test
     void getHostFromAkkaURLHandlesAkkaTcpProtocol() throws Exception {
-        final String url = "akka.tcp://flink@localhost:1234/user/jobmanager";
+        final String url = "pekko.tcp://flink@localhost:1234/user/jobmanager";
         final InetSocketAddress expected = new InetSocketAddress("localhost", 1234);
 
         final InetSocketAddress result = AkkaUtils.getInetSocketAddressFromAkkaURL(url);
@@ -88,7 +88,7 @@ class AkkaUtilsTest {
 
     @Test
     void getHostFromAkkaURLHandlesAkkaSslTcpProtocol() throws Exception {
-        final String url = "akka.ssl.tcp://flink@localhost:1234/user/jobmanager";
+        final String url = "pekko.ssl.tcp://flink@localhost:1234/user/jobmanager";
         final InetSocketAddress expected = new InetSocketAddress("localhost", 1234);
 
         final InetSocketAddress result = AkkaUtils.getInetSocketAddressFromAkkaURL(url);
@@ -102,7 +102,7 @@ class AkkaUtilsTest {
         final int port = 1234;
         final InetSocketAddress address = new InetSocketAddress(ipv4Address, port);
 
-        final String url = "akka://flink@" + ipv4Address + ":" + port + "/user/jobmanager";
+        final String url = "pekko://flink@" + ipv4Address + ":" + port + "/user/jobmanager";
         final InetSocketAddress result = AkkaUtils.getInetSocketAddressFromAkkaURL(url);
 
         assertThat(result).isEqualTo(address);
@@ -114,7 +114,7 @@ class AkkaUtilsTest {
         final int port = 1234;
         final InetSocketAddress address = new InetSocketAddress(ipv6Address, port);
 
-        final String url = "akka://flink@[" + ipv6Address + "]:" + port + "/user/jobmanager";
+        final String url = "pekko://flink@[" + ipv6Address + "]:" + port + "/user/jobmanager";
         final InetSocketAddress result = AkkaUtils.getInetSocketAddressFromAkkaURL(url);
 
         assertThat(result).isEqualTo(address);
@@ -126,7 +126,7 @@ class AkkaUtilsTest {
         final int port = 1234;
         final InetSocketAddress address = new InetSocketAddress(ipv6Address, port);
 
-        final String url = "akka.tcp://flink@[" + ipv6Address + "]:" + port + "/user/jobmanager";
+        final String url = "pekko.tcp://flink@[" + ipv6Address + "]:" + port + "/user/jobmanager";
         final InetSocketAddress result = AkkaUtils.getInetSocketAddressFromAkkaURL(url);
 
         assertThat(result).isEqualTo(address);
@@ -139,7 +139,7 @@ class AkkaUtilsTest {
         final InetSocketAddress address = new InetSocketAddress(ipv6Address, port);
 
         final String url =
-                "akka.ssl.tcp://flink@[" + ipv6Address + "]:" + port + "/user/jobmanager";
+                "pekko.ssl.tcp://flink@[" + ipv6Address + "]:" + port + "/user/jobmanager";
         final InetSocketAddress result = AkkaUtils.getInetSocketAddressFromAkkaURL(url);
 
         assertThat(result).isEqualTo(address);

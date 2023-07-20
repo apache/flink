@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-/** {@link RpcSystem} implementation based on Akka. */
+/** {@link RpcSystem} implementation based on Pekko. */
 public class AkkaRpcSystem implements RpcSystem {
 
     @Override

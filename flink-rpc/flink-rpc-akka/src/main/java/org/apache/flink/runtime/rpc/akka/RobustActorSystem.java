@@ -123,7 +123,7 @@ public abstract class RobustActorSystem extends ActorSystemImpl {
             if (shutdownComplete.get()
                     && (e instanceof NoClassDefFoundError || e instanceof ClassNotFoundException)) {
                 // ignore classloading errors after the actor system terminated
-                // some parts of the akka shutdown procedure are not tied to the actor
+                // some parts of the pekko shutdown procedure are not tied to the actor
                 // system termination future, and can occasionally fail if the rpc
                 // classloader has been closed.
                 return;

@@ -195,8 +195,9 @@ public class NetUtils {
     // ------------------------------------------------------------------------
 
     /**
-     * Returns an address in a normalized format for Akka. When an IPv6 address is specified, it
-     * normalizes the IPv6 address to avoid complications with the exact URL match policy of Akka.
+     * Returns an address in a normalized format for AkPekkoka. When an IPv6 address is specified,
+     * it normalizes the IPv6 address to avoid complications with the exact URL match policy of
+     * Pekko.
      *
      * @param host The hostname, IPv4 or IPv6 address
      * @return host which will be normalized if it is an IPv6 address
@@ -238,9 +239,9 @@ public class NetUtils {
     }
 
     /**
-     * Returns a valid address for Akka. It returns a String of format 'host:port'. When an IPv6
+     * Returns a valid address for Pekko. It returns a String of format 'host:port'. When an IPv6
      * address is specified, it normalizes the IPv6 address to avoid complications with the exact
-     * URL match policy of Akka.
+     * URL match policy of Pekko.
      *
      * @param host The hostname, IPv4 or IPv6 address
      * @param port The port

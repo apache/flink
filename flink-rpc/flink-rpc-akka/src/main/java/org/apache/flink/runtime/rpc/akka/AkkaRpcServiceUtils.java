@@ -222,7 +222,7 @@ public class AkkaRpcServiceUtils {
         return akkaProtocol == AkkaProtocol.SSL_TCP ? AKKA_SSL_TCP : AKKA_TCP;
     }
 
-    /** Whether to use TCP or encrypted TCP for Akka. */
+    /** Whether to use TCP or encrypted TCP for Pekko. */
     public enum AkkaProtocol {
         TCP,
         SSL_TCP
@@ -339,7 +339,7 @@ public class AkkaRpcServiceUtils {
 
             final ActorSystem actorSystem;
 
-            // akka internally caches the context class loader
+            // pekko internally caches the context class loader
             // make sure it uses the plugin class loader
             try (TemporaryClassLoaderContext ignored =
                     TemporaryClassLoaderContext.of(getClass().getClassLoader())) {

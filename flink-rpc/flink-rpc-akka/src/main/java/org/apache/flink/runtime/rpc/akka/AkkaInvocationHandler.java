@@ -72,7 +72,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
     private static final Logger LOG = LoggerFactory.getLogger(AkkaInvocationHandler.class);
 
     /**
-     * The Akka (RPC) address of {@link #rpcEndpoint} including host and port of the ActorSystem in
+     * The Pekko (RPC) address of {@link #rpcEndpoint} including host and port of the ActorSystem in
      * which the actor is running.
      */
     private final String address;
@@ -394,7 +394,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
             newException =
                     new TimeoutException(
                             String.format(
-                                    "Invocation of [%s] at recipient [%s] timed out. This is usually caused by: 1) Akka failed sending "
+                                    "Invocation of [%s] at recipient [%s] timed out. This is usually caused by: 1) Pekko failed sending "
                                             + "the message silently, due to problems like oversized payload or serialization failures. "
                                             + "In that case, you should find detailed error information in the logs. 2) The recipient needs "
                                             + "more time for responding, due to problems like slow machines or network jitters. In that case, you can try to increase %s.",

@@ -389,7 +389,7 @@ function internal_check_logs_for_errors {
   "Cannot connect to ResourceManager right now" \
   "AskTimeoutException" \
   "Error while loading kafka-version.properties" \
-  "WARN  akka.remote.transport.netty.NettyTransport" \
+  "WARN  org.apache.pekko.remote.transport.netty.NettyTransport" \
   "WARN  org.jboss.netty.channel.DefaultChannelPipeline" \
   "jvm-exit-on-fatal-error" \
   'INFO.*AWSErrorCode' \
@@ -403,7 +403,7 @@ function internal_check_logs_for_errors {
   "HeapDumpOnOutOfMemoryError" \
   "error_prone_annotations" \
   "Error sending fetch request" \
-  "WARN  akka.remote.ReliableDeliverySupervisor" \
+  "WARN  org.apache.pekko.remote.ReliableDeliverySupervisor" \
   "Options.*error_*" \
   "not packaged with this application")
 
@@ -449,7 +449,7 @@ function internal_check_logs_for_exceptions {
   "DisconnectException" \
   "Cannot connect to ResourceManager right now" \
   "AskTimeoutException" \
-  "WARN  akka.remote.transport.netty.NettyTransport" \
+  "WARN  org.apache.pekko.remote.transport.netty.NettyTransport" \
   "WARN  org.jboss.netty.channel.DefaultChannelPipeline" \
   'INFO.*AWSErrorCode' \
   "RejectedExecutionException" \
@@ -465,7 +465,7 @@ function internal_check_logs_for_exceptions {
   "java.lang.Exception: Artificial failure" \
   "org.apache.flink.runtime.checkpoint.CheckpointException" \
   "org.apache.flink.runtime.JobException: Recovery is suppressed" \
-  "WARN  akka.remote.ReliableDeliverySupervisor" \
+  "WARN  org.apache.pekko.remote.ReliableDeliverySupervisor" \
   "RecipientUnreachableException" \
   "completeExceptionally" \
   "SerializedCheckpointException.unwrap")

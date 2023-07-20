@@ -65,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Akka rpc actor which receives {@link RpcInvocation}, {@link RunAsync} and {@link CallAsync}
+ * Pekko rpc actor which receives {@link RpcInvocation}, {@link RunAsync} and {@link CallAsync}
  * {@link ControlMessages} messages.
  *
  * <p>The {@link RpcInvocation} designates a rpc and is dispatched to the given {@link RpcEndpoint}
@@ -74,10 +74,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>The {@link RunAsync} and {@link CallAsync} messages contain executable code which is executed
  * in the context of the actor thread.
  *
- * <p>The {@link ControlMessages} message controls the processing behaviour of the akka rpc actor. A
- * {@link ControlMessages#START} starts processing incoming messages. A {@link ControlMessages#STOP}
- * message stops processing messages. All messages which arrive when the processing is stopped, will
- * be discarded.
+ * <p>The {@link ControlMessages} message controls the processing behaviour of the pekko rpc actor.
+ * A {@link ControlMessages#START} starts processing incoming messages. A {@link
+ * ControlMessages#STOP} message stops processing messages. All messages which arrive when the
+ * processing is stopped, will be discarded.
  *
  * @param <T> Type of the {@link RpcEndpoint}
  */

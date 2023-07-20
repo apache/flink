@@ -140,7 +140,7 @@ public class TieredStorageNettyServiceImpl implements TieredStorageNettyService 
     }
 
     /**
-     * Set up input channels in {@link SingleInputGate}. The method will be invoked by the akka rpc
+     * Set up input channels in {@link SingleInputGate}. The method will be invoked by the pekko rpc
      * thread at first, and then the method {@link
      * TieredStorageNettyService#registerConsumer(TieredStoragePartitionId,
      * TieredStorageSubpartitionId)} will be invoked by the same thread sequentially, which ensures

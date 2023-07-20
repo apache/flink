@@ -50,9 +50,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * This class contains utility functions for akka. It contains methods to start an actor system with
- * a given akka configuration. Furthermore, the akka configuration used for starting the different
- * actor systems resides in this class.
+ * This class contains utility functions for pekko. It contains methods to start an actor system
+ * with a given akka configuration. Furthermore, the akka configuration used for starting the
+ * different actor systems resides in this class.
  */
 class AkkaUtils {
     private static final Logger LOG = LoggerFactory.getLogger(AkkaUtils.class);
@@ -64,10 +64,10 @@ class AkkaUtils {
     }
 
     /**
-     * Gets the basic Akka config which is shared by remote and local actor systems.
+     * Gets the basic Pekko config which is shared by remote and local actor systems.
      *
      * @param configuration instance which contains the user specified values for the configuration
-     * @return Flink's basic Akka config
+     * @return Flink's basic Pekko config
      */
     private static Config getBasicAkkaConfig(Configuration configuration) {
         final int akkaThroughput = configuration.getInteger(AkkaOptions.DISPATCHER_THROUGHPUT);
@@ -112,7 +112,7 @@ class AkkaUtils {
 
     private static String getLogLevel() {
         if (LOG.isTraceEnabled()) {
-            // TRACE is not supported by akka
+            // TRACE is not supported by Pekko
             return "DEBUG";
         }
         if (LOG.isDebugEnabled()) {
@@ -176,15 +176,15 @@ class AkkaUtils {
     }
 
     /**
-     * Creates a Akka config for a remote actor system listening on port on the network interface
+     * Creates a Pekko config for a remote actor system listening on port on the network interface
      * identified by bindAddress.
      *
      * @param configuration instance containing the user provided configuration values
      * @param bindAddress of the network interface to bind on
-     * @param port to bind to or if 0 then Akka picks a free port automatically
-     * @param externalHostname The host name to expect for Akka messages
-     * @param externalPort The port to expect for Akka messages
-     * @return Flink's Akka configuration for remote actor systems
+     * @param port to bind to or if 0 then Pekko picks a free port automatically
+     * @param externalHostname The host name to expect for Pekko messages
+     * @param externalPort The port to expect for Pekko messages
+     * @return Flink's Pekko configuration for remote actor systems
      */
     private static Config getRemoteAkkaConfig(
             Configuration configuration,
@@ -291,8 +291,8 @@ class AkkaUtils {
         final String effectiveHostname =
                 normalizedExternalHostname != null && !normalizedExternalHostname.isEmpty()
                         ? normalizedExternalHostname
-                        // if bindAddress is null or empty, then leave bindAddress unspecified. Akka
-                        // will pick InetAddress.getLocalHost.getHostAddress
+                        // if bindAddress is null or empty, then leave bindAddress unspecified.
+                        // Pekko will pick InetAddress.getLocalHost.getHostAddress
                         : "";
 
         akkaConfigBuilder
@@ -400,7 +400,7 @@ class AkkaUtils {
     }
 
     /**
-     * Creates an actor system with the given akka config.
+     * Creates an actor system with the given pekko config.
      *
      * @param akkaConfig configuration for the actor system
      * @return created actor system
@@ -410,7 +410,7 @@ class AkkaUtils {
     }
 
     /**
-     * Creates an actor system with the given akka config.
+     * Creates an actor system with the given pekko config.
      *
      * @param actorSystemName name of the actor system
      * @param akkaConfig configuration for the actor system
@@ -434,23 +434,23 @@ class AkkaUtils {
     }
 
     /**
-     * Creates the default akka configuration which listens on a random port on the local machine.
+     * Creates the default pekko configuration which listens on a random port on the local machine.
      * All configuration values are set to default values.
      *
-     * @return Flink's Akka default config
+     * @return Flink's Pekko default config
      */
     private static Config getDefaultAkkaConfig() {
         return getAkkaConfig(new Configuration(), new HostAndPort("", 0));
     }
 
     /**
-     * Creates an akka config with the provided configuration values. If the listening address is
+     * Creates a pekko config with the provided configuration values. If the listening address is
      * specified, then the actor system will listen on the respective address.
      *
      * @param configuration instance containing the user provided configuration values
      * @param externalAddress optional tuple of bindAddress and port to be reachable at. If null is
-     *     given, then an Akka config for local actor system will be returned
-     * @return Akka config
+     *     given, then an Pekko config for local actor system will be returned
+     * @return Pekko config
      */
     public static Config getAkkaConfig(
             Configuration configuration, @Nullable HostAndPort externalAddress) {
@@ -463,17 +463,17 @@ class AkkaUtils {
     }
 
     /**
-     * Creates an akka config with the provided configuration values. If the listening address is
+     * Creates an pekko config with the provided configuration values. If the listening address is
      * specified, then the actor system will listen on the respective address.
      *
      * @param configuration instance containing the user provided configuration values
      * @param externalAddress optional tuple of external address and port to be reachable at. If
-     *     null is given, then an Akka config for local actor system will be returned
+     *     null is given, then an Pekko config for local actor system will be returned
      * @param bindAddress optional tuple of bind address and port to be used locally. If null is
      *     given, wildcard IP address and the external port wil be used. Takes effect only if
      *     externalAddress is not null.
      * @param executorConfig config defining the used executor by the default dispatcher
-     * @return Akka config
+     * @return Pekko config
      */
     public static Config getAkkaConfig(
             Configuration configuration,
@@ -536,23 +536,23 @@ class AkkaUtils {
     }
 
     /**
-     * Extracts the {@link Address} from the given akka URL.
+     * Extracts the {@link Address} from the given pekko URL.
      *
      * @param akkaURL to extract the {@link Address} from
-     * @throws MalformedURLException if the {@link Address} could not be parsed from the given akka
+     * @throws MalformedURLException if the {@link Address} could not be parsed from the given pekko
      *     URL
      * @return Extracted {@link Address} from the given akka URL
      */
-    @SuppressWarnings("RedundantThrows") // hidden checked exception coming from Akka
+    @SuppressWarnings("RedundantThrows") // hidden checked exception coming from Pekko
     public static Address getAddressFromAkkaURL(String akkaURL) throws MalformedURLException {
         return AddressFromURIString.apply(akkaURL);
     }
 
     /**
-     * Extracts the hostname and the port of the remote actor system from the given Akka URL. The
+     * Extracts the hostname and the port of the remote actor system from the given Pekko URL. The
      * result is an {@link InetSocketAddress} instance containing the extracted hostname and port.
-     * If the Akka URL does not contain the hostname and port information, e.g. a local Akka URL is
-     * provided, then an {@link Exception} is thrown.
+     * If the Pekko URL does not contain the hostname and port information, e.g. a local Pekko URL
+     * is provided, then an {@link Exception} is thrown.
      *
      * @param akkaURL The URL to extract the host and port from.
      * @throws java.lang.Exception Thrown, if the given string does not represent a proper url
@@ -560,7 +560,7 @@ class AkkaUtils {
      */
     public static InetSocketAddress getInetSocketAddressFromAkkaURL(String akkaURL)
             throws Exception {
-        // AkkaURLs have the form schema://systemName@host:port/.... if it's a remote Akka URL
+        // AkkaURLs have the form schema://systemName@host:port/.... if it's a remote Pekko URL
         try {
             final Address address = getAddressFromAkkaURL(akkaURL);
 
@@ -570,7 +570,7 @@ class AkkaUtils {
                 throw new MalformedURLException();
             }
         } catch (MalformedURLException e) {
-            throw new Exception("Could not retrieve InetSocketAddress from Akka URL " + akkaURL);
+            throw new Exception("Could not retrieve InetSocketAddress from Pekko URL " + akkaURL);
         }
     }
 

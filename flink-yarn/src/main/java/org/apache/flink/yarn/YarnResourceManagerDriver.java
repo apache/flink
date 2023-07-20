@@ -83,7 +83,7 @@ public class YarnResourceManagerDriver extends AbstractResourceManagerDriver<Yar
 
     /**
      * Environment variable name of the hostname given by YARN. In task executor we use the
-     * hostnames given by YARN consistently throughout akka
+     * hostnames given by YARN consistently throughout pekko
      */
     static final String ENV_FLINK_NODE_ID = "_FLINK_NODE_ID";
 

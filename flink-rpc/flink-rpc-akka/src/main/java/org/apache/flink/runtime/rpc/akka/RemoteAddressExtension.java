@@ -23,8 +23,8 @@ import org.apache.pekko.actor.ExtendedActorSystem;
 import org.apache.pekko.actor.Extension;
 
 /**
- * {@link akka.actor.ActorSystem} {@link Extension} used to obtain the {@link Address} on which the
- * given ActorSystem is listening.
+ * {@link org.apache.pekko.actor.ActorSystem} {@link Extension} used to obtain the {@link Address}
+ * on which the given ActorSystem is listening.
  */
 public class RemoteAddressExtension
         extends AbstractExtensionId<RemoteAddressExtension.RemoteAddressExtensionImpl> {

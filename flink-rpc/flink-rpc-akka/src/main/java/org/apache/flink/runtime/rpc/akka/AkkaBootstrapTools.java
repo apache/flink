@@ -79,7 +79,7 @@ public class AkkaBootstrapTools {
      * @param logger The logger to output log information.
      * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying
      *     executor
-     * @param customConfig Custom Akka config to be combined with the config derived from Flink
+     * @param customConfig Custom Pekko config to be combined with the config derived from Flink
      *     configuration.
      * @return The ActorSystem which has been started
      * @throws Exception Thrown when actor system cannot be started in specified port range
@@ -146,7 +146,7 @@ public class AkkaBootstrapTools {
      * @param logger the logger to output log information.
      * @param actorSystemExecutorConfiguration configuration for the ActorSystem's underlying
      *     executor
-     * @param customConfig Custom Akka config to be combined with the config derived from Flink
+     * @param customConfig Custom Pekko config to be combined with the config derived from Flink
      *     configuration.
      * @return The ActorSystem which has been started.
      * @throws Exception
@@ -209,7 +209,7 @@ public class AkkaBootstrapTools {
      * @param logger The logger to output log information.
      * @param actorSystemExecutorConfiguration Configuration for the ActorSystem's underlying
      *     executor.
-     * @param customConfig Custom Akka config to be combined with the config derived from Flink
+     * @param customConfig Custom Pekko config to be combined with the config derived from Flink
      *     configuration.
      * @return The ActorSystem which has been started.
      * @throws Exception
@@ -240,7 +240,7 @@ public class AkkaBootstrapTools {
     }
 
     /**
-     * Starts an Actor System with given Akka config.
+     * Starts an Actor System with given Pekko config.
      *
      * @param akkaConfig Config of the started ActorSystem.
      * @param actorSystemName Name of the started ActorSystem.
@@ -249,7 +249,7 @@ public class AkkaBootstrapTools {
      */
     private static ActorSystem startActorSystem(
             Config akkaConfig, String actorSystemName, Logger logger) {
-        logger.debug("Using akka configuration\n {}", akkaConfig);
+        logger.debug("Using pekko configuration\n {}", akkaConfig);
         ActorSystem actorSystem = AkkaUtils.createActorSystem(actorSystemName, akkaConfig);
 
         logger.info("Actor system started at {}", AkkaUtils.getAddress(actorSystem));
@@ -267,7 +267,7 @@ public class AkkaBootstrapTools {
         /**
          * Create the executor {@link Config} for the respective executor.
          *
-         * @return Akka config for the respective executor
+         * @return Pekko config for the respective executor
          */
         Config getAkkaConfig();
     }

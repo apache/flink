@@ -80,8 +80,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Akka based {@link RpcService} implementation. The RPC service starts an Akka actor to receive RPC
- * invocations from a {@link RpcGateway}.
+ * Pekko based {@link RpcService} implementation. The RPC service starts an Akka actor to receive
+ * RPC invocations from a {@link RpcGateway}.
  */
 @ThreadSafe
 public class AkkaRpcService implements RpcService {
@@ -124,7 +124,7 @@ public class AkkaRpcService implements RpcService {
             final AkkaRpcServiceConfiguration configuration,
             final ClassLoader flinkClassLoader) {
         this.actorSystem = checkNotNull(actorSystem, "actor system");
-        this.configuration = checkNotNull(configuration, "akka rpc service configuration");
+        this.configuration = checkNotNull(configuration, "pekko rpc service configuration");
         this.flinkClassLoader = checkNotNull(flinkClassLoader, "flinkClassLoader");
 
         Address actorSystemAddress = AkkaUtils.getAddress(actorSystem);
@@ -143,7 +143,7 @@ public class AkkaRpcService implements RpcService {
 
         captureAskCallstacks = configuration.captureAskCallStack();
 
-        // Akka always sets the threads context class loader to the class loader with which it was
+        // Pekko always sets the threads context class loader to the class loader with which it was
         // loaded (i.e., the plugin class loader)
         // we must ensure that the context class loader is set to the Flink class loader when we
         // call into Flink
@@ -412,7 +412,7 @@ public class AkkaRpcService implements RpcService {
                 return terminationFuture;
             }
 
-            LOG.info("Stopping Akka RPC service.");
+            LOG.info("Stopping Pekko RPC service.");
 
             stopped = true;
 
@@ -434,7 +434,7 @@ public class AkkaRpcService implements RpcService {
                             () -> FutureUtils.doForward(ignored, throwable, terminationFuture),
                             flinkClassLoader);
 
-                    LOG.info("Stopped Akka RPC service.");
+                    LOG.info("Stopped Pekko RPC service.");
                 });
 
         return terminationFuture;

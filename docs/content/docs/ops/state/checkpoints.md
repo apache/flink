@@ -66,7 +66,7 @@ new JobManagerCheckpointStorage(MAX_MEM_STATE_SIZE);
 Limitations of the `JobManagerCheckpointStorage`:
 
   - The size of each individual state is by default limited to 5 MB. This value can be increased in the constructor of the `JobManagerCheckpointStorage`.
-  - Irrespective of the configured maximal state size, the state cannot be larger than the Akka frame size (see [Configuration]({{< ref "docs/deployment/config" >}})).
+  - Irrespective of the configured maximal state size, the state cannot be larger than the Pekko frame size (see [Configuration]({{< ref "docs/deployment/config" >}})).
   - The aggregate state must fit into the JobManager memory.
 
 The JobManagerCheckpointStorage is encouraged for:

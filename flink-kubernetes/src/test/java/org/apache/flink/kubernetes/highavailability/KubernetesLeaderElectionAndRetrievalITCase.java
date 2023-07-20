@@ -56,7 +56,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
 
     private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
     private static final String LEADER_ADDRESS =
-            "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
+            "pekko.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
 
     @RegisterExtension
     static final KubernetesExtension KUBERNETES_EXTENSION = new KubernetesExtension();

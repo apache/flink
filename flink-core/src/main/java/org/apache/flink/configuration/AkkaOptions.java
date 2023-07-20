@@ -36,9 +36,10 @@ public class AkkaOptions {
     @Internal
     @Documentation.ExcludeFromDocumentation("Internal use only")
     public static final ConfigOption<Boolean> FORCE_RPC_INVOCATION_SERIALIZATION =
-            ConfigOptions.key("akka.rpc.force-invocation-serialization")
+            ConfigOptions.key("pekko.rpc.force-invocation-serialization")
                     .booleanType()
                     .defaultValue(false)
+                    .withDeprecatedKeys("akka.rpc.force-invocation-serialization")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -58,9 +59,10 @@ public class AkkaOptions {
 
     /** Flag whether to capture call stacks for RPC ask calls. */
     public static final ConfigOption<Boolean> CAPTURE_ASK_CALLSTACK =
-            ConfigOptions.key("akka.ask.callstack")
+            ConfigOptions.key("pekko.ask.callstack")
                     .booleanType()
                     .defaultValue(true)
+                    .withDeprecatedKeys("akka.ask.callstack")
                     .withDescription(
                             "If true, call stack for asynchronous asks are captured. That way, when an ask fails "
                                     + "(for example times out), you get a proper exception, describing to the original method call and "
@@ -69,9 +71,10 @@ public class AkkaOptions {
 
     /** Timeout for akka ask calls. */
     public static final ConfigOption<Duration> ASK_TIMEOUT_DURATION =
-            ConfigOptions.key("akka.ask.timeout")
+            ConfigOptions.key("pekko.ask.timeout")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(10))
+                    .withDeprecatedKeys("akka.ask.timeout")
                     .withDescription(
                             "Timeout used for all futures and blocking Akka calls. If Flink fails due to timeouts then you"
                                     + " should try to increase this value. Timeouts can be caused by slow machines or a congested network. The"
@@ -88,35 +91,39 @@ public class AkkaOptions {
 
     /** The Akka tcp connection timeout. */
     public static final ConfigOption<String> TCP_TIMEOUT =
-            ConfigOptions.key("akka.tcp.timeout")
+            ConfigOptions.key("pekko.tcp.timeout")
                     .stringType()
                     .defaultValue("20 s")
+                    .withDeprecatedKeys("akka.tcp.timeout")
                     .withDescription(
                             "Timeout for all outbound connections. If you should experience problems with connecting to a"
                                     + " TaskManager due to a slow network, you should increase this value.");
 
     /** Timeout for the startup of the actor system. */
     public static final ConfigOption<String> STARTUP_TIMEOUT =
-            ConfigOptions.key("akka.startup-timeout")
+            ConfigOptions.key("pekko.startup-timeout")
                     .stringType()
                     .noDefaultValue()
+                    .withDeprecatedKeys("akka.startup-timeout")
                     .withDescription(
                             "Timeout after which the startup of a remote component is considered being failed.");
 
     /** Override SSL support for the Akka transport. */
     public static final ConfigOption<Boolean> SSL_ENABLED =
-            ConfigOptions.key("akka.ssl.enabled")
+            ConfigOptions.key("pekko.ssl.enabled")
                     .booleanType()
                     .defaultValue(true)
+                    .withDeprecatedKeys("akka.ssl.enabled")
                     .withDescription(
                             "Turns on SSL for Akka’s remote communication. This is applicable only when the global ssl flag"
                                     + " security.ssl.enabled is set to true.");
 
     /** Maximum framesize of akka messages. */
     public static final ConfigOption<String> FRAMESIZE =
-            ConfigOptions.key("akka.framesize")
+            ConfigOptions.key("pekko.framesize")
                     .stringType()
                     .defaultValue("10485760b")
+                    .withDeprecatedKeys("akka.framesize")
                     .withDescription(
                             "Maximum size of messages which are sent between the JobManager and the TaskManagers. If Flink"
                                     + " fails because messages exceed this limit, then you should increase it. The message size requires a"
@@ -124,26 +131,29 @@ public class AkkaOptions {
 
     /** Maximum number of messages until another actor is executed by the same thread. */
     public static final ConfigOption<Integer> DISPATCHER_THROUGHPUT =
-            ConfigOptions.key("akka.throughput")
+            ConfigOptions.key("pekko.throughput")
                     .intType()
                     .defaultValue(15)
+                    .withDeprecatedKeys("akka.throughput")
                     .withDescription(
                             "Number of messages that are processed in a batch before returning the thread to the pool. Low"
                                     + " values denote a fair scheduling whereas high values can increase the performance at the cost of unfairness.");
 
     /** Log lifecycle events. */
     public static final ConfigOption<Boolean> LOG_LIFECYCLE_EVENTS =
-            ConfigOptions.key("akka.log.lifecycle.events")
+            ConfigOptions.key("pekko.log.lifecycle.events")
                     .booleanType()
                     .defaultValue(false)
+                    .withDeprecatedKeys("akka.log.lifecycle.events")
                     .withDescription(
                             "Turns on the Akka’s remote logging of events. Set this value to 'true' in case of debugging.");
 
     /** Timeout for all blocking calls that look up remote actors. */
     public static final ConfigOption<Duration> LOOKUP_TIMEOUT_DURATION =
-            ConfigOptions.key("akka.lookup.timeout")
+            ConfigOptions.key("pekko.lookup.timeout")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(10))
+                    .withDeprecatedKeys("akka.lookup.timeout")
                     .withDescription(
                             "Timeout used for the lookup of the JobManager. The timeout value has to contain a time-unit"
                                     + " specifier (ms/s/min/h/d).");
@@ -173,16 +183,18 @@ public class AkkaOptions {
 
     /** Exit JVM on fatal Akka errors. */
     public static final ConfigOption<Boolean> JVM_EXIT_ON_FATAL_ERROR =
-            ConfigOptions.key("akka.jvm-exit-on-fatal-error")
+            ConfigOptions.key("pekko.jvm-exit-on-fatal-error")
                     .booleanType()
                     .defaultValue(true)
+                    .withDeprecatedKeys("akka.jvm-exit-on-fatal-error")
                     .withDescription("Exit JVM on fatal Akka errors.");
 
     /** Milliseconds a gate should be closed for after a remote connection was disconnected. */
     public static final ConfigOption<Long> RETRY_GATE_CLOSED_FOR =
-            ConfigOptions.key("akka.retry-gate-closed-for")
+            ConfigOptions.key("pekko.retry-gate-closed-for")
                     .longType()
                     .defaultValue(50L)
+                    .withDeprecatedKeys("akka.retry-gate-closed-for")
                     .withDescription(
                             "Milliseconds a gate should be closed for after a remote connection was disconnected.");
 
@@ -191,9 +203,10 @@ public class AkkaOptions {
     // ==================================================
 
     public static final ConfigOption<Double> FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR =
-            ConfigOptions.key("akka.fork-join-executor.parallelism-factor")
+            ConfigOptions.key("pekko.fork-join-executor.parallelism-factor")
                     .doubleType()
                     .defaultValue(2.0)
+                    .withDeprecatedKeys("akka.fork-join-executor.parallelism-factor")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -203,9 +216,10 @@ public class AkkaOptions {
                                     .build());
 
     public static final ConfigOption<Integer> FORK_JOIN_EXECUTOR_PARALLELISM_MIN =
-            ConfigOptions.key("akka.fork-join-executor.parallelism-min")
+            ConfigOptions.key("pekko.fork-join-executor.parallelism-min")
                     .intType()
                     .defaultValue(8)
+                    .withDeprecatedKeys("akka.fork-join-executor.parallelism-min")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -213,9 +227,10 @@ public class AkkaOptions {
                                     .build());
 
     public static final ConfigOption<Integer> FORK_JOIN_EXECUTOR_PARALLELISM_MAX =
-            ConfigOptions.key("akka.fork-join-executor.parallelism-max")
+            ConfigOptions.key("pekko.fork-join-executor.parallelism-max")
                     .intType()
                     .defaultValue(64)
+                    .withDeprecatedKeys("akka.fork-join-executor.parallelism-max")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -227,27 +242,30 @@ public class AkkaOptions {
     // ==================================================
 
     public static final ConfigOption<Integer> CLIENT_SOCKET_WORKER_POOL_SIZE_MIN =
-            ConfigOptions.key("akka.client-socket-worker-pool.pool-size-min")
+            ConfigOptions.key("pekko.client-socket-worker-pool.pool-size-min")
                     .intType()
                     .defaultValue(1)
+                    .withDeprecatedKeys("akka.client-socket-worker-pool.pool-size-min")
                     .withDescription(
                             Description.builder()
                                     .text("Min number of threads to cap factor-based number to.")
                                     .build());
 
     public static final ConfigOption<Integer> CLIENT_SOCKET_WORKER_POOL_SIZE_MAX =
-            ConfigOptions.key("akka.client-socket-worker-pool.pool-size-max")
+            ConfigOptions.key("pekko.client-socket-worker-pool.pool-size-max")
                     .intType()
                     .defaultValue(2)
+                    .withDeprecatedKeys("akka.client-socket-worker-pool.pool-size-max")
                     .withDescription(
                             Description.builder()
                                     .text("Max number of threads to cap factor-based number to.")
                                     .build());
 
     public static final ConfigOption<Double> CLIENT_SOCKET_WORKER_POOL_SIZE_FACTOR =
-            ConfigOptions.key("akka.client-socket-worker-pool.pool-size-factor")
+            ConfigOptions.key("pekko.client-socket-worker-pool.pool-size-factor")
                     .doubleType()
                     .defaultValue(1.0)
+                    .withDeprecatedKeys("akka.client-socket-worker-pool.pool-size-factor")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -262,27 +280,30 @@ public class AkkaOptions {
     // ==================================================
 
     public static final ConfigOption<Integer> SERVER_SOCKET_WORKER_POOL_SIZE_MIN =
-            ConfigOptions.key("akka.server-socket-worker-pool.pool-size-min")
+            ConfigOptions.key("pekko.server-socket-worker-pool.pool-size-min")
                     .intType()
                     .defaultValue(1)
+                    .withDeprecatedKeys("akka.server-socket-worker-pool.pool-size-min")
                     .withDescription(
                             Description.builder()
                                     .text("Min number of threads to cap factor-based number to.")
                                     .build());
 
     public static final ConfigOption<Integer> SERVER_SOCKET_WORKER_POOL_SIZE_MAX =
-            ConfigOptions.key("akka.server-socket-worker-pool.pool-size-max")
+            ConfigOptions.key("pekko.server-socket-worker-pool.pool-size-max")
                     .intType()
                     .defaultValue(2)
+                    .withDeprecatedKeys("akka.server-socket-worker-pool.pool-size-max")
                     .withDescription(
                             Description.builder()
                                     .text("Max number of threads to cap factor-based number to.")
                                     .build());
 
     public static final ConfigOption<Double> SERVER_SOCKET_WORKER_POOL_SIZE_FACTOR =
-            ConfigOptions.key("akka.server-socket-worker-pool.pool-size-factor")
+            ConfigOptions.key("pekko.server-socket-worker-pool.pool-size-factor")
                     .doubleType()
                     .defaultValue(1.0)
+                    .withDeprecatedKeys("akka.server-socket-worker-pool.pool-size-factor")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -314,7 +335,7 @@ public class AkkaOptions {
                                                     + " should decrease this value or increase akka.watch.heartbeat.pause. A thorough description of"
                                                     + " Akka’s DeathWatch can be found %s",
                                             link(
-                                                    "http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector",
+                                                    "https://pekko.apache.org/docs/pekko/current/remoting-artery.html#failure-detector",
                                                     "here"))
                                     .build());
 
@@ -337,7 +358,7 @@ public class AkkaOptions {
                                                     + " Higher value increases the time to detect a dead TaskManager. A thorough description of Akka’s"
                                                     + " DeathWatch can be found %s",
                                             link(
-                                                    "http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector",
+                                                    "https://pekko.apache.org/docs/pekko/current/remoting-artery.html#failure-detector",
                                                     "here"))
                                     .build());
 
@@ -358,7 +379,7 @@ public class AkkaOptions {
                                                     + " a high value increases the time to detect a dead TaskManager. A thorough description of Akka’s"
                                                     + " DeathWatch can be found %s",
                                             link(
-                                                    "http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector",
+                                                    "https://pekko.apache.org/docs/pekko/current/remoting-artery.html#failure-detector",
                                                     "here"))
                                     .build());
 }
