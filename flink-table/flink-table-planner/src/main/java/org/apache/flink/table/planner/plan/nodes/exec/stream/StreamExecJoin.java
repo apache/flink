@@ -71,12 +71,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         producedTransformations = StreamExecJoin.JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-@ExecNodeMetadata(
-        name = "stream-exec-join",
-        version = 2,
-        producedTransformations = StreamExecJoin.JOIN_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_18,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
 

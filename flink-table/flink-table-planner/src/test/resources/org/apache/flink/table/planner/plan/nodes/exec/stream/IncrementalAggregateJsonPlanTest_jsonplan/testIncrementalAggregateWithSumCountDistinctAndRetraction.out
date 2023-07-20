@@ -113,7 +113,7 @@
     "description" : "Exchange(distribution=[hash[a]])"
   }, {
     "id" : 5,
-    "type" : "stream-exec-global-group-aggregate_2",
+    "type" : "stream-exec-global-group-aggregate_1",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "true",
       "table.exec.mini-batch.size" : "5"
@@ -331,7 +331,7 @@
     "description" : "Exchange(distribution=[hash[b, $f2]])"
   }, {
     "id" : 9,
-    "type" : "stream-exec-incremental-group-aggregate_2",
+    "type" : "stream-exec-incremental-group-aggregate_1",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "true",
       "table.exec.mini-batch.size" : "5"
@@ -400,7 +400,7 @@
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "id" : 11,
-    "type" : "stream-exec-global-group-aggregate_2",
+    "type" : "stream-exec-global-group-aggregate_1",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "true",
       "table.exec.mini-batch.size" : "5"
@@ -455,10 +455,11 @@
     "description" : "GlobalGroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRACT((sum$0, count$1)) AS $f1, $SUM0_RETRACT(count$2) AS $f2, $SUM0_RETRACT(count1$3) AS $f3], indexOfCountStar=[2])"
   }, {
     "id" : 12,
-    "type" : "stream-exec-sink_2",
+    "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
       "table.exec.sink.type-length-enforcer" : "IGNORE",
       "table.exec.sink.upsert-materialize" : "AUTO"
     },

@@ -428,7 +428,7 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
         "description" : "Exchange(distribution=[hash[line_order_id]])"
       }, {
         "id" : 5,
-        "type" : "stream-exec-join_2",
+        "type" : "stream-exec-join_1",
         "joinSpec" : { ... },
         "state" : [ {
           "index" : 0,
@@ -452,7 +452,7 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
         "description" : "Calc(select=[order_id, line_order_id, ship_mode])"
       }, {
         "id" : 7,
-        "type" : "stream-exec-sink_2",
+        "type" : "stream-exec-sink_1",
         "configuration" : { ... },
         "dynamicTableSink" : {
           "table" : {

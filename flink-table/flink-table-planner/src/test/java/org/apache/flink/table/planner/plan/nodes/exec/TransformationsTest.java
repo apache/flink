@@ -230,8 +230,8 @@ class TransformationsTest {
                         config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
                 json -> {},
                 env -> planFromCurrentFlinkVersion(env).asJsonString(),
-                "\\d+_stream-exec-sink_2_sink",
-                "\\d+_stream-exec-sink_2_constraint-validator",
+                "\\d+_stream-exec-sink_1_sink",
+                "\\d+_stream-exec-sink_1_constraint-validator",
                 "\\d+_stream-exec-values_1_values");
     }
 
@@ -242,7 +242,7 @@ class TransformationsTest {
                 json ->
                         JsonTestUtils.setExecNodeConfig(
                                 json,
-                                "stream-exec-sink_2",
+                                "stream-exec-sink_1",
                                 TABLE_EXEC_UID_FORMAT.key(),
                                 "my_custom_<transformation>_<id>"),
                 env -> planFromCurrentFlinkVersion(env).asJsonString(),
