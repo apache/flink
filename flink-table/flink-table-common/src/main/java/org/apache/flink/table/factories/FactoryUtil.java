@@ -1364,6 +1364,41 @@ public final class FactoryUtil {
         }
     }
 
+    /** Default implementation of {@link CatalogStoreFactory.Context}. */
+    @Internal
+    public static class DefaultCatalogStoreContext implements CatalogStoreFactory.Context {
+
+        private Map<String, String> options;
+
+        private ReadableConfig configuration;
+
+        private ClassLoader classLoader;
+
+        public DefaultCatalogStoreContext(
+                Map<String, String> options,
+                ReadableConfig configuration,
+                ClassLoader classLoader) {
+            this.options = options;
+            this.configuration = configuration;
+            this.classLoader = classLoader;
+        }
+
+        @Override
+        public Map<String, String> getOptions() {
+            return options;
+        }
+
+        @Override
+        public ReadableConfig getConfiguration() {
+            return configuration;
+        }
+
+        @Override
+        public ClassLoader getClassLoader() {
+            return classLoader;
+        }
+    }
+
     /** Default implementation of {@link ModuleFactory.Context}. */
     @Internal
     public static class DefaultModuleContext implements ModuleFactory.Context {
