@@ -88,24 +88,6 @@ import java.util.stream.Collectors;
         },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-@ExecNodeMetadata(
-        name = "stream-exec-sink",
-        version = 2,
-        consumedOptions = {
-            "table.exec.sink.not-null-enforcer",
-            "table.exec.sink.type-length-enforcer",
-            "table.exec.sink.upsert-materialize",
-            "table.exec.sink.keyed-shuffle"
-        },
-        producedTransformations = {
-            CommonExecSink.CONSTRAINT_VALIDATOR_TRANSFORMATION,
-            CommonExecSink.PARTITIONER_TRANSFORMATION,
-            CommonExecSink.UPSERT_MATERIALIZE_TRANSFORMATION,
-            CommonExecSink.TIMESTAMP_INSERTER_TRANSFORMATION,
-            CommonExecSink.SINK_TRANSFORMATION
-        },
-        minPlanVersion = FlinkVersion.v1_18,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecSink extends CommonExecSink implements StreamExecNode<Object> {
 
     public static final String FIELD_NAME_INPUT_CHANGELOG_MODE = "inputChangelogMode";

@@ -76,12 +76,6 @@ import static org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSi
         producedTransformations = CommonExecLookupJoin.LOOKUP_JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-@ExecNodeMetadata(
-        name = "stream-exec-lookup-join",
-        version = 2,
-        producedTransformations = CommonExecLookupJoin.LOOKUP_JOIN_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_18,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLookupJoin extends CommonExecLookupJoin
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";

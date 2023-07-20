@@ -53,13 +53,6 @@ import java.util.List;
         producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
-@ExecNodeMetadata(
-        name = "stream-exec-limit",
-        version = 2,
-        consumedOptions = {"table.exec.rank.topn-cache-size"},
-        producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_18,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLimit extends StreamExecRank {
 
     private final long limitEnd;

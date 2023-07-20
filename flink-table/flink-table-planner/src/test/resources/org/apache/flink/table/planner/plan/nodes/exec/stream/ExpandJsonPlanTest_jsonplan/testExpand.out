@@ -231,7 +231,7 @@
     "description" : "Exchange(distribution=[hash[a, $f3, $f4]])"
   }, {
     "id" : 6,
-    "type" : "stream-exec-group-aggregate_2",
+    "type" : "stream-exec-group-aggregate_1",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -289,7 +289,7 @@
     "description" : "Exchange(distribution=[hash[a]])"
   }, {
     "id" : 8,
-    "type" : "stream-exec-group-aggregate_2",
+    "type" : "stream-exec-group-aggregate_1",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -333,10 +333,11 @@
     "description" : "GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f3_0) AS $f1, FIRST_VALUE_RETRACT($f4_0) AS $f2])"
   }, {
     "id" : 9,
-    "type" : "stream-exec-sink_2",
+    "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
       "table.exec.sink.type-length-enforcer" : "IGNORE",
       "table.exec.sink.upsert-materialize" : "AUTO"
     },

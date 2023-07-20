@@ -98,7 +98,7 @@
     "description" : "Exchange(distribution=[hash[b]])"
   }, {
     "id" : 4,
-    "type" : "stream-exec-group-aggregate_2",
+    "type" : "stream-exec-group-aggregate_1",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -200,10 +200,11 @@
     "description" : "Calc(select=[CAST(b AS BIGINT) AS b, CAST(cnt_a AS BIGINT) AS cnt_a, CAST(max_b AS BIGINT) AS max_b, min_c])"
   }, {
     "id" : 6,
-    "type" : "stream-exec-sink_2",
+    "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
       "table.exec.sink.type-length-enforcer" : "IGNORE",
       "table.exec.sink.upsert-materialize" : "AUTO"
     },

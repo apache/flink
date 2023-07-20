@@ -55,7 +55,7 @@
     "description" : "Exchange(distribution=[hash[a1]])"
   }, {
     "id" : 3,
-    "type" : "stream-exec-group-aggregate_2",
+    "type" : "stream-exec-group-aggregate_1",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -178,7 +178,7 @@
     "description" : "Exchange(distribution=[hash[b1]])"
   }, {
     "id" : 8,
-    "type" : "stream-exec-group-aggregate_2",
+    "type" : "stream-exec-group-aggregate_1",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -248,7 +248,7 @@
     "description" : "Exchange(distribution=[hash[b2]])"
   }, {
     "id" : 11,
-    "type" : "stream-exec-join_2",
+    "type" : "stream-exec-join_1",
     "joinSpec" : {
       "joinType" : "INNER",
       "leftKeys" : [ 0 ],
@@ -314,10 +314,11 @@
     "description" : "Calc(select=[a1, a2, b1, b2])"
   }, {
     "id" : 13,
-    "type" : "stream-exec-sink_2",
+    "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
       "table.exec.sink.type-length-enforcer" : "IGNORE",
       "table.exec.sink.upsert-materialize" : "AUTO"
     },

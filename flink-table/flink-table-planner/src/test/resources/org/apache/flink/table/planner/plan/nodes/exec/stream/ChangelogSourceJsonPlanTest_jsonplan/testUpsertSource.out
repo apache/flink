@@ -64,7 +64,7 @@
     "description" : "Exchange(distribution=[hash[a, b]])"
   }, {
     "id" : 3,
-    "type" : "stream-exec-changelog-normalize_2",
+    "type" : "stream-exec-changelog-normalize_1",
     "configuration" : {
       "table.exec.mini-batch.enabled" : "false",
       "table.exec.mini-batch.size" : "-1"
@@ -87,10 +87,11 @@
     "description" : "ChangelogNormalize(key=[a, b])"
   }, {
     "id" : 4,
-    "type" : "stream-exec-sink_2",
+    "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
       "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
       "table.exec.sink.type-length-enforcer" : "IGNORE",
       "table.exec.sink.upsert-materialize" : "AUTO"
     },
