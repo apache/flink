@@ -313,6 +313,218 @@ class SubplanReuseTest extends TableTestBase {
     testReuseOnNewSource()
   }
 
+  @Test
+  def testReuseTableSourceWithProjectPushDownAndMetaDataKey1(): Unit = {
+    // In this case, use metaData key without alias name.
+    val ddl1 =
+      s"""
+         | CREATE TABLE reuseTable (
+         |  a bigint,
+         |  b varchar(64),
+         |  c bigint,
+         |  d STRING,
+         |  ts1 TIMESTAMP(3) METADATA,
+         |  ts2 TIMESTAMP(3) METADATA
+         | ) WITH (
+         |  'connector' = 'values',
+         |  'readable-metadata' = 'ts1:TIMESTAMP(3), ts2:TIMESTAMP(3)'
+         | )
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl1)
+
+    val ddl2 =
+      s"""
+         | CREATE TABLE sink1 (
+         |  a1 bigint,
+         |  b1 VARCHAR(32),
+         |  my_time1 timestamp,
+         |  d1 DECIMAL(20,2)
+         | ) WITH (
+         |  'connector' = 'values'
+         | )
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl2)
+
+    val ddl3 =
+      s"""
+         | CREATE TABLE sink2 (
+         |  a2 bigint,
+         | `update_time` timestamp
+         | ) WITH (
+         | 'connector' = 'values'
+         | )
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl3)
+
+    val query1 =
+      s"""
+         | SELECT a, b, ts1, CAST(d AS DECIMAL(28,2)) AS d1
+         | FROM reuseTable
+         |""".stripMargin
+    val table = util.tableEnv.sqlQuery(query1)
+    util.tableEnv.createTemporaryView("view1", table)
+
+    val query2 =
+      s"""
+         | SELECT a, ts1 AS update_time
+         | FROM reuseTable
+         |""".stripMargin
+    val table2 = util.tableEnv.sqlQuery(query2)
+    util.tableEnv.createTemporaryView("view2", table2)
+
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink1 SELECT a, b, ts1, d1 FROM view1")
+    stmtSet.addInsertSql("INSERT INTO sink2 SELECT a, update_time FROM view2")
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testReuseTableSourceWithProjectPushDownAndMetaDataKey(): Unit = {
+    // In this case, use metaData key with alias name.
+    val ddl1 =
+      s"""
+         | CREATE TABLE reuseTable (
+         |  a bigint,
+         |  b varchar(64),
+         |  c bigint,
+         |  d STRING,
+         |  my_time TIMESTAMP(3) METADATA FROM 'ts1',
+         |  unUse_time TIMESTAMP(3) METADATA FROM 'ts2'
+         | ) WITH (
+         |  'connector' = 'values',
+         |  'readable-metadata' = 'ts1:TIMESTAMP(3), ts2:TIMESTAMP(3)'
+         | )
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl1)
+
+    val ddl2 =
+      s"""
+         | CREATE TABLE sink1 (
+         |  a1 bigint,
+         |  b1 VARCHAR(32),
+         |  my_time1 timestamp,
+         |  d1 DECIMAL(20,2)
+         | ) WITH (
+         |  'connector' = 'values'
+         | )
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl2)
+
+    val ddl3 =
+      s"""
+         | CREATE TABLE sink2 (
+         |  a2 bigint,
+         | `update_time` timestamp
+         | ) WITH (
+         | 'connector' = 'values'
+         | )
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl3)
+
+    val query1 =
+      s"""
+         | SELECT a, b, my_time, CAST(d AS DECIMAL(28,2)) AS d1
+         | FROM reuseTable
+         |""".stripMargin
+    val table = util.tableEnv.sqlQuery(query1)
+    util.tableEnv.createTemporaryView("view1", table)
+
+    val query2 =
+      s"""
+         | SELECT a, my_time AS update_time
+         | FROM reuseTable
+         |""".stripMargin
+    val table2 = util.tableEnv.sqlQuery(query2)
+    util.tableEnv.createTemporaryView("view2", table2)
+
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink1 SELECT a, b, my_time, d1 FROM view1")
+    stmtSet.addInsertSql("INSERT INTO sink2 SELECT a, update_time FROM view2")
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
+  def testSourceReuseWithEmptyFilterCondAndIgnoreEmptyFilter(): Unit = {
+    util.addTable(s"""
+                     |create table MyTable(
+                     |  a int,
+                     |  b bigint,
+                     |  c varchar
+                     |) with (
+                     |  'connector' = 'values',
+                     |  'bounded' = 'true'
+                     |)
+       """.stripMargin)
+    val sqlQuery =
+      """
+        | SELECT * FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a AND T1.a > 5
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testSourceReuseWithEmptyFilterCondAndIgnoreEmptyFilterTrue(): Unit = {
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, Boolean.box(true))
+    util.addTable(s"""
+                     |create table MyTable(
+                     |  a int,
+                     |  b bigint,
+                     |  c varchar
+                     |) with (
+                     |  'connector' = 'values',
+                     |  'bounded' = 'true'
+                     |)
+       """.stripMargin)
+    val sqlQuery =
+      """
+        | SELECT * FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a AND T1.a > 5
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testSourceReuseWithEmptyFilterCondAndIgnoreEmptyFilterTrue2(): Unit = {
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, Boolean.box(true))
+    util.addTable(s"""
+                     |create table MyTable(
+                     |  a int,
+                     |  b bigint,
+                     |  c varchar
+                     |) with (
+                     |  'connector' = 'values',
+                     |  'bounded' = 'true'
+                     |)
+       """.stripMargin)
+    val sqlQuery =
+      """
+        | SELECT * FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a AND T2.a < 10
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testSourceReuseWithEmptyFilterCondAndIgnoreEmptyFilterTrue3(): Unit = {
+    util.tableEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, Boolean.box(true))
+    util.addTable(s"""
+                     |create table MyTable(
+                     |  a int,
+                     |  b bigint,
+                     |  c varchar
+                     |) with (
+                     |  'connector' = 'values',
+                     |  'bounded' = 'true'
+                     |)
+       """.stripMargin)
+    val sqlQuery =
+      """
+        | SELECT * FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a AND T1.a > 10 AND T2.a < 10
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
   private def testReuseOnNewSource(): Unit = {
     util.addTable(s"""
                      |create table newX(
