@@ -86,7 +86,9 @@ public class NullValueToProtoTest {
                 ProtobufTestHelper.rowToPbBytes(
                         row,
                         NullTest.class,
-                        new PbFormatConfig(NullTest.class.getName(), false, false, ""),
+                        new PbFormatContext(
+                                new PbFormatConfig(NullTest.class.getName(), false, false, ""),
+                                Thread.currentThread().getContextClassLoader()),
                         false);
         NullTest nullTest = NullTest.parseFrom(bytes);
         // string map
@@ -211,7 +213,9 @@ public class NullValueToProtoTest {
                 ProtobufTestHelper.rowToPbBytes(
                         row,
                         NullTest.class,
-                        new PbFormatConfig(NullTest.class.getName(), false, false, "NULL"),
+                        new PbFormatContext(
+                                new PbFormatConfig(NullTest.class.getName(), false, false, "NULL"),
+                                Thread.currentThread().getContextClassLoader()),
                         false);
         NullTest nullTest = NullTest.parseFrom(bytes);
         assertEquals("NULL", nullTest.getStringMapMap().get("key"));

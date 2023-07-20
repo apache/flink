@@ -48,10 +48,12 @@ public class MetaNoMultiProtoToRowTest {
         PbFormatConfig formatConfig =
                 new PbFormatConfig(
                         TestSimpleNomulti.SimpleTestNoMulti.class.getName(), false, false, "");
-        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig)
+        PbFormatContext context =
+                new PbFormatContext(formatConfig, Thread.currentThread().getContextClassLoader());
+        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), context)
                 .open(null);
 
-        new PbRowDataSerializationSchema(rowType, formatConfig).open(null);
+        new PbRowDataSerializationSchema(rowType, context).open(null);
         // validation success
     }
 
@@ -63,9 +65,12 @@ public class MetaNoMultiProtoToRowTest {
         PbFormatConfig formatConfig =
                 new PbFormatConfig(
                         TestSimpleNomulti.SimpleTestNoMulti.class.getName(), false, false, "");
-        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig)
+
+        PbFormatContext context =
+                new PbFormatContext(formatConfig, Thread.currentThread().getContextClassLoader());
+        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), context)
                 .open(null);
-        new PbRowDataSerializationSchema(rowType, formatConfig).open(null);
+        new PbRowDataSerializationSchema(rowType, context).open(null);
         // validation success
     }
 }

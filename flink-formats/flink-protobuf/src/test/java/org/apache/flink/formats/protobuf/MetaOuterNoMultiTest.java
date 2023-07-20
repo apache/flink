@@ -52,10 +52,12 @@ public class MetaOuterNoMultiTest {
                         false,
                         false,
                         "");
-        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig)
+        PbFormatContext context =
+                new PbFormatContext(formatConfig, Thread.currentThread().getContextClassLoader());
+        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), context)
                 .open(null);
 
-        new PbRowDataSerializationSchema(rowType, formatConfig).open(null);
+        new PbRowDataSerializationSchema(rowType, context).open(null);
         // validation success
     }
 }

@@ -75,19 +75,23 @@ public class ProtobufTestHelper {
         return rowToPbBytes(
                 row,
                 messageClass,
-                new PbFormatConfig(messageClass.getName(), false, false, ""),
+                new PbFormatContext(
+                        new PbFormatConfig(messageClass.getName(), false, false, ""),
+                        Thread.currentThread().getContextClassLoader()),
                 enumAsInt);
     }
 
     public static byte[] rowToPbBytes(
-            RowData row, Class messageClass, PbFormatConfig formatConfig, boolean enumAsInt)
+            RowData row, Class messageClass, PbFormatContext context, boolean enumAsInt)
             throws Exception {
         RowType rowType =
                 PbToRowTypeUtil.generateRowType(
-                        PbFormatUtils.getDescriptor(messageClass.getName()), enumAsInt);
+                        PbFormatUtils.getDescriptor(
+                                messageClass.getName(), context.getClassLoader()),
+                        enumAsInt);
         row = validateRow(row, rowType);
         PbRowDataSerializationSchema serializationSchema =
-                new PbRowDataSerializationSchema(rowType, formatConfig);
+                new PbRowDataSerializationSchema(rowType, context);
         serializationSchema.open(null);
         byte[] bytes = serializationSchema.serialize(row);
         return bytes;
@@ -102,19 +106,22 @@ public class ProtobufTestHelper {
         return pbBytesToRow(
                 messageClass,
                 bytes,
-                new PbFormatConfig(messageClass.getName(), false, false, ""),
+                new PbFormatContext(
+                        new PbFormatConfig(messageClass.getName(), false, false, ""),
+                        Thread.currentThread().getContextClassLoader()),
                 enumAsInt);
     }
 
     public static RowData pbBytesToRow(
-            Class messageClass, byte[] bytes, PbFormatConfig formatConfig, boolean enumAsInt)
+            Class messageClass, byte[] bytes, PbFormatContext context, boolean enumAsInt)
             throws Exception {
         RowType rowType =
                 PbToRowTypeUtil.generateRowType(
-                        PbFormatUtils.getDescriptor(messageClass.getName()), enumAsInt);
+                        PbFormatUtils.getDescriptor(
+                                messageClass.getName(), context.getClassLoader()),
+                        enumAsInt);
         PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
+                new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), context);
         deserializationSchema.open(null);
         RowData row = deserializationSchema.deserialize(bytes);
         return ProtobufTestHelper.validateRow(row, rowType);

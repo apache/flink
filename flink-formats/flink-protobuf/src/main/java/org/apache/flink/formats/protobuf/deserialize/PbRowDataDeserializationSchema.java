@@ -20,7 +20,7 @@ package org.apache.flink.formats.protobuf.deserialize;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.formats.protobuf.PbFormatConfig;
+import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.formats.protobuf.util.PbSchemaValidationUtils;
 import org.apache.flink.table.data.RowData;
@@ -44,24 +44,27 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
 
     private final RowType rowType;
     private final TypeInformation<RowData> resultTypeInfo;
-    private final PbFormatConfig formatConfig;
+    private final PbFormatContext context;
     private transient ProtoToRowConverter protoToRowConverter;
 
     public PbRowDataDeserializationSchema(
-            RowType rowType, TypeInformation<RowData> resultTypeInfo, PbFormatConfig formatConfig) {
+            RowType rowType, TypeInformation<RowData> resultTypeInfo, PbFormatContext context) {
         checkNotNull(rowType, "rowType cannot be null");
         this.rowType = rowType;
         this.resultTypeInfo = resultTypeInfo;
-        this.formatConfig = formatConfig;
+        this.context = context;
         // do it in client side to report error in the first place
         PbSchemaValidationUtils.validate(
-                PbFormatUtils.getDescriptor(formatConfig.getMessageClassName()), rowType);
+                PbFormatUtils.getDescriptor(
+                        context.getPbFormatConfig().getMessageClassName(),
+                        context.getClassLoader()),
+                rowType);
         // this step is only used to validate codegen in client side in the first place
     }
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        protoToRowConverter = new ProtoToRowConverter(rowType, formatConfig);
+        protoToRowConverter = new ProtoToRowConverter(rowType, this.context);
     }
 
     @Override
@@ -69,7 +72,7 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
         try {
             return protoToRowConverter.convertProtoBinaryToRow(message);
         } catch (Throwable t) {
-            if (formatConfig.isIgnoreParseErrors()) {
+            if (context.getPbFormatConfig().isIgnoreParseErrors()) {
                 return null;
             }
             throw new IOException("Failed to deserialize PB object.", t);
@@ -97,11 +100,12 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
         PbRowDataDeserializationSchema that = (PbRowDataDeserializationSchema) o;
         return Objects.equals(rowType, that.rowType)
                 && Objects.equals(resultTypeInfo, that.resultTypeInfo)
-                && Objects.equals(formatConfig, that.formatConfig);
+                && Objects.equals(
+                        this.context.getPbFormatConfig(), that.context.getPbFormatConfig());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(rowType, resultTypeInfo, formatConfig);
+        return Objects.hash(rowType, resultTypeInfo, this.context.getPbFormatConfig());
     }
 }

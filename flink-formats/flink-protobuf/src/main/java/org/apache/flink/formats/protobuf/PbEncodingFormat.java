@@ -29,10 +29,10 @@ import org.apache.flink.table.types.logical.RowType;
 
 /** {@link EncodingFormat} for protobuf encoding. */
 public class PbEncodingFormat implements EncodingFormat<SerializationSchema<RowData>> {
-    private final PbFormatConfig pbFormatConfig;
+    private final PbFormatContext context;
 
-    public PbEncodingFormat(PbFormatConfig pbFormatConfig) {
-        this.pbFormatConfig = pbFormatConfig;
+    public PbEncodingFormat(PbFormatContext context) {
+        this.context = context;
     }
 
     @Override
@@ -44,6 +44,6 @@ public class PbEncodingFormat implements EncodingFormat<SerializationSchema<RowD
     public SerializationSchema<RowData> createRuntimeEncoder(
             DynamicTableSink.Context context, DataType consumedDataType) {
         RowType rowType = (RowType) consumedDataType.getLogicalType();
-        return new PbRowDataSerializationSchema(rowType, pbFormatConfig);
+        return new PbRowDataSerializationSchema(rowType, this.context);
     }
 }

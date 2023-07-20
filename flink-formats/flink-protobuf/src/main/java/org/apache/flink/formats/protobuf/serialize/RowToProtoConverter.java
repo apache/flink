@@ -52,12 +52,14 @@ public class RowToProtoConverter {
     private static final Logger LOG = LoggerFactory.getLogger(ProtoToRowConverter.class);
     private final Method encodeMethod;
 
-    public RowToProtoConverter(RowType rowType, PbFormatConfig formatConfig)
-            throws PbCodegenException {
+    public RowToProtoConverter(RowType rowType, PbFormatContext context) throws PbCodegenException {
         try {
+            PbFormatConfig formatConfig = context.getPbFormatConfig();
             Descriptors.Descriptor descriptor =
-                    PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
-            PbFormatContext formatContext = new PbFormatContext(formatConfig);
+                    PbFormatUtils.getDescriptor(
+                            formatConfig.getMessageClassName(), context.getClassLoader());
+            PbFormatContext formatContext =
+                    new PbFormatContext(formatConfig, context.getClassLoader());
 
             PbCodegenAppender codegenAppender = new PbCodegenAppender(0);
             String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
@@ -95,7 +97,7 @@ public class RowToProtoConverter {
             LOG.debug("Protobuf encode codegen: \n" + printCode);
             Class generatedClass =
                     PbCodegenUtils.compileClass(
-                            Thread.currentThread().getContextClassLoader(),
+                            context.getClassLoader(),
                             generatedPackageName + "." + generatedClassName,
                             codegenAppender.code());
             encodeMethod =

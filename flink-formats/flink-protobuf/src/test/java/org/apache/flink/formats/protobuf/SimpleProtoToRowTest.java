@@ -90,7 +90,10 @@ public class SimpleProtoToRowTest {
                 ProtobufTestHelper.pbBytesToRow(
                         SimpleTestMulti.class,
                         simple.toByteArray(),
-                        new PbFormatConfig(SimpleTestMulti.class.getName(), false, true, ""),
+                        new PbFormatContext(
+                                new PbFormatConfig(
+                                        SimpleTestMulti.class.getName(), false, true, ""),
+                                Thread.currentThread().getContextClassLoader()),
                         false);
 
         assertFalse(row.isNullAt(0));

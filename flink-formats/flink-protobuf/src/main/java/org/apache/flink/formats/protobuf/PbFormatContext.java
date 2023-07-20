@@ -22,11 +22,18 @@ package org.apache.flink.formats.protobuf;
 public class PbFormatContext {
     private final PbFormatConfig pbFormatConfig;
 
-    public PbFormatContext(PbFormatConfig pbFormatConfig) {
+    private final ClassLoader classLoader;
+
+    public PbFormatContext(PbFormatConfig pbFormatConfig, ClassLoader classLoader) {
         this.pbFormatConfig = pbFormatConfig;
+        this.classLoader = classLoader;
     }
 
     public PbFormatConfig getPbFormatConfig() {
         return pbFormatConfig;
+    }
+
+    public ClassLoader getClassLoader() {
+        return classLoader;
     }
 }

@@ -45,14 +45,16 @@ public class PbFormatFactory implements DeserializationFormatFactory, Serializat
     public DecodingFormat<DeserializationSchema<RowData>> createDecodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        return new PbDecodingFormat(buildConfig(formatOptions));
+        return new PbDecodingFormat(
+                new PbFormatContext(buildConfig(formatOptions), context.getClassLoader()));
     }
 
     @Override
     public EncodingFormat<SerializationSchema<RowData>> createEncodingFormat(
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
-        return new PbEncodingFormat(buildConfig(formatOptions));
+        return new PbEncodingFormat(
+                new PbFormatContext(buildConfig(formatOptions), context.getClassLoader()));
     }
 
     private static PbFormatConfig buildConfig(ReadableConfig formatOptions) {

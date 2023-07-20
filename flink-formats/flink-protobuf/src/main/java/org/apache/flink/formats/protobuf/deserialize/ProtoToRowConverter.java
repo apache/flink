@@ -55,16 +55,15 @@ public class ProtoToRowConverter {
     private final Method parseFromMethod;
     private final Method decodeMethod;
 
-    public ProtoToRowConverter(RowType rowType, PbFormatConfig formatConfig)
-            throws PbCodegenException {
+    public ProtoToRowConverter(RowType rowType, PbFormatContext context) throws PbCodegenException {
         try {
+            PbFormatConfig formatConfig = context.getPbFormatConfig();
             Descriptors.Descriptor descriptor =
-                    PbFormatUtils.getDescriptor(formatConfig.getMessageClassName());
+                    PbFormatUtils.getDescriptor(
+                            formatConfig.getMessageClassName(), context.getClassLoader());
             Class<?> messageClass =
                     Class.forName(
-                            formatConfig.getMessageClassName(),
-                            true,
-                            Thread.currentThread().getContextClassLoader());
+                            formatConfig.getMessageClassName(), true, context.getClassLoader());
             String fullMessageClassName = PbFormatUtils.getFullJavaName(descriptor);
             if (descriptor.getFile().getSyntax() == Syntax.PROTO3) {
                 // pb3 always read default values
@@ -76,7 +75,6 @@ public class ProtoToRowConverter {
                                 formatConfig.getWriteNullStringLiterals());
             }
             PbCodegenAppender codegenAppender = new PbCodegenAppender();
-            PbFormatContext pbFormatContext = new PbFormatContext(formatConfig);
             String uuid = UUID.randomUUID().toString().replaceAll("\\-", "");
             String generatedClassName = "GeneratedProtoToRow_" + uuid;
             String generatedPackageName = ProtoToRowConverter.class.getPackage().getName();
@@ -102,8 +100,7 @@ public class ProtoToRowConverter {
                             + " message){");
             codegenAppender.appendLine("RowData rowData=null");
             PbCodegenDeserializer codegenDes =
-                    PbCodegenDeserializeFactory.getPbCodegenTopRowDes(
-                            descriptor, rowType, pbFormatContext);
+                    PbCodegenDeserializeFactory.getPbCodegenTopRowDes(descriptor, rowType, context);
             String genCode = codegenDes.codegen("rowData", "message", 0);
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return rowData");
@@ -114,7 +111,7 @@ public class ProtoToRowConverter {
             LOG.debug("Protobuf decode codegen: \n" + printCode);
             Class generatedClass =
                     PbCodegenUtils.compileClass(
-                            Thread.currentThread().getContextClassLoader(),
+                            context.getClassLoader(),
                             generatedPackageName + "." + generatedClassName,
                             codegenAppender.code());
             decodeMethod =
