@@ -22,7 +22,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.operations.Operation;
@@ -70,9 +69,10 @@ public class AlterDatabaseOperation implements AlterOperation {
 
     @Override
     public TableResultInternal execute(Context ctx) {
-        Catalog catalog = ctx.getCatalogManager().getCatalogOrThrowException(getCatalogName());
         try {
-            catalog.alterDatabase(getDatabaseName(), getCatalogDatabase(), false);
+            ctx.getCatalogManager()
+                    .alterDatabase(
+                            getCatalogName(), getDatabaseName(), getCatalogDatabase(), false);
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (DatabaseNotExistException e) {
             throw new ValidationException(
