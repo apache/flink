@@ -43,7 +43,6 @@ import org.apache.calcite.util.Pair;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -167,14 +166,8 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
     private RexNode rewriteWindowCall(
             RexCall windowCall, Map<Integer, Integer> mapping, RelBuilder relBuilder) {
         List<RexNode> newOperands = new ArrayList<>();
-        Iterator<RexNode> operandsItr = windowCall.getOperands().iterator();
-        // Note: skip to rewrite the first operand of window table function because it is a special
-        // ref to a table instead of a normal input ref, if process it as a regular input ref, an
-        // exception would be thrown out. It's safe to use first operand of function because
-        // framework never use it (or avoid to use it).
-        newOperands.add(operandsItr.next());
-        while (operandsItr.hasNext()) {
-            newOperands.add(adjustInputRef(operandsItr.next(), mapping));
+        for (RexNode next : windowCall.getOperands()) {
+            newOperands.add(adjustInputRef(next, mapping));
         }
         return relBuilder.call(windowCall.getOperator(), newOperands);
     }
