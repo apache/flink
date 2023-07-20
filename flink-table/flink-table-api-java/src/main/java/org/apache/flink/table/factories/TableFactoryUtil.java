@@ -21,9 +21,12 @@ package org.apache.flink.table.factories;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.listener.CatalogModificationListener;
+import org.apache.flink.table.catalog.listener.CatalogModificationListenerFactory;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.sinks.TableSink;
@@ -31,7 +34,10 @@ import org.apache.flink.table.sources.TableSource;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /** Utility for dealing with {@link TableFactory} using the {@link TableFactoryService}. */
 public class TableFactoryUtil {
@@ -163,5 +169,31 @@ public class TableFactoryUtil {
                 return false;
             }
         }
+    }
+
+    /** Find and create modification listener list from configuration. */
+    public static List<CatalogModificationListener> findCatalogModificationListenerList(
+            final ReadableConfig configuration, final ClassLoader classLoader) {
+        return configuration.getOptional(TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS)
+                .orElse(Collections.emptyList()).stream()
+                .map(
+                        identifier ->
+                                FactoryUtil.discoverFactory(
+                                                classLoader,
+                                                CatalogModificationListenerFactory.class,
+                                                identifier)
+                                        .createListener(
+                                                new CatalogModificationListenerFactory.Context() {
+                                                    @Override
+                                                    public ReadableConfig getConfiguration() {
+                                                        return configuration;
+                                                    }
+
+                                                    @Override
+                                                    public ClassLoader getUserClassLoader() {
+                                                        return classLoader;
+                                                    }
+                                                }))
+                .collect(Collectors.toList());
     }
 }

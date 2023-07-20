@@ -21,6 +21,11 @@ package org.apache.flink.table.gateway.service.context;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.catalog.listener.CatalogFactory1;
+import org.apache.flink.table.catalog.listener.CatalogFactory2;
+import org.apache.flink.table.catalog.listener.CatalogListener1;
+import org.apache.flink.table.catalog.listener.CatalogListener2;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
@@ -31,12 +36,15 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.PipelineOptions.MAX_PARALLELISM;
 import static org.apache.flink.configuration.PipelineOptions.NAME;
 import static org.apache.flink.configuration.PipelineOptions.OBJECT_REUSE;
+import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_SQL_DIALECT;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -129,6 +137,67 @@ class SessionContextTest {
         sessionContext.reset("bb");
         assertThat(sessionContext.getSessionConf())
                 .matches((conf) -> !conf.containsKey("aa") && !conf.containsKey("bb"));
+    }
+
+    @Test
+    void testCreateContextWithListeners() {
+        assertThat(
+                        sessionContext
+                                .getSessionState()
+                                .catalogManager
+                                .getCatalogModificationListeners()
+                                .isEmpty())
+                .isTrue();
+
+        Configuration flinkConfig = new Configuration();
+        // Find and create listeners from `SET
+        // 'table.catalog-modification.listeners'='factory1;factory2' for session
+        SessionContext context1 =
+                SessionContext.create(
+                        new DefaultContext(flinkConfig, Collections.emptyList()),
+                        SessionHandle.create(),
+                        SessionEnvironment.newBuilder()
+                                .addSessionConfig(
+                                        Collections.singletonMap(
+                                                TABLE_CATALOG_MODIFICATION_LISTENERS.key(),
+                                                String.format(
+                                                        "%s;%s",
+                                                        CatalogFactory1.IDENTIFIER,
+                                                        CatalogFactory2.IDENTIFIER)))
+                                .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                                .build(),
+                        EXECUTOR_SERVICE);
+        assertThat(
+                        context1.getSessionState().catalogManager.getCatalogModificationListeners()
+                                .stream()
+                                .map(l -> l.getClass().getName())
+                                .collect(Collectors.toList()))
+                .isEqualTo(
+                        Arrays.asList(
+                                CatalogListener1.class.getName(),
+                                CatalogListener2.class.getName()));
+
+        // Find and create listeners from flink-conf.yaml for session
+        flinkConfig.set(
+                TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS,
+                Arrays.asList(CatalogFactory1.IDENTIFIER, CatalogFactory2.IDENTIFIER));
+        SessionContext context2 =
+                SessionContext.create(
+                        new DefaultContext(flinkConfig, Collections.emptyList()),
+                        SessionHandle.create(),
+                        SessionEnvironment.newBuilder()
+                                .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                                .build(),
+                        EXECUTOR_SERVICE);
+        assertThat(
+                        context2.getSessionState().catalogManager.getCatalogModificationListeners()
+                                .stream()
+                                .map(l -> l.getClass().getName())
+                                .collect(Collectors.toList()))
+                .isEqualTo(
+                        Arrays.asList(
+                                CatalogListener1.class.getName(),
+                                CatalogListener2.class.getName()));
     }
 
     // --------------------------------------------------------------------------------------------

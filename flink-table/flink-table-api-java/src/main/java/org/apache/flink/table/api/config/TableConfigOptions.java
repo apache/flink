@@ -28,6 +28,8 @@ import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.Catalog;
 
+import java.util.List;
+
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
 
@@ -57,6 +59,17 @@ public class TableConfigOptions {
                     .withDescription(
                             "The name of the default database in the initial catalog to be created "
                                     + "when instantiating TableEnvironment.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<List<String>> TABLE_CATALOG_MODIFICATION_LISTENERS =
+            key("table.catalog-modification.listeners")
+                    .stringType()
+                    .asList()
+                    .noDefaultValue()
+                    .withDescription(
+                            "A (semicolon-separated) list of factories that creates listener for catalog "
+                                    + "modification which will be notified in catalog manager after it "
+                                    + "performs database and table ddl operations successfully.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_DML_SYNC =

@@ -254,6 +254,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 new GenericInMemoryCatalog(
                                         settings.getBuiltInCatalogName(),
                                         settings.getBuiltInDatabaseName()))
+                        .catalogModificationListeners(
+                                TableFactoryUtil.findCatalogModificationListenerList(
+                                        settings.getConfiguration(), userClassLoader))
                         .build();
 
         final FunctionCatalog functionCatalog =

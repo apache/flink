@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
@@ -325,7 +326,10 @@ public class SessionContext {
                 CatalogManager.newBuilder()
                         // Currently, the classloader is only used by DataTypeFactory.
                         .classLoader(userClassLoader)
-                        .config(configuration);
+                        .config(configuration)
+                        .catalogModificationListeners(
+                                TableFactoryUtil.findCatalogModificationListenerList(
+                                        configuration, userClassLoader));
 
         // init default catalog
         String defaultCatalogName;

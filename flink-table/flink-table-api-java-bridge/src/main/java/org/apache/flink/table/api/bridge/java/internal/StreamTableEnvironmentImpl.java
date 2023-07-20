@@ -44,6 +44,7 @@ import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
+import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -123,6 +124,9 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                                         settings.getBuiltInCatalogName(),
                                         settings.getBuiltInDatabaseName()))
                         .executionConfig(executionEnvironment.getConfig())
+                        .catalogModificationListeners(
+                                TableFactoryUtil.findCatalogModificationListenerList(
+                                        settings.getConfiguration(), userClassLoader))
                         .build();
 
         final FunctionCatalog functionCatalog =
