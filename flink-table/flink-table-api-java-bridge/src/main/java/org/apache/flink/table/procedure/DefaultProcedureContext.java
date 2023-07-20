@@ -21,7 +21,7 @@ package org.apache.flink.table.procedure;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-/** The default implementation for {@link ProcedureContext} . */
+/** The default implementation for {@link ProcedureContext}. */
 @Internal
 public class DefaultProcedureContext implements ProcedureContext {
 
