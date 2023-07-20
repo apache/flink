@@ -21,7 +21,7 @@ import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toJava
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapContext, unwrapTableConfig, unwrapTypeFactory}
 
 import org.apache.calcite.rel.{RelNode, RelShuttleImpl}
 import org.apache.calcite.rel.core.TableScan
@@ -101,7 +101,11 @@ abstract class CommonSubGraphBasedOptimizer extends Optimizer {
     val relsWithoutSameObj = postOptimizedPlan.map(_.accept(shuttle))
 
     // reuse subplan
-    SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, unwrapTableConfig(roots.head))
+    SubplanReuser.reuseDuplicatedSubplan(
+      relsWithoutSameObj,
+      unwrapTableConfig(roots.head),
+      unwrapContext(roots.head),
+      unwrapTypeFactory(roots.head))
   }
 
   /**

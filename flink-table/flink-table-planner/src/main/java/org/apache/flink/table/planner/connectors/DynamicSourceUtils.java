@@ -178,6 +178,24 @@ public final class DynamicSourceUtils {
      */
     public static List<MetadataColumn> createRequiredMetadataColumns(
             ResolvedSchema schema, DynamicTableSource source) {
+
+        final Map<String, MetadataColumn> metadataKeysToMetadataColumns =
+                createMetadataKeysToMetadataColumnsMap(schema);
+        final Map<String, DataType> metadataMap = extractMetadataMap(source);
+
+        // reorder the column
+        return metadataMap.keySet().stream()
+                .filter(metadataKeysToMetadataColumns::containsKey)
+                .map(metadataKeysToMetadataColumns::get)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns a map record the mapping relation between metadataKeys to metadataColumns in input
+     * schema.
+     */
+    public static Map<String, MetadataColumn> createMetadataKeysToMetadataColumnsMap(
+            ResolvedSchema schema) {
         final List<MetadataColumn> metadataColumns = extractMetadataColumns(schema);
 
         Map<String, MetadataColumn> metadataKeysToMetadataColumns = new HashMap<>();
@@ -188,13 +206,7 @@ public final class DynamicSourceUtils {
             metadataKeysToMetadataColumns.put(metadataKey, column);
         }
 
-        final Map<String, DataType> metadataMap = extractMetadataMap(source);
-
-        // reorder the column
-        return metadataMap.keySet().stream()
-                .filter(metadataKeysToMetadataColumns::containsKey)
-                .map(metadataKeysToMetadataColumns::get)
-                .collect(Collectors.toList());
+        return metadataKeysToMetadataColumns;
     }
 
     /**

@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.RelWriter
+import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.hint.RelHint
 
@@ -56,8 +56,14 @@ abstract class CommonPhysicalTableSourceScan(
     super
       .explainTerms(pw)
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
-      .itemIf("hints", RelExplainUtil.hintsToString(getHints), !getHints.isEmpty)
+      .itemIf("hints", hintsDigest, !getHints.isEmpty)
       .itemIf("version", version.getOrElse(""), version.isDefined)
+  }
+
+  def copy(relOptTable: TableSourceTable): RelNode
+
+  def hintsDigest: String = {
+    RelExplainUtil.hintsToString(getHints)
   }
 
   private def extractSnapshotVersion(): Option[String] = {
