@@ -28,8 +28,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkState;
-
 /** E2E tests for flink jdbc driver. */
 public class FlinkDriverExample {
 
@@ -106,6 +104,12 @@ public class FlinkDriverExample {
                 bw.flush();
                 bw.close();
             }
+        }
+    }
+
+    private static void checkState(boolean condition) {
+        if (!condition) {
+            throw new IllegalStateException();
         }
     }
 }

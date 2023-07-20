@@ -20,13 +20,13 @@ package org.apache.flink.table.client.gateway.result;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.util.CliClientTestUtils;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
+import org.apache.flink.table.gateway.StatementResult;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;

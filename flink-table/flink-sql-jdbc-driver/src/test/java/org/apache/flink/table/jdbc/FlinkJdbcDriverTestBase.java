@@ -19,7 +19,6 @@
 package org.apache.flink.table.jdbc;
 
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.table.client.gateway.SingleSessionManager;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestEndpointExtension;
 import org.apache.flink.table.gateway.service.utils.SqlGatewayServiceExtension;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -43,8 +42,7 @@ public class FlinkJdbcDriverTestBase {
     @RegisterExtension
     @Order(2)
     private static final SqlGatewayServiceExtension SQL_GATEWAY_SERVICE_EXTENSION =
-            new SqlGatewayServiceExtension(
-                    MINI_CLUSTER_RESOURCE::getClientConfiguration, SingleSessionManager::new);
+            new SqlGatewayServiceExtension(MINI_CLUSTER_RESOURCE::getClientConfiguration);
 
     @RegisterExtension
     @Order(3)

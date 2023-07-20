@@ -19,10 +19,10 @@
 package org.apache.flink.table.client.gateway.result;
 
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.gateway.SqlExecutionException;
+import org.apache.flink.table.gateway.StatementResult;
 import org.apache.flink.util.CloseableIterator;
 
 import java.util.concurrent.atomic.AtomicReference;

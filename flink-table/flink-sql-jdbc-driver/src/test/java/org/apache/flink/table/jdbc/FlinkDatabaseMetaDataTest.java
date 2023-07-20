@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.jdbc;
 
-import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.gateway.Executor;
+import org.apache.flink.table.gateway.StatementResult;
 
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.client.gateway.ResultDescriptor;
-import org.apache.flink.table.client.gateway.StatementResult;
+import org.apache.flink.table.gateway.StatementResult;
 import org.apache.flink.table.utils.print.PrintStyle;
 
 import org.jline.terminal.Terminal;

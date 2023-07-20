@@ -21,7 +21,7 @@ package org.apache.flink.table.client.resource;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.gateway.SqlExecutionException;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;

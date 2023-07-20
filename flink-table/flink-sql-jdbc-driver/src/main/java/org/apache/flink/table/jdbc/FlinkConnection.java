@@ -19,8 +19,8 @@
 package org.apache.flink.table.jdbc;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.StatementResult;
+import org.apache.flink.table.gateway.Executor;
+import org.apache.flink.table.gateway.StatementResult;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.gateway.service.context.DefaultContext;
 import org.apache.flink.table.jdbc.utils.DriverUtils;

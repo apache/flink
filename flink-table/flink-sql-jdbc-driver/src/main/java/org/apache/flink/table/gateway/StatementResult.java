@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway;
+package org.apache.flink.table.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;

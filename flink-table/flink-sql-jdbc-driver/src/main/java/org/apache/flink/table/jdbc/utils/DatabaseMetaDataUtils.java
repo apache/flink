@@ -21,10 +21,10 @@ package org.apache.flink.table.jdbc.utils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.gateway.StatementResult;
 import org.apache.flink.table.jdbc.FlinkDatabaseMetaData;
 import org.apache.flink.table.jdbc.FlinkResultSet;
 

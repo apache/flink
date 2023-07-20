@@ -43,12 +43,6 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-client</artifactId>
-			<version>${project.version}</version>
-			<optional>${flink.markBundledAsOptional}</optional>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-gateway-api</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
@@ -68,14 +62,6 @@
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-annotations</artifactId>
-			<version>${project.version}</version>
-			<optional>${flink.markBundledAsOptional}</optional>
-		</dependency>
-
-		<!-- Used to create Executor in connection. TODO jdbc driver should get rid of flink-core which is a big module. -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
@@ -105,12 +91,10 @@
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-sql-jdbc-driver</include>
-									<include>org.apache.flink:flink-sql-client</include>
 									<include>org.apache.flink:flink-sql-gateway-api</include>
 									<include>org.apache.flink:flink-sql-gateway</include>
 									<include>org.apache.flink:flink-table-common</include>
 									<include>org.apache.flink:flink-annotations</include>
-									<include>org.apache.flink:flink-core</include>
 									<incldue>org.apache.flink:flink-runtime</incldue>
 									<include>org.apache.flink:flink-clients</include>
 									<include>org.apache.flink:flink-table-api-java</include>

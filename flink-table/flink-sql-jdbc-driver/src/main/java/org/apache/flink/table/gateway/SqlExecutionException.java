@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway;
+package org.apache.flink.table.gateway;
 
 /** Exception thrown during the execution of SQL statements. */
 public class SqlExecutionException extends RuntimeException {

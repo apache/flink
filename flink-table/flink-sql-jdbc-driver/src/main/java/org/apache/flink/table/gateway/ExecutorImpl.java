@@ -16,13 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway;
+package org.apache.flink.table.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.runtime.rest.HttpHeader;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.CustomHeadersDecorator;
@@ -35,9 +34,7 @@ import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 import org.apache.flink.table.api.SqlParserEOFException;
-import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.gateway.SqlGateway;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.session.SessionHandle;
@@ -154,7 +151,7 @@ public class ExecutorImpl implements Executor {
     }
 
     @VisibleForTesting
-    ExecutorImpl(
+    public ExecutorImpl(
             DefaultContext defaultContext,
             InetSocketAddress gatewayAddress,
             String sessionId,
@@ -168,7 +165,7 @@ public class ExecutorImpl implements Executor {
     }
 
     @VisibleForTesting
-    ExecutorImpl(
+    public ExecutorImpl(
             DefaultContext defaultContext,
             URL gatewayUrl,
             String sessionId,
@@ -226,7 +223,7 @@ public class ExecutorImpl implements Executor {
                 e.addSuppressed(t);
             }
 
-            throw new SqlClientException("Failed to create the executor.", e);
+            throw new SqlExecutionException("Failed to create the executor.", e);
         }
     }
 

@@ -26,9 +26,9 @@ import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.Printer;
 import org.apache.flink.table.client.config.ResultMode;
 import org.apache.flink.table.client.config.SqlClientOptions;
-import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
-import org.apache.flink.table.client.gateway.StatementResult;
+import org.apache.flink.table.gateway.Executor;
+import org.apache.flink.table.gateway.SqlExecutionException;
+import org.apache.flink.table.gateway.StatementResult;
 
 import org.jline.reader.EOFError;
 import org.jline.reader.ParsedLine;

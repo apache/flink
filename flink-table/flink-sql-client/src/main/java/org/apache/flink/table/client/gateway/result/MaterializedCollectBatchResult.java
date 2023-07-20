@@ -19,8 +19,8 @@
 package org.apache.flink.table.client.gateway.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.gateway.StatementResult;
 
 /** Collects results and returns them as table snapshots. */
 public class MaterializedCollectBatchResult extends MaterializedCollectResultBase {

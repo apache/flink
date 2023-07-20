@@ -23,7 +23,7 @@ import org.apache.flink.sql.parser.impl.SimpleCharStream;
 import org.apache.flink.sql.parser.impl.Token;
 import org.apache.flink.sql.parser.impl.TokenMgrError;
 import org.apache.flink.table.api.SqlParserEOFException;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.gateway.SqlExecutionException;
 
 import java.io.StringReader;
 import java.util.Iterator;

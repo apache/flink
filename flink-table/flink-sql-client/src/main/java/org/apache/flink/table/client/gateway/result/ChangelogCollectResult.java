@@ -19,9 +19,9 @@
 package org.apache.flink.table.client.gateway.result;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.gateway.StatementResult;
 
 import java.util.ArrayList;
 import java.util.List;

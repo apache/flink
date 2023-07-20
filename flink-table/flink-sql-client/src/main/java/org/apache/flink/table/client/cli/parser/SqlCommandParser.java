@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.cli.parser;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.gateway.SqlExecutionException;
 
 import java.util.Optional;
 

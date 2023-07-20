@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.jdbc.utils;
 
-import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.gateway.StatementResult;
 
 /** Closeable result iterator for statement result. */
 public class StatementResultIterator implements CloseableResultIterator<RowData> {

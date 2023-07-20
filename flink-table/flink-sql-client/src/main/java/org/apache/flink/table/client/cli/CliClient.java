@@ -24,8 +24,8 @@ import org.apache.flink.table.client.cli.parser.SqlClientSyntaxHighlighter;
 import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
 import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.config.SqlClientOptions;
-import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.gateway.Executor;
+import org.apache.flink.table.gateway.SqlExecutionException;
 
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;

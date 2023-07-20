@@ -74,6 +74,12 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-jdbc-driver</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- CLI for SQL CLI client -->
 		<dependency>
 			<groupId>org.jline</groupId>
@@ -254,6 +260,7 @@ under the License.
 								<includes combine.children="append">
 									<include>org.jline:*</include>
 									<include>org.apache.flink:flink-sql-parser</include>
+									<include>org.apache.flink:flink-sql-jdbc-driver</include>
 								</includes>
 							</artifactSet>
 							<!-- Keep it in sync with table-planner -->
@@ -287,6 +294,10 @@ under the License.
 							<artifact>org.apache.flink:flink-sql-parser</artifact>
 							<includes>
 								<include>org/apache/flink/sql/parser/impl/**</include>
+							</includes>
+							<artifact>org.apache.flink:flink-sql-jdbc-driver</artifact>
+							<includes>
+								<include>org/apache/flink/table/gateway/**</include>
 							</includes>
 						</filter>
 					</filters>

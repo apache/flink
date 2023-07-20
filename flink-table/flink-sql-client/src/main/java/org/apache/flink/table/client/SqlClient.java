@@ -24,9 +24,9 @@ import org.apache.flink.table.client.cli.CliClient;
 import org.apache.flink.table.client.cli.CliOptions;
 import org.apache.flink.table.client.cli.CliOptionsParser;
 import org.apache.flink.table.client.gateway.DefaultContextUtils;
-import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.gateway.Executor;
+import org.apache.flink.table.gateway.SqlExecutionException;
 import org.apache.flink.table.gateway.SqlGateway;
 import org.apache.flink.table.gateway.rest.SqlGatewayRestEndpointFactory;
 import org.apache.flink.table.gateway.rest.util.SqlGatewayRestOptions;
@@ -86,17 +86,7 @@ public class SqlClient {
     private void start() {
         if (isGatewayMode) {
             CliOptions.GatewayCliOptions gatewayCliOptions = (CliOptions.GatewayCliOptions) options;
-            try (Executor executor =
-                    Executor.create(
-                            DefaultContextUtils.buildDefaultContext(gatewayCliOptions),
-                            gatewayCliOptions
-                                    .getGatewayAddress()
-                                    .orElseThrow(
-                                            () ->
-                                                    new SqlClientException(
-                                                            "Please specify the address of the SQL Gateway with command line option"
-                                                                    + " '-e,--endpoint <SQL Gateway address>' in the gateway mode.")),
-                            options.getSessionId())) {
+            try (Executor executor = createRemoteExecutor(gatewayCliOptions)) {
                 // add shutdown hook
                 Runtime.getRuntime().addShutdownHook(new ShutdownThread(executor));
                 openCli(executor);
@@ -107,12 +97,11 @@ public class SqlClient {
                             (CliOptions.EmbeddedCliOptions) options);
             try (EmbeddedGateway embeddedGateway = EmbeddedGateway.create(defaultContext);
                     Executor executor =
-                            Executor.create(
+                            createLocalExecutor(
                                     defaultContext,
                                     InetSocketAddress.createUnresolved(
                                             embeddedGateway.getAddress(),
-                                            embeddedGateway.getPort()),
-                                    options.getSessionId())) {
+                                            embeddedGateway.getPort()))) {
                 // add shutdown hook
                 Runtime.getRuntime().addShutdownHook(new ShutdownThread(executor, embeddedGateway));
                 openCli(executor);
@@ -345,6 +334,31 @@ public class SqlClient {
         } catch (IOException e) {
             throw new SqlExecutionException(
                     String.format("Fail to read content from the %s.", file.getPath()), e);
+        }
+    }
+
+    private Executor createRemoteExecutor(CliOptions.GatewayCliOptions gatewayCliOptions) {
+        try {
+            return Executor.create(
+                    DefaultContextUtils.buildDefaultContext(gatewayCliOptions),
+                    gatewayCliOptions
+                            .getGatewayAddress()
+                            .orElseThrow(
+                                    () ->
+                                            new SqlClientException(
+                                                    "Please specify the address of the SQL Gateway with command line option"
+                                                            + " '-e,--endpoint <SQL Gateway address>' in the gateway mode.")),
+                    options.getSessionId());
+        } catch (SqlExecutionException e) {
+            throw new SqlClientException(e.getMessage(), e.getCause());
+        }
+    }
+
+    private Executor createLocalExecutor(DefaultContext defaultContext, InetSocketAddress address) {
+        try {
+            return Executor.create(defaultContext, address, options.getSessionId());
+        } catch (SqlExecutionException e) {
+            throw new SqlClientException(e.getMessage(), e.getCause());
         }
     }
 }

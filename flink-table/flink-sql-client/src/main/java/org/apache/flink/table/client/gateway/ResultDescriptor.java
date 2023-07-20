@@ -26,6 +26,8 @@ import org.apache.flink.table.client.gateway.result.ChangelogCollectResult;
 import org.apache.flink.table.client.gateway.result.DynamicResult;
 import org.apache.flink.table.client.gateway.result.MaterializedCollectBatchResult;
 import org.apache.flink.table.client.gateway.result.MaterializedCollectStreamResult;
+import org.apache.flink.table.gateway.SqlExecutionException;
+import org.apache.flink.table.gateway.StatementResult;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;

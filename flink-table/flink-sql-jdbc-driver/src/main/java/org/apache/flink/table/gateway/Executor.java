@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.client.gateway;
+package org.apache.flink.table.gateway;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.gateway.rest.util.RowFormat;

@@ -19,8 +19,8 @@
 package org.apache.flink.table.jdbc;
 
 import org.apache.flink.table.api.ResultKind;
-import org.apache.flink.table.client.gateway.Executor;
-import org.apache.flink.table.client.gateway.StatementResult;
+import org.apache.flink.table.gateway.Executor;
+import org.apache.flink.table.gateway.StatementResult;
 
 import javax.annotation.concurrent.NotThreadSafe;
 

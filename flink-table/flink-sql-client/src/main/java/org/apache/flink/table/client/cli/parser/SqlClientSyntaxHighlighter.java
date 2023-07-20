@@ -23,7 +23,7 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImplConstants;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.client.config.SqlClientOptions;
-import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.gateway.Executor;
 
 import org.jline.reader.LineReader;
 import org.jline.reader.impl.DefaultHighlighter;

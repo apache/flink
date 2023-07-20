@@ -19,7 +19,7 @@
 package org.apache.flink.table.client.cli.parser;
 
 import org.apache.flink.table.api.SqlParserEOFException;
-import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.gateway.SqlExecutionException;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;

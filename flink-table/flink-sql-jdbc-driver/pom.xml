@@ -42,11 +42,6 @@
 	</properties>
 
 	<dependencies>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-client</artifactId>
-			<version>${project.version}</version>
-		</dependency>
 		<!-- Table ecosystem -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -60,6 +55,20 @@
 		</dependency>
 
 		<!-- Test dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-sql-gateway-api</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-gateway</artifactId>

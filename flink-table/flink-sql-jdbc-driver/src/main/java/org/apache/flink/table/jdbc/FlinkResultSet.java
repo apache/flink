@@ -19,12 +19,12 @@
 package org.apache.flink.table.jdbc;
 
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.client.gateway.StatementResult;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.gateway.StatementResult;
 import org.apache.flink.table.jdbc.utils.ArrayFieldGetter;
 import org.apache.flink.table.jdbc.utils.CloseableResultIterator;
 import org.apache.flink.table.jdbc.utils.StatementResultIterator;
