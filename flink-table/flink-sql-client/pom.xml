@@ -78,6 +78,7 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-sql-jdbc-driver</artifactId>
 			<version>${project.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<!-- CLI for SQL CLI client -->
