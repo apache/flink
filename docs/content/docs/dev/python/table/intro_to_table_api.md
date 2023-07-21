@@ -323,7 +323,7 @@ The following example shows a simple Table API aggregation query:
 
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
-from pyflink.table.expressions import col
+from pyflink.table.expressions import call, col
 
 # using batch table environment to execute the queries
 env_settings = EnvironmentSettings.in_batch_mode()
@@ -337,7 +337,7 @@ revenue = orders \
     .select(col("name"), col("country"), col("revenue")) \
     .where(col("country") == 'FRANCE') \
     .group_by(col("name")) \
-    .select(col("name"), col("country").sum.alias('rev_sum'))
+    .select(col("name"), call("sum", col("revenue")).alias('rev_sum'))
 
 revenue.execute().print()
 ```
