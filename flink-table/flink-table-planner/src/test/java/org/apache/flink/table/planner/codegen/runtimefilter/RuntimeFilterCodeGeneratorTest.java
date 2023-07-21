@@ -91,7 +91,7 @@ class RuntimeFilterCodeGeneratorTest {
         testHarness.processElement(createRowDataRecord("var9", 999), 1);
         testHarness.processEvent(new EndOfData(StopMode.DRAIN), 1);
 
-        assertThat(getOutputRowDatas())
+        assertThat(getOutputRowData())
                 .containsExactly(
                         GenericRowData.of("var1", 111),
                         GenericRowData.of("var3", 333),
@@ -112,7 +112,7 @@ class RuntimeFilterCodeGeneratorTest {
         testHarness.processElement(createRowDataRecord("var9", 999), 1);
         testHarness.processEvent(new EndOfData(StopMode.DRAIN), 1);
 
-        assertThat(getOutputRowDatas())
+        assertThat(getOutputRowData())
                 .containsExactly(
                         GenericRowData.of("var1", 111),
                         GenericRowData.of("var3", 333),
@@ -127,7 +127,7 @@ class RuntimeFilterCodeGeneratorTest {
         testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0);
     }
 
-    private List<GenericRowData> getOutputRowDatas() {
+    private List<GenericRowData> getOutputRowData() {
         return testHarness.getOutput().stream()
                 .map(record -> ((StreamRecord<RowData>) record).getValue())
                 .map(
