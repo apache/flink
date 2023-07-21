@@ -27,6 +27,8 @@ import org.junit.runners.Parameterized;
 
 import java.util.Optional;
 
+import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH;
+import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM;
 import static org.apache.flink.runtime.io.network.partition.consumer.InputGateSpecUtils.getEffectiveMaxRequiredBuffersPerGate;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -141,19 +143,41 @@ class GateBuffersSpecTest {
     @ParameterizedTest
     @MethodSource("parameters")
     void testConfiguredMaxRequiredBuffersPerGate(ResultPartitionType partitionType) {
-        Optional<Integer> emptyConfig = Optional.empty();
-        int effectiveMaxRequiredBuffers =
-                getEffectiveMaxRequiredBuffersPerGate(partitionType, emptyConfig);
-        int expectEffectiveMaxRequiredBuffers =
-                isPipelinedOrHybridResultPartition(partitionType)
-                        ? InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM
-                        : InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH;
-        assertThat(effectiveMaxRequiredBuffers).isEqualTo(expectEffectiveMaxRequiredBuffers);
-
+        boolean enabledTieredStorage = false;
         Optional<Integer> configuredMaxRequiredBuffers = Optional.of(100);
-        effectiveMaxRequiredBuffers =
-                getEffectiveMaxRequiredBuffersPerGate(partitionType, configuredMaxRequiredBuffers);
+        int effectiveMaxRequiredBuffers =
+                getEffectiveMaxRequiredBuffersPerGate(
+                        partitionType, configuredMaxRequiredBuffers, enabledTieredStorage);
         assertThat(effectiveMaxRequiredBuffers).isEqualTo(configuredMaxRequiredBuffers.get());
+        enabledTieredStorage = true;
+        effectiveMaxRequiredBuffers =
+                getEffectiveMaxRequiredBuffersPerGate(
+                        partitionType, configuredMaxRequiredBuffers, enabledTieredStorage);
+        assertThat(effectiveMaxRequiredBuffers).isEqualTo(configuredMaxRequiredBuffers.get());
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testDefaultMaxRequiredBuffersPerGate(ResultPartitionType partitionType) {
+        Optional<Integer> emptyConfig = Optional.empty();
+        boolean enabledTieredStorage = false;
+        int effectiveMaxRequiredBuffers =
+                getEffectiveMaxRequiredBuffersPerGate(
+                        partitionType, emptyConfig, enabledTieredStorage);
+        int expectEffectiveMaxRequiredBuffers =
+                isPipelinedOrHybridResultPartitionNewMode(partitionType, enabledTieredStorage)
+                        ? DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM
+                        : DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH;
+        assertThat(effectiveMaxRequiredBuffers).isEqualTo(expectEffectiveMaxRequiredBuffers);
+        enabledTieredStorage = true;
+        expectEffectiveMaxRequiredBuffers =
+                isPipelinedOrHybridResultPartitionNewMode(partitionType, enabledTieredStorage)
+                        ? DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM
+                        : DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH;
+        effectiveMaxRequiredBuffers =
+                getEffectiveMaxRequiredBuffersPerGate(
+                        partitionType, emptyConfig, enabledTieredStorage);
+        assertThat(effectiveMaxRequiredBuffers).isEqualTo(expectEffectiveMaxRequiredBuffers);
     }
 
     private static void checkBuffersInGate(
@@ -184,18 +208,25 @@ class GateBuffersSpecTest {
                 numExclusiveBuffersPerChannel,
                 8,
                 partitionType,
-                numInputChannels);
+                numInputChannels,
+                false);
     }
 
     private static Optional<Integer> getMaxRequiredBuffersPerGate(
             ResultPartitionType partitionType) {
         return isPipelinedOrHybridResultPartition(partitionType)
-                ? Optional.of(InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM)
-                : Optional.of(InputGateSpecUtils.DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
+                ? Optional.of(DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM)
+                : Optional.of(DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_BATCH);
     }
 
     private static boolean isPipelinedOrHybridResultPartition(ResultPartitionType partitionType) {
         return partitionType.isPipelinedOrPipelinedBoundedResultPartition()
                 || partitionType.isHybridResultPartition();
+    }
+
+    private static boolean isPipelinedOrHybridResultPartitionNewMode(
+            ResultPartitionType partitionType, Boolean enabledTieredStorage) {
+        return partitionType.isPipelinedOrPipelinedBoundedResultPartition()
+                || (partitionType.isHybridResultPartition() && !enabledTieredStorage);
     }
 }

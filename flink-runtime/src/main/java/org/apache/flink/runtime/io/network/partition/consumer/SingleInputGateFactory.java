@@ -150,7 +150,8 @@ public class SingleInputGateFactory {
                         igdd.getConsumedPartitionType(),
                         calculateNumChannels(
                                 igdd.getShuffleDescriptors().length,
-                                igdd.getConsumedSubpartitionIndexRange()));
+                                igdd.getConsumedSubpartitionIndexRange()),
+                        tieredStorageConfiguration != null);
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
                 createBufferPoolFactory(
                         networkBufferPool,
