@@ -57,15 +57,22 @@ function setup_kubernetes_for_linux {
     # conntrack is required for minikube 1.9 and later
     sudo apt-get install conntrack
     # crictl is required for cri-dockerd
-    VERSION="v1.24.2"
-    wget -nv https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
-    sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
-    rm -f crictl-$VERSION-linux-amd64.tar.gz
+    local crictl_version crictl_archive
+    crictl_version="v1.24.2"
+    crictl_archive="crictl-$crictl_version-linux-amd64.tar.gz"
+    wget -nv "https://github.com/kubernetes-sigs/cri-tools/releases/download/${crictl_version}/crictl-${crictl_version}-linux-amd64.tar.gz"
+    sudo tar zxvf ${crictl_archive} -C /usr/local/bin
+    rm -f ${crictl_archive}
+
     # cri-dockerd is required to use Kubernetes 1.24+ and the none driver
+    local cri_dockerd_version
+    cri_dockerd_version="v0.2.3"
+    if [ -e cri-dockerd ];
+     then rm -r cri-dockerd
+    fi
     git clone https://github.com/Mirantis/cri-dockerd.git
     cd cri-dockerd
-    # Checkout version 0.2.3
-    git checkout tags/v0.2.3 -b v0.2.3
+    git checkout tags/${cri_dockerd_version} -b ${cri_dockerd_version}
     mkdir bin
     go get && go build -o bin/cri-dockerd
     mkdir -p /usr/local/bin
