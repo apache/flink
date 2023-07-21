@@ -54,8 +54,7 @@ public class TestingDeclarativeSlotPoolBuilder {
                     Collection<SlotOffer>>
             offerSlotsFunction =
                     (ignoredA, ignoredB, ignoredC, ignoredD) -> Collections.emptyList();
-    private Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier =
-            Collections::emptyList;
+    private Supplier<Collection<SlotInfo>> getFreeSlotsInformationSupplier = Collections::emptyList;
     private Supplier<Collection<? extends SlotInfo>> getAllSlotsInformationSupplier =
             Collections::emptyList;
     private Supplier<FreeSlotInfoTracker> getFreeSlotInfoTrackerSupplier =
@@ -130,7 +129,7 @@ public class TestingDeclarativeSlotPoolBuilder {
     }
 
     public TestingDeclarativeSlotPoolBuilder setGetFreeSlotsInformationSupplier(
-            Supplier<Collection<SlotInfoWithUtilization>> getFreeSlotsInformationSupplier) {
+            Supplier<Collection<SlotInfo>> getFreeSlotsInformationSupplier) {
         this.getFreeSlotsInformationSupplier = getFreeSlotsInformationSupplier;
         return this;
     }

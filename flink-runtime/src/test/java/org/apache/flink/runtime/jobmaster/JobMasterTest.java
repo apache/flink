@@ -84,7 +84,6 @@ import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTrackerTestUtils;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotInfoWithUtilization;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
@@ -575,11 +574,10 @@ class JobMasterTest {
 
         @Nonnull
         @Override
-        public Collection<SlotInfoWithUtilization> getAvailableSlotsInformation() {
-            final Collection<SlotInfoWithUtilization> allSlotInfos =
+        public Collection<SlotInfo> getAvailableSlotsInformation() {
+            final Collection<SlotInfo> allSlotInfos =
                     registeredSlots.values().stream()
                             .flatMap(Collection::stream)
-                            .map(slot -> SlotInfoWithUtilization.from(slot, ignored -> 0.0d))
                             .collect(Collectors.toList());
 
             return Collections.unmodifiableCollection(allSlotInfos);

@@ -569,7 +569,7 @@ class DefaultDeclarativeSlotPoolTest {
                 createSlotOffersForResourceRequirements(
                         ResourceCounter.withResource(ResourceProfile.ANY, 1)));
 
-        final SlotInfoWithUtilization slot = slotPool.getFreeSlotsInformation().iterator().next();
+        final SlotInfo slot = slotPool.getFreeSlotsInformation().iterator().next();
 
         slotPool.reserveFreeSlot(slot.getAllocationId(), largeResourceProfile);
         assertThat(
@@ -614,7 +614,7 @@ class DefaultDeclarativeSlotPoolTest {
         slotPool.increaseResourceRequirementsBy(
                 ResourceCounter.withResource(smallResourceProfile, 1));
 
-        final SlotInfoWithUtilization largeSlot =
+        final SlotInfo largeSlot =
                 slotPool.getFreeSlotsInformation().stream()
                         .filter(slot -> slot.getResourceProfile().equals(largeResourceProfile))
                         .findFirst()

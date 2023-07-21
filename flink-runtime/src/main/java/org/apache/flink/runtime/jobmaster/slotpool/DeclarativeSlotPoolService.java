@@ -247,7 +247,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
                                             slotInfo.getTaskManagerLocation()
                                                     .getResourceID()
                                                     .equals(taskManagerId))
-                            .map(SlotInfoWithUtilization::getAllocationId)
+                            .map(SlotInfo::getAllocationId)
                             .collect(Collectors.toSet());
 
             for (AllocationID allocationId : freeSlots) {
