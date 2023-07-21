@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog.listener;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogDatabase;
 
 /** When a database is created, a {@link CreateDatabaseEvent} event will be created and fired. */
+@PublicEvolving
 public interface CreateDatabaseEvent extends DatabaseModificationEvent {
     boolean ignoreIfExists();
 

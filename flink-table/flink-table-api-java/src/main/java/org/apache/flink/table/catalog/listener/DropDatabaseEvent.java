@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog.listener;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogDatabase;
 
 /** When a database is dropped, a {@link DropDatabaseEvent} event will be created and fired. */
+@PublicEvolving
 public interface DropDatabaseEvent extends DatabaseModificationEvent {
 
     boolean ignoreIfNotExists();

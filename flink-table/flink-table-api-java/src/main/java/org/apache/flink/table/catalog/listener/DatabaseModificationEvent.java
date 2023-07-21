@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.listener;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogDatabase;
 
 import javax.annotation.Nullable;
@@ -26,6 +27,7 @@ import javax.annotation.Nullable;
  * Basic event for database modification such as create, alter and drop, it has the database name
  * and {@link CatalogDatabase}.
  */
+@PublicEvolving
 public interface DatabaseModificationEvent extends CatalogModificationEvent {
     @Nullable
     CatalogDatabase database();

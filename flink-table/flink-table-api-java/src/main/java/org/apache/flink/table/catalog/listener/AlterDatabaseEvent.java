@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.listener;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogDatabase;
 
 import javax.annotation.Nullable;
@@ -26,6 +27,7 @@ import javax.annotation.Nullable;
  * When a database is altered, an {@link AlterDatabaseEvent} event will be created and fired which
  * has the old database and new database.
  */
+@PublicEvolving
 public interface AlterDatabaseEvent extends DatabaseModificationEvent {
     CatalogDatabase newDatabase();
 
