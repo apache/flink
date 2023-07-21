@@ -68,6 +68,13 @@ public class FlinkConnection extends BaseConnection {
         driverUri.getDatabase().ifPresent(this::setSessionSchema);
     }
 
+    @VisibleForTesting
+    FlinkConnection(Executor executor) {
+        this.url = null;
+        this.statements = new ArrayList<>();
+        this.executor = executor;
+    }
+
     @Override
     public Statement createStatement() throws SQLException {
         ensureOpen();
