@@ -529,14 +529,18 @@ object HashAggCodeGenHelper {
           function.accumulateExpressions
             .map(_.accept(ref))
             .map {
-              e => (exprCodeGen.generateExpression(e.accept(converter)), aggInfo.agg.filterArg)
+              e =>
+                (
+                  exprCodeGen.generateExpression(e.accept(converter)),
+                  aggInfo.agg.hasFilter,
+                  aggInfo.agg.filterArg)
             }
       }
 
     // update agg buff in-place
     val code = accumulateExprsWithFilterArgs.zipWithIndex
       .map {
-        case ((accumulateExpr, filterArg), index) =>
+        case ((accumulateExpr, hashFilter, filterArg), index) =>
           val idx = auxGrouping.length + index
           val t = aggBufferType.getTypeAt(idx)
           val writeCode =
@@ -551,7 +555,7 @@ object HashAggCodeGenHelper {
                |}
                |""".stripMargin.trim
 
-          if (filterArg >= 0) {
+          if (hashFilter) {
             val expr = getFieldExpr(ctx, inputTerm, inputType, filterArg)
             val filterTerm = s"!${expr.nullTerm} && ${expr.resultTerm}"
             s"""

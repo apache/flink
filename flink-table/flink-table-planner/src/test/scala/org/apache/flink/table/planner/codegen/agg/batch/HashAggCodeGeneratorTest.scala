@@ -59,6 +59,7 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
     val call = mock(classOf[AggregateCall])
     when(aggInfo.agg).thenReturn(call)
     when(call.getName).thenReturn("avg3")
+    when(call.hasFilter).thenReturn(false)
     when(aggInfo.function).thenReturn(new LongAvgAggFunction)
     when(aggInfo.externalAccTypes).thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
     when(aggInfo.argIndexes).thenReturn(Array(3))

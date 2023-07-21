@@ -750,7 +750,7 @@ object AggCodeGenHelper {
         }
 
         // apply filter if present
-        if (aggInfo.agg.filterArg >= 0) {
+        if (aggInfo.agg.hasFilter) {
           val expr = getFieldExpr(ctx, inputTerm, inputType, aggCall.filterArg)
           val filterTerm = s"!${expr.nullTerm} && ${expr.resultTerm}"
           s"""
