@@ -238,9 +238,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *   <li>Added in FLINK-29081, FLINK-28682: Lines 644 ~ 654
  *   <li>Added in FLINK-28682: Lines 2277 ~ 2294
  *   <li>Added in FLINK-28682: Lines 2331 ~ 2359
- *   <li>Added in FLINK-20873: Lines 5427 ~ 5436
- *   <li>Added in FLINK-32474: Lines 2844 ~ 2852
- *   <li>Added in FLINK-32474: Lines 2952 ~ 2978
+ *   <li>Added in FLINK-20873: Lines 5484 ~ 5493
+ *   <li>Added in FLINK-32474: Lines 2841 ~ 2853
+ *   <li>Added in FLINK-32474: Lines 2953 ~ 2987
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -2838,6 +2838,7 @@ public class SqlToRelConverter {
         }
         final String datasetName = datasetStack.isEmpty() ? null : datasetStack.peek();
         final boolean[] usedDataset = {false};
+        // ----- FLINK MODIFICATION BEGIN -----
         RelOptTable table =
                 SqlValidatorUtil.getRelOptTable(
                         fromNamespace,
@@ -2849,6 +2850,7 @@ public class SqlToRelConverter {
                                         schemaVersion),
                         datasetName,
                         usedDataset);
+        // ----- FLINK MODIFICATION END -----
         assert table != null : "getRelOptTable returned null for " + fromNamespace;
         if (extendedColumns != null && extendedColumns.size() > 0) {
             final SqlValidatorTable validatorTable = table.unwrapOrThrow(SqlValidatorTable.class);
@@ -2948,6 +2950,7 @@ public class SqlToRelConverter {
 
         // convert inner query, could be a table name or a derived table
         SqlNode expr = snapshot.getTableRef();
+        // ----- FLINK MODIFICATION BEGIN -----
         SqlNode tableRef = snapshot.getTableRef();
         // since we have reduced the period of SqlSnapshot in the validate phase, we only need to
         // check whether the period is a RexLiteral.
@@ -2981,6 +2984,7 @@ public class SqlToRelConverter {
         } else {
             convertFrom(bb, expr);
         }
+        // ----- FLINK MODIFICATION END -----
 
         final RelNode snapshotRel = relBuilder.push(bb.root()).snapshot(period).build();
 

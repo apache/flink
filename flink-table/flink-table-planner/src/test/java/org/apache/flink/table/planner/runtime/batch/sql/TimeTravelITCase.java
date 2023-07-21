@@ -90,7 +90,7 @@ public class TimeTravelITCase extends BatchTestBase {
                     options.put("bounded", "true");
                     options.put("data-id", dataId);
                     try {
-                        catalog.registerTable(
+                        catalog.registerTableForTimeTravel(
                                 "t1", t.f1, options, convertStringToLong(t.f0, ZoneId.of("UTC")));
                     } catch (Exception e) {
                         throw new RuntimeException(e);

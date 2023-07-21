@@ -38,31 +38,21 @@ import java.util.Optional;
 
 /** Test Catalog for testing time travel. */
 public class TestTimeTravelCatalog extends GenericInMemoryCatalog {
+
+    private final Map<ObjectPath, List<Tuple2<Long, CatalogTable>>> timeTravelTables;
+
     public TestTimeTravelCatalog(String name) {
         super(name);
 
-        this.tables = new HashMap<>();
-    }
-
-    private final Map<ObjectPath, List<Tuple2<Long, CatalogTable>>> tables;
-
-    @Override
-    public void createTable(ObjectPath tablePath, CatalogBaseTable table, boolean ignoreIfExists)
-            throws TableAlreadyExistException, DatabaseNotExistException {
-        super.createTable(tablePath, table, ignoreIfExists);
-    }
-
-    @Override
-    public CatalogBaseTable getTable(ObjectPath tablePath) throws TableNotExistException {
-        return super.getTable(tablePath);
+        this.timeTravelTables = new HashMap<>();
     }
 
     @Override
     public CatalogBaseTable getTable(ObjectPath tablePath, long timestamp)
             throws TableNotExistException {
 
-        if (tables.containsKey(tablePath)) {
-            List<Tuple2<Long, CatalogTable>> tableList = tables.get(tablePath);
+        if (timeTravelTables.containsKey(tablePath)) {
+            List<Tuple2<Long, CatalogTable>> tableList = timeTravelTables.get(tablePath);
 
             Optional<Tuple2<Long, CatalogTable>> table =
                     tableList.stream()
@@ -83,20 +73,22 @@ public class TestTimeTravelCatalog extends GenericInMemoryCatalog {
      * @param properties Table properties to construct a table instance
      * @param timestamp The snapshot of the table
      */
-    public void registerTable(
+    public void registerTableForTimeTravel(
             String tableName, Schema schema, Map<String, String> properties, long timestamp)
             throws TableAlreadyExistException, DatabaseNotExistException, TableNotExistException {
         CatalogTable catalogTable =
                 CatalogTable.of(schema, "", Collections.emptyList(), properties);
         ObjectPath objectPath = new ObjectPath(getDefaultDatabase(), tableName);
-        if (!tables.containsKey(objectPath)) {
-            tables.put(objectPath, new ArrayList<>());
+        if (!timeTravelTables.containsKey(objectPath)) {
+            timeTravelTables.put(objectPath, new ArrayList<>());
         }
 
-        tables.get(objectPath).add(Tuple2.of(timestamp, catalogTable));
+        timeTravelTables.get(objectPath).add(Tuple2.of(timestamp, catalogTable));
         if (super.tableExists(objectPath)) {
             super.dropTable(objectPath, true);
         }
+        // We need to register the newest version table to the parent so that we don't have to
+        // implement other methods, such as getPartition or getTableStatistics, in this class.
         super.createTable(objectPath, catalogTable, true);
     }
 }

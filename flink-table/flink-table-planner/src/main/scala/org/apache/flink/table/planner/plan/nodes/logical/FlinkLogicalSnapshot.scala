@@ -52,9 +52,7 @@ class FlinkLogicalSnapshot(
       "'FOR SYSTEM_TIME AS OF' left table's time attribute field.\nQuerying a temporal table " +
       "using 'FOR SYSTEM TIME AS OF' syntax with %s is not supported yet."
     period match {
-      case _: RexFieldAccess =>
-      // pass
-      case _: RexLiteral =>
+      case _: RexFieldAccess | _: RexLiteral =>
       // pass
       case _ =>
         return litmus.fail(String.format(msg, s"an expression call '${period.toString}'"))

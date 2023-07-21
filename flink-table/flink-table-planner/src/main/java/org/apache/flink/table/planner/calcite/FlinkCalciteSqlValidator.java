@@ -171,7 +171,8 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             boolean forceNullable) {
 
         // Generate a new validator namespace for time travel scenario.
-        // Time travel only supports constant expressions, We need to ensure that the period of
+        // Since time travel only supports constant expressions, we need to ensure that the period
+        // of
         // snapshot is not an identifier.
         Optional<SqlSnapshot> snapshot = getSnapShotNode(ns);
         if (usingScope != null
@@ -245,8 +246,8 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
      * to identify whether the enclosingNode is an "as" call and if its first operand is
      * SqlSnapshot.
      *
-     * @param ns Validator namespace for validator.
-     * @return SqlSnapshot found in {@param ns}, empty if not found.
+     * @param ns The namespace used to find SqlSnapshot
+     * @return SqlSnapshot found in {@param ns}, empty if not found
      */
     private Optional<SqlSnapshot> getSnapShotNode(SqlValidatorNamespace ns) {
         if (ns instanceof IdentifierNamespace) {
