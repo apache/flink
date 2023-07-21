@@ -65,23 +65,24 @@ function setup_kubernetes_for_linux {
     rm -f ${crictl_archive}
 
     # cri-dockerd is required to use Kubernetes 1.24+ and the none driver
-    local cri_dockerd_version
-    cri_dockerd_version="v0.2.3"
-    if [ -e cri-dockerd ];
-     then rm -r cri-dockerd
-    fi
-    git clone https://github.com/Mirantis/cri-dockerd.git
-    cd cri-dockerd
-    git checkout tags/${cri_dockerd_version} -b ${cri_dockerd_version}
-    mkdir bin
-    go get && go build -o bin/cri-dockerd
-    mkdir -p /usr/local/bin
-    sudo install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
-    sudo cp -a packaging/systemd/* /etc/systemd/system
-    sudo sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+    local cri_dockerd_version cri_dockerd_archive cri_dockerd_binary
+    cri_dockerd_version="0.2.3"
+    cri_dockerd_archive="cri-dockerd-${cri_dockerd_version}.amd64.tgz"
+    cri_dockerd_binary="cri-dockerd"
+    wget -nv "https://github.com/Mirantis/cri-dockerd/releases/download/v${cri_dockerd_version}/${cri_dockerd_archive}"
+    tar xzvf $cri_dockerd_archive "cri-dockerd/${cri_dockerd_binary}" --strip-components=1
+    sudo install -o root -g root -m 0755 "${cri_dockerd_binary}" "/usr/local/bin/${cri_dockerd_binary}"
+    rm ${cri_dockerd_binary}
+
+    wget -nv https://raw.githubusercontent.com/Mirantis/cri-dockerd/v${cri_dockerd_version}/packaging/systemd/cri-docker.service
+    wget -nv https://raw.githubusercontent.com/Mirantis/cri-dockerd/v${cri_dockerd_version}/packaging/systemd/cri-docker.socket
+    sudo mv cri-docker.socket cri-docker.service /etc/systemd/system/
+    sudo sed -i -e "s,/usr/bin/${cri_dockerd_binary},/usr/local/bin/${cri_dockerd_binary}," /etc/systemd/system/cri-docker.service
+
     sudo systemctl daemon-reload
     sudo systemctl enable cri-docker.service
     sudo systemctl enable --now cri-docker.socket
+
     # required to resolve HOST_JUJU_LOCK_PERMISSION error of "minikube start --vm-driver=none"
     sudo sysctl fs.protected_regular=0
 }
