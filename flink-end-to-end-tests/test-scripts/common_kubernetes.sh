@@ -25,6 +25,7 @@ MINIKUBE_START_RETRIES=3
 MINIKUBE_START_BACKOFF=5
 RESULT_HASH="e682ec6622b5e83f2eb614617d5ab2cf"
 MINIKUBE_VERSION="v1.28.0"
+KUBECTL_VERSION="v1.25.3"
 
 NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux environment. ******"
 
@@ -38,8 +39,7 @@ function setup_kubernetes_for_linux {
     # Download kubectl, which is a requirement for using minikube.
     if ! [ -x "$(command -v kubectl)" ]; then
         echo "Installing kubectl ..."
-        local version=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-        curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/$arch/kubectl && \
+        curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_VERSION/bin/linux/$arch/kubectl && \
             chmod +x kubectl && sudo mv kubectl /usr/local/bin/
     fi
     # Download minikube when it is not installed beforehand.
