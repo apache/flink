@@ -23,14 +23,18 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.shuffle.TieredInternalShuffleMaster;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.LocalExecutionPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.PartitionConnectionInfo;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.configuration.NettyShuffleEnvironmentOptions.NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -49,7 +53,7 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
 
     private final int networkBufferSize;
 
-    // TODO, WIP: create tiered internal shuffle master after enabling the tiered storage.
+    @Nullable private final TieredInternalShuffleMaster tieredInternalShuffleMaster;
 
     public NettyShuffleMaster(Configuration conf) {
         checkNotNull(conf);
@@ -66,6 +70,12 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
         sortShuffleMinBuffers =
                 conf.getInteger(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
         networkBufferSize = ConfigurationParserUtils.getPageSize(conf);
+
+        if (conf.getBoolean(NETWORK_HYBRID_SHUFFLE_ENABLE_NEW_MODE)) {
+            tieredInternalShuffleMaster = new TieredInternalShuffleMaster(conf);
+        } else {
+            tieredInternalShuffleMaster = null;
+        }
 
         checkArgument(
                 !maxRequiredBuffersPerGate.isPresent() || maxRequiredBuffersPerGate.get() >= 1,
@@ -98,11 +108,18 @@ public class NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor>
                                 producerDescriptor, partitionDescriptor.getConnectionIndex()),
                         resultPartitionID);
 
+        if (tieredInternalShuffleMaster != null) {
+            tieredInternalShuffleMaster.addPartition(resultPartitionID);
+        }
         return CompletableFuture.completedFuture(shuffleDeploymentDescriptor);
     }
 
     @Override
-    public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {}
+    public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
+        if (tieredInternalShuffleMaster != null) {
+            tieredInternalShuffleMaster.releasePartition(shuffleDescriptor.getResultPartitionID());
+        }
+    }
 
     private static PartitionConnectionInfo createConnectionInfo(
             ProducerDescriptor producerDescriptor, int connectionIndex) {

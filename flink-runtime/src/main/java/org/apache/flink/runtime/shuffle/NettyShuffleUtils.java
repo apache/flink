@@ -67,11 +67,21 @@ public class NettyShuffleUtils {
             final int sortShuffleMinParallelism,
             final int sortShuffleMinBuffers,
             final int numSubpartitions,
+            final boolean enableTieredStorage,
+            final int tieredStoreExclusiveBuffers,
             final ResultPartitionType type) {
         boolean isSortShuffle =
                 type.isBlockingOrBlockingPersistentResultPartition()
                         && numSubpartitions >= sortShuffleMinParallelism;
-        int min = isSortShuffle ? sortShuffleMinBuffers : numSubpartitions + 1;
+        int min;
+        if (isSortShuffle) {
+            min = sortShuffleMinBuffers;
+        } else {
+            min =
+                    enableTieredStorage
+                            ? Math.min(tieredStoreExclusiveBuffers, numSubpartitions + 1)
+                            : (numSubpartitions + 1);
+        }
         int max =
                 type.isBounded()
                         ? numSubpartitions * configuredNetworkBuffersPerChannel
@@ -147,7 +157,8 @@ public class NettyShuffleUtils {
                         configuredNetworkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
                         type,
-                        numInputChannels);
+                        numInputChannels,
+                        false);
         return gateBuffersSpec.targetTotalBuffersPerGate();
     }
 
@@ -166,6 +177,8 @@ public class NettyShuffleUtils {
                         sortShuffleMinParallelism,
                         sortShuffleMinBuffers,
                         numSubpartitions,
+                        false,
+                        0,
                         type);
 
         // In order to avoid network buffer request timeout (see FLINK-12852), we announce

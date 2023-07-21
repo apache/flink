@@ -41,6 +41,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.IgnoreShutdownRejectedExecutionHandler;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,7 @@ import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import static org.apache.flink.runtime.shuffle.NettyShuffleUtils.getMinMaxNetworkBuffersPerResultPartition;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -132,6 +134,24 @@ class TieredResultPartitionTest {
         }
 
         assertThat(NUM_TOTAL_BUFFERS).isEqualTo(globalPool.getNumberOfAvailableMemorySegments());
+    }
+
+    @Test
+    void testMinMaxNetworkBuffersTieredResultPartition() {
+        int numSubpartitions = 105;
+        int tieredStorageTotalExclusiveBufferNum = 103;
+        Pair<Integer, Integer> minMaxNetworkBuffers =
+                getMinMaxNetworkBuffersPerResultPartition(
+                        100,
+                        5,
+                        100,
+                        10,
+                        numSubpartitions,
+                        true,
+                        tieredStorageTotalExclusiveBufferNum,
+                        ResultPartitionType.HYBRID_SELECTIVE);
+        assertThat(minMaxNetworkBuffers.getLeft()).isEqualTo(tieredStorageTotalExclusiveBufferNum);
+        assertThat(minMaxNetworkBuffers.getRight()).isEqualTo(Integer.MAX_VALUE);
     }
 
     @Test
