@@ -96,6 +96,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GET;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HEX;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HISTOGRAM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IN;
@@ -524,6 +525,11 @@ public abstract class BaseExpressions<InType, OutType> {
     /** Returns multiset aggregate of a given expression. */
     public OutType collect() {
         return toApiSpecificExpression(unresolvedCall(COLLECT, toExpr()));
+    }
+
+    /** Returns multiset aggregate of a given expression. */
+    public OutType histogram() {
+        return toApiSpecificExpression(unresolvedCall(HISTOGRAM, toExpr()));
     }
 
     /**

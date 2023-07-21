@@ -277,4 +277,8 @@ public class MapView<K, V> implements DataView {
         this.keyType = keyType;
         this.valueType = valueType;
     }
+
+    public int size() {
+        return map.size();
+    }
 }
