@@ -22,6 +22,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.LocalBufferPool;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
 import java.util.List;
 
@@ -53,6 +54,13 @@ public interface TieredStorageMemoryManager {
      * @param storageMemorySpecs the memory specs for different tiered storages
      */
     void setup(BufferPool bufferPool, List<TieredStorageMemorySpec> storageMemorySpecs);
+
+    /**
+     * Set the {@link TaskIOMetricGroup} for this memory manager.
+     *
+     * @param metricGroup the metric group to set
+     */
+    void setMetricGroup(TaskIOMetricGroup metricGroup);
 
     /**
      * Register a listener to listen the buffer reclaim request from the {@link

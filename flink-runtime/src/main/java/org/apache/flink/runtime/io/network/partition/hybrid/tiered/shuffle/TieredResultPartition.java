@@ -122,6 +122,7 @@ public class TieredResultPartition extends ResultPartition {
     @Override
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         super.setMetricGroup(metrics);
+        storageMemoryManager.setMetricGroup(metrics);
         tieredStorageProducerClient.setMetricStatisticsUpdater(
                 this::updateProducerMetricStatistics);
     }

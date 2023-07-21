@@ -23,6 +23,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemoryManager;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageMemorySpec;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.function.TriConsumer;
 
 import java.util.List;
@@ -34,6 +35,8 @@ import java.util.function.Function;
 public class TestingTieredStorageMemoryManager implements TieredStorageMemoryManager {
 
     private final BiConsumer<BufferPool, List<TieredStorageMemorySpec>> setupConsumer;
+
+    private final Consumer<TaskIOMetricGroup> setMetricGroupConsumer;
 
     private final Consumer<Runnable> listenBufferReclaimRequestConsumer;
 
@@ -49,6 +52,7 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
 
     private TestingTieredStorageMemoryManager(
             BiConsumer<BufferPool, List<TieredStorageMemorySpec>> setupConsumer,
+            Consumer<TaskIOMetricGroup> setMetricGroupConsumer,
             Consumer<Runnable> listenBufferReclaimRequestConsumer,
             Function<Object, BufferBuilder> requestBufferBlockingFunction,
             Function<Object, Integer> getMaxNonReclaimableBuffersFunction,
@@ -56,6 +60,7 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
             TriConsumer<Object, Object, Buffer> transferBufferOwnershipConsumer,
             Runnable releaseRunnable) {
         this.setupConsumer = setupConsumer;
+        this.setMetricGroupConsumer = setMetricGroupConsumer;
         this.listenBufferReclaimRequestConsumer = listenBufferReclaimRequestConsumer;
         this.requestBufferBlockingFunction = requestBufferBlockingFunction;
         this.getMaxNonReclaimableBuffersFunction = getMaxNonReclaimableBuffersFunction;
@@ -67,6 +72,11 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
     @Override
     public void setup(BufferPool bufferPool, List<TieredStorageMemorySpec> storageMemorySpecs) {
         setupConsumer.accept(bufferPool, storageMemorySpecs);
+    }
+
+    @Override
+    public void setMetricGroup(TaskIOMetricGroup metricGroup) {
+        setMetricGroupConsumer.accept(metricGroup);
     }
 
     @Override
@@ -104,6 +114,8 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
 
         private BiConsumer<BufferPool, List<TieredStorageMemorySpec>> setupConsumer =
                 (bufferPool, tieredStorageMemorySpecs) -> {};
+
+        private Consumer<TaskIOMetricGroup> setMetricGroupConsumer = (ignore) -> {};
 
         private Consumer<Runnable> listenBufferReclaimRequestConsumer = runnable -> {};
 
@@ -165,6 +177,7 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
         public TestingTieredStorageMemoryManager build() {
             return new TestingTieredStorageMemoryManager(
                     setupConsumer,
+                    setMetricGroupConsumer,
                     listenBufferReclaimRequestConsumer,
                     requestBufferBlockingFunction,
                     getMaxNonReclaimableBuffersFunction,
