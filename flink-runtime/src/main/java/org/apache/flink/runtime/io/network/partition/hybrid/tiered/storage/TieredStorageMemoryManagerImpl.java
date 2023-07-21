@@ -23,6 +23,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.LocalBufferPool;
+import org.apache.flink.runtime.metrics.TimerGauge;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 
@@ -87,6 +89,12 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     private final Map<Object, Integer> numOwnerRequestedBuffers;
 
     /**
+     * Time gauge to measure that hard backpressure time. Pre-create it to avoid checkNotNull in
+     * hot-path for performance purpose.
+     */
+    private TimerGauge hardBackpressureTimerGauge = new TimerGauge();
+
+    /**
      * This is for triggering buffer reclaiming while blocked on requesting new buffers.
      *
      * <p>Note: This can be null iff buffer reclaiming is not supported.
@@ -146,6 +154,12 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
     }
 
     @Override
+    public void setMetricGroup(TaskIOMetricGroup metricGroup) {
+        this.hardBackpressureTimerGauge =
+                checkNotNull(metricGroup.getHardBackPressuredTimePerSecond());
+    }
+
+    @Override
     public void listenBufferReclaimRequest(Runnable onBufferReclaimRequest) {
         bufferReclaimRequestListeners.add(onBufferReclaimRequest);
     }
@@ -159,12 +173,18 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
         CompletableFuture<Void> requestBufferFuture = new CompletableFuture<>();
         scheduleCheckRequestBufferFuture(
                 requestBufferFuture, INITIAL_REQUEST_BUFFER_TIMEOUT_FOR_RECLAIMING_MS);
-        MemorySegment memorySegment = null;
-        try {
-            memorySegment = bufferPool.requestMemorySegmentBlocking();
-        } catch (InterruptedException e) {
-            ExceptionUtils.rethrow(e);
+        MemorySegment memorySegment = bufferPool.requestMemorySegment();
+
+        if (memorySegment == null) {
+            try {
+                hardBackpressureTimerGauge.markStart();
+                memorySegment = bufferPool.requestMemorySegmentBlocking();
+                hardBackpressureTimerGauge.markEnd();
+            } catch (InterruptedException e) {
+                ExceptionUtils.rethrow(e);
+            }
         }
+
         requestBufferFuture.complete(null);
 
         incNumRequestedBuffer(owner);
