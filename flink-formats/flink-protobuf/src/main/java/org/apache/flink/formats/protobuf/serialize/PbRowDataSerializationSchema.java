@@ -19,6 +19,7 @@
 package org.apache.flink.formats.protobuf.serialize;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.protobuf.PbFormatConfig;
 import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.formats.protobuf.util.PbSchemaValidationUtils;
@@ -39,12 +40,12 @@ public class PbRowDataSerializationSchema implements SerializationSchema<RowData
     public static final long serialVersionUID = 1L;
 
     private final RowType rowType;
-    private final PbFormatContext context;
+    private final PbFormatConfig formatConfig;
     private transient RowToProtoConverter rowToProtoConverter;
 
     public PbRowDataSerializationSchema(RowType rowType, PbFormatContext context) {
         this.rowType = rowType;
-        this.context = context;
+        this.formatConfig = context.getPbFormatConfig();
         Descriptors.Descriptor descriptor =
                 PbFormatUtils.getDescriptor(
                         context.getPbFormatConfig().getMessageClassName(),
@@ -54,7 +55,11 @@ public class PbRowDataSerializationSchema implements SerializationSchema<RowData
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        rowToProtoConverter = new RowToProtoConverter(rowType, this.context);
+        rowToProtoConverter =
+                new RowToProtoConverter(
+                        rowType,
+                        new PbFormatContext(
+                                formatConfig, context.getUserCodeClassLoader().asClassLoader()));
     }
 
     @Override
