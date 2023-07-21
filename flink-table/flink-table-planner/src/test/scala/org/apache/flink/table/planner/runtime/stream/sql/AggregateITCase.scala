@@ -1796,4 +1796,47 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     val expected = List("null,null", "15,15", "11,11")
     assertEquals(expected, sink.getRetractResults)
   }
+
+  @Test
+  def testJsonArrayAggAndJsonObjectAggWithOtherAggs(): Unit = {
+    val sink = new TestingRetractSink
+    val sql =
+      s"""
+         |SELECT
+         |  MAX(d), JSON_OBJECTAGG(g VALUE d), JSON_ARRAYAGG(d), JSON_ARRAYAGG(g)
+         |FROM Table5 WHERE d <= 3
+         |""".stripMargin
+
+    val t = failingDataSource(TestData.tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    tEnv.createTemporaryView("Table5", t)
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected =
+      List(
+        "3,{\"ABC\":3,\"BCD\":3,\"Hallo\":1,\"Hallo Welt\":2,\"Hallo Welt wie\":2,\"Hallo Welt wie gehts?\":3}," +
+          "[1,2,2,3,3,3],[\"Hallo\",\"Hallo Welt\",\"Hallo Welt wie\",\"Hallo Welt wie gehts?\",\"ABC\",\"BCD\"]")
+    assertEquals(expected, sink.getRetractResults)
+  }
+
+  @Test
+  def testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs(): Unit = {
+    val sink = new TestingRetractSink
+    val sql =
+      s"""
+         |SELECT
+         |  d, JSON_OBJECTAGG(g VALUE f), JSON_ARRAYAGG(g), JSON_ARRAYAGG(f), max(f)
+         |FROM Table5 WHERE d <= 3 GROUP BY d
+         |""".stripMargin
+    val t = failingDataSource(TestData.tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
+    tEnv.createTemporaryView("Table5", t)
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected =
+      List(
+        "3,{\"ABC\":4,\"BCD\":5,\"Hallo Welt wie gehts?\":3},[\"Hallo Welt wie gehts?\",\"ABC\",\"BCD\"],[3,4,5],5",
+        "1,{\"Hallo\":0},[\"Hallo\"],[0],0",
+        "2,{\"Hallo Welt\":1,\"Hallo Welt wie\":2},[\"Hallo Welt\",\"Hallo Welt wie\"],[1,2],2"
+      )
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
 }
