@@ -104,7 +104,10 @@ class FlinkPlannerImpl(
       SqlValidator.Config.DEFAULT
         .withIdentifierExpansion(true)
         .withDefaultNullCollation(FlinkPlannerImpl.defaultNullCollation)
-        .withTypeCoercionEnabled(false)
+        .withTypeCoercionEnabled(false),
+      createToRelContext(),
+      cluster,
+      config
     ) // Disable implicit type coercion for now.
     validator
   }

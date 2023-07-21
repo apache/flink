@@ -494,24 +494,6 @@ class TemporalJoinTest extends TableTestBase {
       classOf[ValidationException]
     )
 
-    val sqlQuery6 = "SELECT * FROM RatesHistory " +
-      "FOR SYSTEM_TIME AS OF TIMESTAMP '2020-11-11 13:12:13'"
-    expectExceptionThrown(
-      sqlQuery6,
-      "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with a constant timestamp " +
-        "'2020-11-11 13:12:13' is not supported yet.",
-      classOf[AssertionError]
-    )
-
-    val sqlQuery7 = "SELECT * FROM RatesHistory FOR SYSTEM_TIME AS OF " +
-      "TO_TIMESTAMP(FROM_UNIXTIME(1))"
-    expectExceptionThrown(
-      sqlQuery7,
-      "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with an expression call " +
-        "'TO_TIMESTAMP(FROM_UNIXTIME(1))' is not supported yet.",
-      classOf[AssertionError]
-    )
-
     val sqlQuery8 =
       s"""
          |SELECT *

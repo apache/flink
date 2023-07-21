@@ -29,15 +29,18 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.plan.stats.TableStats;
+import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.schema.SchemaVersion;
 import org.apache.calcite.schema.Schemas;
 import org.apache.calcite.schema.Table;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import static java.lang.String.format;
@@ -69,9 +72,22 @@ class DatabaseCalciteSchema extends FlinkSchema {
     public Table getTable(String tableName) {
         final ObjectIdentifier identifier =
                 ObjectIdentifier.of(catalogName, databaseName, tableName);
-        return catalogManager
-                .getTable(identifier)
-                .map(
+        Optional<ContextResolvedTable> table;
+        if (getSchemaVersion().isPresent()) {
+            SchemaVersion schemaVersion = getSchemaVersion().get();
+            if (schemaVersion instanceof TimestampSchemaVersion) {
+                TimestampSchemaVersion timestampSchemaVersion =
+                        (TimestampSchemaVersion) getSchemaVersion().get();
+                table = catalogManager.getTable(identifier, timestampSchemaVersion.getTimestamp());
+            } else {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "Unsupported schema version type: %s", schemaVersion.getClass()));
+            }
+        } else {
+            table = catalogManager.getTable(identifier);
+        }
+        return table.map(
                         lookupResult ->
                                 new CatalogSchemaTable(
                                         lookupResult,
@@ -141,5 +157,11 @@ class DatabaseCalciteSchema extends FlinkSchema {
     @Override
     public boolean isMutable() {
         return true;
+    }
+
+    @Override
+    public DatabaseCalciteSchema copy() {
+        return new DatabaseCalciteSchema(
+                catalogName, databaseName, catalogManager, isStreamingMode);
     }
 }

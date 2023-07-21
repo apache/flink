@@ -59,8 +59,14 @@ public class CatalogCalciteSchema extends FlinkSchema {
     @Override
     public Schema getSubSchema(String schemaName) {
         if (catalogManager.schemaExists(catalogName, schemaName)) {
-            return new DatabaseCalciteSchema(
-                    catalogName, schemaName, catalogManager, isStreamingMode);
+            if (getSchemaVersion().isPresent()) {
+                return new DatabaseCalciteSchema(
+                                catalogName, schemaName, catalogManager, isStreamingMode)
+                        .snapshot(getSchemaVersion().get());
+            } else {
+                return new DatabaseCalciteSchema(
+                        catalogName, schemaName, catalogManager, isStreamingMode);
+            }
         } else {
             return null;
         }
@@ -89,5 +95,10 @@ public class CatalogCalciteSchema extends FlinkSchema {
     @Override
     public boolean isMutable() {
         return true;
+    }
+
+    @Override
+    public FlinkSchema copy() {
+        return new CatalogCalciteSchema(catalogName, catalogManager, isStreamingMode);
     }
 }

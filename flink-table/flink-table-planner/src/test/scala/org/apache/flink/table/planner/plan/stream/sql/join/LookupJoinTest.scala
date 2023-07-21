@@ -125,16 +125,6 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       "SQL parse failed",
       classOf[SqlParserException])
 
-    // can't query a dim table directly
-    expectExceptionThrown(
-      "SELECT * FROM LookupTable FOR SYSTEM_TIME AS OF TIMESTAMP '2017-08-09 14:36:11'",
-      "Temporal table can only be used in temporal join and only supports " +
-        "'FOR SYSTEM_TIME AS OF' left table's time attribute field.\n" +
-        "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with a constant " +
-        "timestamp '2017-08-09 14:36:11' is not supported yet",
-      classOf[AssertionError]
-    )
-
     // only support left or inner join
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T RIGHT JOIN LookupTable " +
@@ -150,17 +140,6 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       "Temporal table join requires an equality condition on fields of table " +
         "[default_catalog.default_database.LookupTable].",
       classOf[TableException]
-    )
-
-    // only support "FOR SYSTEM_TIME AS OF" left table's proctime
-    expectExceptionThrown(
-      "SELECT * FROM MyTable AS T LEFT JOIN LookupTable " +
-        "FOR SYSTEM_TIME AS OF PROCTIME() AS D ON T.a = D.id",
-      "Temporal table can only be used in temporal join and only supports " +
-        "'FOR SYSTEM_TIME AS OF' left table's time attribute field.\n" +
-        "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with " +
-        "an expression call 'PROCTIME()' is not supported yet.",
-      classOf[AssertionError]
     )
   }
 

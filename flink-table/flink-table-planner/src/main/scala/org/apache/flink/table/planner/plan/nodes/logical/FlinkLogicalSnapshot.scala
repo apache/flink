@@ -52,10 +52,8 @@ class FlinkLogicalSnapshot(
       "'FOR SYSTEM_TIME AS OF' left table's time attribute field.\nQuerying a temporal table " +
       "using 'FOR SYSTEM TIME AS OF' syntax with %s is not supported yet."
     period match {
-      case _: RexFieldAccess =>
+      case _: RexFieldAccess | _: RexLiteral =>
       // pass
-      case lit: RexLiteral =>
-        return litmus.fail(String.format(msg, s"a constant timestamp '${lit.toString}'"))
       case _ =>
         return litmus.fail(String.format(msg, s"an expression call '${period.toString}'"))
     }
@@ -85,7 +83,12 @@ class FlinkLogicalSnapshotConverter(config: Config) extends ConverterRule(config
   def convert(rel: RelNode): RelNode = {
     val snapshot = rel.asInstanceOf[LogicalSnapshot]
     val newInput = RelOptRule.convert(snapshot.getInput, FlinkConventions.LOGICAL)
-    FlinkLogicalSnapshot.create(newInput, snapshot.getPeriod)
+    snapshot.getPeriod match {
+      case _: RexFieldAccess =>
+        FlinkLogicalSnapshot.create(newInput, snapshot.getPeriod)
+      case _: RexLiteral =>
+        newInput
+    }
   }
 }
 

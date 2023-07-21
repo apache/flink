@@ -84,16 +84,6 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
       "SQL parse failed",
       classOf[SqlParserException])
 
-    // can't query a dim table directly
-    expectExceptionThrown(
-      "SELECT * FROM LookupTable FOR SYSTEM_TIME AS OF TIMESTAMP '2017-08-09 14:36:11'",
-      "Temporal table can only be used in temporal join and only supports " +
-        "'FOR SYSTEM_TIME AS OF' left table's time attribute field.\n" +
-        "Querying a temporal table using 'FOR SYSTEM TIME AS OF' syntax with a constant " +
-        "timestamp '2017-08-09 14:36:11' is not supported yet",
-      classOf[AssertionError]
-    )
-
     // only support left or inner join
     // Calcite does not allow FOR SYSTEM_TIME AS OF non-nullable left table field to Right Join.
     // There is an exception:
