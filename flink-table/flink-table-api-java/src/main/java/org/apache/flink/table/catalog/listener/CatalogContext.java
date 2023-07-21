@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog.listener;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.factories.Factory;
 
 import java.util.Optional;
 
@@ -34,7 +35,11 @@ public interface CatalogContext {
     /** The catalog name. */
     String getCatalogName();
 
-    /** Identifier for the catalog from catalog factory. */
+    /**
+     * Identifier for the catalog from factory which is used to create dynamic tables. Notice that
+     * the factory for hive catalog will throw an exception, you can use getClazz to get catalog
+     * class.
+     */
     Optional<String> getFactoryIdentifier();
 
     /** Class of the catalog. */
@@ -42,4 +47,33 @@ public interface CatalogContext {
 
     /** The catalog configuration. */
     Configuration getConfiguration();
+
+    static CatalogContext createContext(final String catalogName, final Catalog catalog) {
+        return new CatalogContext() {
+
+            @Override
+            public String getCatalogName() {
+                return catalogName;
+            }
+
+            @Override
+            public Optional<String> getFactoryIdentifier() {
+                return catalog.getFactory().map(Factory::factoryIdentifier);
+            }
+
+            @Override
+            public Class<? extends Catalog> getClazz() {
+                return catalog.getClass();
+            }
+
+            /**
+             * TODO After https://issues.apache.org/jira/browse/FLINK-32427 is finished, we can get
+             * configuration for catalog.
+             */
+            @Override
+            public Configuration getConfiguration() {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
 }
