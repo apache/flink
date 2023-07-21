@@ -180,8 +180,8 @@ public class TestingFreeSlotInfoTracker implements FreeSlotInfoTracker {
         }
 
         @Override
-        public SlotInfoWithUtilization asSlotInfo() {
-            return SlotInfoWithUtilization.from(slotInfo, ignore -> 0d);
+        public SlotInfo asSlotInfo() {
+            return slotInfo;
         }
 
         @Override

@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -223,7 +224,12 @@ class DefaultAllocatedSlotPoolTest {
         assertThat(slotPool.getFreeSlotsInformation())
                 .allSatisfy(
                         freeSlotInfo ->
-                                assertThat(freeSlotInfo.asSlotInfo().getTaskExecutorUtilization())
+                                assertThat(
+                                                slotPool.getTaskExecutorUtilization(
+                                                        freeSlotInfo
+                                                                .asSlotInfo()
+                                                                .getTaskManagerLocation()
+                                                                .getResourceID()))
                                         .isCloseTo(0, offset(0.1)));
 
         int numAllocatedSlots = 0;
@@ -233,7 +239,12 @@ class DefaultAllocatedSlotPoolTest {
 
             for (AllocatedSlotPool.FreeSlotInfo freeSlotInfo : slotPool.getFreeSlotsInformation()) {
                 final double utilization = (double) numAllocatedSlots / slots.size();
-                assertThat(freeSlotInfo.asSlotInfo().getTaskExecutorUtilization())
+                assertThat(
+                                slotPool.getTaskExecutorUtilization(
+                                        freeSlotInfo
+                                                .asSlotInfo()
+                                                .getTaskManagerLocation()
+                                                .getResourceID()))
                         .isCloseTo(utilization, offset(0.1));
             }
         }
@@ -310,16 +321,15 @@ class DefaultAllocatedSlotPoolTest {
                             AllocatedSlot allocatedSlot =
                                     allocatedSlotMap.get(freeSlotInfo.getAllocationId());
                             assertThat(allocatedSlot).isNotNull();
-                            SlotInfoWithUtilization slotInfoWithUtilization =
-                                    freeSlotInfo.asSlotInfo();
+                            SlotInfo slotInfo = freeSlotInfo.asSlotInfo();
                             assertThat(allocatedSlot.getAllocationId())
-                                    .isEqualTo(slotInfoWithUtilization.getAllocationId());
+                                    .isEqualTo(slotInfo.getAllocationId());
                             assertThat(allocatedSlot.getPhysicalSlotNumber())
-                                    .isEqualTo(slotInfoWithUtilization.getPhysicalSlotNumber());
+                                    .isEqualTo(slotInfo.getPhysicalSlotNumber());
                             assertThat(allocatedSlot.getResourceProfile())
-                                    .isEqualTo(slotInfoWithUtilization.getResourceProfile());
+                                    .isEqualTo(slotInfo.getResourceProfile());
                             assertThat(allocatedSlot.getTaskManagerLocation())
-                                    .isEqualTo(slotInfoWithUtilization.getTaskManagerLocation());
+                                    .isEqualTo(slotInfo.getTaskManagerLocation());
                         });
     }
 

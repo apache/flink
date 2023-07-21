@@ -564,7 +564,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     }
 
     @Override
-    public Collection<SlotInfoWithUtilization> getFreeSlotsInformation() {
+    public Collection<SlotInfo> getFreeSlotsInformation() {
         return slotPool.getFreeSlotsInformation().stream()
                 .map(AllocatedSlotPool.FreeSlotInfo::asSlotInfo)
                 .collect(Collectors.toList());

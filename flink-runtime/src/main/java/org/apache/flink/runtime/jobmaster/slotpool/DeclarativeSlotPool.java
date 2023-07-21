@@ -113,7 +113,7 @@ public interface DeclarativeSlotPool {
      *
      * @return collection of free slot information
      */
-    Collection<SlotInfoWithUtilization> getFreeSlotsInformation();
+    Collection<SlotInfo> getFreeSlotsInformation();
 
     /**
      * Returns the free slot tracker.

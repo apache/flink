@@ -133,7 +133,7 @@ public interface AllocatedSlotPool {
 
     /** Information about a free slot. */
     interface FreeSlotInfo {
-        SlotInfoWithUtilization asSlotInfo();
+        SlotInfo asSlotInfo();
 
         /**
          * Returns since when this slot is free.
