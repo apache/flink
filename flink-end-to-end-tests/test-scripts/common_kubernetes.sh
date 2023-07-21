@@ -58,7 +58,7 @@ function setup_kubernetes_for_linux {
     sudo apt-get install conntrack
     # crictl is required for cri-dockerd
     VERSION="v1.24.2"
-    wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
+    wget -nv https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
     sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
     rm -f crictl-$VERSION-linux-amd64.tar.gz
     # cri-dockerd is required to use Kubernetes 1.24+ and the none driver
