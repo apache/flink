@@ -147,6 +147,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 1)
             Collect(args.head)
 
+          case HISTOGRAM =>
+            assert(args.size == 1)
+            Histogram(args.head)
+
           case EXTRACT =>
             assert(args.size == 2)
             Extract(args.head, args.last)

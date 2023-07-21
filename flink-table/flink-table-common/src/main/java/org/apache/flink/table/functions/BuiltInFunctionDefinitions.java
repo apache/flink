@@ -384,6 +384,15 @@ public final class BuiltInFunctionDefinitions {
                             TypeStrategies.aggArg0(LogicalTypeMerging::findAvgAggType, true))
                     .build();
 
+    public static final BuiltInFunctionDefinition HISTOGRAM =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("histogram")
+                    .kind(AGGREGATE)
+                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.aggregate.HistogramAggFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition COUNT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("count")

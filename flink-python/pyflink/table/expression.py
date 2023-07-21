@@ -53,13 +53,14 @@ Example:
     >>>             col("b").stddev_samp.alias("k"),
     >>>             col("b").var_pop.alias("l"),
     >>>             col("b").var_samp.alias("m"),
-    >>>             col("b").collect.alias("n"))
+    >>>             col("b").collect.alias("n"),
+    >>>             col("b").histogram.alias("n"))
 
 .. seealso:: :py:attr:`~Expression.sum`, :py:attr:`~Expression.sum0`, :py:attr:`~Expression.min`,
              :py:attr:`~Expression.max`, :py:attr:`~Expression.count`, :py:attr:`~Expression.avg`,
              :py:attr:`~Expression.stddev_pop`, :py:attr:`~Expression.stddev_samp`,
              :py:attr:`~Expression.var_pop`, :py:attr:`~Expression.var_samp`,
-             :py:attr:`~Expression.collect`
+             :py:attr:`~Expression.collect`, :py:attr:`~Expression.histogram`
 """
 
 _math_log_doc = """
@@ -173,6 +174,7 @@ def _make_aggregation_doc():
         Expression.var_pop: "Returns the population standard variance of an expression.",
         Expression.var_samp: "Returns the sample variance of a given expression.",
         Expression.collect: "Returns multiset aggregate of a given expression.",
+        Expression.histogram: "Returns multiset aggregate of a given expression."
     }
 
     for func, op_desc in aggregation_funcs.items():
@@ -831,6 +833,10 @@ class Expression(Generic[T]):
     @property
     def collect(self) -> 'Expression':
         return _unary_op("collect")(self)
+
+    @property
+    def histogram(self) -> 'Expression':
+        return _unary_op("histogram")(self)
 
     def alias(self, name: str, *extra_names: str) -> 'Expression[T]':
         """
