@@ -729,6 +729,17 @@ public final class FactoryUtil {
         }
     }
 
+    /** Returns the {@link DynamicTableFactory} via {@link Catalog}. */
+    public static <T extends DynamicTableFactory> Optional<T> getDynamicTableFactory(
+            Class<T> factoryClass, @Nullable Catalog catalog) {
+        if (catalog == null) {
+            return Optional.empty();
+        }
+
+        return catalog.getFactory()
+                .map(f -> factoryClass.isAssignableFrom(f.getClass()) ? (T) f : null);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------
@@ -737,17 +748,6 @@ public final class FactoryUtil {
             Class<T> factoryClass, @Nullable Catalog catalog, DynamicTableFactory.Context context) {
         return getDynamicTableFactory(factoryClass, catalog)
                 .orElseGet(() -> discoverTableFactory(factoryClass, context));
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends DynamicTableFactory> Optional<T> getDynamicTableFactory(
-            Class<T> factoryClass, @Nullable Catalog catalog) {
-        if (catalog == null) {
-            return Optional.empty();
-        }
-
-        return catalog.getFactory()
-                .map(f -> factoryClass.isAssignableFrom(f.getClass()) ? (T) f : null);
     }
 
     private static <T extends DynamicTableFactory> T discoverTableFactory(
