@@ -34,9 +34,9 @@ import org.apache.hadoop.hive.metastore.api.Table;
  * got to HiveCatalog directly which cause us can only call these methods in HiveCatalog via
  * reflection.
  *
- * <p>It's a hack logic, we can remove the hack logic after we split the Hive connector into two,
- * one of which is for source/sink, and the other one is only for hive dialect. Then, the class
- * loader will be same.
+ * <p>It's a hack logic, we can remove the hack logic after we split the Hive connector into two
+ * jars, one of which is only for source/sink, and the other one is only for hive dialect. Then, the
+ * class loader will be same.
  */
 public class HiveCatalogUtils {
 

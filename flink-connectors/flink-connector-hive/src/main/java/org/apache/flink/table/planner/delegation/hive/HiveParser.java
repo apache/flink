@@ -212,6 +212,9 @@ public class HiveParser implements Parser {
             }
         }
 
+        // Note: it's equal to HiveCatalog#getHiveConf, but we can't use HiveCatalog#getHiveConf
+        // directly for classloader issue.
+        // For more detail, please see class HiveCatalogUtils.
         HiveConf hiveConf = HiveCatalogUtils.getHiveConf(currentCatalog);
         Optional<Operation> nonSqlOperation = tryProcessHiveNonSqlStatement(hiveConf, statement);
         if (nonSqlOperation.isPresent()) {
@@ -221,6 +224,9 @@ public class HiveParser implements Parser {
         hiveConfCopy.setVar(HiveConf.ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
         hiveConfCopy.set("hive.allow.udf.load.on.demand", "false");
         hiveConfCopy.setVar(HiveConf.ConfVars.HIVE_EXECUTION_ENGINE, "mr");
+        // Note: it's equal to HiveCatalog#getHiveVersion, but we can't use
+        // HiveCatalog#getHiveVersion directly for classloader issue.
+        // For more detail, please see class HiveCatalogUtils.
         HiveShim hiveShim =
                 HiveShimLoader.loadHiveShim(HiveCatalogUtils.getHiveVersion(currentCatalog));
         try {
