@@ -1705,7 +1705,7 @@ GroupAggregate(groupBy=[a, ws, we], select=[a, ws, we, COUNT(*) AS EXPR$3])
                   +- Calc(select=[proctime])
                      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
                         +- Calc(select=[PROCTIME() AS proctime, rowtime])
-                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime], metadata=[]]], fields=[rowtime])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -1777,19 +1777,22 @@ LogicalSink(table=[default_catalog.default_database.s1], fields=[window_start, w
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, e, rowtime], metadata=[]]], fields=[b, e, rowtime])(reuse_id=[1])
+
 Sink(table=[default_catalog.default_database.s1], fields=[window_start, window_end, wAvg])
 +- Calc(select=[window_start, window_end, wAvg])
    +- WindowAggregate(window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[weightedAvg(b, e) AS wAvg, start('w$) AS window_start, end('w$) AS window_end])
       +- Exchange(distribution=[single])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, e, rowtime], metadata=[]]], fields=[b, e, rowtime])
+            +- Reused(reference_id=[1])
 
 Sink(table=[default_catalog.default_database.s1], fields=[window_start, window_end, EXPR$2])
 +- Calc(select=[window_start, window_end, EXPR$2])
    +- WindowAggregate(window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[COUNT(*) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end])
       +- Exchange(distribution=[single])
          +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime], metadata=[]]], fields=[rowtime])
+            +- Calc(select=[rowtime])
+               +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -1819,13 +1822,15 @@ LogicalSink(table=[default_catalog.default_database.s1], fields=[window_start, w
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, e, rowtime], metadata=[]]], fields=[b, e, rowtime])(reuse_id=[1])
+
 Sink(table=[default_catalog.default_database.s1], fields=[window_start, window_end, wAvg])
 +- Calc(select=[window_start, window_end, wAvg])
    +- GlobalWindowAggregate(window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[weightedAvg(weightedavg$0) AS wAvg, start('w$) AS window_start, end('w$) AS window_end])
       +- Exchange(distribution=[single])
          +- LocalWindowAggregate(window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[weightedAvg(b, e) AS weightedavg$0, slice_end('w$) AS $slice_end])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, e, rowtime], metadata=[]]], fields=[b, e, rowtime])
+               +- Reused(reference_id=[1])
 
 Sink(table=[default_catalog.default_database.s1], fields=[window_start, window_end, EXPR$2])
 +- Calc(select=[window_start, window_end, EXPR$2])
@@ -1833,7 +1838,8 @@ Sink(table=[default_catalog.default_database.s1], fields=[window_start, window_e
       +- Exchange(distribution=[single])
          +- LocalWindowAggregate(window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[COUNT(*) AS count1$0, slice_end('w$) AS $slice_end])
             +- WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime], metadata=[]]], fields=[rowtime])
+               +- Calc(select=[rowtime])
+                  +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -2117,7 +2123,7 @@ Calc(select=[a, window_start, window_end, EXPR$3])
                      +- Calc(select=[proctime])
                         +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
                            +- Calc(select=[PROCTIME() AS proctime, rowtime])
-                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[rowtime], metadata=[]]], fields=[rowtime])
+                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, rowtime], metadata=[]]], fields=[a, rowtime])
 ]]>
     </Resource>
   </TestCase>
