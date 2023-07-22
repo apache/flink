@@ -55,6 +55,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import scala.Option;
+
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createRequiredMetadataColumns;
 
 /** Utils for {@link ScanReuser}. */
@@ -335,6 +337,11 @@ public class ScanReuserUtils {
 
         if (!scan.getHints().isEmpty()) {
             digest.add("hints=[" + scan.hintsDigest() + "]");
+        }
+
+        Option<String> snapshot = scan.extractSnapshotVersion();
+        if (snapshot.isDefined()) {
+            digest.add("version=" + snapshot.getOrElse(() -> ""));
         }
 
         return digest.toString();

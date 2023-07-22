@@ -66,7 +66,7 @@ abstract class CommonPhysicalTableSourceScan(
     RelExplainUtil.hintsToString(getHints)
   }
 
-  private def extractSnapshotVersion(): Option[String] = {
+  def extractSnapshotVersion(): Option[String] = {
     val originTable: CatalogBaseTable =
       relOptTable.contextResolvedTable.getTable.asInstanceOf[CatalogBaseTable]
     originTable match {
