@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.common
 
+import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogTable}
 import org.apache.flink.table.connector.source.ScanTableSource
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
@@ -51,9 +52,21 @@ abstract class CommonPhysicalTableSourceScan(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
+    val version = extractSnapshotVersion()
     super
       .explainTerms(pw)
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(getHints), !getHints.isEmpty)
+      .itemIf("version", version.get, version.isDefined)
+  }
+
+  private def extractSnapshotVersion(): Option[String] = {
+    val originTable: CatalogBaseTable =
+      relOptTable.contextResolvedTable.getTable.asInstanceOf[CatalogBaseTable]
+    originTable match {
+      case catalogTable: CatalogTable if catalogTable.getSnapshot.isPresent =>
+        Option(catalogTable.getSnapshot.get().toString)
+      case _ => Option("")
+    }
   }
 }
