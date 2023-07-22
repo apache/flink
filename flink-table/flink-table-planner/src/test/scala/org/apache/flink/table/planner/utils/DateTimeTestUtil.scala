@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.utils
 import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.utils.DateTimeUtils
 
-import java.time.format.DateTimeFormatter
 import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
+import java.time.format.DateTimeFormatter
 
 object DateTimeTestUtil {
 

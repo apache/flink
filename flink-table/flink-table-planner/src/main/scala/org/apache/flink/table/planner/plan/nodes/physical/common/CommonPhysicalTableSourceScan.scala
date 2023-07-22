@@ -57,7 +57,7 @@ abstract class CommonPhysicalTableSourceScan(
       .explainTerms(pw)
       .item("fields", getRowType.getFieldNames.asScala.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(getHints), !getHints.isEmpty)
-      .itemIf("version", version.get, version.isDefined)
+      .itemIf("version", version.getOrElse(""), version.isDefined)
   }
 
   private def extractSnapshotVersion(): Option[String] = {
@@ -66,7 +66,7 @@ abstract class CommonPhysicalTableSourceScan(
     originTable match {
       case catalogTable: CatalogTable if catalogTable.getSnapshot.isPresent =>
         Option(catalogTable.getSnapshot.get().toString)
-      case _ => Option("")
+      case _ => Option.empty
     }
   }
 }
