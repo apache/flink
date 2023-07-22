@@ -21,6 +21,7 @@ import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter
 import org.apache.flink.table.utils.DateTimeUtils
 
 import java.time.{LocalDate, LocalDateTime, LocalTime, ZoneId}
+import java.time.format.DateTimeFormatter
 
 object DateTimeTestUtil {
 
@@ -50,5 +51,21 @@ object DateTimeTestUtil {
 
   def toEpochMills(s: String, zone: ZoneId): Long = {
     LocalDateTime.parse(s).atZone(zone).toInstant.toEpochMilli
+  }
+
+  /** Returns the epoch millisecond using given datetime formatter and time zone id. */
+  def toEpochMills(s: String, format: String, zone: ZoneId): Long = {
+    LocalDateTime.parse(s, DateTimeFormatter.ofPattern(format)).atZone(zone).toInstant.toEpochMilli
+  }
+
+  /** Converts the given timestamp from `fromZone` to `toZone` using specific `format`. */
+  def timezoneConvert(s: String, format: String, fromZone: ZoneId, toZone: ZoneId): String = {
+    LocalDateTime
+      .parse(s, DateTimeFormatter.ofPattern(format))
+      .atZone(fromZone)
+      .toInstant
+      .atZone(toZone)
+      .toLocalDateTime
+      .format(DateTimeFormatter.ofPattern(format))
   }
 }

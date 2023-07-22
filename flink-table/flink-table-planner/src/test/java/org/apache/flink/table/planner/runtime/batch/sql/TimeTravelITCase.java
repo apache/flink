@@ -19,58 +19,26 @@
 package org.apache.flink.table.planner.runtime.batch.sql;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.factories.TestTimeTravelCatalog;
-import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.table.planner.runtime.utils.TimeTravelTestUtil;
+import org.apache.flink.table.planner.utils.DateTimeTestUtil;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for time travel. */
 public class TimeTravelITCase extends BatchTestBase {
-    private static final List<Tuple3<String, Schema, List<Row>>> TEST_TIME_TRAVEL_DATE =
-            Arrays.asList(
-                    Tuple3.of(
-                            "2023-01-01 01:00:00",
-                            Schema.newBuilder().column("f1", DataTypes.INT()).build(),
-                            Collections.singletonList(Row.of(1))),
-                    Tuple3.of(
-                            "2023-01-01 02:00:00",
-                            Schema.newBuilder()
-                                    .column("f1", DataTypes.INT())
-                                    .column("f2", DataTypes.INT())
-                                    .build(),
-                            Collections.singletonList(Row.of(1, 2))),
-                    Tuple3.of(
-                            "2023-01-01 03:00:00",
-                            Schema.newBuilder()
-                                    .column("f1", DataTypes.INT())
-                                    .column("f2", DataTypes.INT())
-                                    .column("f3", DataTypes.INT())
-                                    .build(),
-                            Collections.singletonList(Row.of(1, 2, 3))));
-
     private static final List<Tuple2<String, String>> EXPECTED_TIME_TRAVEL_RESULT =
             Arrays.asList(
                     Tuple2.of("2023-01-01 01:00:00", "[+I[1]]"),
@@ -80,24 +48,12 @@ public class TimeTravelITCase extends BatchTestBase {
     @BeforeEach
     @Override
     public void before() {
-        TestTimeTravelCatalog catalog = new TestTimeTravelCatalog("TimeTravelCatalog");
+        String catalogName = "TimeTravelCatalog";
+        TestTimeTravelCatalog catalog =
+                TimeTravelTestUtil.getTestingCatalogWithVersionedTable(catalogName, "t1");
 
-        TEST_TIME_TRAVEL_DATE.forEach(
-                t -> {
-                    String dataId = TestValuesTableFactory.registerData(t.f2);
-                    Map<String, String> options = new HashMap<>();
-                    options.put("connector", "values");
-                    options.put("bounded", "true");
-                    options.put("data-id", dataId);
-                    try {
-                        catalog.registerTableForTimeTravel(
-                                "t1", t.f1, options, convertStringToLong(t.f0, ZoneId.of("UTC")));
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-        tEnv().registerCatalog("TimeTravelCatalog", catalog);
-        tEnv().useCatalog("TimeTravelCatalog");
+        tEnv().registerCatalog(catalogName, catalog);
+        tEnv().useCatalog(catalogName);
         tEnv().getConfig().setLocalTimeZone(ZoneId.of("UTC"));
     }
 
@@ -155,8 +111,9 @@ public class TimeTravelITCase extends BatchTestBase {
                                                     + "    *\n"
                                                     + "FROM\n"
                                                     + "    t1 FOR SYSTEM_TIME AS OF TIMESTAMP '%s' AS t2",
-                                            timezoneConvert(
+                                            DateTimeTestUtil.timezoneConvert(
                                                     res.f0,
+                                                    "yyyy-MM-dd HH:mm:ss",
                                                     ZoneId.of("UTC"),
                                                     ZoneId.of("Asia/Shanghai"))));
             List<String> sortedResult = toSortedResults(tableResult);
@@ -219,69 +176,6 @@ public class TimeTravelITCase extends BatchTestBase {
     }
 
     @Test
-    void testTimeTravelWithUnsupportedExpression() {
-        assertThatThrownBy(
-                        () ->
-                                tEnv().executeSql(
-                                                "SELECT\n"
-                                                        + "    *\n"
-                                                        + "FROM\n"
-                                                        + "    t1 FOR SYSTEM_TIME AS OF TO_TIMESTAMP_LTZ (0, 3)"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Unsupported time travel expression: TO_TIMESTAMP_LTZ(0, 3) for the expression can not be reduced to a constant by Flink.");
-
-        assertThatThrownBy(
-                        () ->
-                                tEnv().executeSql(
-                                                "SELECT\n"
-                                                        + "    *\n"
-                                                        + "FROM\n"
-                                                        + "    t1 FOR SYSTEM_TIME AS OF PROCTIME()"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Unsupported time travel expression: PROCTIME() for the expression can not be reduced to a constant by Flink.");
-    }
-
-    @Test
-    void testTimeTravelWithIdentifierSnapshot() {
-        tEnv().executeSql(
-                        "CREATE TABLE\n"
-                                + "    t2 (f1 VARCHAR, f2 TIMESTAMP(3))\n"
-                                + "WITH\n"
-                                + "    ('connector'='values', 'bounded'='true')");
-
-        // select snapshot with identifier only support in lookup join or temporal join.
-        // The following query can't generate a validate execution plan.
-
-        assertThatThrownBy(
-                        () ->
-                                tEnv().executeSql(
-                                                "SELECT\n"
-                                                        + "    *\n"
-                                                        + "FROM\n"
-                                                        + "    t2 FOR SYSTEM_TIME AS OF f2"))
-                .isInstanceOf(TableException.class)
-                .hasMessageContaining("Cannot generate a valid execution plan for the given query");
-    }
-
-    @Test
-    void testTimeTravelWithView() {
-        tEnv().executeSql("CREATE VIEW tb_view AS SELECT * FROM t1");
-
-        assertThatThrownBy(
-                        () ->
-                                tEnv().executeSql(
-                                                "SELECT\n"
-                                                        + "    *\n"
-                                                        + "FROM\n"
-                                                        + "    tb_view FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 01:00:00'"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "TimeTravelCatalog.default.tb_view is a view, but time travel is not supported for view.");
-    }
-
-    @Test
     void testTimeTravelWithHints() {
         TableResult tableResult =
                 tEnv().executeSql(
@@ -296,23 +190,6 @@ public class TimeTravelITCase extends BatchTestBase {
 
         sortedResult = toSortedResults(tableResult);
         assertEquals("[+I[1, 2]]", sortedResult.toString());
-    }
-
-    private static Long convertStringToLong(String timestamp, ZoneId zoneId) {
-        return LocalDateTime.parse(timestamp, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-                .atZone(zoneId)
-                .toInstant()
-                .toEpochMilli();
-    }
-
-    private static String timezoneConvert(
-            String timestamp, ZoneId originZoneId, ZoneId convrtedZoneId) {
-        return LocalDateTime.parse(timestamp, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-                .atZone(originZoneId)
-                .toInstant()
-                .atZone(convrtedZoneId)
-                .toLocalDateTime()
-                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
     private List<String> toSortedResults(TableResult result) {
