@@ -813,7 +813,7 @@ public final class CatalogManager implements CatalogRegistry {
                                     ignoreIfExists);
 
                     catalog.createTable(path, resolvedListenedTable, ignoreIfExists);
-                    if (table instanceof CatalogTable) {
+                    if (resolvedListenedTable instanceof CatalogTable) {
                         catalogModificationListeners.forEach(
                                 listener ->
                                         listener.onEvent(
@@ -822,7 +822,7 @@ public final class CatalogManager implements CatalogRegistry {
                                                                 objectIdentifier.getCatalogName(),
                                                                 catalog),
                                                         objectIdentifier,
-                                                        resolvedTable,
+                                                        resolvedListenedTable,
                                                         ignoreIfExists,
                                                         false)));
                     }
@@ -871,7 +871,7 @@ public final class CatalogManager implements CatalogRegistry {
                                     .onCreateTemporaryTable(
                                             objectIdentifier.toObjectPath(), resolvedListenedTable);
                         }
-                        if (table instanceof CatalogTable) {
+                        if (resolvedListenedTable instanceof CatalogTable) {
                             catalogModificationListeners.forEach(
                                     l ->
                                             l.onEvent(
@@ -881,7 +881,7 @@ public final class CatalogManager implements CatalogRegistry {
                                                                             .getCatalogName(),
                                                                     catalog),
                                                             objectIdentifier,
-                                                            resolvedTable,
+                                                            resolvedListenedTable,
                                                             ignoreIfExists,
                                                             true)));
                         }
@@ -919,7 +919,10 @@ public final class CatalogManager implements CatalogRegistry {
      */
     public void dropTemporaryTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
         dropTemporaryTableInternal(
-                objectIdentifier, (table) -> table instanceof CatalogTable, ignoreIfNotExists);
+                objectIdentifier,
+                (table) -> table instanceof CatalogTable,
+                ignoreIfNotExists,
+                true);
     }
 
     /**
@@ -931,13 +934,17 @@ public final class CatalogManager implements CatalogRegistry {
      */
     public void dropTemporaryView(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
         dropTemporaryTableInternal(
-                objectIdentifier, (table) -> table instanceof CatalogView, ignoreIfNotExists);
+                objectIdentifier,
+                (table) -> table instanceof CatalogView,
+                ignoreIfNotExists,
+                false);
     }
 
     private void dropTemporaryTableInternal(
             ObjectIdentifier objectIdentifier,
             Predicate<CatalogBaseTable> filter,
-            boolean ignoreIfNotExists) {
+            boolean ignoreIfNotExists,
+            boolean isDropTable) {
         CatalogBaseTable catalogBaseTable = temporaryTables.get(objectIdentifier);
         if (filter.test(catalogBaseTable)) {
             getTemporaryOperationListener(objectIdentifier)
@@ -949,16 +956,18 @@ public final class CatalogManager implements CatalogRegistry {
                     catalog, objectIdentifier, resolvedTable, true, ignoreIfNotExists);
 
             temporaryTables.remove(objectIdentifier);
-            catalogModificationListeners.forEach(
-                    listener ->
-                            listener.onEvent(
-                                    DropTableEvent.createEvent(
-                                            CatalogContext.createContext(
-                                                    objectIdentifier.getCatalogName(), catalog),
-                                            objectIdentifier,
-                                            resolvedTable,
-                                            ignoreIfNotExists,
-                                            true)));
+            if (isDropTable) {
+                catalogModificationListeners.forEach(
+                        listener ->
+                                listener.onEvent(
+                                        DropTableEvent.createEvent(
+                                                CatalogContext.createContext(
+                                                        objectIdentifier.getCatalogName(), catalog),
+                                                objectIdentifier,
+                                                resolvedTable,
+                                                ignoreIfNotExists,
+                                                true)));
+            }
         } else if (!ignoreIfNotExists) {
             throw new ValidationException(
                     String.format(
@@ -991,7 +1000,7 @@ public final class CatalogManager implements CatalogRegistry {
                 (catalog, path) -> {
                     final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
                     catalog.alterTable(path, resolvedTable, ignoreIfNotExists);
-                    if (table instanceof CatalogTable) {
+                    if (resolvedTable instanceof CatalogTable) {
                         catalogModificationListeners.forEach(
                                 listener ->
                                         listener.onEvent(
@@ -1000,7 +1009,7 @@ public final class CatalogManager implements CatalogRegistry {
                                                                 objectIdentifier.getCatalogName(),
                                                                 catalog),
                                                         objectIdentifier,
-                                                        table,
+                                                        resolvedTable,
                                                         ignoreIfNotExists)));
                     }
                 },
@@ -1027,7 +1036,7 @@ public final class CatalogManager implements CatalogRegistry {
                 (catalog, path) -> {
                     final CatalogBaseTable resolvedTable = resolveCatalogBaseTable(table);
                     catalog.alterTable(path, resolvedTable, changes, ignoreIfNotExists);
-                    if (table instanceof CatalogTable) {
+                    if (resolvedTable instanceof CatalogTable) {
                         catalogModificationListeners.forEach(
                                 listener ->
                                         listener.onEvent(
@@ -1036,7 +1045,7 @@ public final class CatalogManager implements CatalogRegistry {
                                                                 objectIdentifier.getCatalogName(),
                                                                 catalog),
                                                         objectIdentifier,
-                                                        table,
+                                                        resolvedTable,
                                                         ignoreIfNotExists)));
                     }
                 },
@@ -1102,7 +1111,7 @@ public final class CatalogManager implements CatalogRegistry {
                                                                             .getCatalogName(),
                                                                     catalog),
                                                             objectIdentifier,
-                                                            null,
+                                                            resolvedTable,
                                                             ignoreIfNotExists,
                                                             false)));
                         }

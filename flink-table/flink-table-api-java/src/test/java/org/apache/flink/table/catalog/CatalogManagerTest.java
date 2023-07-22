@@ -208,12 +208,20 @@ class CatalogManagerTest {
         assertThat(dropEvent.ignoreIfNotExists()).isTrue();
         assertThat(dropEvent.identifier().getObjectName()).isEqualTo("table1");
 
+        // Create a temporary view with the same table name `table2`
+        catalogManager.createTemporaryTable(
+                CatalogView.of(Schema.newBuilder().build(), null, "", "", Collections.emptyMap()),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "view2"),
+                false);
         // Drop a temporary view
         catalogManager.dropTemporaryView(
                 ObjectIdentifier.of(
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase(),
-                        "table2"),
+                        "view2"),
                 true);
         assertThat(dropTemporaryFuture.isDone()).isFalse();
 
