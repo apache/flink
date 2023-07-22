@@ -28,8 +28,8 @@ import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.DateTimeTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.time.ZoneId;
 
@@ -40,7 +40,7 @@ public class TimeTravelTest extends TableTestBase {
 
     private BatchTableTestUtil util;
 
-    @BeforeEach
+    @Before
     public void before() {
         util = batchTestUtil(TableConfig.getDefault());
         String catalogName = "TimeTravelCatalog";
