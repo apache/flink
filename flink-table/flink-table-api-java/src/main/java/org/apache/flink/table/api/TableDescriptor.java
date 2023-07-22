@@ -81,7 +81,12 @@ public class TableDescriptor {
         return descriptorBuilder;
     }
 
-    /** Creates a new {@link Builder} for a managed table. */
+    /**
+     * Creates a new {@link Builder} for a managed table.
+     *
+     * @deprecated This method will be removed soon. Please see FLIP-346 for more details.
+     */
+    @Deprecated
     public static Builder forManaged() {
         return new Builder();
     }
