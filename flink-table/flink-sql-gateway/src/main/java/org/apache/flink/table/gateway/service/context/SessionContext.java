@@ -27,8 +27,11 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogStore;
+import org.apache.flink.table.catalog.CatalogStoreHolder;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.gateway.api.endpoint.EndpointVersion;
 import org.apache.flink.table.gateway.api.session.SessionEnvironment;
@@ -322,6 +325,14 @@ public class SessionContext {
             Configuration configuration,
             URLClassLoader userClassLoader,
             SessionEnvironment environment) {
+
+        CatalogStoreFactory catalogStoreFactory =
+                TableFactoryUtil.findAndCreateCatalogStoreFactory(configuration, userClassLoader);
+        CatalogStoreFactory.Context catalogStoreFactoryContext =
+                TableFactoryUtil.buildCatalogStoreFactoryContext(configuration, userClassLoader);
+        catalogStoreFactory.open(catalogStoreFactoryContext);
+        CatalogStore catalogStore = catalogStoreFactory.createCatalogStore();
+
         CatalogManager.Builder builder =
                 CatalogManager.newBuilder()
                         // Currently, the classloader is only used by DataTypeFactory.
@@ -329,7 +340,14 @@ public class SessionContext {
                         .config(configuration)
                         .catalogModificationListeners(
                                 TableFactoryUtil.findCatalogModificationListenerList(
-                                        configuration, userClassLoader));
+                                        configuration, userClassLoader))
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .catalogStore(catalogStore)
+                                        .classloader(userClassLoader)
+                                        .config(configuration)
+                                        .factory(catalogStoreFactory)
+                                        .build());
 
         // init default catalog
         String defaultCatalogName;

@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 
@@ -64,14 +64,10 @@ public class CreateCatalogOperation implements CreateOperation {
     @Override
     public TableResultInternal execute(Context ctx) {
         try {
-
-            Catalog catalog =
-                    FactoryUtil.createCatalog(
+            ctx.getCatalogManager()
+                    .createCatalog(
                             catalogName,
-                            properties,
-                            ctx.getTableConfig(),
-                            ctx.getResourceManager().getUserClassLoader());
-            ctx.getCatalogManager().registerCatalog(catalogName, catalog);
+                            CatalogDescriptor.of(catalogName, Configuration.fromMap(properties)));
 
             return TableResultImpl.TABLE_RESULT_OK;
         } catch (CatalogException e) {

@@ -27,6 +27,9 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.apache.flink.table.catalog.CatalogStore;
+import org.apache.flink.table.catalog.GenericInMemoryCatalogStore;
 import org.apache.flink.table.catalog.listener.CatalogListener1;
 import org.apache.flink.table.catalog.listener.CatalogListener2;
 import org.apache.flink.types.Row;
@@ -39,6 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link TableEnvironment} that require a planner. */
 class EnvironmentTest {
@@ -151,5 +155,20 @@ class EnvironmentTest {
                         env2.getCatalogManager().getCatalogModificationListeners().stream()
                                 .map(c -> c.getClass().getName())
                                 .collect(Collectors.toList()));
+    }
+
+    @Test
+    void testRegisterCatalogStoreUsingTableApi() {
+        CatalogStore catalogStore = new GenericInMemoryCatalogStore();
+        EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().withCatalogStore(catalogStore).build();
+
+        TableEnvironment tbEnv = TableEnvironment.create(settings);
+
+        Configuration configuration = new Configuration();
+        configuration.setString("type", "generic_in_memory");
+        tbEnv.createCatalog("test_catalog", CatalogDescriptor.of("test_catalog", configuration));
+
+        assertTrue(catalogStore.contains("test_catalog"));
     }
 }

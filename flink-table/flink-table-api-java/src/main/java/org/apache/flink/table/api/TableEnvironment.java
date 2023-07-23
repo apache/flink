@@ -24,6 +24,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -387,8 +389,22 @@ public interface TableEnvironment {
      *
      * @param catalogName The name under which the catalog will be registered.
      * @param catalog The catalog to register.
+     * @deprecated Use {@link #createCatalog(String, CatalogDescriptor)} instead. The new method
+     *     uses a {@link CatalogDescriptor} to initialize the catalog instance and store the {@link
+     *     CatalogDescriptor} to the {@link CatalogStore}.
      */
+    @Deprecated
     void registerCatalog(String catalogName, Catalog catalog);
+
+    /**
+     * Creates a {@link Catalog} using the provided {@link CatalogDescriptor}. All table registered
+     * in the {@link Catalog} can be accessed. The {@link CatalogDescriptor} will be persisted into
+     * the {@link CatalogStore}.
+     *
+     * @param catalogName The name under which the catalog will be created
+     * @param catalogDescriptor The catalog descriptor for creating catalog
+     */
+    void createCatalog(String catalogName, CatalogDescriptor catalogDescriptor);
 
     /**
      * Gets a registered {@link Catalog} by name.
