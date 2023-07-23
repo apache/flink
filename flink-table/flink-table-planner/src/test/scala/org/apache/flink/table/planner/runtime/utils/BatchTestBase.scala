@@ -17,9 +17,10 @@
  */
 package org.apache.flink.table.planner.runtime.utils
 
+import org.apache.flink.api.common.BatchShuffleMode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.configuration.BatchExecutionOptions
+import org.apache.flink.configuration.{BatchExecutionOptions, ExecutionOptions, JobManagerOptions}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api._
@@ -545,5 +546,14 @@ object BatchTestBase {
 
   def configForMiniCluster(tableConfig: TableConfig): Unit = {
     tableConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(DEFAULT_PARALLELISM))
+  }
+
+  def configBatchShuffleMode(tableConfig: TableConfig, shuffleMode: BatchShuffleMode): Unit = {
+    tableConfig.set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode)
+    if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_PIPELINED) {
+      tableConfig.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Default)
+    } else {
+      tableConfig.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch)
+    }
   }
 }

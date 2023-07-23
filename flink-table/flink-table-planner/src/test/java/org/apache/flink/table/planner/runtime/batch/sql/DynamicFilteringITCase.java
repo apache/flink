@@ -19,8 +19,6 @@
 package org.apache.flink.table.planner.runtime.batch.sql;
 
 import org.apache.flink.api.common.BatchShuffleMode;
-import org.apache.flink.configuration.ExecutionOptions;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
@@ -128,7 +126,7 @@ public class DynamicFilteringITCase extends BatchTestBase {
     @ParameterizedTest(name = "mode = {0}")
     @MethodSource("parameters")
     public void testSimpleDynamicFiltering(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+        configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
         checkResult(
                 "SELECT * FROM fact1, dim WHERE x = a AND z = 2",
                 JavaScalaConversionUtil.toScala(
@@ -158,7 +156,7 @@ public class DynamicFilteringITCase extends BatchTestBase {
     @MethodSource("parameters")
     public void testDynamicFilteringChainWithMultipleInput(BatchShuffleMode shuffleMode)
             throws Exception {
-        configure(shuffleMode);
+        configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
         String dataId1 = TestValuesTableFactory.registerData(TestData.data7());
         tEnv.executeSql(
                 String.format(
@@ -204,7 +202,7 @@ public class DynamicFilteringITCase extends BatchTestBase {
     @ParameterizedTest(name = "mode = {0}")
     @MethodSource("parameters")
     public void testDynamicFilteringCannotChainWithMultipleInput(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+        configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
         checkResult(
                 "SELECT * FROM fact1, dim, fact2 WHERE x = fact1.a and fact2.a = fact1.a AND z = 1 and fact1.e = 2 and fact2.e = 1",
                 JavaScalaConversionUtil.toScala(
@@ -235,7 +233,7 @@ public class DynamicFilteringITCase extends BatchTestBase {
     @ParameterizedTest(name = "mode = {0}")
     @MethodSource("parameters")
     public void testReuseDimSide(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+        configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
         checkResult(
                 "SELECT * FROM fact1, dim WHERE x = a AND z = 1 and b = 3"
                         + "UNION ALL "
@@ -250,7 +248,7 @@ public class DynamicFilteringITCase extends BatchTestBase {
     @ParameterizedTest(name = "mode = {0}")
     @MethodSource("parameters")
     public void testDynamicFilteringWithStaticPartitionPruning(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+        configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
         checkResult(
                 "SELECT * FROM fact2, dim WHERE x = a and e = z AND y < 5 and a = 3",
                 JavaScalaConversionUtil.toScala(
@@ -264,7 +262,7 @@ public class DynamicFilteringITCase extends BatchTestBase {
     @ParameterizedTest(name = "mode = {0}")
     @MethodSource("parameters")
     public void testMultiplePartitionKeysWithFullKey(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+        configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
         checkResult(
                 "SELECT * FROM fact2, dim WHERE x = a AND z = e and y = 1",
                 JavaScalaConversionUtil.toScala(
@@ -275,7 +273,7 @@ public class DynamicFilteringITCase extends BatchTestBase {
     @ParameterizedTest(name = "mode = {0}")
     @MethodSource("parameters")
     public void testMultiplePartitionKeysWithPartialKey(BatchShuffleMode shuffleMode) {
-        configure(shuffleMode);
+        configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
         checkResult(
                 "SELECT * FROM fact2, dim WHERE z = e and y = 1",
                 JavaScalaConversionUtil.toScala(
@@ -286,20 +284,5 @@ public class DynamicFilteringITCase extends BatchTestBase {
                                 Row.of(4, 9, 8, "EFG", 1, 2, 1, 1),
                                 Row.of(5, 11, 10, "GHI", 1, 2, 1, 1))),
                 false);
-    }
-
-    private void configure(BatchShuffleMode shuffleMode) {
-        tEnv.getConfig().getConfiguration().set(ExecutionOptions.BATCH_SHUFFLE_MODE, shuffleMode);
-        if (shuffleMode == BatchShuffleMode.ALL_EXCHANGES_PIPELINED) {
-            tEnv.getConfig()
-                    .getConfiguration()
-                    .set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Default);
-        } else {
-            tEnv.getConfig()
-                    .getConfiguration()
-                    .set(
-                            JobManagerOptions.SCHEDULER,
-                            JobManagerOptions.SchedulerType.AdaptiveBatch);
-        }
     }
 }
