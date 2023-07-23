@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
+import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
@@ -262,6 +263,16 @@ object JoinUtil {
       false
     } else {
       true
+    }
+  }
+
+  def binaryRowRelNodeSize(relNode: RelNode): JDouble = {
+    val mq = relNode.getCluster.getMetadataQuery
+    val rowCount = mq.getRowCount(relNode)
+    if (rowCount == null) {
+      null
+    } else {
+      rowCount * FlinkRelMdUtil.binaryRowAverageSize(relNode)
     }
   }
 }
