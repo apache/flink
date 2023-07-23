@@ -119,6 +119,52 @@ class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTestBase {
                                 Arrays.asList(
                                         Row.of(1, "{\"A\":0,\"B\":0}"),
                                         Row.of(2, "{\"A\":0,\"C\":0}"))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL)
+                        .withDescription("Basic Json Aggregation With Other Aggs")
+                        .withSource(
+                                ROW(STRING(), INT()),
+                                Arrays.asList(
+                                        Row.ofKind(INSERT, "A", 1),
+                                        Row.ofKind(INSERT, "B", null),
+                                        Row.ofKind(INSERT, "C", 3)))
+                        .testResult(
+                                source ->
+                                        "SELECT max(f1), JSON_OBJECTAGG(f0 VALUE f1) FROM "
+                                                + source,
+                                source ->
+                                        source.select(
+                                                $("f1").max(),
+                                                jsonObjectAgg(JsonOnNull.NULL, $("f0"), $("f1"))),
+                                ROW(INT(), VARCHAR(2000).notNull()),
+                                ROW(INT(), STRING().notNull()),
+                                Collections.singletonList(
+                                        Row.of(3, "{\"A\":1,\"B\":null,\"C\":3}"))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL)
+                        .withDescription("Group Json Aggregation With Other Aggs")
+                        .withSource(
+                                ROW(INT(), STRING(), INT()),
+                                Arrays.asList(
+                                        Row.ofKind(INSERT, 1, "A", 1),
+                                        Row.ofKind(INSERT, 1, "B", 3),
+                                        Row.ofKind(INSERT, 2, "A", 2),
+                                        Row.ofKind(INSERT, 2, "C", 5)))
+                        .testResult(
+                                source ->
+                                        "SELECT f0, JSON_OBJECTAGG(f1 VALUE f2), max(f2) FROM "
+                                                + source
+                                                + " GROUP BY f0",
+                                source ->
+                                        source.groupBy($("f0"))
+                                                .select(
+                                                        $("f0"),
+                                                        jsonObjectAgg(
+                                                                JsonOnNull.NULL, $("f1"), $("f2")),
+                                                        $("f2").max()),
+                                ROW(INT(), VARCHAR(2000).notNull(), INT()),
+                                ROW(INT(), STRING().notNull(), INT()),
+                                Arrays.asList(
+                                        Row.of(1, "{\"A\":1,\"B\":3}", 3),
+                                        Row.of(2, "{\"A\":2,\"C\":5}", 5))),
 
                 // JSON_ARRAYAGG
                 TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL)
@@ -163,6 +209,48 @@ class JsonAggregationFunctionsITCase extends BuiltInAggregateFunctionTestBase {
                                 source -> source.select(jsonArrayAgg(JsonOnNull.ABSENT, $("f0"))),
                                 ROW(VARCHAR(2000).notNull()),
                                 ROW(STRING().notNull()),
-                                Collections.singletonList(Row.of("[1,3]"))));
+                                Collections.singletonList(Row.of("[1,3]"))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL)
+                        .withDescription("Basic Array Aggregation With Other Aggs")
+                        .withSource(
+                                ROW(STRING()),
+                                Arrays.asList(
+                                        Row.ofKind(INSERT, "A"),
+                                        Row.ofKind(INSERT, (String) null),
+                                        Row.ofKind(INSERT, "C")))
+                        .testResult(
+                                source -> "SELECT max(f0), JSON_ARRAYAGG(f0) FROM " + source,
+                                source ->
+                                        source.select(
+                                                $("f0").max(),
+                                                jsonArrayAgg(JsonOnNull.ABSENT, $("f0"))),
+                                ROW(STRING(), VARCHAR(2000).notNull()),
+                                ROW(STRING(), STRING().notNull()),
+                                Collections.singletonList(Row.of("C", "[\"A\",\"C\"]"))),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL)
+                        .withDescription("Group Array Aggregation With Other Aggs")
+                        .withSource(
+                                ROW(INT(), STRING()),
+                                Arrays.asList(
+                                        Row.ofKind(INSERT, 1, "A"),
+                                        Row.ofKind(INSERT, 1, null),
+                                        Row.ofKind(INSERT, 2, "C"),
+                                        Row.ofKind(INSERT, 2, "D")))
+                        .testResult(
+                                source ->
+                                        "SELECT f0, max(f1), JSON_ARRAYAGG(f1)FROM "
+                                                + source
+                                                + " GROUP BY f0",
+                                source ->
+                                        source.groupBy($("f0"))
+                                                .select(
+                                                        $("f0"),
+                                                        $("f1").max(),
+                                                        jsonArrayAgg(JsonOnNull.ABSENT, $("f1"))),
+                                ROW(INT(), STRING(), VARCHAR(2000).notNull()),
+                                ROW(INT(), STRING(), STRING().notNull()),
+                                Arrays.asList(
+                                        Row.of(1, "A", "[\"A\"]"),
+                                        Row.of(2, "D", "[\"C\",\"D\"]"))));
     }
 }

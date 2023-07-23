@@ -99,24 +99,37 @@ public class WrapJsonAggFunctionArgumentsRuleTest extends TableTestBase {
         util.verifyRelPlan("SELECT f0, JSON_ARRAYAGG(f0) FROM T GROUP BY f0");
     }
 
-    @Test(expected = AssertionError.class)
+    @Test
     public void testJsonObjectAggWithOtherAggs() {
         util.verifyRelPlan("SELECT COUNT(*), JSON_OBJECTAGG(f1 VALUE f1) FROM T");
     }
 
-    @Test(expected = AssertionError.class)
+    @Test
     public void testGroupJsonObjectAggWithOtherAggs() {
         util.verifyRelPlan(
                 "SELECT f0, COUNT(*), JSON_OBJECTAGG(f1 VALUE f0), SUM(f2) FROM T GROUP BY f0");
     }
 
-    @Test(expected = AssertionError.class)
+    @Test
     public void testJsonArrayAggWithOtherAggs() {
         util.verifyRelPlan("SELECT COUNT(*), JSON_ARRAYAGG(f0) FROM T");
     }
 
-    @Test(expected = AssertionError.class)
+    @Test
     public void testGroupJsonArrayAggInWithOtherAggs() {
         util.verifyRelPlan("SELECT f0, COUNT(*), JSON_ARRAYAGG(f0), SUM(f2) FROM T GROUP BY f0");
+    }
+
+    @Test
+    public void testJsonArrayAggAndJsonObjectAggWithOtherAggs() {
+        util.verifyRelPlan(
+                "SELECT MAX(f0), JSON_OBJECTAGG(f1 VALUE f0), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f0) FROM T");
+    }
+
+    @Test
+    public void testGroupJsonArrayAggAndJsonObjectAggWithOtherAggs() {
+        util.verifyRelPlan(
+                "SELECT f0, JSON_OBJECTAGG(f1 VALUE f2), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f2),"
+                        + " SUM(f2) FROM T GROUP BY f0");
     }
 }

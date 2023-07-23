@@ -1040,7 +1040,7 @@ aggregate:
       `ON NULL` behavior defines what to do. If omitted, `ABSENT ON NULL` is assumed by default.
 
       This function is currently not supported in `OVER` windows, unbounded session windows, or hop
-      windows. And it is not supported for use with other aggregate functions.
+      windows.
 
       ```sql
       -- '["Apple","Banana","Orange"]'
