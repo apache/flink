@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
@@ -156,5 +157,42 @@ public class TableSourceJsonPlanTest extends TableTestBase {
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
         util.verifyJsonPlan("insert into sink select * from WatermarkTable");
+    }
+
+    @Test
+    public void testReuseSourceWithoutProjectionPushDown() {
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE src (\n"
+                        + "    x varchar,\n"
+                        + "    y varchar,\n"
+                        + "    tags varchar METADATA VIRTUAL,\n"
+                        + "    ts timestamp(3) METADATA VIRTUAL\n"
+                        + ") with (\n"
+                        + "    'connector' = 'values',\n"
+                        + "     'readable-metadata' = 'tags:varchar,ts:timestamp(3)',\n"
+                        + "    'enable-projection-push-down' = 'false'\n"
+                        + ");\n");
+
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE s1 (\n"
+                        + "    x varchar,\n"
+                        + "    ts timestamp(3)\n"
+                        + ") with (\n"
+                        + "    'connector'='blackhole'\n"
+                        + ");");
+
+        tEnv.executeSql(
+                "CREATE TEMPORARY TABLE s2 (\n"
+                        + "    y varchar,\n"
+                        + "    tags varchar\n"
+                        + ") with (\n"
+                        + "    'connector'='blackhole'\n"
+                        + ");");
+
+        StatementSet stmt = tEnv.createStatementSet();
+        stmt.addInsertSql("insert into s1 select x, ts from src");
+        stmt.addInsertSql("insert into s2 select y, tags from src");
+
+        util.verifyJsonPlan(stmt);
     }
 }

@@ -557,17 +557,18 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id,
 +- Exchange(distribution=[hash[dim_date_sk]])
    +- HashJoin(joinType=[LeftSemiJoin], where=[=(price, price0)], select=[id, male, amount, price, dim_date_sk], build=[right])
       :- Exchange(distribution=[hash[price]])
-      :  +- TableSourceScan(table=[[testCatalog, test_database, dim]], fields=[id, male, amount, price, dim_date_sk])
+      :  +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[id, male, amount, price, dim_date_sk], metadata=[]]], fields=[id, male, amount, price, dim_date_sk])
       +- Exchange(distribution=[hash[price]])
          +- Calc(select=[price])
             +- NestedLoopJoin(joinType=[InnerJoin], where=[=(amount, $f0)], select=[amount, price, $f0], build=[right], singleRowJoin=[true])
-               :- TableSourceScan(table=[[testCatalog, test_database, dim, project=[amount, price], metadata=[]]], fields=[amount, price])
+               :- Calc(select=[amount, price])
+               :  +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[id, male, amount, price, dim_date_sk], metadata=[]]], fields=[id, male, amount, price, dim_date_sk])
                +- Exchange(distribution=[broadcast])
                   +- HashAggregate(isMerge=[true], select=[Final_SINGLE_VALUE(value$0, count$1) AS $f0])
                      +- Exchange(distribution=[single])
                         +- LocalHashAggregate(select=[Partial_SINGLE_VALUE(amount) AS (value$0, count$1)])
                            +- Calc(select=[CAST(2000 AS BIGINT) AS amount], where=[=(amount, 2000)])
-                              +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[amount], metadata=[]]], fields=[amount])
+                              +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[id, male, amount, price, dim_date_sk], metadata=[]]], fields=[id, male, amount, price, dim_date_sk])
 ]]>
     </Resource>
   </TestCase>
