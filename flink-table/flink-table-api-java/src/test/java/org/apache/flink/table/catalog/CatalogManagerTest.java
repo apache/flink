@@ -19,11 +19,16 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.listener.AlterDatabaseEvent;
+import org.apache.flink.table.catalog.listener.AlterTableEvent;
 import org.apache.flink.table.catalog.listener.CatalogModificationEvent;
 import org.apache.flink.table.catalog.listener.CatalogModificationListener;
 import org.apache.flink.table.catalog.listener.CreateDatabaseEvent;
+import org.apache.flink.table.catalog.listener.CreateTableEvent;
 import org.apache.flink.table.catalog.listener.DropDatabaseEvent;
+import org.apache.flink.table.catalog.listener.DropTableEvent;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +48,7 @@ class CatalogManagerTest {
         CompletableFuture<DropDatabaseEvent> dropFuture = new CompletableFuture<>();
         CatalogManager catalogManager =
                 createCatalogManager(
-                        new TestingCatalogModificationListener(
+                        new TestingDatabaseModificationListener(
                                 createFuture, alterFuture, dropFuture));
 
         // Validate create a database
@@ -97,6 +102,142 @@ class CatalogManagerTest {
         assertThat(dropDatabaseEvent.cascade()).isTrue();
     }
 
+    @Test
+    void testTableModificationListener() throws Exception {
+        CompletableFuture<CreateTableEvent> createFuture = new CompletableFuture<>();
+        CompletableFuture<CreateTableEvent> createTemporaryFuture = new CompletableFuture<>();
+        CompletableFuture<AlterTableEvent> alterFuture = new CompletableFuture<>();
+        CompletableFuture<DropTableEvent> dropFuture = new CompletableFuture<>();
+        CompletableFuture<DropTableEvent> dropTemporaryFuture = new CompletableFuture<>();
+        CatalogManager catalogManager =
+                CatalogManager.newBuilder()
+                        .defaultCatalog("default", new GenericInMemoryCatalog("default"))
+                        .classLoader(CatalogManagerTest.class.getClassLoader())
+                        .config(new Configuration())
+                        .catalogModificationListeners(
+                                Collections.singletonList(
+                                        new TestingTableModificationListener(
+                                                createFuture,
+                                                createTemporaryFuture,
+                                                alterFuture,
+                                                dropFuture,
+                                                dropTemporaryFuture)))
+                        .build();
+
+        catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
+        // Create a view
+        catalogManager.createTable(
+                CatalogView.of(Schema.newBuilder().build(), null, "", "", Collections.emptyMap()),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "view1"),
+                true);
+        assertThat(createFuture.isDone()).isFalse();
+
+        // Create a table
+        catalogManager.createTable(
+                CatalogTable.of(
+                        Schema.newBuilder().build(),
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap()),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "table1"),
+                true);
+        CreateTableEvent createEvent = createFuture.get(10, TimeUnit.SECONDS);
+        assertThat(createEvent.isTemporary()).isFalse();
+        assertThat(createEvent.identifier().getObjectName()).isEqualTo("table1");
+        assertThat(createEvent.ignoreIfExists()).isTrue();
+
+        // Create a temporary table
+        catalogManager.createTemporaryTable(
+                CatalogTable.of(
+                        Schema.newBuilder().build(),
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap()),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "table2"),
+                false);
+        CreateTableEvent createTemporaryEvent = createTemporaryFuture.get(10, TimeUnit.SECONDS);
+        assertThat(createTemporaryEvent.isTemporary()).isTrue();
+        assertThat(createTemporaryEvent.identifier().getObjectName()).isEqualTo("table2");
+        assertThat(createTemporaryEvent.ignoreIfExists()).isFalse();
+
+        // Alter a table
+        catalogManager.alterTable(
+                CatalogTable.of(
+                        Schema.newBuilder().build(),
+                        "table1 comment",
+                        Collections.emptyList(),
+                        Collections.emptyMap()),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "table1"),
+                false);
+        AlterTableEvent alterEvent = alterFuture.get(10, TimeUnit.SECONDS);
+        assertThat(alterEvent.isTemporary()).isFalse();
+        assertThat(alterEvent.identifier().getObjectName()).isEqualTo("table1");
+        assertThat(alterEvent.newTable().getComment()).isEqualTo("table1 comment");
+        assertThat(alterEvent.ignoreIfNotExists()).isFalse();
+
+        // Drop a view
+        catalogManager.dropView(
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "table1"),
+                true);
+        assertThat(dropFuture.isDone()).isFalse();
+
+        // Drop a table
+        catalogManager.dropTable(
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "table1"),
+                true);
+        DropTableEvent dropEvent = dropFuture.get(10, TimeUnit.SECONDS);
+        assertThat(dropEvent.isTemporary()).isFalse();
+        assertThat(dropEvent.ignoreIfNotExists()).isTrue();
+        assertThat(dropEvent.identifier().getObjectName()).isEqualTo("table1");
+
+        // Create a temporary view with the same table name `table2`
+        catalogManager.createTemporaryTable(
+                CatalogView.of(Schema.newBuilder().build(), null, "", "", Collections.emptyMap()),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "view2"),
+                false);
+        // Drop a temporary view
+        catalogManager.dropTemporaryView(
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "view2"),
+                true);
+        assertThat(dropTemporaryFuture.isDone()).isFalse();
+
+        // Drop a temporary table
+        catalogManager.dropTemporaryTable(
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        "table2"),
+                false);
+        DropTableEvent dropTemporaryEvent = dropTemporaryFuture.get(10, TimeUnit.SECONDS);
+        assertThat(dropTemporaryEvent.isTemporary()).isTrue();
+        assertThat(dropTemporaryEvent.ignoreIfNotExists()).isFalse();
+        assertThat(dropTemporaryEvent.identifier().getObjectName()).isEqualTo("table2");
+    }
+
     private CatalogManager createCatalogManager(CatalogModificationListener listener) {
         return CatalogManager.newBuilder()
                 .classLoader(CatalogManagerTest.class.getClassLoader())
@@ -106,13 +247,13 @@ class CatalogManagerTest {
                 .build();
     }
 
-    /** Testing catalog modification listener. */
-    static class TestingCatalogModificationListener implements CatalogModificationListener {
+    /** Testing database modification listener. */
+    static class TestingDatabaseModificationListener implements CatalogModificationListener {
         private final CompletableFuture<CreateDatabaseEvent> createFuture;
         private final CompletableFuture<AlterDatabaseEvent> alterFuture;
         private final CompletableFuture<DropDatabaseEvent> dropFuture;
 
-        TestingCatalogModificationListener(
+        TestingDatabaseModificationListener(
                 CompletableFuture<CreateDatabaseEvent> createFuture,
                 CompletableFuture<AlterDatabaseEvent> alterFuture,
                 CompletableFuture<DropDatabaseEvent> dropFuture) {
@@ -129,6 +270,49 @@ class CatalogManagerTest {
                 alterFuture.complete((AlterDatabaseEvent) event);
             } else if (event instanceof DropDatabaseEvent) {
                 dropFuture.complete((DropDatabaseEvent) event);
+            } else {
+                throw new UnsupportedOperationException();
+            }
+        }
+    }
+
+    /** Testing table modification listener. */
+    static class TestingTableModificationListener implements CatalogModificationListener {
+        private final CompletableFuture<CreateTableEvent> createFuture;
+        private final CompletableFuture<CreateTableEvent> createTemporaryFuture;
+        private final CompletableFuture<AlterTableEvent> alterFuture;
+        private final CompletableFuture<DropTableEvent> dropFuture;
+        private final CompletableFuture<DropTableEvent> dropTemporaryFuture;
+
+        TestingTableModificationListener(
+                CompletableFuture<CreateTableEvent> createFuture,
+                CompletableFuture<CreateTableEvent> createTemporaryFuture,
+                CompletableFuture<AlterTableEvent> alterFuture,
+                CompletableFuture<DropTableEvent> dropFuture,
+                CompletableFuture<DropTableEvent> dropTemporaryFuture) {
+            this.createFuture = createFuture;
+            this.createTemporaryFuture = createTemporaryFuture;
+            this.alterFuture = alterFuture;
+            this.dropFuture = dropFuture;
+            this.dropTemporaryFuture = dropTemporaryFuture;
+        }
+
+        @Override
+        public void onEvent(CatalogModificationEvent event) {
+            if (event instanceof CreateTableEvent) {
+                if (((CreateTableEvent) event).isTemporary()) {
+                    createTemporaryFuture.complete((CreateTableEvent) event);
+                } else {
+                    createFuture.complete((CreateTableEvent) event);
+                }
+            } else if (event instanceof AlterTableEvent) {
+                alterFuture.complete((AlterTableEvent) event);
+            } else if (event instanceof DropTableEvent) {
+                if (((DropTableEvent) event).isTemporary()) {
+                    dropTemporaryFuture.complete((DropTableEvent) event);
+                } else {
+                    dropFuture.complete((DropTableEvent) event);
+                }
             } else {
                 throw new UnsupportedOperationException();
             }

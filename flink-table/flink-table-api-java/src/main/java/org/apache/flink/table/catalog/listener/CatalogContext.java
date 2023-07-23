@@ -23,6 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.factories.Factory;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
 
 /**
@@ -43,6 +45,7 @@ public interface CatalogContext {
     Optional<String> getFactoryIdentifier();
 
     /** Class of the catalog. */
+    @Nullable
     Class<? extends Catalog> getClazz();
 
     /** The catalog configuration. */
@@ -58,12 +61,15 @@ public interface CatalogContext {
 
             @Override
             public Optional<String> getFactoryIdentifier() {
-                return catalog.getFactory().map(Factory::factoryIdentifier);
+                return catalog == null
+                        ? Optional.empty()
+                        : catalog.getFactory().map(Factory::factoryIdentifier);
             }
 
             @Override
+            @Nullable
             public Class<? extends Catalog> getClazz() {
-                return catalog.getClass();
+                return catalog == null ? null : catalog.getClass();
             }
 
             /**
