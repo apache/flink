@@ -27,7 +27,7 @@ import java.util.Set;
 /** Catalog store factory for {@link GenericInMemoryCatalogStore}. */
 public class GenericInMemoryCatalogStoreFactory implements CatalogStoreFactory {
     @Override
-    public CatalogStore createCatalogStore(Context context) {
+    public CatalogStore createCatalogStore() {
         return new GenericInMemoryCatalogStore();
     }
 

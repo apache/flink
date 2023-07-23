@@ -19,23 +19,31 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.catalog.AbstractCatalogStore;
 import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-/** Test catalog store factory for catalog store discovery tests. */
+/**
+ * This class is an implementation of {@link CatalogStoreFactory} for testing purposes. All
+ * instances of {@link CatalogStore} created by the same {@link CatalogStoreFactory} will share the
+ * saved {@link CatalogDescriptor}s.
+ */
 public class TestCatalogStoreFactory implements CatalogStoreFactory {
 
     public static final String IDENTIFIER = "test-catalog-store";
 
+    public static final Map<String, CatalogDescriptor> SHARED_DESCRIPTORS = new HashMap<>();
+
     @Override
-    public CatalogStore createCatalogStore(Context context) {
-        return new TestCatalogStore(context.getOptions());
+    public CatalogStore createCatalogStore() {
+        return new TestCatalogStore(SHARED_DESCRIPTORS);
     }
 
     @Override
@@ -59,49 +67,42 @@ public class TestCatalogStoreFactory implements CatalogStoreFactory {
         return Collections.emptySet();
     }
 
-    /** Test catalog store for discovery testing. */
-    public static class TestCatalogStore implements CatalogStore {
-        private final Map<String, String> options;
+    /**
+     * This class is a test catalog store that shares {@link CatalogDescriptor}s with other catalog
+     * stores.
+     */
+    public static class TestCatalogStore extends AbstractCatalogStore {
+        private final Map<String, CatalogDescriptor> sharedDescriptors;
 
-        public TestCatalogStore(Map<String, String> options) {
-            this.options = options;
+        public TestCatalogStore(Map<String, CatalogDescriptor> sharedDescriptors) {
+            this.sharedDescriptors = sharedDescriptors;
         }
 
         @Override
         public void storeCatalog(String catalogName, CatalogDescriptor catalog)
                 throws CatalogException {
-            throw new UnsupportedOperationException();
+            sharedDescriptors.put(catalogName, catalog);
         }
 
         @Override
         public void removeCatalog(String catalogName, boolean ignoreIfNotExists)
                 throws CatalogException {
-            throw new UnsupportedOperationException();
+            sharedDescriptors.remove(catalogName);
         }
 
         @Override
         public Optional<CatalogDescriptor> getCatalog(String catalogName) {
-            throw new UnsupportedOperationException();
+            return Optional.ofNullable(sharedDescriptors.get(catalogName));
         }
 
         @Override
         public Set<String> listCatalogs() {
-            throw new UnsupportedOperationException();
+            return sharedDescriptors.keySet();
         }
 
         @Override
         public boolean contains(String catalogName) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void open() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void close() {
-            throw new UnsupportedOperationException();
+            return sharedDescriptors.containsKey(catalogName);
         }
     }
 }

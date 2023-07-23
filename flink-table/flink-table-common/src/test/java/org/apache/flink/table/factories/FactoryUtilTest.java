@@ -425,7 +425,7 @@ class FactoryUtilTest {
                 FactoryUtil.discoverFactory(
                         classLoader, CatalogStoreFactory.class, TestCatalogStoreFactory.IDENTIFIER);
         factory.open(discoveryContext);
-        CatalogStore catalogStore = factory.createCatalogStore(discoveryContext);
+        CatalogStore catalogStore = factory.createCatalogStore();
 
         assertThat(catalogStore).isInstanceOf(TestCatalogStoreFactory.TestCatalogStore.class);
     }
