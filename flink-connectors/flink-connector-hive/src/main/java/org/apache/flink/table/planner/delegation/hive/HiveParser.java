@@ -28,7 +28,6 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogRegistry;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
-import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.delegation.Parser;
@@ -53,6 +52,7 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserLoadSemanticAnalyzer;
+import org.apache.flink.table.planner.utils.HiveCatalogUtils;
 import org.apache.flink.table.planner.utils.TableSchemaUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
@@ -195,7 +195,7 @@ public class HiveParser implements Parser {
 
         Catalog currentCatalog =
                 catalogRegistry.getCatalogOrError(catalogRegistry.getCurrentCatalog());
-        if (!(currentCatalog instanceof HiveCatalog)) {
+        if (!HiveCatalogUtils.isHiveCatalog(currentCatalog)) {
             // current, if it's not a hive catalog, we can't use hive dialect;
             // but we try to parse it to set command, if it's a set command, we can return
             // the SetOperation directly which enables users to switch dialect when hive dialect
@@ -212,26 +212,31 @@ public class HiveParser implements Parser {
             }
         }
 
-        Optional<Operation> nonSqlOperation =
-                tryProcessHiveNonSqlStatement(
-                        ((HiveCatalog) currentCatalog).getHiveConf(), statement);
+        // Note: it's equal to HiveCatalog#getHiveConf, but we can't use HiveCatalog#getHiveConf
+        // directly for classloader issue.
+        // For more detail, please see class HiveCatalogUtils.
+        HiveConf hiveConf = HiveCatalogUtils.getHiveConf(currentCatalog);
+        Optional<Operation> nonSqlOperation = tryProcessHiveNonSqlStatement(hiveConf, statement);
         if (nonSqlOperation.isPresent()) {
             return Collections.singletonList(nonSqlOperation.get());
         }
-        HiveConf hiveConf = new HiveConf(((HiveCatalog) currentCatalog).getHiveConf());
-        hiveConf.setVar(HiveConf.ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
-        hiveConf.set("hive.allow.udf.load.on.demand", "false");
-        hiveConf.setVar(HiveConf.ConfVars.HIVE_EXECUTION_ENGINE, "mr");
+        HiveConf hiveConfCopy = new HiveConf(hiveConf);
+        hiveConfCopy.setVar(HiveConf.ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
+        hiveConfCopy.set("hive.allow.udf.load.on.demand", "false");
+        hiveConfCopy.setVar(HiveConf.ConfVars.HIVE_EXECUTION_ENGINE, "mr");
+        // Note: it's equal to HiveCatalog#getHiveVersion, but we can't use
+        // HiveCatalog#getHiveVersion directly for classloader issue.
+        // For more detail, please see class HiveCatalogUtils.
         HiveShim hiveShim =
-                HiveShimLoader.loadHiveShim(((HiveCatalog) currentCatalog).getHiveVersion());
+                HiveShimLoader.loadHiveShim(HiveCatalogUtils.getHiveVersion(currentCatalog));
         try {
             // substitute variables for the statement
-            statement = substituteVariables(hiveConf, statement);
+            statement = substituteVariables(hiveConfCopy, statement);
             // creates SessionState
-            HiveSessionState.startSessionState(hiveConf, catalogRegistry);
+            HiveSessionState.startSessionState(hiveConfCopy, catalogRegistry);
             // We override Hive's grouping function. Refer to the implementation for more details.
             hiveShim.registerTemporaryFunction("grouping", HiveGenericUDFGrouping.class);
-            return processCmd(statement, hiveConf, hiveShim, (HiveCatalog) currentCatalog);
+            return processCmd(statement, hiveConfCopy, hiveShim, currentCatalog);
         } finally {
             HiveSessionState.clearSessionState();
         }
@@ -371,7 +376,7 @@ public class HiveParser implements Parser {
     }
 
     private List<Operation> processCmd(
-            String cmd, HiveConf hiveConf, HiveShim hiveShim, HiveCatalog hiveCatalog) {
+            String cmd, HiveConf hiveConf, HiveShim hiveShim, Catalog hiveCatalog) {
         try {
             HiveParserContext context = new HiveParserContext(hiveConf);
             // parse statement to get AST
