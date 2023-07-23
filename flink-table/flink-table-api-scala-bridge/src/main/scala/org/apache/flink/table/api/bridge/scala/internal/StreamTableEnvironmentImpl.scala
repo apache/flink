@@ -309,6 +309,16 @@ object StreamTableEnvironmentImpl {
 
     val resourceManager = new ResourceManager(settings.getConfiguration, userClassLoader)
     val moduleManager = new ModuleManager
+
+    val catalogStoreFactory =
+      TableFactoryUtil.findAndCreateCatalogStoreFactory(settings.getConfiguration, userClassLoader)
+    val catalogStoreFactoryContext =
+      TableFactoryUtil.buildCatalogStoreFactoryContext(settings.getConfiguration, userClassLoader)
+    catalogStoreFactory.open(catalogStoreFactoryContext)
+    val catalogStore =
+      if (settings.getCatalogStore != null) settings.getCatalogStore
+      else catalogStoreFactory.createCatalogStore()
+
     val catalogManager = CatalogManager.newBuilder
       .classLoader(userClassLoader)
       .config(tableConfig)
@@ -318,6 +328,14 @@ object StreamTableEnvironmentImpl {
       .executionConfig(executionEnvironment.getConfig)
       .catalogModificationListeners(TableFactoryUtil
         .findCatalogModificationListenerList(tableConfig.getConfiguration, userClassLoader))
+      .catalogStoreHolder(
+        CatalogStoreHolder
+          .newBuilder()
+          .catalogStore(catalogStore)
+          .factory(catalogStoreFactory)
+          .config(tableConfig)
+          .classloader(userClassLoader)
+          .build())
       .build
 
     val functionCatalog =

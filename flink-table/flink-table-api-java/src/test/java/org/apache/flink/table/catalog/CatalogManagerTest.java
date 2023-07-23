@@ -29,8 +29,8 @@ import org.apache.flink.table.catalog.listener.CreateDatabaseEvent;
 import org.apache.flink.table.catalog.listener.CreateTableEvent;
 import org.apache.flink.table.catalog.listener.DropDatabaseEvent;
 import org.apache.flink.table.catalog.listener.DropTableEvent;
-import org.apache.flink.table.utils.ExpressionResolverMocks;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.jupiter.api.Test;
 
@@ -126,6 +126,12 @@ class CatalogManagerTest {
                                                 alterFuture,
                                                 dropFuture,
                                                 dropTemporaryFuture)))
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .classloader(CatalogManagerTest.class.getClassLoader())
+                                        .catalogStore(new GenericInMemoryCatalogStore())
+                                        .config(new Configuration())
+                                        .build())
                         .build();
 
         catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());

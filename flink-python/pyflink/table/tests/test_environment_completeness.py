@@ -43,7 +43,9 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
             'loadPlan',
             'compilePlanSql',
             'executePlan',
-            'explainPlan'}
+            'explainPlan',
+            # See FLINK-32647
+            'createCatalog'}
 
     @classmethod
     def java_method_name(cls, python_method_name):

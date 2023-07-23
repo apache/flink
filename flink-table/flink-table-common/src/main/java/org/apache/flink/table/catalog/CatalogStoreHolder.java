@@ -24,8 +24,6 @@ import org.apache.flink.table.factories.CatalogStoreFactory;
 
 import javax.annotation.Nullable;
 
-import java.net.URLClassLoader;
-
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -128,10 +126,6 @@ public class CatalogStoreHolder implements AutoCloseable {
 
         if (this.factory != null) {
             this.factory.close();
-        }
-
-        if (classLoader instanceof URLClassLoader) {
-            ((URLClassLoader) classLoader).close();
         }
     }
 }
