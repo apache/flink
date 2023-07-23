@@ -44,7 +44,7 @@ public class GenericInMemoryCatalogStoreFactoryTest {
                         classLoader, CatalogStoreFactory.class, factoryIdentifier);
         factory.open(discoveryContext);
 
-        CatalogStore catalogStore = factory.createCatalogStore(discoveryContext);
+        CatalogStore catalogStore = factory.createCatalogStore();
         assertThat(catalogStore instanceof GenericInMemoryCatalogStore).isTrue();
 
         factory.close();

@@ -108,7 +108,7 @@ import java.util.Map;
 public interface CatalogStoreFactory extends Factory {
 
     /** Creates a {@link CatalogStore} instance from context information. */
-    CatalogStore createCatalogStore(Context context);
+    CatalogStore createCatalogStore();
 
     /**
      * Initialize the CatalogStoreFactory.
