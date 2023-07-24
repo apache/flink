@@ -19,7 +19,6 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -98,21 +97,19 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
                                 // Take all files from shared and private state.
                                 Streams.concat(
                                                 downloadRequest.getStateHandle().getSharedState()
-                                                        .entrySet().stream(),
+                                                        .stream(),
                                                 downloadRequest.getStateHandle().getPrivateState()
-                                                        .entrySet().stream())
+                                                        .stream())
                                         .map(
                                                 // Create one runnable for each StreamStateHandle
                                                 entry -> {
-                                                    StateHandleID stateHandleID = entry.getKey();
+                                                    String localPath = entry.getLocalPath();
                                                     StreamStateHandle remoteFileHandle =
-                                                            entry.getValue();
+                                                            entry.getHandle();
                                                     Path downloadDest =
                                                             downloadRequest
                                                                     .getDownloadDestination()
-                                                                    .resolve(
-                                                                            stateHandleID
-                                                                                    .toString());
+                                                                    .resolve(localPath);
                                                     return ThrowingRunnable.unchecked(
                                                             () ->
                                                                     downloadDataForStateHandle(

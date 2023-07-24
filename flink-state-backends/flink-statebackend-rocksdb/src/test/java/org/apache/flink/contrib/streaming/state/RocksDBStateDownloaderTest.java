@@ -20,9 +20,9 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -39,9 +39,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -61,8 +59,8 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                 new SpecifiedException("throw exception while multi thread restore.");
         StreamStateHandle stateHandle = new ThrowingStateHandle(expectedCause);
 
-        Map<StateHandleID, StreamStateHandle> stateHandles = new HashMap<>(1);
-        stateHandles.put(new StateHandleID("state1"), stateHandle);
+        List<HandleAndLocalPath> stateHandles = new ArrayList<>(1);
+        stateHandles.add(HandleAndLocalPath.of(stateHandle, "state1"));
 
         IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
                 new IncrementalRemoteKeyedStateHandle(
@@ -134,9 +132,10 @@ public class RocksDBStateDownloaderTest extends TestLogger {
         // Add a state handle that induces an exception
         stateHandle
                 .getSharedState()
-                .put(
-                        new StateHandleID("error-handle"),
-                        new ThrowingStateHandle(new IOException("Test exception.")));
+                .add(
+                        HandleAndLocalPath.of(
+                                new ThrowingStateHandle(new IOException("Test exception.")),
+                                "error-handle"));
 
         CloseableRegistry closeableRegistry = new CloseableRegistry();
         try (RocksDBStateDownloader rocksDBStateDownloader = new RocksDBStateDownloader(5)) {
@@ -215,15 +214,16 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                             String.format("state-%d-%d", remoteHandleId, i), content[i]));
         }
 
-        Map<StateHandleID, StreamStateHandle> sharedStates = new HashMap<>(numSubHandles);
-        Map<StateHandleID, StreamStateHandle> privateStates = new HashMap<>(numSubHandles);
+        List<HandleAndLocalPath> sharedStates = new ArrayList<>(numSubHandles);
+        List<HandleAndLocalPath> privateStates = new ArrayList<>(numSubHandles);
         for (int i = 0; i < numSubHandles; ++i) {
-            sharedStates.put(
-                    new StateHandleID(String.format("sharedState-%d-%d", remoteHandleId, i)),
-                    handles.get(i));
-            privateStates.put(
-                    new StateHandleID(String.format("privateState-%d-%d", remoteHandleId, i)),
-                    handles.get(i));
+            sharedStates.add(
+                    HandleAndLocalPath.of(
+                            handles.get(i), String.format("sharedState-%d-%d", remoteHandleId, i)));
+            privateStates.add(
+                    HandleAndLocalPath.of(
+                            handles.get(i),
+                            String.format("privateState-%d-%d", remoteHandleId, i)));
         }
 
         IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =

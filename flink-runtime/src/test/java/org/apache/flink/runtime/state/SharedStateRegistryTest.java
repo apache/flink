@@ -290,8 +290,8 @@ public class SharedStateRegistryTest {
                         UUID.randomUUID(),
                         KeyGroupRange.EMPTY_KEY_GROUP_RANGE,
                         1L,
-                        Collections.emptyMap(),
-                        Collections.emptyMap(),
+                        Collections.emptyList(),
+                        Collections.emptyList(),
                         new ByteStreamStateHandle("meta", new byte[1]),
                         1024L,
                         new StateHandleID(stateId));

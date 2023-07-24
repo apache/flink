@@ -19,13 +19,12 @@
 package org.apache.flink.contrib.streaming.state.restore;
 
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
-import org.apache.flink.runtime.state.StateHandleID;
-import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
 
-import java.util.Map;
+import java.util.Collection;
 import java.util.SortedMap;
 import java.util.UUID;
 
@@ -38,7 +37,7 @@ public class RocksDBRestoreResult {
     // fields only for incremental restore
     private final long lastCompletedCheckpointId;
     private final UUID backendUID;
-    private final SortedMap<Long, Map<StateHandleID, StreamStateHandle>> restoredSstFiles;
+    private final SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles;
 
     public RocksDBRestoreResult(
             RocksDB db,
@@ -46,7 +45,7 @@ public class RocksDBRestoreResult {
             RocksDBNativeMetricMonitor nativeMetricMonitor,
             long lastCompletedCheckpointId,
             UUID backendUID,
-            SortedMap<Long, Map<StateHandleID, StreamStateHandle>> restoredSstFiles) {
+            SortedMap<Long, Collection<HandleAndLocalPath>> restoredSstFiles) {
         this.db = db;
         this.defaultColumnFamilyHandle = defaultColumnFamilyHandle;
         this.nativeMetricMonitor = nativeMetricMonitor;
@@ -67,7 +66,7 @@ public class RocksDBRestoreResult {
         return backendUID;
     }
 
-    public SortedMap<Long, Map<StateHandleID, StreamStateHandle>> getRestoredSstFiles() {
+    public SortedMap<Long, Collection<HandleAndLocalPath>> getRestoredSstFiles() {
         return restoredSstFiles;
     }
 
