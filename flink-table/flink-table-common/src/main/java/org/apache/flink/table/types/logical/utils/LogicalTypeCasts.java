@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.types.logical.LogicalTypeFamily.APPROXIMATE_NUMERIC;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.BINARY_STRING;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CONSTRUCTED;
@@ -136,14 +137,14 @@ public final class LogicalTypeCasts {
 
         castTo(BINARY)
                 .implicitFrom(BINARY)
-                .explicitFromFamily(CHARACTER_STRING)
+                .explicitFromFamily(CHARACTER_STRING, INTEGER_NUMERIC, APPROXIMATE_NUMERIC)
                 .explicitFrom(VARBINARY)
                 .explicitFrom(RAW)
                 .build();
 
         castTo(VARBINARY)
                 .implicitFromFamily(BINARY_STRING)
-                .explicitFromFamily(CHARACTER_STRING)
+                .explicitFromFamily(CHARACTER_STRING, INTEGER_NUMERIC, APPROXIMATE_NUMERIC)
                 .explicitFrom(BINARY)
                 .explicitFrom(RAW)
                 .build();
