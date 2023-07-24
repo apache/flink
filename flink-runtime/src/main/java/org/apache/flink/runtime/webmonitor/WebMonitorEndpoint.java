@@ -255,12 +255,12 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     }
 
     private VertexThreadInfoTracker initializeThreadInfoTracker(ScheduledExecutorService executor) {
-        final Duration akkaTimeout = clusterConfiguration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
+        final Duration askTimeout = clusterConfiguration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
 
         final Duration flameGraphCleanUpInterval =
                 clusterConfiguration.get(RestOptions.FLAMEGRAPH_CLEANUP_INTERVAL);
         final ThreadInfoRequestCoordinator threadInfoRequestCoordinator =
-                new ThreadInfoRequestCoordinator(executor, akkaTimeout);
+                new ThreadInfoRequestCoordinator(executor, askTimeout);
 
         return VertexThreadInfoTrackerBuilder.newBuilder(
                         resourceManagerRetriever, executor, restConfiguration.getTimeout())

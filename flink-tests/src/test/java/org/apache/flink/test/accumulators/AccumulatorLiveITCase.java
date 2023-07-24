@@ -101,7 +101,7 @@ public class AccumulatorLiveITCase extends TestLogger {
 
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
-        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT);
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, TestingUtils.DEFAULT_ASK_TIMEOUT);
         config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, HEARTBEAT_INTERVAL);
 
         return config;
@@ -175,7 +175,8 @@ public class AccumulatorLiveITCase extends TestLogger {
     }
 
     private static void verifyResults(JobGraph jobGraph, Deadline deadline, ClusterClient<?> client)
-            throws InterruptedException, java.util.concurrent.ExecutionException,
+            throws InterruptedException,
+                    java.util.concurrent.ExecutionException,
                     java.util.concurrent.TimeoutException {
         FutureUtils.retrySuccessfulWithDelay(
                         () -> {

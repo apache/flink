@@ -40,13 +40,13 @@ public class LeaderRetrievalUtils {
     private static final Logger LOG = LoggerFactory.getLogger(LeaderRetrievalUtils.class);
 
     /**
-     * Retrieves the leader akka url and the current leader session ID. The values are stored in a
+     * Retrieves the leader pekko url and the current leader session ID. The values are stored in a
      * {@link LeaderInformation} instance.
      *
      * @param leaderRetrievalService Leader retrieval service to retrieve the leader connection
      *     information
      * @param timeout Timeout when to give up looking for the leader
-     * @return LeaderInformation containing the leader's akka URL and the current leader session ID
+     * @return LeaderInformation containing the leader's rpc URL and the current leader session ID
      * @throws LeaderRetrievalException
      */
     public static LeaderInformation retrieveLeaderInformation(
