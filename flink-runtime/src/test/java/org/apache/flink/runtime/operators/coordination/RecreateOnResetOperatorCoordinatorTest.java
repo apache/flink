@@ -264,6 +264,21 @@ public class RecreateOnResetOperatorCoordinatorTest {
                 "Timed out when waiting for the coordinator to close.");
     }
 
+    @Test
+    public void testNotifyCheckpointAbortedSuccess() throws Exception {
+        TestingCoordinatorProvider provider = new TestingCoordinatorProvider(null);
+        MockOperatorCoordinatorContext context =
+                new MockOperatorCoordinatorContext(OPERATOR_ID, NUM_SUBTASKS);
+        RecreateOnResetOperatorCoordinator coordinator = createCoordinator(provider, context);
+        TestingOperatorCoordinator internalCoordinatorAfterReset =
+                getInternalCoordinator(coordinator);
+
+        long checkpointId = 10L;
+        coordinator.notifyCheckpointAborted(checkpointId);
+        assertThat(internalCoordinatorAfterReset.getLastCheckpointAborted())
+                .isEqualTo(checkpointId);
+    }
+
     // ---------------
 
     private RecreateOnResetOperatorCoordinator createCoordinator(
