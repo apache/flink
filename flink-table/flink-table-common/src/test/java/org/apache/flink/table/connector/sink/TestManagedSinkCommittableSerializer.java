@@ -113,7 +113,7 @@ public class TestManagedSinkCommittableSerializer
     private void serializePaths(DataOutputSerializer out, Set<Path> paths) throws IOException {
         out.writeInt(paths.size());
         for (Path path : paths) {
-            path.write(out);
+            Path.serializeToDataOutputView(path, out);
         }
     }
 
@@ -143,9 +143,8 @@ public class TestManagedSinkCommittableSerializer
         int size = in.readInt();
         Set<Path> paths = new HashSet<>(size);
         for (int i = 0; i < size; i++) {
-            Path path = new Path();
-            path.read(in);
-            paths.add(path);
+            Path result = Path.deserializeFromDataInputView(in);
+            paths.add(result == null ? new Path() : result);
         }
         return paths;
     }
