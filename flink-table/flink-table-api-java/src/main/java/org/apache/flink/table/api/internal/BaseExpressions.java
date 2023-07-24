@@ -92,6 +92,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FROM_B
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GET;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HASHCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF_NULL;
@@ -1405,6 +1406,11 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType arrayUnion(InType array) {
         return toApiSpecificExpression(
                 unresolvedCall(ARRAY_UNION, toExpr(), objectToExpression(array)));
+    }
+
+    public OutType hashCode(InType other) {
+        return toApiSpecificExpression(
+                unresolvedCall(HASHCODE, toExpr(), objectToExpression(other)));
     }
 
     /** Returns the keys of the map as an array. */

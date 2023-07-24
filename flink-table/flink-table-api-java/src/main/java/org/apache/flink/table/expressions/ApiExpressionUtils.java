@@ -24,6 +24,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -99,6 +101,18 @@ public final class ApiExpressionUtils {
                                 kind, expression));
             }
             return convertRow((Row) expression);
+        } else if (expression instanceof GenericRowData) {
+            RowKind kind = ((GenericRowData) expression).getRowKind();
+            if (kind != RowKind.INSERT) {
+                throw new ValidationException(
+                        String.format(
+                                "Unsupported kind '%s' of a row [%s]. Only rows with 'INSERT' kind are supported when"
+                                        + " converting to an expression.",
+                                kind, expression));
+            }
+            return convertGenericRowData((GenericRowData) expression);
+        } else if (expression instanceof BinaryRowData) {
+            return convertBinaryRowData((BinaryRowData) expression);
         } else if (expression instanceof Map) {
             return convertJavaMap((Map<?, ?>) expression);
         } else if (expression instanceof byte[]) {
@@ -111,6 +125,46 @@ public final class ApiExpressionUtils {
         } else {
             return convertScala(expression).orElseGet(() -> valueLiteral(expression));
         }
+    }
+
+    private static Expression convertBinaryRowData(BinaryRowData expression) {
+        int n = expression.getArity();
+        List<Expression> fields = new ArrayList<>();
+        for (int i = 0; i < n; ++i) {
+            Expression expr = getExpression(expression, i);
+            fields.add(expr);
+        }
+        return unresolvedCall(BuiltInFunctionDefinitions.ROW, fields);
+    }
+
+    private static Expression getExpression(BinaryRowData expression, int n) {
+        Object fieldValue;
+        try {
+            fieldValue = expression.getInt(n);
+        } catch (Exception e1) {
+            try {
+                fieldValue = expression.getLong(n);
+            } catch (Exception e2) {
+                try {
+                    fieldValue = expression.getLong(n);
+                } catch (Exception e3) {
+                    fieldValue = null;
+                }
+            }
+        }
+        Expression expr;
+        expr = objectToExpression(fieldValue);
+        return expr;
+    }
+
+    private static Expression convertGenericRowData(GenericRowData expression) {
+        List<Expression> fields =
+                IntStream.range(0, expression.getArity())
+                        .mapToObj(expression::getField)
+                        .map(ApiExpressionUtils::objectToExpression)
+                        .collect(Collectors.toList());
+
+        return unresolvedCall(BuiltInFunctionDefinitions.ROW, fields);
     }
 
     private static Expression convertRow(Row expression) {

@@ -73,8 +73,7 @@ public class ArrayUnionFunction extends BuiltInScalarFunction {
 
             List list = new ArrayList();
             Boolean[] alreadyIncludeNull = {Boolean.FALSE};
-            distinct(array1, elementGetter, equalityHandle, alreadyIncludeNull, list);
-            distinct(array2, elementGetter, equalityHandle, alreadyIncludeNull, list);
+            Set
             return new GenericArrayData(list.toArray());
         } catch (Throwable t) {
             throw new FlinkRuntimeException(t);

@@ -48,7 +48,7 @@ public class ArrayContainsFunction extends BuiltInScalarFunction {
         elementGetter = ArrayData.createElementGetter(needleDataType.getLogicalType());
         equalityEvaluator =
                 context.createEvaluator(
-                        $("element").isEqual($("needle")),
+                        $("element").hashCode($("needle")),
                         DataTypes.BOOLEAN(),
                         DataTypes.FIELD("element", needleDataType.notNull().toInternal()),
                         DataTypes.FIELD("needle", needleDataType.notNull().toInternal()));

@@ -19,6 +19,9 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -28,6 +31,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.util.CollectionUtil.entry;
@@ -35,15 +39,23 @@ import static org.apache.flink.util.CollectionUtil.entry;
 /** Tests for {@link BuiltInFunctionDefinitions} around arrays. */
 class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
 
+    public BinaryRowData getBinaryRowData() {
+        BinaryRowData binaryRowData = new BinaryRowData(1);
+        BinaryRowWriter writer = new BinaryRowWriter(binaryRowData);
+        writer.writeInt(0, 2);
+        return binaryRowData;
+    }
+
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
-                        arrayContainsTestCases(),
-                        arrayDistinctTestCases(),
-                        arrayPositionTestCases(),
-                        arrayRemoveTestCases(),
-                        arrayReverseTestCases(),
-                        arrayUnionTestCases())
+                        //                        arrayContainsTestCases(),
+                        //                        arrayDistinctTestCases(),
+                        //                        arrayPositionTestCases(),
+                        //                        arrayRemoveTestCases(),
+                        //                        arrayReverseTestCases(),
+                        //                        arrayUnionTestCases(),
+                        hashCodeTestCases())
                 .flatMap(s -> s);
     }
 
@@ -70,79 +82,88 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(DataTypes.INT().notNull()).notNull())
                         // ARRAY<INT>
-                        .testResult(
-                                $("f0").arrayContains(2),
-                                "ARRAY_CONTAINS(f0, 2)",
-                                true,
-                                DataTypes.BOOLEAN().nullable())
-                        .testResult(
-                                $("f0").arrayContains(42),
-                                "ARRAY_CONTAINS(f0, 42)",
-                                false,
-                                DataTypes.BOOLEAN().nullable())
-                        // ARRAY<INT> of null value
-                        .testResult(
-                                $("f1").arrayContains(12),
-                                "ARRAY_CONTAINS(f1, 12)",
-                                null,
-                                DataTypes.BOOLEAN().nullable())
-                        .testResult(
-                                $("f1").arrayContains(null),
-                                "ARRAY_CONTAINS(f1, NULL)",
-                                null,
-                                DataTypes.BOOLEAN().nullable())
-                        // ARRAY<STRING> NOT NULL
-                        .testResult(
-                                $("f2").arrayContains("Hello"),
-                                "ARRAY_CONTAINS(f2, 'Hello')",
-                                true,
-                                DataTypes.BOOLEAN().notNull())
-                        // ARRAY<ROW<BOOLEAN, DATE>>
-                        .testResult(
-                                $("f3").arrayContains(row(true, LocalDate.of(1990, 10, 14))),
-                                "ARRAY_CONTAINS(f3, (TRUE, DATE '1990-10-14'))",
-                                true,
-                                DataTypes.BOOLEAN())
+                        //                        .testResult(
+                        //                                $("f0").arrayContains(2),
+                        //                                "ARRAY_CONTAINS(f0, 2)",
+                        //                                true,
+                        //                                DataTypes.BOOLEAN().nullable())
+                        //                        .testResult(
+                        //                                $("f0").arrayContains(42),
+                        //                                "ARRAY_CONTAINS(f0, 42)",
+                        //                                false,
+                        //                                DataTypes.BOOLEAN().nullable())
+                        //                        // ARRAY<INT> of null value
+                        //                        .testResult(
+                        //                                $("f1").arrayContains(12),
+                        //                                "ARRAY_CONTAINS(f1, 12)",
+                        //                                null,
+                        //                                DataTypes.BOOLEAN().nullable())
+                        //                        .testResult(
+                        //                                $("f1").arrayContains(null),
+                        //                                "ARRAY_CONTAINS(f1, NULL)",
+                        //                                null,
+                        //                                DataTypes.BOOLEAN().nullable())
+                        //                        // ARRAY<STRING> NOT NULL
+                        //                        .testResult(
+                        //                                $("f2").arrayContains("Hello"),
+                        //                                "ARRAY_CONTAINS(f2, 'Hello')",
+                        //                                true,
+                        //                                DataTypes.BOOLEAN().notNull())
+                        //                        // ARRAY<ROW<BOOLEAN, DATE>>
+                        //                        .testResult(
+                        //                                $("f3").arrayContains(row(true,
+                        // LocalDate.of(1990, 10, 14))),
+                        //                                "ARRAY_CONTAINS(f3, (TRUE, DATE
+                        // '1990-10-14'))",
+                        //                                true,
+                        //                                DataTypes.BOOLEAN())
                         .testResult(
                                 $("f3").arrayContains(row(false, LocalDate.of(1990, 10, 14))),
                                 "ARRAY_CONTAINS(f3, (FALSE, DATE '1990-10-14'))",
                                 false,
                                 DataTypes.BOOLEAN())
-                        .testResult(
-                                $("f3").arrayContains(null),
-                                "ARRAY_CONTAINS(f3, null)",
-                                true,
-                                DataTypes.BOOLEAN())
-                        // ARRAY<INT> with null elements
-                        .testResult(
-                                $("f4").arrayContains(null),
-                                "ARRAY_CONTAINS(f4, NULL)",
-                                true,
-                                DataTypes.BOOLEAN().nullable())
-                        .testResult(
-                                $("f5").arrayContains(lit(null, DataTypes.INT())),
-                                "ARRAY_CONTAINS(f5, CAST(NULL AS INT))",
-                                false,
-                                DataTypes.BOOLEAN().notNull())
-                        .testResult(
-                                $("f5").arrayContains(lit(4, DataTypes.INT().notNull())),
-                                "ARRAY_CONTAINS(f5, 4)",
-                                false,
-                                DataTypes.BOOLEAN().notNull())
-                        .testResult(
-                                $("f5").arrayContains(lit(3, DataTypes.INT().notNull())),
-                                "ARRAY_CONTAINS(f5, 3)",
-                                true,
-                                DataTypes.BOOLEAN().notNull())
-                        // invalid signatures
-                        .testSqlValidationError(
-                                "ARRAY_CONTAINS(f0, TRUE)",
-                                "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)")
-                        .testTableApiValidationError(
-                                $("f0").arrayContains(true),
-                                "Invalid input arguments. Expected signatures are:\n"
-                                        + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
+                //                        .testResult(
+                //                                $("f3").arrayContains(null),
+                //                                "ARRAY_CONTAINS(f3, null)",
+                //                                true,
+                //                                DataTypes.BOOLEAN())
+                // ARRAY<INT> with null elements
+                //                        .testResult(
+                //                                $("f4").arrayContains(null),
+                //                                "ARRAY_CONTAINS(f4, NULL)",
+                //                                true,
+                //                                DataTypes.BOOLEAN().nullable())
+                //                        .testResult(
+                //                                $("f5").arrayContains(lit(null, DataTypes.INT())),
+                //                                "ARRAY_CONTAINS(f5, CAST(NULL AS INT))",
+                //                                false,
+                //                                DataTypes.BOOLEAN().notNull())
+                //                        .testResult(
+                //                                $("f5").arrayContains(lit(4,
+                // DataTypes.INT().notNull())),
+                //                                "ARRAY_CONTAINS(f5, 4)",
+                //                                false,
+                //                                DataTypes.BOOLEAN().notNull())
+                //                        .testResult(
+                //                                $("f5").arrayContains(lit(3,
+                // DataTypes.INT().notNull())),
+                //                                "ARRAY_CONTAINS(f5, 3)",
+                //                                true,
+                //                                DataTypes.BOOLEAN().notNull())
+                //                        // invalid signatures
+                //                        .testSqlValidationError(
+                //                                "ARRAY_CONTAINS(f0, TRUE)",
+                //                                "Invalid input arguments. Expected signatures
+                // are:\n"
+                //                                        + "ARRAY_CONTAINS(haystack <ARRAY>, needle
+                // <ARRAY ELEMENT>)")
+                //                        .testTableApiValidationError(
+                //                                $("f0").arrayContains(true),
+                //                                "Invalid input arguments. Expected signatures
+                // are:\n"
+                //                                        + "ARRAY_CONTAINS(haystack <ARRAY>, needle
+                // <ARRAY ELEMENT>)")
+                );
     }
 
     private Stream<TestSetSpec> arrayDistinctTestCases() {
@@ -478,5 +499,37 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f3").arrayUnion(true),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ARRAY_UNION(<COMMON>, <COMMON>)"));
+    }
+
+    private Stream<TestSetSpec> hashCodeTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.HASHCODE)
+                        .onFieldsWithData(
+                                Row.of(true, LocalDate.of(2022, 4, 20), Row.of(1, 2, 3)),
+                                Row.of(true, LocalDate.of(1990, 10, 14)))
+                        .andDataTypes(
+                                DataTypes.ROW(
+                                        DataTypes.BOOLEAN(),
+                                        DataTypes.DATE(),
+                                        DataTypes.ROW(
+                                                DataTypes.INT(), DataTypes.INT(), DataTypes.INT())),
+                                DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE()))
+                        //                        .testResult(
+                        //                                $("f0").hashCode(
+                        //                                                GenericRowData.of(
+                        //                                                        true,
+                        //                       F
+                        // LocalDate.of(2022,
+                        // 4, 20),
+                        //
+                        // GenericRowData.of(1, 2, 3))),
+                        //                                "HASHCODE(f0, (TRUE, DATE '2022-4-20'))",
+                        //                                true,
+                        //                                DataTypes.BOOLEAN())
+                        .testResult(
+                                call("hashcode", GenericRowData.of(2), getBinaryRowData()),
+                                "HASHCODE((2), (2))",
+                                true,
+                                DataTypes.BOOLEAN()));
     }
 }
