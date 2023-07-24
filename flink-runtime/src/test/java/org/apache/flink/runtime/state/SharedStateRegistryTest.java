@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLo
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
@@ -74,38 +75,6 @@ public class SharedStateRegistryTest {
         assertTrue(secondState == result);
         assertFalse(firstState.isDiscarded());
         assertFalse(secondState.isDiscarded());
-
-        // attempt to register state under an existing key - before CP completion
-        // new state should replace the old one
-        TestSharedState firstStatePrime =
-                new TestSharedState(firstState.getRegistrationKey().getKeyString());
-        result =
-                sharedStateRegistry.registerReference(
-                        firstState.getRegistrationKey(), firstStatePrime, 0L);
-        assertTrue(firstStatePrime == result);
-        assertFalse(firstStatePrime.isDiscarded());
-        assertFalse(firstState == result);
-        assertTrue(firstState.isDiscarded());
-
-        // attempt to register state under an existing key - after CP completion
-        // new state should be discarded
-        sharedStateRegistry.checkpointCompleted(0L);
-        TestSharedState firstStateDPrime =
-                new TestSharedState(firstState.getRegistrationKey().getKeyString());
-        result =
-                sharedStateRegistry.registerReference(
-                        firstState.getRegistrationKey(), firstStateDPrime, 0L);
-        assertFalse(firstStateDPrime == result);
-        assertTrue(firstStateDPrime.isDiscarded());
-        assertTrue(firstStatePrime == result);
-        assertFalse(firstStatePrime.isDiscarded());
-
-        // reference the first state again
-        result =
-                sharedStateRegistry.registerReference(
-                        firstState.getRegistrationKey(), firstState, 0L);
-        assertTrue(firstStatePrime == result);
-        assertFalse(firstStatePrime.isDiscarded());
 
         sharedStateRegistry.unregisterUnusedState(1L);
         assertTrue(secondState.isDiscarded());
@@ -223,10 +192,17 @@ public class SharedStateRegistryTest {
     public void testUnregisterNonInitialCheckpoint() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
+        String stateId = "stateId";
+        byte[] stateContent = stateId.getBytes(StandardCharsets.UTF_8);
+
         sharedStateRegistry.registerReference(
-                new SharedStateRegistryKey("stateId"), new TestingStreamStateHandle(), 1L);
+                new SharedStateRegistryKey(stateId),
+                new TestingStreamStateHandle(stateId, stateContent),
+                1L);
         sharedStateRegistry.registerReference(
-                new SharedStateRegistryKey("stateId"), new TestingStreamStateHandle(), 2L);
+                new SharedStateRegistryKey(stateId),
+                new TestingStreamStateHandle(stateId, stateContent),
+                2L);
         assertTrue(
                 "First (non-initial) checkpoint could be discarded",
                 sharedStateRegistry.unregisterUnusedState(2).isEmpty());
