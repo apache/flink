@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
+import org.apache.flink.runtime.state.DiscardRecordedStateObject;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -74,6 +75,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -135,7 +137,6 @@ import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -2940,13 +2941,15 @@ class CheckpointCoordinatorTest extends TestLogger {
                                                 streamStateHandle
                                                         instanceof PlaceholderStreamStateHandle)
                                         .isFalse();
-                                verify(streamStateHandle, never()).discardState();
+                                DiscardRecordedStateObject.verifyDiscard(
+                                        streamStateHandle, TernaryBoolean.FALSE);
                                 ++sharedHandleCount;
                             }
 
                             for (HandleAndLocalPath handleAndLocalPath :
                                     incrementalKeyedStateHandle.getPrivateState()) {
-                                verify(handleAndLocalPath.getHandle(), never()).discardState();
+                                DiscardRecordedStateObject.verifyDiscard(
+                                        handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
                             }
 
                             verify(incrementalKeyedStateHandle.getMetaStateHandle(), never())
@@ -2969,7 +2972,8 @@ class CheckpointCoordinatorTest extends TestLogger {
             // by CP1
             for (List<HandleAndLocalPath> cpList : sharedHandlesByCheckpoint) {
                 for (HandleAndLocalPath handleAndLocalPath : cpList) {
-                    verify(handleAndLocalPath.getHandle(), never()).discardState();
+                    DiscardRecordedStateObject.verifyDiscard(
+                            handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
                 }
             }
 
@@ -3028,14 +3032,19 @@ class CheckpointCoordinatorTest extends TestLogger {
             // references the state from CP1, so we expect they are not discarded.
             verifyDiscard(
                     sharedHandlesByCheckpoint,
-                    cpId -> restoreMode == RestoreMode.CLAIM && cpId == 0 ? times(1) : never());
+                    cpId ->
+                            restoreMode == RestoreMode.CLAIM && cpId == 0
+                                    ? TernaryBoolean.TRUE
+                                    : TernaryBoolean.FALSE);
 
             // discard CP2
             secondStore.removeOldestCheckpoint();
 
             // still expect shared state not to be discarded because it may be used in later
             // checkpoints
-            verifyDiscard(sharedHandlesByCheckpoint, cpId -> cpId == 1 ? never() : atLeast(0));
+            verifyDiscard(
+                    sharedHandlesByCheckpoint,
+                    cpId -> cpId == 1 ? TernaryBoolean.FALSE : TernaryBoolean.UNDEFINED);
         }
     }
 
@@ -3950,7 +3959,7 @@ class CheckpointCoordinatorTest extends TestLogger {
             List<HandleAndLocalPath> privateState = new ArrayList<>();
             privateState.add(
                     HandleAndLocalPath.of(
-                            spy(new ByteStreamStateHandle("private-1", new byte[] {'p'})),
+                            new TestingStreamStateHandle("private-1", new byte[] {'p'}),
                             "private-1"));
 
             List<HandleAndLocalPath> sharedState = new ArrayList<>();
@@ -3959,22 +3968,17 @@ class CheckpointCoordinatorTest extends TestLogger {
             if (cpSequenceNumber > 0) {
                 sharedState.add(
                         HandleAndLocalPath.of(
-                                spy(
-                                        new ByteStreamStateHandle(
-                                                "shared-"
-                                                        + (cpSequenceNumber - 1)
-                                                        + "-"
-                                                        + keyGroupRange,
-                                                new byte[] {'s'})),
+                                new TestingStreamStateHandle(
+                                        "shared-" + (cpSequenceNumber - 1) + "-" + keyGroupRange,
+                                        new byte[] {'s'}),
                                 "shared-" + (cpSequenceNumber - 1)));
             }
 
             sharedState.add(
                     HandleAndLocalPath.of(
-                            spy(
-                                    new ByteStreamStateHandle(
-                                            "shared-" + cpSequenceNumber + "-" + keyGroupRange,
-                                            new byte[] {'s'})),
+                            new TestingStreamStateHandle(
+                                    "shared-" + cpSequenceNumber + "-" + keyGroupRange,
+                                    new byte[] {'s'}),
                             "shared-" + cpSequenceNumber));
 
             IncrementalRemoteKeyedStateHandle managedState =
@@ -4112,14 +4116,13 @@ class CheckpointCoordinatorTest extends TestLogger {
 
     private static void verifyDiscard(
             List<List<HandleAndLocalPath>> sharedHandles,
-            Function<Integer, VerificationMode> checkpointVerify)
-            throws Exception {
+            Function<Integer, TernaryBoolean> checkpointVerify) {
         for (List<HandleAndLocalPath> cpList : sharedHandles) {
             for (HandleAndLocalPath handleAndLocalPath : cpList) {
                 String key = handleAndLocalPath.getLocalPath();
                 int checkpointID = Integer.parseInt(String.valueOf(key.charAt(key.length() - 1)));
-                VerificationMode verificationMode = checkpointVerify.apply(checkpointID);
-                verify(handleAndLocalPath.getHandle(), verificationMode).discardState();
+                DiscardRecordedStateObject.verifyDiscard(
+                        handleAndLocalPath.getHandle(), checkpointVerify.apply(checkpointID));
             }
         }
     }
