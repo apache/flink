@@ -36,12 +36,14 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
+import org.apache.flink.runtime.state.TestingRelativeFileStateHandle;
+import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -293,10 +295,9 @@ public class CheckpointTestUtils {
     public static StreamStateHandle createDummyStreamStateHandle(
             Random rnd, @Nullable String basePath) {
         if (!isSavepoint(basePath)) {
-            return new ByteStreamStateHandle(
-                    String.valueOf(createRandomUUID(rnd)),
-                    String.valueOf(createRandomUUID(rnd))
-                            .getBytes(ConfigConstants.DEFAULT_CHARSET));
+            String stateId = String.valueOf(createRandomUUID(rnd));
+            byte[] stateContent = stateId.getBytes(StandardCharsets.UTF_8);
+            return new TestingStreamStateHandle(stateId, stateContent);
         } else {
             long stateSize = rnd.nextLong();
             if (stateSize <= 0) {
@@ -304,7 +305,7 @@ public class CheckpointTestUtils {
             }
             String relativePath = String.valueOf(createRandomUUID(rnd));
             Path statePath = new Path(basePath, relativePath);
-            return new RelativeFileStateHandle(statePath, relativePath, stateSize);
+            return new TestingRelativeFileStateHandle(statePath, relativePath, stateSize);
         }
     }
 

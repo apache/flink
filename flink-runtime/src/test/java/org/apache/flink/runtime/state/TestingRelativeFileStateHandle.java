@@ -18,34 +18,24 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 
-import java.util.UUID;
-
-/** A simple test mock for a {@link StreamStateHandle}. */
-public class TestingStreamStateHandle extends ByteStreamStateHandle
+public class TestingRelativeFileStateHandle extends RelativeFileStateHandle
         implements DiscardRecordedStateObject {
     private static final long serialVersionUID = 1L;
 
     private boolean disposed;
 
-    public TestingStreamStateHandle() {
-        super(UUID.randomUUID().toString(), new byte[0]);
+    public TestingRelativeFileStateHandle(Path path, String relativePath, long stateSize) {
+        super(path, relativePath, stateSize);
     }
-
-    public TestingStreamStateHandle(String handleName, byte[] data) {
-        super(handleName, data);
-    }
-
-    // ------------------------------------------------------------------------
 
     @Override
-    public void discardState() {
+    public void discardState() throws Exception {
         super.discardState();
-        disposed = true;
+        this.disposed = true;
     }
-
-    // ------------------------------------------------------------------------
 
     @Override
     public boolean isDisposed() {

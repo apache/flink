@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointTestUtils;
 import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.TernaryBoolean;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -32,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.state.DiscardRecordedStateObject.verifyDiscard;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -53,11 +55,11 @@ public class IncrementalRemoteKeyedStateHandleTest {
         stateHandle.discardState();
 
         for (HandleAndLocalPath handleAndLocalPath : stateHandle.getPrivateState()) {
-            verify(handleAndLocalPath.getHandle()).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.TRUE);
         }
 
         for (HandleAndLocalPath handleAndLocalPath : stateHandle.getSharedState()) {
-            verify(handleAndLocalPath.getHandle()).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.TRUE);
         }
 
         verify(stateHandle.getMetaStateHandle()).discardState();
@@ -78,10 +80,10 @@ public class IncrementalRemoteKeyedStateHandleTest {
 
         // Both handles should not be registered and not discarded by now.
         for (HandleAndLocalPath handleAndLocalPath : stateHandle1.getSharedState()) {
-            verify(handleAndLocalPath.getHandle(), times(0)).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
         }
         for (HandleAndLocalPath handleAndLocalPath : stateHandle2.getSharedState()) {
-            verify(handleAndLocalPath.getHandle(), times(0)).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
         }
 
         // Now we register both ...
@@ -94,7 +96,8 @@ public class IncrementalRemoteKeyedStateHandleTest {
 
             SharedStateRegistryKey registryKey = stateHandle1.createSharedStateRegistryKey(handle);
 
-            verify(registry).registerReference(registryKey, handle, 0L);
+            // stateHandle1 and stateHandle2 has same shared states, so same key register 2 times
+            verify(registry, times(2)).registerReference(registryKey, handle, 0L);
         }
 
         for (HandleAndLocalPath handleAndLocalPath : stateHandle2.getSharedState()) {
@@ -102,7 +105,8 @@ public class IncrementalRemoteKeyedStateHandleTest {
 
             SharedStateRegistryKey registryKey = stateHandle2.createSharedStateRegistryKey(handle);
 
-            verify(registry).registerReference(registryKey, handle, 0L);
+            // stateHandle1 and stateHandle2 has same shared states, so same key register 2 times
+            verify(registry, times(2)).registerReference(registryKey, handle, 0L);
         }
 
         // We discard the first
@@ -110,11 +114,11 @@ public class IncrementalRemoteKeyedStateHandleTest {
 
         // Should be unregistered, non-shared discarded, shared not discarded
         for (HandleAndLocalPath handleAndLocalPath : stateHandle1.getSharedState()) {
-            verify(handleAndLocalPath.getHandle(), times(0)).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
         }
 
         for (HandleAndLocalPath handleAndLocalPath : stateHandle2.getSharedState()) {
-            verify(handleAndLocalPath.getHandle(), times(0)).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
         }
 
         for (HandleAndLocalPath handleAndLocalPath : stateHandle1.getPrivateState()) {
@@ -134,11 +138,11 @@ public class IncrementalRemoteKeyedStateHandleTest {
         // Now everything should be unregistered and discarded
         registry.unregisterUnusedState(Long.MAX_VALUE);
         for (HandleAndLocalPath handleAndLocalPath : stateHandle1.getSharedState()) {
-            verify(handleAndLocalPath.getHandle()).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.TRUE);
         }
 
         for (HandleAndLocalPath handleAndLocalPath : stateHandle2.getSharedState()) {
-            verify(handleAndLocalPath.getHandle()).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.TRUE);
         }
 
         verify(stateHandle1.getMetaStateHandle(), times(1)).discardState();
@@ -202,13 +206,13 @@ public class IncrementalRemoteKeyedStateHandleTest {
         sharedStateRegistryB.unregisterUnusedState(1L);
 
         for (HandleAndLocalPath handleAndLocalPath : stateHandleX.getSharedState()) {
-            verify(handleAndLocalPath.getHandle(), times(1)).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.TRUE);
         }
         for (HandleAndLocalPath handleAndLocalPath : stateHandleY.getSharedState()) {
-            verify(handleAndLocalPath.getHandle(), never()).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
         }
         for (HandleAndLocalPath handleAndLocalPath : stateHandleZ.getSharedState()) {
-            verify(handleAndLocalPath.getHandle(), never()).discardState();
+            verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
         }
         sharedStateRegistryB.close();
     }
@@ -289,7 +293,8 @@ public class IncrementalRemoteKeyedStateHandleTest {
                 UUID.nameUUIDFromBytes("test".getBytes()),
                 KeyGroupRange.of(0, 0),
                 1L,
-                placeSpies(CheckpointTestUtils.createRandomHandleAndLocalPathList(rnd)),
+                // not place spies on shared state handle
+                CheckpointTestUtils.createRandomHandleAndLocalPathList(rnd),
                 placeSpies(CheckpointTestUtils.createRandomHandleAndLocalPathList(rnd)),
                 spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd, null)));
     }
@@ -299,7 +304,8 @@ public class IncrementalRemoteKeyedStateHandleTest {
                 UUID.nameUUIDFromBytes("test".getBytes()),
                 KeyGroupRange.of(0, 0),
                 1L,
-                placeSpies(CheckpointTestUtils.createRandomHandleAndLocalPathList(rnd)),
+                // not place spies on shared state handle
+                CheckpointTestUtils.createRandomHandleAndLocalPathList(rnd),
                 placeSpies(CheckpointTestUtils.createRandomHandleAndLocalPathList(rnd)),
                 spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd, null)),
                 checkpointedSize);
