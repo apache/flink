@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
+import org.apache.flink.runtime.concurrent.akka.ScalaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
@@ -74,7 +74,7 @@ class AkkaRpcServiceTest {
     static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
         final CompletableFuture<Void> rpcTerminationFuture = akkaRpcService.closeAsync();
         final CompletableFuture<Terminated> actorSystemTerminationFuture =
-                AkkaFutureUtils.toJava(actorSystem.terminate());
+                ScalaFutureUtils.toJava(actorSystem.terminate());
 
         FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
                 .get();

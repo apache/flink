@@ -21,7 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
+import org.apache.flink.runtime.concurrent.akka.ScalaFutureUtils;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TimeUtils;
@@ -581,7 +581,8 @@ class AkkaUtils {
      * @return Termination future
      */
     public static CompletableFuture<Void> terminateActorSystem(ActorSystem actorSystem) {
-        return AkkaFutureUtils.toJava(actorSystem.terminate()).thenAccept(FunctionUtils.ignoreFn());
+        return ScalaFutureUtils.toJava(actorSystem.terminate())
+                .thenAccept(FunctionUtils.ignoreFn());
     }
 
     private static String booleanToOnOrOff(boolean flag) {

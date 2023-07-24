@@ -25,7 +25,7 @@ import scala.concurrent.ExecutionContext;
 import scala.concurrent.Future;
 
 /** Utilities to convert Scala types into Java types. */
-public class AkkaFutureUtils {
+public class ScalaFutureUtils {
     /**
      * Converts a Scala {@link Future} to a {@link CompletableFuture}.
      *
