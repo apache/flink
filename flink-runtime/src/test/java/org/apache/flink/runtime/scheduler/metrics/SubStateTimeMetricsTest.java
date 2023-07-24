@@ -19,17 +19,13 @@
 package org.apache.flink.runtime.scheduler.metrics;
 
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.EnumSet;
+import java.util.function.Supplier;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.scheduler.metrics.StateTimeMetricTest.enable;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,14 +42,7 @@ public class SubStateTimeMetricsTest {
         final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
 
         final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.DEPLOYING.name());
+                new SubStateTimeMetrics(settings, "test", new SettableSupplier(false), clock);
 
         assertThat(metrics.getCurrentTime()).isEqualTo(0L);
         assertThat(metrics.getTotalTime()).isEqualTo(0L);
@@ -61,680 +50,177 @@ public class SubStateTimeMetricsTest {
     }
 
     @Test
-    void testInitializingOnFirstInitialization() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        ExecutionState.INITIALIZING.name());
+    void testGetBinary() {
+        final SettableSupplier predicate = new SettableSupplier(false);
+        final SubStateTimeMetrics metrics = new SubStateTimeMetrics(settings, "test", predicate);
 
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
         assertThat(metrics.getBinary()).isEqualTo(0L);
 
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        assertThat(metrics.getBinary()).isEqualTo(0L);
+        predicate.setActive(true);
 
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
+        metrics.onStateUpdate();
         assertThat(metrics.getBinary()).isEqualTo(1L);
-    }
 
-    @Test
-    void testInitializingStart_batch_notTriggeredIfOneDeploymentIsRunning() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        ExecutionState.INITIALIZING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
-
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-
+        predicate.setActive(false);
+        metrics.onStateUpdate();
         assertThat(metrics.getBinary()).isEqualTo(0L);
-    }
-
-    @Test
-    void testOneInitializingAndOneDeploying_batch() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        ExecutionState.INITIALIZING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        assertThat(metrics.getBinary()).isEqualTo(1L);
-    }
-
-    @Test
-    void testOneInitializingAndOneDeploying_streaming() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.STREAMING,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        ExecutionState.INITIALIZING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        assertThat(metrics.getBinary()).isEqualTo(0L);
-
-        metrics.onStateUpdate(id2, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        assertThat(metrics.getBinary()).isEqualTo(1L);
-    }
-
-    @Test
-    void testInitialzingEnd_streaming_ignoresTerminalDeployments() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.STREAMING,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        ExecutionState.INITIALIZING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.FINISHED);
-        assertThat(metrics.getBinary()).isEqualTo(0L);
-
-        metrics.onStateUpdate(id2, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        assertThat(metrics.getBinary()).isEqualTo(1L);
     }
 
     @Test
     void testGetCurrentTime() {
         final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
+        final SettableSupplier predicate = new SettableSupplier(false);
 
         final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.INITIALIZING.name());
+                new SubStateTimeMetrics(settings, "test", predicate, clock);
 
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        predicate.setActive(true);
 
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
+        metrics.onStateUpdate();
+        assertThat(metrics.getCurrentTime()).isEqualTo(0L);
 
         clock.advanceTime(Duration.ofMillis(5));
+        assertThat(metrics.getCurrentTime()).isEqualTo(5L);
+
+        predicate.setActive(false);
+        metrics.onStateUpdate();
+        assertThat(metrics.getCurrentTime()).isEqualTo(0L);
+    }
+
+    @Test
+    void testGetCurrentNotResetWhenStateStaysActive() {
+        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
+        final SettableSupplier predicate = new SettableSupplier(false);
+
+        final SubStateTimeMetrics metrics =
+                new SubStateTimeMetrics(settings, "test", predicate, clock);
+
+        // enter state for 5 seconds
+        predicate.setActive(true);
+
+        metrics.onStateUpdate();
+        clock.advanceTime(Duration.ofMillis(5));
+
+        // another state update, reinforcing the current state
+
+        metrics.onStateUpdate();
         assertThat(metrics.getCurrentTime()).isEqualTo(5L);
     }
 
     @Test
-    void testGetCurrentTimeResetOndDeploymentEnd() {
+    void testGetCurrentTimeResetOnStateEnd() {
         final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
+        final SettableSupplier predicate = new SettableSupplier(false);
 
         final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.INITIALIZING.name());
+                new SubStateTimeMetrics(settings, "test", predicate, clock);
 
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        predicate.setActive(true);
 
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
-
-        assertThat(metrics.getCurrentTime()).isEqualTo(0L);
-    }
-
-    @Test
-    void testGetCurrentTimeResetOndDeploymentMultipleEnd_batch() {
-        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
-
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.INITIALIZING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
-
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-
-        assertThat(metrics.getCurrentTime()).isEqualTo(0L);
-    }
-
-    @Test
-    void testGetCurrentTimeResetOndDeploymentMultipleEnd_stream() {
-        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
-
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.STREAMING,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.INITIALIZING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
-
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-
-        clock.advanceTime(Duration.ofMillis(1));
-        assertThat(metrics.getCurrentTime()).isEqualTo(1L);
-    }
-
-    @Test
-    void testGetCurrentTime_notResetOnSecondaryInitializing() {
-        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
-
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.INITIALIZING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
+        metrics.onStateUpdate();
         clock.advanceTime(Duration.ofMillis(5));
 
-        metrics.onStateUpdate(id2, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        clock.advanceTime(Duration.ofMillis(5));
-        assertThat(metrics.getCurrentTime()).isEqualTo(10L);
+        predicate.setActive(false);
+        metrics.onStateUpdate();
+        assertThat(metrics.getCurrentTime()).isEqualTo(0L);
     }
 
     @Test
     void testGetTotalTime() {
         final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
+        final SettableSupplier predicate = new SettableSupplier(false);
 
         final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.INITIALIZING.name());
+                new SubStateTimeMetrics(settings, "test", predicate, clock);
 
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        // enter the state for 5 milliseconds and leave state
+        predicate.setActive(true);
 
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
+        metrics.onStateUpdate();
         clock.advanceTime(Duration.ofMillis(5));
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.FINISHED);
+        predicate.setActive(false);
+        metrics.onStateUpdate();
         assertThat(metrics.getTotalTime()).isEqualTo(5L);
 
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
+        // enter the state for 5 milliseconds and leave state
+        predicate.setActive(true);
 
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
+        metrics.onStateUpdate();
         clock.advanceTime(Duration.ofMillis(5));
-        metrics.onStateUpdate(id2, ExecutionState.INITIALIZING, ExecutionState.FINISHED);
+        predicate.setActive(false);
+        metrics.onStateUpdate();
         assertThat(metrics.getTotalTime()).isEqualTo(10L);
+    }
+
+    @Test
+    void testGetTotalTimeDoesNotAdvanceOutsideTargetState() {
+        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
+        final SettableSupplier predicate = new SettableSupplier(false);
+
+        final SubStateTimeMetrics metrics =
+                new SubStateTimeMetrics(settings, "test", predicate, clock);
+
+        // enter the state for 5 milliseconds and leave state
+        predicate.setActive(true);
+
+        metrics.onStateUpdate();
+        clock.advanceTime(Duration.ofMillis(5));
+        predicate.setActive(false);
+        metrics.onStateUpdate();
+        assertThat(metrics.getTotalTime()).isEqualTo(5L);
+
+        // advance time; total time should not change because we're not in target state
+        clock.advanceTime(Duration.ofMillis(5));
+        assertThat(metrics.getTotalTime()).isEqualTo(5L);
     }
 
     @Test
     void testGetTotalTimeIncludesCurrentTime() {
         final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
+        final SettableSupplier predicate = new SettableSupplier(false);
 
         final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.INITIALIZING.name());
+                new SubStateTimeMetrics(settings, "test", predicate, clock);
 
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        // enter the state for 5 milliseconds
+        predicate.setActive(true);
 
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-
+        metrics.onStateUpdate();
         clock.advanceTime(Duration.ofMillis(5));
         assertThat(metrics.getTotalTime()).isEqualTo(5L);
     }
 
     @Test
-    void testCleanStateAfterFullDeploymentCycle() {
+    void testCleanStateAfterEarlyFailure() {
         final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
+        final SettableSupplier predicate = new SettableSupplier(false);
 
         final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.INITIALIZING.name());
+                new SubStateTimeMetrics(settings, "test", predicate, clock);
 
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
-        metrics.onStateUpdate(id1, ExecutionState.RUNNING, ExecutionState.CANCELING);
-        metrics.onStateUpdate(id1, ExecutionState.CANCELING, ExecutionState.CANCELED);
+        metrics.onStateUpdate();
+        predicate.setActive(true);
+        predicate.setActive(false);
+        metrics.onStateUpdate();
 
         assertThat(metrics.hasCleanState()).isEqualTo(true);
     }
 
-    @Test
-    void testCleanStateAfterEarlyInitializationFailure() {
-        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
+    private static class SettableSupplier implements Supplier<Boolean> {
 
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.of(ExecutionState.DEPLOYING),
-                        ExecutionState.INITIALIZING,
-                        EnumSet.of(ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.INITIALIZING.name());
+        private boolean isActive;
 
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
+        public SettableSupplier(boolean isActive) {
+            this.isActive = isActive;
+        }
 
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.FAILED);
+        public void setActive(boolean isActive) {
+            this.isActive = isActive;
+        }
 
-        assertThat(metrics.hasCleanState()).isEqualTo(true);
-    }
-
-    @Test
-    void testDeploymentStartsOnFirstDeploying() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        assertThat(metrics.getBinary()).isEqualTo(0L);
-
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        assertThat(metrics.getBinary()).isEqualTo(1L);
-    }
-
-    @Test
-    void testDeploymentStart_batch_notTriggeredIfOneDeploymentIsRunning() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
-
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        assertThat(metrics.getBinary()).isEqualTo(0L);
-    }
-
-    @Test
-    void testDeploymentStart_batch_notTriggeredIfOneDeploymentIsInitializing() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        assertThat(metrics.getBinary()).isEqualTo(0L);
-    }
-
-    @Test
-    void testDeploymentEnd_batch() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
-        assertThat(metrics.getBinary()).isEqualTo(0L);
-    }
-
-    @Test
-    void testDeploymentEnd_streaming() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.STREAMING,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        assertThat(metrics.getBinary()).isEqualTo(1L);
-
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
-        metrics.onStateUpdate(id2, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id2, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
-        assertThat(metrics.getBinary()).isEqualTo(0L);
-    }
-
-    @Test
-    void testDeploymentEnd_streaming_ignoresTerminalDeployments() {
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.STREAMING,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id1, ExecutionState.INITIALIZING, ExecutionState.FINISHED);
-        assertThat(metrics.getBinary()).isEqualTo(1L);
-
-        metrics.onStateUpdate(id2, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-        metrics.onStateUpdate(id2, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
-        assertThat(metrics.getBinary()).isEqualTo(0L);
-    }
-
-    @Test
-    void testGetCurrentTimeForDeploying() {
-        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
-
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        clock.advanceTime(Duration.ofMillis(5));
-        assertThat(metrics.getCurrentTime()).isEqualTo(5L);
-    }
-
-    @Test
-    void testGetCurrentTimeResetOndDeployentEnd() {
-        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
-
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
-
-        assertThat(metrics.getCurrentTime()).isEqualTo(0L);
-    }
-
-    @Test
-    void testGetCurrentTime_notResetOnSecondaryDeployment() {
-        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
-
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        clock.advanceTime(Duration.ofMillis(5));
-
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        clock.advanceTime(Duration.ofMillis(5));
-        assertThat(metrics.getCurrentTime()).isEqualTo(10L);
-    }
-
-    @Test
-    void testGetTotalTimeForDeploying() {
-        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
-
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        clock.advanceTime(Duration.ofMillis(5));
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.FINISHED);
-        assertThat(metrics.getTotalTime()).isEqualTo(5L);
-
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id2, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id2, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        clock.advanceTime(Duration.ofMillis(5));
-        metrics.onStateUpdate(id2, ExecutionState.DEPLOYING, ExecutionState.FINISHED);
-        assertThat(metrics.getTotalTime()).isEqualTo(10L);
-    }
-
-    @Test
-    void testGetTotalTimeIncludesCurrentTimeForDeployment() {
-        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
-
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-
-        clock.advanceTime(Duration.ofMillis(5));
-        assertThat(metrics.getTotalTime()).isEqualTo(5L);
-    }
-
-    @Test
-    void testCleanStateAfterEarlyDeploymentFailure() {
-        final ManualClock clock = new ManualClock(Duration.ofMillis(5).toNanos());
-
-        final SubStateTimeMetrics metrics =
-                new SubStateTimeMetrics(
-                        JobType.BATCH,
-                        settings,
-                        EnumSet.noneOf(ExecutionState.class),
-                        ExecutionState.DEPLOYING,
-                        EnumSet.of(ExecutionState.INITIALIZING, ExecutionState.RUNNING),
-                        clock,
-                        ExecutionState.DEPLOYING.name());
-
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-
-        metrics.onStateUpdate(id1, ExecutionState.CREATED, ExecutionState.SCHEDULED);
-        metrics.onStateUpdate(id1, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
-        metrics.onStateUpdate(id1, ExecutionState.DEPLOYING, ExecutionState.FAILED);
-
-        assertThat(metrics.hasCleanState()).isEqualTo(true);
+        @Override
+        public Boolean get() {
+            return isActive;
+        }
     }
 }

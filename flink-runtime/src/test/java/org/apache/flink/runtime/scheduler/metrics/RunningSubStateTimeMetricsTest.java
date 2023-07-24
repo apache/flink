@@ -24,7 +24,6 @@ import org.apache.flink.runtime.jobgraph.JobType;
 
 import org.junit.jupiter.api.Test;
 
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.scheduler.metrics.StateTimeMetricTest.enable;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,140 +35,119 @@ public class RunningSubStateTimeMetricsTest {
                     MetricOptions.JobStatusMetrics.CURRENT_TIME,
                     MetricOptions.JobStatusMetrics.TOTAL_TIME);
 
+    private static final ExecutionAttemptID DUMMY_ATTEMPT_ID = ExecutionAttemptID.randomId();
+
     @Test
     void testCombined_batch() {
-        final RunningSubStateTimeMetrics runningSubStateTimeMetrics =
+        final RunningSubStateTimeMetrics metrics =
                 new RunningSubStateTimeMetrics(JobType.BATCH, settings);
 
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
+        updateMetrics(metrics, ExecutionState.CREATED, ExecutionState.SCHEDULED);
 
-        updateMetrics(
-                id1, runningSubStateTimeMetrics, ExecutionState.CREATED, ExecutionState.SCHEDULED);
+        updateMetrics(metrics, ExecutionState.CREATED, ExecutionState.SCHEDULED);
 
-        updateMetrics(
-                id2, runningSubStateTimeMetrics, ExecutionState.CREATED, ExecutionState.SCHEDULED);
+        updateMetrics(metrics, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
 
-        updateMetrics(
-                id1,
-                runningSubStateTimeMetrics,
-                ExecutionState.SCHEDULED,
-                ExecutionState.DEPLOYING);
+        assertThat(metrics.getDeploymentStateTimeMetrics().getBinary()).isEqualTo(1L);
+        assertThat(metrics.getInitializingStateTimeMetrics().getBinary()).isEqualTo(0L);
 
-        assertThat(runningSubStateTimeMetrics.getDeploymentStateTimeMetrics().getBinary())
-                .isEqualTo(1L);
-        assertThat(runningSubStateTimeMetrics.getInitializingStateTimeMetrics().getBinary())
-                .isEqualTo(0L);
+        updateMetrics(metrics, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
 
-        updateMetrics(
-                id1,
-                runningSubStateTimeMetrics,
-                ExecutionState.DEPLOYING,
-                ExecutionState.INITIALIZING);
+        assertThat(metrics.getDeploymentStateTimeMetrics().getBinary()).isEqualTo(0L);
+        assertThat(metrics.getInitializingStateTimeMetrics().getBinary()).isEqualTo(1L);
 
-        assertThat(runningSubStateTimeMetrics.getDeploymentStateTimeMetrics().getBinary())
-                .isEqualTo(0L);
-        assertThat(runningSubStateTimeMetrics.getInitializingStateTimeMetrics().getBinary())
-                .isEqualTo(1L);
+        updateMetrics(metrics, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
 
-        updateMetrics(
-                id2,
-                runningSubStateTimeMetrics,
-                ExecutionState.DEPLOYING,
-                ExecutionState.INITIALIZING);
+        assertThat(metrics.getDeploymentStateTimeMetrics().getBinary()).isEqualTo(0L);
+        assertThat(metrics.getInitializingStateTimeMetrics().getBinary()).isEqualTo(1L);
 
-        assertThat(runningSubStateTimeMetrics.getDeploymentStateTimeMetrics().getBinary())
-                .isEqualTo(0L);
-        assertThat(runningSubStateTimeMetrics.getInitializingStateTimeMetrics().getBinary())
-                .isEqualTo(1L);
+        updateMetrics(metrics, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
 
-        updateMetrics(
-                id2,
-                runningSubStateTimeMetrics,
-                ExecutionState.INITIALIZING,
-                ExecutionState.RUNNING);
-
-        assertThat(runningSubStateTimeMetrics.getDeploymentStateTimeMetrics().getBinary())
-                .isEqualTo(0L);
-        assertThat(runningSubStateTimeMetrics.getInitializingStateTimeMetrics().getBinary())
-                .isEqualTo(0L);
+        assertThat(metrics.getDeploymentStateTimeMetrics().getBinary()).isEqualTo(0L);
+        assertThat(metrics.getInitializingStateTimeMetrics().getBinary()).isEqualTo(0L);
     }
 
     @Test
     void testCombined_streaming() {
-        final RunningSubStateTimeMetrics runningSubStateTimeMetrics =
+        final RunningSubStateTimeMetrics metrics =
                 new RunningSubStateTimeMetrics(JobType.STREAMING, settings);
 
-        final ExecutionAttemptID id1 = createExecutionAttemptId();
-        final ExecutionAttemptID id2 = createExecutionAttemptId();
+        updateMetrics(metrics, ExecutionState.CREATED, ExecutionState.SCHEDULED);
 
-        updateMetrics(
-                id1, runningSubStateTimeMetrics, ExecutionState.CREATED, ExecutionState.SCHEDULED);
+        updateMetrics(metrics, ExecutionState.CREATED, ExecutionState.SCHEDULED);
 
-        updateMetrics(
-                id2, runningSubStateTimeMetrics, ExecutionState.CREATED, ExecutionState.SCHEDULED);
+        updateMetrics(metrics, ExecutionState.SCHEDULED, ExecutionState.DEPLOYING);
 
-        updateMetrics(
-                id1,
-                runningSubStateTimeMetrics,
-                ExecutionState.SCHEDULED,
-                ExecutionState.DEPLOYING);
+        assertThat(metrics.getDeploymentStateTimeMetrics().getBinary()).isEqualTo(1L);
+        assertThat(metrics.getInitializingStateTimeMetrics().getBinary()).isEqualTo(0L);
 
-        assertThat(runningSubStateTimeMetrics.getDeploymentStateTimeMetrics().getBinary())
-                .isEqualTo(1L);
-        assertThat(runningSubStateTimeMetrics.getInitializingStateTimeMetrics().getBinary())
-                .isEqualTo(0L);
+        updateMetrics(metrics, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
 
-        updateMetrics(
-                id1,
-                runningSubStateTimeMetrics,
-                ExecutionState.DEPLOYING,
-                ExecutionState.INITIALIZING);
+        assertThat(metrics.getDeploymentStateTimeMetrics().getBinary()).isEqualTo(0L);
+        assertThat(metrics.getInitializingStateTimeMetrics().getBinary()).isEqualTo(1L);
 
-        assertThat(runningSubStateTimeMetrics.getDeploymentStateTimeMetrics().getBinary())
-                .isEqualTo(1L);
-        assertThat(runningSubStateTimeMetrics.getInitializingStateTimeMetrics().getBinary())
-                .isEqualTo(1L);
+        updateMetrics(metrics, ExecutionState.DEPLOYING, ExecutionState.INITIALIZING);
 
-        updateMetrics(
-                id2,
-                runningSubStateTimeMetrics,
-                ExecutionState.DEPLOYING,
-                ExecutionState.INITIALIZING);
+        assertThat(metrics.getDeploymentStateTimeMetrics().getBinary()).isEqualTo(0L);
+        assertThat(metrics.getInitializingStateTimeMetrics().getBinary()).isEqualTo(1L);
 
-        assertThat(runningSubStateTimeMetrics.getDeploymentStateTimeMetrics().getBinary())
-                .isEqualTo(0L);
-        assertThat(runningSubStateTimeMetrics.getInitializingStateTimeMetrics().getBinary())
-                .isEqualTo(1L);
+        updateMetrics(metrics, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
 
-        updateMetrics(
-                id2,
-                runningSubStateTimeMetrics,
-                ExecutionState.INITIALIZING,
-                ExecutionState.RUNNING);
+        assertThat(metrics.getDeploymentStateTimeMetrics().getBinary()).isEqualTo(0L);
+        assertThat(metrics.getInitializingStateTimeMetrics().getBinary()).isEqualTo(1L);
 
-        assertThat(runningSubStateTimeMetrics.getDeploymentStateTimeMetrics().getBinary())
-                .isEqualTo(0L);
-        assertThat(runningSubStateTimeMetrics.getInitializingStateTimeMetrics().getBinary())
-                .isEqualTo(1L);
+        updateMetrics(metrics, ExecutionState.INITIALIZING, ExecutionState.RUNNING);
 
-        updateMetrics(
-                id2,
-                runningSubStateTimeMetrics,
-                ExecutionState.INITIALIZING,
-                ExecutionState.RUNNING);
-
-        assertThat(runningSubStateTimeMetrics.getDeploymentStateTimeMetrics().getBinary())
-                .isEqualTo(0L);
-        assertThat(runningSubStateTimeMetrics.getInitializingStateTimeMetrics().getBinary())
-                .isEqualTo(0L);
+        assertThat(metrics.getDeploymentStateTimeMetrics().getBinary()).isEqualTo(0L);
+        assertThat(metrics.getInitializingStateTimeMetrics().getBinary()).isEqualTo(0L);
     }
 
     private static void updateMetrics(
-            ExecutionAttemptID id,
             RunningSubStateTimeMetrics runningSubStateTimeMetrics,
             ExecutionState previousState,
             ExecutionState currentState) {
-        runningSubStateTimeMetrics.onStateUpdate(id, previousState, currentState);
+        runningSubStateTimeMetrics.onStateUpdate(DUMMY_ATTEMPT_ID, previousState, currentState);
+    }
+
+    @Test
+    void testCountBookKeeping() {
+        final RunningSubStateTimeMetrics metrics =
+                new RunningSubStateTimeMetrics(JobType.BATCH, settings);
+
+        assertThat(metrics.getExecutionStateCounts())
+                .satisfies(
+                        counts -> {
+                            assertThat(counts.getNumExecutionsInState(ExecutionState.DEPLOYING))
+                                    .isZero();
+                            assertThat(counts.getNumExecutionsInState(ExecutionState.INITIALIZING))
+                                    .isZero();
+                            assertThat(counts.getNumExecutionsInState(ExecutionState.RUNNING))
+                                    .isZero();
+                        });
+
+        testCountBookKeeping(ExecutionState.DEPLOYING);
+        testCountBookKeeping(ExecutionState.INITIALIZING);
+        testCountBookKeeping(ExecutionState.RUNNING);
+
+        assertThat(metrics.hasCleanState()).isTrue();
+    }
+
+    private static void testCountBookKeeping(ExecutionState state) {
+        final RunningSubStateTimeMetrics metrics =
+                new RunningSubStateTimeMetrics(JobType.BATCH, settings);
+
+        ExecutionAttemptID executionAttemptId = ExecutionAttemptID.randomId();
+
+        metrics.onStateUpdate(executionAttemptId, ExecutionState.CREATED, state);
+        assertThat(metrics.getExecutionStateCounts().getNumExecutionsInState(state)).isEqualTo(1);
+
+        metrics.onStateUpdate(executionAttemptId, ExecutionState.CREATED, state);
+        assertThat(metrics.getExecutionStateCounts().getNumExecutionsInState(state)).isEqualTo(2);
+
+        metrics.onStateUpdate(executionAttemptId, state, ExecutionState.FAILED);
+        assertThat(metrics.getExecutionStateCounts().getNumExecutionsInState(state)).isEqualTo(1);
+
+        metrics.onStateUpdate(executionAttemptId, state, ExecutionState.FAILED);
+        assertThat(metrics.getExecutionStateCounts().getNumExecutionsInState(state)).isZero();
     }
 }
