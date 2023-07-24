@@ -941,8 +941,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         if (obj instanceof ExecutionConfig) {
             ExecutionConfig other = (ExecutionConfig) obj;
 
-            return other.canEqual(this)
-                    && Objects.equals(configuration, other.configuration)
+            return Objects.equals(configuration, other.configuration)
                     && ((restartStrategyConfiguration == null
                                     && other.restartStrategyConfiguration == null)
                             || (null != restartStrategyConfiguration
@@ -998,6 +997,12 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + '}';
     }
 
+    /**
+     * This method simply checks whether the object is an {@link ExecutionConfig} instance.
+     *
+     * @deprecated It is not intended to be used by users.
+     */
+    @Deprecated
     public boolean canEqual(Object obj) {
         return obj instanceof ExecutionConfig;
     }
