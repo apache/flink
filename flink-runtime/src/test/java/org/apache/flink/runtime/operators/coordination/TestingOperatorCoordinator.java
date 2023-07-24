@@ -54,6 +54,8 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
 
     private final BlockingQueue<Long> lastCheckpointComplete;
 
+    private final BlockingQueue<Long> lastCheckpointAborted;
+
     private final BlockingQueue<OperatorEvent> receivedOperatorEvents;
 
     private final Map<Integer, SubtaskGateway> subtaskGateways;
@@ -72,6 +74,7 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
         this.context = context;
         this.triggeredCheckpoints = new LinkedBlockingQueue<>();
         this.lastCheckpointComplete = new LinkedBlockingQueue<>();
+        this.lastCheckpointAborted = new LinkedBlockingQueue<>();
         this.receivedOperatorEvents = new LinkedBlockingQueue<>();
         this.blockOnCloseLatch = blockOnCloseLatch;
         this.subtaskGateways = new HashMap<>();
@@ -123,6 +126,11 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
     @Override
     public void notifyCheckpointComplete(long checkpointId) {
         lastCheckpointComplete.offer(checkpointId);
+    }
+
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) {
+        lastCheckpointAborted.offer(checkpointId);
     }
 
     @Override
@@ -183,6 +191,10 @@ public class TestingOperatorCoordinator implements OperatorCoordinator {
 
     public long getLastCheckpointComplete() throws InterruptedException {
         return lastCheckpointComplete.take();
+    }
+
+    public long getLastCheckpointAborted() throws InterruptedException {
+        return lastCheckpointAborted.take();
     }
 
     @Nullable
