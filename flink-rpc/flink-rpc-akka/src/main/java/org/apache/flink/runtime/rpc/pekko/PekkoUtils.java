@@ -350,8 +350,7 @@ class PekkoUtils {
 
         final String sslProtocol = configuration.getString(SecurityOptions.SSL_PROTOCOL);
 
-        final String sslAlgorithmsString =
-                configuration.getString(SecurityOptions.SSL_ALGORITHMS);
+        final String sslAlgorithmsString = configuration.getString(SecurityOptions.SSL_ALGORITHMS);
         final String sslAlgorithms =
                 Arrays.stream(sslAlgorithmsString.split(","))
                         .collect(Collectors.joining(",", "[", "]"));
