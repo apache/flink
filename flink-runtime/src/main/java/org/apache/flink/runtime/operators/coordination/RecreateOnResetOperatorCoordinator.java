@@ -116,6 +116,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
     }
 
     @Override
+    public void notifyCheckpointAborted(long checkpointId) {
+        coordinator.applyCall("checkpointAborted", c -> c.notifyCheckpointAborted(checkpointId));
+    }
+
+    @Override
     public void resetToCheckpoint(final long checkpointId, @Nullable final byte[] checkpointData) {
         // First bump up the coordinator epoch to fence out the active coordinator.
         LOG.info("Resetting coordinator to checkpoint.");
