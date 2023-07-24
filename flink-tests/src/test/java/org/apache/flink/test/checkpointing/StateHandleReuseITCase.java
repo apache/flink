@@ -38,7 +38,7 @@ import org.junit.Test;
 
 import java.util.Map;
 
-import static java.util.Collections.emptyMap;
+import static java.util.Collections.emptyList;
 import static java.util.UUID.randomUUID;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommand.FINISH_SOURCES;
 import static org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher.TestCommandScope.ALL_SUBTASKS;
@@ -89,8 +89,8 @@ public class StateHandleReuseITCase extends AbstractTestBase {
                         randomUUID(),
                         EMPTY_KEY_GROUP_RANGE,
                         1L,
-                        emptyMap(),
-                        emptyMap(),
+                        emptyList(),
+                        emptyList(),
                         new ByteStreamStateHandle("meta", new byte[] {0}),
                         0L);
 

@@ -18,12 +18,6 @@
 
 package org.apache.flink.contrib.streaming.state.snapshot;
 
-import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
-import org.apache.flink.runtime.state.StateObject;
-import org.apache.flink.runtime.state.StreamStateHandle;
-
-import java.util.Collection;
-
 /**
  * Utility methods and constants around RocksDB creating and restoring snapshots for {@link
  * org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend}.
@@ -35,12 +29,5 @@ public class RocksSnapshotUtil {
 
     private RocksSnapshotUtil() {
         throw new AssertionError();
-    }
-
-    public static long getUploadedStateSize(Collection<StreamStateHandle> streamStateHandles) {
-        return streamStateHandles.stream()
-                .filter(s -> !(s instanceof PlaceholderStreamStateHandle))
-                .mapToLong(StateObject::getStateSize)
-                .sum();
     }
 }
