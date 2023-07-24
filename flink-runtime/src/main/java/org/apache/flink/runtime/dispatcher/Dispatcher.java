@@ -1348,7 +1348,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
         if (archivedExecutionGraph.getFailureInfo() != null
                 && isFailureInfoRelatedToJobTermination) {
-            log.info(
+            log.error(
                     "Job {} reached terminal state {}.\n{}",
                     archivedExecutionGraph.getJobID(),
                     terminalJobStatus,

@@ -1439,14 +1439,23 @@ public class Execution
             markTimestamp(currentState, targetState);
 
             if (error == null) {
-                LOG.info(
-                        "{} ({}) switched from {} to {}.",
-                        getVertex().getTaskNameWithSubtaskIndex(),
-                        getAttemptId(),
-                        currentState,
-                        targetState);
-            } else if (LOG.isInfoEnabled()) {
-                LOG.info(
+                if (targetState == FAILED) {
+                    LOG.error(
+                            "{} ({}) switched from {} to {}.",
+                            getVertex().getTaskNameWithSubtaskIndex(),
+                            getAttemptId(),
+                            currentState,
+                            targetState);
+                } else {
+                    LOG.info(
+                            "{} ({}) switched from {} to {}.",
+                            getVertex().getTaskNameWithSubtaskIndex(),
+                            getAttemptId(),
+                            currentState,
+                            targetState);
+                }
+            } else {
+                LOG.error(
                         "{} ({}) switched from {} to {} on {}.",
                         getVertex().getTaskNameWithSubtaskIndex(),
                         getAttemptId(),

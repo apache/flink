@@ -171,7 +171,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
                                             && isCanceledOrFailed(maybeApplicationStatus.get())) {
                                         final ApplicationStatus applicationStatus =
                                                 maybeApplicationStatus.get();
-                                        LOG.info("Application {}: ", applicationStatus, t);
+                                        LOG.error("Application {}: ", applicationStatus, t);
                                         return finish(dispatcherGateway, applicationStatus);
                                     }
                                     if (t instanceof CancellationException) {
