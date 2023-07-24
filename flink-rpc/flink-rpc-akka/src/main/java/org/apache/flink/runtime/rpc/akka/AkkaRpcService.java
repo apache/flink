@@ -29,8 +29,8 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcRuntimeException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.runtime.rpc.exceptions.RpcRuntimeException;
 import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
 import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -366,7 +366,7 @@ public class AkkaRpcService implements RpcService {
             final SupervisorActor.ActorRegistration actorRegistration =
                     startAkkaRpcActorResponse.orElseThrow(
                             cause ->
-                                    new AkkaRpcRuntimeException(
+                                    new RpcRuntimeException(
                                             String.format(
                                                     "Could not create the %s for %s.",
                                                     AkkaRpcActor.class.getSimpleName(),
