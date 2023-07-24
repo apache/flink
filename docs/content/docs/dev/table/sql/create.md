@@ -31,6 +31,7 @@ CREATE statements are used to register a table/view/function into current or spe
 Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
+- CREATE TABLE [USING]
 - CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
@@ -554,6 +555,58 @@ INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 * Does not support specifying primary key constraints yet.
 
 **Note** The target table created by CTAS is non-atomic currently, the table won't be dropped automatically if occur errors while inserting data into the table.
+
+{{< top >}}
+
+## CREATE TABLE [USING]
+```sql
+[CREATE OR] REPLACE TABLE [catalog_name.][db_name.]table_name
+[COMMENT table_comment]
+WITH (key1=val1, key2=val2, ...)
+AS select_query
+```
+Tables can also be replaced(or created) and populated by the results of a query in one replace-table-as-select (RTAS) statement.  RTAS is the simplest and fastest way to replace and insert data into a table with a single command.
+
+There are two parts in RTAS, the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL. The `[CREATE OR] REPLACE` part takes the resulting schema from the `SELECT` part and replace the target table. Similar to `CREATE TABLE` and `CTAS`, RTAS requires the required options of the target table must be specified in WITH clause.
+
+Consider the example statement below:
+
+```sql
+REPLACE TABLE my_rtas_table
+WITH (
+    'connector' = 'kafka',
+    ...
+)
+AS SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
+```
+
+The resulting table `my_rtas_table` is equivalent to first drop the table, then create the table and insert the data with the following statement:
+```sql
+DROP TABLE my_rtas_table;
+
+CREATE TABLE my_rtas_table (
+    id BIGINT,
+    name STRING,
+    age INT
+) WITH (
+    'connector' = 'kafka',
+    ...
+);
+ 
+INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
+```
+
+**Note** RTAS has the following semantic:
+* REPLACE TABLE AS SELECT statement, the target table to be replaced must exist or an exception is thrown.
+* CREATE OR REPLACE TABLE AS SELECT statement, the target table to be replaced is created if it does not exist; if it does exist, it is replaced.
+
+**Note** RTAS has these restrictions:
+
+Does not support replacing a temporary table yet.
+Does not support specifying explicit columns yet.
+Does not support specifying explicit watermark yet.
+Does not support creating partitioned table yet.
+Does not support specifying primary key constraints yet.
 
 {{< top >}}
 
