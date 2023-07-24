@@ -20,9 +20,9 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -37,9 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -59,8 +57,8 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                 new SpecifiedException("throw exception while multi thread restore.");
         StreamStateHandle stateHandle = new ThrowingStateHandle(expectedException);
 
-        Map<StateHandleID, StreamStateHandle> stateHandles = new HashMap<>(1);
-        stateHandles.put(new StateHandleID("state1"), stateHandle);
+        List<HandleAndLocalPath> stateHandles = new ArrayList<>(1);
+        stateHandles.add(HandleAndLocalPath.of(stateHandle, "state1"));
 
         IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
                 new IncrementalRemoteKeyedStateHandle(
@@ -98,12 +96,13 @@ public class RocksDBStateDownloaderTest extends TestLogger {
             handles.add(new ByteStreamStateHandle(String.format("state%d", i), contents[i]));
         }
 
-        Map<StateHandleID, StreamStateHandle> sharedStates = new HashMap<>(contentNum);
-        Map<StateHandleID, StreamStateHandle> privateStates = new HashMap<>(contentNum);
+        List<HandleAndLocalPath> sharedStates = new ArrayList<>(contentNum);
+        List<HandleAndLocalPath> privateStates = new ArrayList<>(contentNum);
         for (int i = 0; i < contentNum; ++i) {
-            sharedStates.put(new StateHandleID(String.format("sharedState%d", i)), handles.get(i));
-            privateStates.put(
-                    new StateHandleID(String.format("privateState%d", i)), handles.get(i));
+            sharedStates.add(
+                    HandleAndLocalPath.of(handles.get(i), String.format("sharedState%d", i)));
+            privateStates.add(
+                    HandleAndLocalPath.of(handles.get(i), String.format("privateState%d", i)));
         }
 
         IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =

@@ -19,15 +19,19 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointTestUtils;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
+import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -49,12 +53,12 @@ public class IncrementalRemoteKeyedStateHandleTest {
 
         stateHandle.discardState();
 
-        for (StreamStateHandle handle : stateHandle.getPrivateState().values()) {
-            verify(handle).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle.getPrivateState()) {
+            verify(handleAndLocalPath.getHandle()).discardState();
         }
 
-        for (StreamStateHandle handle : stateHandle.getSharedState().values()) {
-            verify(handle).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle.getSharedState()) {
+            verify(handleAndLocalPath.getHandle()).discardState();
         }
 
         verify(stateHandle.getMetaStateHandle()).discardState();
@@ -74,13 +78,11 @@ public class IncrementalRemoteKeyedStateHandleTest {
         IncrementalRemoteKeyedStateHandle stateHandle2 = create(new Random(42));
 
         // Both handles should not be registered and not discarded by now.
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry :
-                stateHandle1.getSharedState().entrySet()) {
-            verify(entry.getValue(), times(0)).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle1.getSharedState()) {
+            verify(handleAndLocalPath.getHandle(), times(0)).discardState();
         }
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry :
-                stateHandle2.getSharedState().entrySet()) {
-            verify(entry.getValue(), times(0)).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle2.getSharedState()) {
+            verify(handleAndLocalPath.getHandle(), times(0)).discardState();
         }
 
         // Now we register both ...
@@ -88,48 +90,40 @@ public class IncrementalRemoteKeyedStateHandleTest {
         registry.checkpointCompleted(0L);
         stateHandle2.registerSharedStates(registry, 0L);
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> stateHandleEntry :
-                stateHandle1.getSharedState().entrySet()) {
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle1.getSharedState()) {
+            StreamStateHandle handle = handleAndLocalPath.getHandle();
 
-            SharedStateRegistryKey registryKey =
-                    stateHandle1.createSharedStateRegistryKeyFromFileName(
-                            stateHandleEntry.getKey());
+            SharedStateRegistryKey registryKey = stateHandle1.createSharedStateRegistryKey(handle);
 
-            verify(registry).registerReference(registryKey, stateHandleEntry.getValue(), 0L);
+            verify(registry).registerReference(registryKey, handle, 0L);
         }
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> stateHandleEntry :
-                stateHandle2.getSharedState().entrySet()) {
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle2.getSharedState()) {
+            StreamStateHandle handle = handleAndLocalPath.getHandle();
 
-            SharedStateRegistryKey registryKey =
-                    stateHandle1.createSharedStateRegistryKeyFromFileName(
-                            stateHandleEntry.getKey());
+            SharedStateRegistryKey registryKey = stateHandle2.createSharedStateRegistryKey(handle);
 
-            verify(registry).registerReference(registryKey, stateHandleEntry.getValue(), 0L);
+            verify(registry).registerReference(registryKey, handle, 0L);
         }
 
         // We discard the first
         stateHandle1.discardState();
 
         // Should be unregistered, non-shared discarded, shared not discarded
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry :
-                stateHandle1.getSharedState().entrySet()) {
-            verify(entry.getValue(), times(0)).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle1.getSharedState()) {
+            verify(handleAndLocalPath.getHandle(), times(0)).discardState();
         }
 
-        for (StreamStateHandle handle : stateHandle2.getSharedState().values()) {
-
-            verify(handle, times(0)).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle2.getSharedState()) {
+            verify(handleAndLocalPath.getHandle(), times(0)).discardState();
         }
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> handleEntry :
-                stateHandle1.getPrivateState().entrySet()) {
-            verify(handleEntry.getValue(), times(1)).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle1.getPrivateState()) {
+            verify(handleAndLocalPath.getHandle(), times(1)).discardState();
         }
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> handleEntry :
-                stateHandle2.getPrivateState().entrySet()) {
-            verify(handleEntry.getValue(), times(0)).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle2.getPrivateState()) {
+            verify(handleAndLocalPath.getHandle(), times(0)).discardState();
         }
 
         verify(stateHandle1.getMetaStateHandle(), times(1)).discardState();
@@ -140,14 +134,12 @@ public class IncrementalRemoteKeyedStateHandleTest {
 
         // Now everything should be unregistered and discarded
         registry.unregisterUnusedState(Long.MAX_VALUE);
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry :
-                stateHandle1.getSharedState().entrySet()) {
-            verify(entry.getValue()).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle1.getSharedState()) {
+            verify(handleAndLocalPath.getHandle()).discardState();
         }
 
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry :
-                stateHandle2.getSharedState().entrySet()) {
-            verify(entry.getValue()).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandle2.getSharedState()) {
+            verify(handleAndLocalPath.getHandle()).discardState();
         }
 
         verify(stateHandle1.getMetaStateHandle(), times(1)).discardState();
@@ -210,14 +202,14 @@ public class IncrementalRemoteKeyedStateHandleTest {
         // Should be completely discarded because it is tracked through the new registry
         sharedStateRegistryB.unregisterUnusedState(1L);
 
-        for (StreamStateHandle stateHandle : stateHandleX.getSharedState().values()) {
-            verify(stateHandle, times(1)).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandleX.getSharedState()) {
+            verify(handleAndLocalPath.getHandle(), times(1)).discardState();
         }
-        for (StreamStateHandle stateHandle : stateHandleY.getSharedState().values()) {
-            verify(stateHandle, never()).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandleY.getSharedState()) {
+            verify(handleAndLocalPath.getHandle(), never()).discardState();
         }
-        for (StreamStateHandle stateHandle : stateHandleZ.getSharedState().values()) {
-            verify(stateHandle, never()).discardState();
+        for (HandleAndLocalPath handleAndLocalPath : stateHandleZ.getSharedState()) {
+            verify(handleAndLocalPath.getHandle(), never()).discardState();
         }
         sharedStateRegistryB.close();
     }
@@ -243,13 +235,63 @@ public class IncrementalRemoteKeyedStateHandleTest {
         assertEquals(handle.getStateHandleId(), newHandle.getStateHandleId());
     }
 
+    @Test
+    public void testConcurrentCheckpointSharedStateRegistration() throws Exception {
+        String localPath = "1.sst";
+        StreamStateHandle streamHandle1 = new ByteStreamStateHandle("file-1", new byte[] {'s'});
+        StreamStateHandle streamHandle2 = new ByteStreamStateHandle("file-2", new byte[] {'s'});
+
+        SharedStateRegistry registry = new SharedStateRegistryImpl();
+
+        UUID backendID = UUID.randomUUID();
+
+        IncrementalRemoteKeyedStateHandle handle1 =
+                new IncrementalRemoteKeyedStateHandle(
+                        backendID,
+                        KeyGroupRange.of(0, 0),
+                        1L,
+                        placeSpies(
+                                Collections.singletonList(
+                                        HandleAndLocalPath.of(streamHandle1, localPath))),
+                        Collections.emptyList(),
+                        new ByteStreamStateHandle("", new byte[] {'s'}));
+
+        handle1.registerSharedStates(registry, handle1.getCheckpointId());
+
+        IncrementalRemoteKeyedStateHandle handle2 =
+                new IncrementalRemoteKeyedStateHandle(
+                        backendID,
+                        KeyGroupRange.of(0, 0),
+                        2L,
+                        placeSpies(
+                                Collections.singletonList(
+                                        HandleAndLocalPath.of(streamHandle2, localPath))),
+                        Collections.emptyList(),
+                        new ByteStreamStateHandle("", new byte[] {'s'}));
+
+        handle2.registerSharedStates(registry, handle2.getCheckpointId());
+
+        registry.checkpointCompleted(1L);
+
+        // checkpoint 2 failed
+        handle2.discardState();
+
+        for (HandleAndLocalPath handleAndLocalPath : handle1.getSharedState()) {
+            verify(handleAndLocalPath.getHandle(), never()).discardState();
+        }
+        for (HandleAndLocalPath handleAndLocalPath : handle2.getSharedState()) {
+            verify(handleAndLocalPath.getHandle(), never()).discardState();
+        }
+        registry.close();
+    }
+
     private static IncrementalRemoteKeyedStateHandle create(Random rnd) {
         return new IncrementalRemoteKeyedStateHandle(
                 UUID.nameUUIDFromBytes("test".getBytes(StandardCharsets.UTF_8)),
                 KeyGroupRange.of(0, 0),
                 1L,
-                placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
-                placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
+                placeSpies(CheckpointTestUtils.createRandomHandleAndLocalPathList(rnd)),
+                placeSpies(CheckpointTestUtils.createRandomHandleAndLocalPathList(rnd)),
                 spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd, null)));
     }
 
@@ -258,18 +300,15 @@ public class IncrementalRemoteKeyedStateHandleTest {
                 UUID.nameUUIDFromBytes("test".getBytes()),
                 KeyGroupRange.of(0, 0),
                 1L,
-                placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
-                placeSpies(CheckpointTestUtils.createRandomStateHandleMap(rnd)),
+                placeSpies(CheckpointTestUtils.createRandomHandleAndLocalPathList(rnd)),
+                placeSpies(CheckpointTestUtils.createRandomHandleAndLocalPathList(rnd)),
                 spy(CheckpointTestUtils.createDummyStreamStateHandle(rnd, null)),
                 checkpointedSize);
     }
 
-    private static Map<StateHandleID, StreamStateHandle> placeSpies(
-            Map<StateHandleID, StreamStateHandle> map) {
-
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry : map.entrySet()) {
-            entry.setValue(spy(entry.getValue()));
-        }
-        return map;
+    private static List<HandleAndLocalPath> placeSpies(List<HandleAndLocalPath> list) {
+        return list.stream()
+                .map(e -> HandleAndLocalPath.of(spy(e.getHandle()), e.getLocalPath()))
+                .collect(Collectors.toList());
     }
 }
