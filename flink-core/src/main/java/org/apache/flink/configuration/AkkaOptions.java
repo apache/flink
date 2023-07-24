@@ -80,9 +80,7 @@ public class AkkaOptions {
                                     + " should try to increase this value. Timeouts can be caused by slow machines or a congested network. The"
                                     + " timeout value requires a time-unit specifier (ms/s/min/h/d).");
 
-    /**
-     * @deprecated Use {@link #ASK_TIMEOUT_DURATION}
-     */
+    /** @deprecated Use {@link #ASK_TIMEOUT_DURATION} */
     @Deprecated
     public static final ConfigOption<String> ASK_TIMEOUT =
             ConfigOptions.key(ASK_TIMEOUT_DURATION.key())
@@ -160,9 +158,7 @@ public class AkkaOptions {
                             "Timeout used for the lookup of the JobManager. The timeout value has to contain a time-unit"
                                     + " specifier (ms/s/min/h/d).");
 
-    /**
-     * @deprecated use {@link #LOOKUP_TIMEOUT_DURATION}
-     */
+    /** @deprecated use {@link #LOOKUP_TIMEOUT_DURATION} */
     @Deprecated
     public static final ConfigOption<String> LOOKUP_TIMEOUT =
             ConfigOptions.key(LOOKUP_TIMEOUT_DURATION.key())

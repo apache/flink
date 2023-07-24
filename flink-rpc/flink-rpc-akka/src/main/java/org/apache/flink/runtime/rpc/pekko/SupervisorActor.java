@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.rpc.pekko;
 
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.pekko.exceptions.UnknownMessageException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
+import org.apache.flink.runtime.rpc.pekko.exceptions.UnknownMessageException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 

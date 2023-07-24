@@ -20,10 +20,10 @@ package org.apache.flink.runtime.rpc.pekko;
 
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.pekko.exceptions.UnknownMessageException;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.messages.FencedMessage;
 import org.apache.flink.runtime.rpc.messages.LocalFencedMessage;
+import org.apache.flink.runtime.rpc.pekko.exceptions.UnknownMessageException;
 
 import java.io.Serializable;
 import java.util.Objects;
