@@ -76,7 +76,7 @@ public class AkkaOptions {
                     .defaultValue(Duration.ofSeconds(10))
                     .withDeprecatedKeys("akka.ask.timeout")
                     .withDescription(
-                            "Timeout used for all futures and blocking Akka calls. If Flink fails due to timeouts then you"
+                            "Timeout used for all futures and blocking Pekko calls. If Flink fails due to timeouts then you"
                                     + " should try to increase this value. Timeouts can be caused by slow machines or a congested network. The"
                                     + " timeout value requires a time-unit specifier (ms/s/min/h/d).");
 
@@ -89,7 +89,7 @@ public class AkkaOptions {
                             TimeUtils.formatWithHighestUnit(ASK_TIMEOUT_DURATION.defaultValue()))
                     .withDescription(ASK_TIMEOUT_DURATION.description());
 
-    /** The Akka tcp connection timeout. */
+    /** The Pekko tcp connection timeout. */
     public static final ConfigOption<String> TCP_TIMEOUT =
             ConfigOptions.key("pekko.tcp.timeout")
                     .stringType()
@@ -108,7 +108,7 @@ public class AkkaOptions {
                     .withDescription(
                             "Timeout after which the startup of a remote component is considered being failed.");
 
-    /** Override SSL support for the Akka transport. */
+    /** Override SSL support for the Pekko transport. */
     public static final ConfigOption<Boolean> SSL_ENABLED =
             ConfigOptions.key("pekko.ssl.enabled")
                     .booleanType()
@@ -118,7 +118,7 @@ public class AkkaOptions {
                             "Turns on SSL for Akka’s remote communication. This is applicable only when the global ssl flag"
                                     + " security.ssl.enabled is set to true.");
 
-    /** Maximum framesize of akka messages. */
+    /** Maximum framesize of Pekko messages. */
     public static final ConfigOption<String> FRAMESIZE =
             ConfigOptions.key("pekko.framesize")
                     .stringType()
@@ -146,7 +146,7 @@ public class AkkaOptions {
                     .defaultValue(false)
                     .withDeprecatedKeys("akka.log.lifecycle.events")
                     .withDescription(
-                            "Turns on the Akka’s remote logging of events. Set this value to 'true' in case of debugging.");
+                            "Turns on the Pekko’s remote logging of events. Set this value to 'true' in case of debugging.");
 
     /** Timeout for all blocking calls that look up remote actors. */
     public static final ConfigOption<Duration> LOOKUP_TIMEOUT_DURATION =
@@ -181,13 +181,13 @@ public class AkkaOptions {
                             "DEPRECATED: Use the \"client.timeout\" instead."
                                     + " Timeout for all blocking calls on the client side.");
 
-    /** Exit JVM on fatal Akka errors. */
+    /** Exit JVM on fatal Pekko errors. */
     public static final ConfigOption<Boolean> JVM_EXIT_ON_FATAL_ERROR =
             ConfigOptions.key("pekko.jvm-exit-on-fatal-error")
                     .booleanType()
                     .defaultValue(true)
                     .withDeprecatedKeys("akka.jvm-exit-on-fatal-error")
-                    .withDescription("Exit JVM on fatal Akka errors.");
+                    .withDescription("Exit JVM on fatal Pekko errors.");
 
     /** Milliseconds a gate should be closed for after a remote connection was disconnected. */
     public static final ConfigOption<Long> RETRY_GATE_CLOSED_FOR =

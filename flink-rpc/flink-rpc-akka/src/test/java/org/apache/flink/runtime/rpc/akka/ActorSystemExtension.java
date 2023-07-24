@@ -26,7 +26,7 @@ import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-/** External resource which starts an {@link akka.actor.ActorSystem}. */
+/** External resource which starts an {@link ActorSystem}. */
 public class ActorSystemExtension implements BeforeEachCallback, AfterEachCallback {
 
     private final Configuration configuration;

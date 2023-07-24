@@ -80,8 +80,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Pekko based {@link RpcService} implementation. The RPC service starts an Akka actor to receive
- * RPC invocations from a {@link RpcGateway}.
+ * Pekko based {@link RpcService} implementation. The RPC service starts an actor to receive RPC
+ * invocations from a {@link RpcGateway}.
  */
 @ThreadSafe
 public class AkkaRpcService implements RpcService {

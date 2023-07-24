@@ -419,7 +419,7 @@ public class ConnectionUtils {
                             targetAddress = rpcSystemUtils.getInetSocketAddressFromRpcUrl(rpcURL);
 
                             LOG.debug(
-                                    "Retrieved new target address {} for akka URL {}.",
+                                    "Retrieved new target address {} for RPC URL {}.",
                                     targetAddress,
                                     rpcURL);
 

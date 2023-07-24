@@ -38,7 +38,7 @@ import java.util.concurrent.CompletionStage;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Tests for the {@link akka.actor.ActorSystem} instantiated through {@link
+ * Tests for the {@link ActorSystem} instantiated through {@link
  * org.apache.flink.runtime.rpc.akka.AkkaUtils}.
  */
 class AkkaActorSystemTest {

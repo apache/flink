@@ -140,7 +140,7 @@ class AkkaUtils {
                 .add("pekko {")
                 .add("  actor {")
                 .add("    default-dispatcher {")
-                .add("      type = org.apache.flink.runtime.rpc.akka.PriorityThreadsDispatcher")
+                .add("      type = " + PriorityThreadsDispatcher.class.getCanonicalName())
                 .add("      executor = thread-pool-executor")
                 .add("      thread-priority = " + threadPriority)
                 .add("      thread-pool-executor {")
@@ -449,7 +449,7 @@ class AkkaUtils {
      *
      * @param configuration instance containing the user provided configuration values
      * @param externalAddress optional tuple of bindAddress and port to be reachable at. If null is
-     *     given, then an Pekko config for local actor system will be returned
+     *     given, then a Pekko config for local actor system will be returned
      * @return Pekko config
      */
     public static Config getAkkaConfig(
@@ -463,12 +463,12 @@ class AkkaUtils {
     }
 
     /**
-     * Creates an pekko config with the provided configuration values. If the listening address is
+     * Creates a pekko config with the provided configuration values. If the listening address is
      * specified, then the actor system will listen on the respective address.
      *
      * @param configuration instance containing the user provided configuration values
      * @param externalAddress optional tuple of external address and port to be reachable at. If
-     *     null is given, then an Pekko config for local actor system will be returned
+     *     null is given, then a Pekko config for local actor system will be returned
      * @param bindAddress optional tuple of bind address and port to be used locally. If null is
      *     given, wildcard IP address and the external port wil be used. Takes effect only if
      *     externalAddress is not null.

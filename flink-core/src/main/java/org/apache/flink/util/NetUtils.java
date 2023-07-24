@@ -195,9 +195,8 @@ public class NetUtils {
     // ------------------------------------------------------------------------
 
     /**
-     * Returns an address in a normalized format for AkPekkoka. When an IPv6 address is specified,
-     * it normalizes the IPv6 address to avoid complications with the exact URL match policy of
-     * Pekko.
+     * Returns an address in a normalized format for Pekko. When an IPv6 address is specified, it
+     * normalizes the IPv6 address to avoid complications with the exact URL match policy of Pekko.
      *
      * @param host The hostname, IPv4 or IPv6 address
      * @return host which will be normalized if it is an IPv6 address

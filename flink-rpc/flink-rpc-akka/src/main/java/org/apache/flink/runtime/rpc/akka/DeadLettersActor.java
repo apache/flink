@@ -30,8 +30,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Actor which listens to {@link akka.actor.DeadLetter} and responds with a failure if the message
- * was a RPC.
+ * Actor which listens to {@link org.apache.pekko.actor.DeadLetter} and responds with a failure if
+ * the message was a RPC.
  */
 public class DeadLettersActor extends AbstractActor {
 

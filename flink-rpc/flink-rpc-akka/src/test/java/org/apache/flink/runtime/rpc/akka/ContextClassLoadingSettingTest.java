@@ -53,10 +53,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
- * Tests the context class loader handling in various parts of the akka rpc system.
+ * Tests the context class loader handling in various parts of the Pekko rpc system.
  *
- * <p>The tests check cases where we call from the akka rpc system into Flink, in which case the
- * context class loader must be set to the Flink class loader. This ensures that the Akka class
+ * <p>The tests check cases where we call from the Pekko rpc system into Flink, in which case the
+ * context class loader must be set to the Flink class loader. This ensures that the Pekko class
  * loader does not get accidentally leaked, e.g., via thread locals or thread pools on the Flink
  * side.
  */
