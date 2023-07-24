@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -34,7 +35,6 @@ import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -256,18 +256,18 @@ public class CheckpointTestUtils {
                 createRandomUUID(rnd),
                 new KeyGroupRange(1, 1),
                 checkpointId,
-                createRandomStateHandleMap(rnd),
-                createRandomStateHandleMap(rnd),
+                createRandomHandleAndLocalPathList(rnd),
+                createRandomHandleAndLocalPathList(rnd),
                 createDummyStreamStateHandle(rnd, null));
     }
 
-    public static Map<StateHandleID, StreamStateHandle> createRandomStateHandleMap(Random rnd) {
+    public static List<HandleAndLocalPath> createRandomHandleAndLocalPathList(Random rnd) {
         final int size = rnd.nextInt(4);
-        Map<StateHandleID, StreamStateHandle> result = new HashMap<>(size);
+        List<HandleAndLocalPath> result = new ArrayList<>(size);
         for (int i = 0; i < size; ++i) {
-            StateHandleID randomId = new StateHandleID(createRandomUUID(rnd).toString());
+            String localPath = createRandomUUID(rnd).toString();
             StreamStateHandle stateHandle = createDummyStreamStateHandle(rnd, null);
-            result.put(randomId, stateHandle);
+            result.add(HandleAndLocalPath.of(stateHandle, localPath));
         }
 
         return result;

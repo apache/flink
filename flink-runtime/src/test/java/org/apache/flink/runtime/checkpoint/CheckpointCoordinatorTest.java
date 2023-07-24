@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
@@ -58,7 +59,6 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
@@ -119,6 +119,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
+import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED;
@@ -2907,11 +2908,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             int sharedHandleCount = 0;
 
-            List<Map<StateHandleID, StreamStateHandle>> sharedHandlesByCheckpoint =
+            List<List<HandleAndLocalPath>> sharedHandlesByCheckpoint =
                     new ArrayList<>(numCheckpoints);
 
             for (int i = 0; i < numCheckpoints; ++i) {
-                sharedHandlesByCheckpoint.add(new HashMap<>(2));
+                sharedHandlesByCheckpoint.add(new ArrayList<>(2));
             }
 
             int cp = 0;
@@ -2929,20 +2930,23 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
                             sharedHandlesByCheckpoint
                                     .get(cp)
-                                    .putAll(incrementalKeyedStateHandle.getSharedState());
+                                    .addAll(incrementalKeyedStateHandle.getSharedState());
 
-                            for (StreamStateHandle streamStateHandle :
-                                    incrementalKeyedStateHandle.getSharedState().values()) {
-                                assertTrue(
-                                        !(streamStateHandle
-                                                instanceof PlaceholderStreamStateHandle));
+                            for (HandleAndLocalPath handleAndLocalPath :
+                                    incrementalKeyedStateHandle.getSharedState()) {
+                                StreamStateHandle streamStateHandle =
+                                        handleAndLocalPath.getHandle();
+                                assertThat(
+                                                streamStateHandle
+                                                        instanceof PlaceholderStreamStateHandle)
+                                        .isFalse();
                                 verify(streamStateHandle, never()).discardState();
                                 ++sharedHandleCount;
                             }
 
-                            for (StreamStateHandle streamStateHandle :
-                                    incrementalKeyedStateHandle.getPrivateState().values()) {
-                                verify(streamStateHandle, never()).discardState();
+                            for (HandleAndLocalPath handleAndLocalPath :
+                                    incrementalKeyedStateHandle.getPrivateState()) {
+                                verify(handleAndLocalPath.getHandle(), never()).discardState();
                             }
 
                             verify(incrementalKeyedStateHandle.getMetaStateHandle(), never())
@@ -2962,11 +2966,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
             store.removeOldestCheckpoint();
 
             // we expect no shared state was discarded because the state of CP0 is still referenced
-            // by
-            // CP1
-            for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint) {
-                for (StreamStateHandle streamStateHandle : cpList.values()) {
-                    verify(streamStateHandle, never()).discardState();
+            // by CP1
+            for (List<HandleAndLocalPath> cpList : sharedHandlesByCheckpoint) {
+                for (HandleAndLocalPath handleAndLocalPath : cpList) {
+                    verify(handleAndLocalPath.getHandle(), never()).discardState();
                 }
             }
 
@@ -3941,26 +3944,35 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             KeyGroupRange keyGroupRange = keyGroupPartitions1.get(index);
 
-            Map<StateHandleID, StreamStateHandle> privateState = new HashMap<>();
-            privateState.put(
-                    new StateHandleID("private-1"),
-                    spy(new ByteStreamStateHandle("private-1", new byte[] {'p'})));
+            List<HandleAndLocalPath> privateState = new ArrayList<>();
+            privateState.add(
+                    HandleAndLocalPath.of(
+                            spy(new ByteStreamStateHandle("private-1", new byte[] {'p'})),
+                            "private-1"));
 
-            Map<StateHandleID, StreamStateHandle> sharedState = new HashMap<>();
+            List<HandleAndLocalPath> sharedState = new ArrayList<>();
 
             // let all but the first CP overlap by one shared state.
             if (cpSequenceNumber > 0) {
-                sharedState.put(
-                        new StateHandleID("shared-" + (cpSequenceNumber - 1)),
-                        spy(new PlaceholderStreamStateHandle(1L)));
+                sharedState.add(
+                        HandleAndLocalPath.of(
+                                spy(
+                                        new ByteStreamStateHandle(
+                                                "shared-"
+                                                        + (cpSequenceNumber - 1)
+                                                        + "-"
+                                                        + keyGroupRange,
+                                                new byte[] {'s'})),
+                                "shared-" + (cpSequenceNumber - 1)));
             }
 
-            sharedState.put(
-                    new StateHandleID("shared-" + cpSequenceNumber),
-                    spy(
-                            new ByteStreamStateHandle(
-                                    "shared-" + cpSequenceNumber + "-" + keyGroupRange,
-                                    new byte[] {'s'})));
+            sharedState.add(
+                    HandleAndLocalPath.of(
+                            spy(
+                                    new ByteStreamStateHandle(
+                                            "shared-" + cpSequenceNumber + "-" + keyGroupRange,
+                                            new byte[] {'s'})),
+                            "shared-" + cpSequenceNumber));
 
             IncrementalRemoteKeyedStateHandle managedState =
                     spy(
@@ -4096,15 +4108,15 @@ public class CheckpointCoordinatorTest extends TestLogger {
     }
 
     private static void verifyDiscard(
-            List<Map<StateHandleID, StreamStateHandle>> sharedHandlesByCheckpoint1,
+            List<List<HandleAndLocalPath>> sharedHandles,
             Function<Integer, VerificationMode> checkpointVerify)
             throws Exception {
-        for (Map<StateHandleID, StreamStateHandle> cpList : sharedHandlesByCheckpoint1) {
-            for (Map.Entry<StateHandleID, StreamStateHandle> entry : cpList.entrySet()) {
-                String key = entry.getKey().getKeyString();
+        for (List<HandleAndLocalPath> cpList : sharedHandles) {
+            for (HandleAndLocalPath handleAndLocalPath : cpList) {
+                String key = handleAndLocalPath.getLocalPath();
                 int checkpointID = Integer.parseInt(String.valueOf(key.charAt(key.length() - 1)));
                 VerificationMode verificationMode = checkpointVerify.apply(checkpointID);
-                verify(entry.getValue(), verificationMode).discardState();
+                verify(handleAndLocalPath.getHandle(), verificationMode).discardState();
             }
         }
     }
@@ -4139,10 +4151,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
             TestingStreamStateHandle privateState,
             TestingStreamStateHandle sharedState)
             throws CheckpointException {
-        Map<StateHandleID, StreamStateHandle> sharedStateMap =
-                new HashMap<>(singletonMap(new StateHandleID("shared-state-key"), sharedState));
-        Map<StateHandleID, StreamStateHandle> privateStateMap =
-                new HashMap<>(singletonMap(new StateHandleID("private-state-key"), privateState));
+        List<HandleAndLocalPath> sharedStateList =
+                new ArrayList<>(
+                        singletonList(HandleAndLocalPath.of(sharedState, "shared-state-key")));
+        List<HandleAndLocalPath> privateStateList =
+                new ArrayList<>(
+                        singletonList(HandleAndLocalPath.of(privateState, "private-state-key")));
+
         ExecutionJobVertex jobVertex = graph.getJobVertex(ackVertexID);
         OperatorID operatorID = jobVertex.getOperatorIDs().get(0).getGeneratedOperatorID();
         coordinator.receiveAcknowledgeMessage(
@@ -4160,8 +4175,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                                                 UUID.randomUUID(),
                                                                 KeyGroupRange.of(0, 9),
                                                                 checkpointId,
-                                                                sharedStateMap,
-                                                                privateStateMap,
+                                                                sharedStateList,
+                                                                privateStateList,
                                                                 metaState))
                                                 .build()))),
                 "test");

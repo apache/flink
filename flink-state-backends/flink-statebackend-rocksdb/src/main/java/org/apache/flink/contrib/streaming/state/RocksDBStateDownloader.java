@@ -19,6 +19,7 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -33,7 +34,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -56,9 +56,8 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
             CloseableRegistry closeableRegistry)
             throws Exception {
 
-        final Map<StateHandleID, StreamStateHandle> sstFiles = restoreStateHandle.getSharedState();
-        final Map<StateHandleID, StreamStateHandle> miscFiles =
-                restoreStateHandle.getPrivateState();
+        final List<HandleAndLocalPath> sstFiles = restoreStateHandle.getSharedState();
+        final List<HandleAndLocalPath> miscFiles = restoreStateHandle.getPrivateState();
 
         downloadDataForAllStateHandles(sstFiles, dest, closeableRegistry);
         downloadDataForAllStateHandles(miscFiles, dest, closeableRegistry);
@@ -69,14 +68,15 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
      * files w.r.t. their {@link StateHandleID}.
      */
     private void downloadDataForAllStateHandles(
-            Map<StateHandleID, StreamStateHandle> stateHandleMap,
+            List<HandleAndLocalPath> handleWithPaths,
             Path restoreInstancePath,
             CloseableRegistry closeableRegistry)
             throws Exception {
 
         try {
             List<Runnable> runnables =
-                    createDownloadRunnables(stateHandleMap, restoreInstancePath, closeableRegistry);
+                    createDownloadRunnables(
+                            handleWithPaths, restoreInstancePath, closeableRegistry);
             List<CompletableFuture<Void>> futures = new ArrayList<>(runnables.size());
             for (Runnable runnable : runnables) {
                 futures.add(CompletableFuture.runAsync(runnable, executorService));
@@ -94,15 +94,15 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
     }
 
     private List<Runnable> createDownloadRunnables(
-            Map<StateHandleID, StreamStateHandle> stateHandleMap,
+            List<HandleAndLocalPath> handleWithPaths,
             Path restoreInstancePath,
             CloseableRegistry closeableRegistry) {
-        List<Runnable> runnables = new ArrayList<>(stateHandleMap.size());
-        for (Map.Entry<StateHandleID, StreamStateHandle> entry : stateHandleMap.entrySet()) {
-            StateHandleID stateHandleID = entry.getKey();
-            StreamStateHandle remoteFileHandle = entry.getValue();
+        List<Runnable> runnables = new ArrayList<>(handleWithPaths.size());
+        for (HandleAndLocalPath handleAndLocalPath : handleWithPaths) {
 
-            Path path = restoreInstancePath.resolve(stateHandleID.toString());
+            StreamStateHandle remoteFileHandle = handleAndLocalPath.getHandle();
+
+            Path path = restoreInstancePath.resolve(handleAndLocalPath.getLocalPath());
 
             runnables.add(
                     ThrowingRunnable.unchecked(
