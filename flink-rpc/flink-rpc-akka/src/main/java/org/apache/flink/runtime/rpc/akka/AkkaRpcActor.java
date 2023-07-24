@@ -22,12 +22,12 @@ import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.MainThreadValidatorUtil;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
-import org.apache.flink.runtime.rpc.akka.exceptions.AkkaHandshakeException;
-import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcInvalidStateException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
 import org.apache.flink.runtime.rpc.exceptions.EndpointNotStartedException;
+import org.apache.flink.runtime.rpc.exceptions.HandshakeException;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
+import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.runtime.rpc.messages.CallAsync;
 import org.apache.flink.runtime.rpc.messages.HandshakeSuccessMessage;
 import org.apache.flink.runtime.rpc.messages.RemoteHandshakeMessage;
@@ -126,7 +126,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
         this.rpcEndpointStopped = new AtomicBoolean(false);
         this.rpcEndpointTerminationResult =
                 RpcEndpointTerminationResult.failure(
-                        new AkkaRpcException(
+                        new RpcException(
                                 String.format(
                                         "RpcEndpoint %s has not been properly stopped.",
                                         rpcEndpoint.getEndpointId())));
@@ -239,13 +239,13 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
     private void handleHandshakeMessage(RemoteHandshakeMessage handshakeMessage) {
         if (!isCompatibleVersion(handshakeMessage.getVersion())) {
             sendErrorIfSender(
-                    new AkkaHandshakeException(
+                    new HandshakeException(
                             String.format(
                                     "Version mismatch between source (%s) and target (%s) rpc component. Please verify that all components have the same version.",
                                     handshakeMessage.getVersion(), getVersion())));
         } else if (!isGatewaySupported(handshakeMessage.getRpcGateway())) {
             sendErrorIfSender(
-                    new AkkaHandshakeException(
+                    new HandshakeException(
                             String.format(
                                     "The rpc endpoint does not support the gateway %s.",
                                     handshakeMessage.getRpcGateway().getSimpleName())));
@@ -340,7 +340,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
     private void sendSyncResponse(
             Object response, String methodName, boolean isLocalRpcInvocation) {
         if (isRemoteSender(getSender()) || (forceSerialization && !isLocalRpcInvocation)) {
-            Either<AkkaRpcSerializedValue, AkkaRpcException> serializedResult =
+            Either<AkkaRpcSerializedValue, RpcException> serializedResult =
                     serializeRemoteResultAndVerifySize(response, methodName);
 
             if (serializedResult.isLeft()) {
@@ -366,10 +366,8 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
                             } else {
                                 if (isRemoteSender(sender)
                                         || (forceSerialization && !isLocalRpcInvocation)) {
-                                    Either<AkkaRpcSerializedValue, AkkaRpcException>
-                                            serializedResult =
-                                                    serializeRemoteResultAndVerifySize(
-                                                            value, methodName);
+                                    Either<AkkaRpcSerializedValue, RpcException> serializedResult =
+                                            serializeRemoteResultAndVerifySize(value, methodName);
 
                                     if (serializedResult.isLeft()) {
                                         promise.success(serializedResult.left());
@@ -392,7 +390,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
         return !sender.path().address().hasLocalScope();
     }
 
-    private Either<AkkaRpcSerializedValue, AkkaRpcException> serializeRemoteResultAndVerifySize(
+    private Either<AkkaRpcSerializedValue, RpcException> serializeRemoteResultAndVerifySize(
             Object result, String methodName) {
         try {
             AkkaRpcSerializedValue serializedResult = AkkaRpcSerializedValue.valueOf(result);
@@ -400,7 +398,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
             long resultSize = serializedResult.getSerializedDataLength();
             if (resultSize > maximumFramesize) {
                 return Either.Right(
-                        new AkkaRpcException(
+                        new RpcException(
                                 "The method "
                                         + methodName
                                         + "'s result size "
@@ -413,7 +411,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
             }
         } catch (IOException e) {
             return Either.Right(
-                    new AkkaRpcException(
+                    new RpcException(
                             "Failed to serialize the result for RPC call : " + methodName + '.',
                             e));
         }
@@ -580,7 +578,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
             } catch (Throwable t) {
                 terminationFuture =
                         FutureUtils.completedExceptionally(
-                                new AkkaRpcException(
+                                new RpcException(
                                         String.format(
                                                 "Failure while stopping RpcEndpoint %s.",
                                                 akkaRpcActor.rpcEndpoint.getEndpointId()),
@@ -623,7 +621,7 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
             } catch (Throwable throwable) {
                 akkaRpcActor.stop(
                         RpcEndpointTerminationResult.failure(
-                                new AkkaRpcException(
+                                new RpcException(
                                         String.format(
                                                 "Could not start RpcEndpoint %s.",
                                                 akkaRpcActor.rpcEndpoint.getEndpointId()),

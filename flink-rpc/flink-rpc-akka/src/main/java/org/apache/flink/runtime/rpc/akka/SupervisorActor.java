@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.rpc.akka;
 
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
+import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -95,7 +95,7 @@ class SupervisorActor extends AbstractActor {
 
     private void terminateAkkaRpcActorOnStop(AkkaRpcActorRegistration akkaRpcActorRegistration) {
         akkaRpcActorRegistration.terminateExceptionally(
-                new AkkaRpcException(
+                new RpcException(
                         String.format(
                                 "Unexpected closing of %s with name %s.",
                                 getClass().getSimpleName(),
@@ -150,15 +150,15 @@ class SupervisorActor extends AbstractActor {
                 registeredAkkaRpcActors.entrySet()) {
             final ActorRef otherActorRef = registeredAkkaRpcActor.getKey();
             if (otherActorRef.equals(actorRef)) {
-                final AkkaRpcException error =
-                        new AkkaRpcException(
+                final RpcException error =
+                        new RpcException(
                                 String.format(
                                         "Stopping actor %s because it failed.", actorRef.path()),
                                 cause);
                 registeredAkkaRpcActor.getValue().markFailed(error);
             } else {
-                final AkkaRpcException siblingException =
-                        new AkkaRpcException(
+                final RpcException siblingException =
+                        new RpcException(
                                 String.format(
                                         "Stopping actor %s because its sibling %s has failed.",
                                         otherActorRef.path(), actorRef.path()));
@@ -299,7 +299,7 @@ class SupervisorActor extends AbstractActor {
                 }
             } else {
                 internalTerminationFuture.completeExceptionally(
-                        new AkkaRpcException(
+                        new RpcException(
                                 String.format(
                                         "RpcEndpoint %s did not complete the internal termination future.",
                                         endpointId)));

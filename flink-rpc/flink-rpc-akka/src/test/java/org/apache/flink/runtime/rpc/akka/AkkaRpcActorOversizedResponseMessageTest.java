@@ -25,7 +25,6 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.exceptions.AkkaRpcException;
 import org.apache.flink.runtime.rpc.exceptions.RpcException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.FunctionWithException;
@@ -80,9 +79,9 @@ class AkkaRpcActorOversizedResponseMessageTest {
                         () ->
                                 runRemoteMessageResponseTest(
                                         OVERSIZED_PAYLOAD, this::requestMessageAsync))
-                .hasCauseInstanceOf(AkkaRpcException.class)
+                .hasCauseInstanceOf(RpcException.class)
                 .extracting(ExceptionUtils::stripExecutionException)
-                .isInstanceOf(AkkaRpcException.class)
+                .isInstanceOf(RpcException.class)
                 .extracting(Throwable::getMessage)
                 .satisfies(message -> assertThat(message).contains(String.valueOf(FRAMESIZE)));
     }
@@ -108,7 +107,7 @@ class AkkaRpcActorOversizedResponseMessageTest {
                                         OVERSIZED_PAYLOAD, MessageRpcGateway::messageSync))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
-                                AkkaRpcException.class, String.valueOf(FRAMESIZE)));
+                                RpcException.class, String.valueOf(FRAMESIZE)));
     }
 
     /**
