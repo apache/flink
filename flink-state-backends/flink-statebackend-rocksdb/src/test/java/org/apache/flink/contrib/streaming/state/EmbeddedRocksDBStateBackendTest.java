@@ -33,14 +33,13 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendTestBase;
-import org.apache.flink.runtime.state.StateHandleID;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
@@ -78,12 +77,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
+import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.assertNotNull;
 import static org.junit.Assert.assertEquals;
@@ -582,17 +580,23 @@ public class EmbeddedRocksDBStateBackendTest
                             (IncrementalRemoteKeyedStateHandle)
                                     snapshotResult.getJobManagerOwnedSnapshot();
 
-                    Map<StateHandleID, StreamStateHandle> sharedState =
-                            new HashMap<>(stateHandle.getSharedState());
+                    // create new HandleAndLocalPath object for keeping handle before replacement
+                    List<HandleAndLocalPath> sharedState =
+                            stateHandle.getSharedState().stream()
+                                    .map(
+                                            e ->
+                                                    HandleAndLocalPath.of(
+                                                            e.getHandle(), e.getLocalPath()))
+                                    .collect(Collectors.toList());
 
                     stateHandle.registerSharedStates(sharedStateRegistry, checkpointId);
 
-                    for (Map.Entry<StateHandleID, StreamStateHandle> e : sharedState.entrySet()) {
+                    for (HandleAndLocalPath handleAndLocalPath : sharedState) {
                         verify(sharedStateRegistry)
                                 .registerReference(
-                                        stateHandle.createSharedStateRegistryKeyFromFileName(
-                                                e.getKey()),
-                                        e.getValue(),
+                                        stateHandle.createSharedStateRegistryKey(
+                                                handleAndLocalPath.getHandle()),
+                                        handleAndLocalPath.getHandle(),
                                         checkpointId);
                     }
 
