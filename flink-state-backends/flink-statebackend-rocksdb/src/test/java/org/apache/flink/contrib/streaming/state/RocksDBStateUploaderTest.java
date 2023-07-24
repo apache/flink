@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
-import org.apache.flink.runtime.state.StateHandleID;
+import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocalPath;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -42,10 +42,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -90,8 +89,8 @@ public class RocksDBStateUploaderTest extends TestLogger {
         File file = TempDirUtils.newFile(temporaryFolder, String.valueOf(UUID.randomUUID()));
         generateRandomFileContent(file.getPath(), 20);
 
-        Map<StateHandleID, Path> filePaths = new HashMap<>(1);
-        filePaths.put(new StateHandleID("mockHandleID"), file.toPath());
+        List<Path> filePaths = new ArrayList<>(1);
+        filePaths.add(file.toPath());
         try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
             assertThatThrownBy(
                             () ->
@@ -134,7 +133,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
         String localFolder = "local";
         TempDirUtils.newFolder(temporaryFolder, localFolder);
 
-        Map<StateHandleID, Path> filePaths =
+        List<Path> filePaths =
                 generateRandomSstFiles(localFolder, sstFileCount, fileStateSizeThreshold);
         CloseableRegistry tmpResourcesRegistry = new CloseableRegistry();
         try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(1)) {
@@ -165,12 +164,11 @@ public class RocksDBStateUploaderTest extends TestLogger {
             assertThat(checkpointPrivateFolder.list()).isEmpty();
             assertThat(checkpointSharedFolder.list()).isEmpty();
 
-            Map.Entry<StateHandleID, Path> first = filePaths.entrySet().stream().findFirst().get();
+            Path first = filePaths.stream().findFirst().get();
             assertThatThrownBy(
                             () ->
                                     rocksDBStateUploader.uploadFilesToCheckpointFs(
-                                            Collections.singletonMap(
-                                                    first.getKey(), first.getValue()),
+                                            Collections.singletonList(first),
                                             checkpointStreamFactory,
                                             CheckpointedStateScope.SHARED,
                                             new CloseableRegistry(),
@@ -210,11 +208,11 @@ public class RocksDBStateUploaderTest extends TestLogger {
         TempDirUtils.newFolder(temporaryFolder, localFolder);
 
         int sstFileCount = 6;
-        Map<StateHandleID, Path> sstFilePaths =
+        List<Path> sstFilePaths =
                 generateRandomSstFiles(localFolder, sstFileCount, fileStateSizeThreshold);
 
         try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
-            Map<StateHandleID, StreamStateHandle> sstFiles =
+            List<HandleAndLocalPath> sstFiles =
                     rocksDBStateUploader.uploadFilesToCheckpointFs(
                             sstFilePaths,
                             checkpointStreamFactory,
@@ -222,9 +220,15 @@ public class RocksDBStateUploaderTest extends TestLogger {
                             new CloseableRegistry(),
                             new CloseableRegistry());
 
-            for (Map.Entry<StateHandleID, Path> entry : sstFilePaths.entrySet()) {
+            for (Path path : sstFilePaths) {
                 assertStateContentEqual(
-                        entry.getValue(), sstFiles.get(entry.getKey()).openInputStream());
+                        path,
+                        sstFiles.stream()
+                                .filter(e -> e.getLocalPath().equals(path.getFileName().toString()))
+                                .findFirst()
+                                .get()
+                                .getHandle()
+                                .openInputStream());
             }
         }
     }
@@ -259,18 +263,18 @@ public class RocksDBStateUploaderTest extends TestLogger {
         };
     }
 
-    private Map<StateHandleID, Path> generateRandomSstFiles(
+    private List<Path> generateRandomSstFiles(
             String localFolder, int sstFileCount, int fileStateSizeThreshold) throws IOException {
         ThreadLocalRandom random = ThreadLocalRandom.current();
 
-        Map<StateHandleID, Path> sstFilePaths = new HashMap<>(sstFileCount);
+        List<Path> sstFilePaths = new ArrayList<>(sstFileCount);
         for (int i = 0; i < sstFileCount; ++i) {
             File file =
                     TempDirUtils.newFile(
                             temporaryFolder, String.format("%s/%d.sst", localFolder, i));
             generateRandomFileContent(
                     file.getPath(), random.nextInt(1_000_000) + fileStateSizeThreshold);
-            sstFilePaths.put(new StateHandleID(String.valueOf(i)), file.toPath());
+            sstFilePaths.add(file.toPath());
         }
         return sstFilePaths;
     }
