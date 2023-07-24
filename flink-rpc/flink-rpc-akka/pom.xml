@@ -31,6 +31,10 @@ under the License.
 	<artifactId>flink-rpc-akka</artifactId>
 	<name>Flink : RPC : Akka</name>
 	<packaging>jar</packaging>
+	<description>
+		Pekko-based RPC implementation. Pekko is the Apache fork of Akka.
+		For compatibility/git reasons not all mentions of Akka have been replaced.
+	</description>
 
 	<properties>
 		<pekko.version>1.0.0</pekko.version>
