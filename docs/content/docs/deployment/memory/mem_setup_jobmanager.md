@@ -90,7 +90,7 @@ option. This option can be tuned e.g. if the JobManager process throws ‘OutOfM
 
 There can be the following possible sources of *Off-heap* memory consumption:
 
-* Flink framework dependencies (e.g. Akka network communication)
+* Flink framework dependencies (e.g. Pekko network communication)
 * User code executed during job submission (e.g. for certain batch sources) or in checkpoint completion callbacks
 
 <span class="label label-info">Note</span> If you have configured the [Total Flink Memory]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)

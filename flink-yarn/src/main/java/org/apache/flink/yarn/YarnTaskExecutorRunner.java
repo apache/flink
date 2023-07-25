@@ -117,7 +117,7 @@ public class YarnTaskExecutorRunner {
         final String keytabPrincipal = variables.get(YarnConfigKeys.KEYTAB_PRINCIPAL);
         LOG.info("TM: keytab principal obtained {}", keytabPrincipal);
 
-        // tell akka to die in case of an error
+        // tell pekko to die in case of an error
         configuration.setBoolean(AkkaOptions.JVM_EXIT_ON_FATAL_ERROR, true);
 
         String keytabPath = Utils.resolveKeytabPath(currDir, localKeytabPath);

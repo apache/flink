@@ -89,7 +89,7 @@ public class MiniClusterConfiguration {
             modifiedConfig.set(ClusterOptions.CLUSTER_IO_EXECUTOR_POOL_SIZE, DEFAULT_IO_POOL_SIZE);
         }
 
-        // increase the akka.ask.timeout if not set in order to harden tests on slow CI
+        // increase the ask.timeout if not set in order to harden tests on slow CI
         if (!modifiedConfig.contains(AkkaOptions.ASK_TIMEOUT_DURATION)) {
             modifiedConfig.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(5L));
         }

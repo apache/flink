@@ -381,7 +381,7 @@ public class ConnectionUtils {
 
         private final Object retrievalLock = new Object();
 
-        private String akkaURL;
+        private String rpcURL;
         private LeaderRetrievalState retrievalState = LeaderRetrievalState.NOT_RETRIEVED;
         private Exception exception;
 
@@ -416,12 +416,12 @@ public class ConnectionUtils {
                                                 + "while waiting for the leader retrieval.");
                             }
                         } else if (retrievalState == LeaderRetrievalState.NEWLY_RETRIEVED) {
-                            targetAddress = rpcSystemUtils.getInetSocketAddressFromRpcUrl(akkaURL);
+                            targetAddress = rpcSystemUtils.getInetSocketAddressFromRpcUrl(rpcURL);
 
                             LOG.debug(
-                                    "Retrieved new target address {} for akka URL {}.",
+                                    "Retrieved new target address {} for RPC URL {}.",
                                     targetAddress,
-                                    akkaURL);
+                                    rpcURL);
 
                             retrievalState = LeaderRetrievalState.RETRIEVED;
 
@@ -509,8 +509,8 @@ public class ConnectionUtils {
             } catch (Exception e) {
                 throw new LeaderRetrievalException(
                         "Could not retrieve the connecting address to the "
-                                + "current leader with the akka URL "
-                                + akkaURL
+                                + "current leader with the pekko URL "
+                                + rpcURL
                                 + ".",
                         e);
             }
@@ -520,7 +520,7 @@ public class ConnectionUtils {
         public void notifyLeaderAddress(String leaderAddress, UUID leaderSessionID) {
             if (leaderAddress != null && !leaderAddress.isEmpty()) {
                 synchronized (retrievalLock) {
-                    akkaURL = leaderAddress;
+                    rpcURL = leaderAddress;
                     retrievalState = LeaderRetrievalState.NEWLY_RETRIEVED;
 
                     retrievalLock.notifyAll();

@@ -95,7 +95,7 @@ Flink 需要多少 *JVM 堆内存*，很大程度上取决于运行的作业数�
 请参考[常见问题]({{< ref "docs/deployment/memory/mem_trouble" >}}#outofmemoryerror-direct-buffer-memory)。
 
 以下情况可能用到堆外内存：
-* Flink 框架依赖（例如 Akka 的网络通信）
+* Flink 框架依赖（例如 Pekko 的网络通信）
 * 在作业提交时（例如一些特殊的批处理 Source）及 Checkpoint 完成的回调函数中执行的用户代码
 
 <span class="label label-info">提示</span>

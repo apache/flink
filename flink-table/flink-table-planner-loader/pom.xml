@@ -61,7 +61,7 @@
 			<!-- Prevent dependency from being accessible to modules depending on flink-table-planner -->
 			<optional>true</optional>
 			<exclusions>
-				<!-- Prevent akka and scala from being visible to other modules depending on flink-table-planner-loader -->
+				<!-- Prevent pekko and scala from being visible to other modules depending on flink-table-planner-loader -->
 				<exclusion>
 					<groupId>*</groupId>
 					<artifactId>*</artifactId>

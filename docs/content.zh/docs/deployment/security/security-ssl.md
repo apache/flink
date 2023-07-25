@@ -107,7 +107,7 @@ When `security.ssl.internal.enabled` is set to `true`, you can set the following
 
   - `taskmanager.data.ssl.enabled`: Data communication between TaskManagers
   - `blob.service.ssl.enabled`: Transport of BLOBs from JobManager to TaskManager
-  - `akka.ssl.enabled`: Akka-based RPC connections between JobManager / TaskManager / ResourceManager
+  - `pekko.ssl.enabled`: Pekko-based RPC connections between JobManager / TaskManager / ResourceManager
 
 ### Keystores and Truststores
 

@@ -394,7 +394,7 @@ public class MetricOptions {
                     .defaultValue(1)
                     .withDescription(
                             "The thread priority used for Flink's internal metric query service. The thread is created"
-                                    + " by Akka's thread pool executor. "
+                                    + " by Pekko's thread pool executor. "
                                     + "The range of the priority is from 1 (MIN_PRIORITY) to 10 (MAX_PRIORITY). "
                                     + "Warning, increasing this value may bring the main Flink components down.");
     /**

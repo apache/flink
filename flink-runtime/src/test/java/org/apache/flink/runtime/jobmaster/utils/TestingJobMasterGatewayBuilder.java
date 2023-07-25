@@ -80,7 +80,7 @@ public class TestingJobMasterGatewayBuilder {
     private static final ResourceID RESOURCE_MANAGER_ID = ResourceID.generate();
     private static final JobMasterId JOB_MASTER_ID = JobMasterId.generate();
 
-    private String address = "akka.tcp://flink@localhost:6130/user/jobmanager";
+    private String address = "pekko.tcp://flink@localhost:6130/user/jobmanager";
     private String hostname = "localhost";
     private Supplier<CompletableFuture<Acknowledge>> cancelFunction =
             () -> CompletableFuture.completedFuture(Acknowledge.get());

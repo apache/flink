@@ -31,9 +31,13 @@ under the License.
 	<artifactId>flink-rpc-akka</artifactId>
 	<name>Flink : RPC : Akka</name>
 	<packaging>jar</packaging>
+	<description>
+		Pekko-based RPC implementation. Pekko is the Apache fork of Akka.
+		For compatibility/git reasons not all mentions of Akka have been replaced.
+	</description>
 
 	<properties>
-		<akka.version>2.6.20</akka.version>
+		<pekko.version>1.0.0</pekko.version>
 		<scala.binary.version>2.12</scala.binary.version>
 		<scala.version>2.12.16</scala.version>
 	</properties>
@@ -59,15 +63,15 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-actor_${scala.binary.version}</artifactId>
-			<version>${akka.version}</version>
+			<groupId>org.apache.pekko</groupId>
+			<artifactId>pekko-actor_${scala.binary.version}</artifactId>
+			<version>${pekko.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-remote_${scala.binary.version}</artifactId>
-			<version>${akka.version}</version>
+			<groupId>org.apache.pekko</groupId>
+			<artifactId>pekko-remote_${scala.binary.version}</artifactId>
+			<version>${pekko.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
 				<exclusion>
@@ -83,9 +87,9 @@ under the License.
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-slf4j_${scala.binary.version}</artifactId>
-			<version>${akka.version}</version>
+			<groupId>org.apache.pekko</groupId>
+			<artifactId>pekko-slf4j_${scala.binary.version}</artifactId>
+			<version>${pekko.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 		<dependency>

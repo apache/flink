@@ -273,7 +273,7 @@ public class SecurityOptions {
                                     + "Specific internal components (rpc, data transport, blob server) may optionally override "
                                     + "this through their own settings.");
 
-    /** Enable SSL for internal communication (akka rpc, netty data transport, blob server). */
+    /** Enable SSL for internal communication (pekko rpc, netty data transport, blob server). */
     @Documentation.Section(Documentation.Sections.SECURITY_SSL)
     public static final ConfigOption<Boolean> SSL_INTERNAL_ENABLED =
             key("security.ssl.internal.enabled")

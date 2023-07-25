@@ -55,7 +55,7 @@ under the License.
 			<!-- Prevent dependency from being accessible to modules depending on flink-akka-loader-->
 			<optional>true</optional>
 			<exclusions>
-				<!-- Prevent akka and scala from being visible to other modules depending on flink-rpc-akka-loader -->
+				<!-- Prevent pekko and scala from being visible to other modules depending on flink-rpc-akka-loader -->
 				<exclusion>
 					<groupId>*</groupId>
 					<artifactId>*</artifactId>

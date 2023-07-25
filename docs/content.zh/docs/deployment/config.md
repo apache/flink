@@ -457,10 +457,10 @@ These options are for the network stack that handles the streaming and batch dat
 
 {{< generated/all_taskmanager_network_section >}}
 
-### RPC / Akka
+### RPC / Pekko
 
-Flink uses Akka for RPC between components (JobManager/TaskManager/ResourceManager).
-Flink does not use Akka for data transport.
+Flink uses Pekko for RPC between components (JobManager/TaskManager/ResourceManager).
+Flink does not use Pekko for data transport.
 
 {{< generated/akka_configuration >}}
 

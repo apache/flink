@@ -52,7 +52,7 @@ class KubernetesHighAvailabilityTestBase {
 
     public static final String LOCK_IDENTITY = UUID.randomUUID().toString();
     public static final String LEADER_ADDRESS =
-            "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
+            "pekko.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
     public static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
 
     protected static final long TIMEOUT = 30L * 1000L;

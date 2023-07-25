@@ -391,7 +391,7 @@ public class FlinkContainersSettings {
             logProperties.setProperty("appender.rolling.fileName", "${sys:log.file}");
             logProperties.setProperty("appender.rolling.filePattern", "${sys:log.file}.%i");
             logProperties.setProperty("rootLogger.appenderRef.rolling.ref", "RollingFileAppender");
-            logProperties.setProperty("logger.akka.name", "akka");
+            logProperties.setProperty("logger.pekko.name", "org.apache.pekko");
             logProperties.setProperty("appender.console.type", "CONSOLE");
             logProperties.setProperty("appender.rolling.append", "true");
             logProperties.setProperty("appender.console.layout.type", "PatternLayout");
@@ -409,7 +409,7 @@ public class FlinkContainersSettings {
             logProperties.setProperty("logger.kafka.name", "org.apache.kafka");
             logProperties.setProperty("logger.netty.level", "OFF");
             logProperties.setProperty("appender.rolling.type", "RollingFile");
-            logProperties.setProperty("logger.akka.level", "INFO");
+            logProperties.setProperty("logger.pekko.level", "INFO");
             logProperties.setProperty("logger.hadoop.level", "INFO");
             logProperties.setProperty(
                     "appender.rolling.layout.pattern",
