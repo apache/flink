@@ -30,7 +30,6 @@ import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.curator5.com.google.common.collect.Iterators;
-import org.apache.flink.shaded.guava31.com.google.common.base.Joiner;
 
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
@@ -39,13 +38,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -165,7 +161,7 @@ class PrometheusReporterTest {
         Counter metric1 = new SimpleCounter();
         Counter metric2 = new SimpleCounter();
 
-        final Map<String, String> variables2 = new HashMap<>(metricGroup.getAllVariables());
+        final Map<String, String> variables2 = new LinkedHashMap<>(metricGroup.getAllVariables());
         final Map.Entry<String, String> entryToModify = variables2.entrySet().iterator().next();
         final String labelValueThatShouldBeRemoved = entryToModify.getValue();
         variables2.put(entryToModify.getKey(), "some_value");
@@ -178,39 +174,6 @@ class PrometheusReporterTest {
         String response = pollMetrics(reporter.getPort()).getBody();
 
         assertThat(response).contains("some_value").doesNotContain(labelValueThatShouldBeRemoved);
-    }
-
-    @Test
-    void metricWithSameNameAndDiffOrderDimension() throws UnirestException {
-        String metricName = "metric";
-
-        Counter metric1 = new SimpleCounter();
-        Counter metric2 = new SimpleCounter();
-
-        final Map<String, String> variables2 = new LinkedHashMap<>();
-        // reverse the order of keys
-        for (int i = LABEL_NAMES.length - 1; i >= 0; i--) {
-            String value = "some_value" + i;
-            String key = LABEL_NAMES[i];
-            variables2.put(key, value);
-        }
-
-        List<String> dimensionPairs = new ArrayList<>();
-        // build the correct order of key-value
-        for (int i = 0; i < LABEL_NAMES.length; i++) {
-            String key = LABEL_NAMES[i];
-            String value = variables2.get(key);
-            dimensionPairs.add(String.format("%s=\"%s\"", key, value));
-        }
-
-        String dimensions2 = Joiner.on(",").join(dimensionPairs);
-
-        final MetricGroup metricGroup2 = TestUtils.createTestMetricGroup(LOGICAL_SCOPE, variables2);
-        reporter.notifyOfAddedMetric(metric1, metricName, metricGroup);
-        reporter.notifyOfAddedMetric(metric2, metricName, metricGroup2);
-        String response = pollMetrics(reporter.getPort()).getBody();
-
-        assertThat(response).contains(DIMENSIONS).contains(dimensions2);
     }
 
     @Test

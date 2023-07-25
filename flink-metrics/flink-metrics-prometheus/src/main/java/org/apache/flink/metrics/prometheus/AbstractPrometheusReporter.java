@@ -100,15 +100,11 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
         List<String> dimensionKeys = new LinkedList<>();
         List<String> dimensionValues = new LinkedList<>();
-        Map<String, String> allVariables = group.getAllVariables();
-        List<String> keys = new ArrayList<>(allVariables.keySet());
-        keys.sort(String::compareTo);
-
-        for (String key : keys) {
-            String dimensionValue = allVariables.get(key);
+        for (final Map.Entry<String, String> dimension : group.getAllVariables().entrySet()) {
+            final String key = dimension.getKey();
             dimensionKeys.add(
                     CHARACTER_FILTER.filterCharacters(key.substring(1, key.length() - 1)));
-            dimensionValues.add(labelValueCharactersFilter.filterCharacters(dimensionValue));
+            dimensionValues.add(labelValueCharactersFilter.filterCharacters(dimension.getValue()));
         }
 
         final String scopedMetricName = getScopedName(metricName, group);
