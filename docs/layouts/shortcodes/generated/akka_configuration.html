@@ -18,7 +18,7 @@
             <td><h5>pekko.ask.timeout</h5></td>
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
-            <td>Timeout used for all futures and blocking Akka calls. If Flink fails due to timeouts then you should try to increase this value. Timeouts can be caused by slow machines or a congested network. The timeout value requires a time-unit specifier (ms/s/min/h/d).</td>
+            <td>Timeout used for all futures and blocking Pekko calls. If Flink fails due to timeouts then you should try to increase this value. Timeouts can be caused by slow machines or a congested network. The timeout value requires a time-unit specifier (ms/s/min/h/d).</td>
         </tr>
         <tr>
             <td><h5>pekko.client-socket-worker-pool.pool-size-factor</h5></td>
@@ -66,13 +66,13 @@
             <td><h5>pekko.jvm-exit-on-fatal-error</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>Exit JVM on fatal Akka errors.</td>
+            <td>Exit JVM on fatal Pekko errors.</td>
         </tr>
         <tr>
             <td><h5>pekko.log.lifecycle.events</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Turns on the Akka’s remote logging of events. Set this value to 'true' in case of debugging.</td>
+            <td>Turns on the Pekko’s remote logging of events. Set this value to 'true' in case of debugging.</td>
         </tr>
         <tr>
             <td><h5>pekko.lookup.timeout</h5></td>
