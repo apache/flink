@@ -58,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -628,24 +629,7 @@ public class FineGrainedSlotManager implements SlotManager {
             return;
         }
 
-        LOG.info("Matching resource requirements against available resources.");
-        LOG.info("Missing resources:");
-        for (Map.Entry<JobID, Collection<ResourceRequirement>> jobIDCollectionEntry :
-                missingResources.entrySet()) {
-            LOG.info(
-                    "\tJob {} requires {}.",
-                    jobIDCollectionEntry.getKey(),
-                    jobIDCollectionEntry.getValue());
-        }
-        LOG.info("Current resources:");
-        for (TaskManagerInfo registeredTaskManager :
-                taskManagerTracker.getRegisteredTaskManagers()) {
-            LOG.info(
-                    "\tTaskManager {}",
-                    registeredTaskManager.getTaskExecutorConnection().getResourceID());
-            LOG.info("\t\tAvailable: {}", registeredTaskManager.getAvailableResource());
-            LOG.info("\t\tTotal:     {}", registeredTaskManager.getTotalResource());
-        }
+        logMissingAndAvailableResource(missingResources);
 
         missingResources =
                 missingResources.entrySet().stream()
@@ -698,6 +682,31 @@ public class FineGrainedSlotManager implements SlotManager {
             checkTaskManagerReleasable();
             declareNeededResourcesWithDelay();
         }
+    }
+
+    private void logMissingAndAvailableResource(
+            Map<JobID, Collection<ResourceRequirement>> missingResources) {
+        final StringJoiner lines = new StringJoiner(System.lineSeparator());
+        lines.add("Matching resource requirements against available resources.");
+        lines.add("Missing resources:");
+        missingResources.forEach(
+                (jobId, resources) -> {
+                    lines.add("\t Job " + jobId);
+                    resources.forEach(resource -> lines.add(String.format("\t\t%s", resource)));
+                });
+        lines.add("Current resources:");
+        if (taskManagerTracker.getRegisteredTaskManagers().isEmpty()) {
+            lines.add("\t(none)");
+        } else {
+            for (TaskManagerInfo taskManager : taskManagerTracker.getRegisteredTaskManagers()) {
+                final ResourceID resourceId =
+                        taskManager.getTaskExecutorConnection().getResourceID();
+                lines.add("\tTaskManager " + resourceId);
+                lines.add("\t\tAvailable: " + taskManager.getAvailableResource());
+                lines.add("\t\tTotal:     " + taskManager.getTotalResource());
+            }
+        }
+        LOG.info(lines.toString());
     }
 
     private void allocateSlotsAccordingTo(Map<JobID, Map<InstanceID, ResourceCounter>> result) {
@@ -792,9 +801,12 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID) {
-        return taskManagerTracker.getRegisteredTaskManager(instanceID)
-                .map(TaskManagerInfo::getAllocatedSlots).map(Map::values)
-                .orElse(Collections.emptyList()).stream()
+        return taskManagerTracker
+                .getRegisteredTaskManager(instanceID)
+                .map(TaskManagerInfo::getAllocatedSlots)
+                .map(Map::values)
+                .orElse(Collections.emptyList())
+                .stream()
                 .map(slot -> new SlotInfo(slot.getJobId(), slot.getResourceProfile()))
                 .collect(Collectors.toList());
     }
