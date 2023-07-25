@@ -801,12 +801,9 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Override
     public Collection<SlotInfo> getAllocatedSlotsOf(InstanceID instanceID) {
-        return taskManagerTracker
-                .getRegisteredTaskManager(instanceID)
-                .map(TaskManagerInfo::getAllocatedSlots)
-                .map(Map::values)
-                .orElse(Collections.emptyList())
-                .stream()
+        return taskManagerTracker.getRegisteredTaskManager(instanceID)
+                .map(TaskManagerInfo::getAllocatedSlots).map(Map::values)
+                .orElse(Collections.emptyList()).stream()
                 .map(slot -> new SlotInfo(slot.getJobId(), slot.getResourceProfile()))
                 .collect(Collectors.toList());
     }
