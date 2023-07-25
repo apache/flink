@@ -58,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -628,7 +629,8 @@ public class FineGrainedSlotManager implements SlotManager {
             return;
         }
 
-        LOG.info("Matching resource requirements against available resources.");
+        logMissingAndAvailableResource(missingResources);
+
         missingResources =
                 missingResources.entrySet().stream()
                         .collect(
@@ -680,6 +682,31 @@ public class FineGrainedSlotManager implements SlotManager {
             checkTaskManagerReleasable();
             declareNeededResourcesWithDelay();
         }
+    }
+
+    private void logMissingAndAvailableResource(
+            Map<JobID, Collection<ResourceRequirement>> missingResources) {
+        final StringJoiner lines = new StringJoiner(System.lineSeparator());
+        lines.add("Matching resource requirements against available resources.");
+        lines.add("Missing resources:");
+        missingResources.forEach(
+                (jobId, resources) -> {
+                    lines.add("\t Job " + jobId);
+                    resources.forEach(resource -> lines.add(String.format("\t\t%s", resource)));
+                });
+        lines.add("Current resources:");
+        if (taskManagerTracker.getRegisteredTaskManagers().isEmpty()) {
+            lines.add("\t(none)");
+        } else {
+            for (TaskManagerInfo taskManager : taskManagerTracker.getRegisteredTaskManagers()) {
+                final ResourceID resourceId =
+                        taskManager.getTaskExecutorConnection().getResourceID();
+                lines.add("\tTaskManager " + resourceId);
+                lines.add("\t\tAvailable: " + taskManager.getAvailableResource());
+                lines.add("\t\tTotal:     " + taskManager.getTotalResource());
+            }
+        }
+        LOG.info(lines.toString());
     }
 
     private void allocateSlotsAccordingTo(Map<JobID, Map<InstanceID, ResourceCounter>> result) {
