@@ -33,7 +33,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-/** This source function generates a sequence of long values per key. */
+/**
+ * This source function generates a sequence of long values per key.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ */
+@Deprecated
 public class SequenceGeneratorSource extends RichParallelSourceFunction<Event>
         implements CheckpointedFunction {
 

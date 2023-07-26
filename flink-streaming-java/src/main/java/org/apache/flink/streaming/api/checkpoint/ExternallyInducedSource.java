@@ -36,7 +36,11 @@ import org.apache.flink.util.FlinkException;
  *
  * @param <T> Type of the elements produced by the source function
  * @param <CD> The type of the data stored in the checkpoint by the master that triggers
+ * @deprecated This interface is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @PublicEvolving
 public interface ExternallyInducedSource<T, CD>
         extends SourceFunction<T>, WithMasterCheckpointHook<CD> {

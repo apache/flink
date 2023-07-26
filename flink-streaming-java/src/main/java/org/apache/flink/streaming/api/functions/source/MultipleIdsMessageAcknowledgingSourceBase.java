@@ -52,7 +52,11 @@ import java.util.Set;
  * @param <UId> The type of the unique IDs which are consistent across sessions.
  * @param <SessionId> The type of the IDs that are used for acknowledging elements (ids valid during
  *     session).
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @PublicEvolving
 public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, SessionId>
         extends MessageAcknowledgingSourceBase<Type, UId> {

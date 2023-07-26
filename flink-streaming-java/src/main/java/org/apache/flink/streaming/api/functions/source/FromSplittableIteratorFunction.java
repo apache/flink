@@ -25,7 +25,12 @@ import java.util.Iterator;
 
 /**
  * A {@link SourceFunction} that reads elements from an {@link SplittableIterator} and emits them.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @PublicEvolving
 public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunction<T> {
 

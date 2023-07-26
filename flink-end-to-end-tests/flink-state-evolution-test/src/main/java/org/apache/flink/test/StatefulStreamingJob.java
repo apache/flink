@@ -45,7 +45,14 @@ public class StatefulStreamingJob {
 
     private static final String EXPECTED_DEFAULT_VALUE = "123";
 
-    /** Stub source that emits one record per second. */
+    /**
+     * Stub source that emits one record per second.
+     *
+     * @deprecated This class is based on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     */
+    @Deprecated
     public static class MySource extends RichParallelSourceFunction<Integer> {
 
         private static final long serialVersionUID = 1L;
