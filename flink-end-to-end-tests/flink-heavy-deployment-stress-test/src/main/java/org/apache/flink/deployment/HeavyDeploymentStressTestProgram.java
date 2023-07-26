@@ -77,7 +77,14 @@ public class HeavyDeploymentStressTestProgram {
         env.execute("HeavyDeploymentStressTestProgram");
     }
 
-    /** Source with dummy operator state that results in inflated meta data. */
+    /**
+     * Source with dummy operator state that results in inflated meta data.
+     *
+     * @deprecated This class is based on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     */
+    @Deprecated
     static class SimpleEndlessSourceWithBloatedState extends RichParallelSourceFunction<String>
             implements CheckpointedFunction, CheckpointListener {
 

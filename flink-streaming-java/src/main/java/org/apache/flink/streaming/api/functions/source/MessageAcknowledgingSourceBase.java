@@ -87,7 +87,11 @@ import java.util.Set;
  *
  * @param <Type> The type of the messages created by the source.
  * @param <UId> The type of unique IDs which may be used to acknowledge elements.
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @PublicEvolving
 public abstract class MessageAcknowledgingSourceBase<Type, UId> extends RichSourceFunction<Type>
         implements CheckpointedFunction, CheckpointListener {

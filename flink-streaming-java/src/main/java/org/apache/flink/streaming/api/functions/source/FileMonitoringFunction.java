@@ -38,6 +38,9 @@ import java.util.Map;
  * new files. Used together with {@link FileReadFunction}.
  *
  * @deprecated Internal class deprecated in favour of {@link ContinuousFileMonitoringFunction}.
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
 @Internal
 @Deprecated

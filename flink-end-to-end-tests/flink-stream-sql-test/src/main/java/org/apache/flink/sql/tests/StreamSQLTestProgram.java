@@ -247,7 +247,14 @@ public class StreamSQLTestProgram {
         }
     }
 
-    /** Data-generating source function. */
+    /**
+     * Data-generating source function.
+     *
+     * @deprecated This class is based on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+     */
+    @Deprecated
     public static class Generator
             implements SourceFunction<Row>, ResultTypeQueryable<Row>, CheckpointedFunction {
 
