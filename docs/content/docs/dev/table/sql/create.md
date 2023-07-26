@@ -31,7 +31,7 @@ CREATE statements are used to register a table/view/function into current or spe
 Flink SQL supports the following CREATE statements for now:
 
 - CREATE TABLE
-- CREATE TABLE [USING]
+- [CREATE OR] REPLACE TABLE
 - CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
@@ -558,7 +558,7 @@ INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 
 {{< top >}}
 
-## CREATE TABLE [USING]
+## [CREATE OR] REPLACE TABLE
 ```sql
 [CREATE OR] REPLACE TABLE [catalog_name.][db_name.]table_name
 [COMMENT table_comment]
@@ -567,7 +567,7 @@ AS select_query
 ```
 Tables can also be replaced(or created) and populated by the results of a query in one replace-table-as-select (RTAS) statement.  RTAS is the simplest and fastest way to replace and insert data into a table with a single command.
 
-There are two parts in RTAS, the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL. The `[CREATE OR] REPLACE` part takes the resulting schema from the `SELECT` part and replace the target table. Similar to `CREATE TABLE` and `CTAS`, RTAS requires the required options of the target table must be specified in WITH clause.
+There are two parts in RTAS: the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL, the `[CREATE OR] REPLACE` part takes the resulting schema from the `SELECT` part and replace the target table. Similar to `CREATE TABLE` and `CTAS`, RTAS requires the required options of the target table must be specified in WITH clause.
 
 Consider the example statement below:
 
@@ -580,7 +580,7 @@ WITH (
 AS SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
-The resulting table `my_rtas_table` is equivalent to first drop the table, then create the table and insert the data with the following statement:
+The `[CREATE OR] REPLACE TABLE` statement is equivalent to first drop the table, then create the table and insert the data with the following statement:
 ```sql
 DROP TABLE my_rtas_table;
 
@@ -602,11 +602,11 @@ INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 
 **Note** RTAS has these restrictions:
 
-Does not support replacing a temporary table yet.
-Does not support specifying explicit columns yet.
-Does not support specifying explicit watermark yet.
-Does not support creating partitioned table yet.
-Does not support specifying primary key constraints yet.
+* Does not support replacing a temporary table yet.
+* Does not support specifying explicit columns yet.
+* Does not support specifying explicit watermark yet.
+* Does not support creating partitioned table yet.
+* Does not support specifying primary key constraints yet.
 
 {{< top >}}
 

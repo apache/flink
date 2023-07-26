@@ -33,7 +33,7 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 目前 Flink SQL 支持下列 CREATE 语句：
 
 - CREATE TABLE
-- CREATE TABLE [USING]
+- [CREATE OR] REPLACE TABLE
 - CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
@@ -558,7 +558,7 @@ INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 
 {{< top >}}
 
-## CREATE TABLE [USING]
+## [CREATE OR] REPLACE TABLE
 ```sql
 [CREATE OR] REPLACE TABLE [catalog_name.][db_name.]table_name
 [COMMENT table_comment]
@@ -568,7 +568,7 @@ AS select_query
 
 表也可以通过一个 RTAS 语句中的查询结果来替换(或 创建)并填充数据，RTAS 是一种简单、快捷的替换表并插入数据的方法。
 
-RTAS 有两个部分，SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。 `[CREATE OR] REPLACE` 部分会先删除已经存在的目标表，然后根据从 `SELECT` 查询中获取列信息，创建新的目标表。 与 `CREATE TABLE` 和 `CTAS` 类似，RTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
+RTAS 有两个部分：SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})， `[CREATE OR] REPLACE` 部分会先删除已经存在的目标表，然后根据从 `SELECT` 查询中获取列信息，创建新的目标表。 与 `CREATE TABLE` 和 `CTAS` 类似，RTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
 
 示例如下:
 
@@ -581,7 +581,7 @@ WITH (
 AS SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
-结果表 `my_rtas_table` 等效于使用以下语句先删除表，然后创建表并写入数据:
+`[CREATE OR] REPLACE TABLE` 语句等效于使用以下语句先删除表，然后创建表并写入数据:
 ```sql
 DROP TABLE my_rtas_table;
 
