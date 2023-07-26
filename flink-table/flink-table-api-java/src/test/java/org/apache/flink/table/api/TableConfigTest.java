@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.config.TableConfigOptions;
 
 import org.junit.jupiter.api.Test;
@@ -35,12 +34,10 @@ public class TableConfigTest {
 
     private static final TableConfig CONFIG_BY_METHOD = TableConfig.getDefault();
     private static final TableConfig CONFIG_BY_CONFIGURATION = TableConfig.getDefault();
-    private static final Configuration configuration = new Configuration();
 
     @Test
     void testSetAndGetSqlDialect() {
-        configuration.setString("table.sql-dialect", "HIVE");
-        CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
+        CONFIG_BY_CONFIGURATION.set("table.sql-dialect", "HIVE");
         CONFIG_BY_METHOD.setSqlDialect(SqlDialect.HIVE);
 
         assertThat(CONFIG_BY_METHOD.getSqlDialect()).isEqualTo(SqlDialect.HIVE);
@@ -49,8 +46,7 @@ public class TableConfigTest {
 
     @Test
     void testSetAndGetMaxGeneratedCodeLength() {
-        configuration.setString("table.generated-code.max-length", "5000");
-        CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
+        CONFIG_BY_CONFIGURATION.set("table.generated-code.max-length", "5000");
         CONFIG_BY_METHOD.setMaxGeneratedCodeLength(5000);
 
         assertThat(CONFIG_BY_METHOD.getMaxGeneratedCodeLength()).isEqualTo(Integer.valueOf(5000));
@@ -60,29 +56,28 @@ public class TableConfigTest {
 
     @Test
     void testSetAndGetLocalTimeZone() {
-        configuration.setString("table.local-time-zone", "Asia/Shanghai");
-        CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
+        CONFIG_BY_CONFIGURATION.set("table.local-time-zone", "Asia/Shanghai");
         CONFIG_BY_METHOD.setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
-
         assertThat(CONFIG_BY_METHOD.getLocalTimeZone()).isEqualTo(ZoneId.of("Asia/Shanghai"));
         assertThat(CONFIG_BY_CONFIGURATION.getLocalTimeZone())
                 .isEqualTo(ZoneId.of("Asia/Shanghai"));
 
-        configuration.setString("table.local-time-zone", "GMT-08:00");
-        CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
+        CONFIG_BY_CONFIGURATION.set("table.local-time-zone", "GMT-08:00");
         CONFIG_BY_METHOD.setLocalTimeZone(ZoneId.of("GMT-08:00"));
-
         assertThat(CONFIG_BY_METHOD.getLocalTimeZone()).isEqualTo(ZoneId.of("GMT-08:00"));
         assertThat(CONFIG_BY_CONFIGURATION.getLocalTimeZone()).isEqualTo(ZoneId.of("GMT-08:00"));
+
+        CONFIG_BY_CONFIGURATION.set("table.local-time-zone", "UTC");
+        CONFIG_BY_METHOD.setLocalTimeZone(ZoneId.of("UTC"));
+        assertThat(CONFIG_BY_METHOD.getLocalTimeZone()).isEqualTo(ZoneId.of("UTC"));
+        assertThat(CONFIG_BY_CONFIGURATION.getLocalTimeZone()).isEqualTo(ZoneId.of("UTC"));
     }
 
     @Test
     public void testSetInvalidLocalTimeZone() {
         assertThatThrownBy(() -> CONFIG_BY_METHOD.setLocalTimeZone(ZoneId.of("UTC-10:00")))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(
-                        "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
-                                + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is 'UTC-10:00'.");
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Invalid time zone.");
     }
 
     @Test
@@ -93,31 +88,32 @@ public class TableConfigTest {
     }
 
     @Test
-    void testGetInvalidLocalTimeZone() {
-        configuration.setString("table.local-time-zone", "UTC+8");
-        CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
+    void testGetInvalidLocalTimeZoneUTC() {
+        CONFIG_BY_CONFIGURATION.set("table.local-time-zone", "UTC+8");
         assertThatThrownBy(CONFIG_BY_CONFIGURATION::getLocalTimeZone)
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(
-                        "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
-                                + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is 'UTC+8'.");
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Invalid time zone.");
+    }
+
+    @Test
+    void testGetInvalidLocalTimeZoneUT() {
+        CONFIG_BY_CONFIGURATION.set("table.local-time-zone", "UT+8");
+        assertThatThrownBy(CONFIG_BY_CONFIGURATION::getLocalTimeZone)
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Invalid time zone.");
     }
 
     @Test
     void testGetInvalidAbbreviationLocalTimeZone() {
-        configuration.setString("table.local-time-zone", "PST");
-        CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
+        CONFIG_BY_CONFIGURATION.set("table.local-time-zone", "PST");
         assertThatThrownBy(CONFIG_BY_CONFIGURATION::getLocalTimeZone)
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(
-                        "The supported Zone ID is either a full name such as 'America/Los_Angeles',"
-                                + " or a custom timezone id such as 'GMT-08:00', but configured Zone ID is 'PST'.");
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Invalid time zone.");
     }
 
     @Test
     void testSetAndGetIdleStateRetention() {
-        configuration.setString("table.exec.state.ttl", "1 h");
-        CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
+        CONFIG_BY_CONFIGURATION.set("table.exec.state.ttl", "1 h");
         CONFIG_BY_METHOD.setIdleStateRetention(Duration.ofHours(1));
 
         assertThat(CONFIG_BY_METHOD.getIdleStateRetention()).isEqualTo(Duration.ofHours(1));
@@ -126,8 +122,7 @@ public class TableConfigTest {
 
     @Test
     void testDisplayMaxColumnLength() {
-        configuration.setString("table.display.max-column-width", "100");
-        CONFIG_BY_CONFIGURATION.addConfiguration(configuration);
+        CONFIG_BY_CONFIGURATION.set("table.display.max-column-width", "100");
         CONFIG_BY_METHOD.set(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH, 100);
 
         assertThat(CONFIG_BY_METHOD.get(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH))

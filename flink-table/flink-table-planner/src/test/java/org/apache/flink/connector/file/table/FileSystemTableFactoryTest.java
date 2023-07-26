@@ -132,9 +132,7 @@ public class FileSystemTableFactoryTest {
                 .satisfies(
                         anyCauseMatches(
                                 ValidationException.class,
-                                "The supported watermark time zone is either a full name such "
-                                        + "as 'America/Los_Angeles', or a custom time zone id such "
-                                        + "as 'GMT-08:00', but configured time zone is 'UTC+8'."));
+                                "Invalid time zone for 'sink.partition-commit.watermark-time-zone'."));
     }
 
     @Test
