@@ -103,6 +103,8 @@ Hybrid shuffle is the next generation of batch data exchanges. It combines the a
 - Like pipelined shuffle, it does not require downstream tasks to be executed after upstream tasks finish, which reduces the overall execution time of the job when given sufficient resources.
 - It adapts to custom preferences between persisting less data and restarting less tasks on failures, by providing different spilling strategies.
 
+To use hybrid shuffle mode, you need to configure the [execution.batch-shuffle-mode]({{< ref "docs/deployment/config" >}}#execution-batch-shuffle-mode) to `ALL_EXCHANGES_HYBRID_FULL` (full spilling strategy) or `ALL_EXCHANGES_HYBRID_SELECTIVE` (selective spilling strategy).
+
 ### Spilling Strategy
 
 Hybrid shuffle provides two spilling strategies:
@@ -110,11 +112,9 @@ Hybrid shuffle provides two spilling strategies:
 - **Selective Spilling Strategy** persists data only if they are not consumed by downstream tasks timely. This reduces the amount of data to persist, at the price that in case of failures upstream tasks need to be restarted to reproduce the complete intermediate results.
 - **Full Spilling Strategy** persists all data, no matter they are consumed by downstream tasks or not. In case of failures, the persisted complete intermediate result can be re-consumed, without having to restart upstream tasks.
 
-### Usage
-
 To use hybrid shuffle mode, you need to configure the [execution.batch-shuffle-mode]({{< ref "docs/deployment/config" >}}#execution-batch-shuffle-mode) to `ALL_EXCHANGES_HYBRID_FULL` (full spilling strategy) or `ALL_EXCHANGES_HYBRID_SELECTIVE` (selective spilling strategy).
 
-#### Data Consumption Constraints
+### Data Consumption Constraints
 
 Hybrid shuffle divides the partition data consumption constraints between producer and consumer into the following three cases:
 
@@ -126,6 +126,20 @@ These could be configured via [jobmanager.partition.hybrid.partition-data-consum
 
 - **For `AdaptiveBatchScheduler`** : The default constraint is `UNFINISHED_PRODUCERS` to perform pipelined-like shuffle. If the value is set to `ALL_PRODUCERS_FINISHED` or `ONLY_FINISHED_PRODUCERS`, performance may be degraded.
 - **If `SpeculativeExecution` is enabled** : The default constraint is `ONLY_FINISHED_PRODUCERS` to bring some performance optimization compared with blocking shuffle. Since producers and consumers have the opportunity to run at the same time, more speculative execution tasks may be created, and the cost of failover will also increase. If you want to fall back to the same behavior as blocking shuffle, you can configure this value to `ALL_PRODUCERS_FINISHED`. It is also important to note that `UNFINISHED_PRODUCERS` is not supported in this mode.
+
+### Remote Storage Support
+
+Hybrid shuffle supports to store the shuffle data to the remote storage. The remote storage path can be configured by [taskmanager.network.hybrid-shuffle.remote.path]({{< ref "docs/deployment/config" >}}#taskmanager-network-hybrid-shuffle-remote-path). This feature supports various remote storage systems, including OSS, HDFS, S3, etc. See [Flink Filesystem]({{< ref "docs/deployment/filesystems/overview" >}}) for more information about the Flink supported filesystems.
+
+Note: The remote storage is only supported in the new hybrid shuffle mode. For more details about the new mode, please refer to the following [The New Mode And The Legacy Mode]({{< ref "docs/ops/batch/batch_shuffle#the-new-mode-and-the-legacy-mode" >}}).
+
+### The New Mode And The Legacy Mode
+
+We have refactored the architecture of Hybrid shuffle in Flink 1.18 (new mode), to resolve some existing issues. It has several advantages compared to the original architecture (legacy mode), such as requiring less network memory and supporting remote storage.
+
+The new mode is enabled by default. To switch back to the legacy mode, set [taskmanager.network.hybrid-shuffle.enable-new-mode]({{< ref "docs/deployment/config" >}}#taskmanager-network-hybrid-shuffle-enable-new-mode) to `false`.
+
+Note: The legacy mode is deprecated and can be removed in future releases.
 
 ### Limitations
 
@@ -151,9 +165,9 @@ The following guidelines may help you to achieve better performance especially f
 
 {{< tab "Hybrid Shuffle" >}}
 1. Increase the total size of network memory. Currently, the default network memory size is pretty modest. For large scale jobs, it's suggested to increase the total [network memory fraction]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-fraction) to at least 0.2 to achieve better performance. At the same time, you may also need to adjust the [lower bound]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-min) and [upper bound]({{< ref "docs/deployment/config" >}}#taskmanager-memory-network-max) of the network memory size, please refer to the [memory configuration document]({{< ref "docs/deployment/memory/mem_setup_tm" >}}) for more information.
-2. Increase the memory size for shuffle data write. For large scale jobs, it's suggested to increase the total size of network memory, the larger the memory that can be used in the shuffle write phase, the more opportunities downstream to read data directly from memory. You need to ensure that each `Result Partition` can be allocated to at least `numSubpartition + 1` buffers, otherwise the "Insufficient number of network buffers" will be encountered.
+2. Increase the memory size for shuffle data write. For large scale jobs, it's suggested to increase the total size of network memory, the larger the memory that can be used in the shuffle write phase, the more opportunities downstream to read data directly from memory.  Note that if you use the legacy Hybrid shuffle mode, you need to ensure that each `Result Partition` can be allocated to at least `numSubpartition + 1` buffers, otherwise the "Insufficient number of network buffers" will be encountered.
 3. Increase the memory size for shuffle data read. For large scale jobs, it's suggested to increase the size of the [shared read memory]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-batch-shuffle-size) to a larger value (for example, 256M or 512M). Because this memory is cut from the framework off-heap memory, you must increase [taskmanager.memory.framework.off-heap.size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-framework-off-heap-size) by the same size to avoid the direct memory OOM error.
-4. When `Hybrid Shuffle` is used, decreasing the number of [exclusive buffers per channel]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-buffers-per-channel) will seriously affect the performance. Therefore, this value should not be set to `0`, and for large-scale job, this can be appropriately increased. It should be also noted that, for hybrid shuffle, [taskmanager.network.memory.read-buffer.required-per-gate.max]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-read-buffer-required-per-gate-max) has been set to `Integer.MAX_VALUE` by default. It is better not to adjust this value, otherwise there is a risk of performance degradation.
+4. When the legacy Hybrid shuffle mode is used, decreasing the number of [exclusive buffers per channel]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-buffers-per-channel) will seriously affect the performance. Therefore, this value should not be set to `0`, and for large-scale job, this can be appropriately increased. It should be also noted that, for hybrid shuffle, [taskmanager.network.memory.read-buffer.required-per-gate.max]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-read-buffer-required-per-gate-max) has been set to `Integer.MAX_VALUE` by default. It is better not to adjust this value, otherwise there is a risk of performance degradation.
 {{< /tab >}}
 
 {{< /tabs >}}
