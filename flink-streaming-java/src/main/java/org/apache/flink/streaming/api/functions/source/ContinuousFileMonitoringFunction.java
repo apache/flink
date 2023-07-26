@@ -63,7 +63,12 @@ import java.util.TreeMap;
  *
  * <p><b>IMPORTANT NOTE: </b> Splits are forwarded downstream for reading in ascending modification
  * time order, based on the modification time of the files they belong to.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @Internal
 public class ContinuousFileMonitoringFunction<OUT>
         extends RichSourceFunction<TimestampedFileInputSplit> implements CheckpointedFunction {

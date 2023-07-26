@@ -30,7 +30,11 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
  * #open(org.apache.flink.configuration.Configuration)} and {@link #close()}.
  *
  * @param <OUT> The type of the records produced by this source.
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @Public
 public abstract class RichParallelSourceFunction<OUT> extends AbstractRichFunction
         implements ParallelSourceFunction<OUT> {

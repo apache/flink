@@ -32,7 +32,14 @@ import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-/** A {@link SourceFunction} that reads data using an {@link InputFormat}. */
+/**
+ * A {@link SourceFunction} that reads data using an {@link InputFormat}.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ */
+@Deprecated
 @Internal
 public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<OUT> {
     private static final long serialVersionUID = 1L;
