@@ -45,6 +45,7 @@ import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -579,6 +580,19 @@ public final class FunctionCatalog {
     }
 
     // --------------------------------------------------------------------------------------------
+    private Optional<ContextResolvedFunction> resolvePreciseFunctionReference(String funcName) {
+        if (StringUtils.isNullOrWhitespaceOnly(catalogManager.getCurrentCatalog())
+                || StringUtils.isNullOrWhitespaceOnly(catalogManager.getCurrentDatabase())) {
+            return Optional.empty();
+        } else {
+            ObjectIdentifier oi =
+                    ObjectIdentifier.of(
+                            catalogManager.getCurrentCatalog(),
+                            catalogManager.getCurrentDatabase(),
+                            funcName);
+            return resolvePreciseFunctionReference(oi);
+        }
+    }
 
     private Optional<ContextResolvedFunction> resolvePreciseFunctionReference(ObjectIdentifier oi) {
         // resolve order:
@@ -647,11 +661,6 @@ public final class FunctionCatalog {
 
         Optional<FunctionDefinition> candidate =
                 moduleManager.getFunctionDefinition(normalizedName);
-        ObjectIdentifier oi =
-                ObjectIdentifier.of(
-                        catalogManager.getCurrentCatalog(),
-                        catalogManager.getCurrentDatabase(),
-                        funcName);
 
         return candidate
                 .map(
@@ -659,7 +668,7 @@ public final class FunctionCatalog {
                                 Optional.of(
                                         ContextResolvedFunction.permanent(
                                                 FunctionIdentifier.of(funcName), fd)))
-                .orElseGet(() -> resolvePreciseFunctionReference(oi));
+                .orElseGet(() -> resolvePreciseFunctionReference(funcName));
     }
 
     @SuppressWarnings("unchecked")

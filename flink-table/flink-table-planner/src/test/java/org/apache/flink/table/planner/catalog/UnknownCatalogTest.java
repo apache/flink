@@ -38,6 +38,7 @@ import java.util.Collections;
 
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -54,6 +55,52 @@ public class UnknownCatalogTest {
                     .build();
     public static final ResolvedSchema EXPECTED_SCHEMA =
             ResolvedSchema.of(Column.physical("i", INT()), Column.physical("s", STRING()));
+
+    public static final ResolvedSchema CURRENT_TIMESTAMP_EXPECTED_SCHEMA =
+            ResolvedSchema.of(Column.physical("CURRENT_TIMESTAMP", TIMESTAMP_LTZ(3).notNull()));
+
+    @Test
+    public void testUnsetCatalogWithSelect1() throws Exception {
+        ResolvedSchema EXPECTED_SCHEMA =
+                ResolvedSchema.of(Column.physical("EXPR$0", INT().notNull()));
+        TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
+
+        tEnv.useCatalog(null);
+        Table table = tEnv.sqlQuery(String.format("SELECT 1;"));
+
+        assertThat(table.getResolvedSchema()).isEqualTo(EXPECTED_SCHEMA);
+    }
+
+    @Test
+    public void testUnsetCatalogWithSelectCurrentTimestamp() throws Exception {
+        TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
+
+        tEnv.useCatalog(null);
+        Table table = tEnv.sqlQuery(String.format("SELECT CURRENT_TIMESTAMP;"));
+
+        assertThat(table.getResolvedSchema()).isEqualTo(CURRENT_TIMESTAMP_EXPECTED_SCHEMA);
+    }
+
+    @Test
+    public void testSetCatalogUnsetDatabaseWithSelectCurrentTimestamp() throws Exception {
+        TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
+
+        tEnv.useCatalog(BUILTIN_CATALOG);
+        tEnv.useDatabase(null);
+        Table table = tEnv.sqlQuery(String.format("SELECT CURRENT_TIMESTAMP;"));
+
+        assertThat(table.getResolvedSchema()).isEqualTo(CURRENT_TIMESTAMP_EXPECTED_SCHEMA);
+    }
+
+    @Test
+    public void testSetCatalogWithSelectCurrentTimestamp() throws Exception {
+        TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
+
+        tEnv.useCatalog(BUILTIN_CATALOG);
+        Table table = tEnv.sqlQuery(String.format("SELECT CURRENT_TIMESTAMP;"));
+
+        assertThat(table.getResolvedSchema()).isEqualTo(CURRENT_TIMESTAMP_EXPECTED_SCHEMA);
+    }
 
     @Test
     public void testUnsetCatalogWithFullyQualified() throws Exception {
