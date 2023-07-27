@@ -140,7 +140,7 @@ public class RestClient implements AutoCloseableAsync {
     private final Collection<CompletableFuture<Channel>> responseChannelFutures =
             ConcurrentHashMap.newKeySet();
 
-    @VisibleForTesting List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
+    private final List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
 
     /**
      * Creates a new RestClient for the provided root URL. If the protocol of the URL is "https",
@@ -287,6 +287,11 @@ public class RestClient implements AutoCloseableAsync {
     @VisibleForTesting
     Collection<CompletableFuture<Channel>> getResponseChannelFutures() {
         return responseChannelFutures;
+    }
+
+    @VisibleForTesting
+    List<OutboundChannelHandlerFactory> getOutboundChannelHandlerFactories() {
+        return outboundChannelHandlerFactories;
     }
 
     @Override
