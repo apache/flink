@@ -64,7 +64,7 @@ public class UnknownCatalogTest {
         TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
 
         tEnv.useCatalog(null);
-        Table table = tEnv.sqlQuery("SELECT CURRENT_TIMESTAMP;");
+        Table table = tEnv.sqlQuery("SELECT CURRENT_TIMESTAMP");
 
         assertThat(table.getResolvedSchema()).isEqualTo(CURRENT_TIMESTAMP_EXPECTED_SCHEMA);
     }
@@ -75,7 +75,7 @@ public class UnknownCatalogTest {
 
         tEnv.useCatalog(BUILTIN_CATALOG);
         tEnv.useDatabase(null);
-        Table table = tEnv.sqlQuery("SELECT CURRENT_TIMESTAMP;");
+        Table table = tEnv.sqlQuery("SELECT CURRENT_TIMESTAMP");
 
         assertThat(table.getResolvedSchema()).isEqualTo(CURRENT_TIMESTAMP_EXPECTED_SCHEMA);
     }
@@ -85,7 +85,7 @@ public class UnknownCatalogTest {
         TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
 
         tEnv.useCatalog(BUILTIN_CATALOG);
-        Table table = tEnv.sqlQuery("SELECT CURRENT_TIMESTAMP;");
+        Table table = tEnv.sqlQuery("SELECT CURRENT_TIMESTAMP");
 
         assertThat(table.getResolvedSchema()).isEqualTo(CURRENT_TIMESTAMP_EXPECTED_SCHEMA);
     }
