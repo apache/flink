@@ -298,9 +298,9 @@ public class FlinkFilterJoinRuleTest extends TableTestBase {
 
     @Test
     public void testLeftJoinWithNotNullFilterInRightSide() {
-        // 'a2 IS NULL' can infer that 'a1 IS NULL'.
+        // 'a2 IS NOT NULL' can infer that 'a1 IS NOT NULL'.
         util.verifyRelPlan(
-                "SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 IS NOT NULL AND a1 < 10");
+                "SELECT * FROM MyTable1 LEFT JOIN MyTable2 ON a1 = a2 WHERE a2 IS NOT NULL");
     }
 
     @Test
