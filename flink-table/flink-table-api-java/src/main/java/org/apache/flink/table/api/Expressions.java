@@ -44,6 +44,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.objectToExpr
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HASHCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAY;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAYAGG_ABSENT_ON_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_ARRAYAGG_NULL_ON_NULL;
@@ -853,6 +854,10 @@ public final class Expressions {
      */
     public static ApiExpression jsonString(Object value) {
         return apiCallAtLeastOneArgument(JSON_STRING, value);
+    }
+
+    public static ApiExpression hashCodeGen(Object value) {
+        return apiCallAtLeastOneArgument(HASHCODE, value);
     }
 
     /**

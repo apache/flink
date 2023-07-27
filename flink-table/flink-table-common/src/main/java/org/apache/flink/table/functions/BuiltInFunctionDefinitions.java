@@ -2163,6 +2163,15 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    public static final BuiltInFunctionDefinition HASHCODE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("HASHCODE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(ANY))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
+                    .runtimeProvided()
+                    .build();
+
     public static final BuiltInFunctionDefinition JSON_OBJECT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("JSON_OBJECT")
