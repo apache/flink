@@ -39,6 +39,7 @@ Flink SQL supports the following SHOW statements for now:
 - SHOW CREATE TABLE
 - SHOW COLUMNS
 - SHOW PARTITIONS
+- SHOW PROCEDURES
 - SHOW VIEWS
 - SHOW CREATE VIEW
 - SHOW FUNCTIONS
@@ -799,6 +800,24 @@ show partitions table1 partition (id=1002);
 +---------+-----------------------------+
 2 rows in set
 ```
+
+## SHOW PROCEDURES
+
+```sql
+SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]	
+```
+
+Show all procedures for an optionally specified database. If no database is specified then the procedures are returned from the current database. Additionally, a `<sql_like_pattern>` can be used to filter the procedures.
+
+**LIKE**
+Show all procedures with a `LIKE` clause, whose name is similar to the `<sql_like_pattern>`.
+
+The syntax of the SQL pattern in the `LIKE` clause is the same as that of the `MySQL` dialect.
+* `%` matches any number of characters, even zero characters, and `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
+
+**ILIKE**
+The same behavior as `LIKE` but the SQL pattern is case-insensitive.
 
 ## SHOW VIEWS
 
