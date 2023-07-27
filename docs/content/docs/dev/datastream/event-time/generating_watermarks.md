@@ -241,7 +241,7 @@ WatermarkStrategy \
 {{< /tab >}}
 {{< /tabs >}}
 
-## Watermark alignment _`Beta`_
+## Watermark alignment
 
 In the previous paragraph we discussed a situation when splits/partitions/shards or sources are idle
 and can stall increasing watermarks. On the other side of the spectrum, a split/partition/shard or
