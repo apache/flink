@@ -587,7 +587,7 @@ object BridgingFunctionGenUtil {
            |public class $evaluatorName extends ${className[AbstractRichFunction]} {
            |
            |  ${ctx.reuseMemberCode()}
-           |
+           |  ${ctx.reuseInnerClassDefinitionCode()}
            |  public $evaluatorName(Object[] references) throws Exception {
            |    ${ctx.reuseInitCode()}
            |  }
