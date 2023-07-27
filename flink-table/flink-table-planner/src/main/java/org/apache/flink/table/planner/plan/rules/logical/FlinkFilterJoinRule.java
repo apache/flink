@@ -95,6 +95,7 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                     add(SqlKind.LESS_THAN);
                     add(SqlKind.LESS_THAN_OR_EQUAL);
                     add(SqlKind.NOT_EQUALS);
+                    add(SqlKind.IS_NOT_NULL);
                 }
             };
 
