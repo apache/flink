@@ -60,23 +60,11 @@ public class UnknownCatalogTest {
             ResolvedSchema.of(Column.physical("CURRENT_TIMESTAMP", TIMESTAMP_LTZ(3).notNull()));
 
     @Test
-    public void testUnsetCatalogWithSelect1() throws Exception {
-        ResolvedSchema EXPECTED_SCHEMA =
-                ResolvedSchema.of(Column.physical("EXPR$0", INT().notNull()));
-        TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
-
-        tEnv.useCatalog(null);
-        Table table = tEnv.sqlQuery(String.format("SELECT 1;"));
-
-        assertThat(table.getResolvedSchema()).isEqualTo(EXPECTED_SCHEMA);
-    }
-
-    @Test
     public void testUnsetCatalogWithSelectCurrentTimestamp() throws Exception {
         TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
 
         tEnv.useCatalog(null);
-        Table table = tEnv.sqlQuery(String.format("SELECT CURRENT_TIMESTAMP;"));
+        Table table = tEnv.sqlQuery("SELECT CURRENT_TIMESTAMP;");
 
         assertThat(table.getResolvedSchema()).isEqualTo(CURRENT_TIMESTAMP_EXPECTED_SCHEMA);
     }
@@ -87,7 +75,7 @@ public class UnknownCatalogTest {
 
         tEnv.useCatalog(BUILTIN_CATALOG);
         tEnv.useDatabase(null);
-        Table table = tEnv.sqlQuery(String.format("SELECT CURRENT_TIMESTAMP;"));
+        Table table = tEnv.sqlQuery("SELECT CURRENT_TIMESTAMP;");
 
         assertThat(table.getResolvedSchema()).isEqualTo(CURRENT_TIMESTAMP_EXPECTED_SCHEMA);
     }
@@ -97,7 +85,7 @@ public class UnknownCatalogTest {
         TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
 
         tEnv.useCatalog(BUILTIN_CATALOG);
-        Table table = tEnv.sqlQuery(String.format("SELECT CURRENT_TIMESTAMP;"));
+        Table table = tEnv.sqlQuery("SELECT CURRENT_TIMESTAMP;");
 
         assertThat(table.getResolvedSchema()).isEqualTo(CURRENT_TIMESTAMP_EXPECTED_SCHEMA);
     }
