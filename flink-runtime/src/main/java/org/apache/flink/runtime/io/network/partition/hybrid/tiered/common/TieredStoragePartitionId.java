@@ -18,23 +18,49 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.common;
 
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+
+import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * Identifier of a partition.
  *
  * <p>A partition is equivalent to a result partition in Flink.
  */
-public class TieredStoragePartitionId extends TieredStorageBytesBasedDataIdentifier {
+public class TieredStoragePartitionId implements TieredStorageDataIdentifier, Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    public TieredStoragePartitionId(byte[] bytes) {
-        super(bytes);
+    private final ResultPartitionID partitionID;
+
+    public TieredStoragePartitionId(ResultPartitionID partitionID) {
+        this.partitionID = partitionID;
+    }
+
+    public ResultPartitionID getPartitionID() {
+        return partitionID;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TieredStoragePartitionId that = (TieredStoragePartitionId) o;
+        return Objects.equals(partitionID, that.partitionID);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(partitionID);
     }
 
     @Override
     public String toString() {
-        return "TieredStoragePartitionId{" + "ID=" + StringUtils.byteToHexString(bytes) + '}';
+        return "TieredStoragePartitionId{" + "ID=" + partitionID + '}';
     }
 }
