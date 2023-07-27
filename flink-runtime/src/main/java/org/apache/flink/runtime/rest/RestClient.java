@@ -132,7 +132,7 @@ public class RestClient implements AutoCloseableAsync {
     private final Collection<CompletableFuture<Channel>> responseChannelFutures =
             ConcurrentHashMap.newKeySet();
 
-    @VisibleForTesting List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
+    private final List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories;
 
     public RestClient(Configuration configuration, Executor executor)
             throws ConfigurationException {
@@ -244,6 +244,11 @@ public class RestClient implements AutoCloseableAsync {
     @VisibleForTesting
     Collection<CompletableFuture<Channel>> getResponseChannelFutures() {
         return responseChannelFutures;
+    }
+
+    @VisibleForTesting
+    List<OutboundChannelHandlerFactory> getOutboundChannelHandlerFactories() {
+        return outboundChannelHandlerFactories;
     }
 
     @Override
