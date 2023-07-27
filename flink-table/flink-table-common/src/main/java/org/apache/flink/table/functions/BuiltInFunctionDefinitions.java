@@ -2292,6 +2292,16 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    public static final BuiltInFunctionDefinition HASHCODE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("$HASHCODE$1")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(ANY))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT().notNull())))
+                    .runtimeProvided()
+                    .internal()
+                    .build();
+
     public static final BuiltInFunctionDefinition JSON_OBJECT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("JSON_OBJECT")
