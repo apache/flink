@@ -343,6 +343,27 @@ public class CsvFormatFactoryTest extends TestLogger {
         assertThat(deserialized).isEqualTo(expected);
     }
 
+    @Test
+    public void testDeserializeNullValue() throws IOException {
+        final Map<String, String> options = getAllOptions();
+        options.put("csv.ignore-parse-errors", "false");
+        // Use "|" here to avoid checkstyle failed
+        options.put("csv.field-delimiter", "|");
+
+        List<String> fields = Arrays.asList("a", "b", "c");
+        final Projection projection = Projection.fromFieldNames(PHYSICAL_DATA_TYPE, fields);
+
+        final int[][] projectionMatrix = projection.toNestedIndexes();
+        DeserializationSchema<RowData> actualDeser =
+                createDeserializationSchema(options, projectionMatrix);
+
+        String data = "a1||";
+        RowData deserialized = actualDeser.deserialize(data.getBytes());
+        GenericRowData expected = GenericRowData.of(fromString("a1"), null, null);
+
+        assertThat(deserialized).isEqualTo(expected);
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
