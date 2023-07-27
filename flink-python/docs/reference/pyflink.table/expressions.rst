@@ -240,6 +240,7 @@ advanced type helper functions
     Expression.map_entries
     Expression.map_keys
     Expression.map_values
+    Expression.array_intersect
 
 
 time definition functions
