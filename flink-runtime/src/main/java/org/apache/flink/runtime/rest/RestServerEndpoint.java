@@ -109,7 +109,7 @@ public abstract class RestServerEndpoint implements RestService {
 
     private State state = State.CREATED;
 
-    @VisibleForTesting List<InboundChannelHandlerFactory> inboundChannelHandlerFactories;
+    private final List<InboundChannelHandlerFactory> inboundChannelHandlerFactories;
 
     public RestServerEndpoint(Configuration configuration)
             throws IOException, ConfigurationException {
@@ -150,6 +150,11 @@ public abstract class RestServerEndpoint implements RestService {
         }
         inboundChannelHandlerFactories.sort(
                 Comparator.comparingInt(InboundChannelHandlerFactory::priority).reversed());
+    }
+
+    @VisibleForTesting
+    List<InboundChannelHandlerFactory> getInboundChannelHandlerFactories() {
+        return inboundChannelHandlerFactories;
     }
 
     /**

@@ -47,6 +47,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -124,21 +125,23 @@ class RestExternalHandlersITCase {
     }
 
     @Test
-    void testHandlersMustBeLoaded() throws Exception {
-        assertEquals(serverEndpoint.inboundChannelHandlerFactories.size(), 2);
+    void testHandlersMustBeLoaded() {
+        final List<InboundChannelHandlerFactory> inboundChannelHandlerFactories =
+                serverEndpoint.getInboundChannelHandlerFactories();
+        assertEquals(inboundChannelHandlerFactories.size(), 2);
         assertTrue(
-                serverEndpoint.inboundChannelHandlerFactories.get(0)
-                        instanceof Prio1InboundChannelHandlerFactory);
+                inboundChannelHandlerFactories.get(0) instanceof Prio1InboundChannelHandlerFactory);
         assertTrue(
-                serverEndpoint.inboundChannelHandlerFactories.get(1)
-                        instanceof Prio0InboundChannelHandlerFactory);
+                inboundChannelHandlerFactories.get(1) instanceof Prio0InboundChannelHandlerFactory);
 
-        assertEquals(restClient.outboundChannelHandlerFactories.size(), 2);
+        final List<OutboundChannelHandlerFactory> outboundChannelHandlerFactories =
+                restClient.getOutboundChannelHandlerFactories();
+        assertEquals(outboundChannelHandlerFactories.size(), 2);
         assertTrue(
-                restClient.outboundChannelHandlerFactories.get(0)
+                outboundChannelHandlerFactories.get(0)
                         instanceof Prio1OutboundChannelHandlerFactory);
         assertTrue(
-                restClient.outboundChannelHandlerFactories.get(1)
+                outboundChannelHandlerFactories.get(1)
                         instanceof Prio0OutboundChannelHandlerFactory);
 
         try {
