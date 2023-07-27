@@ -639,7 +639,7 @@ under the License.
 									<include>org.apache.beam:*</include>
 									<include>com.fasterxml.jackson.core:*</include>
 									<include>joda-time:*</include>
-									<inculde>com.google.protobuf:*</inculde>
+									<include>com.google.protobuf:*</include>
 									<include>org.apache.arrow:*</include>
 									<include>io.netty:*</include>
 									<include>com.google.flatbuffers:*</include>
