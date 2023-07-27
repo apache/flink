@@ -59,6 +59,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_EXCEPT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MAX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_POSITION;
@@ -228,6 +229,19 @@ public abstract class BaseExpressions<InType, OutType> {
                                         Stream.of(toExpr(), ApiExpressionUtils.valueLiteral(name)),
                                         Stream.of(extraNames).map(ApiExpressionUtils::valueLiteral))
                                 .toArray(Expression[]::new)));
+    }
+
+    /**
+     * Returns an ARRAY that contains the elements from array1 that are not in array2. If no
+     * elements remain after excluding the elements in array2 from array1, the function returns an
+     * empty ARRAY.
+     *
+     * <p>If one or both arguments are NULL, the function returns NULL. The order of the elements
+     * from array1 is kept.
+     */
+    public OutType arrayExcept(InType array) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_EXCEPT, toExpr(), objectToExpression(array)));
     }
 
     /**
