@@ -565,9 +565,14 @@ INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 WITH (key1=val1, key2=val2, ...)
 AS select_query
 ```
-Tables can also be replaced(or created) and populated by the results of a query in one replace-table-as-select (RTAS) statement.  RTAS is the simplest and fastest way to replace and insert data into a table with a single command.
 
-There are two parts in RTAS: the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL, the `[CREATE OR] REPLACE` part takes the resulting schema from the `SELECT` part and replace the target table. Similar to `CREATE TABLE` and `CTAS`, RTAS requires the required options of the target table must be specified in WITH clause.
+**Note** RTAS has the following semantic:
+* REPLACE TABLE AS SELECT statement: the target table to be replaced must exist, otherwise, an exception will be thrown.
+* CREATE OR REPLACE TABLE AS SELECT statement: the target table to be replaced will be created if it does not exist; if it does exist, it'll be replaced.
+
+Tables can also be replaced(or created) and populated by the results of a query in one [CREATE OR] REPLACE TABLE(RTAS) statement.  RTAS is the simplest and fastest way to replace and insert data into a table with a single command.
+
+There are two parts in RTAS: the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL, the `REPLACE TABLE` part takes the resulting schema from the `SELECT` part and replace the target table. Similar to `CREATE TABLE` and `CTAS`, RTAS requires the required options of the target table must be specified in WITH clause.
 
 Consider the example statement below:
 
@@ -580,7 +585,7 @@ WITH (
 AS SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
-The `[CREATE OR] REPLACE TABLE` statement is equivalent to first drop the table, then create the table and insert the data with the following statement:
+The `REPLACE TABLE AS SELECT` statement is equivalent to first drop the table, then create the table and insert the data with the following statement:
 ```sql
 DROP TABLE my_rtas_table;
 
@@ -595,10 +600,6 @@ CREATE TABLE my_rtas_table (
  
 INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
-
-**Note** RTAS has the following semantic:
-* REPLACE TABLE AS SELECT statement, the target table to be replaced must exist or an exception is thrown.
-* CREATE OR REPLACE TABLE AS SELECT statement, the target table to be replaced is created if it does not exist; if it does exist, it is replaced.
 
 **Note** RTAS has these restrictions:
 
