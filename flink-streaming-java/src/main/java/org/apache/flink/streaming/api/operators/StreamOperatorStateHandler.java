@@ -85,15 +85,18 @@ public class StreamOperatorStateHandler {
     @Nullable private final DefaultKeyedStateStore keyedStateStore;
     private final OperatorStateBackend operatorStateBackend;
     private final StreamOperatorStateContext context;
+    private final boolean allowNonRestored;
 
     public StreamOperatorStateHandler(
             StreamOperatorStateContext context,
             ExecutionConfig executionConfig,
-            CloseableRegistry closeableRegistry) {
+            CloseableRegistry closeableRegistry,
+            boolean allowNonRestored) {
         this.context = context;
         operatorStateBackend = context.operatorStateBackend();
         keyedStateBackend = context.keyedStateBackend();
         this.closeableRegistry = closeableRegistry;
+        this.allowNonRestored = allowNonRestored;
 
         if (keyedStateBackend != null) {
             keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, executionConfig);
@@ -120,6 +123,7 @@ public class StreamOperatorStateHandler {
                             operatorStateInputs); // access to operator state stream
 
             streamOperator.initializeState(initializationContext);
+            operatorStateBackend.checkStateIsRemoved(allowNonRestored);
         } finally {
             closeFromRegistry(operatorStateInputs, closeableRegistry);
             closeFromRegistry(keyedStateInputs, closeableRegistry);

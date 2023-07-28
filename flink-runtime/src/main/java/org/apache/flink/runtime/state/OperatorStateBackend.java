@@ -35,4 +35,10 @@ public interface OperatorStateBackend
 
     @Override
     void dispose();
+
+    /**
+     * This check checks whether the operator state restored from the savepoint will be used in the
+     * new job. It should be called after operator state initialization.
+     */
+    void checkStateIsRemoved(boolean allowNonRestored);
 }

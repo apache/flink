@@ -28,6 +28,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.operators.util.CorruptConfigurationException;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
@@ -539,6 +540,14 @@ public class StreamConfig implements Serializable {
         config.set(
                 ExecutionCheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE,
                 maxSubtasksPerChannelStateFile);
+    }
+
+    public void setAllowNonRestoredState(boolean allowNonRestoredState) {
+        config.set(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, allowNonRestoredState);
+    }
+
+    public boolean isAllowNonRestoredState() {
+        return config.get(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE);
     }
 
     /**

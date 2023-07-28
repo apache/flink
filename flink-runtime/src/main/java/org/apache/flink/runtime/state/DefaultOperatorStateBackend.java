@@ -39,6 +39,7 @@ import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.RunnableFuture;
@@ -114,6 +115,41 @@ public class DefaultOperatorStateBackend implements OperatorStateBackend {
     @Override
     public Set<String> getRegisteredBroadcastStateNames() {
         return registeredBroadcastStates.keySet();
+    }
+
+    @Override
+    public void checkStateIsRemoved(boolean allowNonRestored) {
+        checkCorrespondingStateIsRemoved(
+                allowNonRestored,
+                registeredOperatorStates.keySet().iterator(),
+                accessedStatesByName);
+        checkCorrespondingStateIsRemoved(
+                allowNonRestored,
+                registeredBroadcastStates.keySet().iterator(),
+                accessedBroadcastStatesByName);
+    }
+
+    private void checkCorrespondingStateIsRemoved(
+            boolean allowNonRestored,
+            Iterator<String> restoredAndAccessedStatesIterator,
+            Map<String, ?> accessedStates) {
+        while (restoredAndAccessedStatesIterator.hasNext()) {
+            String stateName = restoredAndAccessedStatesIterator.next();
+            if (accessedStates.containsKey(stateName)) {
+                continue;
+            }
+            if (allowNonRestored) {
+                LOG.info("Skipping and discarding the state {}.", stateName);
+                restoredAndAccessedStatesIterator.remove();
+                continue;
+            }
+            throw new IllegalStateException(
+                    String.format(
+                            "Cannot find the state %s from the new program. "
+                                    + "If you want to allow to skip this, you can set the --allowNonRestoredState "
+                                    + "option on the CLI.",
+                            stateName));
+        }
     }
 
     @Override

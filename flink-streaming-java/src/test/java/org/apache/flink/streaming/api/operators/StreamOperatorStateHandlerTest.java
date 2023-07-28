@@ -118,7 +118,7 @@ public class StreamOperatorStateHandlerTest {
                             false);
             StreamOperatorStateHandler stateHandler =
                     new StreamOperatorStateHandler(
-                            stateContext, new ExecutionConfig(), closeableRegistry);
+                            stateContext, new ExecutionConfig(), closeableRegistry, true);
 
             final String keyedStateField = "keyedStateField";
             final String operatorStateField = "operatorStateField";
