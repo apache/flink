@@ -29,6 +29,9 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -38,12 +41,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.SegmentPartitionFile.getSegmentFinishDirPath;
 import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.SegmentPartitionFile.getSegmentPath;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The {@link RemoteStorageScanner} is introduced to notify asynchronously for file reading on
@@ -55,6 +58,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  * availability of segment file.
  */
 public class RemoteStorageScanner implements Runnable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(RemoteStorageScanner.class);
+
+    /** The max retry time of checking file status through remote filesystem. */
+    private static final int MAX_RETRY_TIME = 100;
 
     /** The initial scan interval is 100ms. */
     private static final int INITIAL_SCAN_INTERVAL_MS = 100;
@@ -88,6 +96,8 @@ public class RemoteStorageScanner implements Runnable {
 
     private int lastInterval = INITIAL_SCAN_INTERVAL_MS;
 
+    private int currentRetryTime = 0;
+
     public RemoteStorageScanner(String baseRemoteStoragePath) {
         this.baseRemoteStoragePath = baseRemoteStoragePath;
         this.requiredSegmentIds = new ConcurrentHashMap<>();
@@ -109,7 +119,11 @@ public class RemoteStorageScanner implements Runnable {
 
     /** Start the executor. */
     public void start() {
-        scannerExecutor.schedule(this, lastInterval, TimeUnit.MILLISECONDS);
+        synchronized (scannerExecutor) {
+            if (!scannerExecutor.isShutdown()) {
+                scannerExecutor.schedule(this, lastInterval, TimeUnit.MILLISECONDS);
+            }
+        }
     }
 
     /**
@@ -144,7 +158,16 @@ public class RemoteStorageScanner implements Runnable {
 
     /** Close the executor. */
     public void close() {
-        scannerExecutor.shutdownNow();
+        synchronized (scannerExecutor) {
+            scannerExecutor.shutdownNow();
+        }
+        try {
+            if (!scannerExecutor.awaitTermination(5L, TimeUnit.MINUTES)) {
+                throw new TimeoutException("Timeout to shutdown the flush thread.");
+            }
+        } catch (InterruptedException | TimeoutException e) {
+            ExceptionUtils.rethrow(e);
+        }
     }
 
     /** Iterate the watched segment ids and check related file status. */
@@ -207,20 +230,23 @@ public class RemoteStorageScanner implements Runnable {
         Path segmentFinishDir =
                 getSegmentFinishDirPath(
                         baseRemoteStoragePath, partitionId, subpartitionId.getSubpartitionId());
-        FileStatus[] fileStatuses;
+        FileStatus[] fileStatuses = new FileStatus[0];
         try {
             if (!remoteFileSystem.exists(segmentFinishDir)) {
                 return;
             }
             fileStatuses = remoteFileSystem.listStatus(segmentFinishDir);
-        } catch (IOException e) {
-            throw new RuntimeException(
-                    "Failed to list the segment finish file. " + segmentFinishDir, e);
+            currentRetryTime = 0;
+        } catch (Throwable t) {
+            if (t instanceof java.io.FileNotFoundException) {
+                return;
+            }
+            currentRetryTime++;
+            tryThrowException(t, "Failed to list the segment finish file.");
         }
-        if (fileStatuses.length == 0) {
+        if (fileStatuses.length != 1) {
             return;
         }
-        checkState(fileStatuses.length == 1);
         scannedMaxSegmentIds.put(
                 Tuple2.of(partitionId, subpartitionId),
                 Integer.parseInt(fileStatuses[0].getPath().getName()));
@@ -236,13 +262,22 @@ public class RemoteStorageScanner implements Runnable {
                         partitionId,
                         subpartitionId.getSubpartitionId(),
                         segmentId);
-        boolean isExist;
+        boolean isExist = false;
         try {
             isExist = remoteFileSystem.exists(segmentPath);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to check segment file. " + segmentPath, e);
+            currentRetryTime = 0;
+        } catch (Throwable t) {
+            currentRetryTime++;
+            tryThrowException(t, "Failed to check the status of segment file.");
         }
         return isExist;
+    }
+
+    private void tryThrowException(Throwable t, String logMessage) {
+        LOG.warn(logMessage);
+        if (currentRetryTime > MAX_RETRY_TIME) {
+            throw new RuntimeException(logMessage, t);
+        }
     }
 
     /**
