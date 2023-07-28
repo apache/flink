@@ -199,7 +199,19 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
         // Calcite will shuffle the output order of groupings.
         // So the output fields order will be changed too.
         // See RelBuilder.aggregate, it use ImmutableBitSet to store groupings,
-        return relBuilder.field(fieldReference.getName());
+        String[] nestedFields = fieldReference.getName().split("\\.");
+        if (nestedFields.length > 0) {
+            RexNode fieldAccess = relBuilder.field(nestedFields[0]);
+            for (int i = 1; i < nestedFields.length; i++) {
+                fieldAccess =
+                        relBuilder
+                                .getRexBuilder()
+                                .makeFieldAccess(fieldAccess, nestedFields[i], true);
+            }
+            return fieldAccess;
+        } else {
+            return relBuilder.field(fieldReference.getName());
+        }
     }
 
     @Override

@@ -37,6 +37,7 @@ import org.apache.flink.table.types.logical.YearMonthIntervalType
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
@@ -395,8 +396,18 @@ class RexNodeToExpressionConverter(
     inputNames: Array[String],
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager,
-    timeZone: TimeZone)
+    timeZone: TimeZone,
+    relDataType: Option[RelDataType] = None)
   extends RexVisitor[Option[ResolvedExpression]] {
+
+  def this(
+      rexBuilder: RexBuilder,
+      inputNames: Array[String],
+      functionCatalog: FunctionCatalog,
+      catalogManager: CatalogManager,
+      timeZone: TimeZone) = {
+    this(rexBuilder, inputNames, functionCatalog, catalogManager, timeZone, null)
+  }
 
   override def visitInputRef(inputRef: RexInputRef): Option[ResolvedExpression] = {
     Preconditions.checkArgument(inputRef.getIndex < inputNames.length)
@@ -405,8 +416,7 @@ class RexNodeToExpressionConverter(
         inputNames(inputRef.getIndex),
         fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(inputRef.getType)),
         0,
-        inputRef.getIndex
-      ))
+        inputRef.getIndex))
   }
 
   override def visitTableInputRef(rexTableInputRef: RexTableInputRef): Option[ResolvedExpression] =
@@ -538,8 +548,84 @@ class RexNodeToExpressionConverter(
     }
   }
 
-  override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[ResolvedExpression] = None
+  override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[ResolvedExpression] = {
+    relDataType match {
+      case Some(dataType) =>
+        val schema = new NestedSchema(dataType)
+        def internalVisit(fieldAccess: RexFieldAccess): (Boolean, Int, List[String]) = {
+          fieldAccess.getReferenceExpr match {
+            case ref: RexInputRef =>
+              (true, ref.getIndex, List(ref.getName, fieldAccess.getField.getName))
+            case fac: RexFieldAccess =>
+              val (success, i, n) = internalVisit(fac)
+              (success, i, if (success) n :+ fieldAccess.getField.getName else null)
+            case expr =>
+              // only extract operands of the expression
+              expr.accept(this)
+              (false, -1, null)
+          }
+        }
 
+        // extract the info
+        val (success, index, names) = internalVisit(fieldAccess)
+        if (!success) {
+          throw new TableException(
+            "Nested fields access is only supported on top of input references.")
+        }
+
+        val topLevelNodeName = schema.inputRowType.getFieldNames.get(index)
+        val topLevelNode = if (!schema.columns.contains(topLevelNodeName)) {
+          val fieldType = schema.inputRowType.getFieldList.get(index).getType
+          val node = new NestedColumn(topLevelNodeName, index, fieldType)
+          schema.columns.put(topLevelNodeName, node)
+          node
+        } else {
+          schema.columns.get(topLevelNodeName)
+        }
+
+        val leaf = names.slice(1, names.size).foldLeft(topLevelNode) {
+          case (parent, name) =>
+            if (parent.isLeaf) {
+              Some(
+                new FieldReferenceExpression(
+                  schema.columns.get(0).name,
+                  fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(parent.originFieldType)),
+                  index,
+                  fieldAccess.getField.getIndex))
+            }
+            if (!parent.children.containsKey(name)) {
+              val rowtype = parent.originFieldType
+              val index = rowtype.getFieldNames.indexOf(name)
+              if (index < 0) {
+                throw new TableException(
+                  String
+                    .format("Could not find field %s in field %s.", name, parent.originFieldType))
+              }
+              parent.addChild(
+                new NestedColumn(name, index, rowtype.getFieldList.get(index).getType))
+            }
+            parent.children.get(name)
+        }
+        leaf.markLeaf()
+
+        var (topLevelColumnName, nestedColumn) = schema.columns.head
+        val nestedFieldName = new StringBuilder()
+
+        while (!nestedColumn.isLeaf) {
+          nestedFieldName.append(topLevelColumnName).append(".")
+          topLevelColumnName = nestedColumn.children.head._1
+          nestedColumn = nestedColumn.children.head._2
+        }
+        nestedFieldName.append(topLevelColumnName)
+
+        Some(
+          new FieldReferenceExpression(
+            nestedFieldName.toString(),
+            fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(leaf.originFieldType)),
+            index,
+            fieldAccess.getField.getIndex))
+    }
+  }
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): Option[ResolvedExpression] =
     None
 

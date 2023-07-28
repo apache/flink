@@ -628,6 +628,14 @@ object FlinkRexUtil {
     projects.forall(RexUtil.isDeterministic)
   }
 
+  def extractPredicates(
+      inputNames: Array[String],
+      filterExpression: RexNode,
+      rel: RelNode,
+      rexBuilder: RexBuilder): (Array[RexNode], Array[RexNode]) = {
+    extractPredicates(inputNames, filterExpression, rel, rexBuilder, null)
+  }
+
   /**
    * Return convertible rex nodes and unconverted rex nodes extracted from the filter expression.
    */
@@ -635,7 +643,8 @@ object FlinkRexUtil {
       inputNames: Array[String],
       filterExpression: RexNode,
       rel: RelNode,
-      rexBuilder: RexBuilder): (Array[RexNode], Array[RexNode]) = {
+      rexBuilder: RexBuilder,
+      relDataType: RelDataType): (Array[RexNode], Array[RexNode]) = {
     val context = ShortcutUtils.unwrapContext(rel)
     val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(rel);
     val converter =
@@ -644,7 +653,8 @@ object FlinkRexUtil {
         inputNames,
         context.getFunctionCatalog,
         context.getCatalogManager,
-        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(context.getTableConfig)));
+        TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(context.getTableConfig)),
+        Some(relDataType));
 
     RexNodeExtractor.extractConjunctiveConditions(
       filterExpression,

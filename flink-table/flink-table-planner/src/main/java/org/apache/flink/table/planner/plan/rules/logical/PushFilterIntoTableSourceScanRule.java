@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Filter;
@@ -30,6 +33,9 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
 import scala.Tuple2;
+
+import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createProducedType;
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 
 /**
  * Planner rule that tries to push a filter into a {@link LogicalTableScan}, which table is a {@link
@@ -77,12 +83,17 @@ public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanR
             FlinkPreparingTableBase relOptTable) {
 
         RelBuilder relBuilder = call.builder();
+        final TableSourceTable sourceTable = scan.getTable().unwrap(TableSourceTable.class);
+        final FlinkTypeFactory typeFactory = unwrapTypeFactory(scan);
+        final ResolvedSchema schema = sourceTable.contextResolvedTable().getResolvedSchema();
+        final RowType producedType = createProducedType(schema, sourceTable.tableSource());
         Tuple2<RexNode[], RexNode[]> extractedPredicates =
                 FlinkRexUtil.extractPredicates(
                         filter.getInput().getRowType().getFieldNames().toArray(new String[0]),
                         filter.getCondition(),
                         scan,
-                        relBuilder.getRexBuilder());
+                        relBuilder.getRexBuilder(),
+                        typeFactory.buildRelNodeRowType(producedType));
 
         RexNode[] convertiblePredicates = extractedPredicates._1;
         RexNode[] unconvertedPredicates = extractedPredicates._2;
@@ -96,7 +107,8 @@ public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanR
                         convertiblePredicates,
                         relOptTable.unwrap(TableSourceTable.class),
                         scan,
-                        relBuilder);
+                        relBuilder,
+                        typeFactory.buildRelNodeRowType(producedType));
 
         SupportsFilterPushDown.Result result = scanAfterPushdownWithResult._1;
         TableSourceTable tableSourceTable = scanAfterPushdownWithResult._2;

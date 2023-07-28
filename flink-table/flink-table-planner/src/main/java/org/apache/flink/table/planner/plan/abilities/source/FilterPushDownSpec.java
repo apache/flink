@@ -35,6 +35,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 
@@ -44,6 +45,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
+
+import scala.Option;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -86,7 +89,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
 
     @Override
     public void apply(DynamicTableSource tableSource, SourceAbilityContext context) {
-        SupportsFilterPushDown.Result result = apply(predicates, tableSource, context);
+        SupportsFilterPushDown.Result result = apply(predicates, tableSource, context, null);
         if (result.getAcceptedFilters().size() != predicates.size()) {
             throw new TableException("All predicates should be accepted here.");
         }
@@ -95,7 +98,8 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
     public static SupportsFilterPushDown.Result apply(
             List<RexNode> predicates,
             DynamicTableSource tableSource,
-            SourceAbilityContext context) {
+            SourceAbilityContext context,
+            RelDataType relDataType) {
         if (tableSource instanceof SupportsFilterPushDown) {
             RexNodeToExpressionConverter converter =
                     new RexNodeToExpressionConverter(
@@ -104,7 +108,8 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
                             context.getFunctionCatalog(),
                             context.getCatalogManager(),
                             TimeZone.getTimeZone(
-                                    TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
+                                    TableConfigUtils.getLocalTimeZone(context.getTableConfig())),
+                            Option.apply(relDataType));
             List<Expression> filters =
                     predicates.stream()
                             .map(

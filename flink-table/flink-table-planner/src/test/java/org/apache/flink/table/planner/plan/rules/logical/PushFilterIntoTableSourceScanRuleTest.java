@@ -118,4 +118,20 @@ public class PushFilterIntoTableSourceScanRuleTest
         util.tableEnv().executeSql(ddl);
         super.testWithInterval();
     }
+
+    @Test
+    public void testNestedFieldFilterPushdown() {
+        String ddl =
+                "CREATE TABLE MTable (\n"
+                        + "  a ROW<`a1` INT, `a2` INT>,\n"
+                        + "  b ROW<`b1` ROW<`b11` INT>, `b2` INT>\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = 'a.a1;a.a2;b.b1.b11;b.b2',\n"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+
+        util.tableEnv().executeSql(ddl);
+        super.testFilterWithNestedFields();
+    }
 }

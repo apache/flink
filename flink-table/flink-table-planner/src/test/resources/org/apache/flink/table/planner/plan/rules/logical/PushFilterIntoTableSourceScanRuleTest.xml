@@ -414,4 +414,22 @@ LogicalProject(a=[$0])
 ]]>
     </Resource>
   </TestCase>
+	<TestCase name="testNestedFieldFilterPushdown">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM MTable WHERE b.`b1`.`b11` > 2]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1.b1.b11, 2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MTable]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MTable, filter=[>(b.b1.b11, 2)]]])
+]]>
+		</Resource>
+	</TestCase>
 </Root>

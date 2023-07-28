@@ -103,7 +103,8 @@ public class PushFilterInCalcIntoTableSourceScanRule extends PushFilterIntoSourc
                         convertiblePredicates,
                         relOptTable.unwrap(TableSourceTable.class),
                         scan,
-                        relBuilder);
+                        relBuilder,
+                        null);
 
         SupportsFilterPushDown.Result result = pushdownResultWithScan._1;
         TableSourceTable tableSourceTable = pushdownResultWithScan._2;
