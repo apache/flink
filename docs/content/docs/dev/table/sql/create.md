@@ -570,7 +570,7 @@ AS select_query
 * REPLACE TABLE AS SELECT statement: the target table to be replaced must exist, otherwise, an exception will be thrown.
 * CREATE OR REPLACE TABLE AS SELECT statement: the target table to be replaced will be created if it does not exist; if it does exist, it'll be replaced.
 
-Tables can also be replaced(or created) and populated by the results of a query in one [CREATE OR] REPLACE TABLE(RTAS) statement.  RTAS is the simplest and fastest way to replace and insert data into a table with a single command.
+Tables can be replaced(or created) and populated by the results of a query in one [CREATE OR] REPLACE TABLE AS SELECT(RTAS) statement. RTAS is the simplest and fastest way to replace(or create) and insert data into a table with a single command.
 
 There are two parts in RTAS: the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL, the `REPLACE TABLE` part takes the resulting schema from the `SELECT` part and replace the target table. Similar to `CREATE TABLE` and `CTAS`, RTAS requires the required options of the target table must be specified in WITH clause.
 

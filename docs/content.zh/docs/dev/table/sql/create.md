@@ -570,7 +570,7 @@ AS select_query
 * REPLACE TABLE AS SELECT 语句：要被替换的目标表必须存在，否则会报错。
 * CREATE OR REPLACE TABLE AS SELECT 语句：要被替换的目标表如果不存在，引擎会自动创建；如果存在的话，引擎就直接替换它。
 
-表也可以通过一个 [CREATE OR] REPLACE TABLE(RTAS) 语句中的查询结果来替换(或创建)并填充数据，RTAS 是一种简单快捷的替换表并插入数据的方法。
+表可以通过一个 [CREATE OR] REPLACE TABLE AS SELECT（RTAS）语句中的查询结果来替换（或创建）并填充数据，RTAS 是一种简单快捷的替换（或创建）表并插入数据的方法。
 
 RTAS 有两个部分：SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})， `REPLACE TABLE` 部分会先删除已经存在的目标表，然后根据从 `SELECT` 查询中获取列信息，创建新的目标表。 与 `CREATE TABLE` 和 `CTAS` 类似，RTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
 
