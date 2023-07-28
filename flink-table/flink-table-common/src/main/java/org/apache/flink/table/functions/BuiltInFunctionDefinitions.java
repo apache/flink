@@ -165,6 +165,44 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayContainsFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition MAP_KEYS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_KEYS")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    new String[] {"input"},
+                                    new ArgumentTypeStrategy[] {logical(LogicalTypeRoot.MAP)}))
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.MAP_KEYS))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.MapKeysFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition MAP_VALUES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_VALUES")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    new String[] {"input"},
+                                    new ArgumentTypeStrategy[] {logical(LogicalTypeRoot.MAP)}))
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.MAP_VALUES))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MapValuesFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition MAP_ENTRIES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_ENTRIES")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    new String[] {"input"},
+                                    new ArgumentTypeStrategy[] {logical(LogicalTypeRoot.MAP)}))
+                    .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.MAP_ENTRIES))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MapEntriesFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")

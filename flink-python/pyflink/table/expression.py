@@ -1480,6 +1480,30 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayContains")(self, needle)
 
+    @property
+    def map_keys(self) -> 'Expression':
+        """
+        Returns the keys of the map as an array. No order guaranteed.
+        .. seealso:: :py:attr:`~Expression.map_keys`
+        """
+        return _unary_op("mapKeys")(self)
+
+    @property
+    def map_values(self) -> 'Expression':
+        """
+        Returns the values of the map as an array. No order guaranteed.
+        .. seealso:: :py:attr:`~Expression.map_values`
+        """
+        return _unary_op("mapValues")(self)
+
+    @property
+    def map_entries(self) -> 'Expression':
+        """
+        Returns an array of all entries in the given map. No order guaranteed.
+        .. seealso:: :py:attr:`~Expression.map_entries`
+        """
+        return _unary_op("mapEntries")(self)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property

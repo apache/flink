@@ -117,6 +117,9 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOG2;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LOWER;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LPAD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LTRIM;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_ENTRIES;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_KEYS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_VALUES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MD5;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MIN;
@@ -1347,6 +1350,21 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType arrayContains(InType needle) {
         return toApiSpecificExpression(
                 unresolvedCall(ARRAY_CONTAINS, toExpr(), objectToExpression(needle)));
+    }
+
+    /** Returns the keys of the map as an array. */
+    public OutType mapKeys() {
+        return toApiSpecificExpression(unresolvedCall(MAP_KEYS, toExpr()));
+    }
+
+    /** Returns the values of the map as an array. */
+    public OutType mapValues() {
+        return toApiSpecificExpression(unresolvedCall(MAP_VALUES, toExpr()));
+    }
+
+    /** Returns an array of all entries in the given map. */
+    public OutType mapEntries() {
+        return toApiSpecificExpression(unresolvedCall(MAP_ENTRIES, toExpr()));
     }
 
     // Time definition
