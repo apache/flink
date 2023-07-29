@@ -205,7 +205,8 @@ class OggJsonSerDeSchemaTest {
                         "+U(110,jacket,new water resistent white wind breaker,0.5)",
                         "-U(111,scooter,Big 2-wheel scooter ,5.18)",
                         "+U(111,scooter,Big 2-wheel scooter ,5.17)",
-                        "-D(111,scooter,Big 2-wheel scooter ,5.17)");
+                        "-D(111,scooter,Big 2-wheel scooter ,5.17)",
+                        "+U(111,scooter,Big 2-wheel scooter ,5.17)");
         List<String> actual =
                 collector.list.stream().map(Object::toString).collect(Collectors.toList());
         assertThat(expected).containsExactlyElementsOf(actual);
@@ -245,7 +246,8 @@ class OggJsonSerDeSchemaTest {
                         "{\"before\":null,\"after\":{\"id\":110,\"name\":\"jacket\",\"description\":\"new water resistent white wind breaker\",\"weight\":0.5},\"op_type\":\"I\"}",
                         "{\"before\":{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.18},\"after\":null,\"op_type\":\"D\"}",
                         "{\"before\":null,\"after\":{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.17},\"op_type\":\"I\"}",
-                        "{\"before\":{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.17},\"after\":null,\"op_type\":\"D\"}");
+                        "{\"before\":{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.17},\"after\":null,\"op_type\":\"D\"}",
+                        "{\"before\":null,\"after\":{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.17},\"op_type\":\"I\"}");
         assertThat(expected).containsExactlyElementsOf(actual);
     }
 
