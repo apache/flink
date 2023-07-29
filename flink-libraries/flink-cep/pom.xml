@@ -109,6 +109,15 @@ under the License.
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-shapefile</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-swing</artifactId>
+		</dependency>
     </dependencies>
     
     <build>

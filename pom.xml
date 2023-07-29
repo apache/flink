@@ -60,6 +60,20 @@ under the License.
 				<enabled>false</enabled>
 			</releases>
 		</repository>
+		<repository>
+			<id>osgeo</id>
+			<name>OSGeo Release Repository</name>
+			<url>https://repo.osgeo.org/repository/release/</url>
+			<snapshots><enabled>false</enabled></snapshots>
+			<releases><enabled>true</enabled></releases>
+		</repository>
+		<repository>
+			<id>osgeo-snapshot</id>
+			<name>OSGeo Snapshot Repository</name>
+			<url>https://repo.osgeo.org/repository/snapshot/</url>
+			<snapshots><enabled>true</enabled></snapshots>
+			<releases><enabled>false</enabled></releases>
+		</repository>
 	</repositories>
 
 	<modules>
@@ -173,6 +187,7 @@ under the License.
 		<orc.version>1.5.6</orc.version>
 		<japicmp.referenceVersion>1.17.0</japicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
+		<geotools.version>30-SNAPSHOT</geotools.version>
 		<spotless.version>2.27.1</spotless.version>
 		<spotless.scalafmt.version>3.4.3</spotless.scalafmt.version>
 		<spotless.delimiter>package</spotless.delimiter>
@@ -937,7 +952,16 @@ under the License.
 					</exclusion>
 				</exclusions>
 			</dependency>
-
+			<dependency>
+				<groupId>org.geotools</groupId>
+				<artifactId>gt-shapefile</artifactId>
+				<version>${geotools.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.geotools</groupId>
+				<artifactId>gt-swing</artifactId>
+				<version>${geotools.version}</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
