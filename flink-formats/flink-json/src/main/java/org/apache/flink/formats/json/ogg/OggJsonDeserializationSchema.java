@@ -33,6 +33,8 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -161,7 +163,8 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
             return;
         }
         try {
-            GenericRowData row = (GenericRowData) jsonDeserializer.deserialize(message);
+            final JsonNode root = jsonDeserializer.deserializeToJsonNode(message);
+            GenericRowData row = (GenericRowData) jsonDeserializer.convertToRowData(root);
 
             GenericRowData before = (GenericRowData) row.getField(0);
             GenericRowData after = (GenericRowData) row.getField(1);
@@ -174,9 +177,14 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
                     throw new IllegalStateException(
                             String.format(REPLICA_IDENTITY_EXCEPTION, "UPDATE"));
                 }
-                before.setRowKind(RowKind.UPDATE_BEFORE);
+
+                // for case: "before":{}
+                if (!root.get("before").isEmpty()) {
+                    before.setRowKind(RowKind.UPDATE_BEFORE);
+                    emitRow(row, before, out);
+                }
+
                 after.setRowKind(RowKind.UPDATE_AFTER);
-                emitRow(row, before, out);
                 emitRow(row, after, out);
             } else if (OP_DELETE.equals(op)) {
                 if (before == null) {
