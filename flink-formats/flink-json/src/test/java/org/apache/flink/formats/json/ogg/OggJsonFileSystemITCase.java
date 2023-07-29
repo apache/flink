@@ -62,7 +62,8 @@ class OggJsonFileSystemITCase extends StreamingTestBase {
                     "+I[110, JACKET, new water resistent white wind breaker, 0.5]", // +U
                     "-D[111, SCOOTER, Big 2-wheel scooter , 5.18]", // -U
                     "+I[111, SCOOTER, Big 2-wheel scooter , 5.17]", // +U
-                    "-D[111, SCOOTER, Big 2-wheel scooter , 5.17]");
+                    "-D[111, SCOOTER, Big 2-wheel scooter , 5.17]",
+                    "+I[111, SCOOTER, Big 2-wheel scooter , 5.17]");
 
     private File source;
     private File sink;
