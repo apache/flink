@@ -195,7 +195,7 @@ public abstract class TestJvmProcess {
         System.out.println("-----------------------------------------");
     }
 
-    public void destroy() {
+    public void destroy() throws InterruptedException {
         synchronized (createDestroyLock) {
             checkState(process != null, "process not started");
 
@@ -207,27 +207,10 @@ public abstract class TestJvmProcess {
             LOG.info("Destroying " + getName() + " process.");
 
             try {
-                // try to call "destroyForcibly()" on Java 8
-                boolean destroyed = false;
-                try {
-                    Method m = process.getClass().getMethod("destroyForcibly");
-                    m.setAccessible(true);
-                    m.invoke(process);
-                    destroyed = true;
-                } catch (NoSuchMethodException ignored) {
-                    // happens on Java 7
-                } catch (Throwable t) {
-                    LOG.error("Failed to forcibly destroy process", t);
-                }
-
-                // if it was not destroyed, call the regular destroy method
-                if (!destroyed) {
-                    try {
-                        process.destroy();
-                    } catch (Throwable t) {
-                        LOG.error("Error while trying to destroy process.", t);
-                    }
-                }
+                process.destroyForcibly();
+                process.waitFor();
+            } catch (Throwable t) {
+                LOG.error("Error while trying to destroy process.", t);
             } finally {
                 destroyed = true;
                 ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
