@@ -25,7 +25,12 @@ import org.apache.flink.table.data.RowData;
 /**
  * Provider of a {@link SourceFunction} instance as a runtime implementation for {@link
  * ScanTableSource}.
+ *
+ * @deprecated This interface is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use {@link org.apache.flink.table.connector.source.SourceProvider} instead.
  */
+@Deprecated
 @PublicEvolving
 public interface SourceFunctionProvider extends ScanTableSource.ScanRuntimeProvider {
 

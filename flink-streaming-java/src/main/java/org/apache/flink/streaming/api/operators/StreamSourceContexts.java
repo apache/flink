@@ -29,7 +29,14 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.concurrent.ScheduledFuture;
 
-/** Source contexts for various stream time characteristics. */
+/**
+ * Source contexts for various stream time characteristics.
+ *
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
+ */
+@Deprecated
 public class StreamSourceContexts {
 
     /**

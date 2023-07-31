@@ -1910,7 +1910,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param function the user defined function
      * @param <OUT> type of the returned stream
      * @return the data stream constructed
+     * @deprecated This method relies on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on
+     *     the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
+    @Deprecated
     public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function) {
         return addSource(function, "Custom Source");
     }
@@ -1924,7 +1929,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param sourceName Name of the data source
      * @param <OUT> type of the returned stream
      * @return the data stream constructed
+     * @deprecated This method relies on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String)} method based on
+     *     the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
+    @Deprecated
     public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName) {
         return addSource(function, sourceName, null);
     }
@@ -1938,7 +1948,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param <OUT> type of the returned stream
      * @param typeInfo the user defined type information for the stream
      * @return the data stream constructed
+     * @deprecated This method relies on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)}
+     *     method based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
+    @Deprecated
     public <OUT> DataStreamSource<OUT> addSource(
             SourceFunction<OUT> function, TypeInformation<OUT> typeInfo) {
         return addSource(function, "Custom Source", typeInfo);
@@ -1954,7 +1969,12 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param <OUT> type of the returned stream
      * @param typeInfo the user defined type information for the stream
      * @return the data stream constructed
+     * @deprecated This method relies on the {@link
+     *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+     *     removed. Use the {@link #fromSource(Source, WatermarkStrategy, String, TypeInformation)}
+     *     method based on the new {@link org.apache.flink.api.connector.source.Source} API instead.
      */
+    @Deprecated
     public <OUT> DataStreamSource<OUT> addSource(
             SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
         return addSource(function, sourceName, typeInfo, Boundedness.CONTINUOUS_UNBOUNDED);
