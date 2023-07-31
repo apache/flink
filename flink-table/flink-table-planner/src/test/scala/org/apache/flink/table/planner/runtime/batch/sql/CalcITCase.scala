@@ -34,7 +34,7 @@ import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule
-import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, TestData, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil.parseFieldNames
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
@@ -2297,5 +2297,10 @@ class CalcITCase extends BatchTestBase {
          |""".stripMargin,
       Seq(row(2.0), row(2.0), row(2.0))
     )
+  }
+
+  @Test
+  def testTypeOfProctime(): Unit = {
+    checkResult("SELECT TYPEOF(PROCTIME())", Seq(row("TIMESTAMP_LTZ(3) NOT NULL")))
   }
 }

@@ -21,9 +21,11 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
+import org.apache.flink.table.planner.JBoolean
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
@@ -852,6 +854,43 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val expected = mutable.MutableList("1,PREF:a,8,5", "7,PREF:a,6,9")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testProctimeAsParameter(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    val data = new mutable.MutableList[(Int, String)]
+    data.+=((1, "a"))
+
+    val t = env.fromCollection(data).toTable(tEnv, 'id, 'name, 'proctime.proctime)
+    tEnv.createTemporaryView("MyTable", t)
+    tEnv.createTemporarySystemFunction("test", new UDFWithAnyType)
+
+    val sqlQuery =
+      s"""
+         |SELECT T.aid
+         |FROM MyTable
+         |MATCH_RECOGNIZE (
+         |  ORDER BY proctime
+         |  MEASURES
+         |    A.id AS aid,
+         |    A.proctime AS aProctime,
+         |    LAST(A.proctime + INTERVAL '1' second) as calculatedField
+         |  PATTERN (A)
+         |  DEFINE
+         |    A AS test(PROCTIME())
+         |) AS T
+         |""".stripMargin
+
+    val sink = new TestingAppendSink()
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }
 
 @SerialVersionUID(1L)
@@ -896,4 +935,12 @@ private class RichAggFunc extends AggregateFunction[Long, CountAcc] {
   override def createAccumulator(): CountAcc = CountAcc(start)
 
   override def getValue(accumulator: CountAcc): Long = accumulator.count
+}
+
+private class UDFWithAnyType extends ScalarFunction {
+
+  def eval(@DataTypeHint(inputGroup = InputGroup.ANY) ts: Object): JBoolean = {
+    true
+  }
+
 }

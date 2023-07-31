@@ -793,4 +793,16 @@ class CalcITCase extends StreamingTestBase {
     val expected = List("2.0", "2.0", "2.0")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
+
+  @Test
+  def testTypeOfProctime(): Unit = {
+    val result = tEnv.sqlQuery("SELECT TYPEOF(PROCTIME())")
+
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("TIMESTAMP_LTZ(3) NOT NULL")
+    assertEquals(expected, sink.getAppendResults)
+  }
 }

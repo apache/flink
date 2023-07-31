@@ -369,7 +369,7 @@ object GenerateUtils {
   def generateProctimeTimestamp(
       ctx: CodeGeneratorContext,
       contextTerm: String): GeneratedExpression = {
-    val resultType = new LocalZonedTimestampType(3)
+    val resultType = new LocalZonedTimestampType(false, 3)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val resultCode =
