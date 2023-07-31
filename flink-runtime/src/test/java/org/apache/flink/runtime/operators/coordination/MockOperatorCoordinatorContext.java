@@ -19,6 +19,7 @@ limitations under the License.
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -90,6 +91,11 @@ public class MockOperatorCoordinatorContext implements OperatorCoordinator.Conte
     @Override
     public boolean isConcurrentExecutionAttemptsSupported() {
         return false;
+    }
+
+    @Override
+    public CheckpointCoordinator getCheckpointCoordinator() {
+        throw new UnsupportedOperationException();
     }
 
     // -------------------------------

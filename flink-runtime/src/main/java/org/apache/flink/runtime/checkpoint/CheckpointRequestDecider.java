@@ -30,8 +30,8 @@ import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.TreeSet;
+import java.util.function.BiConsumer;
 import java.util.function.IntSupplier;
-import java.util.function.LongConsumer;
 
 import static java.lang.System.currentTimeMillis;
 import static java.lang.System.identityHashCode;
@@ -58,7 +58,7 @@ class CheckpointRequestDecider {
     private static final int DEFAULT_MAX_QUEUED_REQUESTS = 1000;
 
     private final int maxConcurrentCheckpointAttempts;
-    private final LongConsumer rescheduleTrigger;
+    private final BiConsumer<Long, Long> rescheduleTrigger;
     private final Clock clock;
     private final long minPauseBetweenCheckpoints;
     private final IntSupplier pendingCheckpointsSizeSupplier;
@@ -69,7 +69,7 @@ class CheckpointRequestDecider {
 
     CheckpointRequestDecider(
             int maxConcurrentCheckpointAttempts,
-            LongConsumer rescheduleTrigger,
+            BiConsumer<Long, Long> rescheduleTrigger,
             Clock clock,
             long minPauseBetweenCheckpoints,
             IntSupplier pendingCheckpointsSizeSupplier,
@@ -86,7 +86,7 @@ class CheckpointRequestDecider {
 
     CheckpointRequestDecider(
             int maxConcurrentCheckpointAttempts,
-            LongConsumer rescheduleTrigger,
+            BiConsumer<Long, Long> rescheduleTrigger,
             Clock clock,
             long minPauseBetweenCheckpoints,
             IntSupplier pendingCheckpointsSizeSupplier,
@@ -165,24 +165,20 @@ class CheckpointRequestDecider {
 
         CheckpointTriggerRequest first = queuedRequests.first();
         if (!first.isForce() && first.isPeriodic) {
-            long nextTriggerDelayMillis = nextTriggerDelayMillis(lastCompletionMs);
+            long currentRelativeTime = clock.relativeTimeMillis();
+            long nextTriggerDelayMillis =
+                    lastCompletionMs - currentRelativeTime + minPauseBetweenCheckpoints;
             if (nextTriggerDelayMillis > 0) {
                 queuedRequests
                         .pollFirst()
                         .completeExceptionally(
                                 new CheckpointException(MINIMUM_TIME_BETWEEN_CHECKPOINTS));
-                rescheduleTrigger.accept(nextTriggerDelayMillis);
+                rescheduleTrigger.accept(currentRelativeTime, nextTriggerDelayMillis);
                 return Optional.empty();
             }
         }
 
         return Optional.of(queuedRequests.pollFirst());
-    }
-
-    private long nextTriggerDelayMillis(long lastCheckpointCompletionRelativeTime) {
-        return lastCheckpointCompletionRelativeTime
-                - clock.relativeTimeMillis()
-                + minPauseBetweenCheckpoints;
     }
 
     @VisibleForTesting

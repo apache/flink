@@ -125,6 +125,10 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
         execService.triggerNonPeriodicScheduledTasks();
     }
 
+    public void triggerNonPeriodicScheduledTasks(Class<?> taskClazz) {
+        execService.triggerNonPeriodicScheduledTasks(taskClazz);
+    }
+
     public void triggerPeriodicScheduledTasks() {
         execService.triggerPeriodicScheduledTasks();
     }

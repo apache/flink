@@ -284,6 +284,23 @@ public class ManuallyTriggeredScheduledExecutorService implements ScheduledExecu
         }
     }
 
+    public void triggerNonPeriodicScheduledTasks(Class<?> taskClazz) {
+        int numTasksBeforeTrigger = nonPeriodicScheduledTasks.size();
+        Iterator<ScheduledTask<?>> iterator = nonPeriodicScheduledTasks.iterator();
+
+        for (int i = 0; i < numTasksBeforeTrigger; i++) {
+            final ScheduledTask<?> scheduledTask = iterator.next();
+            Callable<?> callable = scheduledTask.getCallable();
+            if (callable instanceof RunnableCaller
+                    && ((RunnableCaller<?>) callable).command.getClass().equals(taskClazz)) {
+                if (!scheduledTask.isCancelled()) {
+                    scheduledTask.execute();
+                }
+                iterator.remove();
+            }
+        }
+    }
+
     public void triggerPeriodicScheduledTasks() {
         for (ScheduledTask<?> scheduledTask : periodicScheduledTasks) {
             if (!scheduledTask.isCancelled()) {
@@ -310,13 +327,7 @@ public class ManuallyTriggeredScheduledExecutorService implements ScheduledExecu
     }
 
     private ScheduledFuture<?> insertNonPeriodicTask(Runnable command, long delay, TimeUnit unit) {
-        return insertNonPeriodicTask(
-                () -> {
-                    command.run();
-                    return null;
-                },
-                delay,
-                unit);
+        return insertNonPeriodicTask(new RunnableCaller<>(command), delay, unit);
     }
 
     private <V> ScheduledFuture<V> insertNonPeriodicTask(
@@ -327,5 +338,20 @@ public class ManuallyTriggeredScheduledExecutorService implements ScheduledExecu
         nonPeriodicScheduledTasks.offer(scheduledTask);
 
         return scheduledTask;
+    }
+
+    /** A {@link Callable} that wraps a {@link Runnable}. */
+    public static class RunnableCaller<T> implements Callable<T> {
+        public final Runnable command;
+
+        private RunnableCaller(Runnable command) {
+            this.command = command;
+        }
+
+        @Override
+        public T call() {
+            command.run();
+            return null;
+        }
     }
 }

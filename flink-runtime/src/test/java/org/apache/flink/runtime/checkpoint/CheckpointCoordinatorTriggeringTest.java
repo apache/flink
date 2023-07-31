@@ -120,7 +120,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
             checkpointCoordinator.startCheckpointScheduler();
 
             for (int i = 0; i < 5; ++i) {
-                manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+                manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                        CheckpointCoordinator.ScheduledTrigger.class);
                 manuallyTriggeredScheduledExecutor.triggerAll();
             }
             checkRecordedTriggeredCheckpoints(5, start, gateway.getTriggeredCheckpoints(attemptID));
@@ -128,7 +129,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
             checkpointCoordinator.stopCheckpointScheduler();
 
             // no further calls may come.
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
             assertThat(gateway.getTriggeredCheckpoints(attemptID).size()).isEqualTo(5);
 
@@ -137,7 +139,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
             checkpointCoordinator.startCheckpointScheduler();
 
             for (int i = 0; i < 5; ++i) {
-                manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+                manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                        CheckpointCoordinator.ScheduledTrigger.class);
                 manuallyTriggeredScheduledExecutor.triggerAll();
             }
             checkRecordedTriggeredCheckpoints(5, start, gateway.getTriggeredCheckpoints(attemptID));
@@ -145,7 +148,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
             checkpointCoordinator.stopCheckpointScheduler();
 
             // no further calls may come
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
             assertThat(gateway.getTriggeredCheckpoints(attemptID).size()).isEqualTo(5);
 
@@ -540,7 +544,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
 
         try {
             checkpointCoordinator.startCheckpointScheduler();
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
 
             // wait until the first checkpoint was triggered
@@ -555,12 +560,14 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
             checkpointCoordinator.receiveAcknowledgeMessage(ackMsg, TASK_MANAGER_LOCATION_INFO);
 
             gateway.resetCount();
-            manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
             manuallyTriggeredScheduledExecutor.triggerAll();
             while (gateway.getTriggeredCheckpoints(attemptID).isEmpty()) {
                 // sleeps for a while to simulate periodic scheduling
                 Thread.sleep(checkpointInterval);
-                manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+                manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                        CheckpointCoordinator.ScheduledTrigger.class);
                 manuallyTriggeredScheduledExecutor.triggerAll();
             }
             // wait until the next checkpoint is triggered
@@ -760,7 +767,8 @@ class CheckpointCoordinatorTriggeringTest extends TestLogger {
         assertThat(checkpointCoordinator.isTriggering()).isTrue();
 
         // trigger cancellation
-        manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks();
+        manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                CheckpointCoordinator.CheckpointCanceller.class);
         assertThat(checkpointCoordinator.isTriggering()).isTrue();
 
         try {

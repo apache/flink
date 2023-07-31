@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.LongConsumer;
+import java.util.function.BiConsumer;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toList;
@@ -284,7 +284,7 @@ public class CheckpointRequestDeciderTest {
                 maxQueued);
     }
 
-    private static final LongConsumer NO_OP = unused -> {};
+    private static final BiConsumer<Long, Long> NO_OP = (currentTimeMillis, tillNextMillis) -> {};
 
     static CheckpointTriggerRequest regularCheckpoint() {
         return checkpointRequest(true);

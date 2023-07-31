@@ -51,6 +51,13 @@ public class VertexEndOfDataListener {
         subtaskStatus.set(executionAttemptID.getSubtaskIndex());
     }
 
+    public boolean areAllTasksOfJobVertexEndOfData(JobVertexID jobVertexID) {
+        BitSet subtaskStatus = tasksReachedEndOfData.get(jobVertexID);
+        return subtaskStatus == null
+                || subtaskStatus.cardinality()
+                        == executionGraph.getJobVertex(jobVertexID).getParallelism();
+    }
+
     public boolean areAllTasksEndOfData() {
         Iterator<Map.Entry<JobVertexID, BitSet>> iterator =
                 tasksReachedEndOfData.entrySet().iterator();
