@@ -18,13 +18,22 @@
 
 package org.apache.flink.runtime.hadoop;
 
+import org.apache.flink.runtime.security.token.hadoop.TestHadoopDelegationTokenIdentifier;
+
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdentifier;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import java.time.Clock;
+import java.time.ZoneId;
+
+import static java.time.Instant.ofEpochMilli;
+import static org.apache.flink.runtime.hadoop.HadoopUserUtils.getIssueDate;
 import static org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod.KERBEROS;
 import static org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod.PROXY;
 import static org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod.SIMPLE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -38,6 +47,7 @@ import static org.mockito.Mockito.when;
  * implementing a reusable test utility around it, consequently had to resort to relying on mockito.
  */
 class HadoopUserUtilsITCase {
+    private static final long NOW = 100;
 
     @Test
     public void isProxyUserShouldReturnFalseWhenNormalUser() {
@@ -85,5 +95,41 @@ class HadoopUserUtilsITCase {
 
             assertTrue(HadoopUserUtils.hasUserKerberosAuthMethod(userGroupInformation));
         }
+    }
+
+    @Test
+    public void getIssueDateShouldReturnIssueDateWithFutureToken() {
+        Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
+        long issueDate = NOW + 1;
+        AbstractDelegationTokenIdentifier tokenIdentifier =
+                new TestHadoopDelegationTokenIdentifier(issueDate);
+
+        assertEquals(
+                issueDate,
+                getIssueDate(constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
+    }
+
+    @Test
+    public void getIssueDateShouldReturnIssueDateWithPastToken() {
+        Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
+        long issueDate = NOW - 1;
+        AbstractDelegationTokenIdentifier tokenIdentifier =
+                new TestHadoopDelegationTokenIdentifier(issueDate);
+
+        assertEquals(
+                issueDate,
+                getIssueDate(constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
+    }
+
+    @Test
+    public void getIssueDateShouldReturnNowWithInvalidToken() {
+        Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
+        long issueDate = -1;
+        AbstractDelegationTokenIdentifier tokenIdentifier =
+                new TestHadoopDelegationTokenIdentifier(issueDate);
+
+        assertEquals(
+                NOW,
+                getIssueDate(constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
     }
 }

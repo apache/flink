@@ -23,7 +23,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.delegation.AbstractDelegationTokenIdentifier;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -169,50 +168,5 @@ class HadoopFSDelegationTokenProviderITCase {
 
         assertEquals(
                 Optional.of(NOW + 1), provider.getTokenRenewalDate(constantClock, credentials, 1));
-    }
-
-    @Test
-    public void getIssueDateShouldReturnIssueDateWithFutureToken() {
-        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
-
-        Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
-        long issueDate = NOW + 1;
-        AbstractDelegationTokenIdentifier tokenIdentifier =
-                new TestHadoopDelegationTokenIdentifier(issueDate);
-
-        assertEquals(
-                issueDate,
-                provider.getIssueDate(
-                        constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
-    }
-
-    @Test
-    public void getIssueDateShouldReturnIssueDateWithPastToken() {
-        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
-
-        Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
-        long issueDate = NOW - 1;
-        AbstractDelegationTokenIdentifier tokenIdentifier =
-                new TestHadoopDelegationTokenIdentifier(issueDate);
-
-        assertEquals(
-                issueDate,
-                provider.getIssueDate(
-                        constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
-    }
-
-    @Test
-    public void getIssueDateShouldReturnNowWithInvalidToken() {
-        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
-
-        Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
-        long issueDate = -1;
-        AbstractDelegationTokenIdentifier tokenIdentifier =
-                new TestHadoopDelegationTokenIdentifier(issueDate);
-
-        assertEquals(
-                NOW,
-                provider.getIssueDate(
-                        constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
     }
 }
