@@ -23,6 +23,7 @@ import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -389,7 +390,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
         final Path dst = new Path(applicationDir, suffix);
 
         final Path localSrcPathWithScheme;
-        if (localSrcPath.toUri().getScheme() == null) {
+        if (StringUtils.isNullOrWhitespaceOnly(localSrcPath.toUri().getScheme())) {
             localSrcPathWithScheme = new Path(URI.create("file:///").resolve(localSrcPath.toUri()));
         } else {
             localSrcPathWithScheme = localSrcPath;
