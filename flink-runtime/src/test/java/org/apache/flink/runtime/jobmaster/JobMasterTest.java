@@ -2105,7 +2105,9 @@ class JobMasterTest {
         // set savepoint settings
         final SavepointRestoreSettings savepointRestoreSettings =
                 SavepointRestoreSettings.forPath(savepointFile.getAbsolutePath(), true);
-        final JobGraph jobGraph = createJobGraphWithCheckpointing(savepointRestoreSettings);
+        final int parallelism = 2;
+        final JobGraph jobGraph =
+                createJobGraphWithCheckpointing(parallelism, savepointRestoreSettings);
 
         final StandaloneCompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
@@ -2122,6 +2124,24 @@ class JobMasterTest {
             // we need to start and register the required slots to let the adaptive scheduler
             // restore from the savepoint
             jobMaster.start();
+
+            final JobMasterGateway jobMasterGateway = jobMaster.getGateway();
+
+            // AdaptiveScheduler-specific requirement: the AdaptiveScheduler triggers the
+            // ExecutionGraph creation only after it received the correct amount of slots
+            registerSlotsAtJobMaster(
+                    parallelism,
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    new TestingTaskExecutorGatewayBuilder()
+                            .setAddress("firstTaskManager")
+                            .createTestingTaskExecutorGateway(),
+                    new LocalUnresolvedTaskManagerLocation());
+
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            jobMasterGateway.requestJobStatus(testingTimeout).get()
+                                    == JobStatus.RUNNING);
 
             CheckpointStatsSnapshot checkpointStatsSnapshot =
                     jobMaster.getGateway().requestCheckpointStats(testingTimeout).get();
@@ -2280,12 +2300,16 @@ class JobMasterTest {
                 savepointId);
     }
 
-    @Nonnull
     private JobGraph createJobGraphWithCheckpointing(
             SavepointRestoreSettings savepointRestoreSettings) {
+        return createJobGraphWithCheckpointing(1, savepointRestoreSettings);
+    }
+
+    private JobGraph createJobGraphWithCheckpointing(
+            int parallelism, SavepointRestoreSettings savepointRestoreSettings) {
         final JobVertex source = new JobVertex("source");
         source.setInvokableClass(NoOpInvokable.class);
-        source.setParallelism(1);
+        source.setParallelism(parallelism);
 
         return TestUtils.createJobGraphFromJobVerticesWithCheckpointing(
                 savepointRestoreSettings, source);
