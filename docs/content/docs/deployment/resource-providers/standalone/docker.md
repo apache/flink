@@ -573,7 +573,7 @@ You can customize the Flink image in several ways:
 
     $ echo "
     # enable an optional library
-    ln -fs /opt/flink/opt/flink-queryable-state-runtime-*.jar /opt/flink/lib/
+    ln -fs /opt/flink/opt/flink-sql-gateway-*.jar /opt/flink/lib/
     # enable a custom library
     ln -fs /mnt/custom_lib.jar /opt/flink/lib/
 
@@ -606,7 +606,7 @@ You can customize the Flink image in several ways:
     ADD /host/path/to/flink-conf.yaml /container/local/path/to/custom/conf/flink-conf.yaml
     ADD /host/path/to/log4j.properties /container/local/path/to/custom/conf/log4j.properties
 
-    RUN ln -fs /opt/flink/opt/flink-queryable-state-runtime-*.jar /opt/flink/lib/.
+    RUN ln -fs /opt/flink/opt/flink-sql-gateway-*.jar /opt/flink/lib/.
 
     RUN mkdir -p /opt/flink/plugins/flink-s3-fs-hadoop
     RUN ln -fs /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/flink-s3-fs-hadoop/.

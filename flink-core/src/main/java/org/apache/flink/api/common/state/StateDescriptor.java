@@ -227,7 +227,10 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
      *
      * @param queryableStateName State name for queries (unique name per job)
      * @throws IllegalStateException If queryable state name already set
+     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
+     *     in a future Flink major version.
      */
+    @Deprecated
     public void setQueryable(String queryableStateName) {
         Preconditions.checkArgument(
                 ttlConfig.getUpdateType() == StateTtlConfig.UpdateType.Disabled,
@@ -244,8 +247,11 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
      * Returns the queryable state name.
      *
      * @return Queryable state name or <code>null</code> if not set.
+     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
+     *     in a future Flink major version.
      */
     @Nullable
+    @Deprecated
     public String getQueryableStateName() {
         return queryableStateName;
     }
@@ -254,7 +260,10 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
      * Returns whether the state created from this descriptor is queryable.
      *
      * @return <code>true</code> if state is queryable, <code>false</code> otherwise.
+     * @deprecated The Queryable State feature is deprecated since Flink 1.18, and will be removed
+     *     in a future Flink major version.
      */
+    @Deprecated
     public boolean isQueryable() {
         return queryableStateName != null;
     }

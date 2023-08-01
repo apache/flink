@@ -82,14 +82,5 @@ in order to enrich the primary datastream.
 Flink offers an API for [Asynchronous I/O]({{< ref "docs/dev/datastream/operators/asyncio" >}})
 to make it easier to do this kind of enrichment efficiently and robustly.
 
-### Queryable State
-
-When a Flink application pushes a lot of data to an external data store, this
-can become an I/O bottleneck.
-If the data involved has many fewer reads than writes, a better approach can be
-for an external application to pull from Flink the data it needs.
-The [Queryable State]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) interface
-enables this by allowing the state being managed by Flink to be queried on demand.
-
 {{< top >}}
 

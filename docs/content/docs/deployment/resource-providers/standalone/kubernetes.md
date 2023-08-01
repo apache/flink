@@ -236,12 +236,6 @@ Refer to the [appendix](#appendix) for full configuration.
 Usually, it is enough to only start a single JobManager pod, because Kubernetes will restart it once the pod crashes.
 If you want to achieve faster recovery, configure the `replicas` in `jobmanager-session-deployment-ha.yaml` or `parallelism` in `jobmanager-application-ha.yaml` to a value greater than `1` to start standby JobManagers.
 
-### Enabling Queryable State
-
-You can access the queryable state of TaskManager if you create a `NodePort` service for it:
-  1. Run `kubectl create -f taskmanager-query-state-service.yaml` to create the `NodePort` service for the `taskmanager` pod. The example of `taskmanager-query-state-service.yaml` can be found in [appendix](#common-cluster-resource-definitions).
-  2. Run `kubectl get svc flink-taskmanager-query-state` to get the `<node-port>` of this service. Then you can create the [QueryableStateClient(&lt;public-node-ip&gt;, &lt;node-port&gt;]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}#querying-state) to submit state queries.
-
 ### Using Standalone Kubernetes with Reactive Mode
 
 [Reactive Mode]({{< ref "docs/deployment/elastic_scaling" >}}#reactive-mode) allows to run Flink in a mode, where the *Application Cluster* is always adjusting the job parallelism to the available resources. In combination with Kubernetes, the replica count of the TaskManager deployment determines the available resources. Increasing the replica count will scale up the job, reducing it will trigger a scale down. This can also be done automatically by using a [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).
@@ -282,7 +276,6 @@ data:
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    queryable-state.proxy.ports: 6125
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
@@ -350,7 +343,6 @@ data:
     blob.server.port: 6124
     jobmanager.rpc.port: 6123
     taskmanager.rpc.port: 6122
-    queryable-state.proxy.ports: 6125
     jobmanager.memory.process.size: 1600m
     taskmanager.memory.process.size: 1728m
     parallelism.default: 2
@@ -439,24 +431,6 @@ spec:
   selector:
     app: flink
     component: jobmanager
-```
-
-`taskmanager-query-state-service.yaml`. Optional service, that exposes the TaskManager port to access the queryable state as a public Kubernetes node's port.
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: flink-taskmanager-query-state
-spec:
-  type: NodePort
-  ports:
-  - name: query-state
-    port: 6125
-    targetPort: 6125
-    nodePort: 30025
-  selector:
-    app: flink
-    component: taskmanager
 ```
 
 ### Session cluster resource definitions
@@ -594,8 +568,6 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -757,8 +729,6 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query-state
         livenessProbe:
           tcpSocket:
             port: 6122
@@ -846,8 +816,6 @@ spec:
         ports:
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query-state
         - containerPort: 6121
           name: metrics
         livenessProbe:
