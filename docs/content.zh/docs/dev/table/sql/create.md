@@ -554,7 +554,14 @@ INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 * 暂不支持创建分区表。
 * 暂不支持主键约束。
 
-**注意** 目前，CTAS 创建的目标表是非原子性的，如果在向表中插入数据时发生错误，该表不会被自动删除。
+**注意** 默认情况下，CTAS 创建的目标表是非原子性的，如果在向表中插入数据时发生错误，该表不会被自动删除。
+
+#### 原子性
+
+如果想要实现原子性 CTAS，那么需要同时满足如下条件：
+* 设置配置项 `table.rtas-ctas.atomicity-enabled` 为 `true`。
+* `DynamicTableSink` 实现 `SupportsStaging` 接口。
+* `DynamicTableSink#applyStaging` 根据 `StagingPurpose` 类型返回对应实现的 `StagedTable` 对象；`StagedTable` 对象提供原子性语义的实现。
 
 {{< top >}}
 
@@ -607,6 +614,15 @@ INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 * 暂不支持指定 Watermark。
 * 暂不支持创建分区表。
 * 暂不支持主键约束。
+
+**注意** 默认情况下，RTAS 要替换或创建的目标表是非原子性的，如果在向表中插入数据时发生错误，该表不会被自动删除或还原成原来的表。
+
+### 原子性
+
+如果想要实现原子性 RTAS，那么需要同时满足如下条件：
+* 设置配置项 `table.rtas-ctas.atomicity-enabled` 为 `true`。
+* `DynamicTableSink` 实现 `SupportsStaging` 接口。
+* `DynamicTableSink#applyStaging` 根据 `StagingPurpose` 类型返回对应实现的 `StagedTable` 对象；`StagedTable` 对象提供原子性语义的实现。
 
 {{< top >}}
 

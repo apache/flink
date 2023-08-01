@@ -554,7 +554,14 @@ INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 * Does not support creating partitioned table yet.
 * Does not support specifying primary key constraints yet.
 
-**Note** The target table created by CTAS is non-atomic currently, the table won't be dropped automatically if occur errors while inserting data into the table.
+**Note** By default, the target table created by CTAS is non-atomic, the table won't be dropped automatically if occur errors while inserting data into the table.
+
+#### Atomicity
+
+If you want to implement atomicity CTAS, then you need to fulfill the following conditions at the same time:
+* Set option `table.rtas-ctas.atomicity-enabled` to `true`.
+* `DynamicTableSink` implements the `SupportsStaging` interface.
+* `DynamicTableSink#applyStaging` returns a `StagedTable` object of the corresponding implementation based on the `StagingPurpose` type; the `StagedTable` object provides an implementation of the atomicity semantics.
 
 {{< top >}}
 
@@ -608,6 +615,15 @@ INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 * Does not support specifying explicit watermark yet.
 * Does not support creating partitioned table yet.
 * Does not support specifying primary key constraints yet.
+
+**Note** By default, the target table replaced or created by RTAS is non-atomic, the table won't be dropped or restore to origin automatically if occur errors while inserting data into the table.
+
+### Atomicity
+
+If you want to implement atomicity RTAS, then you need to fulfill the following conditions at the same time:
+* Set option `table.rtas-ctas.atomicity-enabled` to `true`.
+* `DynamicTableSink` implements the `SupportsStaging` interface.
+* `DynamicTableSink#applyStaging` returns a `StagedTable` object of the corresponding implementation based on the `StagingPurpose` type; the `StagedTable` object provides an implementation of the atomicity semantics.
 
 {{< top >}}
 
