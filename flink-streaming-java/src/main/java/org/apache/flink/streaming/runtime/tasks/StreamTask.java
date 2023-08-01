@@ -596,7 +596,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         } else if (!inputProcessor.isAvailable()) {
             timer = new GaugePeriodTimer(ioMetrics.getIdleTimeMsPerSecond());
             resumeFuture = inputProcessor.getAvailableFuture();
-        } else if (changelogWriterAvailabilityProvider != null) {
+        } else if (changelogWriterAvailabilityProvider != null
+                && !changelogWriterAvailabilityProvider.isAvailable()) {
             // waiting for changelog availability is reported as busy
             timer = new GaugePeriodTimer(ioMetrics.getChangelogBusyTimeMsPerSecond());
             resumeFuture = changelogWriterAvailabilityProvider.getAvailableFuture();
