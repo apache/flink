@@ -807,3 +807,193 @@ the gateway, or you can also use `SET` to specify the listener for ddl, for exam
 Flink SQL> SET 'table.catalog-modification.listeners' = 'your_factory';
 Flink SQL> CREATE TABLE test_table(...);
 ```
+
+
+## Catalog Store
+
+Catalog Store is used to store the configuration of catalogs. When using Catalog Store, the configurations
+of catalogs created in the session will be persisted in the corresponding external system of Catalog Store.
+Even if the session is reconstructed, previously created catalogs can still be retrieved from Catalog Store.
+
+### Configure Catalog Store
+Users can configure the Catalog Store in different ways, one is to use the Table API, and another is to use YAML configuration.
+
+{{< tabs "9bb8994c-7c07-4c49-f5b8-f4ae3548ead4" >}}
+{{< tab "Java/Scala" >}}
+```java
+// Register a catalog store using catalog store instance.
+
+// Initialize a catalog Store
+CatalogStore catalogStore = new FileCatalogStore("file://path/to/catalog/store/");
+
+// set up the catalog store
+final EnvironmentSettings settings =
+        EnvironmentSettings.newInstance().inBatchMode()
+        .withCatalogStore(catalogStore)
+        .build();
+
+final TableEnvironment tableEnv = TableEnvironment.create(settings);
+
+// Register a catalog store using configuration.
+        
+// Set up configuration
+Configuration configuration = new Configuration();
+configuration.set("table.catalog-store.kind", "file");
+configuration.set("table.catalog-store.file.path", "file://path/to/catalog/store/");
+// set up the configuration.
+final EnvironmentSettings settings =
+        EnvironmentSettings.newInstance().inBatchMode()
+        .withConfiguration(configuration)
+        .build();
+
+final TableEnvironment tableEnv = TableEnvironment.create(settings);
+```
+{{< /tab >}}
+{{< tab "SQL Gateway" >}}
+
+In SQL Gateway, it is recommended to configure the settings in a yaml file so that all sessions can automatically
+use the pre-created Catalog. Usually, you need to configure the kind of Catalog Store and other
+required parameters for the Catalog Store.
+```yaml
+table.catalog-store.kind: file
+table.catalog-store.file.path: /path/to/catalog/store/
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### Catalog Store Type
+Flink has two built-in Catalog Stores, namely GenericInMemoryCatalogStore and FileCatalogStore.
+Users can also customize their own Catalog Store.
+
+#### GenericInMemoryCatalogStore
+GenericInMemoryCatalogStore is an implementation of CatalogStore that saves configuration information in memory.
+All catalog configurations are only available within the session's lifecycle, and the stored catalog configurations will be
+automatically cleared after session reconstruction.
+
+<table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-center" style="width: 45%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><h5>kind</h5></td>
+      <td>Specify the Catalog Store type to be used, which should be 'generic_in_memory'</td>
+    </tr>
+    </tbody>
+</table>
+
+#### FileCatalogStore
+FileCatalogStore can save the user's Catalog configuration to a file. Currently, it only supports
+local files. To use FileCatalogStore, you need to specify the directory where the Catalog configuration
+needs to be saved. Different Catalogs will correspond to different files and each file will correspond to a Catalog Name.
+
+<table class="table table-bordered">
+    <thead>
+      <tr>
+        <th class="text-left" style="width: 25%">Option</th>
+        <th class="text-center" style="width: 45%">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><h5>kind</h5></td>
+      <td>Specify the Catalog Store type to be used, which should be 'file'</td>
+    </tr>
+    <tr>
+      <td><h5>path</h5></td>
+      <td>Specify the path to be used for saving in the Catalog Store, it must be a valid directory and currently only supports local directories.</td>
+    </tr>
+    </tbody>
+</table>
+
+#### Custom Catalog Store
+Catalog Store is extensible, and users can customize Catalog Store by implementing its interface.
+If SQL CLI or SQL Gateway needs to use Catalog Store, the corresponding CatalogStoreFactory interface
+also needs to be implemented for this Catalog Store.
+
+```java
+
+public class CustomCatalogStoreFactory implements CatalogStoreFactory {
+
+    public static final String IDENTIFIER = "custom-kind";
+    
+    // Used to connect external storage systems
+    private CustomClient client;
+    
+    @Override
+    public CatalogStore createCatalogStore() {
+        return new CustomCatalogStore();
+    }
+
+    @Override
+    public void open(Context context) throws CatalogException {
+        // initialize the resources, such as http client
+        client = initClient(context);
+    }
+
+    @Override
+    public void close() throws CatalogException {
+        // release the resources
+    }
+
+    @Override
+    public String factoryIdentifier() {
+        // table store kind identifier
+        return IDENTIFIER;
+    }
+    
+    public Set<ConfigOption<?>> requiredOptions() {
+        // define the required options
+        Set<ConfigOption> options = new HashSet();
+        options.add(OPTION_1);
+        options.add(OPTION_2);
+        
+        return options;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        // define the optional options
+    }
+}
+
+public class CustomCatalogStore extends AbstractCatalogStore {
+
+    private Client client;
+    
+    public CustomCatalogStore(Client client) {
+        this.client = client;
+    }
+
+    @Override
+    public void storeCatalog(String catalogName, CatalogDescriptor catalog)
+            throws CatalogException {
+        // store the catalog
+    }
+
+    @Override
+    public void removeCatalog(String catalogName, boolean ignoreIfNotExists)
+            throws CatalogException {
+        // remove the catalog descriptor
+    }
+
+    @Override
+    public Optional<CatalogDescriptor> getCatalog(String catalogName) {
+        // retrieve the catalog configuration and build the catalog descriptor
+    }
+
+    @Override
+    public Set<String> listCatalogs() {
+        // list all catalogs
+    }
+
+    @Override
+    public boolean contains(String catalogName) {
+    }
+}
+
+```
+>>>>>>> 506f6a77644 ([FLINK-32653][docs] Add doc for catalog store)
