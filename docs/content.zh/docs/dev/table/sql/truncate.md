@@ -29,8 +29,9 @@ under the License.
 # TRUNCATE 语句
 
 TRUNCATE 语句用于删除表中的全部数据，但不会删除表本身。
+
 <span class="label label-danger">注意</span> 目前, `TRUNCATE` 语句仅支持批模式, 并且要求目标表实现了 {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsTruncate.java" name="SupportsTruncate" >}} 接口。
-如果在一个没有实现该接口的表上执行 `TRUNCATE`，则会抛异常。目前 Flink 内置的连接器还没有实现该接口。
+如果在一个没有实现该接口的表上执行 `TRUNCATE`，则会抛异常。
 
 <a name="run-a-truncate-statement"></a>
 
@@ -41,6 +42,20 @@ TRUNCATE 语句用于删除表中的全部数据，但不会删除表本身。
 可以使用 `TableEnvironment` 的 `executeSql()` 方法执行 TRUNCATE 语句。如果 TRUNCATE 操作执行失败，`executeSql()` 方法会抛出异常。
 
 以下示例展示了如何在 `TableEnvironment` 中执行一条 TRUNCATE 语句。
+{{< /tab >}}
+{{< tab "Scala" >}}
+
+可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 TRUNCATE 语句。如果 TRUNCATE 操作执行失败，`executeSql()` 方法会抛出异常。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一条 TRUNCATE 语句。
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+可以使用 `TableEnvironment` 中的 `execute_sql()` 方法执行 TRUNCATE 语句。如果 TRUNCATE 操作执行失败，`execute_sql()` 方法会抛出异常。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一条 TRUNCATE 语句。
+
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
@@ -147,6 +162,9 @@ Flink SQL> SELECT * FROM Orders;
 Mr.White                         Chicken           3
 
 Flink SQL> TRUNCATE TABLE Orders;
+[INFO] Execute statement succeed.
+
+Flink SQL> SELECT * FROM Orders;
 // Empty set
 ```
 {{< /tab >}}

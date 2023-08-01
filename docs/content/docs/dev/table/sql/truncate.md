@@ -27,8 +27,9 @@ under the License.
 # TRUNCATE Statements
 
 TRUNCATE statements are used to delete all rows from a table without dropping the table itself.
+
 <span class="label label-danger">Attention</span> Currently, `TRUNCATE` statement only supports in batch mode, and it requires the target table connector implements the  {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsTruncate.java" name="SupportsTruncate" >}}
-interface to support the row-level delete. An exception will be thrown if trying to `TRUNCATE` the table which has not implements the related interface. Currently, there is no existing connector maintained by flink has supported TRUNCATE yet.
+interface to support the row-level delete. An exception will be thrown if trying to `TRUNCATE` the table which has not implements the related interface.
 
 
 ## Run a TRUNCATE statement
@@ -47,7 +48,7 @@ The following examples show how to run a single TRUNCATE statement in `TableEnvi
 {{< /tab >}}
 {{< tab "Python" >}}
 
-TRUNCATE statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `executeSql()` will throw an exception when there is any error for the operation.
+TRUNCATE statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` will throw an exception when there is any error for the operation.
 
 The following examples show how to run a single TRUNCATE statement in `TableEnvironment`.
 
@@ -157,6 +158,9 @@ Flink SQL> SELECT * FROM Orders;
 Mr.White                         Chicken           3
 
 Flink SQL> TRUNCATE TABLE Orders;
+[INFO] Execute statement succeed.
+
+Flink SQL> SELECT * FROM Orders;
 // Empty set
 ```
 {{< /tab >}}
