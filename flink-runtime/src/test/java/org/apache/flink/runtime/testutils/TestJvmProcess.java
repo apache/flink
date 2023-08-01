@@ -209,8 +209,6 @@ public abstract class TestJvmProcess {
             try {
                 process.destroyForcibly();
                 process.waitFor();
-            } catch (Throwable t) {
-                LOG.error("Error while trying to destroy process.", t);
             } finally {
                 destroyed = true;
                 ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
