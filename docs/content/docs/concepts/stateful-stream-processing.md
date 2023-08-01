@@ -49,8 +49,6 @@ and [savepoints]({{< ref "docs/ops/state/savepoints" >}}).
 Knowledge about the state also allows for rescaling Flink applications, meaning
 that Flink takes care of redistributing state across parallel instances.
 
-[Queryable state]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) allows you to access state from outside of Flink during runtime.
-
 When working with state, it might also be useful to read about [Flink's state
 backends]({{< ref "docs/ops/state/state_backends" >}}). Flink
 provides different state backends that specify how and where state is stored.

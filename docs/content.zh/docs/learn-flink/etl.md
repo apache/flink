@@ -227,7 +227,6 @@ minutesByStartCell
 * **持久性**: Flink 状态是容错的，例如，它可以自动按一定的时间间隔产生 checkpoint，并且在任务失败后进行恢复
 * **纵向可扩展性**: Flink 状态可以存储在集成的 RocksDB 实例中，这种方式下可以通过增加本地磁盘来扩展空间
 * **横向可扩展性**: Flink 状态可以随着集群的扩缩容重新分布
-* **可查询性**: Flink 状态可以通过使用 [状态查询 API]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) 从外部进行查询。
 
 在本节中你将学习如何使用 Flink 的 API 来管理 keyed state。
 
