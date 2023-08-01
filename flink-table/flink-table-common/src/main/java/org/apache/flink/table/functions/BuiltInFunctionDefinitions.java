@@ -364,6 +364,16 @@ public final class BuiltInFunctionDefinitions {
                     .internal()
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_INTERSECT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_INTERSECT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(commonArrayType(2))
+                    .outputTypeStrategy(nullableIfArgs(COMMON))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayIntersectFunction")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Logic functions
     // --------------------------------------------------------------------------------------------

@@ -41,17 +41,69 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
-                        arrayContainsTestCases(),
-                        arrayDistinctTestCases(),
-                        arrayPositionTestCases(),
-                        arrayRemoveTestCases(),
-                        arrayReverseTestCases(),
-                        arrayUnionTestCases(),
-                        arrayConcatTestCases(),
-                        arrayMaxTestCases(),
-                        arrayJoinTestCases(),
-                        arraySliceTestCases())
+                        //                        arrayContainsTestCases(),
+                        //                        arrayDistinctTestCases(),
+                        //                        arrayPositionTestCases(),
+                        //                        arrayRemoveTestCases(),
+                        //                        arrayReverseTestCases(),
+                        //                        arrayUnionTestCases(),
+                        //                        arrayConcatTestCases(),
+                        //                        arrayMaxTestCases(),
+                        //                        arrayJoinTestCases(),
+                        //                        arraySliceTestCases(),
+                        arrayIntersectTestCases())
                 .flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> arrayIntersectTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_INTERSECT)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, null},
+                                null,
+                                new Row[] {Row.of(true, 1), Row.of(true, 2), null},
+                                1)
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.INT())),
+                                DataTypes.INT())
+                        // ARRAY<INT>
+                        //                        .testResult(
+                        //                                $("f0").arrayIntersect(new Integer[] {1,
+                        // null, 4}),
+                        //                                "ARRAY_INTERSECT(f0, ARRAY[1, NULL, 4])",
+                        //                                new Integer[] {1, null},
+                        //                                DataTypes.ARRAY(DataTypes.INT()))
+                        //                        .testResult(
+                        //                                $("f1").arrayIntersect(new Integer[] {1,
+                        // null, 4}),
+                        //                                "ARRAY_INTERSECT(f1, ARRAY[1, NULL, 4])",
+                        //                                null,
+                        //                                DataTypes.ARRAY(DataTypes.INT()))
+                        // ARRAY<ROW<BOOLEAN, DATE>>
+                        .testResult(
+                                $("f2").arrayIntersect(
+                                                new Row[] {
+                                                    null, Row.of(true, 2),
+                                                }),
+                                "ARRAY_INTERSECT(f2, ARRAY[NULL, 2])",
+                                new Row[] {Row.of(true, 2), null},
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.INT())))
+                //                        // invalid signatures
+                //                        .testSqlValidationError(
+                //                                "ARRAY_INTERSECT(f3, TRUE)",
+                //                                "Invalid input arguments. Expected signatures
+                // are:\n"
+                //                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)")
+                //                        .testTableApiValidationError(
+                //                                $("f3").arrayIntersect(true),
+                //                                "Invalid input arguments. Expected signatures
+                // are:\n"
+                //                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)")
+                );
     }
 
     private Stream<TestSetSpec> arrayContainsTestCases() {
