@@ -63,10 +63,12 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
         // Make sure we also react to external close signals.
         closeableRegistry.registerCloseable(internalCloser);
         List<CompletableFuture<Void>> futures = Collections.emptyList();
+        TaskFailureCleaner failureCleaner = new TaskFailureCleaner(downloadRequests);
         try {
             try {
                 futures =
-                        transferAllStateDataToDirectoryAsync(downloadRequests, internalCloser)
+                        transferAllStateDataToDirectoryAsync(
+                                        downloadRequests, internalCloser, failureCleaner)
                                 .collect(Collectors.toList());
                 // Wait until either all futures completed successfully or one failed exceptionally.
                 FutureUtils.waitForAll(futures).get();
@@ -80,10 +82,8 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
         } catch (Exception e) {
             // Cleanup on exception: cancel all tasks and delete the created directories
             futures.forEach(future -> future.cancel(true));
-            downloadRequests.stream()
-                    .map(StateHandleDownloadSpec::getDownloadDestination)
-                    .map(Path::toFile)
-                    .forEach(FileUtils::deleteDirectoryQuietly);
+            failureCleaner.markTaskFailed();
+            failureCleaner.cleanupIfFailed();
             // Error reporting
             Throwable throwable = ExceptionUtils.stripExecutionException(e);
             throwable = ExceptionUtils.stripException(throwable, RuntimeException.class);
@@ -98,7 +98,8 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
     /** Asynchronously runs the specified download requests on executorService. */
     private Stream<CompletableFuture<Void>> transferAllStateDataToDirectoryAsync(
             Collection<StateHandleDownloadSpec> handleWithPaths,
-            CloseableRegistry closeableRegistry) {
+            CloseableRegistry closeableRegistry,
+            TaskFailureCleaner failureCleaner) {
         return handleWithPaths.stream()
                 .flatMap(
                         downloadRequest ->
@@ -125,7 +126,8 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
                                                                     downloadDataForStateHandle(
                                                                             downloadDest,
                                                                             remoteFileHandle,
-                                                                            closeableRegistry));
+                                                                            closeableRegistry,
+                                                                            failureCleaner));
                                                 }))
                 .map(runnable -> CompletableFuture.runAsync(runnable, executorService));
     }
@@ -134,7 +136,8 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
     private void downloadDataForStateHandle(
             Path restoreFilePath,
             StreamStateHandle remoteFileHandle,
-            CloseableRegistry closeableRegistry)
+            CloseableRegistry closeableRegistry,
+            TaskFailureCleaner failureCleaner)
             throws IOException {
 
         FSDataInputStream inputStream = null;
@@ -164,6 +167,30 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 
             if (closeableRegistry.unregisterCloseable(outputStream)) {
                 outputStream.close();
+            }
+
+            failureCleaner.cleanupIfFailed();
+        }
+    }
+
+    class TaskFailureCleaner {
+        final Collection<StateHandleDownloadSpec> downloadRequests;
+        volatile boolean failed = false;
+
+        TaskFailureCleaner(Collection<StateHandleDownloadSpec> downloadRequests) {
+            this.downloadRequests = downloadRequests;
+        }
+
+        void markTaskFailed() {
+            this.failed = true;
+        }
+
+        void cleanupIfFailed() {
+            if (failed) {
+                downloadRequests.stream()
+                        .map(StateHandleDownloadSpec::getDownloadDestination)
+                        .map(Path::toFile)
+                        .forEach(FileUtils::deleteDirectoryQuietly);
             }
         }
     }
