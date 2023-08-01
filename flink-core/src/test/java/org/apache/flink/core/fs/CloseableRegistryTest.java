@@ -20,9 +20,17 @@ package org.apache.flink.core.fs;
 
 import org.apache.flink.util.AbstractAutoCloseableRegistry;
 
+import org.junit.Assert;
+import org.junit.Test;
+
+import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /** Tests for the {@link CloseableRegistry}. */
 public class CloseableRegistryTest
@@ -54,5 +62,105 @@ public class CloseableRegistryTest
                 registry.registerCloseable(testStream);
             }
         };
+    }
+
+    @Test
+    public void testUnregisterAndCloseAll() throws IOException {
+        try (CloseableRegistry closeableRegistry = new CloseableRegistry()) {
+
+            int exTestSize = 5;
+            int nonExTestSize = 5;
+
+            List<TestClosable> registeredClosableList = new ArrayList<>(exTestSize + nonExTestSize);
+            for (int i = 0; i < nonExTestSize; ++i) {
+                registeredClosableList.add(new TestClosable());
+            }
+
+            unregisterAndCloseAllHelper(registeredClosableList, closeableRegistry, null);
+
+            for (int i = 0; i < exTestSize; ++i) {
+                // Register with exception messages from 1..6
+                registeredClosableList.add(new TestClosable(String.valueOf(1 + i)));
+            }
+
+            unregisterAndCloseAllHelper(
+                    registeredClosableList,
+                    closeableRegistry,
+                    ioex -> {
+                        // Check that error messages and suppressed exceptions are correctly
+                        // reported
+                        int checksum = 0;
+                        checksum += Integer.parseInt(ioex.getMessage());
+                        Throwable[] suppressed = ioex.getSuppressed();
+                        for (Throwable throwable : suppressed) {
+                            checksum += Integer.parseInt(throwable.getMessage());
+                        }
+                        // Checksum is sum from 1..6 = 15
+                        Assert.assertEquals(15, checksum);
+                    });
+
+            // Check that unregistered Closable isn't closed.
+            TestClosable unregisteredClosable = new TestClosable();
+            closeableRegistry.unregisterAndCloseAll(unregisteredClosable);
+            Assert.assertEquals(0, unregisteredClosable.getCallsToClose());
+        }
+    }
+
+    private void unregisterAndCloseAllHelper(
+            List<TestClosable> registeredClosableList,
+            CloseableRegistry closeableRegistry,
+            @Nullable Consumer<IOException> exceptionCheck)
+            throws IOException {
+        for (TestClosable testClosable : registeredClosableList) {
+            closeableRegistry.registerCloseable(testClosable);
+        }
+
+        try {
+            closeableRegistry.unregisterAndCloseAll(
+                    registeredClosableList.toArray(new Closeable[0]));
+            if (exceptionCheck != null) {
+                Assert.fail("Exception expected");
+            }
+        } catch (IOException expected) {
+            if (exceptionCheck != null) {
+                exceptionCheck.accept(expected);
+            }
+        }
+
+        for (TestClosable testClosable : registeredClosableList) {
+            Assert.assertEquals(1, testClosable.getCallsToClose());
+            testClosable.resetCallsToClose();
+        }
+    }
+
+    static class TestClosable implements Closeable {
+
+        private final AtomicInteger callsToClose;
+        private final String exceptionMessageOnClose;
+
+        TestClosable() {
+            this("");
+        }
+
+        TestClosable(String exceptionMessageOnClose) {
+            this.exceptionMessageOnClose = exceptionMessageOnClose;
+            this.callsToClose = new AtomicInteger(0);
+        }
+
+        @Override
+        public void close() throws IOException {
+            callsToClose.incrementAndGet();
+            if (exceptionMessageOnClose != null && exceptionMessageOnClose.length() > 0) {
+                throw new IOException(exceptionMessageOnClose);
+            }
+        }
+
+        public int getCallsToClose() {
+            return callsToClose.get();
+        }
+
+        public void resetCallsToClose() {
+            this.callsToClose.set(0);
+        }
     }
 }

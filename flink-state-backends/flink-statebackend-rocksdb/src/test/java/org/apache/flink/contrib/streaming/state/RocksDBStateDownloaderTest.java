@@ -57,9 +57,9 @@ public class RocksDBStateDownloaderTest extends TestLogger {
     /** Test that the exception arose in the thread pool will rethrow to the main thread. */
     @Test
     public void testMultiThreadRestoreThreadPoolExceptionRethrow() {
-        SpecifiedException expectedException =
+        SpecifiedException expectedCause =
                 new SpecifiedException("throw exception while multi thread restore.");
-        StreamStateHandle stateHandle = new ThrowingStateHandle(expectedException);
+        StreamStateHandle stateHandle = new ThrowingStateHandle(expectedCause);
 
         Map<StateHandleID, StreamStateHandle> stateHandles = new HashMap<>(1);
         stateHandles.put(new StateHandleID("state1"), stateHandle);
@@ -82,7 +82,7 @@ public class RocksDBStateDownloaderTest extends TestLogger {
                     new CloseableRegistry());
             fail();
         } catch (Exception e) {
-            assertEquals(expectedException, e);
+            assertEquals(expectedCause, e.getCause());
         }
     }
 
