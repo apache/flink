@@ -97,7 +97,6 @@ import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.MultipleInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.util.AbstractID;
@@ -121,6 +120,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -1439,28 +1439,51 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testNamingOfChainedMultipleInputs() {
         String[] sources = new String[] {"source-1", "source-2", "source-3"};
-        JobGraph graph = createGraphWithMultipleInputs(true, sources);
-        JobVertex head = graph.getVerticesSortedTopologicallyFromSources().iterator().next();
-        assertThat(sources).allMatch(source -> head.getOperatorPrettyName().contains(source));
+        String sink = "sink";
+        JobGraph graph = createGraphWithMultipleInputs(true, sink, sources);
+        Iterator<JobVertex> iterator = graph.getVerticesSortedTopologicallyFromSources().iterator();
+
+        JobVertex multipleVertex = iterator.next();
+        assertThat(multipleVertex.getName())
+                .isEqualTo("mit [Source: source-1, Source: source-2, Source: source-3]");
+        assertThat(multipleVertex.getOperatorPrettyName())
+                .isEqualTo("mit [Source: source-1, Source: source-2, Source: source-3]\n");
+
+        JobVertex sinkVertex = iterator.next();
+        assertThat(sinkVertex.getName()).isEqualTo("Sink: sink");
+        assertThat(sinkVertex.getOperatorPrettyName()).isEqualTo("Sink: sink\n");
     }
 
     @Test
     void testNamingOfNonChainedMultipleInputs() {
         String[] sources = new String[] {"source-1", "source-2", "source-3"};
-        JobGraph graph = createGraphWithMultipleInputs(false, sources);
-        JobVertex head =
-                Iterables.find(
-                        graph.getVertices(),
-                        vertex ->
-                                vertex.getInvokableClassName()
-                                        .equals(MultipleInputStreamTask.class.getName()));
-        assertThat(head.getName()).withFailMessage(head.getName()).doesNotContain("source-1");
-        assertThat(head.getOperatorPrettyName())
-                .withFailMessage(head.getOperatorPrettyName())
-                .doesNotContain("source-1");
+        String sink = "sink";
+        JobGraph graph = createGraphWithMultipleInputs(false, sink, sources);
+        Iterator<JobVertex> iterator = graph.getVerticesSortedTopologicallyFromSources().iterator();
+
+        JobVertex source1 = iterator.next();
+        assertThat(source1.getName()).isEqualTo("Source: source-1");
+        assertThat(source1.getOperatorPrettyName()).isEqualTo("Source: source-1\n");
+
+        JobVertex source2 = iterator.next();
+        assertThat(source2.getName()).isEqualTo("Source: source-2");
+        assertThat(source2.getOperatorPrettyName()).isEqualTo("Source: source-2\n");
+
+        JobVertex source3 = iterator.next();
+        assertThat(source3.getName()).isEqualTo("Source: source-3");
+        assertThat(source3.getOperatorPrettyName()).isEqualTo("Source: source-3\n");
+
+        JobVertex multipleVertex = iterator.next();
+        assertThat(multipleVertex.getName()).isEqualTo("mit");
+        assertThat(multipleVertex.getOperatorPrettyName()).isEqualTo("mit\n");
+
+        JobVertex sinkVertex = iterator.next();
+        assertThat(sinkVertex.getName()).isEqualTo("Sink: sink");
+        assertThat(sinkVertex.getOperatorPrettyName()).isEqualTo("Sink: sink\n");
     }
 
-    public JobGraph createGraphWithMultipleInputs(boolean chain, String... inputNames) {
+    public JobGraph createGraphWithMultipleInputs(
+            boolean chain, String sinkName, String... inputNames) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         MultipleInputTransformation<Long> transform =
                 new MultipleInputTransformation<>(
@@ -1476,6 +1499,10 @@ class StreamingJobGraphGeneratorTest {
                 .forEach(transform::addInput);
         transform.setChainingStrategy(
                 chain ? ChainingStrategy.HEAD_WITH_SOURCES : ChainingStrategy.NEVER);
+
+        DataStream<Long> dataStream = new DataStream<>(env, transform);
+        // do not chain with sink operator.
+        dataStream.rebalance().addSink(new DiscardingSink<>()).name(sinkName);
 
         env.addOperator(transform);
 
