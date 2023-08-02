@@ -54,8 +54,8 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBe
  * Base class for a table-valued function that computes windows. Examples include {@code TUMBLE},
  * {@code HOP}, {@code CUMULATE} and {@code SESSION}.
  *
- * <p>Note: we copied the implementation from Calcite's {@link
- * org.apache.calcite.sql.SqlWindowTableFunction}, but support return additional {@code window_time}
+ * <p>Note: we extend Calcite's {@link
+ * org.apache.calcite.sql.SqlWindowTableFunction}, to support additional {@code window_time}
  * time attribute column which should keep the same type with original time attribute.
  */
 public class SqlWindowTableFunction extends org.apache.calcite.sql.SqlWindowTableFunction {
