@@ -156,7 +156,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().enableUnalignedCheckpoints(unalignedCheckpointEnabled);
-        env.getCheckpointConfig().setTolerableCheckpointFailureNumber(1);
+        env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2);
         env.disableOperatorChaining();
         env.setParallelism(1);
 
