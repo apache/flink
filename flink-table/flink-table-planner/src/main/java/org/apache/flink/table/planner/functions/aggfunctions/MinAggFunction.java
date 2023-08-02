@@ -23,6 +23,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.functions.DeclarativeAggregateFunction;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.TimeType;
@@ -172,6 +173,21 @@ public abstract class MinAggFunction extends DeclarativeAggregateFunction {
         @Override
         public DataType getResultType() {
             return DataTypes.STRING();
+        }
+    }
+
+    /** Built-in Char Min aggregate function. */
+    public static class CharMinAggFunction extends MinAggFunction {
+
+        private final CharType type;
+
+        public CharMinAggFunction(CharType type) {
+            this.type = type;
+        }
+
+        @Override
+        public DataType getResultType() {
+            return DataTypes.CHAR(type.getLength());
         }
     }
 

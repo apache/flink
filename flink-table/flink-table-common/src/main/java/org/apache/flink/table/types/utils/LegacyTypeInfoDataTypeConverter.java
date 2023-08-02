@@ -39,6 +39,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.DataTypeQueryable;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -112,6 +113,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 
     static {
         addMapping(Types.STRING, DataTypes.STRING().bridgedTo(String.class));
+        addMapping(Types.CHAR, DataTypes.CHAR(CharType.DEFAULT_LENGTH).bridgedTo(String.class));
         addMapping(Types.BOOLEAN, DataTypes.BOOLEAN().bridgedTo(Boolean.class));
         addMapping(Types.BYTE, DataTypes.TINYINT().bridgedTo(Byte.class));
         addMapping(Types.SHORT, DataTypes.SMALLINT().bridgedTo(Short.class));

@@ -18,6 +18,18 @@
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.Types.BOOLEAN
+import org.apache.flink.api.common.typeinfo.Types.BYTE
+import org.apache.flink.api.common.typeinfo.Types.CHAR
+import org.apache.flink.api.common.typeinfo.Types.DOUBLE
+import org.apache.flink.api.common.typeinfo.Types.FLOAT
+import org.apache.flink.api.common.typeinfo.Types.INT
+import org.apache.flink.api.common.typeinfo.Types.LOCAL_DATE
+import org.apache.flink.api.common.typeinfo.Types.LOCAL_DATE_TIME
+import org.apache.flink.api.common.typeinfo.Types.LOCAL_TIME
+import org.apache.flink.api.common.typeinfo.Types.LONG
+import org.apache.flink.api.common.typeinfo.Types.SHORT
+import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -44,17 +56,18 @@ class AggregateTest extends TableTestBase {
   util.addTableSource(
     "MyTable1",
     Array[TypeInformation[_]](
-      Types.BYTE,
-      Types.SHORT,
-      Types.INT,
-      Types.LONG,
-      Types.FLOAT,
-      Types.DOUBLE,
-      Types.BOOLEAN,
-      Types.STRING,
-      Types.LOCAL_DATE,
-      Types.LOCAL_TIME,
-      Types.LOCAL_DATE_TIME,
+      BYTE,
+      SHORT,
+      INT,
+      LONG,
+      FLOAT,
+      DOUBLE,
+      BOOLEAN,
+      CHAR,
+      STRING,
+      LOCAL_DATE,
+      LOCAL_TIME,
+      LOCAL_DATE_TIME,
       DecimalDataTypeInfo.of(30, 20),
       DecimalDataTypeInfo.of(10, 5)
     ),
@@ -66,6 +79,7 @@ class AggregateTest extends TableTestBase {
       "float",
       "double",
       "boolean",
+      "char",
       "string",
       "date",
       "time",
@@ -256,7 +270,8 @@ class AggregateTest extends TableTestBase {
                                  |       MIN(`date`),
                                  |       MIN(`time`),
                                  |       MIN(`timestamp`),
-                                 |       MIN(`string`)
+                                 |       MIN(`string`),
+                                 |       MIN(`char`)
                                  |FROM MyTable1
       """.stripMargin)
   }
@@ -283,7 +298,8 @@ class AggregateTest extends TableTestBase {
                                  |       MAX(`date`),
                                  |       MAX(`time`),
                                  |       MAX(`timestamp`),
-                                 |       MAX(`string`)
+                                 |       MAX(`string`),
+                                 |       MAX(`char`)
                                  |FROM MyTable1
       """.stripMargin)
   }

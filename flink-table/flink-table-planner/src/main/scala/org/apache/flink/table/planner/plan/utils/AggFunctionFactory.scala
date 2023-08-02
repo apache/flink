@@ -273,8 +273,8 @@ class AggFunctionFactory(
     val valueType = argTypes(0)
     if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
-            TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | CHAR | VARCHAR |
+            DECIMAL | TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
             TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
           new MinWithRetractAggFunction(argTypes(0))
         case t =>
@@ -298,8 +298,11 @@ class AggFunctionFactory(
           new MinAggFunction.DoubleMinAggFunction
         case BOOLEAN =>
           new MinAggFunction.BooleanMinAggFunction
-        case VARCHAR | CHAR =>
+        case VARCHAR =>
           new MinAggFunction.StringMinAggFunction
+        case CHAR =>
+          val d = argTypes(0).asInstanceOf[CharType]
+          new MinAggFunction.CharMinAggFunction(d);
         case DATE =>
           new MinAggFunction.DateMinAggFunction
         case TIME_WITHOUT_TIME_ZONE =>
@@ -382,8 +385,8 @@ class AggFunctionFactory(
     val valueType = argTypes(0)
     if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
-            TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | CHAR | VARCHAR |
+            DECIMAL | TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
             TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
           new MaxWithRetractAggFunction(argTypes(0))
         case t =>
@@ -409,6 +412,9 @@ class AggFunctionFactory(
           new MaxAggFunction.BooleanMaxAggFunction
         case VARCHAR =>
           new MaxAggFunction.StringMaxAggFunction
+        case CHAR =>
+          val d = argTypes(0).asInstanceOf[CharType]
+          new MaxAggFunction.CharMaxAggFunction(d);
         case DATE =>
           new MaxAggFunction.DateMaxAggFunction
         case TIME_WITHOUT_TIME_ZONE =>
