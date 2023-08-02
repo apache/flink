@@ -379,9 +379,7 @@ public class JobGraph implements Serializable {
             return false;
         }
 
-        long checkpointInterval =
-                snapshotSettings.getCheckpointCoordinatorConfiguration().getCheckpointInterval();
-        return checkpointInterval > 0 && checkpointInterval < Long.MAX_VALUE;
+        return snapshotSettings.getCheckpointCoordinatorConfiguration().isCheckpointingEnabled();
     }
 
     /**

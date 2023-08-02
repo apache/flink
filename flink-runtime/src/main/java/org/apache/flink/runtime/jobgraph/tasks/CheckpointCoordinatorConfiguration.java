@@ -35,6 +35,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     public static final long MINIMAL_CHECKPOINT_TIME = 10;
 
+    // interval of max value means disable periodic checkpoint
+    public static final long DISABLED_CHECKPOINT_INTERVAL = Long.MAX_VALUE;
+
     private static final long serialVersionUID = 2L;
 
     private final long checkpointInterval;
@@ -133,6 +136,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     public long getCheckpointInterval() {
         return checkpointInterval;
+    }
+
+    public boolean isCheckpointingEnabled() {
+        return checkpointInterval > 0 && checkpointInterval < DISABLED_CHECKPOINT_INTERVAL;
     }
 
     public long getCheckpointTimeout() {
