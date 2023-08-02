@@ -204,6 +204,7 @@ abstract class StateWithExecutionGraph implements State {
         CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
                 executionGraph.getCheckpointCoordinatorConfiguration();
         if (checkpointCoordinatorConfiguration != null
+                && checkpointCoordinatorConfiguration.isCheckpointingEnabled()
                 && checkpointCoordinatorConfiguration.isEnableCheckpointsAfterTasksFinish()) {
             vertexEndOfDataListener.recordTaskEndOfData(executionAttemptID);
             if (vertexEndOfDataListener.areAllTasksEndOfData()) {
