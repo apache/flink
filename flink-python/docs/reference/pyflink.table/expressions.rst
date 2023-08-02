@@ -79,6 +79,7 @@ Expressions
     json_array_agg
     call
     call_sql
+    generate_series
 
 
 Expression
@@ -241,7 +242,6 @@ advanced type helper functions
     Expression.map_entries
     Expression.map_keys
     Expression.map_values
-
 
 time definition functions
 -------------------------
