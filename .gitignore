@@ -12,6 +12,7 @@ scalastyle-output.xml
 filter.properties
 logs.zip
 .mvn/wrapper/*.jar
+.mvn/maven.config
 target
 tmp
 *.class
