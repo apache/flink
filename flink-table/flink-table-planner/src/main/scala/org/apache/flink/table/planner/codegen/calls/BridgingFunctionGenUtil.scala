@@ -19,19 +19,19 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.api.common.functions.{AbstractRichFunction, RichFunction}
 import org.apache.flink.configuration.{Configuration, ReadableConfig}
-import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.api.Expressions.callSql
-import org.apache.flink.table.data.{GenericRowData, RawValueData, StringData}
+import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.data.binary.{BinaryRawValueData, BinaryStringData}
+import org.apache.flink.table.data.{GenericRowData, RawValueData, StringData}
 import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, unresolvedCall, unresolvedRef}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.SpecializedFunction.{ExpressionEvaluator, ExpressionEvaluatorFactory}
-import org.apache.flink.table.functions.UserDefinedFunctionHelper.{validateClassForRuntime, ASYNC_TABLE_EVAL, SCALAR_EVAL, TABLE_EVAL}
+import org.apache.flink.table.functions.UserDefinedFunctionHelper.{ASYNC_TABLE_EVAL, SCALAR_EVAL, TABLE_EVAL, validateClassForRuntime}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexFactory}
-import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.WrappingCollector
 import org.apache.flink.table.runtime.functions.DefaultExpressionEvaluator
@@ -40,15 +40,14 @@ import org.apache.flink.table.runtime.operators.join.lookup.DelegatingResultFutu
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils.primitiveToWrapper
 import org.apache.flink.table.types.inference.{CallContext, TypeInference, TypeInferenceUtil}
-import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.logical.RowType.RowField
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType
+import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.utils.DataTypeUtils.{isInternal, validateInputDataType, validateOutputDataType}
 import org.apache.flink.util.Preconditions
 
 import java.util.concurrent.CompletableFuture
-
 import scala.collection.JavaConverters._
 
 /**
@@ -587,7 +586,7 @@ object BridgingFunctionGenUtil {
            |public class $evaluatorName extends ${className[AbstractRichFunction]} {
            |
            |  ${ctx.reuseMemberCode()}
-           |
+           |  ${ctx.reuseInnerClassDefinitionCode()}
            |  public $evaluatorName(Object[] references) throws Exception {
            |    ${ctx.reuseInitCode()}
            |  }

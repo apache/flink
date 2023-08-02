@@ -34,7 +34,9 @@ import javax.annotation.Nullable;
 
 import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.apache.flink.table.api.Expressions.$;
 
@@ -42,13 +44,11 @@ import static org.apache.flink.table.api.Expressions.$;
 @Internal
 public class ArrayIntersectFunction extends BuiltInScalarFunction {
     private final ArrayData.ElementGetter elementGetter;
-
     private final SpecializedFunction.ExpressionEvaluator equalityEvaluator;
     private transient MethodHandle equalityHandle;
 
     public ArrayIntersectFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.ARRAY_INTERSECT, context);
-
         final DataType dataType =
                 ((CollectionDataType) context.getCallContext().getArgumentDataTypes().get(0))
                         .getElementDataType();
@@ -57,7 +57,7 @@ public class ArrayIntersectFunction extends BuiltInScalarFunction {
                 context.createEvaluator(
                         Expressions.call("HASHCODE", $("element1")),
                         DataTypes.INT(),
-                        DataTypes.FIELD("element1", dataType.notNull().toInternal()));
+                        DataTypes.FIELD("element1", dataType.notNull()));
     }
 
     @Override
@@ -70,46 +70,41 @@ public class ArrayIntersectFunction extends BuiltInScalarFunction {
             if (array1 == null || array2 == null) {
                 return null;
             }
-
-            List list = new ArrayList<>();
             boolean alreadySeenNull = false;
-            for (int i = 0; i < array1.size(); i++) {
-                boolean found = false;
-                final Object element1 = elementGetter.getElementOrNull(array1, i);
-                if (array1.isNullAt(i)) {
-                    if (!alreadySeenNull) {
-                        for (int j = 0; j < array2.size(); j++) {
-                            found = array2.isNullAt(j);
-                            if (found) {
-                                break;
-                            }
-                        }
+            List<Object> list = new ArrayList<>();
+            Set<Integer> set = new HashSet<>();
+            for (int i = 0; i < array1.size(); ++i) {
+                final Object element = elementGetter.getElementOrNull(array1, i);
+                if (element == null) {
+                    if (alreadySeenNull) {
+                        continue;
+                    } else {
+                        list.add(element);
                         alreadySeenNull = true;
-                    }
-                } else {
-                    for (int j = 0; j < array2.size(); j++) {
-                        if (!array2.isNullAt(j)) {
-                            final Object element2 = elementGetter.getElementOrNull(array2, j);
-                            if ((boolean) equalityHandle.invoke(element1)) {
-                                boolean foundArrayBuffer = false;
-                                for (int k = 0; k < list.size(); k++) {
-                                    Object va = list.get(k);
-                                    foundArrayBuffer =
-                                            (va != null) && (boolean) equalityHandle.invoke(va);
-                                    if (foundArrayBuffer) {
-                                        break;
-                                    }
-                                }
-                                found = !foundArrayBuffer;
-                            }
-                        }
-                        if (found) {
-                            break;
-                        }
+                        continue;
                     }
                 }
-                if (found) {
-                    list.add(element1);
+                int hashCode = (int) equalityHandle.invoke(element);
+                if (!set.contains(hashCode)) {
+                    set.add(hashCode);
+                    list.add(element);
+                }
+            }
+            for (int i = 0; i < array2.size(); ++i) {
+                final Object element = elementGetter.getElementOrNull(array2, i);
+                if (element == null) {
+                    if (alreadySeenNull) {
+                        continue;
+                    } else {
+                        list.add(element);
+                        alreadySeenNull = true;
+                        continue;
+                    }
+                }
+                int hashCode = (int) equalityHandle.invoke(element);
+                if (!set.contains(hashCode)) {
+                    set.add(hashCode);
+                    list.add(element);
                 }
             }
             return new GenericArrayData(list.toArray());
