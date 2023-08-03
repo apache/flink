@@ -27,6 +27,11 @@ import org.apache.flink.examples.java.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.apache.flink.examples.java.util.DataSetDeprecationInfo.DATASET_DEPRECATION_INFO;
+
 /**
  * Implements the "WordCount" program that computes a simple word occurrence histogram over text
  * files.
@@ -43,14 +48,22 @@ import org.apache.flink.util.Preconditions;
  *   <li>use Tuple data types.
  *   <li>write and use user-defined functions.
  * </ul>
+ *
+ * <p>Note: All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+ * Flink major version. You can still build your application in DataSet, but you should move to
+ * either the DataStream and/or Table API. This class is retained for testing purposes.
  */
 public class WordCount {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(WordCount.class);
 
     // *************************************************************************
     //     PROGRAM
     // *************************************************************************
 
     public static void main(String[] args) throws Exception {
+
+        LOGGER.warn(DATASET_DEPRECATION_INFO);
 
         final MultipleParameterTool params = MultipleParameterTool.fromArgs(args);
 

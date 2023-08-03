@@ -15,12 +15,6 @@
             <td>When auto-generated UIDs are disabled, users are forced to manually specify UIDs on DataStream applications.<br /><br />It is highly recommended that users specify UIDs before deploying to production since they are used to match state in savepoints to operators in a job. Because auto-generated ID's are likely to change when modifying a job, specifying custom IDs allow an application to evolve over time without discarding state.</td>
         </tr>
         <tr>
-            <td><h5>pipeline.auto-type-registration</h5></td>
-            <td style="word-wrap: break-word;">true</td>
-            <td>Boolean</td>
-            <td>Controls whether Flink is automatically registering all types in the user programs with Kryo.</td>
-        </tr>
-        <tr>
             <td><h5>pipeline.auto-watermark-interval</h5></td>
             <td style="word-wrap: break-word;">200 ms</td>
             <td>Duration</td>

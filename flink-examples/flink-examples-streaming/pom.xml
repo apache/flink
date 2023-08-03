@@ -251,6 +251,7 @@ under the License.
 								<include>org/apache/flink/streaming/examples/wordcount/WordCount$*.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/util/WordCountData.class</include>
 								<include>org/apache/flink/streaming/examples/wordcount/util/CLI.class</include>
+								<include>org/apache/flink/streaming/examples/utils/ParameterTool.class</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
