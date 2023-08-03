@@ -88,6 +88,7 @@ public class HBaseRowDataLookupFunction extends LookupFunction {
      */
     @Override
     public Collection<RowData> lookup(RowData keyRow) throws IOException {
+        table = (HTable) hConnection.getTable(TableName.valueOf(hTableName));
         for (int retry = 0; retry <= maxRetryTimes; retry++) {
             try {
                 // TODO: The implementation of LookupFunction will pass a GenericRowData as key row
@@ -111,6 +112,15 @@ public class HBaseRowDataLookupFunction extends LookupFunction {
                 } catch (InterruptedException e1) {
                     throw new RuntimeException(e1);
                 }
+            }
+        }
+        if (null != table) {
+            try {
+                table.close();
+                table = null;
+            } catch (IOException e) {
+                // ignore exception when close.
+                LOG.warn("exception when close table", e);
             }
         }
         return Collections.emptyList();
