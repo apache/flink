@@ -144,7 +144,8 @@ public class HiveServer2DelegationTokenProvider implements DelegationTokenProvid
                                         hive.getDelegationToken(
                                                 UserGroupInformation.getCurrentUser().getUserName(),
                                                 principal);
-                                Token<HiveServer2DelegationTokenIdentifier> hive2Token = new Token<>();
+                                Token<HiveServer2DelegationTokenIdentifier> hive2Token =
+                                        new Token<>();
                                 hive2Token.decodeFromUrlString(tokenStr);
 
                                 Credentials credentials = new Credentials();
@@ -180,7 +181,10 @@ public class HiveServer2DelegationTokenProvider implements DelegationTokenProvid
 
     @VisibleForTesting
     Long getTokenRenewalInterval(
-            Clock clock, HiveServer2DelegationTokenIdentifier tokenIdentifier, Hive hive, String tokenStr) {
+            Clock clock,
+            HiveServer2DelegationTokenIdentifier tokenIdentifier,
+            Hive hive,
+            String tokenStr) {
         Long interval;
         LOG.debug("Got Delegation token is {} ", tokenIdentifier);
         long newExpiration = getNewExpiration(hive, tokenStr);
@@ -202,7 +206,9 @@ public class HiveServer2DelegationTokenProvider implements DelegationTokenProvid
 
     @VisibleForTesting
     Optional<Long> getTokenRenewalDate(
-            Clock clock, HiveServer2DelegationTokenIdentifier tokenIdentifier, Long renewalInterval) {
+            Clock clock,
+            HiveServer2DelegationTokenIdentifier tokenIdentifier,
+            Long renewalInterval) {
         if (renewalInterval < 0) {
             LOG.debug("Negative renewal interval so no renewal date is calculated");
             return Optional.empty();
