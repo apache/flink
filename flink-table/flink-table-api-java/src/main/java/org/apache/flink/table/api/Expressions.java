@@ -103,6 +103,33 @@ public final class Expressions {
      * tab.select(col("key"), col("value"))
      * }</pre>
      */
+
+    /**
+     * Returns an array of values between start and end, inclusive.
+     *
+     * <p>Parameters start and end can be an INT or BIGINT.
+     */
+    public static ApiExpression generateSeries(Object start, Object end) {
+        return apiCall(
+                BuiltInFunctionDefinitions.GENERATE_SERIES,
+                objectToExpression(start),
+                objectToExpression(end));
+    }
+
+    /**
+     * Returns an array of values between start and end, inclusive with a specific step size.
+     *
+     * <p>Parameters start and end can be an INT or BIGINT. Step specifies the step size which must
+     * be an INT.
+     */
+    public static ApiExpression generateSeries(Object start, Object end, Object step) {
+        return apiCall(
+                BuiltInFunctionDefinitions.GENERATE_SERIES,
+                objectToExpression(start),
+                objectToExpression(end),
+                objectToExpression(step));
+    }
+
     public static ApiExpression col(String name) {
         return $(name);
     }

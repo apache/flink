@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.generateSeries;
 import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.util.CollectionUtil.entry;
@@ -41,18 +42,305 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
-                        //                        arrayContainsTestCases(),
-                        //                        arrayDistinctTestCases(),
-                        //                        arrayPositionTestCases(),
-                        //                        arrayRemoveTestCases(),
-                        //                        arrayReverseTestCases(),
-                        //                        arrayUnionTestCases(),
-                        //                        arrayConcatTestCases(),
-                        //                        arrayMaxTestCases(),
-                        //                        arrayJoinTestCases(),
-                        //                        arraySliceTestCases(),
-                        arrayIntersectTestCases())
+                        arrayContainsTestCases(),
+                        arrayDistinctTestCases(),
+                        arrayPositionTestCases(),
+                        arrayRemoveTestCases(),
+                        arrayReverseTestCases(),
+                        arrayUnionTestCases(),
+                        arrayConcatTestCases(),
+                        arrayMaxTestCases(),
+                        arrayJoinTestCases(),
+                        arraySliceTestCases(),
+                        arrayIntersectTestCases(),
+                        arrayExceptTestCases(),
+                        splitTestCases(),
+                        generateSeriesTestCases())
                 .flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> generateSeriesTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.GENERATE_SERIES)
+                        .onFieldsWithData(1, 2, 5, 9, 10, 0, -3, -10, 3.0)
+                        .andDataTypes(
+                                DataTypes.BIGINT(),
+                                DataTypes.BIGINT(),
+                                DataTypes.INT(),
+                                DataTypes.BIGINT(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.DOUBLE())
+                        .testResult(
+                                generateSeries($("f6"), $("f7")),
+                                "GENERATE_SERIES(f6, f7)",
+                                new Long[] {},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f6"), $("f7"), -2),
+                                "GENERATE_SERIES(f6, f7, -2)",
+                                new Long[] {-3L, -5L, -7L, -9L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f0"), $("f1")),
+                                "GENERATE_SERIES(f0, f1)",
+                                new Long[] {1L, 2L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f0"), $("f2")),
+                                "GENERATE_SERIES(f0, f2)",
+                                new Long[] {1L, 2L, 3L, 4L, 5L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f2"), $("f4")),
+                                "GENERATE_SERIES(f2, f4)",
+                                new Long[] {5L, 6L, 7L, 8L, 9L, 10L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f0"), $("f4"), 2),
+                                "GENERATE_SERIES(f0, f4, 2)",
+                                new Long[] {1L, 3L, 5L, 7L, 9L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f0"), $("f4"), -2),
+                                "GENERATE_SERIES(f0, f4, -2)",
+                                new Long[] {},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f4"), $("f2"), -2),
+                                "GENERATE_SERIES(f4, f2, -2)",
+                                new Long[] {10L, 8L, 6L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testTableApiRuntimeError(
+                                generateSeries($("f0"), $("f1"), $("f5")),
+                                "Step argument in GENERATE_SERIES function cannot be zero.")
+                        .testSqlRuntimeError(
+                                "GENERATE_SERIES(f0, f1, f5)",
+                                "Step argument in GENERATE_SERIES function cannot be zero.")
+                        .testSqlValidationError(
+                                "GENERATE_SERIES(f0)",
+                                "No match found for function signature GENERATE_SERIES(<NUMERIC>)")
+                        .testSqlValidationError(
+                                "GENERATE_SERIES(f0, f1, f2, f3)",
+                                "No match found for function signature GENERATE_SERIES(<NUMERIC>, <NUMERIC>, <NUMERIC>, <NUMERIC>)")
+                        .testSqlValidationError(
+                                "GENERATE_SERIES()",
+                                "No match found for function signature GENERATE_SERIES()")
+                        .testTableApiValidationError(
+                                generateSeries($("f6"), $("f7"), $("f8")),
+                                "Invalid function call:\n" + "GENERATE_SERIES(INT, INT, DOUBLE)")
+                        .testSqlValidationError(
+                                "GENERATE_SERIES(f6, f7, f8)",
+                                " Invalid function call:\n" + "GENERATE_SERIES(INT, INT, DOUBLE)"));
+    }
+
+    private Stream<TestSetSpec> splitTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SPLIT)
+                        .onFieldsWithData("123,123,23", null, ",123,123", ",123,123,", 123, "12345")
+                        .andDataTypes(
+                                DataTypes.STRING().notNull(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.STRING().notNull())
+                        .testResult(
+                                $("f0").split(","),
+                                "SPLIT(f0, ',')",
+                                new String[] {"123", "123", "23"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f0").split(null),
+                                "SPLIT(f0, NULL)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f0").split(""),
+                                "SPLIT(f0, '')",
+                                new String[] {"1", "2", "3", ",", "1", "2", "3", ",", "2", "3"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f1").split(","),
+                                "SPLIT(f1, ',')",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f1").split(null),
+                                "SPLIT(f1, null)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f2").split(","),
+                                "SPLIT(f2, ',')",
+                                new String[] {"", "123", "123"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f3").split(","),
+                                "SPLIT(f3, ',')",
+                                new String[] {"", "123", "123", ""},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f5").split(","),
+                                "SPLIT(f5, ',')",
+                                new String[] {"12345"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testTableApiValidationError(
+                                $("f4").split(","),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "SPLIT(<CHARACTER_STRING>, <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "SPLIT(f4, ',')",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "SPLIT(<CHARACTER_STRING>, <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "SPLIT()", "No match found for function signature SPLIT()")
+                        .testSqlValidationError(
+                                "SPLIT(f1, '1', '2')",
+                                "No match found for function signature SPLIT(<CHARACTER>, <CHARACTER>, <CHARACTER>)"));
+    }
+
+    private Stream<TestSetSpec> arrayExceptTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_EXCEPT)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, 2},
+                                null,
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new Integer[] {null, null, 1},
+                                new Integer[][] {
+                                    new Integer[] {1, null, 3}, new Integer[] {0}, new Integer[] {1}
+                                },
+                                new Map[] {
+                                    CollectionUtil.map(entry(1, "a"), entry(2, "b")),
+                                    CollectionUtil.map(entry(3, "c"), entry(4, "d")),
+                                    null
+                                })
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())))
+                        // ARRAY<INT>
+                        .testResult(
+                                $("f0").arrayExcept(new Integer[] {2, 3, 4}),
+                                "ARRAY_EXCEPT(f0, ARRAY[2,3,4])",
+                                new Integer[] {1},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f0").arrayExcept(new Integer[] {1}),
+                                "ARRAY_EXCEPT(f0, ARRAY[1])",
+                                new Integer[] {2},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                $("f0").arrayExcept(new Integer[] {42}),
+                                "ARRAY_EXCEPT(f0, ARRAY[42])",
+                                new Integer[] {1, 2},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // arrayTwo is NULL
+                        .testResult(
+                                $("f0").arrayExcept(
+                                                lit(null, DataTypes.ARRAY(DataTypes.INT()))
+                                                        .cast(DataTypes.ARRAY(DataTypes.INT()))),
+                                "ARRAY_EXCEPT(f0, CAST(NULL AS ARRAY<INT>))",
+                                new Integer[] {1, 2},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // arrayTwo contains null elements
+                        .testResult(
+                                $("f0").arrayExcept(new Integer[] {null, 2}),
+                                "ARRAY_EXCEPT(f0, ARRAY[null, 2])",
+                                new Integer[] {1},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // arrayOne is NULL
+                        .testResult(
+                                $("f1").arrayExcept(new Integer[] {1, 2, 3}),
+                                "ARRAY_EXCEPT(f1, ARRAY[1,2,3])",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // arrayOne contains null elements
+                        .testResult(
+                                $("f3").arrayExcept(new Integer[] {null, 42}),
+                                "ARRAY_EXCEPT(f3, ARRAY[null, 42])",
+                                new Integer[] {1},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        // ARRAY<ROW<BOOLEAN, DATE>>
+                        .testResult(
+                                $("f2").arrayExcept(
+                                                new Row[] {
+                                                    Row.of(true, LocalDate.of(1990, 10, 14))
+                                                }),
+                                "ARRAY_EXCEPT(f2, ARRAY[(TRUE, DATE '1990-10-14')])",
+                                new Row[] {Row.of(true, LocalDate.of(2022, 4, 20)), null},
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                        DataTypes.BOOLEAN(), DataTypes.DATE()))
+                                        .nullable())
+                        .testResult(
+                                $("f2").arrayExcept(
+                                                lit(
+                                                                null,
+                                                                DataTypes.ARRAY(
+                                                                        DataTypes.ROW(
+                                                                                DataTypes.BOOLEAN(),
+                                                                                DataTypes.DATE())))
+                                                        .cast(
+                                                                DataTypes.ARRAY(
+                                                                        DataTypes.ROW(
+                                                                                DataTypes.BOOLEAN(),
+                                                                                DataTypes
+                                                                                        .DATE())))),
+                                "ARRAY_EXCEPT(f2, CAST(NULL AS ARRAY<ROW<col1 BOOLEAN, col2 DATE>>))",
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null,
+                                },
+                                DataTypes.ARRAY(
+                                                DataTypes.ROW(
+                                                        DataTypes.BOOLEAN(), DataTypes.DATE()))
+                                        .nullable())
+                        // ARRAY<ARRAY<INT>>
+                        .testResult(
+                                $("f4").arrayExcept(new Integer[][] {new Integer[] {0}}),
+                                "ARRAY_EXCEPT(f4, ARRAY[ARRAY[0]])",
+                                new Integer[][] {new Integer[] {1, null, 3}, new Integer[] {1}},
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()).nullable()))
+                        // ARRAY<MAP<INT, STRING>> with NULL elements
+                        .testResult(
+                                $("f5").arrayExcept(
+                                                new Map[] {
+                                                    CollectionUtil.map(entry(3, "c"), entry(4, "d"))
+                                                }),
+                                "ARRAY_EXCEPT(f5, ARRAY[MAP[3, 'c', 4, 'd']])",
+                                new Map[] {CollectionUtil.map(entry(1, "a"), entry(2, "b")), null},
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))
+                                        .nullable())
+                        // Invalid signatures
+                        .testSqlValidationError(
+                                "ARRAY_EXCEPT(f0, TRUE)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_EXCEPT(<COMMON>, <COMMON>)")
+                        .testTableApiValidationError(
+                                $("f0").arrayExcept(true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_EXCEPT(<COMMON>, <COMMON>)")
+                        .testSqlValidationError(
+                                "ARRAY_EXCEPT(f0, ARRAY['hi', 'there'])",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_EXCEPT(<COMMON>, <COMMON>)")
+                        .testTableApiValidationError(
+                                $("f0").arrayExcept(new String[] {"hi", "there"}),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_EXCEPT(<COMMON>, <COMMON>)"));
     }
 
     private Stream<TestSetSpec> arrayIntersectTestCases() {
@@ -70,40 +358,35 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.INT())),
                                 DataTypes.INT())
                         // ARRAY<INT>
-                        //                        .testResult(
-                        //                                $("f0").arrayIntersect(new Integer[] {1,
-                        // null, 4}),
-                        //                                "ARRAY_INTERSECT(f0, ARRAY[1, NULL, 4])",
-                        //                                new Integer[] {1, null},
-                        //                                DataTypes.ARRAY(DataTypes.INT()))
-                        //                        .testResult(
-                        //                                $("f1").arrayIntersect(new Integer[] {1,
-                        // null, 4}),
-                        //                                "ARRAY_INTERSECT(f1, ARRAY[1, NULL, 4])",
-                        //                                null,
-                        //                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arrayIntersect(new Integer[] {1, null, 4}),
+                                "ARRAY_INTERSECT(f0, ARRAY[1, NULL, 4])",
+                                new Integer[] {1, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f1").arrayIntersect(new Integer[] {1, null, 4}),
+                                "ARRAY_INTERSECT(f1, ARRAY[1, NULL, 4])",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
                         // ARRAY<ROW<BOOLEAN, DATE>>
                         .testResult(
                                 $("f2").arrayIntersect(
                                                 new Row[] {
                                                     null, Row.of(true, 2),
                                                 }),
-                                "ARRAY_INTERSECT(f2, ARRAY[NULL, 2])",
+                                "ARRAY_INTERSECT(f2, ARRAY[NULL, ROW(TRUE, 2)])",
                                 new Row[] {Row.of(true, 2), null},
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.INT())))
-                //                        // invalid signatures
-                //                        .testSqlValidationError(
-                //                                "ARRAY_INTERSECT(f3, TRUE)",
-                //                                "Invalid input arguments. Expected signatures
-                // are:\n"
-                //                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)")
-                //                        .testTableApiValidationError(
-                //                                $("f3").arrayIntersect(true),
-                //                                "Invalid input arguments. Expected signatures
-                // are:\n"
-                //                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)")
-                );
+                        // invalid signatures
+                        .testSqlValidationError(
+                                "ARRAY_INTERSECT(f3, TRUE)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)")
+                        .testTableApiValidationError(
+                                $("f3").arrayIntersect(true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)"));
     }
 
     private Stream<TestSetSpec> arrayContainsTestCases() {

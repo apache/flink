@@ -2182,6 +2182,47 @@ public final class BuiltInFunctionDefinitions {
                     .runtimeProvided()
                     .build();
 
+    public static final BuiltInFunctionDefinition ARRAY_EXCEPT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_EXCEPT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(commonArrayType(2))
+                    .outputTypeStrategy(nullableIfArgs(COMMON))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayExceptFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition SPLIT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("SPLIT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeFamily.CHARACTER_STRING),
+                                    logical(LogicalTypeFamily.CHARACTER_STRING)))
+                    .outputTypeStrategy(forceNullable(explicit(DataTypes.ARRAY(STRING()))))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.SplitFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition GENERATE_SERIES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("GENERATE_SERIES")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            logical(LogicalTypeRoot.BIGINT),
+                                            logical(LogicalTypeRoot.BIGINT)),
+                                    sequence(
+                                            logical(LogicalTypeRoot.BIGINT),
+                                            logical(LogicalTypeRoot.BIGINT),
+                                            logical(LogicalTypeRoot.INTEGER))))
+                    .outputTypeStrategy(
+                            nullableIfArgs(explicit(DataTypes.ARRAY(DataTypes.BIGINT()))))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.GenerateSeriesFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition JSON_OBJECT =
             BuiltInFunctionDefinition.newBuilder()
                     .name("JSON_OBJECT")

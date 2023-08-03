@@ -32,6 +32,7 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -112,28 +113,13 @@ public class HashCodeFunctionsBinaryDataITCase extends AbstractTestBase {
                         .sink(buildDataStreamSinkProvider(fetched))
                         .build();
         tableEnv.createTable("T1", sourceDescriptor);
-        final String sqlStmt = "SELECT HASHCODE(a) FROM T1";
+        final String sqlStmt = "SELECT HASHCODE(c) FROM T1";
         TableResult result = tableEnv.executeSql(sqlStmt);
-        final String sqlStmt2 = "SELECT HASHCODE(b) FROM T1";
-        TableResult result2 = tableEnv.executeSql(sqlStmt2);
-        final String sqlStmt3 = "SELECT HASHCODE(c) FROM T1";
-        TableResult result3 = tableEnv.executeSql(sqlStmt3);
-        CloseableIterator<Row> iterator = result.collect();
-        while (iterator.hasNext()) {
-            Row row = iterator.next();
-            System.out.println(row);
-        }
-        System.out.println("----------");
-        CloseableIterator<Row> iterator2 = result2.collect();
-        while (iterator2.hasNext()) {
-            Row row = iterator2.next();
-            System.out.println(row);
-        }
-        System.out.println("----------");
-        CloseableIterator<Row> iterator3 = result3.collect();
-        while (iterator3.hasNext()) {
-            Row row = iterator3.next();
-            System.out.println(row);
+        CloseableIterator<RowData> iterator = ((TableResultImpl) result).collectInternal();
+        if (iterator.hasNext()) {
+            RowData rowData = iterator.next();
+            int hashcode = rowData.getInt(0);
+            assert (hashcode == 1218575173);
         }
     }
 

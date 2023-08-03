@@ -23,10 +23,10 @@ import org.apache.flink.table.data.binary.BinaryArrayData
 import org.apache.flink.table.data.util.MapDataUtil
 import org.apache.flink.table.data.utils.CastExecutor
 import org.apache.flink.table.data.writer.{BinaryArrayWriter, BinaryRowWriter}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenException, CodeGenUtils, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
-import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
-import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.functions.casting.{CastRule, CastRuleProvider, CodeGeneratorCastRule, ExpressionCodeGeneratorCastRule}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.planner.utils.TableConfigUtils
@@ -34,15 +34,16 @@ import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
+import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.LogicalTypeFamily.DATETIME
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType
 import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.flink.util.Preconditions.checkArgument
 
 import java.time.ZoneId
+
 import scala.collection.JavaConversions._
 
 /**
@@ -344,16 +345,15 @@ object ScalarOperatorGens {
     }
   }
 
-//  def generateHashCode(
-//                      ctx: CodeGeneratorContext,
-//                      left: GeneratedExpression,
-//                      resultType: LogicalType): GeneratedExpression = {
-//
-//      val fieldCount = getFieldCount(left.resultType);
-//      val genHash = HashCodeGenerator.generateRowHash(ctx, left.resultType, "row", (0 until fieldCount).toArray)
-//      val resultTerm = left.resultTerm;
-//      GeneratedExpression(resultTerm, "123")
-//  }
+  def generateHashCode(
+      ctx: CodeGeneratorContext,
+      operands: Seq[GeneratedExpression],
+      returnType: LogicalType): GeneratedExpression = {
+    val inputTerm = operands.head.resultTerm
+    val inputType = operands.head.resultType
+    val code = CodeGenUtils.hashCodeForType(ctx, inputType, inputTerm)
+    generateCallIfArgsNotNull(ctx, returnType, operands)(_ => code)
+  }
 
   def generateEquals(
       ctx: CodeGeneratorContext,
