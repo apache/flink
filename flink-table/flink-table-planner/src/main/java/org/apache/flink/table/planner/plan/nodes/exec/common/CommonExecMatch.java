@@ -194,7 +194,8 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         return transform;
     }
 
-    protected void checkOrderKeys(RowType inputRowType) {}
+    protected void checkOrderKeys(RowType inputRowType) {
+    }
 
     private EventComparator<RowData> createEventComparator(
             ExecNodeConfig config, ClassLoader classLoader, RowType inputRowType) {
@@ -225,12 +226,15 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                 new PatternVisitor(config, classLoader, relBuilder, inputRowType, matchSpec);
 
         final Pattern<RowData, RowData> cepPattern;
+        PatternWithStrategy resultPatternWithStrategy =
+                matchSpec.getPattern().accept(patternVisitor);
         if (matchSpec.getInterval().isPresent()) {
             Time interval = translateTimeBound(matchSpec.getInterval().get());
-            cepPattern = matchSpec.getPattern().accept(patternVisitor).within(interval);
+            cepPattern = resultPatternWithStrategy.getPattern().within(interval);
         } else {
-            cepPattern = matchSpec.getPattern().accept(patternVisitor);
+            cepPattern = resultPatternWithStrategy.getPattern();
         }
+        resultPatternWithStrategy.checkPatternReasonableEnding();
         return new Tuple2<>(cepPattern, new ArrayList<>(patternVisitor.names));
     }
 
@@ -248,14 +252,14 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
     public abstract boolean isProcTime(RowType inputRowType);
 
     /** The visitor to traverse the pattern RexNode. */
-    private static class PatternVisitor extends RexDefaultVisitor<Pattern<RowData, RowData>> {
+    private static class PatternVisitor extends RexDefaultVisitor<PatternWithStrategy> {
         private final ReadableConfig config;
         private final ClassLoader classLoader;
         private final RelBuilder relBuilder;
         private final RowType inputRowType;
         private final MatchSpec matchSpec;
         private final LinkedHashSet<String> names;
-        private Pattern<RowData, RowData> pattern;
+        private PatternWithStrategy patternWithStrategy;
 
         public PatternVisitor(
                 ReadableConfig config,
@@ -272,9 +276,9 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         }
 
         @Override
-        public Pattern<RowData, RowData> visitLiteral(RexLiteral literal) {
+        public PatternWithStrategy visitLiteral(RexLiteral literal) {
             String patternName = literal.getValueAs(String.class);
-            pattern = translateSingleVariable(pattern, patternName);
+            patternWithStrategy = translateSingleVariable(patternWithStrategy, patternName);
 
             RexNode patternDefinition = matchSpec.getPatternDefinitions().get(patternName);
             if (patternDefinition != null) {
@@ -292,19 +296,22 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                         JavaScalaConversionUtil.toScala(Optional.empty()));
                 IterativeCondition<RowData> condition =
                         generator.generateIterativeCondition(patternDefinition);
-                return pattern.where(condition);
+                patternWithStrategy.setPattern(patternWithStrategy.getPattern().where(condition));
+                return patternWithStrategy;
             } else {
-                return pattern.where(BooleanConditions.trueFunction());
+                patternWithStrategy.setPattern(
+                        patternWithStrategy.getPattern().where(BooleanConditions.trueFunction()));
+                return patternWithStrategy;
             }
         }
 
         @Override
-        public Pattern<RowData, RowData> visitCall(RexCall call) {
+        public PatternWithStrategy visitCall(RexCall call) {
             SqlOperator operator = call.getOperator();
             if (operator == SqlStdOperatorTable.PATTERN_CONCAT) {
-                pattern = call.operands.get(0).accept(this);
-                pattern = call.operands.get(1).accept(this);
-                return pattern;
+                patternWithStrategy = call.operands.get(0).accept(this);
+                patternWithStrategy = call.operands.get(1).accept(this);
+                return patternWithStrategy;
             } else if (operator == SqlStdOperatorTable.PATTERN_QUANTIFIER) {
                 final RexLiteral name;
                 if (call.operands.get(0) instanceof RexLiteral) {
@@ -315,8 +322,6 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                                     "Expression not supported: %s Group patterns are not supported yet.",
                                     call.operands.get(0)));
                 }
-
-                pattern = name.accept(this);
                 int startNum =
                         MathUtils.checkedDownCast(
                                 ((RexLiteral) call.operands.get(1)).getValueAs(Long.class));
@@ -325,7 +330,13 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                                 ((RexLiteral) call.operands.get(2)).getValueAs(Long.class));
                 boolean isGreedy = !((RexLiteral) call.operands.get(3)).getValueAs(Boolean.class);
 
-                return applyQuantifier(pattern, startNum, endNum, isGreedy);
+                if (patternWithStrategy != null && patternWithStrategy.isExcluded()) {
+                    return decideNextConsumingStrategyByExcludePattern(
+                            patternWithStrategy, startNum, endNum, isGreedy);
+                } else {
+                    patternWithStrategy = name.accept(this);
+                    return applyQuantifier(patternWithStrategy, startNum, endNum, isGreedy);
+                }
             } else if (operator == SqlStdOperatorTable.PATTERN_ALTER) {
                 throw new TableException(
                         String.format(
@@ -337,35 +348,75 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                                 "Expression not supported: %s. Currently, CEP doesn't support PERMUTE patterns.",
                                 call));
             } else if (operator == SqlStdOperatorTable.PATTERN_EXCLUDE) {
-                throw new TableException(
-                        String.format(
-                                "Expression not supported: %s. Currently, CEP doesn't support '{-' '-}' patterns.",
-                                call));
+                if (patternWithStrategy == null || patternWithStrategy.getPattern() == null) {
+                    throw new TableException(
+                            String.format(
+                                    "Expression not supported: %s. Currently, CEP doesn't support {- -} patterns at the beginning.",
+                                    call));
+                }
+                if (call.operands.get(0) instanceof RexCall) {
+                    patternWithStrategy.setNextConsumingStrategy(
+                            Quantifier.ConsumingStrategy.SKIP_TILL_NEXT);
+                    RexCall name = (RexCall) call.operands.get(0);
+                    patternWithStrategy.setExcluded(true);
+                    patternWithStrategy = name.accept(this);
+                    return patternWithStrategy;
+                } else {
+                    throw new TableException(
+                            String.format(
+                                    "Expression not supported: %s. Currently, CEP doesn't support {- -} patterns without quantifier.",
+                                    call));
+                }
             } else {
                 throw new TableException("This should not happen.");
             }
         }
 
         @Override
-        public Pattern<RowData, RowData> visitNode(RexNode rexNode) {
+        public PatternWithStrategy visitNode(RexNode rexNode) {
             throw new TableException(
                     String.format("Unsupported expression within Pattern: [%s]", rexNode));
         }
 
-        private Pattern<RowData, RowData> translateSingleVariable(
-                Pattern<RowData, RowData> previousPattern, String patternName) {
+        private PatternWithStrategy translateSingleVariable(
+                PatternWithStrategy patternWithStrategy, String patternName) {
+            Pattern<RowData, RowData> newPattern;
             if (names.contains(patternName)) {
                 throw new TableException(
                         "Pattern variables must be unique. That might change in the future.");
             } else {
                 names.add(patternName);
             }
-
-            if (previousPattern != null) {
-                return previousPattern.next(patternName);
+            if (patternWithStrategy != null
+                    && patternWithStrategy.getPattern() != null
+                    && patternWithStrategy.getNextConsumingStrategy() != null) {
+                Pattern<RowData, RowData> previousPattern = patternWithStrategy.getPattern();
+                switch (patternWithStrategy.getNextConsumingStrategy()) {
+                    case STRICT:
+                        newPattern = previousPattern.next(patternName);
+                        break;
+                    case NOT_NEXT:
+                        newPattern = previousPattern.notNext(patternName);
+                        break;
+                    case SKIP_TILL_NEXT:
+                        newPattern = previousPattern.followedBy(patternName);
+                        break;
+                    case SKIP_TILL_ANY:
+                        newPattern = previousPattern.followedByAny(patternName);
+                        break;
+                    case NOT_FOLLOW:
+                        newPattern = previousPattern.notFollowedBy(patternName);
+                        break;
+                    default:
+                        throw new TableException(
+                                "Pattern ConsumingStrategy must be <STRICT, SKIP_TILL_NEXT, SKIP_TILL_ANY, NOT_FOLLOW, NOT_NEXT>");
+                }
             } else {
-                return Pattern.begin(patternName, translateSkipStrategy());
+                newPattern = Pattern.begin(patternName, translateSkipStrategy());
             }
+            PatternWithStrategy newPatternWithStrategy = new PatternWithStrategy();
+            newPatternWithStrategy.setPattern(newPattern);
+            return newPatternWithStrategy;
         }
 
         private AfterMatchSkipStrategy translateSkipStrategy() {
@@ -401,31 +452,90 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                     .getValueAs(String.class);
         }
 
-        private Pattern<RowData, RowData> applyQuantifier(
-                Pattern<RowData, RowData> pattern, int startNum, int endNum, boolean greedy) {
+        private PatternWithStrategy applyQuantifier(
+                PatternWithStrategy patternWithStrategy, int startNum, int endNum, boolean greedy) {
             boolean isOptional = startNum == 0 && endNum == 1;
 
             final Pattern<RowData, RowData> newPattern;
             if (startNum == 0 && endNum == -1) { // zero or more
-                newPattern = pattern.oneOrMore().optional().consecutive();
+                newPattern = patternWithStrategy.getPattern().oneOrMore().optional().consecutive();
             } else if (startNum == 1 && endNum == -1) { // one or more
-                newPattern = pattern.oneOrMore().consecutive();
+                newPattern = patternWithStrategy.getPattern().oneOrMore().consecutive();
             } else if (isOptional) { // optional
-                newPattern = pattern.optional();
+                newPattern = patternWithStrategy.getPattern().optional();
             } else if (endNum != -1) { // times
-                newPattern = pattern.times(startNum, endNum).consecutive();
+                newPattern = patternWithStrategy.getPattern().times(startNum, endNum).consecutive();
             } else { // times or more
-                newPattern = pattern.timesOrMore(startNum).consecutive();
+                newPattern = patternWithStrategy.getPattern().timesOrMore(startNum).consecutive();
             }
 
             if (greedy && (isOptional || startNum == endNum)) {
-                return newPattern;
+                patternWithStrategy.setPattern(newPattern);
+                return patternWithStrategy;
             } else if (greedy) {
-                return newPattern.greedy();
+                patternWithStrategy.setPattern(newPattern.greedy());
+                return patternWithStrategy;
             } else if (isOptional) {
                 throw new TableException("Reluctant optional variables are not supported yet.");
             } else {
-                return newPattern;
+                patternWithStrategy.setPattern(newPattern);
+                return patternWithStrategy;
+            }
+        }
+
+        private PatternWithStrategy decideNextConsumingStrategyByExcludePattern(
+                PatternWithStrategy patternWithStrategy, int startNum, int endNum, boolean greedy) {
+            if (startNum == 0 && endNum == -1) {
+                patternWithStrategy.setNextConsumingStrategy(
+                        greedy
+                                ? Quantifier.ConsumingStrategy.SKIP_TILL_ANY
+                                : Quantifier.ConsumingStrategy.SKIP_TILL_NEXT);
+            } else {
+                throw new TableException("Pattern excluded quantifier must be <*?, *>.");
+            }
+            return patternWithStrategy;
+        }
+    }
+
+    /**
+     * This info is used to temporarily store pattern information and next connection information.
+     */
+    private static class PatternWithStrategy {
+        private Pattern<RowData, RowData> pattern;
+        private Quantifier.ConsumingStrategy nextConsumingStrategy =
+                Quantifier.ConsumingStrategy.STRICT;
+        private boolean isExcluded = false;
+
+        public Pattern<RowData, RowData> getPattern() {
+            return pattern;
+        }
+
+        public void setPattern(Pattern<RowData, RowData> pattern) {
+            this.pattern = pattern;
+        }
+
+        public Quantifier.ConsumingStrategy getNextConsumingStrategy() {
+            return nextConsumingStrategy;
+        }
+
+        public void setNextConsumingStrategy(Quantifier.ConsumingStrategy nextConsumingStrategy) {
+            this.nextConsumingStrategy = nextConsumingStrategy;
+        }
+
+        public boolean isExcluded() {
+            return isExcluded;
+        }
+
+        public void setExcluded(boolean excluded) {
+            isExcluded = excluded;
+        }
+
+        private void checkPatternReasonableEnding() {
+            Quantifier.ConsumingStrategy lastConsumingStrategy = this.getNextConsumingStrategy();
+            if (lastConsumingStrategy.equals(Quantifier.ConsumingStrategy.SKIP_TILL_NEXT)
+                    || lastConsumingStrategy.equals(Quantifier.ConsumingStrategy.SKIP_TILL_ANY)) {
+                throw new TableException(
+                        "Currently, CEP doesn't support {- -} patterns at the ending.");
             }
         }
     }
