@@ -27,13 +27,13 @@ import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.examples.join.WindowJoinSampleData.GradeSource;
 import org.apache.flink.streaming.examples.join.WindowJoinSampleData.SalarySource;
+import org.apache.flink.streaming.examples.utils.ParameterTool;
 
 /**
  * Example illustrating a windowed stream join between two data streams.

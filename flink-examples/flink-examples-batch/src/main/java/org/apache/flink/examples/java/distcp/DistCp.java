@@ -53,6 +53,10 @@ import java.util.Map;
  *
  * <p>When running locally, local file systems paths can be used. However, in a distributed
  * environment HDFS paths must be provided both as input and output.
+ *
+ * <p>Note: All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+ * Flink major version. You can still build your application in DataSet, but you should move to
+ * either the DataStream and/or Table API. This class is retained for testing purposes.
  */
 public class DistCp {
 
@@ -61,6 +65,11 @@ public class DistCp {
     public static final String FILES_COPIED_CNT_NAME = "FILES_COPIED";
 
     public static void main(String[] args) throws Exception {
+
+        LOGGER.warn(
+                "All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future"
+                        + " Flink major version. You can still build your application in DataSet, but you should move to"
+                        + " either the DataStream and/or Table API. This class is retained for testing purposes.");
 
         // set up the execution environment
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();

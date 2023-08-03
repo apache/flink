@@ -61,7 +61,13 @@ import java.util.List;
  * @param <I2> The type of the second input DataSet of the CoGroup transformation.
  * @param <OUT> The type of the result of the CoGroup transformation.
  * @see DataSet
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @Public
 public class CoGroupOperator<I1, I2, OUT>
         extends TwoInputUdfOperator<I1, I2, OUT, CoGroupOperator<I1, I2, OUT>> {

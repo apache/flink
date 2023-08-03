@@ -22,6 +22,9 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 
 /**
@@ -32,8 +35,14 @@ import java.util.List;
  *
  * <p>See the "Local Execution" section in the documentation for more details:
  * https://flink.apache.org/docs/latest/apis/local_execution.html
+ *
+ * <p>Note: All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+ * Flink major version. You can still build your application in DataSet, but you should move to
+ * either the DataStream and/or Table API. This class is retained for testing purposes.
  */
 public class CollectionExecutionExample {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CollectionExecutionExample.class);
 
     /** POJO class representing a user. */
     public static class User {
@@ -72,6 +81,12 @@ public class CollectionExecutionExample {
     }
 
     public static void main(String[] args) throws Exception {
+
+        LOGGER.warn(
+                "All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future"
+                        + " Flink major version. You can still build your application in DataSet, but you should move to"
+                        + " either the DataStream and/or Table API. This class is retained for testing purposes.");
+
         // initialize a new Collection-based execution environment
         final ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
 

@@ -29,6 +29,9 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.graph.util.ConnectedComponentsData;
 import org.apache.flink.util.Collector;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -39,11 +42,22 @@ import java.util.Set;
  * <p>This algorithm is implemented using a delta iteration. The transitive closure solution set is
  * grown in each step by joining the workset of newly discovered path endpoints with the original
  * graph edges and discarding previously discovered path endpoints (already in the solution set).
+ *
+ * <p>Note: All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+ * Flink major version. You can still build your application in DataSet, but you should move to
+ * either the DataStream and/or Table API. This class is retained for testing purposes.
  */
 @SuppressWarnings("serial")
 public class TransitiveClosureNaive {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(TransitiveClosureNaive.class);
+
     public static void main(String... args) throws Exception {
+
+        LOGGER.warn(
+                "All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future"
+                        + " Flink major version. You can still build your application in DataSet, but you should move to"
+                        + " either the DataStream and/or Table API. This class is retained for testing purposes.");
 
         // Checking input parameters
         final ParameterTool params = ParameterTool.fromArgs(args);

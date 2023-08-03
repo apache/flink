@@ -32,6 +32,9 @@ import org.apache.flink.examples.java.graph.util.EnumTrianglesDataTypes.Edge;
 import org.apache.flink.examples.java.graph.util.EnumTrianglesDataTypes.Triad;
 import org.apache.flink.util.Collector;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -69,15 +72,26 @@ import java.util.List;
  *   <li>Custom Java objects which extend Tuple
  *   <li>Group Sorting
  * </ul>
+ *
+ * <p>Note: All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+ * Flink major version. You can still build your application in DataSet, but you should move to
+ * either the DataStream and/or Table API. This class is retained for testing purposes.
  */
 @SuppressWarnings("serial")
 public class EnumTriangles {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(EnumTriangles.class);
 
     // *************************************************************************
     //     PROGRAM
     // *************************************************************************
 
     public static void main(String[] args) throws Exception {
+
+        LOGGER.warn(
+                "All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future"
+                        + " Flink major version. You can still build your application in DataSet, but you should move to"
+                        + " either the DataStream and/or Table API. This class is retained for testing purposes.");
 
         // Checking input parameters
         final ParameterTool params = ParameterTool.fromArgs(args);
