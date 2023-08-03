@@ -321,8 +321,7 @@ CREATE TABLE KafkaTable (
     <tr>
       <td><h5>scan.bounded.specific-offsets</h5></td>
       <td>optional</td>
-      <td>yes</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td style="word-wrap: break-word;">（无）</td>
       <td>String</td>
       <td>Specify offsets for each partition in case of <code>'specific-offsets'</code> bounded mode, e.g. <code>'partition:0,offset:42;partition:1,offset:300'. If an offset
        for a partition is not provided it will not consume from that partition.</code>.
@@ -331,8 +330,7 @@ CREATE TABLE KafkaTable (
     <tr>
       <td><h5>scan.bounded.timestamp-millis</h5></td>
       <td>optional</td>
-      <td>yes</td>
-      <td style="word-wrap: break-word;">(none)</td>
+      <td style="word-wrap: break-word;">（无）</td>
       <td>Long</td>
       <td>End at the specified epoch timestamp (milliseconds) used in case of <code>'timestamp'</code> bounded mode.</td>
     </tr>
