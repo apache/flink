@@ -70,6 +70,8 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-datagen</artifactId>
 			<version>${project.version}</version>
+			<!-- required by the shade plugin -->
+			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 		<dependency>
@@ -342,6 +344,19 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes>
+									<include>org.apache.flink:flink-connector-datagen</include>
+								</includes>
+							</artifactSet>
+						</configuration>
+					</execution>
 					<execution>
 						<id>MatrixVectorMul</id>
 						<phase>package</phase>
