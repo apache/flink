@@ -31,8 +31,13 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.examples.java.clustering.util.KMeansData;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.Serializable;
 import java.util.Collection;
+
+import static org.apache.flink.examples.java.util.DataSetDeprecationInfo.DATASET_DEPRECATION_INFO;
 
 /**
  * This example implements a basic K-Means clustering algorithm.
@@ -77,11 +82,19 @@ import java.util.Collection;
  *   <li>Broadcast variables in bulk iterations
  *   <li>Custom Java objects (POJOs)
  * </ul>
+ *
+ * <p>Note: All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+ * Flink major version. You can still build your application in DataSet, but you should move to
+ * either the DataStream and/or Table API. This class is retained for testing purposes.
  */
 @SuppressWarnings("serial")
 public class KMeans {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(KMeans.class);
+
     public static void main(String[] args) throws Exception {
+
+        LOGGER.warn(DATASET_DEPRECATION_INFO);
 
         // Checking input parameters
         final ParameterTool params = ParameterTool.fromArgs(args);

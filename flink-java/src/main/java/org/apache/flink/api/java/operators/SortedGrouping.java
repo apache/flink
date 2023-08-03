@@ -47,7 +47,13 @@ import java.util.Arrays;
  * </ul>
  *
  * @param <T> The type of the elements of the sorted and grouped DataSet.
+ * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
+ *     future Flink major version. You can still build your application in DataSet, but you should
+ *     move to either the DataStream and/or Table API.
+ * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+ *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
  */
+@Deprecated
 @Public
 public class SortedGrouping<T> extends Grouping<T> {
 

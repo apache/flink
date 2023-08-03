@@ -230,7 +230,11 @@ under the License.
 			<fileMode>0644</fileMode>
 		</fileSet>
 
-		<!-- copy jar files of the batch examples -->
+		<!-- copy jar files of the batch examples
+		All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+		Flink major version. The examples are retained for testing purposes.
+		See https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741.
+		-->
 		<fileSet>
 			<directory>../flink-examples/flink-examples-batch/target</directory>
 			<outputDirectory>examples/batch</outputDirectory>

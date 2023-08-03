@@ -32,9 +32,13 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.examples.java.graph.util.PageRankData;
 import org.apache.flink.util.Collector;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 
 import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
+import static org.apache.flink.examples.java.util.DataSetDeprecationInfo.DATASET_DEPRECATION_INFO;
 
 /**
  * A basic implementation of the Page Rank algorithm using a bulk iteration.
@@ -75,10 +79,15 @@ import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
  *   <li>Default Join
  *   <li>Configure user-defined functions using constructor parameters.
  * </ul>
+ *
+ * <p>Note: All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+ * Flink major version. You can still build your application in DataSet, but you should move to
+ * either the DataStream and/or Table API. This class is retained for testing purposes.
  */
 @SuppressWarnings("serial")
 public class PageRank {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(PageRank.class);
     private static final double DAMPENING_FACTOR = 0.85;
     private static final double EPSILON = 0.0001;
 
@@ -87,6 +96,8 @@ public class PageRank {
     // *************************************************************************
 
     public static void main(String[] args) throws Exception {
+
+        LOGGER.warn(DATASET_DEPRECATION_INFO);
 
         ParameterTool params = ParameterTool.fromArgs(args);
 

@@ -544,7 +544,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * <p>The default execution mode is {@link ExecutionMode#PIPELINED}.
      *
      * @param executionMode The execution mode to use.
+     * @deprecated The {@link ExecutionMode} is deprecated because it's only used in DataSet APIs.
+     *     All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+     *     Flink major version. You can still build your application in DataSet, but you should move
+     *     to either the DataStream and/or Table API.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
+     *     API</a>
      */
+    @Deprecated
     public void setExecutionMode(ExecutionMode executionMode) {
         configuration.set(EXECUTION_MODE, executionMode);
     }
@@ -556,7 +564,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * <p>The default execution mode is {@link ExecutionMode#PIPELINED}.
      *
      * @return The execution mode for the program.
+     * @deprecated The {@link ExecutionMode} is deprecated because it's only used in DataSet APIs.
+     *     All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future
+     *     Flink major version. You can still build your application in DataSet, but you should move
+     *     to either the DataStream and/or Table API.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
+     *     API</a>
      */
+    @Deprecated
     public ExecutionMode getExecutionMode() {
         return configuration.get(EXECUTION_MODE);
     }
@@ -913,13 +929,35 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return registeredPojoTypes;
     }
 
+    /**
+     * Get if the auto type registration is disabled.
+     *
+     * @return if the auto type registration is disabled.
+     * @deprecated The method is deprecated because it's only used in DataSet API. All Flink DataSet
+     *     APIs are deprecated since Flink 1.18 and will be removed in a future Flink major version.
+     *     You can still build your application in DataSet, but you should move to either the
+     *     DataStream and/or Table API.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
+     *     API</a>
+     */
+    @Deprecated
     public boolean isAutoTypeRegistrationDisabled() {
         return !configuration.get(PipelineOptions.AUTO_TYPE_REGISTRATION);
     }
 
     /**
      * Control whether Flink is automatically registering all types in the user programs with Kryo.
+     *
+     * @deprecated The method is deprecated because it's only used in DataSet API. All Flink DataSet
+     *     APIs are deprecated since Flink 1.18 and will be removed in a future Flink major version.
+     *     You can still build your application in DataSet, but you should move to either the
+     *     DataStream and/or Table API.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
+     *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet
+     *     API</a>
      */
+    @Deprecated
     public void disableAutoTypeRegistration() {
         setAutoTypeRegistration(false);
     }

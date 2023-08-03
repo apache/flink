@@ -16,28 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.java.operators.join;
+package org.apache.flink.examples.java.util;
 
-import org.apache.flink.annotation.Public;
+/** The info about the deprecation of DataSet API. */
+public class DataSetDeprecationInfo {
 
-/**
- * Join types.
- *
- * @deprecated All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a
- *     future Flink major version. You can still build your application in DataSet, but you should
- *     move to either the DataStream and/or Table API.
- * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741">
- *     FLIP-131: Consolidate the user-facing Dataflow SDKs/APIs (and deprecate the DataSet API</a>
- */
-@Deprecated
-@Public
-public enum JoinType {
-    INNER,
-    LEFT_OUTER,
-    RIGHT_OUTER,
-    FULL_OUTER;
-
-    public boolean isOuter() {
-        return this == LEFT_OUTER || this == RIGHT_OUTER || this == FULL_OUTER;
-    }
+    public static final String DATASET_DEPRECATION_INFO =
+            "All Flink DataSet APIs are deprecated since Flink 1.18 and will be removed in a future"
+                    + " Flink major version. You can still build your application in DataSet, but you should move to"
+                    + " either the DataStream and/or Table API. This class is retained for testing purposes."
+                    + " See Also: https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=158866741";
 }
