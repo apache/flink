@@ -23,8 +23,12 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
@@ -38,7 +42,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.examples.statemachine.dfa.State;
 import org.apache.flink.streaming.examples.statemachine.event.Alert;
 import org.apache.flink.streaming.examples.statemachine.event.Event;
-import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorSource;
+import org.apache.flink.streaming.examples.statemachine.generator.EventsGeneratorFunction;
 import org.apache.flink.streaming.examples.statemachine.kafka.EventDeSerializationSchema;
 import org.apache.flink.streaming.examples.utils.ParameterTool;
 import org.apache.flink.util.Collector;
@@ -62,7 +66,7 @@ public class StateMachineExample {
         // ---- print some usage help ----
 
         System.out.println(
-                "Usage with built-in data generator: StateMachineExample [--error-rate <probability-of-invalid-transition>] [--sleep <sleep-per-record-in-ms>]");
+                "Usage with built-in data generator: StateMachineExample [--error-rate <probability-of-invalid-transition>] [--sleep <sleep-per-record-in-ms> | --rps <records-per-second>]");
         System.out.println(
                 "Usage with Kafka: StateMachineExample --kafka-topic <topic> [--brokers <brokers>]");
         System.out.println("Options for both the above setups: ");
@@ -115,15 +119,29 @@ public class StateMachineExample {
                     env.fromSource(
                             source, WatermarkStrategy.noWatermarks(), "StateMachineExampleSource");
         } else {
-            double errorRate = params.getDouble("error-rate", 0.0);
-            int sleep = params.getInt("sleep", 1);
-
+            final double errorRate = params.getDouble("error-rate", 0.0);
+            final int sleep = params.getInt("sleep", 1);
+            final double recordsPerSecond =
+                    params.getDouble("rps", rpsFromSleep(sleep, env.getParallelism()));
             System.out.printf(
-                    "Using standalone source with error rate %f and sleep delay %s millis\n",
-                    errorRate, sleep);
+                    "Using standalone source with error rate %f and %.1f records per second\n",
+                    errorRate, recordsPerSecond);
             System.out.println();
 
-            events = env.addSource(new EventsGeneratorSource(errorRate, sleep));
+            GeneratorFunction<Long, Event> generatorFunction =
+                    new EventsGeneratorFunction(errorRate);
+            DataGeneratorSource<Event> eventGeneratorSource =
+                    new DataGeneratorSource<>(
+                            generatorFunction,
+                            Long.MAX_VALUE,
+                            RateLimiterStrategy.perSecond(recordsPerSecond),
+                            TypeInformation.of(Event.class));
+
+            events =
+                    env.fromSource(
+                            eventGeneratorSource,
+                            WatermarkStrategy.noWatermarks(),
+                            "Events Generator Source");
         }
 
         // ---- main program ----
@@ -207,5 +225,10 @@ public class StateMachineExample {
                 currentState.update(nextState);
             }
         }
+    }
+
+    // Used for backwards compatibility to convert legacy 'sleep' parameter to records per second.
+    private static double rpsFromSleep(int sleep, int parallelism) {
+        return (1000d / sleep) * parallelism;
     }
 }
