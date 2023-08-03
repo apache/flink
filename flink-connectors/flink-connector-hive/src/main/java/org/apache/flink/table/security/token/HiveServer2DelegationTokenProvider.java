@@ -30,7 +30,6 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.metadata.Hive;
-import org.apache.hadoop.hive.thrift.DelegationTokenIdentifier;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -145,13 +144,13 @@ public class HiveServer2DelegationTokenProvider implements DelegationTokenProvid
                                         hive.getDelegationToken(
                                                 UserGroupInformation.getCurrentUser().getUserName(),
                                                 principal);
-                                Token<DelegationTokenIdentifier> hive2Token = new Token<>();
+                                Token<HiveServer2DelegationTokenIdentifier> hive2Token = new Token<>();
                                 hive2Token.decodeFromUrlString(tokenStr);
 
                                 Credentials credentials = new Credentials();
                                 credentials.addToken(hive2Token.getKind(), hive2Token);
 
-                                DelegationTokenIdentifier tokenIdentifier =
+                                HiveServer2DelegationTokenIdentifier tokenIdentifier =
                                         hive2Token.decodeIdentifier();
 
                                 if (tokenRenewalInterval == null) {
@@ -181,7 +180,7 @@ public class HiveServer2DelegationTokenProvider implements DelegationTokenProvid
 
     @VisibleForTesting
     Long getTokenRenewalInterval(
-            Clock clock, DelegationTokenIdentifier tokenIdentifier, Hive hive, String tokenStr) {
+            Clock clock, HiveServer2DelegationTokenIdentifier tokenIdentifier, Hive hive, String tokenStr) {
         Long interval;
         LOG.debug("Got Delegation token is {} ", tokenIdentifier);
         long newExpiration = getNewExpiration(hive, tokenStr);
@@ -203,7 +202,7 @@ public class HiveServer2DelegationTokenProvider implements DelegationTokenProvid
 
     @VisibleForTesting
     Optional<Long> getTokenRenewalDate(
-            Clock clock, DelegationTokenIdentifier tokenIdentifier, Long renewalInterval) {
+            Clock clock, HiveServer2DelegationTokenIdentifier tokenIdentifier, Long renewalInterval) {
         if (renewalInterval < 0) {
             LOG.debug("Negative renewal interval so no renewal date is calculated");
             return Optional.empty();

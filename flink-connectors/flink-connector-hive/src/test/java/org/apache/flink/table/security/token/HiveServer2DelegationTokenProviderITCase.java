@@ -24,7 +24,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.metadata.Hive;
-import org.apache.hadoop.hive.thrift.DelegationTokenIdentifier;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -62,7 +61,7 @@ public class HiveServer2DelegationTokenProviderITCase {
         UserGroupInformation.setConfiguration(new Configuration());
     }
 
-    private class TestHiveServer2DelegationToken extends DelegationTokenIdentifier {
+    private class TestHiveServer2DelegationToken extends HiveServer2DelegationTokenIdentifier {
         @Override
         public long getIssueDate() {
             return 1000;
