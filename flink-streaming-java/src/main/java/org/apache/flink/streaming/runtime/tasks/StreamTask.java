@@ -140,6 +140,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
@@ -314,6 +315,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     @Nullable private final AvailabilityProvider changelogWriterAvailabilityProvider;
 
+    private final long flushInterval;
+    private AtomicLong flushEventIDCounter = new AtomicLong(0);
+    private long lastFlushTime = -1L;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -468,6 +473,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
             this.systemTimerService = createTimerService("System Time Trigger for " + getName());
 
+            this.flushInterval = environment.getExecutionConfig().getMaxFlushInterval();
+
             this.subtaskCheckpointCoordinator =
                     new SubtaskCheckpointCoordinatorImpl(
                             checkpointStorage,
@@ -559,6 +566,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      * @throws Exception on any problems in the action.
      */
     protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+        long currentTime = System.currentTimeMillis();
+        if (isFlushIntervalConfigured() && currentTime - lastFlushTime > flushInterval) {
+            triggerLocalFlushEvent(true);
+        }
         DataInputStatus status = inputProcessor.processInput();
         switch (status) {
             case MORE_AVAILABLE:
@@ -567,6 +578,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 }
                 break;
             case NOTHING_AVAILABLE:
+                if (isFlushIntervalConfigured()) {
+                    triggerLocalFlushEvent(false);
+                }
                 break;
             case END_OF_RECOVERY:
                 throw new IllegalStateException("We should not receive this event here.");
@@ -1125,6 +1139,15 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     RecordWriterOutput<?>[] getStreamOutputs() {
         return operatorChain.getStreamOutputs();
+    }
+
+    /**
+     * Returns whether max flush interval has been configured.
+     *
+     * @return <code>true</code> if max flush interval has been configured.
+     */
+    public boolean isFlushIntervalConfigured() {
+        return flushInterval > 0;
     }
 
     // ------------------------------------------------------------------------
@@ -1788,6 +1811,33 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
                 toInterrupt.interrupt();
             }
+        }
+    }
+
+    @Override
+    public void triggerLocalFlushEvent(boolean isPeriodic) throws IOException {
+        try {
+            if (!isRunning) {
+                throw new IOException();
+            }
+            flushEventIDCounter.getAndIncrement();
+            LOG.info(
+                    "Triggering local flush event {} on operator {}, periodic={}.",
+                    flushEventIDCounter.get(),
+                    getName(),
+                    isPeriodic);
+
+            this.lastFlushTime = System.currentTimeMillis();
+            //            System.out.println(Thread.currentThread());
+            operatorChain.flush();
+            //            System.out.println("finish flushing");
+
+        } catch (Exception e) {
+            LOG.info(
+                    "Could not perform flush event {} on operator {}. Error message: {}",
+                    flushEventIDCounter.get(),
+                    getName(),
+                    e.getMessage());
         }
     }
 

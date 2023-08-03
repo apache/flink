@@ -237,4 +237,13 @@ public class RegularOperatorChain<OUT, OP extends StreamOperator<OUT>>
             throw ex;
         }
     }
+
+    @Override
+    void flush() throws Exception {
+        for (StreamOperatorWrapper<?, ?> operatorWrapper : getAllOperators()) {
+            if (!operatorWrapper.isClosed()) {
+                operatorWrapper.getStreamOperator().flush();
+            }
+        }
+    }
 }

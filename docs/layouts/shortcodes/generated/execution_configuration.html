@@ -33,6 +33,12 @@
             <td>Tells if we should use compression for the state snapshot data or not</td>
         </tr>
         <tr>
+            <td><h5>execution.max-flush-interval</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>If this configuration is not null and every source has isProcessingBacklog=false, each operator can optionally delay emitting the results until flush() is invoked by Flink runtime. An operator should only delay emitting the results if doing so helps increase its throughput. It is guaranteed that setting this config to not-null will not increase the maximum per-record processing latency. But it might increase median per-record processing latency by at most half of the configured value plus the time needed to process the corresponding mini-batch of records.</td>
+        </tr>
+        <tr>
             <td><h5>execution.runtime-mode</h5></td>
             <td style="word-wrap: break-word;">STREAMING</td>
             <td><p>Enum</p></td>

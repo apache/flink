@@ -228,4 +228,9 @@ public abstract class AbstractInvokable
     public boolean isUsingNonBlockingInput() {
         return false;
     }
+
+    @Override
+    public void triggerLocalFlushEvent(boolean isPeriodic) throws IOException {
+        throw new UnsupportedOperationException("should never be called");
+    }
 }

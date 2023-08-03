@@ -1957,7 +1957,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     public <OUT> DataStreamSource<OUT> addSource(
             SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
-        return addSource(function, sourceName, typeInfo, Boundedness.CONTINUOUS_UNBOUNDED);
+        return addSource(function, sourceName, typeInfo, Boundedness.BOUNDED);
     }
 
     private <OUT> DataStreamSource<OUT> addSource(

@@ -33,7 +33,7 @@ import java.util.concurrent.Future;
  * @see AbstractInvokable
  */
 @Internal
-public interface CheckpointableTask {
+public interface CheckpointableTask extends FlushingTask {
 
     /**
      * This method is called to trigger a checkpoint, asynchronously by the checkpoint coordinator.

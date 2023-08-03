@@ -936,6 +936,27 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration.set(ExecutionOptions.SNAPSHOT_COMPRESSION, useSnapshotCompression);
     }
 
+    /** Sets the processing latency of a Flink job. */
+    public ExecutionConfig setMaxFlushInterval(long interval) {
+        Preconditions.checkArgument(interval >= 0, "Flush interval must not be negative.");
+        return setMaxFlushInterval(Duration.ofMillis(interval));
+    }
+
+    private ExecutionConfig setMaxFlushInterval(Duration interval) {
+        configuration.set(ExecutionOptions.MAX_FLUSH_INTERVAL, interval);
+        return this;
+    }
+
+    /**
+     * Returns the processing latency of a Flink job.
+     *
+     * @see #setMaxFlushInterval(long)
+     */
+    public long getMaxFlushInterval() {
+        Duration interval = configuration.get(ExecutionOptions.MAX_FLUSH_INTERVAL);
+        return interval == null ? 0 : interval.toMillis();
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof ExecutionConfig) {
@@ -1154,6 +1175,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration
                 .getOptional(JobManagerOptions.SCHEDULER)
                 .ifPresent(t -> this.configuration.set(JobManagerOptions.SCHEDULER, t));
+
+        configuration
+                .getOptional(ExecutionOptions.MAX_FLUSH_INTERVAL)
+                .ifPresent(m -> this.configuration.set(ExecutionOptions.MAX_FLUSH_INTERVAL, m));
     }
 
     /**

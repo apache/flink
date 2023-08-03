@@ -96,6 +96,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
             "["
                     + "close[], "
                     + "finish[], "
+                    + "flush[], "
                     + "getCurrentKey[], "
                     + "getMetricGroup[], "
                     + "getOperatorID[], "

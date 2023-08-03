@@ -128,6 +128,22 @@ public class ExecutionOptions {
                                                             + "throughput"))
                                     .build());
 
+    public static final ConfigOption<Duration> MAX_FLUSH_INTERVAL =
+            ConfigOptions.key("execution.max-flush-interval")
+                    .durationType()
+                    .defaultValue(null)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If this configuration is not null and every source has isProcessingBacklog=false, each"
+                                                    + " operator can optionally delay emitting the results until flush() is invoked by Flink"
+                                                    + " runtime. An operator should only delay emitting the results if doing so helps increase"
+                                                    + " its throughput. It is guaranteed that setting this config to not-null will not increase"
+                                                    + " the maximum per-record processing latency. But it might increase median per-record"
+                                                    + " processing latency by at most half of the configured value plus the time needed to"
+                                                    + " process the corresponding mini-batch of records.")
+                                    .build());
+
     @Documentation.ExcludeFromDocumentation(
             "This is an expert option, that we do not want to expose in the documentation")
     public static final ConfigOption<Boolean> SORT_INPUTS =
