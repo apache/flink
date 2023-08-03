@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -57,6 +58,22 @@ public final class FailoverStrategyFactoryLoader {
             default:
                 throw new IllegalConfigurationException(
                         "Unknown failover strategy: " + strategyParam);
+        }
+    }
+
+    public static boolean isJobRestartDisable(final Configuration configuration) {
+        final String restartStrategyName =
+                configuration.getString(RestartStrategyOptions.RESTART_STRATEGY);
+        if (restartStrategyName == null) {
+            return true;
+        }
+        switch (restartStrategyName.toLowerCase()) {
+            case "none":
+            case "off":
+            case "disable":
+                return true;
+            default:
+                return false;
         }
     }
 }
