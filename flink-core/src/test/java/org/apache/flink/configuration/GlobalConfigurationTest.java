@@ -147,4 +147,48 @@ public class GlobalConfigurationTest extends TestLogger {
         assertFalse(GlobalConfiguration.isSensitive("Hello"));
         assertTrue(GlobalConfiguration.isSensitive("metrics.reporter.dghttp.apikey"));
     }
+
+    @Test
+    public void testNullLiteralValue() {
+        File tmpDir = tempFolder.getRoot();
+        File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+
+        try {
+            try (final PrintWriter pw = new PrintWriter(confFile)) {
+                pw.println("mykey1: myvalue1");
+                pw.println("mykey2: null");
+                pw.println("mykey3:         null  ");
+                pw.println("mykey4: ~");
+                pw.println("mykey5:       ~       ");
+                pw.println("mykey6:");
+                pw.println("mykey7:      ");
+                pw.println("mykey8: \"null\"");
+                pw.println("mykey9: \"~\"");
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
+
+            // key value pairs with null values will be ignored
+            assertEquals(3, conf.keySet().size());
+
+            // normal value
+            assertEquals("myvalue1", conf.getString("mykey1", null));
+            // values should be null string
+            assertEquals("null", conf.getString("mykey8", null));
+            assertEquals("~", conf.getString("mykey9", null));
+
+            // values should be null literals
+            assertFalse(conf.containsKey("mykey2"));
+            assertFalse(conf.containsKey("mykey3"));
+            assertFalse(conf.containsKey("mykey4"));
+            assertFalse(conf.containsKey("mykey5"));
+            assertFalse(conf.containsKey("mykey6"));
+            assertFalse(conf.containsKey("mykey7"));
+        } finally {
+            confFile.delete();
+            tmpDir.delete();
+        }
+    }
 }

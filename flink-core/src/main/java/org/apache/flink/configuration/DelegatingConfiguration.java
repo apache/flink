@@ -319,6 +319,18 @@ public final class DelegatingConfiguration extends Configuration {
         return prefixed;
     }
 
+    public Map<String, String> toMapWithNullLiterals() {
+        Map<String, String> map = backingConfig.toMapWithNullLiterals();
+        Map<String, String> prefixed = new HashMap<>();
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            if (entry.getKey().startsWith(prefix)) {
+                String keyWithoutPrefix = entry.getKey().substring(prefix.length());
+                prefixed.put(keyWithoutPrefix, entry.getValue());
+            }
+        }
+        return prefixed;
+    }
+
     @Override
     public <T> boolean removeConfig(ConfigOption<T> configOption) {
         return backingConfig.removeConfig(configOption);

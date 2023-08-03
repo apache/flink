@@ -218,6 +218,12 @@ public final class GlobalConfiguration {
                     String key = kv[0].trim();
                     String value = kv[1].trim();
 
+                    if (isNullLiterally(value)) {
+                        continue;
+                    }
+
+                    value = removeDoubleQuotes(value);
+
                     // sanity check
                     if (key.length() == 0 || value.length() == 0) {
                         LOG.warn(
@@ -237,6 +243,27 @@ public final class GlobalConfiguration {
         }
 
         return config;
+    }
+
+    /**
+     * Remove the leading and trailing double quotes.
+     *
+     * @param value the config value
+     */
+    private static String removeDoubleQuotes(String value) {
+        if (value.startsWith("\"") && value.endsWith("\"")) {
+            return value.substring(1, value.length() - 1);
+        }
+        return value;
+    }
+
+    /**
+     * Check whether the config value represents null literal.
+     *
+     * @param value the config value
+     */
+    private static boolean isNullLiterally(String value) {
+        return value.equals("null") || value.equals("~");
     }
 
     /**

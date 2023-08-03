@@ -761,6 +761,19 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
         }
     }
 
+    public Map<String, String> toMapWithNullLiterals() {
+        synchronized (this.confData) {
+            Map<String, String> ret =
+                    CollectionUtil.newHashMapWithExpectedSize(this.confData.size());
+            for (Map.Entry<String, Object> entry : confData.entrySet()) {
+                ret.put(
+                        entry.getKey(),
+                        ConfigurationUtils.convertToStringWithNullLiterals(entry.getValue()));
+            }
+            return ret;
+        }
+    }
+
     /**
      * Removes given config option from the configuration.
      *

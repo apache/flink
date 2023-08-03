@@ -407,6 +407,24 @@ public class ConfigurationUtils {
         return MemorySize.parse(o.toString());
     }
 
+    static String convertToStringWithNullLiterals(Object o) {
+        if (o.getClass() == String.class) {
+            return convertStringConsideringNullLiterals((String) o);
+        } else {
+            return convertToString(o);
+        }
+    }
+
+    private static String convertStringConsideringNullLiterals(String s) {
+        if (s.equals("null")) {
+            return "\"null\"";
+        }
+        if (s.equals("~")) {
+            return "\"~\"";
+        }
+        return s;
+    }
+
     static String convertToString(Object o) {
         if (o.getClass() == String.class) {
             return (String) o;
