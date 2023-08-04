@@ -367,7 +367,12 @@ public interface Catalog {
         alterTable(tablePath, newTable, ignoreIfNotExists);
     }
 
-    /** If true, tables which do not specify a connector will be translated to managed tables. */
+    /**
+     * If true, tables which do not specify a connector will be translated to managed tables.
+     *
+     * @deprecated This method will be removed soon. Please see FLIP-346 for more details.
+     */
+    @Deprecated
     default boolean supportsManagedTable() {
         return false;
     }

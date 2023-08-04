@@ -26,7 +26,10 @@ import java.util.Map;
 /**
  * Base interface for configuring a managed dynamic table connector. The managed table factory is
  * used when there is no {@link FactoryUtil#CONNECTOR} option.
+ *
+ * @deprecated This interface will be removed soon. Please see FLIP-346 for more details.
  */
+@Deprecated
 @Internal
 public interface ManagedTableFactory extends DynamicTableFactory {
 
