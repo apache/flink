@@ -268,15 +268,19 @@ Flink 会对工厂类逐个进行检查，确保其“标识符”是全局唯�
     </tr>
     <tr>
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsDeletePushDown.java" name="SupportsDeletePushDown" >}}</td>
-        <td>支持将 <code>DELETE</code> 语句中的过滤条件下推到 <code>DynamicTableSink</code>，sink 端可以直接根据过滤条件来删除数据。
+        <td>支持将 <code>DELETE</code> 语句中的过滤条件下推到 <code>DynamicTableSink</code>，sink 端可以直接根据过滤条件来删除数据。</td>
     </tr>
     <tr>
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsRowLevelDelete.java" name="SupportsRowLevelDelete" >}}</td>
-        <td>支持 <code>DynamicTableSink</code> 根据行级别的变更来删除已有的数据。该接口的实现者需要告诉 Planner 如何产生这些行变更，并且需要消费这些行变更从而达到删除数据的目的。
+        <td>支持 <code>DynamicTableSink</code> 根据行级别的变更来删除已有的数据。该接口的实现者需要告诉 Planner 如何产生这些行变更，并且需要消费这些行变更从而达到删除数据的目的。</td>
     </tr>
     <tr>
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsRowLevelUpdate.java" name="SupportsRowLevelUpdate" >}}</td>
-        <td>支持 <code>DynamicTableSink</code> 根据行级别的变更来更新已有的数据。该接口的实现者需要告诉 Planner 如何产生这些行变更，并且需要消费这些行变更从而达到更新数据的目的。
+        <td>支持 <code>DynamicTableSink</code> 根据行级别的变更来更新已有的数据。该接口的实现者需要告诉 Planner 如何产生这些行变更，并且需要消费这些行变更从而达到更新数据的目的。</td>
+    </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsStaging.java" name="SupportsStaging" >}}</td>
+        <td>支持 <code>DynamicTableSink</code> 提供 CTAS 或 RTAS 的原子性语义。该接口的实现者需要返回一个提供原子性语义实现的 `StagedTable` 对象。</td>
     </tr>
     </tbody>
 </table>

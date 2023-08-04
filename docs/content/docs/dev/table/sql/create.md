@@ -554,14 +554,13 @@ INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 * Does not support creating partitioned table yet.
 * Does not support specifying primary key constraints yet.
 
-**Note** By default, the target table created by CTAS is non-atomic, the table won't be dropped automatically if occur errors while inserting data into the table.
+**Note** By default, CTAS is non-atomic which means the table created won't be dropped automatically if occur errors while inserting data into the table.
 
 #### Atomicity
 
-If you want to implement atomicity CTAS, then you need to fulfill the following conditions at the same time:
+If you want to enable atomicity for CTAS, then you should make sure:
+* The sink has implemented the atomicity semantics for CTAS. You may refer to the corresponding doc for the sink to know the atomicity semantics is available or not. For devs who want to implement the atomicity semantics, please refer to doc [SupportsStaging]({{< ref "docs/dev/table/sourcesSinks" >}}#sink-abilities).
 * Set option `table.rtas-ctas.atomicity-enabled` to `true`.
-* `DynamicTableSink` implements the `SupportsStaging` interface.
-* `DynamicTableSink#applyStaging` returns a `StagedTable` object of the corresponding implementation based on the `StagingPurpose` type; the `StagedTable` object provides an implementation of the atomicity semantics.
 
 {{< top >}}
 
@@ -616,14 +615,13 @@ INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 * Does not support creating partitioned table yet.
 * Does not support specifying primary key constraints yet.
 
-**Note** By default, the target table replaced or created by RTAS is non-atomic, the table won't be dropped or restore to origin automatically if occur errors while inserting data into the table.
+**Note** By default, RTAS is non-atomic which means the table won't be dropped or restored to its origin automatically if occur errors while inserting data into the table.
 
 ### Atomicity
 
-If you want to implement atomicity RTAS, then you need to fulfill the following conditions at the same time:
+If you want to enable atomicity for RTAS, then you should make sure:
+* The sink has implemented the atomicity semantics for RTAS. You may refer to the corresponding doc for the sink to know the atomicity semantics is available or not. For devs who want to implement the atomicity semantics, please refer to doc [SupportsStaging]({{< ref "docs/dev/table/sourcesSinks" >}}#sink-abilities).
 * Set option `table.rtas-ctas.atomicity-enabled` to `true`.
-* `DynamicTableSink` implements the `SupportsStaging` interface.
-* `DynamicTableSink#applyStaging` returns a `StagedTable` object of the corresponding implementation based on the `StagingPurpose` type; the `StagedTable` object provides an implementation of the atomicity semantics.
 
 {{< top >}}
 
