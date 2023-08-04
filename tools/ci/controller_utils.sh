@@ -27,6 +27,9 @@ print_system_info() {
     echo "Disk information"
     df -h
 
+    echo "JVM information"
+    java -XX:+PrintFlagsFinal -version
+
     echo "Running build as"
     whoami
 }
