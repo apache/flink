@@ -99,25 +99,25 @@ class AvroBulkFormatTest {
                 RowDataToAvroConverters.createConverter(ROW_TYPE);
 
         DatumWriter<GenericRecord> datumWriter = new GenericDatumWriter<>(schema);
-        DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(datumWriter);
-        dataFileWriter.create(schema, out);
+        try (DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(datumWriter)) {
+            dataFileWriter.create(schema, out);
 
-        //  Generate the sync points manually in order to test blocks.
-        long syncBlock1 = dataFileWriter.sync();
-        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(0)));
-        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(1)));
-        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(2)));
-        long syncBlock2 = dataFileWriter.sync();
-        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(3)));
-        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(4)));
-        long syncBlock3 = dataFileWriter.sync();
-        dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(5)));
-        long syncEnd = dataFileWriter.sync();
-        dataFileWriter.close();
+            //  Generate the sync points manually in order to test blocks.
+            long syncBlock1 = dataFileWriter.sync();
+            dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(0)));
+            dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(1)));
+            dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(2)));
+            long syncBlock2 = dataFileWriter.sync();
+            dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(3)));
+            dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(4)));
+            long syncBlock3 = dataFileWriter.sync();
+            dataFileWriter.append((GenericRecord) converter.convert(schema, TEST_DATA.get(5)));
+            long syncEnd = dataFileWriter.sync();
+            // These values should be constant if nothing else changes with the file.
+            assertThat(BLOCK_STARTS).isEqualTo(Arrays.asList(syncBlock1, syncBlock2, syncBlock3));
+            assertThat(tmpFile).hasSize(syncEnd);
+        }
 
-        // These values should be constant if nothing else changes with the file.
-        assertThat(BLOCK_STARTS).isEqualTo(Arrays.asList(syncBlock1, syncBlock2, syncBlock3));
-        assertThat(tmpFile).hasSize(syncEnd);
     }
 
     @AfterEach
@@ -183,31 +183,30 @@ class AvroBulkFormatTest {
                 new AvroBulkFormatTestUtils.TestingAvroBulkFormat();
         long splitLength = tmpFile.length() / 3;
         String splitId = UUID.randomUUID().toString();
-
+        long offset1;
         FileSourceSplit split =
                 new FileSourceSplit(
                         splitId, new Path(tmpFile.toString()), splitLength * 2, tmpFile.length());
-        BulkFormat.Reader<RowData> reader = bulkFormat.createReader(new Configuration(), split);
-        long offset1 = assertBatch(reader, new BatchInfo(3, 5));
-        assertBatch(reader, new BatchInfo(5, 6));
-        assertThat(reader.readBatch()).isNull();
-        reader.close();
+        try (BulkFormat.Reader<RowData> reader = bulkFormat.createReader(new Configuration(), split)) {
+            offset1 = assertBatch(reader, new BatchInfo(3, 5));
+            assertBatch(reader, new BatchInfo(5, 6));
+            assertThat(reader.readBatch()).isNull();
+        }
 
-        split =
-                new FileSourceSplit(
-                        splitId,
-                        new Path(tmpFile.toString()),
-                        splitLength * 2,
-                        tmpFile.length(),
-                        StringUtils.EMPTY_STRING_ARRAY,
-                        new CheckpointedPosition(offset1, 1));
-        reader = bulkFormat.restoreReader(new Configuration(), split);
-        long offset2 = assertBatch(reader, new BatchInfo(3, 5), 1);
-        assertBatch(reader, new BatchInfo(5, 6));
-        assertThat(reader.readBatch()).isNull();
-        reader.close();
-
-        assertThat(offset2).isEqualTo(offset1);
+        try (BulkFormat.Reader<RowData> reader0 = bulkFormat.restoreReader(new Configuration(), split)) {
+            split =
+                    new FileSourceSplit(
+                            splitId,
+                            new Path(tmpFile.toString()),
+                            splitLength * 2,
+                            tmpFile.length(),
+                            StringUtils.EMPTY_STRING_ARRAY,
+                            new CheckpointedPosition(offset1, 1));
+            long offset2 = assertBatch(reader0, new BatchInfo(3, 5), 1);
+            assertBatch(reader0, new BatchInfo(5, 6));
+            assertThat(reader0.readBatch()).isNull();
+            assertThat(offset2).isEqualTo(offset1);
+        }
     }
 
     private void assertSplit(
@@ -220,16 +219,16 @@ class AvroBulkFormatTest {
                             new Path(tmpFile.toString()),
                             splitInfo.start,
                             splitInfo.end - splitInfo.start);
-            BulkFormat.Reader<RowData> reader = bulkFormat.createReader(new Configuration(), split);
-            List<Long> offsets = new ArrayList<>();
-            for (BatchInfo batch : splitInfo.batches) {
-                offsets.add(assertBatch(reader, batch));
+            try (BulkFormat.Reader<RowData> reader = bulkFormat.createReader(new Configuration(), split)) {
+                List<Long> offsets = new ArrayList<>();
+                for (BatchInfo batch : splitInfo.batches) {
+                    offsets.add(assertBatch(reader, batch));
+                }
+                assertThat(reader.readBatch()).isNull();
+                for (int j = 1; j < offsets.size(); j++) {
+                    assertThat(offsets.get(j - 1) < offsets.get(j)).isTrue();
+                }
             }
-            assertThat(reader.readBatch()).isNull();
-            for (int j = 1; j < offsets.size(); j++) {
-                assertThat(offsets.get(j - 1) < offsets.get(j)).isTrue();
-            }
-            reader.close();
         }
     }
 

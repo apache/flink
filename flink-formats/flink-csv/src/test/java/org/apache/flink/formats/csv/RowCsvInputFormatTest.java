@@ -581,9 +581,9 @@ public class RowCsvInputFormatTest {
         tempFile.deleteOnExit();
         tempFile.setWritable(true);
 
-        OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(tempFile));
-        writer.write(fileContent);
-        writer.close();
+        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(tempFile))) {
+            writer.write(fileContent);
+        }
 
         TypeInformation[] fieldTypes =
                 new TypeInformation[] {
@@ -619,9 +619,9 @@ public class RowCsvInputFormatTest {
         tempFile.deleteOnExit();
         tempFile.setWritable(true);
 
-        OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(tempFile));
-        writer.write(fileContent);
-        writer.close();
+        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(tempFile))) {
+            writer.write(fileContent);
+        }
 
         TypeInformation[] fieldTypes =
                 new TypeInformation[] {
@@ -748,10 +748,10 @@ public class RowCsvInputFormatTest {
             throws IOException {
         File tempFile = File.createTempFile("test_contents", "tmp");
         tempFile.deleteOnExit();
-        OutputStreamWriter wrt =
-                new OutputStreamWriter(new FileOutputStream(tempFile), StandardCharsets.UTF_8);
-        wrt.write(content);
-        wrt.close();
+        try (OutputStreamWriter wrt =
+                new OutputStreamWriter(new FileOutputStream(tempFile), StandardCharsets.UTF_8)) {
+            wrt.write(content);
+        }
         return new FileInputSplit(
                 0,
                 new Path(tempFile.toURI().toString()),

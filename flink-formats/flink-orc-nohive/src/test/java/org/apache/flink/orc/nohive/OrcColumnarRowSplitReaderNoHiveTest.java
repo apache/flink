@@ -57,43 +57,43 @@ class OrcColumnarRowSplitReaderNoHiveTest extends OrcColumnarRowSplitReaderTest 
         org.apache.hadoop.fs.Path filePath = new org.apache.hadoop.fs.Path(file);
         Configuration conf = new Configuration();
 
-        Writer writer =
-                OrcFile.createWriter(filePath, OrcFile.writerOptions(conf).setSchema(schema));
+        try (Writer writer =
+                OrcFile.createWriter(filePath, OrcFile.writerOptions(conf).setSchema(schema))) {
 
-        VectorizedRowBatch batch = schema.createRowBatch(rowSize);
-        DoubleColumnVector col0 = (DoubleColumnVector) batch.cols[0];
-        DoubleColumnVector col1 = (DoubleColumnVector) batch.cols[1];
-        TimestampColumnVector col2 = (TimestampColumnVector) batch.cols[2];
-        LongColumnVector col3 = (LongColumnVector) batch.cols[3];
-        LongColumnVector col4 = (LongColumnVector) batch.cols[4];
+            VectorizedRowBatch batch = schema.createRowBatch(rowSize);
+            DoubleColumnVector col0 = (DoubleColumnVector) batch.cols[0];
+            DoubleColumnVector col1 = (DoubleColumnVector) batch.cols[1];
+            TimestampColumnVector col2 = (TimestampColumnVector) batch.cols[2];
+            LongColumnVector col3 = (LongColumnVector) batch.cols[3];
+            LongColumnVector col4 = (LongColumnVector) batch.cols[4];
 
-        col0.noNulls = false;
-        col1.noNulls = false;
-        col2.noNulls = false;
-        col3.noNulls = false;
-        col4.noNulls = false;
-        for (int i = 0; i < rowSize - 1; i++) {
-            col0.vector[i] = i;
-            col1.vector[i] = i;
+            col0.noNulls = false;
+            col1.noNulls = false;
+            col2.noNulls = false;
+            col3.noNulls = false;
+            col4.noNulls = false;
+            for (int i = 0; i < rowSize - 1; i++) {
+                col0.vector[i] = i;
+                col1.vector[i] = i;
 
-            Timestamp timestamp = toTimestamp(i);
-            col2.time[i] = timestamp.getTime();
-            col2.nanos[i] = timestamp.getNanos();
+                Timestamp timestamp = toTimestamp(i);
+                col2.time[i] = timestamp.getTime();
+                col2.nanos[i] = timestamp.getNanos();
 
-            col3.vector[i] = i;
-            col4.vector[i] = i;
+                col3.vector[i] = i;
+                col4.vector[i] = i;
+            }
+
+            col0.isNull[rowSize - 1] = true;
+            col1.isNull[rowSize - 1] = true;
+            col2.isNull[rowSize - 1] = true;
+            col3.isNull[rowSize - 1] = true;
+            col4.isNull[rowSize - 1] = true;
+
+            batch.size = rowSize;
+            writer.addRowBatch(batch);
+            batch.reset();
         }
-
-        col0.isNull[rowSize - 1] = true;
-        col1.isNull[rowSize - 1] = true;
-        col2.isNull[rowSize - 1] = true;
-        col3.isNull[rowSize - 1] = true;
-        col4.isNull[rowSize - 1] = true;
-
-        batch.size = rowSize;
-        writer.addRowBatch(batch);
-        batch.reset();
-        writer.close();
     }
 
     @Override

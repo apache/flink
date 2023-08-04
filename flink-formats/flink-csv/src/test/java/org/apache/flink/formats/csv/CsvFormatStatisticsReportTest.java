@@ -128,11 +128,11 @@ public class CsvFormatStatisticsReportTest extends StatisticsReportTestBase {
     private static Path createTempFile(String content) throws IOException {
         File tempFile = File.createTempFile("test_contents", "tmp");
         tempFile.deleteOnExit();
-        OutputStreamWriter wrt =
+        try (OutputStreamWriter wrt =
                 new OutputStreamWriter(
-                        Files.newOutputStream(tempFile.toPath()), StandardCharsets.UTF_8);
-        wrt.write(content);
-        wrt.close();
+                        Files.newOutputStream(tempFile.toPath()), StandardCharsets.UTF_8)) {
+            wrt.write(content);
+        }
         return new Path(tempFile.toURI().toString());
     }
 }
