@@ -188,9 +188,7 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                 return;
             }
             isReleased = true;
-            failScheduledReaders(
-                    new ArrayList<>(allScheduledReaders.values()),
-                    new RuntimeException("Disk readers are released unexpectedly."));
+            allScheduledReaders.clear();
             partitionFileReader.release();
             bufferPool.unregisterRequester(this);
         }
