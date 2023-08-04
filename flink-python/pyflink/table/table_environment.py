@@ -1515,7 +1515,7 @@ class TableEnvironment(object):
             pytz.timezone(self.get_config().get_local_timezone()))
         step = -(-len(pdf) // splits_num)
         pdf_slices = [pdf.iloc[start:start + step] for start in range(0, len(pdf), step)]
-        data = [[c for (_, c) in pdf_slice.iteritems()] for pdf_slice in pdf_slices]
+        data = [[c for (_, c) in pdf_slice.items()] for pdf_slice in pdf_slices]
         try:
             with temp_file:
                 serializer.serialize(data, temp_file)
