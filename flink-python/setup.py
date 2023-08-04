@@ -305,15 +305,15 @@ try:
         'pyflink.examples': ['*.py', '*/*.py'],
         'pyflink.bin': ['*']}
 
-    install_requires = ['py4j==0.10.9.7', 'python-dateutil>=2.8.0,<3', 'apache-beam==2.43.0',
-                        'cloudpickle==2.2.0', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
-                        'pytz>=2018.3', 'fastavro>=1.1.0,<1.4.8', 'requests>=2.26.0',
-                        'protobuf>=3.19.0,<=3.21',
-                        'numpy>=1.21.4,<1.22.0',
-                        'pandas>=1.3.0,<1.4.0',
-                        'pyarrow>=5.0.0,<9.0.0',
+    install_requires = ['py4j==0.10.9.7', 'python-dateutil>=2.8.0,<3', 'apache-beam>=2.43.0',
+                        'cloudpickle==2.2.0', 'avro-python3>=1.8.1,!=1.9.2',
+                        'pytz>=2018.3', 'fastavro>=1.1.0', 'requests>=2.26.0',
+                        'protobuf>=3.19.0',
+                        'numpy>=1.21.4',
+                        'pandas>=1.3.0',
+                        'pyarrow>=5.0.0',
                         'pemja==0.3.0;platform_system != "Windows"',
-                        'httplib2>=0.19.0,<=0.20.4', apache_flink_libraries_dependency]
+                        'httplib2>=0.19.0', apache_flink_libraries_dependency]
 
     setup(
         name='apache-flink',
