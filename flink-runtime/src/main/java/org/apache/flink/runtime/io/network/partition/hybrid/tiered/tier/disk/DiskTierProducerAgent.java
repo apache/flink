@@ -218,6 +218,7 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
         if (!isReleased) {
             firstBufferIndexInSegment.clear();
             diskCacheManager.release();
+            diskIOScheduler.release();
             isReleased = true;
         }
     }
