@@ -224,15 +224,12 @@ public class MetadataV3SerializerTest {
         out.close();
 
         // The relative pointer resolution in MetadataV2V3SerializerBase currently runs the same
-        // code as the file system checkpoint location resolution. Because of that, it needs the
-        // a "_metadata" file present. we could change the code to resolve the pointer without doing
+        // code as the file system checkpoint location resolution. Because of that, it needs a
+        // "_metadata" file present. we could change the code to resolve the pointer without doing
         // file I/O, but it is somewhat delicate to reproduce that logic without I/O and the same
-        // guarantees
-        // to differentiate between the supported options of directory addressing and metadata file
-        // addressing.
-        // So, better safe than sorry, we do actually do the file system operations in the
-        // serializer for now,
-        // even if it makes the tests a a tad bit more clumsy
+        // guarantees to differentiate between the supported options of directory addressing and
+        // metadata file addressing. So, better safe than sorry, we do actually do the file system
+        // operations in the serializer for now, even if it makes the tests a tad bit more clumsy.
         if (basePath != null) {
             final Path metaPath = new Path(basePath, "_metadata");
             // this is in the temp folder, so it will get automatically deleted

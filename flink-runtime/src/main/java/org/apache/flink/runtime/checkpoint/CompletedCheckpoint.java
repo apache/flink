@@ -240,8 +240,8 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     // ------------------------------------------------------------------------
 
     /**
-     * Register all shared states in the given registry. This is method is called before the
-     * checkpoint is added into the store.
+     * Register all shared states in the given registry. This method is called before the checkpoint
+     * is added into the store.
      *
      * @param sharedStateRegistry The registry where shared states are registered
      * @param restoreMode the mode in which this checkpoint was restored from
