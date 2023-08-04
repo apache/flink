@@ -993,7 +993,7 @@ public class ChangelogKeyedStateBackend<K>
     }
 
     /**
-     * Snapshot State for ChangelogKeyedStatebackend, a wrapper over {@link SnapshotResult}.
+     * Snapshot State for ChangelogKeyedStateBackend, a wrapper over {@link SnapshotResult}.
      *
      * <p>It includes three parts: - materialized snapshot from the underlying delegated state
      * backend - non-materialized part in the current changelog - non-materialized changelog, from

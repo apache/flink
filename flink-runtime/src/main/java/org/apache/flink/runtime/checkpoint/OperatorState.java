@@ -36,7 +36,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Simple container class which contains the raw/managed operator state and key-group state handles
- * from all sub tasks of an operator and therefore represents the complete state of a logical
+ * from all subtasks of an operator and therefore represents the complete state of a logical
  * operator.
  */
 public class OperatorState implements CompositeStateHandle {
@@ -56,7 +56,7 @@ public class OperatorState implements CompositeStateHandle {
     private final int parallelism;
 
     /**
-     * The maximum parallelism (for number of keygroups) of the operator when the job was first
+     * The maximum parallelism (for number of KeyGroups) of the operator when the job was first
      * created.
      */
     private final int maxParallelism;
