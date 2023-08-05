@@ -38,6 +38,7 @@ import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
+import org.apache.flink.runtime.state.SharedStateRegistryKey;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.VoidNamespace;
@@ -594,7 +595,7 @@ public class EmbeddedRocksDBStateBackendTest
                     for (HandleAndLocalPath handleAndLocalPath : sharedState) {
                         verify(sharedStateRegistry)
                                 .registerReference(
-                                        stateHandle.createSharedStateRegistryKey(
+                                        SharedStateRegistryKey.forStreamStateHandle(
                                                 handleAndLocalPath.getHandle()),
                                         handleAndLocalPath.getHandle(),
                                         checkpointId);
