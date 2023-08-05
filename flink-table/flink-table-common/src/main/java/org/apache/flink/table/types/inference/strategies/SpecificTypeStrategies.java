@@ -19,8 +19,13 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
+
+import java.util.Optional;
 
 /**
  * Entry point for specific type strategies not covered in {@link TypeStrategies}.
@@ -51,6 +56,22 @@ public final class SpecificTypeStrategies {
 
     /** See {@link ArrayTypeStrategy}. */
     public static final TypeStrategy ARRAY = new ArrayTypeStrategy();
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_KEYS}. */
+    public static final TypeStrategy MAP_KEYS =
+            callContext ->
+                    Optional.of(
+                            DataTypes.ARRAY(
+                                    ((KeyValueDataType) callContext.getArgumentDataTypes().get(0))
+                                            .getKeyDataType()));
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#MAP_VALUES}. */
+    public static final TypeStrategy MAP_VALUES =
+            callContext ->
+                    Optional.of(
+                            DataTypes.ARRAY(
+                                    ((KeyValueDataType) callContext.getArgumentDataTypes().get(0))
+                                            .getValueDataType()));
 
     /** See {@link GetTypeStrategy}. */
     public static final TypeStrategy GET = new GetTypeStrategy();

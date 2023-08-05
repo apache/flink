@@ -225,7 +225,9 @@ advanced type helper functions
     Expression.cardinality
     Expression.element
     Expression.array_contains
-
+    Expression.map_keys
+    Expression.map_values
+    Expression.map_union
 
 time definition functions
 -------------------------

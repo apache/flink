@@ -25,6 +25,7 @@ import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.CommonMapInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CompositeArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
@@ -345,6 +346,14 @@ public final class InputTypeStrategies {
      */
     public static InputTypeStrategy commonType(int count) {
         return new CommonInputTypeStrategy(ConstantArgumentCount.of(count));
+    }
+
+    /**
+     * An {@link InputTypeStrategy} that expects {@code count} arguments that have a common map
+     * type.
+     */
+    public static InputTypeStrategy commonMapType(int count) {
+        return new CommonMapInputTypeStrategy(ConstantArgumentCount.from(1));
     }
 
     // --------------------------------------------------------------------------------------------

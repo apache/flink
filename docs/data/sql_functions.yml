@@ -631,6 +631,15 @@ collection:
   - sql: ARRAY_CONTAINS(haystack, needle)
     table: haystack.arrayContains(needle)
     description: Returns whether the given element exists in an array. Checking for null elements in the array is supported. If the array itself is null, the function will return null. The given element is cast implicitly to the array's element type if necessary.
+  - sql: MAP_KEYS(map)
+    table: MAP.mapKeys()
+    description: Returns the keys of the map as array. No order guaranteed.
+  - sql: MAP_VALUES(map)
+    table: MAP.mapValues()
+    description: Returns the values of the map as array. No order guaranteed.
+  - sql: MAP_UNION(map1, ...)
+    table: map1.mapUnion(...)
+    description: Returns a map created by merging at least one map. These maps should have a common map type. If there are overlapping keys, the value from 'map2' will overwrite the value from 'map1',  the value from 'map3' will overwrite the value from 'map2',  the value from 'mapn' will overwrite the value from 'map(n-1)'. If any of maps is null, return null.
 
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
