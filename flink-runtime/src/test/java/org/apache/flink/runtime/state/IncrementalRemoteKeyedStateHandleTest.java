@@ -95,7 +95,8 @@ public class IncrementalRemoteKeyedStateHandleTest {
         for (HandleAndLocalPath handleAndLocalPath : stateHandle1.getSharedState()) {
             StreamStateHandle handle = handleAndLocalPath.getHandle();
 
-            SharedStateRegistryKey registryKey = stateHandle1.createSharedStateRegistryKey(handle);
+            SharedStateRegistryKey registryKey =
+                    SharedStateRegistryKey.forStreamStateHandle(handle);
 
             // stateHandle1 and stateHandle2 has same shared states, so same key register 2 times
             verify(registry, times(2)).registerReference(registryKey, handle, 0L);
@@ -104,7 +105,8 @@ public class IncrementalRemoteKeyedStateHandleTest {
         for (HandleAndLocalPath handleAndLocalPath : stateHandle2.getSharedState()) {
             StreamStateHandle handle = handleAndLocalPath.getHandle();
 
-            SharedStateRegistryKey registryKey = stateHandle2.createSharedStateRegistryKey(handle);
+            SharedStateRegistryKey registryKey =
+                    SharedStateRegistryKey.forStreamStateHandle(handle);
 
             // stateHandle1 and stateHandle2 has same shared states, so same key register 2 times
             verify(registry, times(2)).registerReference(registryKey, handle, 0L);

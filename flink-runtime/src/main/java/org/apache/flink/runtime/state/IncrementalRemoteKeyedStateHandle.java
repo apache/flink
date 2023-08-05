@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -332,7 +331,8 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
         for (HandleAndLocalPath handleAndLocalPath : sharedState) {
             StreamStateHandle reference =
                     stateRegistry.registerReference(
-                            createSharedStateRegistryKey(handleAndLocalPath.getHandle()),
+                            SharedStateRegistryKey.forStreamStateHandle(
+                                    handleAndLocalPath.getHandle()),
                             handleAndLocalPath.getHandle(),
                             checkpointID);
 
@@ -355,15 +355,6 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
                 metaStateHandle,
                 persistedSizeOfThisCheckpoint,
                 stateHandleId);
-    }
-
-    /** Create a unique key based on physical id to register one of our shared state handles. */
-    @VisibleForTesting
-    public SharedStateRegistryKey createSharedStateRegistryKey(StreamStateHandle handle) {
-        String keyString = handle.getStreamStateHandleID().getKeyString();
-        // key strings tend to be longer, so we use the MD5 of the key string to save memory
-        return new SharedStateRegistryKey(
-                UUID.nameUUIDFromBytes(keyString.getBytes(StandardCharsets.UTF_8)).toString());
     }
 
     /**
