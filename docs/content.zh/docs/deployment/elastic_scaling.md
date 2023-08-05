@@ -134,7 +134,6 @@ Adaptive 调度器可以基于现有的 Slot 调整 Job 的并行度。它会在
 需要设置如下的配置参数：
 
 - `jobmanager.scheduler: adaptive`：将默认的调度器换成 Adaptive。
-- `cluster.declarative-resource-management.enabled`：声明式资源管理必须开启（默认开启）。
 
 Adaptive 调度器可以通过[所有在名字包含 `adaptive-scheduler` 的配置]({{< ref "docs/deployment/config">}}#advanced-scheduling-options)修改其行为。
 

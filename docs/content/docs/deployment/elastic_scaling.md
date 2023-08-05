@@ -135,10 +135,9 @@ One benefit of the Adaptive Scheduler over the default scheduler is that it can 
 
 ### Usage
 
-The following configuration parameters need to be set:
+The following configuration parameter need to be set:
 
 - `jobmanager.scheduler: adaptive`: Change from the default scheduler to adaptive scheduler
-- `cluster.declarative-resource-management.enabled` Declarative resource management must be enabled (enabled by default).
 
 The behavior of Adaptive Scheduler is configured by [all configuration options containing `adaptive-scheduler`]({{< ref "docs/deployment/config">}}#advanced-scheduling-options) in their name.
 
