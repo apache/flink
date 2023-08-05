@@ -32,7 +32,7 @@ import warnings
 
 import pkg_resources
 
-GRPC_TOOLS = 'grpcio-tools>=1.29.0,<=1.46.3'
+GRPC_TOOLS = 'grpcio-tools>=1.29.0'
 PROTO_PATHS = ['proto']
 PYFLINK_ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PYTHON_OUTPUT_PATH = os.path.join(PYFLINK_ROOT_PATH, 'fn_execution')
@@ -73,7 +73,7 @@ def generate_proto_files(force=True, output_dir=DEFAULT_PYTHON_OUTPUT_PATH):
                 raise RuntimeError(
                     'Cannot generate protos for Windows since grpcio-tools package is '
                     'not installed. Please install this package manually '
-                    'using \'pip install "grpcio-tools>=1.29.0,<=1.46.3"\'.')
+                    'using \'pip install "grpcio-tools>=1.29.0"\'.')
 
             # Use a subprocess to avoid messing with this process' path and imports.
             # Note that this requires a separate module from setup.py for Windows:
