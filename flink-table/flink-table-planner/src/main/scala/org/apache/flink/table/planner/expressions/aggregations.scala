@@ -81,6 +81,16 @@ case class Collect(child: PlannerExpression) extends Aggregation {
   override def toString: String = s"collect($child)"
 }
 
+/** Returns a multiset aggregates. */
+case class Histogram(child: PlannerExpression) extends Aggregation {
+
+  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
+
+  override private[flink] def resultType: TypeInformation[_] =
+    MultisetTypeInfo.getInfoFor(child.resultType)
+}
+
+
 /** Expression for calling a user-defined (table)aggregate function. */
 case class AggFunctionCall(
     aggregateFunction: ImperativeAggregateFunction[_, _],

@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
+import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.functions.InternalFunctionDefinitions.THROW_EXCEPTION
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, DECIMAL, SYMBOL}
@@ -166,6 +166,10 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           case LOCAL_TIME =>
             assert(args.isEmpty)
             LocalTime()
+
+          case HISTOGRAM =>
+            assert(args.size == 1)
+            Histogram(args.head)
 
           case LOCAL_TIMESTAMP =>
             assert(args.isEmpty)

@@ -44,8 +44,8 @@ import static org.apache.flink.table.api.Expressions.$;
 @Internal
 public class ArrayIntersectFunction extends BuiltInScalarFunction {
     private final ArrayData.ElementGetter elementGetter;
-    private final SpecializedFunction.ExpressionEvaluator equalityEvaluator;
-    private transient MethodHandle equalityHandle;
+    private final SpecializedFunction.ExpressionEvaluator intersectEvaluator;
+    private transient MethodHandle intersectHandle;
 
     public ArrayIntersectFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.ARRAY_INTERSECT, context);
@@ -53,16 +53,16 @@ public class ArrayIntersectFunction extends BuiltInScalarFunction {
                 ((CollectionDataType) context.getCallContext().getArgumentDataTypes().get(0))
                         .getElementDataType();
         elementGetter = ArrayData.createElementGetter(dataType.getLogicalType());
-        equalityEvaluator =
+        intersectEvaluator =
                 context.createEvaluator(
                         Expressions.call("HASHCODE", $("element1")),
-                        DataTypes.INT(),
-                        DataTypes.FIELD("element1", dataType.notNull()));
+                        DataTypes.INT().notNull(),
+                        DataTypes.FIELD("element1", dataType.notNull().toInternal()));
     }
 
     @Override
     public void open(FunctionContext context) throws Exception {
-        equalityHandle = equalityEvaluator.open(context);
+        intersectHandle = intersectEvaluator.open(context);
     }
 
     public @Nullable ArrayData eval(ArrayData array1, ArrayData array2) {
@@ -70,42 +70,39 @@ public class ArrayIntersectFunction extends BuiltInScalarFunction {
             if (array1 == null || array2 == null) {
                 return null;
             }
-            boolean alreadySeenNull = false;
-            List<Object> list = new ArrayList<>();
-            Set<Integer> set = new HashSet<>();
-            for (int i = 0; i < array1.size(); ++i) {
-                final Object element = elementGetter.getElementOrNull(array1, i);
-                if (element == null) {
-                    if (alreadySeenNull) {
-                        continue;
+            List<Object> list = new ArrayList();
+            Set<Integer> seen = new HashSet<>();
+
+            boolean isNullPresentInArrayTwo = false;
+            if (array2 != null) {
+                for (int pos = 0; pos < array2.size(); pos++) {
+                    final Object element = elementGetter.getElementOrNull(array2, pos);
+                    if (element == null) {
+                        isNullPresentInArrayTwo = true;
                     } else {
-                        list.add(element);
-                        alreadySeenNull = true;
-                        continue;
+                        int hashCode = (int) intersectHandle.invoke(element);
+                        if (!seen.contains(hashCode)) {
+                            seen.add(hashCode);
+                        }
                     }
-                }
-                int hashCode = (int) equalityHandle.invoke(element);
-                if (!set.contains(hashCode)) {
-                    set.add(hashCode);
-                    list.add(element);
                 }
             }
-            for (int i = 0; i < array2.size(); ++i) {
-                final Object element = elementGetter.getElementOrNull(array2, i);
-                if (element == null) {
-                    if (alreadySeenNull) {
-                        continue;
+            boolean isNullPresentInArrayOne = false;
+            if (array1 != null) {
+                for (int pos = 0; pos < array1.size(); pos++) {
+                    final Object element = elementGetter.getElementOrNull(array1, pos);
+                    if (element == null) {
+                        isNullPresentInArrayOne = true;
                     } else {
-                        list.add(element);
-                        alreadySeenNull = true;
-                        continue;
+                        int hashCode = (int) intersectHandle.invoke(element);
+                        if (seen.contains(hashCode)) {
+                            list.add(element);
+                        }
                     }
                 }
-                int hashCode = (int) equalityHandle.invoke(element);
-                if (!set.contains(hashCode)) {
-                    set.add(hashCode);
-                    list.add(element);
-                }
+            }
+            if (isNullPresentInArrayTwo && isNullPresentInArrayOne) {
+                list.add(null);
             }
             return new GenericArrayData(list.toArray());
         } catch (Throwable t) {
@@ -115,6 +112,6 @@ public class ArrayIntersectFunction extends BuiltInScalarFunction {
 
     @Override
     public void close() throws Exception {
-        equalityEvaluator.close();
+        intersectEvaluator.close();
     }
 }

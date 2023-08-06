@@ -33,7 +33,10 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ArrayComparableElementArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.MixedTypeOutputForRowStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -72,6 +75,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.TYPE_LI
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.arrayFullyComparableElementType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonArrayType;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.commonMapType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonMultipleArrayType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.comparable;
@@ -2180,6 +2184,75 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(sequence(ANY))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
                     .runtimeProvided()
+                    .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_SORT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_SORT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            new ArrayComparableElementArgumentTypeStrategy(
+                                                    StructuredComparison.FULL)),
+                                    sequence(
+                                            new ArrayComparableElementArgumentTypeStrategy(
+                                                    StructuredComparison.FULL),
+                                            logical(LogicalTypeRoot.BOOLEAN))))
+                    .outputTypeStrategy(nullableIfArgs(argument(0)))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArraySortFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition MAP_UNION =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("MAP_UNION")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(commonMapType(1))
+                    .outputTypeStrategy(COMMON)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.MapUnionFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ELT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ELT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeRoot.ROW), logical(LogicalTypeRoot.INTEGER)))
+                    .outputTypeStrategy(new MixedTypeOutputForRowStrategy())
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.EltFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition HISTOGRAM =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("histogram")
+                    .kind(AGGREGATE)
+                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.aggregate.HistogramAggFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition FIELD =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("FIELD")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            varyingSequence(
+                                    new AnyArgumentTypeStrategy(), new AnyArgumentTypeStrategy()))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.FieldFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_MIN =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_MIN")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(arrayFullyComparableElementType())
+                    .outputTypeStrategy(forceNullable(SpecificTypeStrategies.ARRAY_ELEMENT))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayMinFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition ARRAY_EXCEPT =

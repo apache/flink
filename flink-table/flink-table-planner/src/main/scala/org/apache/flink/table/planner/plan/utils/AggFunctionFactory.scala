@@ -17,25 +17,23 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.sql.fun._
+import org.apache.calcite.sql.{SqlAggFunction, SqlJsonConstructorNullClause, SqlKind, SqlRankFunction}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{DeclarativeAggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
-import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
+import org.apache.flink.table.planner.functions.sql.{SqlFinkHistogramAggFunction, SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
-import org.apache.flink.table.runtime.functions.aggregate.{BuiltInAggregateFunction, CollectAggFunction, FirstValueAggFunction, FirstValueWithRetractAggFunction, JsonArrayAggFunction, JsonObjectAggFunction, LagAggFunction, LastValueAggFunction, LastValueWithRetractAggFunction, ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction, MaxWithRetractAggFunction, MinWithRetractAggFunction}
 import org.apache.flink.table.runtime.functions.aggregate.BatchApproxCountDistinctAggFunctions._
-import org.apache.flink.table.types.logical._
+import org.apache.flink.table.runtime.functions.aggregate.{BuiltInAggregateFunction, CollectAggFunction, FirstValueAggFunction, FirstValueWithRetractAggFunction, HistogramAggFunction, JsonArrayAggFunction, JsonObjectAggFunction, LagAggFunction, LastValueAggFunction, LastValueWithRetractAggFunction, ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction, MaxWithRetractAggFunction, MinWithRetractAggFunction}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.sql.{SqlAggFunction, SqlJsonConstructorNullClause, SqlKind, SqlRankFunction}
-import org.apache.calcite.sql.fun._
+import org.apache.flink.table.types.logical._
 
 import java.util
-
 import scala.collection.JavaConversions._
 
 /**
@@ -149,6 +147,8 @@ class AggFunctionFactory(
       case fn: SqlAggFunction if fn.getKind == SqlKind.JSON_OBJECTAGG =>
         val onNull = fn.asInstanceOf[SqlJsonObjectAggAggFunction].getNullClause
         new JsonObjectAggFunction(argTypes, onNull == SqlJsonConstructorNullClause.ABSENT_ON_NULL)
+
+      case a: SqlFinkHistogramAggFunction => createHistogramAggFunction(argTypes)
 
       case fn: SqlAggFunction if fn.getKind == SqlKind.JSON_ARRAYAGG =>
         val onNull = fn.asInstanceOf[SqlJsonArrayAggAggFunction].getNullClause
@@ -620,4 +620,9 @@ class AggFunctionFactory(
   private def createCollectAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
     new CollectAggFunction(argTypes(0))
   }
+
+  private def createHistogramAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
+    new HistogramAggFunction(argTypes(0))
+  }
+
 }

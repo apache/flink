@@ -186,6 +186,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "a", new byte[] {97, 0})
                         .fromCase(VARCHAR(4), "FC", new byte[] {70, 67})
                         .fromCase(STRING(), "foobar", new byte[] {102, 111})
+                        .fromCase(TINYINT(), (byte) 102, new byte[] {49, 48})
+                        .fromCase(SMALLINT(), (short) 5, new byte[] {53, 0})
+                        .fromCase(INT(), 55, new byte[] {53, 53})
+                        .fromCase(BIGINT(), 102L, new byte[] {49, 48})
+                        .fromCase(FLOAT(), 102.0f, new byte[] {49, 48})
+                        .fromCase(DOUBLE(), 102.0d, new byte[] {49, 48})
                         // Not supported - no fix
                         .failValidation(BOOLEAN(), true)
                         //
@@ -195,14 +201,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BINARY(1), new byte[] {111}, new byte[] {111, 0})
                         .fromCase(VARBINARY(1), new byte[] {111}, new byte[] {111, 0})
                         .fromCase(BYTES(), new byte[] {11}, new byte[] {11, 0})
+                        .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, new byte[] {45, 53})
+                        .fromCase(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT, new byte[] {49, 50})
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, new byte[] {49, 50})
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, new byte[] {49, 50})
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, new byte[] {49, 50})
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, new byte[] {49, 50})
                         // Not supported - no fix
                         .failValidation(DECIMAL(5, 3), 12.345)
-                        .failValidation(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
-                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
-                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
                         .failValidation(DATE(), DEFAULT_DATE)
                         .failValidation(TIME(), DEFAULT_TIME)
                         .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
@@ -231,12 +237,6 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BYTES(), DEFAULT_BYTES, new byte[] {0, 1, 2, 3})
                         // Not supported - no fix
                         .failValidation(DECIMAL(5, 3), 12.345)
-                        .failValidation(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
-                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
-                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
                         .failValidation(DATE(), DEFAULT_DATE)
                         .failValidation(TIME(), DEFAULT_TIME)
                         .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
@@ -251,6 +251,32 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         //
                         // RAW supported - check CastFunctionMiscITCase
                         .build(),
+                CastTestSpecBuilder.testCastTo(VARBINARY(6))
+                        .fromCase(TINYINT(), (byte) 102, new byte[] {49, 48, 50})
+                        .fromCase(SMALLINT(), (short) 5, new byte[] {53})
+                        .fromCase(INT(), 2345, new byte[] {50, 51, 52, 53})
+                        .fromCase(BIGINT(), 102L, new byte[] {49, 48, 50})
+                        .fromCase(FLOAT(), 102.0f, new byte[] {49, 48, 50, 46, 48})
+                        .fromCase(DOUBLE(), 102.0d, new byte[] {49, 48, 50, 46, 48})
+                        .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, new byte[] {45, 53})
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                new byte[] {49, 50, 51, 52, 53})
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, new byte[] {49, 50, 51, 52, 53, 54})
+                        .fromCase(
+                                BIGINT(),
+                                DEFAULT_POSITIVE_BIGINT,
+                                new byte[] {49, 50, 51, 52, 53, 54})
+                        .fromCase(
+                                FLOAT(),
+                                DEFAULT_POSITIVE_FLOAT,
+                                new byte[] {49, 50, 51, 46, 52, 53})
+                        .fromCase(
+                                DOUBLE(),
+                                DEFAULT_POSITIVE_DOUBLE,
+                                new byte[] {49, 50, 51, 46, 52, 53})
+                        .build(),
                 CastTestSpecBuilder.testCastTo(BYTES())
                         .fromCase(BYTES(), null, null)
                         .fromCase(CHAR(4), "foo", new byte[] {102, 111, 111, 32})
@@ -261,21 +287,36 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 new byte[] {65, 112, 97, 99, 104, 101, 32, 70, 108, 105, 110, 107})
                         // Not supported - no fix
                         .failValidation(BOOLEAN(), true)
+                        // Not supported - no fix
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
                         //
                         .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
                         .fromCase(VARBINARY(3), DEFAULT_VARBINARY, DEFAULT_VARBINARY)
                         .fromCase(BYTES(), DEFAULT_BYTES, DEFAULT_BYTES)
-                        // Not supported - no fix
-                        .failValidation(DECIMAL(5, 3), 12.345)
-                        .failValidation(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
-                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
-                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        .failValidation(DATE(), DEFAULT_DATE)
-                        .failValidation(TIME(), DEFAULT_TIME)
-                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, new byte[] {45, 53})
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                new byte[] {49, 50, 51, 52, 53})
+                        .fromCase(
+                                INT(),
+                                DEFAULT_POSITIVE_INT,
+                                new byte[] {49, 50, 51, 52, 53, 54, 55})
+                        .fromCase(
+                                BIGINT(),
+                                DEFAULT_POSITIVE_BIGINT,
+                                new byte[] {49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49})
+                        .fromCase(
+                                FLOAT(),
+                                DEFAULT_POSITIVE_FLOAT,
+                                new byte[] {49, 50, 51, 46, 52, 53, 54})
+                        .fromCase(
+                                DOUBLE(),
+                                DEFAULT_POSITIVE_DOUBLE,
+                                new byte[] {49, 50, 51, 46, 52, 53, 54, 55, 56, 57})
                         // TIMESTAMP_WITH_TIME_ZONE
                         .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
                         .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
@@ -323,6 +364,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(TINYINT())
+                        .fromCase(VARBINARY(1), new byte[] {5}, (byte) 5)
+                        .fromCase(BINARY(1), new byte[] {5}, (byte) 5)
                         .fromCase(TINYINT(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -332,10 +375,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(STRING(), "-130", NumberFormatException.class)
                         .fromCase(BOOLEAN(), true, (byte) 1)
                         .fromCase(BOOLEAN(), false, (byte) 0)
-                        // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        .fromCase(BINARY(2), DEFAULT_BINARY, (byte) 1)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, (byte) 12)
+                        .failRuntime(BYTES(), DEFAULT_BYTES, NumberFormatException.class)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, (byte) 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
@@ -370,6 +412,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(SMALLINT())
+                        .fromCase(VARBINARY(1), new byte[] {5}, (short) 5)
+                        .fromCase(BINARY(1), new byte[] {54, 54}, (short) 6)
                         .fromCase(SMALLINT(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -379,10 +423,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(STRING(), "-32769", NumberFormatException.class)
                         .fromCase(BOOLEAN(), true, (short) 1)
                         .fromCase(BOOLEAN(), false, (short) 0)
-                        // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        .fromCase(BINARY(2), DEFAULT_BINARY, (short) 1)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, (short) 12)
+                        .fromCase(BYTES(), DEFAULT_BYTES, (short) 1234)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, (short) 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
@@ -428,6 +471,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(INT())
+                        .fromCase(VARBINARY(1), new byte[] {5}, (int) 5)
+                        .fromCase(BINARY(2), new byte[] {54}, (int) 60)
                         .fromCase(INT(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -437,10 +482,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .failRuntime(STRING(), "-3276913443134", NumberFormatException.class)
                         .fromCase(BOOLEAN(), true, 1)
                         .fromCase(BOOLEAN(), false, 0)
-                        // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        .fromCase(BINARY(2), DEFAULT_BINARY, 1)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, 12)
+                        .fromCase(BYTES(), DEFAULT_BYTES, 1234)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, 9)
                         // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
@@ -488,6 +532,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(BIGINT())
+                        .fromCase(VARBINARY(2147483647), new byte[] {50, 51, 52, 53}, (Long) 2345L)
+                        .fromCase(BINARY(2), new byte[] {54}, (Long) 60L)
                         .fromCase(BIGINT(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -498,9 +544,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BOOLEAN(), true, 1L)
                         .fromCase(BOOLEAN(), false, 0L)
                         // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        .fromCase(BINARY(2), DEFAULT_BINARY, 1L)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, 12L)
+                        .fromCase(BYTES(), DEFAULT_BYTES, 1234L)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, 9L)
                         .fromCase(DECIMAL(20, 3), 3276913443134.87, 3276913443134L)
@@ -545,6 +591,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(FLOAT())
+                        .fromCase(VARBINARY(2), new byte[] {5}, 5.0f)
+                        .fromCase(BINARY(2), new byte[] {5}, 50.0f)
                         .fromCase(FLOAT(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -554,13 +602,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "-3276913443134", -3.27691403E12f)
                         .fromCase(BOOLEAN(), true, 1.0f)
                         .fromCase(BOOLEAN(), false, 0.0f)
-                        // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        .fromCase(BINARY(2), DEFAULT_BINARY, 1.0f)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, 12.0f)
+                        .fromCase(BYTES(), DEFAULT_BYTES, 1234.0f)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, 9.87f)
-                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
+                        // https://issues.apache.org/jira/browse/FLINK-24420 -Check out of range
                         // instead of overflow
                         .fromCase(DECIMAL(4, 3), 9.87, 9.87f)
                         .fromCase(DECIMAL(20, 3), 3276913443134.87, 3.27691351E12f)
@@ -607,6 +654,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // RAW
                         .build(),
                 CastTestSpecBuilder.testCastTo(DOUBLE())
+                        .fromCase(VARBINARY(2), new byte[] {54}, 6.0d)
+                        .fromCase(BINARY(2), new byte[] {54}, 60.0d)
                         .fromCase(DOUBLE(), null, null)
                         .failRuntime(CHAR(3), "foo", NumberFormatException.class)
                         .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
@@ -617,9 +666,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(BOOLEAN(), true, 1.0d)
                         .fromCase(BOOLEAN(), false, 0.0d)
                         // Not supported - no fix
-                        .failValidation(BINARY(2), DEFAULT_BINARY)
-                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        .fromCase(BINARY(2), DEFAULT_BINARY, 1.0d)
+                        .fromCase(VARBINARY(5), DEFAULT_VARBINARY, 12.0d)
+                        .fromCase(BYTES(), DEFAULT_BYTES, 1234.0d)
                         //
                         .fromCase(DECIMAL(4, 3), 9.87, 9.87d)
                         .fromCase(DECIMAL(20, 3), 3276913443134.87, 3.27691344313487E12d)
@@ -988,6 +1037,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(STRING(), "Apache Flink", "Apache Flink")
                         .fromCase(STRING(), null, null)
                         .fromCase(BOOLEAN(), true, "TRUE")
+                        .fromCase(BINARY(1), new byte[] {5}, "\u0005")
                         .fromCase(BINARY(2), DEFAULT_BINARY, "\u0000\u0001")
                         .fromCase(BINARY(3), DEFAULT_BINARY, "\u0000\u0001\u0000")
                         .fromCase(VARBINARY(3), DEFAULT_VARBINARY, "\u0000\u0001\u0002")

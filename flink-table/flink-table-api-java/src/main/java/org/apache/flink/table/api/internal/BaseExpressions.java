@@ -60,6 +60,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_EXCEPT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_INTERSECT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MAX;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_POSITION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REMOVE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_REVERSE;
@@ -86,10 +87,12 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DECODE
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DEGREES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ELT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXTRACT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FIELD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FIRST_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLATTEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLOOR;
@@ -98,6 +101,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GET;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.GREATER_THAN_OR_EQUAL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HEX;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.HISTOGRAM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IF_NULL;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.IN;
@@ -129,6 +133,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LPAD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.LTRIM;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_ENTRIES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_KEYS;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_UNION;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAP_VALUES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MAX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.MD5;
@@ -1459,6 +1464,61 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType arrayUnion(InType array) {
         return toApiSpecificExpression(
                 unresolvedCall(ARRAY_UNION, toExpr(), objectToExpression(array)));
+    }
+
+    /**
+     * Returns the minimum value from the array.
+     *
+     * <p>if array itself is null, the function returns null.
+     */
+    public OutType arrayMin() {
+        return toApiSpecificExpression(unresolvedCall(ARRAY_MIN, toExpr()));
+    }
+
+    /**
+     * Returns a map created by merging at least one map. These maps should have a common map type.
+     * If there are overlapping keys, the value from 'map2' will overwrite the value from 'map1',
+     * the value from 'map3' will overwrite the value from 'map2', the value from 'mapn' will
+     * overwrite the value from 'map(n-1)'. If any of maps is null, return null.
+     */
+    public OutType mapUnion(InType... inputs) {
+        Expression[] args =
+                Stream.concat(
+                                Stream.of(toExpr()),
+                                Arrays.stream(inputs).map(ApiExpressionUtils::objectToExpression))
+                        .toArray(Expression[]::new);
+        return toApiSpecificExpression(unresolvedCall(MAP_UNION, args));
+    }
+
+    /**
+     * Returns the element at the n-th position from a list of input values.
+     *
+     * <p>If 'n' is less than 1 or greater than the number of inputs, or if any of the inputs is
+     * null, the function will return null.
+     */
+    public OutType elt(InType input) {
+        return toApiSpecificExpression(unresolvedCall(ELT, toExpr(), objectToExpression(input)));
+    }
+
+    /**
+     * Returns the position of the given value in the list of arguments, where the position count
+     * starts from 1.
+     *
+     * <p>If the value is not found in the list or if the value is null, the function returns 0. If
+     * the list is null or the list is empty, the function returns 0.
+     */
+    public OutType field(InType... input) {
+        Expression[] args =
+                Stream.concat(
+                                Stream.of(toExpr()),
+                                Arrays.stream(input).map(ApiExpressionUtils::objectToExpression))
+                        .toArray(Expression[]::new);
+        return toApiSpecificExpression(unresolvedCall(FIELD, args));
+    }
+
+    /** Returns multiset aggregate of a given expression. */
+    public OutType histogram() {
+        return toApiSpecificExpression(unresolvedCall(HISTOGRAM, toExpr()));
     }
 
     /**

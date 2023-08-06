@@ -984,6 +984,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     /** <code>LISTAGG</code> aggregate function. */
     public static final SqlListAggFunction LISTAGG = new SqlListAggFunction();
 
+    public static final SqlAggFunction HISTOGRAM = new SqlFinkHistogramAggFunction();
     // -----------------------------------------------------------------------------
     // Window SQL functions
     // -----------------------------------------------------------------------------

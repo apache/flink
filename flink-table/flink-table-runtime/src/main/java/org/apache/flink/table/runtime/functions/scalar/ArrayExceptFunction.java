@@ -38,6 +38,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_EXCEPT}. */
 @Internal
 public class ArrayExceptFunction extends BuiltInScalarFunction {
@@ -53,7 +55,7 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
         elementGetter = ArrayData.createElementGetter(dataType.getLogicalType());
         containsEvaluator =
                 context.createEvaluator(
-                        Expressions.call("HASHCODE", "element1"),
+                        Expressions.call("HASHCODE", $("element1")),
                         DataTypes.INT(),
                         DataTypes.FIELD("element1", dataType.notNull()));
     }
