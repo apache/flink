@@ -197,7 +197,7 @@ public final class LogicalTypeCasts {
 
         castTo(FLOAT)
                 .implicitFrom(TINYINT, SMALLINT, INTEGER, BIGINT, FLOAT, DECIMAL)
-                .explicitFromFamily(NUMERIC, CHARACTER_STRING, INTERVAL, BINARY_STRING)
+                .explicitFromFamily(NUMERIC, CHARACTER_STRING, BINARY_STRING)
                 .explicitFrom(
                         BOOLEAN,
                         TIMESTAMP_WITHOUT_TIME_ZONE,
