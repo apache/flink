@@ -65,6 +65,7 @@ class StreamPhysicalTableSourceScan(
       tableSourceTable.contextResolvedTable,
       util.Arrays.asList(tableSourceTable.abilitySpecs: _*))
     tableSourceSpec.setTableSource(tableSource)
+    tableSourceSpec.setDigest(getDigest())
 
     new StreamExecTableSourceScan(
       unwrapTableConfig(this),

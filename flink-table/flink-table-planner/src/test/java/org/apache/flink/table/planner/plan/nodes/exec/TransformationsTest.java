@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
@@ -105,6 +106,52 @@ class TransformationsTest {
 
         assertBoundedness(Boundedness.CONTINUOUS_UNBOUNDED, sourceTransform);
         assertThat(sourceTransform.getOperator().emitsProgressiveWatermarks()).isTrue();
+    }
+
+    @Test
+    public void testDerivedDataStreamFromSingleBatchSource() {
+        final StreamTableEnvironment env =
+                StreamTableEnvironment.create(
+                        StreamExecutionEnvironment.getExecutionEnvironment(),
+                        EnvironmentSettings.newInstance().inBatchMode().build());
+
+        final Table table =
+                env.from(
+                        TableDescriptor.forConnector("values")
+                                .option("bounded", "true")
+                                .schema(dummySchema())
+                                .build());
+
+        DataStream ds1 = env.toDataStream(table);
+        DataStream ds2 = env.toDataStream(table);
+        assertThat(
+                ds1.getTransformation()
+                        .getInputs()
+                        .get(0)
+                        .equals(ds2.getTransformation().getInputs().get(0)));
+    }
+
+    @Test
+    public void testDerivedDataStreamFromSingleStreamSource() {
+        final StreamTableEnvironment env =
+                StreamTableEnvironment.create(
+                        StreamExecutionEnvironment.getExecutionEnvironment(),
+                        EnvironmentSettings.newInstance().inStreamingMode().build());
+
+        final Table table =
+                env.from(
+                        TableDescriptor.forConnector("values")
+                                .option("bounded", "false")
+                                .schema(dummySchema())
+                                .build());
+
+        DataStream ds1 = env.toDataStream(table);
+        DataStream ds2 = env.toDataStream(table);
+        assertThat(
+                ds1.getTransformation()
+                        .getInputs()
+                        .get(0)
+                        .equals(ds2.getTransformation().getInputs().get(0)));
     }
 
     @Test

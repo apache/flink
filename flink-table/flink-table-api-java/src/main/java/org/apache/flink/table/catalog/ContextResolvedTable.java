@@ -19,12 +19,14 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -60,6 +62,7 @@ public final class ContextResolvedTable {
     private final @Nullable Catalog catalog;
     private final ResolvedCatalogBaseTable<?> resolvedTable;
     private final boolean anonymous;
+    private Map<String, Transformation> cachedTransformations;
 
     public static ContextResolvedTable permanent(
             ObjectIdentifier identifier,
@@ -102,6 +105,7 @@ public final class ContextResolvedTable {
         this.catalog = catalog;
         this.resolvedTable = Preconditions.checkNotNull(resolvedTable);
         this.anonymous = anonymous;
+        this.cachedTransformations = new HashMap<>();
     }
 
     public boolean isAnonymous() {
@@ -140,6 +144,14 @@ public final class ContextResolvedTable {
     @SuppressWarnings("unchecked")
     public <T extends CatalogBaseTable> T getTable() {
         return (T) resolvedTable.getOrigin();
+    }
+
+    public Map<String, Transformation> getCachedTransformations() {
+        return cachedTransformations;
+    }
+
+    public void setCachedTransformations(Map<String, Transformation> cachedTransformations) {
+        this.cachedTransformations = cachedTransformations;
     }
 
     /**

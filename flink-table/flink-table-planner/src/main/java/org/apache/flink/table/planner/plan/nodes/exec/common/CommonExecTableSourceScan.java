@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.InputFormatProvider;
@@ -56,7 +57,9 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -71,6 +74,8 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
 
     @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE)
     private final DynamicTableSourceSpec tableSourceSpec;
+
+    private String transformationDigest;
 
     protected CommonExecTableSourceScan(
             int id,
@@ -105,54 +110,63 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                         planner.getFlinkContext(), ShortcutUtils.unwrapTypeFactory(planner));
         ScanTableSource.ScanRuntimeProvider provider =
                 tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);
+
+        Transformation<RowData> transformation;
         if (provider instanceof SourceFunctionProvider) {
             final SourceFunctionProvider sourceFunctionProvider = (SourceFunctionProvider) provider;
             final SourceFunction<RowData> function = sourceFunctionProvider.createSourceFunction();
-            final Transformation<RowData> transformation =
+            transformation =
                     createSourceFunctionTransformation(
                             env,
                             function,
                             sourceFunctionProvider.isBounded(),
                             meta.getName(),
                             outputTypeInfo);
-            return meta.fill(transformation);
         } else if (provider instanceof InputFormatProvider) {
             final InputFormat<RowData, ?> inputFormat =
                     ((InputFormatProvider) provider).createInputFormat();
-            final Transformation<RowData> transformation =
+            transformation =
                     createInputFormatTransformation(
                             env, inputFormat, outputTypeInfo, meta.getName());
-            return meta.fill(transformation);
         } else if (provider instanceof SourceProvider) {
             final Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
             // TODO: Push down watermark strategy to source scan
-            final Transformation<RowData> transformation =
+            transformation =
                     env.fromSource(
                                     source,
                                     WatermarkStrategy.noWatermarks(),
                                     meta.getName(),
                                     outputTypeInfo)
                             .getTransformation();
-            return meta.fill(transformation);
         } else if (provider instanceof DataStreamScanProvider) {
-            Transformation<RowData> transformation =
+            transformation =
                     ((DataStreamScanProvider) provider)
                             .produceDataStream(createProviderContext(config), env)
                             .getTransformation();
-            meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
-            return transformation;
         } else if (provider instanceof TransformationScanProvider) {
-            final Transformation<RowData> transformation =
+            transformation =
                     ((TransformationScanProvider) provider)
                             .createTransformation(createProviderContext(config));
-            meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
-            return transformation;
         } else {
             throw new UnsupportedOperationException(
                     provider.getClass().getSimpleName() + " is unsupported now.");
         }
+
+        transformation = meta.fill(transformation);
+        ContextResolvedTable resolvedTable = tableSourceSpec.getContextResolvedTable();
+        transformationDigest =
+                getTransformationDigest(
+                        tableSourceSpec.getDigest(),
+                        transformation.getUid(),
+                        transformation.getParallelism(),
+                        transformation.getBufferTimeout());
+        Map<String, Transformation> cachedTransformations =
+                resolvedTable.getCachedTransformations();
+        Transformation previous =
+                cachedTransformations.putIfAbsent(transformationDigest, transformation);
+        return previous != null ? previous : transformation;
     }
 
     private ProviderContext createProviderContext(ExecNodeConfig config) {
@@ -162,6 +176,17 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             }
             return Optional.empty();
         };
+    }
+
+    private String getTransformationDigest(
+            String tableSourceDigest, String uid, int parallelism, long bufferTimeout) {
+        List<String> digest =
+                Arrays.asList(
+                        tableSourceDigest,
+                        uid,
+                        String.valueOf(parallelism),
+                        String.valueOf(bufferTimeout));
+        return digest.toString();
     }
 
     /**
@@ -201,6 +226,14 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                 parallelism,
                 boundedness,
                 parallelismConfigured);
+    }
+
+    public void removeCachedTransformation() {
+        if (transformationDigest != null) {
+            Map<String, Transformation> cachedTransformations =
+                    tableSourceSpec.getContextResolvedTable().getCachedTransformations();
+            cachedTransformations.remove(transformationDigest);
+        }
     }
 
     /**

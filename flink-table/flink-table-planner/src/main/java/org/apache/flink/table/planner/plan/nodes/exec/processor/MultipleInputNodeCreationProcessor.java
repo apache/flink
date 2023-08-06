@@ -486,6 +486,7 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
             // change.
             Transformation<?> transformation =
                     node.translateToPlan(Preconditions.checkNotNull(context).getPlanner());
+            ((CommonExecTableSourceScan) node).removeCachedTransformation();
             return transformation instanceof SourceTransformation;
         }
         return false;

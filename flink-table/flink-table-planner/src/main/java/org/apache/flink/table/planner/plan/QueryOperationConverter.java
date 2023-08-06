@@ -80,6 +80,7 @@ import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable;
 import org.apache.flink.table.planner.plan.schema.DataStreamTable$;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
+import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TypedFlinkTableFunction;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
@@ -96,10 +97,12 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.ViewExpanders;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.logical.LogicalValues;
@@ -363,9 +366,23 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                         .scan(contextResolvedTable.getIdentifier(), dynamicOptions)
                         .build();
             }
-            return relBuilder
-                    .scan(queryOperation.getContextResolvedTable().getIdentifier().toList())
-                    .build();
+            RelNode scan =
+                    relBuilder
+                            .scan(queryOperation.getContextResolvedTable().getIdentifier().toList())
+                            .build();
+
+            if (scan instanceof TableScan) {
+                RelOptTable table = ((TableScan) scan).getTable();
+                if (table instanceof TableSourceTable) {
+                    ((TableSourceTable) table)
+                            .contextResolvedTable()
+                            .setCachedTransformations(
+                                    queryOperation
+                                            .getContextResolvedTable()
+                                            .getCachedTransformations());
+                }
+            }
+            return scan;
         }
 
         @Override
