@@ -122,6 +122,9 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
                         }
                     }
                 }
+            } catch (Exception e) {
+                LOG.error("Lost connection to server socket");
+                LOG.error(e.getMessage());
             }
 
             // if we dropped out of this loop due to an EOF, sleep and retry
