@@ -84,6 +84,6 @@ under the License.
 		more details are in FLINK-27995 -->
 		<janino.version>3.1.10</janino.version>
 		<jsonpath.version>2.7.0</jsonpath.version>
-		<guava.version>31.1-jre</guava.version>
+		<guava.version>32.0.0-jre</guava.version>
 	</properties>
 </project>
