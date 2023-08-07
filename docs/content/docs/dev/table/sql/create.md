@@ -547,20 +547,20 @@ CREATE TABLE my_ctas_table (
 INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
-**Note** CTAS has these restrictions:
+**Note:** CTAS has these restrictions:
 * Does not support creating a temporary table yet.
 * Does not support specifying explicit columns yet.
 * Does not support specifying explicit watermark yet.
 * Does not support creating partitioned table yet.
 * Does not support specifying primary key constraints yet.
 
-**Note** By default, CTAS is non-atomic which means the table created won't be dropped automatically if occur errors while inserting data into the table.
+**Note:** By default, CTAS is non-atomic which means the table created won't be dropped automatically if occur errors while inserting data into the table.
 
 #### Atomicity
 
 If you want to enable atomicity for CTAS, then you should make sure:
-* The sink has implemented the atomicity semantics for CTAS. You may refer to the corresponding doc for the sink to know the atomicity semantics is available or not. For devs who want to implement the atomicity semantics, please refer to doc [SupportsStaging]({{< ref "docs/dev/table/sourcesSinks" >}}#sink-abilities).
-* Set option `table.rtas-ctas.atomicity-enabled` to `true`.
+* The sink has implemented the atomicity semantics for CTAS. You may refer to the doc for the corresponding connector sink to know the atomicity semantics is available or not. For devs who want to implement the atomicity semantics, please refer to the doc [SupportsStaging]({{< ref "docs/dev/table/sourcesSinks" >}}#sink-abilities).
+* Set option [table.rtas-ctas.atomicity-enabled]({{< ref "docs/dev/table/config" >}}#table-rtas-ctas-atomicity-enabled) to `true`.
 
 {{< top >}}
 
@@ -572,7 +572,7 @@ WITH (key1=val1, key2=val2, ...)
 AS select_query
 ```
 
-**Note** RTAS has the following semantic:
+**Note:** RTAS has the following semantic:
 * REPLACE TABLE AS SELECT statement: the target table to be replaced must exist, otherwise, an exception will be thrown.
 * CREATE OR REPLACE TABLE AS SELECT statement: the target table to be replaced will be created if it does not exist; if it does exist, it'll be replaced.
 
@@ -607,7 +607,7 @@ CREATE TABLE my_rtas_table (
 INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
-**Note** RTAS has these restrictions:
+**Note:** RTAS has these restrictions:
 
 * Does not support replacing a temporary table yet.
 * Does not support specifying explicit columns yet.
@@ -615,13 +615,13 @@ INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 * Does not support creating partitioned table yet.
 * Does not support specifying primary key constraints yet.
 
-**Note** By default, RTAS is non-atomic which means the table won't be dropped or restored to its origin automatically if occur errors while inserting data into the table.
+**Note:** By default, RTAS is non-atomic which means the table won't be dropped or restored to its origin automatically if occur errors while inserting data into the table.
 
 ### Atomicity
 
 If you want to enable atomicity for RTAS, then you should make sure:
-* The sink has implemented the atomicity semantics for RTAS. You may refer to the corresponding doc for the sink to know the atomicity semantics is available or not. For devs who want to implement the atomicity semantics, please refer to doc [SupportsStaging]({{< ref "docs/dev/table/sourcesSinks" >}}#sink-abilities).
-* Set option `table.rtas-ctas.atomicity-enabled` to `true`.
+* The sink has implemented the atomicity semantics for RTAS. You may refer to the doc for the corresponding connector sink to know the atomicity semantics is available or not. For devs who want to implement the atomicity semantics, please refer to the doc [SupportsStaging]({{< ref "docs/dev/table/sourcesSinks" >}}#sink-abilities).
+* Set option [table.rtas-ctas.atomicity-enabled]({{< ref "docs/dev/table/config" >}}#table-rtas-ctas-atomicity-enabled) to `true`.
 
 {{< top >}}
 

@@ -280,7 +280,7 @@ Flink 会对工厂类逐个进行检查，确保其“标识符”是全局唯�
     </tr>
     <tr>
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsStaging.java" name="SupportsStaging" >}}</td>
-        <td>支持 <code>DynamicTableSink</code> 提供 CTAS 或 RTAS 的原子性语义。该接口的实现者需要返回一个提供原子性语义实现的 `StagedTable` 对象。</td>
+        <td>支持 <code>DynamicTableSink</code> 提供 CTAS(CREATE TABLE AS SELECT) 或 RTAS([CREATE OR] REPLACE TABLE AS SELECT) 的原子性语义。该接口的实现者需要返回一个提供原子性语义实现的 <code>StagedTable</code> 对象。</td>
     </tr>
     </tbody>
 </table>
