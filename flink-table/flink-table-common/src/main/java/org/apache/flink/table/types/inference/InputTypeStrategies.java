@@ -23,6 +23,7 @@ import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ArrayComparableElementTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ComparableTypeStrategy;
@@ -280,6 +281,10 @@ public final class InputTypeStrategies {
     public static ConstraintArgumentTypeStrategy constraint(
             String constraintMessage, Predicate<List<DataType>> evaluator) {
         return new ConstraintArgumentTypeStrategy(constraintMessage, evaluator);
+    }
+
+    public static InputTypeStrategy arrayFullyComparableElementType() {
+        return new ArrayComparableElementTypeStrategy(StructuredComparison.FULL);
     }
 
     /**

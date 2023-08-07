@@ -89,6 +89,9 @@ public final class SpecificTypeStrategies {
     /** See {@link ToTimestampLtzTypeStrategy}. */
     public static final TypeStrategy TO_TIMESTAMP_LTZ = new ToTimestampLtzTypeStrategy();
 
+    /** See {@link ArrayElementOutputTypeStrategy}. */
+    public static final TypeStrategy ARRAY_ELEMENT = new ArrayElementOutputTypeStrategy();
+
     private SpecificTypeStrategies() {
         // no instantiation
     }
