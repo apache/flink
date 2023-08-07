@@ -270,12 +270,9 @@ Flink 支持多种不同的故障恢复策略，该策略需要通过 Flink 配�
 该策略会将作业中的所有 Task 划分为数个 Region。当有 Task 发生故障时，它会尝试找出进行故障恢复需要重启的最小 Region 集合。
 相比于全局重启故障恢复策略，这种策略在一些场景下的故障恢复需要重启的 Task 会更少。
 
-此处 Region 指以 Pipelined 形式进行数据交换的 Task 集合。也就是说，Batch 形式的数据交换会构成 Region 的边界。
-- DataStream 和 流式 Table/SQL 作业的所有数据交换都是 Pipelined 形式的。
-- 批处理式 Table/SQL 作业的所有数据交换默认都是 Batch 形式的。
-- DataSet 作业中的数据交换形式会根据 [ExecutionConfig]({{< ref "docs/dev/datastream/execution/execution_configuration" >}}) 
-  中配置的 `ExecutionMode`
-  决定。
+DataStream/Table/SQL 作业中的数据交换形式会根据 [ExecutionConfig]({{< ref "docs/dev/datastream/execution/execution_configuration" >}}) 
+中配置的 `ExecutionMode` 决定。处于 STREAM 模式时，所有数据交换都是 Pipelined 形式；
+处于 BATCH 模式时，所有数据交换默认都是 Batch 形式。
 
 需要重启的 Region 的判断逻辑如下：
 1. 出错 Task 所在 Region 需要重启。
