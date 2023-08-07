@@ -55,7 +55,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MAX;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_MIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
@@ -1351,12 +1351,12 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Returns the maximum value from the array.
+     * Returns the minimum value from the array.
      *
      * <p>if array itself is null, the function returns null.
      */
-    public OutType arrayMax() {
-        return toApiSpecificExpression(unresolvedCall(ARRAY_MAX, toExpr()));
+    public OutType arrayMin() {
+        return toApiSpecificExpression(unresolvedCall(ARRAY_MIN, toExpr()));
     }
 
     // Time definition

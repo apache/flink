@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
@@ -28,6 +30,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.util.CollectionUtil.entry;
 
@@ -36,7 +39,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
-        return Stream.of(arrayContainsTestCases(), arrayMaxTestCases()).flatMap(s -> s);
+        return Stream.of(arrayContainsTestCases(), arrayMinTestCases()).flatMap(s -> s);
     }
 
     private Stream<TestSetSpec> arrayContainsTestCases() {
@@ -120,9 +123,9 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
     }
 
-    private Stream<TestSetSpec> arrayMaxTestCases() {
+    private Stream<TestSetSpec> arrayMinTestCases() {
         return Stream.of(
-                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_MAX)
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_MIN)
                         .onFieldsWithData(
                                 new Integer[] {1, 2, null},
                                 null,
@@ -190,79 +193,96 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
                                 DataTypes.ARRAY(DataTypes.DATE()),
                                 DataTypes.ARRAY(DataTypes.INT().notNull()))
-                        .testResult($("f0").arrayMax(), "ARRAY_MAX(f0)", 2, DataTypes.INT())
-                        .testResult($("f1").arrayMax(), "ARRAY_MAX(f1)", null, DataTypes.INT())
-                        .testResult($("f2").arrayMax(), "ARRAY_MAX(f2)", 8.0, DataTypes.DOUBLE())
-                        .testResult($("f3").arrayMax(), "ARRAY_MAX(f3)", "def", DataTypes.STRING())
-                        .testResult($("f14").arrayMax(), "ARRAY_MAX(f1)", null, DataTypes.INT())
+                        .testResult($("f0").arrayMin(), "ARRAY_MIN(f0)", 1, DataTypes.INT())
+                        .testResult($("f1").arrayMin(), "ARRAY_MIN(f1)", null, DataTypes.INT())
+                        .testResult($("f2").arrayMin(), "ARRAY_MIN(f2)", 1.2, DataTypes.DOUBLE())
+                        .testResult($("f3").arrayMin(), "ARRAY_MIN(f3)", "a", DataTypes.STRING())
+                        .testResult($("f14").arrayMin(), "ARRAY_MIN(f14)", null, DataTypes.INT())
                         .testResult(
-                                $("f13").arrayMax(),
-                                "ARRAY_MAX(f13)",
-                                LocalDate.of(2092, 7, 19),
+                                $("f13").arrayMin(),
+                                "ARRAY_MIN(f13)",
+                                LocalDate.of(2012, 5, 16),
                                 DataTypes.DATE())
                         .testSqlValidationError(
-                                "ARRAY_MAX(f4)",
+                                "ARRAY_MIN(f4)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "ARRAY_MAX(ARRAY<ROW<`f0` BOOLEAN, `f1` DATE>>")
+                                        + "ARRAY_MIN(ARRAY<ROW<`f0` BOOLEAN, `f1` DATE>>")
                         .testTableApiValidationError(
-                                $("f4").arrayMax(),
+                                $("f4").arrayMin(),
                                 "Invalid function call:\n"
-                                        + "ARRAY_MAX(ARRAY<ROW<`f0` BOOLEAN, `f1` DATE>>")
+                                        + "ARRAY_MIN(ARRAY<ROW<`f0` BOOLEAN, `f1` DATE>>")
                         .testSqlValidationError(
-                                "ARRAY_MAX(f5)",
+                                "ARRAY_MIN(f5)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "ARRAY_MAX(ARRAY<MAP<INT, STRING>>")
+                                        + "ARRAY_MIN(ARRAY<MAP<INT, STRING>>")
                         .testTableApiValidationError(
-                                $("f5").arrayMax(),
-                                "Invalid function call:\n" + "ARRAY_MAX(ARRAY<MAP<INT, STRING>>)")
+                                $("f5").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<MAP<INT, STRING>>)")
                         .testSqlValidationError(
-                                "ARRAY_MAX(f6)",
+                                "ARRAY_MIN(f6)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "ARRAY_MAX(ARRAY<ARRAY<INT>>)")
+                                        + "ARRAY_MIN(ARRAY<ARRAY<INT>>)")
                         .testTableApiValidationError(
-                                $("f6").arrayMax(),
-                                "Invalid function call:\n" + "ARRAY_MAX(ARRAY<ARRAY<INT>>)")
+                                $("f6").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<ARRAY<INT>>)")
                         .testSqlValidationError(
-                                "ARRAY_MAX(f7)",
+                                "ARRAY_MIN(f7)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "ARRAY_MAX(ARRAY<ROW<`f0` DATE>>)")
+                                        + "ARRAY_MIN(ARRAY<ROW<`f0` DATE>>)")
                         .testTableApiValidationError(
-                                $("f7").arrayMax(),
-                                "Invalid function call:\n" + "ARRAY_MAX(ARRAY<ROW<`f0` DATE>>)")
+                                $("f7").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<ROW<`f0` DATE>>)")
                         .testSqlValidationError(
-                                "ARRAY_MAX(f8)",
+                                "ARRAY_MIN(f8)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "ARRAY_MAX(ARRAY<BOOLEAN>)")
+                                        + "ARRAY_MIN(ARRAY<BOOLEAN>)")
                         .testTableApiValidationError(
-                                $("f8").arrayMax(),
-                                "Invalid function call:\n" + "ARRAY_MAX(ARRAY<BOOLEAN>)")
+                                $("f8").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<BOOLEAN>)")
                         .testSqlValidationError(
-                                "ARRAY_MAX(f9)",
+                                "ARRAY_MIN(f9)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "ARRAY_MAX(ARRAY<ROW<`f0` BOOLEAN>>)")
+                                        + "ARRAY_MIN(ARRAY<ROW<`f0` BOOLEAN>>)")
                         .testTableApiValidationError(
-                                $("f9").arrayMax(),
-                                "Invalid function call:\n" + "ARRAY_MAX(ARRAY<ROW<`f0` BOOLEAN>>)")
+                                $("f9").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<ROW<`f0` BOOLEAN>>)")
                         .testSqlValidationError(
-                                "ARRAY_MAX(f10)",
+                                "ARRAY_MIN(f10)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "ARRAY_MAX(ARRAY<ROW<`f0` INT>>)")
+                                        + "ARRAY_MIN(ARRAY<ROW<`f0` INT>>)")
                         .testTableApiValidationError(
-                                $("f10").arrayMax(),
-                                "Invalid function call:\n" + "ARRAY_MAX(ARRAY<ROW<`f0` INT>>)")
+                                $("f10").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<ROW<`f0` INT>>)")
                         .testTableApiValidationError(
-                                $("f11").arrayMax(),
-                                "Invalid function call:\n" + "ARRAY_MAX(INT NOT NULL)")
+                                $("f11").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(INT NOT NULL)")
                         .testSqlValidationError(
-                                "ARRAY_MAX(f11)",
+                                "ARRAY_MIN(f11)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "ARRAY_MAX(INT NOT NULL)")
+                                        + "ARRAY_MIN(INT NOT NULL)")
                         .testTableApiValidationError(
-                                $("f12").arrayMax(),
-                                "Invalid function call:\n" + "ARRAY_MAX(ARRAY<ARRAY<INT>>)")
+                                $("f12").arrayMin(),
+                                "Invalid function call:\n" + "ARRAY_MIN(ARRAY<ARRAY<INT>>)")
                         .testSqlValidationError(
-                                "ARRAY_MAX(f12)",
+                                "ARRAY_MIN(f12)",
                                 "SQL validation failed. Invalid function call:\n"
-                                        + "ARRAY_MAX(ARRAY<ARRAY<INT>>)"));
+                                        + "ARRAY_MIN(ARRAY<ARRAY<INT>>)")
+                        .testSqlValidationError(
+                                "ARRAY_MIN()", "No match found for function signature ARRAY_MIN()")
+                        .testSqlValidationError(
+                                "ARRAY_MIN(ARRAY[1], ARRAY[2])",
+                                "No match found for function signature ARRAY_MIN(<INTEGER ARRAY>, <INTEGER ARRAY>)")
+                        .withFunction(CreateEmptyArray.class)
+                        .testResult(
+                                call("CreateEmptyArray").arrayMin(),
+                                "ARRAY_MIN(CreateEmptyArray())",
+                                null,
+                                DataTypes.INT()));
+    }
+
+    public static class CreateEmptyArray extends ScalarFunction {
+        public @DataTypeHint("ARRAY<INT NOT NULL>") int[] eval() {
+            return new int[] {};
+        }
     }
 }

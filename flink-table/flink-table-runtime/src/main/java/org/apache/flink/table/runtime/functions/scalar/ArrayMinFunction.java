@@ -34,15 +34,15 @@ import java.lang.invoke.MethodHandle;
 
 import static org.apache.flink.table.api.Expressions.$;
 
-/** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_MAX}. */
+/** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_MIN}. */
 @Internal
-public class ArrayMaxFunction extends BuiltInScalarFunction {
+public class ArrayMinFunction extends BuiltInScalarFunction {
     private final ArrayData.ElementGetter elementGetter;
     private final SpecializedFunction.ExpressionEvaluator compareEvaluator;
     private transient MethodHandle compareHandle;
 
-    public ArrayMaxFunction(SpecializedFunction.SpecializedContext context) {
-        super(BuiltInFunctionDefinitions.ARRAY_MAX, context);
+    public ArrayMinFunction(SpecializedFunction.SpecializedContext context) {
+        super(BuiltInFunctionDefinitions.ARRAY_MIN, context);
 
         final DataType dataType =
                 ((CollectionDataType) context.getCallContext().getArgumentDataTypes().get(0))
@@ -50,7 +50,7 @@ public class ArrayMaxFunction extends BuiltInScalarFunction {
         elementGetter = ArrayData.createElementGetter(dataType.getLogicalType());
         compareEvaluator =
                 context.createEvaluator(
-                        $("element1").isGreater($("element2")),
+                        $("element1").isLess($("element2")),
                         DataTypes.BOOLEAN().notNull(),
                         DataTypes.FIELD("element1", dataType.notNull().toInternal()),
                         DataTypes.FIELD("element2", dataType.notNull().toInternal()));
@@ -67,16 +67,16 @@ public class ArrayMaxFunction extends BuiltInScalarFunction {
                 return null;
             }
 
-            Object maxElement = null;
+            Object minElement = null;
             for (int i = 0; i < array.size(); i++) {
                 Object element = elementGetter.getElementOrNull(array, i);
                 if (element != null) {
-                    if (maxElement == null || (boolean) compareHandle.invoke(element, maxElement)) {
-                        maxElement = element;
+                    if (minElement == null || (boolean) compareHandle.invoke(element, minElement)) {
+                        minElement = element;
                     }
                 }
             }
-            return maxElement;
+            return minElement;
         } catch (Throwable t) {
             throw new FlinkRuntimeException(t);
         }

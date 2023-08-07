@@ -33,7 +33,6 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
-import org.apache.flink.table.types.inference.strategies.ArrayElementOutputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -167,14 +166,14 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayContainsFunction")
                     .build();
 
-    public static final BuiltInFunctionDefinition ARRAY_MAX =
+    public static final BuiltInFunctionDefinition ARRAY_MIN =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("ARRAY_MAX")
+                    .name("ARRAY_MIN")
                     .kind(SCALAR)
                     .inputTypeStrategy(arrayFullyComparableElementType())
-                    .outputTypeStrategy(new ArrayElementOutputTypeStrategy())
+                    .outputTypeStrategy(forceNullable(SpecificTypeStrategies.ARRAY_ELEMENT))
                     .runtimeClass(
-                            "org.apache.flink.table.runtime.functions.scalar.ArrayMaxFunction")
+                            "org.apache.flink.table.runtime.functions.scalar.ArrayMinFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =

@@ -1480,12 +1480,12 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayContains")(self, needle)
 
-    def array_max(self) -> 'Expression':
+    def array_min(self) -> 'Expression':
         """
-        Returns the maximum value from the array.
+        Returns the minimum value from the array.
         if array itself is null, the function returns null.
         """
-        return _unary_op("arrayMax")(self)
+        return _unary_op("arrayMin")(self)
 
     # ---------------------------- time definition functions -----------------------------
 
