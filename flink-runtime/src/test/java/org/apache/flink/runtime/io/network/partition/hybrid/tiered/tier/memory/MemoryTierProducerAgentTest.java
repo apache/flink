@@ -45,6 +45,8 @@ class MemoryTierProducerAgentTest {
 
     private static final int SEGMENT_SIZE_BYTES = BUFFER_SIZE * 2;
 
+    private static final int MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS = 3;
+
     private static final TieredStoragePartitionId PARTITION_ID =
             TieredStorageIdMappingUtils.convertId(new ResultPartitionID());
     private static final TieredStorageSubpartitionId SUBPARTITION_ID =
@@ -58,6 +60,42 @@ class MemoryTierProducerAgentTest {
             memoryTierProducerAgent.connectionEstablished(
                     SUBPARTITION_ID, new TestingNettyConnectionWriter.Builder().build());
             assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isTrue();
+        }
+    }
+
+    @Test
+    void testStartSegmentSuccessWhenSubpartitionOccupyFewBuffers() {
+        int numQueuedBuffers = MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS - 1;
+        try (MemoryTierProducerAgent memoryTierProducerAgent =
+                createMemoryTierProducerAgent(
+                        false,
+                        SEGMENT_SIZE_BYTES,
+                        MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS,
+                        new TieredStorageResourceRegistry())) {
+            TestingNettyConnectionWriter connectionWriter =
+                    new TestingNettyConnectionWriter.Builder()
+                            .setNumQueuedBuffersSupplier(() -> numQueuedBuffers)
+                            .build();
+            memoryTierProducerAgent.connectionEstablished(SUBPARTITION_ID, connectionWriter);
+            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isTrue();
+        }
+    }
+
+    @Test
+    void testStartSegmentFailedWhenSubpartitionOccupyTooManyBuffers() {
+        int numQueuedBuffers = MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS;
+        try (MemoryTierProducerAgent memoryTierProducerAgent =
+                createMemoryTierProducerAgent(
+                        false,
+                        SEGMENT_SIZE_BYTES,
+                        numQueuedBuffers,
+                        new TieredStorageResourceRegistry())) {
+            TestingNettyConnectionWriter connectionWriter =
+                    new TestingNettyConnectionWriter.Builder()
+                            .setNumQueuedBuffersSupplier(() -> numQueuedBuffers)
+                            .build();
+            memoryTierProducerAgent.connectionEstablished(SUBPARTITION_ID, connectionWriter);
+            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isFalse();
         }
     }
 
@@ -78,6 +116,7 @@ class MemoryTierProducerAgentTest {
                         NUM_SUBPARTITIONS,
                         BUFFER_SIZE,
                         SEGMENT_SIZE_BYTES,
+                        MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS,
                         false,
                         memoryManager,
                         nettyService,
@@ -147,6 +186,18 @@ class MemoryTierProducerAgentTest {
             boolean isBroadcastOnly,
             int segmentSizeBytes,
             TieredStorageResourceRegistry resourceRegistry) {
+        return createMemoryTierProducerAgent(
+                isBroadcastOnly,
+                segmentSizeBytes,
+                MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS,
+                resourceRegistry);
+    }
+
+    private static MemoryTierProducerAgent createMemoryTierProducerAgent(
+            boolean isBroadcastOnly,
+            int segmentSizeBytes,
+            int memoryTierSubpartitionMaxQueuedBuffers,
+            TieredStorageResourceRegistry resourceRegistry) {
         TestingTieredStorageMemoryManager memoryManager =
                 new TestingTieredStorageMemoryManager.Builder()
                         .setGetMaxNonReclaimableBuffersFunction(ignore -> Integer.MAX_VALUE)
@@ -162,6 +213,7 @@ class MemoryTierProducerAgentTest {
                 NUM_SUBPARTITIONS,
                 BUFFER_SIZE,
                 segmentSizeBytes,
+                memoryTierSubpartitionMaxQueuedBuffers,
                 isBroadcastOnly,
                 memoryManager,
                 nettyService,

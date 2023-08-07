@@ -63,6 +63,12 @@ class MemoryTierSubpartitionProducerAgent {
         addFinishedBuffer(segmentNettyPayload);
     }
 
+    int numQueuedBuffers() {
+        return nettyConnectionWriter == null
+                ? 0
+                : checkNotNull(nettyConnectionWriter).numQueuedBuffers();
+    }
+
     void release() {
         if (nettyConnectionWriter != null) {
             checkNotNull(nettyConnectionWriter).close(null);

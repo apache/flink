@@ -178,9 +178,11 @@ public class TieredResultPartitionFactory {
         tieredStorageMemorySpecs.add(
                 new TieredStorageMemorySpec(
                         bufferAccumulator,
-                        Math.min(
-                                numberOfSubpartitions + 1,
-                                tieredStorageConfiguration.getAccumulatorExclusiveBuffers())));
+                        2
+                                * Math.min(
+                                        numberOfSubpartitions + 1,
+                                        tieredStorageConfiguration
+                                                .getAccumulatorExclusiveBuffers())));
         List<Integer> tierExclusiveBuffers =
                 tieredStorageConfiguration.getEachTierExclusiveBufferNum();
 

@@ -221,7 +221,7 @@ public class SortBufferAccumulator implements BufferAccumulator {
         checkState(dataType != Buffer.DataType.EVENT_BUFFER);
         while (record.hasRemaining()) {
             int toCopy = Math.min(record.remaining(), bufferSizeBytes);
-            MemorySegment writeBuffer = checkNotNull(getFreeSegment());
+            MemorySegment writeBuffer = requestBuffer().getMemorySegment();
             writeBuffer.put(0, record, toCopy);
 
             flushBuffer(
