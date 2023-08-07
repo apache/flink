@@ -214,7 +214,7 @@ public interface WatermarkStrategy<T>
     /**
      * Creates a watermark strategy for situations where records are out of order, but you can place
      * an upper bound on how far the events are out of order. An out-of-order bound B means that
-     * once the an event with timestamp T was encountered, no events older than {@code T - B} will
+     * once an event with timestamp T was encountered, no events older than {@code T - B} will
      * follow any more.
      *
      * <p>The watermarks are generated periodically. The delay introduced by this watermark strategy
