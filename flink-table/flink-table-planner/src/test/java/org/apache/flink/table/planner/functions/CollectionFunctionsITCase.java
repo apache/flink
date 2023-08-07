@@ -70,40 +70,35 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.INT())),
                                 DataTypes.INT())
                         // ARRAY<INT>
-                        //                        .testResult(
-                        //                                $("f0").arrayIntersect(new Integer[] {1,
-                        // null, 4}),
-                        //                                "ARRAY_INTERSECT(f0, ARRAY[1, NULL, 4])",
-                        //                                new Integer[] {1, null},
-                        //                                DataTypes.ARRAY(DataTypes.INT()))
-                        //                        .testResult(
-                        //                                $("f1").arrayIntersect(new Integer[] {1,
-                        // null, 4}),
-                        //                                "ARRAY_INTERSECT(f1, ARRAY[1, NULL, 4])",
-                        //                                null,
-                        //                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f0").arrayIntersect(new Integer[] {1, null, 4}),
+                                "ARRAY_INTERSECT(f0, ARRAY[1, NULL, 4])",
+                                new Integer[] {1, null},
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f1").arrayIntersect(new Integer[] {1, null, 4}),
+                                "ARRAY_INTERSECT(f1, ARRAY[1, NULL, 4])",
+                                null,
+                                DataTypes.ARRAY(DataTypes.INT()))
                         // ARRAY<ROW<BOOLEAN, DATE>>
                         .testResult(
                                 $("f2").arrayIntersect(
                                                 new Row[] {
                                                     null, Row.of(true, 2),
                                                 }),
-                                "ARRAY_INTERSECT(f2, ARRAY[NULL, 2])",
+                                "ARRAY_INTERSECT(f2, ARRAY[NULL, ROW(TRUE, 2)])",
                                 new Row[] {Row.of(true, 2), null},
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.INT())))
-                //                        // invalid signatures
-                //                        .testSqlValidationError(
-                //                                "ARRAY_INTERSECT(f3, TRUE)",
-                //                                "Invalid input arguments. Expected signatures
-                // are:\n"
-                //                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)")
-                //                        .testTableApiValidationError(
-                //                                $("f3").arrayIntersect(true),
-                //                                "Invalid input arguments. Expected signatures
-                // are:\n"
-                //                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)")
-                );
+                        // invalid signatures
+                        .testSqlValidationError(
+                                "ARRAY_INTERSECT(f3, TRUE)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)")
+                        .testTableApiValidationError(
+                                $("f3").arrayIntersect(true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_INTERSECT(<COMMON>, <COMMON>)"));
     }
 
     private Stream<TestSetSpec> arrayContainsTestCases() {

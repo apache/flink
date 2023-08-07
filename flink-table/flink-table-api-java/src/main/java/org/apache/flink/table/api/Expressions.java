@@ -856,7 +856,7 @@ public final class Expressions {
         return apiCallAtLeastOneArgument(JSON_STRING, value);
     }
 
-    public static ApiExpression hashCodeGen(Object value) {
+    public static ApiExpression hashCodeGenerate(Object value) {
         return apiCallAtLeastOneArgument(HASHCODE, value);
     }
 

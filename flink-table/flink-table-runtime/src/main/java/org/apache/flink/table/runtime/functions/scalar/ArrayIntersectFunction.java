@@ -57,7 +57,7 @@ public class ArrayIntersectFunction extends BuiltInScalarFunction {
                 context.createEvaluator(
                         Expressions.call("HASHCODE", $("element1")),
                         DataTypes.INT(),
-                        DataTypes.FIELD("element1", dataType.notNull()));
+                        DataTypes.FIELD("element1", dataType.notNull().toInternal()));
     }
 
     @Override
@@ -79,33 +79,33 @@ public class ArrayIntersectFunction extends BuiltInScalarFunction {
                     if (alreadySeenNull) {
                         continue;
                     } else {
-                        list.add(element);
                         alreadySeenNull = true;
-                        continue;
+                    }
+                } else {
+                    int hashCode = (int) equalityHandle.invoke(element);
+                    if (!set.contains(hashCode)) {
+                        set.add(hashCode);
                     }
                 }
-                int hashCode = (int) equalityHandle.invoke(element);
-                if (!set.contains(hashCode)) {
-                    set.add(hashCode);
-                    list.add(element);
-                }
             }
+            boolean alreadySeenNull2 = false;
             for (int i = 0; i < array2.size(); ++i) {
                 final Object element = elementGetter.getElementOrNull(array2, i);
                 if (element == null) {
-                    if (alreadySeenNull) {
+                    if (alreadySeenNull2) {
                         continue;
                     } else {
+                        alreadySeenNull2 = true;
+                    }
+                } else {
+                    int hashCode = (int) equalityHandle.invoke(element);
+                    if (set.contains(hashCode)) {
                         list.add(element);
-                        alreadySeenNull = true;
-                        continue;
                     }
                 }
-                int hashCode = (int) equalityHandle.invoke(element);
-                if (!set.contains(hashCode)) {
-                    set.add(hashCode);
-                    list.add(element);
-                }
+            }
+            if (alreadySeenNull2 && alreadySeenNull) {
+                list.add(null);
             }
             return new GenericArrayData(list.toArray());
         } catch (Throwable t) {

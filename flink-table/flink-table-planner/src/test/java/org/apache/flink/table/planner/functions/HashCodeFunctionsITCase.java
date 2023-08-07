@@ -33,7 +33,7 @@ import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
-import static org.apache.flink.table.api.Expressions.hashCodeGen;
+import static org.apache.flink.table.api.Expressions.hashCodeGenerate;
 
 /** Tests for built-in HASHCODE functions. */
 public class HashCodeFunctionsITCase extends BuiltInFunctionTestBase {
@@ -59,7 +59,7 @@ public class HashCodeFunctionsITCase extends BuiltInFunctionTestBase {
                                 INT().notNull(),
                                 ROW(STRING(), TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)).notNull())
                         .testResult(
-                                hashCodeGen(Expressions.$("f3")),
+                                hashCodeGenerate(Expressions.$("f3")),
                                 "HASHCODE(f3)",
                                 58542757,
                                 INT().notNull()));

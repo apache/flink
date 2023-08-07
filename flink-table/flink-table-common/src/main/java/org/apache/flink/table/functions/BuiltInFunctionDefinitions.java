@@ -2178,7 +2178,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("HASHCODE")
                     .kind(SCALAR)
                     .inputTypeStrategy(sequence(ANY))
-                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT().notNull())))
                     .runtimeProvided()
                     .build();
 
