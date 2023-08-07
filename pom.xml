@@ -142,7 +142,7 @@ under the License.
 		<!-- keep FlinkTestcontainersConfigurator.configureZookeeperContainer in sync -->
 		<zookeeper.version>3.7.1</zookeeper.version>
 		<curator.version>5.4.0</curator.version>
-		<avro.version>1.11.1</avro.version>
+		<avro.version>1.11.2</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
 		<jackson-bom.version>2.14.3</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
