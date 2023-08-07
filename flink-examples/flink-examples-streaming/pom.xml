@@ -344,6 +344,7 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
+					<!-- DataGeneratorSource is used across the streaming examples and is bundled to make examples self-contained -->
 					<execution>
 						<phase>package</phase>
 						<goals>

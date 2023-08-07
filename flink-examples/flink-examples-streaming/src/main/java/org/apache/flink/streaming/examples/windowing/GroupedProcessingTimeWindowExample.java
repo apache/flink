@@ -110,6 +110,11 @@ public class GroupedProcessingTimeWindowExample {
         }
     }
 
+    /**
+     * This class represents a data generator function that generates a stream of tuples. Each tuple
+     * contains a key and a value. The function measures and prints the time it takes to generate
+     * numElements. The key space is limited to numKeys. The value is always 1.
+     */
     private static class DataGeneratorFunction
             implements GeneratorFunction<Long, Tuple2<Long, Long>> {
 
