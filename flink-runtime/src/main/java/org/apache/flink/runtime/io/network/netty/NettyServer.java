@@ -37,7 +37,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetSocketAddress;
+import java.util.Iterator;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 
@@ -109,9 +111,6 @@ class NettyServer {
         // Configuration
         // --------------------------------------------------------------------
 
-        // Server bind address
-        bootstrap.localAddress(config.getServerAddress(), config.getServerPort());
-
         // Pooled allocators for Netty's ByteBuf instances
         bootstrap.option(ChannelOption.ALLOCATOR, nettyBufferPool);
         bootstrap.childOption(ChannelOption.ALLOCATOR, nettyBufferPool);
@@ -145,7 +144,35 @@ class NettyServer {
         // Start Server
         // --------------------------------------------------------------------
 
-        bindFuture = bootstrap.bind().syncUninterruptibly();
+        LOG.debug(
+                "Trying to initialize Netty server on address: {} and port range {}",
+                config.getServerAddress(),
+                config.getServerPortRange());
+
+        Iterator<Integer> portsIterator = config.getServerPortRange().getPortsIterator();
+        while (portsIterator.hasNext() && bindFuture == null) {
+            Integer port = portsIterator.next();
+            LOG.debug("Trying to bind Netty server to port: {}", port);
+
+            bootstrap.localAddress(config.getServerAddress(), port);
+            try {
+                bindFuture = bootstrap.bind().syncUninterruptibly();
+            } catch (Exception e) {
+                LOG.debug("Failed to bind Netty server", e);
+                // syncUninterruptibly() throws checked exceptions via Unsafe
+                // continue if the exception is due to the port being in use, fail early
+                // otherwise
+                if (!(e instanceof java.net.BindException)) {
+                    throw e;
+                }
+            }
+        }
+
+        if (bindFuture == null) {
+            throw new BindException(
+                    "Could not start rest endpoint on any port in port range "
+                            + config.getServerPortRange());
+        }
 
         localAddress = (InetSocketAddress) bindFuture.channel().localAddress();
 
@@ -164,6 +191,10 @@ class NettyServer {
 
     ServerBootstrap getBootstrap() {
         return bootstrap;
+    }
+
+    Integer getListeningPort() {
+        return localAddress == null ? null : localAddress.getPort();
     }
 
     void shutdown() {
@@ -186,7 +217,8 @@ class NettyServer {
     private void initNioBootstrap() {
         // Add the server port number to the name in order to distinguish
         // multiple servers running on the same host.
-        String name = NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
+        String name =
+                NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPortRange() + ")";
 
         NioEventLoopGroup nioGroup =
                 new NioEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));
@@ -196,7 +228,8 @@ class NettyServer {
     private void initEpollBootstrap() {
         // Add the server port number to the name in order to distinguish
         // multiple servers running on the same host.
-        String name = NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPort() + ")";
+        String name =
+                NettyConfig.SERVER_THREAD_GROUP_NAME + " (" + config.getServerPortRange() + ")";
 
         EpollEventLoopGroup epollGroup =
                 new EpollEventLoopGroup(config.getServerNumThreads(), getNamedThreadFactory(name));

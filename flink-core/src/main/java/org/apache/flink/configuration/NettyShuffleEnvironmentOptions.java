@@ -54,12 +54,18 @@ public class NettyShuffleEnvironmentOptions {
                             "The task manager’s external port used for data exchange operations.");
 
     /** The local network port that the task manager listen at for data exchange. */
-    public static final ConfigOption<Integer> DATA_BIND_PORT =
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
+    public static final ConfigOption<String> DATA_BIND_PORT =
             key("taskmanager.data.bind-port")
-                    .intType()
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "The task manager's bind port used for data exchange operations. If not configured, '"
+                            "The task manager's bind port used for data exchange operations."
+                                    + " Also accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both."
+                                    + " If not configured, '"
                                     + DATA_PORT.key()
                                     + "' will be used.");
 

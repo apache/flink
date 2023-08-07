@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.configuration.IllegalConfigurationException;
+
 import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
@@ -258,6 +260,38 @@ public class NetUtilsTest extends TestLogger {
             error = t;
         }
         Assert.assertTrue(error instanceof NumberFormatException);
+
+        // invalid port
+        try {
+            NetUtils.getPortRangeFromString("70000");
+        } catch (Throwable t) {
+            error = t;
+        }
+        Assert.assertTrue(error instanceof IllegalConfigurationException);
+
+        // invalid start
+        try {
+            NetUtils.getPortRangeFromString("70000-70001");
+        } catch (Throwable t) {
+            error = t;
+        }
+        Assert.assertTrue(error instanceof IllegalConfigurationException);
+
+        // invalid end
+        try {
+            NetUtils.getPortRangeFromString("0-70000");
+        } catch (Throwable t) {
+            error = t;
+        }
+        Assert.assertTrue(error instanceof IllegalConfigurationException);
+
+        // same range
+        try {
+            NetUtils.getPortRangeFromString("5-5");
+        } catch (Throwable t) {
+            error = t;
+        }
+        Assert.assertTrue(error instanceof IllegalConfigurationException);
     }
 
     @Test
