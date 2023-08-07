@@ -51,7 +51,7 @@ Flink offers different levels of abstraction for developing streaming/batch appl
   - In practice, many applications do not need the low-level
     abstractions described above, and can instead program against the **Core APIs**: the
     [DataStream API]({{< ref "docs/dev/datastream/overview" >}})
-    (bounded/unbounded streams) and the [DataSet API]({{< ref "docs/dev/dataset/overview" >}}) (bounded data sets). These fluent APIs offer the
+    (bounded/unbounded streams). These fluent APIs offer the
     common building blocks for data processing, like various forms of
     user-specified transformations, joins, aggregations, windows, state, etc.
     Data types processed in these APIs are represented as classes in the

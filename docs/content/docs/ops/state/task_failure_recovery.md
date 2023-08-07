@@ -332,11 +332,10 @@ For some jobs this can result in fewer tasks that will be restarted compared to 
 
 A region is a set of tasks that communicate via pipelined data exchanges. 
 That is, batch data exchanges denote the boundaries of a region.
-- All data exchanges in a DataStream job or Streaming Table/SQL job are pipelined.
-- All data exchanges in a Batch Table/SQL job are batched by default.
-- The data exchange types in a DataSet job are determined by the 
-  `ExecutionMode` 
-  which can be set through [ExecutionConfig]({{< ref "docs/dev/datastream/execution/execution_configuration" >}}).
+
+DataStream/Table/SQL job data exchanges are determined by the `ExecutionMode`, 
+which can be set through [ExecutionConfig]({{< ref "docs/dev/datastream/execution/execution_configuration" >}}),
+which are pipelined in Streaming Mode, are batched by default in Batch Mode.
 
 The regions to restart are decided as below:
 1. The region containing the failed task will be restarted.
