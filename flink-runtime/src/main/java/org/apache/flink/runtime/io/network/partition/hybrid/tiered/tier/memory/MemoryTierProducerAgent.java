@@ -47,6 +47,8 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
 
     private final int numBuffersPerSegment;
 
+    private final int subpartitionMaxQueuedBuffers;
+
     private final TieredStorageMemoryManager memoryManager;
 
     /**
@@ -68,6 +70,7 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
             int numSubpartitions,
             int bufferSizeBytes,
             int segmentSizeBytes,
+            int subpartitionMaxQueuedBuffers,
             boolean isBroadcastOnly,
             TieredStorageMemoryManager memoryManager,
             TieredStorageNettyService nettyService,
@@ -80,6 +83,7 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
                 "Broadcast only partition is not allowed to use the memory tier.");
 
         this.numBuffersPerSegment = segmentSizeBytes / bufferSizeBytes;
+        this.subpartitionMaxQueuedBuffers = subpartitionMaxQueuedBuffers;
         this.memoryManager = memoryManager;
         this.currentSubpartitionWriteBuffers = new int[numSubpartitions];
         this.nettyConnectionEstablished = new boolean[numSubpartitions];
@@ -98,6 +102,11 @@ public class MemoryTierProducerAgent implements TierProducerAgent, NettyServiceP
     public boolean tryStartNewSegment(TieredStorageSubpartitionId subpartitionId, int segmentId) {
         boolean canStartNewSegment =
                 nettyConnectionEstablished[subpartitionId.getSubpartitionId()]
+                        // Ensure that a subpartition's memory tier does not excessively use
+                        // buffers, which may result in insufficient buffers for other subpartitions
+                        && subpartitionProducerAgents[subpartitionId.getSubpartitionId()]
+                                        .numQueuedBuffers()
+                                < subpartitionMaxQueuedBuffers
                         && (memoryManager.getMaxNonReclaimableBuffers(this)
                                         - memoryManager.numOwnerRequestedBuffer(this))
                                 > numBuffersPerSegment;

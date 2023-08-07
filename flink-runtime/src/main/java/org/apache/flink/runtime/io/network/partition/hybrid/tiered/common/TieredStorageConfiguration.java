@@ -45,13 +45,15 @@ public class TieredStorageConfiguration {
 
     private static final int DEFAULT_REMOTE_TIER_EXCLUSIVE_BUFFERS = 1;
 
+    private static final int DEFAULT_MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS = 3;
+
     private static final int DEFAULT_NUM_BUFFERS_USE_SORT_ACCUMULATOR_THRESHOLD = 512;
 
-    private static final int DEFAULT_MEMORY_TIER_NUM_BYTES_PER_SEGMENT = 320 * 1024;
+    private static final int DEFAULT_MEMORY_TIER_NUM_BYTES_PER_SEGMENT = 2 * 32 * 1024;
 
-    private static final int DEFAULT_DISK_TIER_NUM_BYTES_PER_SEGMENT = 8 * 1024 * 1024;
+    private static final int DEFAULT_DISK_TIER_NUM_BYTES_PER_SEGMENT = 16 * 32 * 1024;
 
-    private static final int DEFAULT_REMOTE_TIER_NUM_BYTES_PER_SEGMENT = 8 * 1024 * 1024;
+    private static final int DEFAULT_REMOTE_TIER_NUM_BYTES_PER_SEGMENT = 16 * 32 * 1024;
 
     private static final float DEFAULT_NUM_BUFFERS_TRIGGER_FLUSH_RATIO = 0.6f;
 
@@ -304,6 +306,9 @@ public class TieredStorageConfiguration {
 
         private int remoteTierExclusiveBuffers = DEFAULT_REMOTE_TIER_EXCLUSIVE_BUFFERS;
 
+        private int memoryTierSubpartitionMaxQueuedBuffers =
+                DEFAULT_MEMORY_TIER_SUBPARTITION_MAX_QUEUED_BUFFERS;
+
         private int numBuffersUseSortAccumulatorThreshold =
                 DEFAULT_NUM_BUFFERS_USE_SORT_ACCUMULATOR_THRESHOLD;
 
@@ -375,6 +380,12 @@ public class TieredStorageConfiguration {
             return this;
         }
 
+        public Builder setMemoryTierSubpartitionMaxQueuedBuffers(
+                int memoryTierSubpartitionMaxQueuedBuffers) {
+            this.memoryTierSubpartitionMaxQueuedBuffers = memoryTierSubpartitionMaxQueuedBuffers;
+            return this;
+        }
+
         public Builder setNumBuffersTriggerFlushRatio(float numBuffersTriggerFlushRatio) {
             this.numBuffersTriggerFlushRatio = numBuffersTriggerFlushRatio;
             return this;
@@ -429,7 +440,10 @@ public class TieredStorageConfiguration {
             tierFactories = new ArrayList<>();
             tierExclusiveBuffers = new ArrayList<>();
             tierFactories.add(
-                    new MemoryTierFactory(memoryTierNumBytesPerSegment, tieredStorageBufferSize));
+                    new MemoryTierFactory(
+                            memoryTierNumBytesPerSegment,
+                            tieredStorageBufferSize,
+                            memoryTierSubpartitionMaxQueuedBuffers));
             tierExclusiveBuffers.add(memoryTierExclusiveBuffers);
             tierFactories.add(
                     new DiskTierFactory(
