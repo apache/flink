@@ -18,6 +18,8 @@
 
 package org.apache.flink.metrics.prometheus;
 
+import io.prometheus.client.exporter.BasicAuthHttpConnectionFactory;
+
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
@@ -41,7 +43,8 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
     private final String jobName;
     private final Map<String, String> groupingKey;
     private final boolean deleteOnShutdown;
-    @VisibleForTesting final URL hostUrl;
+    @VisibleForTesting
+    final URL hostUrl;
 
     PrometheusPushGatewayReporter(
             URL hostUrl,
@@ -50,6 +53,24 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
             final boolean deleteOnShutdown) {
         this.hostUrl = hostUrl;
         this.pushGateway = new PushGateway(hostUrl);
+        this.jobName = Preconditions.checkNotNull(jobName);
+        this.groupingKey = Preconditions.checkNotNull(groupingKey);
+        this.deleteOnShutdown = deleteOnShutdown;
+    }
+
+    PrometheusPushGatewayReporter(
+            URL hostUrl,
+            String jobName,
+            Map<String, String> groupingKey,
+            final boolean deleteOnShutdown,
+            String username,
+            String password) {
+        this.hostUrl = hostUrl;
+        this.pushGateway = new PushGateway(hostUrl);
+        this.pushGateway.setConnectionFactory(
+                new BasicAuthHttpConnectionFactory(
+                        Preconditions.checkNotNull(username),
+                        Preconditions.checkNotNull(password)));
         this.jobName = Preconditions.checkNotNull(jobName);
         this.groupingKey = Preconditions.checkNotNull(groupingKey);
         this.deleteOnShutdown = deleteOnShutdown;
