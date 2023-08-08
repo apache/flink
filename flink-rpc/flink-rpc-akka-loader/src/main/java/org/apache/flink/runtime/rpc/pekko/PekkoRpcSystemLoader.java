@@ -39,7 +39,7 @@ import java.util.UUID;
 /**
  * Loader for the {@link PekkoRpcSystemLoader}.
  *
- * <p>This loader expects the flink-rpc-pekko jar to be accessible via {@link
+ * <p>This loader expects the flink-rpc-akka jar to be accessible via {@link
  * ClassLoader#getResource(String)}. It will extract the jar into a temporary directory and create a
  * new {@link SubmoduleClassLoader} to load the rpc system from that jar.
  */
@@ -47,13 +47,11 @@ public class PekkoRpcSystemLoader implements RpcSystemLoader {
 
     static final int LOAD_PRIORITY = 0;
 
-    /**
-     * The name of the pekko dependency jar, bundled with flink-rpc-pekko-loader module artifact.
-     */
+    /** The name of the pekko dependency jar, bundled with flink-rpc-akka-loader module artifact. */
     private static final String FLINK_RPC_PEKKO_FAT_JAR = "flink-rpc-akka.jar";
 
     static final String HINT_USAGE =
-            "mvn clean package -pl flink-rpc/flink-rpc-pekko,flink-rpc/flink-rpc-akka-loader -DskipTests";
+            "mvn clean package -pl flink-rpc/flink-rpc-akka,flink-rpc/flink-rpc-akka-loader -DskipTests";
 
     @Override
     public int getLoadPriority() {
