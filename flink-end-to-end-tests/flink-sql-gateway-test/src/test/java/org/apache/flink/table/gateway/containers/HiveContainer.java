@@ -77,6 +77,9 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
     private void backupLogs() {
         Path path = DISTRIBUTION_LOG_BACKUP_DIRECTORY.get().orElse(null);
         if (path == null) {
+            LOG.warn(
+                    "Property {} not set, logs will not be backed up.",
+                    DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
             return;
         }
         try {
