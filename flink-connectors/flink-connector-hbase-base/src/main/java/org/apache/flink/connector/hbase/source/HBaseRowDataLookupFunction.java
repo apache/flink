@@ -88,6 +88,12 @@ public class HBaseRowDataLookupFunction extends LookupFunction {
      */
     @Override
     public Collection<RowData> lookup(RowData keyRow) throws IOException {
+        try {
+            table = (HTable) hConnection.getTable(TableName.valueOf(hTableName));
+        } catch (TableNotFoundException tnfe) {
+            LOG.error("Table '{}' not found ", hTableName, tnfe);
+            throw new RuntimeException("HBase table '" + hTableName + "' not found.", tnfe);
+        }
         for (int retry = 0; retry <= maxRetryTimes; retry++) {
             try {
                 // TODO: The implementation of LookupFunction will pass a GenericRowData as key row
@@ -111,6 +117,15 @@ public class HBaseRowDataLookupFunction extends LookupFunction {
                 } catch (InterruptedException e1) {
                     throw new RuntimeException(e1);
                 }
+            }
+        }
+        if (null != table) {
+            try {
+                table.close();
+                table = null;
+            } catch (IOException e) {
+                // ignore exception when close.
+                LOG.warn("exception when close table", e);
             }
         }
         return Collections.emptyList();
@@ -146,10 +161,6 @@ public class HBaseRowDataLookupFunction extends LookupFunction {
         Configuration config = prepareRuntimeConfiguration();
         try {
             hConnection = ConnectionFactory.createConnection(config);
-            table = (HTable) hConnection.getTable(TableName.valueOf(hTableName));
-        } catch (TableNotFoundException tnfe) {
-            LOG.error("Table '{}' not found ", hTableName, tnfe);
-            throw new RuntimeException("HBase table '" + hTableName + "' not found.", tnfe);
         } catch (IOException ioe) {
             LOG.error("Exception while creating connection to HBase.", ioe);
             throw new RuntimeException("Cannot create connection to HBase.", ioe);
@@ -161,15 +172,6 @@ public class HBaseRowDataLookupFunction extends LookupFunction {
     @Override
     public void close() {
         LOG.info("start close ...");
-        if (null != table) {
-            try {
-                table.close();
-                table = null;
-            } catch (IOException e) {
-                // ignore exception when close.
-                LOG.warn("exception when close table", e);
-            }
-        }
         if (null != hConnection) {
             try {
                 hConnection.close();
