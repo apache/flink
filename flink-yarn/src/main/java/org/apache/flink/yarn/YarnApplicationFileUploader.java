@@ -344,6 +344,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
         checkNotNull(localResources);
 
         final ArrayList<String> classPaths = new ArrayList<>();
+        final Set<String> addedParentDirectories = new HashSet<>();
         providedSharedLibs.forEach(
                 (fileName, fileStatus) -> {
                     final Path filePath = fileStatus.getPath();
@@ -360,6 +361,17 @@ class YarnApplicationFileUploader implements AutoCloseable {
                     envShipResourceList.add(descriptor);
 
                     if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
+                        URI parentDirectoryUri = new Path(fileName).getParent().toUri();
+                        String relativeParentDirectory =
+                                new Path(filePath.getName())
+                                        .toUri()
+                                        .relativize(parentDirectoryUri)
+                                        .toString();
+
+                        if (!addedParentDirectories.contains(relativeParentDirectory)) {
+                            classPaths.add(relativeParentDirectory);
+                            addedParentDirectories.add(relativeParentDirectory);
+                        }
                         classPaths.add(fileName);
                     } else if (isFlinkDistJar(filePath.getName())) {
                         flinkDist = descriptor;
