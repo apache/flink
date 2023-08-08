@@ -27,13 +27,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.AvroInputFormat;
 
-import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.reflect.ReflectData;
-import org.apache.avro.reflect.ReflectDatumWriter;
-
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -172,23 +165,6 @@ public class AvroExternalJarProgram {
 
             return new String(c);
         }
-    }
-
-    public static void writeTestData(File testFile, int numRecords) throws IOException {
-
-        DatumWriter<MyUser> userDatumWriter = new ReflectDatumWriter<MyUser>(MyUser.class);
-        DataFileWriter<MyUser> dataFileWriter = new DataFileWriter<MyUser>(userDatumWriter);
-
-        dataFileWriter.create(ReflectData.get().getSchema(MyUser.class), testFile);
-
-        Generator generator = new Generator();
-
-        for (int i = 0; i < numRecords; i++) {
-            MyUser user = generator.nextUser();
-            dataFileWriter.append(user);
-        }
-
-        dataFileWriter.close();
     }
 
     //	public static void main(String[] args) throws Exception {
