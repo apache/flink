@@ -39,7 +39,7 @@ Flink 为流式/批式处理应用程序的开发提供了不同级别的抽象�
 
   - Flink API 最底层的抽象为**有状态实时流处理**。其抽象实现是 [Process Function]({{< ref "docs/dev/datastream/operators/process_function" >}})，并且 **Process Function** 被 Flink 框架集成到了 [DataStream API]({{< ref "docs/dev/datastream/overview" >}}) 中来为我们使用。它允许用户在应用程序中自由地处理来自单流或多流的事件（数据），并提供具有全局一致性和容错保障的*状态*。此外，用户可以在此层抽象中注册事件时间（event time）和处理时间（processing time）回调方法，从而允许程序可以实现复杂计算。
 
-  - Flink API 第二层抽象是 **Core APIs**。实际上，许多应用程序不需要使用到上述最底层抽象的 API，而是可以使用 **Core APIs** 进行编程：其中包含 [DataStream API]({{< ref "docs/dev/datastream/overview" >}})（应用于有界/无界数据流场景）和 [DataSet API]({{< ref "docs/dev/dataset/overview" >}})（应用于有界数据集场景）两部分。Core APIs 提供的流式 API（Fluent API）为数据处理提供了通用的模块组件，例如各种形式的用户自定义转换（transformations）、联接（joins）、聚合（aggregations）、窗口（windows）和状态（state）操作等。此层 API 中处理的数据类型在每种编程语言中都有其对应的类。
+  - Flink API 第二层抽象是 **Core APIs**。实际上，许多应用程序不需要使用到上述最底层抽象的 API，而是可以使用 **Core APIs** 进行编程：其中包含 [DataStream API]({{< ref "docs/dev/datastream/overview" >}})（应用于有界/无界数据流场景）。Core APIs 提供的流式 API（Fluent API）为数据处理提供了通用的模块组件，例如各种形式的用户自定义转换（transformations）、联接（joins）、聚合（aggregations）、窗口（windows）和状态（state）操作等。此层 API 中处理的数据类型在每种编程语言中都有其对应的类。
 
     *Process Function* 这类底层抽象和 *DataStream API* 的相互集成使得用户可以选择使用更底层的抽象 API 来实现自己的需求。*DataSet API* 还额外提供了一些原语，比如循环/迭代（loop/iteration）操作。
 
