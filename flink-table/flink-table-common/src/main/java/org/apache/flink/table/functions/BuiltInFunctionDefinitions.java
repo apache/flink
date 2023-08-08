@@ -33,6 +33,7 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.strategies.ArrayComparableElementArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -163,6 +164,24 @@ public final class BuiltInFunctionDefinitions {
                                     ConstantArgumentCount.of(0), explicit(DataTypes.BOOLEAN())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayContainsFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ARRAY_SORT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ARRAY_SORT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            new ArrayComparableElementArgumentTypeStrategy(
+                                                    StructuredComparison.FULL)),
+                                    sequence(
+                                            new ArrayComparableElementArgumentTypeStrategy(
+                                                    StructuredComparison.FULL),
+                                            logical(LogicalTypeRoot.BOOLEAN))))
+                    .outputTypeStrategy(nullableIfArgs(argument(0)))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ArraySortFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =

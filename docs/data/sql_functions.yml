@@ -631,6 +631,9 @@ collection:
   - sql: ARRAY_CONTAINS(haystack, needle)
     table: haystack.arrayContains(needle)
     description: Returns whether the given element exists in an array. Checking for null elements in the array is supported. If the array itself is null, the function will return null. The given element is cast implicitly to the array's element type if necessary.
+  - sql: ARRAY_SORT(array, [ascendingOrder])
+    table: array.arraySort([ascendingOrder])
+    description: Returns the array in sorted order. Sorts the input array in ascending or descending order according to the natural ordering of the array elements. NULL elements are placed at the beginning of the returned array in ascending order or at the end of the returned array in descending order. If the array itself is null, the function will return null. The optional ascendingOrder argument defaults to true if not specified.
 
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]

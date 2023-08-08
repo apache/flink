@@ -1480,6 +1480,20 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayContains")(self, needle)
 
+    def array_sort(self, ascending_order=None) -> 'Expression':
+        """
+        Returns the array in sorted order.
+        Sorts the input array in ascending or descending order according to the natural ordering of
+        the array elements. NULL elements are placed at the beginning of the returned array in
+        ascending order or at the end of the returned array in descending order. If the array
+        itself is null, the function will return null. The optional ascendingOrder argument
+        defaults to true if not specified.
+        """
+        if ascending_order is None:
+            return _unary_op("arraySort")(self)
+        else:
+            return _binary_op("arraySort")(self, ascending_order)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property

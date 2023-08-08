@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.DataTypes;
@@ -26,6 +25,7 @@ import java.time.LocalDate;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
 
 /** Tests for {@link BuiltInFunctionDefinitions} around arrays. */
@@ -33,6 +33,10 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
+        return Stream.of(arrayContainsTestCases(), arraySortTestCases()).flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> arrayContainsTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_CONTAINS)
                         .onFieldsWithData(
@@ -111,5 +115,51 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").arrayContains(true),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
+    }
+
+    private Stream<TestSetSpec> arraySortTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_SORT)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, 2, null},
+                                null,
+                                new Row[] {
+                                    Row.of(true, LocalDate.of(2022, 4, 20)),
+                                    Row.of(true, LocalDate.of(1990, 10, 14)),
+                                    null
+                                },
+                                new Double[] {1.2, 3.5, 4.7, 1.3, 1.0, 5.0},
+                                new String[] {"a", "cv", "dc", "rerer", "234", "12"},
+                                new LocalDate[] {
+                                    LocalDate.of(2022, 1, 2),
+                                    LocalDate.of(2023, 4, 21),
+                                    LocalDate.of(2022, 12, 24),
+                                    LocalDate.of(2026, 2, 10),
+                                    LocalDate.of(2012, 5, 16),
+                                    LocalDate.of(2092, 7, 19)
+                                })
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.ARRAY(DataTypes.DOUBLE()),
+                                DataTypes.ARRAY(DataTypes.STRING()),
+                                DataTypes.ARRAY(DataTypes.DATE()))
+                        .testResult(
+                                call("ARRAY_SORT", $("f0")),
+                                "ARRAY_SORT(f0)",
+                                new Integer[] {null, 1, 2, 2},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), false),
+                                "ARRAY_SORT(f0, false)",
+                                new Integer[] {2, 2, 1, null},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable())
+                        .testResult(
+                                call("ARRAY_SORT", $("f0"), true),
+                                "ARRAY_SORT(f0, true)",
+                                new Integer[] {null, 1, 2, 2},
+                                DataTypes.ARRAY(DataTypes.INT()).nullable()));
     }
 }
