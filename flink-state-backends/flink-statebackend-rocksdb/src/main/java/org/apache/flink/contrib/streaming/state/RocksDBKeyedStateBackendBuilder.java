@@ -77,6 +77,7 @@ import java.util.UUID;
 import java.util.function.Function;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
@@ -123,6 +124,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
     private RocksDB injectedTestDB; // for testing
     private double overlapFractionThreshold = RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue();
+    private boolean useIngestDbRestoreMode = USE_INGEST_DB_RESTORE_MODE.defaultValue();
     private ColumnFamilyHandle injectedDefaultColumnFamilyHandle; // for testing
     private RocksDBStateUploader injectRocksDBStateUploader; // for testing
 
@@ -261,6 +263,11 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     RocksDBKeyedStateBackendBuilder<K> setOverlapFractionThreshold(
             double overlapFractionThreshold) {
         this.overlapFractionThreshold = overlapFractionThreshold;
+        return this;
+    }
+
+    RocksDBKeyedStateBackendBuilder<K> setUseIngestDbRestoreMode(boolean useIngestDbRestoreMode) {
+        this.useIngestDbRestoreMode = useIngestDbRestoreMode;
         return this;
     }
 
@@ -479,7 +486,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     ttlCompactFiltersManager,
                     writeBatchSize,
                     optionsContainer.getWriteBufferManagerCapacity(),
-                    overlapFractionThreshold);
+                    overlapFractionThreshold,
+                    useIngestDbRestoreMode);
         } else if (priorityQueueStateType
                 == EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP) {
             return new RocksDBHeapTimersFullRestoreOperation<>(

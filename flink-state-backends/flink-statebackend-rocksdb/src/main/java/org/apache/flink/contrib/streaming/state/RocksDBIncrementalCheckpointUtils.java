@@ -20,8 +20,12 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.runtime.state.CompositeKeySerializationUtils;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 
+import org.rocksdb.Checkpoint;
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.ExportImportFilesMetaData;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 
@@ -29,9 +33,13 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /** Utils for RocksDB Incremental Checkpoint. */
 public class RocksDBIncrementalCheckpointUtils {
@@ -152,6 +160,54 @@ public class RocksDBIncrementalCheckpointUtils {
             // https://github.com/ververica/frocksdb/blob/FRocksDB-6.20.3/include/rocksdb/db.h#L363-L377
             db.deleteRange(columnFamilyHandle, beginKeyBytes, endKeyBytes);
         }
+    }
+
+    /**
+     * Clip the entries in the CF according to the range [begin_key, end_key). Any entries outside
+     * this range will be completely deleted (including tombstones).
+     *
+     * @param db the target need to be clipped.
+     * @param columnFamilyHandles the column family need to be clipped.
+     * @param beginKeyBytes the begin key bytes
+     * @param endKeyBytes the end key bytes
+     */
+    public static void clipColumnFamilies(
+            RocksDB db,
+            List<ColumnFamilyHandle> columnFamilyHandles,
+            byte[] beginKeyBytes,
+            byte[] endKeyBytes)
+            throws RocksDBException {
+
+        for (ColumnFamilyHandle columnFamilyHandle : columnFamilyHandles) {
+            db.clipColumnFamily(columnFamilyHandle, beginKeyBytes, endKeyBytes);
+        }
+    }
+
+    public static Map<RegisteredStateMetaInfoBase, ExportImportFilesMetaData> exportColumnFamilies(
+            RocksDB db,
+            List<ColumnFamilyHandle> columnFamilyHandles,
+            List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
+            Path exportBasePath)
+            throws RocksDBException {
+
+        HashMap<RegisteredStateMetaInfoBase, ExportImportFilesMetaData> cfMetaInfoAndData =
+                new HashMap<>();
+        try (final Checkpoint checkpoint = Checkpoint.create(db)) {
+            for (int i = 0; i < columnFamilyHandles.size(); i++) {
+                StateMetaInfoSnapshot metaInfoSnapshot = stateMetaInfoSnapshots.get(i);
+
+                RegisteredStateMetaInfoBase stateMetaInfo =
+                        RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(metaInfoSnapshot);
+
+                ExportImportFilesMetaData cfMetaData =
+                        checkpoint.exportColumnFamily(
+                                columnFamilyHandles.get(i),
+                                exportBasePath.resolve(UUID.randomUUID().toString()).toString());
+                cfMetaInfoAndData.put(stateMetaInfo, cfMetaData);
+            }
+        }
+
+        return cfMetaInfoAndData;
     }
 
     /** check whether the bytes is before prefixBytes in the character order. */

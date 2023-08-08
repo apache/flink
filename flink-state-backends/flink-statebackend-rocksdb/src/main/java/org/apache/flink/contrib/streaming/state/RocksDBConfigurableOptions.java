@@ -266,6 +266,13 @@ public class RocksDBConfigurableOptions implements Serializable {
                                     + "has a chance to be an initial handle. "
                                     + "The default value is 0.0, there is always a handle will be selected for initialization. ");
 
+    public static final ConfigOption<Boolean> USE_INGEST_DB_RESTORE_MODE =
+            key("state.backend.rocksdb.use-ingest-db-restore-mode")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "A recovery mode that directly clips and ingests multiple DBs during state recovery. ");
+
     static final ConfigOption<?>[] CANDIDATE_CONFIGS =
             new ConfigOption<?>[] {
                 // configurable DBOptions

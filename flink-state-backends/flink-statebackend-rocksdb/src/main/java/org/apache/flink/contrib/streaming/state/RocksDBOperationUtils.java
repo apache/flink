@@ -31,6 +31,8 @@ import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.ExportImportFilesMetaData;
+import org.rocksdb.ImportColumnFamilyOptions;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
@@ -123,7 +125,8 @@ public class RocksDBOperationUtils {
             RocksDB db,
             Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
             @Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
-            @Nullable Long writeBufferManagerCapacity) {
+            @Nullable Long writeBufferManagerCapacity,
+            List<ExportImportFilesMetaData> cfMetaDataList) {
 
         ColumnFamilyDescriptor columnFamilyDescriptor =
                 createColumnFamilyDescriptor(
@@ -131,8 +134,27 @@ public class RocksDBOperationUtils {
                         columnFamilyOptionsFactory,
                         ttlCompactFiltersManager,
                         writeBufferManagerCapacity);
-        return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(
-                createColumnFamily(columnFamilyDescriptor, db), metaInfoBase);
+
+        ColumnFamilyHandle columnFamilyHandle =
+                cfMetaDataList == null
+                        ? createColumnFamily(columnFamilyDescriptor, db)
+                        : createColumnFamilyWithImport(columnFamilyDescriptor, db, cfMetaDataList);
+        return new RocksDBKeyedStateBackend.RocksDbKvStateInfo(columnFamilyHandle, metaInfoBase);
+    }
+
+    public static RocksDBKeyedStateBackend.RocksDbKvStateInfo createStateInfo(
+            RegisteredStateMetaInfoBase metaInfoBase,
+            RocksDB db,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+            @Nullable RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+            @Nullable Long writeBufferManagerCapacity) {
+        return createStateInfo(
+                metaInfoBase,
+                db,
+                columnFamilyOptionsFactory,
+                ttlCompactFiltersManager,
+                writeBufferManagerCapacity,
+                null);
     }
 
     /**
@@ -224,6 +246,19 @@ public class RocksDBOperationUtils {
             ColumnFamilyDescriptor columnDescriptor, RocksDB db) {
         try {
             return db.createColumnFamily(columnDescriptor);
+        } catch (RocksDBException e) {
+            IOUtils.closeQuietly(columnDescriptor.getOptions());
+            throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
+        }
+    }
+
+    private static ColumnFamilyHandle createColumnFamilyWithImport(
+            ColumnFamilyDescriptor columnDescriptor,
+            RocksDB db,
+            List<ExportImportFilesMetaData> metaDataList) {
+        try {
+            return db.createColumnFamilyWithImport(
+                    columnDescriptor, new ImportColumnFamilyOptions(), metaDataList);
         } catch (RocksDBException e) {
             IOUtils.closeQuietly(columnDescriptor.getOptions());
             throw new FlinkRuntimeException("Error creating ColumnFamilyHandle.", e);
