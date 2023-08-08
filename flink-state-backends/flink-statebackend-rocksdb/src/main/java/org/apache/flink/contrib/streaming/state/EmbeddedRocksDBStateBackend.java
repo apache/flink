@@ -71,6 +71,7 @@ import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
+import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -106,6 +107,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     private static final long UNDEFINED_WRITE_BATCH_SIZE = -1;
 
     private static final double UNDEFINED_OVERLAP_FRACTION_THRESHOLD = -1;
+
+    private static final boolean UNDEFINED_USE_INGEST_DB_RESTORE_MODE = false;
 
     // ------------------------------------------------------------------------
 
@@ -170,6 +173,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      */
     private double overlapFractionThreshold;
 
+    private boolean useIngestDbRestoreMode;
+
     /** Factory for Write Buffer Manager and Block Cache. */
     private RocksDBMemoryFactory rocksDBMemoryFactory;
     // ------------------------------------------------------------------------
@@ -202,6 +207,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         this.overlapFractionThreshold = UNDEFINED_OVERLAP_FRACTION_THRESHOLD;
         this.rocksDBMemoryFactory = RocksDBMemoryFactory.DEFAULT;
         this.priorityQueueConfig = new RocksDBPriorityQueueConfig();
+        this.useIngestDbRestoreMode = UNDEFINED_USE_INGEST_DB_RESTORE_MODE;
     }
 
     /**
@@ -295,6 +301,11 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         checkArgument(
                 overlapFractionThreshold >= 0 && this.overlapFractionThreshold <= 1,
                 "Overlap fraction threshold of restoring should be between 0 and 1");
+
+        useIngestDbRestoreMode =
+                original.useIngestDbRestoreMode == UNDEFINED_USE_INGEST_DB_RESTORE_MODE
+                        ? config.get(USE_INGEST_DB_RESTORE_MODE)
+                        : original.useIngestDbRestoreMode;
 
         this.rocksDBMemoryFactory = original.rocksDBMemoryFactory;
     }
@@ -466,7 +477,8 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         .setNativeMetricOptions(
                                 resourceContainer.getMemoryWatcherOptions(nativeMetricOptions))
                         .setWriteBatchSize(getWriteBatchSize())
-                        .setOverlapFractionThreshold(getOverlapFractionThreshold());
+                        .setOverlapFractionThreshold(getOverlapFractionThreshold())
+                        .setUseIngestDbRestoreMode(getUseIngestDbRestoreMode());
         return builder.build();
     }
 
@@ -803,6 +815,12 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         return overlapFractionThreshold == UNDEFINED_OVERLAP_FRACTION_THRESHOLD
                 ? RESTORE_OVERLAP_FRACTION_THRESHOLD.defaultValue()
                 : overlapFractionThreshold;
+    }
+
+    boolean getUseIngestDbRestoreMode() {
+        return useIngestDbRestoreMode == UNDEFINED_USE_INGEST_DB_RESTORE_MODE
+                ? USE_INGEST_DB_RESTORE_MODE.defaultValue()
+                : useIngestDbRestoreMode;
     }
 
     // ------------------------------------------------------------------------
