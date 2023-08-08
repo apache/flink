@@ -13,7 +13,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.confluent:common-config:7.2.2
 - io.confluent:common-utils:7.2.2
 - io.confluent:kafka-schema-registry-client:7.2.2
-- org.apache.avro:avro:1.11.1
+- org.apache.avro:avro:1.11.2
 - org.apache.commons:commons-compress:1.21
 - org.apache.kafka:kafka-clients:7.2.2-ccs
 - org.glassfish.jersey.core:jersey-common:2.30
