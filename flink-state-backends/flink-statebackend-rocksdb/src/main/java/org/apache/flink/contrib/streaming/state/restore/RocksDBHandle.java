@@ -28,11 +28,13 @@ import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
+import org.rocksdb.ExportImportFilesMetaData;
 import org.rocksdb.RocksDB;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -181,6 +183,35 @@ class RocksDBHandle implements AutoCloseable {
             // TODO with eager state registration in place, check here for serializer migration
             // strategies
         }
+
+        return registeredStateMetaInfoEntry;
+    }
+
+    RocksDbKvStateInfo registerStateColumnFamilyHandleWithImport(
+            RegisteredStateMetaInfoBase stateMetaInfo,
+            List<ExportImportFilesMetaData> cfMetaDataList) {
+
+        RocksDbKvStateInfo registeredStateMetaInfoEntry =
+                kvStateInformation.get(stateMetaInfo.getName());
+        if (registeredStateMetaInfoEntry != null) {
+            System.out.println("test");
+        }
+        Preconditions.checkState(registeredStateMetaInfoEntry == null);
+
+        registeredStateMetaInfoEntry =
+                RocksDBOperationUtils.createStateInfo(
+                        stateMetaInfo,
+                        db,
+                        columnFamilyOptionsFactory,
+                        ttlCompactFiltersManager,
+                        writeBufferManagerCapacity,
+                        cfMetaDataList);
+
+        RocksDBOperationUtils.registerKvStateInformation(
+                kvStateInformation,
+                nativeMetricMonitor,
+                stateMetaInfo.getName(),
+                registeredStateMetaInfoEntry);
 
         return registeredStateMetaInfoEntry;
     }
