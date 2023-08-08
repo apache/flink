@@ -33,21 +33,22 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.BASIC_AUTH;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.DELETE_ON_SHUTDOWN;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.GROUPING_KEY;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST_URL;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.JOB_NAME;
-import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PASSWORD;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PORT;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.RANDOM_JOB_NAME_SUFFIX;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.BASIC_AUTH;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.USERNAME;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PASSWORD;
 
 /** {@link MetricReporterFactory} for {@link PrometheusPushGatewayReporter}. */
 public class PrometheusPushGatewayReporterFactory implements MetricReporterFactory {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PrometheusPushGatewayReporterFactory.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(PrometheusPushGatewayReporterFactory.class);
 
     @Override
     public PrometheusPushGatewayReporter createMetricReporter(Properties properties) {
@@ -55,15 +56,15 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
         String host = metricConfig.getString(HOST.key(), HOST.defaultValue());
         int port = metricConfig.getInteger(PORT.key(), PORT.defaultValue());
         String configuredJobName = metricConfig.getString(JOB_NAME.key(), JOB_NAME.defaultValue());
-        boolean randomSuffix = metricConfig.getBoolean(
-                RANDOM_JOB_NAME_SUFFIX.key(),
-                RANDOM_JOB_NAME_SUFFIX.defaultValue());
-        boolean deleteOnShutdown = metricConfig.getBoolean(
-                DELETE_ON_SHUTDOWN.key(),
-                DELETE_ON_SHUTDOWN.defaultValue());
-        Map<String, String> groupingKey = parseGroupingKey(metricConfig.getString(
-                GROUPING_KEY.key(),
-                GROUPING_KEY.defaultValue()));
+        boolean randomSuffix =
+                metricConfig.getBoolean(
+                        RANDOM_JOB_NAME_SUFFIX.key(), RANDOM_JOB_NAME_SUFFIX.defaultValue());
+        boolean deleteOnShutdown =
+                metricConfig.getBoolean(
+                        DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
+        Map<String, String> groupingKey =
+                parseGroupingKey(
+                        metricConfig.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
 
         String hostUrlConfig = metricConfig.getString(HOST_URL.key(), HOST_URL.defaultValue());
 
@@ -97,7 +98,8 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
             String username = metricConfig.getString(USERNAME.key(), USERNAME.defaultValue());
             String password = metricConfig.getString(PASSWORD.key(), PASSWORD.defaultValue());
             try {
-                return new PrometheusPushGatewayReporter(new URL(hostUrl),
+                return new PrometheusPushGatewayReporter(
+                        new URL(hostUrl),
                         jobName,
                         groupingKey,
                         deleteOnShutdown,
@@ -109,10 +111,7 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
         } else {
             try {
                 return new PrometheusPushGatewayReporter(
-                        new URL(hostUrl),
-                        jobName,
-                        groupingKey,
-                        deleteOnShutdown);
+                        new URL(hostUrl), jobName, groupingKey, deleteOnShutdown);
             } catch (MalformedURLException e) {
                 throw new RuntimeException(e);
             }

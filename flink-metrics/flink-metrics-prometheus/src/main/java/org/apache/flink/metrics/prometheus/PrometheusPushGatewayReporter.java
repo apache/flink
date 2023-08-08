@@ -42,8 +42,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
     private final String jobName;
     private final Map<String, String> groupingKey;
     private final boolean deleteOnShutdown;
-    @VisibleForTesting
-    final URL hostUrl;
+    @VisibleForTesting final URL hostUrl;
 
     PrometheusPushGatewayReporter(
             URL hostUrl,
