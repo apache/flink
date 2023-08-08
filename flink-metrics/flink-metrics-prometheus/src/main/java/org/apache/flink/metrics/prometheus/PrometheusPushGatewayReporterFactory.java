@@ -33,16 +33,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.BASIC_AUTH;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.DELETE_ON_SHUTDOWN;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.GROUPING_KEY;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST_URL;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.JOB_NAME;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PASSWORD;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PORT;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.RANDOM_JOB_NAME_SUFFIX;
-import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.BASIC_AUTH;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.USERNAME;
-import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PASSWORD;
 
 /** {@link MetricReporterFactory} for {@link PrometheusPushGatewayReporter}. */
 public class PrometheusPushGatewayReporterFactory implements MetricReporterFactory {
