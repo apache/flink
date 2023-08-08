@@ -1480,6 +1480,21 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayContains")(self, needle)
 
+    def array_slice(self, start_offset, end_offset=None) -> 'Expression':
+        """
+        Returns a subarray of the input array between 'start_offset' and 'end_offset' inclusive.
+        The offsets are 1-based however 0 is also treated as the beginning of the array.
+        Positive values are counted from the beginning of the array while negative from the end.
+        If 'end_offset' is omitted then this offset is treated as the length of the array.
+        If 'start_offset' is after 'end_offset' or both are out of array bounds an empty array will
+        be returned.
+        Returns null if any input is null.
+        """
+        if end_offset is None:
+            return _binary_op("array_slice")(self, start_offset)
+        else:
+            return _ternary_op("array_slice")(self, start_offset, end_offset)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property

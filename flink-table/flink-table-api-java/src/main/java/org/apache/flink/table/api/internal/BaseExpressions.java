@@ -55,6 +55,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_SLICE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
@@ -1347,6 +1348,29 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType arrayContains(InType needle) {
         return toApiSpecificExpression(
                 unresolvedCall(ARRAY_CONTAINS, toExpr(), objectToExpression(needle)));
+    }
+
+    /**
+     * Returns a subarray of the input array between 'start_offset' and 'end_offset' inclusive. The
+     * offsets are 1-based however 0 is also treated as the beginning of the array. Positive values
+     * are counted from the beginning of the array while negative from the end. If 'end_offset' is
+     * omitted then this offset is treated as the length of the array. If 'start_offset' is after
+     * 'end_offset' or both are out of array bounds an empty array will be returned.
+     *
+     * <p>Returns null if any input is null.
+     */
+    public OutType arraySlice(InType startOffset, InType endOffset) {
+        return toApiSpecificExpression(
+                unresolvedCall(
+                        ARRAY_SLICE,
+                        toExpr(),
+                        objectToExpression(startOffset),
+                        objectToExpression(endOffset)));
+    }
+
+    public OutType arraySlice(InType startOffset) {
+        return toApiSpecificExpression(
+                unresolvedCall(ARRAY_SLICE, toExpr(), objectToExpression(startOffset)));
     }
 
     // Time definition
