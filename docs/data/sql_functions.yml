@@ -631,6 +631,9 @@ collection:
   - sql: ARRAY_CONTAINS(haystack, needle)
     table: haystack.arrayContains(needle)
     description: Returns whether the given element exists in an array. Checking for null elements in the array is supported. If the array itself is null, the function will return null. The given element is cast implicitly to the array's element type if necessary.
+  - sql: ARRAY_JOIN(array, delimiter[, nullReplacement])
+    table: array.arrayJoin(delimiter[, nullReplacement])
+    description: Returns a string that represents the concatenation of the elements in the given array and the elements' data type in the given array is string. The delimiter is a string that separates each pair of consecutive elements of the array. The optional nullReplacement is a string that replaces null elements in the array. If nullReplacement is not specified, null elements in the array will be omitted from the resulting string. Returns null if input array or delimiter or nullReplacement are null.
 
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
