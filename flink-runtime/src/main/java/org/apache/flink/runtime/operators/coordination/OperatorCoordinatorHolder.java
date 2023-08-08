@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -27,7 +28,6 @@ import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.InternalOperatorCoordinatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.metrics.groups.JobManagerOperatorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.util.IncompleteFuturesTracker;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.util.ExceptionUtils;
@@ -509,7 +509,7 @@ public class OperatorCoordinatorHolder
             final TaskInformation taskInformation,
             final JobManagerJobMetricGroup jobManagerJobMetricGroup)
             throws Exception {
-        JobManagerOperatorMetricGroup parentMetricGroup =
+        final MetricGroup parentMetricGroup =
                 jobManagerJobMetricGroup.getOrAddOperator(
                         taskInformation.getJobVertexId(),
                         taskInformation.getTaskName(),
