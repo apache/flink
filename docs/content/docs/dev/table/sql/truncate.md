@@ -28,8 +28,8 @@ under the License.
 
 TRUNCATE statements are used to delete all rows from a table without dropping the table itself.
 
-<span class="label label-danger">Attention</span> Currently, `TRUNCATE` statement only supports in batch mode, and it requires the target table connector implements the  {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsTruncate.java" name="SupportsTruncate" >}}
-interface to support the row-level delete. An exception will be thrown if trying to `TRUNCATE` the table which has not implements the related interface.
+<span class="label label-danger">Attention</span> Currently, `TRUNCATE` statement is supported in batch mode, and it requires the target table connector implements the  {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsTruncate.java" name="SupportsTruncate" >}}
+interface to support the row-level delete. An exception will be thrown if trying to `TRUNCATE` a table which has not implemented the related interface.
 
 
 ## Run a TRUNCATE statement
@@ -96,10 +96,10 @@ val settings = EnvironmentSettings.newInstance().inBatchMode().build()
 val tEnv = StreamTableEnvironment.create(env, settings)
 
 // register a table named "Orders"
-tEnv.executeSql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)");
+tEnv.executeSql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)")
 // insert values
-tEnv.executeSql("INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 2), ('Mr.White', 'Chicken', 3)").await();
-tEnv.executeSql("SELECT * FROM Orders").print();
+tEnv.executeSql("INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 2), ('Mr.White', 'Chicken', 3)").await()
+tEnv.executeSql("SELECT * FROM Orders").print()
 // +--------------------------------+--------------------------------+-------------+
 // |                           user |                        product |      amount |
 // +--------------------------------+--------------------------------+-------------+
@@ -109,8 +109,8 @@ tEnv.executeSql("SELECT * FROM Orders").print();
 // +--------------------------------+--------------------------------+-------------+
 // 3 rows in set
 // truncate the table "Orders"
-tEnv.executeSql("TRUNCATE TABLE Orders").await();
-tEnv.executeSql("SELECT * FROM Orders").print();
+tEnv.executeSql("TRUNCATE TABLE Orders").await()
+tEnv.executeSql("SELECT * FROM Orders").print()
 // Empty set
 ```
 {{< /tab >}}
@@ -120,10 +120,10 @@ env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 # register a table named "Orders"
-table_env.executeSql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)");
+table_env.executeSql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)")
 # insert values
-table_env.executeSql("INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 2), ('Mr.White', 'Chicken', 3)").wait();
-table_env.executeSql("SELECT * FROM Orders").print();
+table_env.executeSql("INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 2), ('Mr.White', 'Chicken', 3)").wait()
+table_env.executeSql("SELECT * FROM Orders").print()
 # +--------------------------------+--------------------------------+-------------+
 # |                           user |                        product |      amount |
 # +--------------------------------+--------------------------------+-------------+
@@ -133,8 +133,8 @@ table_env.executeSql("SELECT * FROM Orders").print();
 # +--------------------------------+--------------------------------+-------------+
 # 3 rows in set
 # truncate the table "Orders"
-table_env.executeSql("TRUNCATE TABLE Orders").wait();
-table_env.executeSql("SELECT * FROM Orders").print();
+table_env.executeSql("TRUNCATE TABLE Orders").wait()
+table_env.executeSql("SELECT * FROM Orders").print()
 # Empty set
 ```
 {{< /tab >}}

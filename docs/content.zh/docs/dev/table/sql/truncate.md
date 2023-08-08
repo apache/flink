@@ -31,7 +31,7 @@ under the License.
 TRUNCATE 语句用于删除表中的全部数据，但不会删除表本身。
 
 <span class="label label-danger">注意</span> 目前, `TRUNCATE` 语句仅支持批模式, 并且要求目标表实现了 {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsTruncate.java" name="SupportsTruncate" >}} 接口。
-如果在一个没有实现该接口的表上执行 `TRUNCATE`，则会抛异常。
+如果在一个没有实现该接口的表上执行 `TRUNCATE` 语句，则会抛异常。
 
 <a name="run-a-truncate-statement"></a>
 
@@ -100,10 +100,10 @@ val settings = EnvironmentSettings.newInstance().inBatchMode().build()
 val tEnv = StreamTableEnvironment.create(env, settings)
 
 // 注册一个 "Orders" 表
-tEnv.executeSql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)");
+tEnv.executeSql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)")
 // 插入原始数据
-tEnv.executeSql("INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 2), ('Mr.White', 'Chicken', 3)").await();
-tEnv.executeSql("SELECT * FROM Orders").print();
+tEnv.executeSql("INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 2), ('Mr.White', 'Chicken', 3)").await()
+tEnv.executeSql("SELECT * FROM Orders").print()
 // +--------------------------------+--------------------------------+-------------+
 // |                           user |                        product |      amount |
 // +--------------------------------+--------------------------------+-------------+
@@ -113,8 +113,8 @@ tEnv.executeSql("SELECT * FROM Orders").print();
 // +--------------------------------+--------------------------------+-------------+
 // 3 rows in set
 // 全表删除数据
-tEnv.executeSql("TRUNCATE TABLE Orders").await();
-tEnv.executeSql("SELECT * FROM Orders").print();
+tEnv.executeSql("TRUNCATE TABLE Orders").await()
+tEnv.executeSql("SELECT * FROM Orders").print()
 // Empty set
 ```
 {{< /tab >}}
@@ -124,10 +124,10 @@ env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 # 注册一个 "Orders" 表
-table_env.executeSql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)");
+table_env.executeSql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)")
 # 插入原始数据
-table_env.executeSql("INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 2), ('Mr.White', 'Chicken', 3)").wait();
-table_env.executeSql("SELECT * FROM Orders").print();
+table_env.executeSql("INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 2), ('Mr.White', 'Chicken', 3)").wait()
+table_env.executeSql("SELECT * FROM Orders").print()
 # +--------------------------------+--------------------------------+-------------+
 # |                           user |                        product |      amount |
 # +--------------------------------+--------------------------------+-------------+
@@ -137,8 +137,8 @@ table_env.executeSql("SELECT * FROM Orders").print();
 # +--------------------------------+--------------------------------+-------------+
 # 3 rows in set
 # 全表删除数据
-table_env.executeSql("TRUNCATE TABLE Orders").wait();
-table_env.executeSql("SELECT * FROM Orders").print();
+table_env.executeSql("TRUNCATE TABLE Orders").wait()
+table_env.executeSql("SELECT * FROM Orders").print()
 # Empty set
 ```
 {{< /tab >}}
