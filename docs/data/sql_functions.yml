@@ -670,6 +670,9 @@ collection:
   - sql: MAP_FROM_ARRAYS(array_of_keys, array_of_values)
     table: mapFromArrays(array_of_keys, array_of_values)
     description: Returns a map created from an arrays of keys and values. Note that the lengths of two arrays should be the same.
+  - sql: ARRAY_INTERSECT(array1, array2)
+    table: array1.arrayIntersect(array2)
+    description: Returns an array that contains the common elements of both input arrays.
 
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]

@@ -1564,6 +1564,13 @@ class Expression(Generic[T]):
         else:
             return _ternary_op("array_join")(self, delimiter, null_replacement)
 
+    def array_intersect(self, array) -> 'Expression':
+        """
+        Returns an array of the elements in the intersection of array1 and array2, without
+        duplicates. If any of the array is null, the function will return null.
+        """
+        return _binary_op("arrayIntersect")(self, array)
+
     @property
     def map_keys(self) -> 'Expression':
         """

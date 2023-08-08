@@ -345,17 +345,6 @@ object ScalarOperatorGens {
     }
   }
 
-//  def generateHashCode(
-//                      ctx: CodeGeneratorContext,
-//                      left: GeneratedExpression,
-//                      resultType: LogicalType): GeneratedExpression = {
-//
-//      val fieldCount = getFieldCount(left.resultType);
-//      val genHash = HashCodeGenerator.generateRowHash(ctx, left.resultType, "row", (0 until fieldCount).toArray)
-//      val resultTerm = left.resultTerm;
-//      GeneratedExpression(resultTerm, "123")
-//  }
-
   def generateEquals(
       ctx: CodeGeneratorContext,
       left: GeneratedExpression,

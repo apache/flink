@@ -41,16 +41,16 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
-                        //                        arrayContainsTestCases(),
-                        //                        arrayDistinctTestCases(),
-                        //                        arrayPositionTestCases(),
-                        //                        arrayRemoveTestCases(),
-                        //                        arrayReverseTestCases(),
-                        //                        arrayUnionTestCases(),
-                        //                        arrayConcatTestCases(),
-                        //                        arrayMaxTestCases(),
-                        //                        arrayJoinTestCases(),
-                        //                        arraySliceTestCases(),
+                        arrayContainsTestCases(),
+                        arrayDistinctTestCases(),
+                        arrayPositionTestCases(),
+                        arrayRemoveTestCases(),
+                        arrayReverseTestCases(),
+                        arrayUnionTestCases(),
+                        arrayConcatTestCases(),
+                        arrayMaxTestCases(),
+                        arrayJoinTestCases(),
+                        arraySliceTestCases(),
                         arrayIntersectTestCases())
                 .flatMap(s -> s);
     }
@@ -62,13 +62,20 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 new Integer[] {1, 2, null},
                                 null,
                                 new Row[] {Row.of(true, 1), Row.of(true, 2), null},
-                                1)
+                                1,
+                                new Map[] {
+                                    CollectionUtil.map(entry(1, "a"), entry(2, "b")),
+                                    CollectionUtil.map(entry(3, "c"), entry(4, "d"))
+                                },
+                                new Integer[][] {new Integer[] {1, 2, 3}})
                         .andDataTypes(
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(DataTypes.INT()),
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.INT())),
-                                DataTypes.INT())
+                                DataTypes.INT(),
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())),
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())))
                         // ARRAY<INT>
                         .testResult(
                                 $("f0").arrayIntersect(new Integer[] {1, null, 4}),
@@ -90,6 +97,19 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 new Row[] {Row.of(true, 2), null},
                                 DataTypes.ARRAY(
                                         DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.INT())))
+                        .testResult(
+                                $("f4").arrayIntersect(
+                                                new Map[] {
+                                                    CollectionUtil.map(entry(1, "a"), entry(2, "b"))
+                                                }),
+                                "ARRAY_INTERSECT(f4, ARRAY[MAP[1, 'a', 2, 'b']])",
+                                new Map[] {CollectionUtil.map(entry(1, "a"), entry(2, "b"))},
+                                DataTypes.ARRAY(DataTypes.MAP(DataTypes.INT(), DataTypes.STRING())))
+                        .testResult(
+                                $("f5").arrayIntersect(new Integer[][] {new Integer[] {1, 2, 3}}),
+                                "ARRAY_INTERSECT(f5, ARRAY[ARRAY[1, 2, 3]])",
+                                new Integer[][] {new Integer[] {1, 2, 3}},
+                                DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())))
                         // invalid signatures
                         .testSqlValidationError(
                                 "ARRAY_INTERSECT(f3, TRUE)",
