@@ -22,6 +22,7 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 import java.util.List;
+import java.util.Map;
 
 /** Component responsible for assigning slots to a collection of {@link Execution}. */
 public interface ExecutionSlotAllocator {
@@ -30,9 +31,10 @@ public interface ExecutionSlotAllocator {
      * Allocate slots for the given executions.
      *
      * @param executionAttemptIds executions to allocate slots for
-     * @return List of slot assignments to the executions
+     * @return Map of slot assignments to the executions
      */
-    List<ExecutionSlotAssignment> allocateSlotsFor(List<ExecutionAttemptID> executionAttemptIds);
+    Map<ExecutionAttemptID, ExecutionSlotAssignment> allocateSlotsFor(
+            List<ExecutionAttemptID> executionAttemptIds);
 
     /**
      * Cancel the ongoing slot request of the given {@link Execution}.

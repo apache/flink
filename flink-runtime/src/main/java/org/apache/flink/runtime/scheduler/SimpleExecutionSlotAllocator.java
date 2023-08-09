@@ -74,9 +74,9 @@ public class SimpleExecutionSlotAllocator implements ExecutionSlotAllocator {
     }
 
     @Override
-    public List<ExecutionSlotAssignment> allocateSlotsFor(
+    public Map<ExecutionAttemptID, ExecutionSlotAssignment> allocateSlotsFor(
             List<ExecutionAttemptID> executionAttemptIds) {
-        List<ExecutionSlotAssignment> result = new ArrayList<>(executionAttemptIds.size());
+        Map<ExecutionAttemptID, ExecutionSlotAssignment> result = new HashMap<>();
 
         Map<SlotRequestId, ExecutionAttemptID> remainingExecutionsToSlotRequest =
                 new HashMap<>(executionAttemptIds.size());
@@ -85,7 +85,8 @@ public class SimpleExecutionSlotAllocator implements ExecutionSlotAllocator {
 
         for (ExecutionAttemptID executionAttemptId : executionAttemptIds) {
             if (requestedPhysicalSlots.containsKeyA(executionAttemptId)) {
-                result.add(
+                result.put(
+                        executionAttemptId,
                         new ExecutionSlotAssignment(
                                 executionAttemptId,
                                 requestedPhysicalSlots.getValueByKeyA(executionAttemptId)));
@@ -111,16 +112,15 @@ public class SimpleExecutionSlotAllocator implements ExecutionSlotAllocator {
             }
         }
 
-        result.addAll(
+        result.putAll(
                 allocatePhysicalSlotsFor(remainingExecutionsToSlotRequest, physicalSlotRequests));
-
         return result;
     }
 
-    private List<ExecutionSlotAssignment> allocatePhysicalSlotsFor(
+    private Map<ExecutionAttemptID, ExecutionSlotAssignment> allocatePhysicalSlotsFor(
             Map<SlotRequestId, ExecutionAttemptID> executionAttemptIds,
             List<PhysicalSlotRequest> slotRequests) {
-        List<ExecutionSlotAssignment> allocatedSlots = new ArrayList<>();
+        Map<ExecutionAttemptID, ExecutionSlotAssignment> allocatedSlots = new HashMap<>();
         Map<SlotRequestId, CompletableFuture<PhysicalSlotRequest.Result>> slotFutures =
                 slotProvider.allocatePhysicalSlots(slotRequests);
 
@@ -142,7 +142,9 @@ public class SimpleExecutionSlotAllocator implements ExecutionSlotAllocator {
                                 return null;
                             });
                     requestedPhysicalSlots.put(executionAttemptId, slotRequestId, slotFuture);
-                    allocatedSlots.add(new ExecutionSlotAssignment(executionAttemptId, slotFuture));
+                    allocatedSlots.put(
+                            executionAttemptId,
+                            new ExecutionSlotAssignment(executionAttemptId, slotFuture));
                 });
         return allocatedSlots;
     }

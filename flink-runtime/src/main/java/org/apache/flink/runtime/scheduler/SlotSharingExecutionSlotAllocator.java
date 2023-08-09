@@ -102,7 +102,7 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
     }
 
     @Override
-    public List<ExecutionSlotAssignment> allocateSlotsFor(
+    public Map<ExecutionAttemptID, ExecutionSlotAssignment> allocateSlotsFor(
             List<ExecutionAttemptID> executionAttemptIds) {
 
         final Map<ExecutionVertexID, ExecutionAttemptID> vertexIdToExecutionId = new HashMap<>();
@@ -120,13 +120,16 @@ class SlotSharingExecutionSlotAllocator implements ExecutionSlotAllocator {
                         .collect(Collectors.toList());
 
         return allocateSlotsForVertices(vertexIds).stream()
-                .map(
-                        vertexAssignment ->
-                                new ExecutionSlotAssignment(
+                .collect(
+                        Collectors.toMap(
+                                vertexAssignment ->
                                         vertexIdToExecutionId.get(
                                                 vertexAssignment.getExecutionVertexId()),
-                                        vertexAssignment.getLogicalSlotFuture()))
-                .collect(Collectors.toList());
+                                vertexAssignment ->
+                                        new ExecutionSlotAssignment(
+                                                vertexIdToExecutionId.get(
+                                                        vertexAssignment.getExecutionVertexId()),
+                                                vertexAssignment.getLogicalSlotFuture())));
     }
 
     /**
