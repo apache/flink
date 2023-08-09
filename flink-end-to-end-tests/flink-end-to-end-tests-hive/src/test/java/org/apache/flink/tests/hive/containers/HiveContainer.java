@@ -19,8 +19,10 @@
 package org.apache.flink.tests.hive.containers;
 
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.test.parameters.ParameterProperty;
 import org.apache.flink.util.DockerImageVersions;
 
+import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -31,19 +33,31 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.UUID;
 
 /** Test container for Hive. */
 public class HiveContainer extends GenericContainer<HiveContainer> {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveContainer.class);
     public static final String HOST_NAME = "hadoop-master";
+    public static final int HIVE_METASTORE_PORT = 9083;
 
     private static final boolean HIVE_310_OR_LATER =
             HiveShimLoader.getHiveVersion().compareTo(HiveShimLoader.HIVE_VERSION_V3_1_0) >= 0;
-    private String hiveWarehouseDir;
 
-    public static final int HIVE_METASTORE_PORT = 9083;
+    // Detailed log paths are from
+    // https://github.com/prestodb/docker-images/tree/master/prestodb/hdp2.6-hive/files/etc/supervisord.d
+    // https://github.com/prestodb/docker-images/blob/master/prestodb/hive3.1-hive/files/etc/supervisord.conf
+    private static final String NAME_NODE_LOG_PATH =
+            "/var/log/hadoop-hdfs/hadoop-hdfs-namenode.log";
+    private static final String METASTORE_LOG_PATH = "/tmp/hive/hive.log";
+    private static final String MYSQL_METASTORE_LOG_PATH = "/var/log/mysqld.log";
+    private static final ParameterProperty<Path> DISTRIBUTION_LOG_BACKUP_DIRECTORY =
+            new ParameterProperty<>("logBackupDir", Paths::get);
+
+    private String hiveWarehouseDir;
 
     public HiveContainer(List<String> initTableNames) {
         super(
@@ -60,6 +74,12 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
         if (LOG.isInfoEnabled()) {
             followOutput(new Slf4jLogConsumer(LOG));
         }
+    }
+
+    @Override
+    protected void finished(Description description) {
+        backupLogs();
+        super.finished(description);
     }
 
     public String getHiveMetastoreURL() {
@@ -100,5 +120,39 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
         file.setReadable(true, false);
         file.setWritable(true, false);
         file.setExecutable(true, false);
+    }
+
+    private void backupLogs() {
+        Path path = DISTRIBUTION_LOG_BACKUP_DIRECTORY.get().orElse(null);
+        if (path == null) {
+            LOG.warn(
+                    "Property {} not set, logs will not be backed up.",
+                    DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
+            return;
+        }
+        try {
+            Path dir =
+                    Files.createDirectory(
+                            Paths.get(
+                                    String.valueOf(path.toAbsolutePath()),
+                                    "hive-" + UUID.randomUUID()));
+            copyFileFromContainer(
+                    NAME_NODE_LOG_PATH,
+                    Files.createFile(Paths.get(dir.toAbsolutePath().toString(), "namenode.log"))
+                            .toAbsolutePath()
+                            .toString());
+            copyFileFromContainer(
+                    METASTORE_LOG_PATH,
+                    Files.createFile(Paths.get(dir.toAbsolutePath().toString(), "metastore.log"))
+                            .toAbsolutePath()
+                            .toString());
+            copyFileFromContainer(
+                    MYSQL_METASTORE_LOG_PATH,
+                    Files.createFile(Paths.get(dir.toAbsolutePath().toString(), "mysql.log"))
+                            .toAbsolutePath()
+                            .toString());
+        } catch (Throwable e) {
+            LOG.warn("Failed to backup logs...", e);
+        }
     }
 }

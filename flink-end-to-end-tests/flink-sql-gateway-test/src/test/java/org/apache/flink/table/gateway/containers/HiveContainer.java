@@ -17,13 +17,20 @@
 
 package org.apache.flink.table.gateway.containers;
 
+import org.apache.flink.test.parameters.ParameterProperty;
 import org.apache.flink.util.DockerImageVersions;
 
+import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.utility.DockerImageName;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.UUID;
 
 /** Test Container for hive. */
 public class HiveContainer extends GenericContainer<HiveContainer> {
@@ -32,6 +39,16 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
 
     public static final String HOST_NAME = "hadoop-master";
     public static final int HIVE_METASTORE_PORT = 9083;
+
+    // Detailed log paths are from
+    // https://github.com/prestodb/docker-images/tree/master/prestodb/hdp2.6-hive/files/etc/supervisord.d
+    private static final String NAME_NODE_LOG_PATH =
+            "/var/log/hadoop-hdfs/hadoop-hdfs-namenode.log";
+    private static final String METASTORE_LOG_PATH = "/tmp/hive/hive.log";
+    private static final String MYSQL_METASTORE_LOG_PATH = "/var/log/mysqld.log";
+
+    private static final ParameterProperty<Path> DISTRIBUTION_LOG_BACKUP_DIRECTORY =
+            new ParameterProperty<>("logBackupDir", Paths::get);
 
     public HiveContainer() {
         super(DockerImageName.parse(DockerImageVersions.HIVE2));
@@ -47,7 +64,47 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
         }
     }
 
+    @Override
+    protected void finished(Description description) {
+        backupLogs();
+        super.finished(description);
+    }
+
     public String getHiveMetastoreURI() {
         return String.format("thrift://%s:%s", getHost(), getMappedPort(HIVE_METASTORE_PORT));
+    }
+
+    private void backupLogs() {
+        Path path = DISTRIBUTION_LOG_BACKUP_DIRECTORY.get().orElse(null);
+        if (path == null) {
+            LOG.warn(
+                    "Property {} not set, logs will not be backed up.",
+                    DISTRIBUTION_LOG_BACKUP_DIRECTORY.getPropertyName());
+            return;
+        }
+        try {
+            Path dir =
+                    Files.createDirectory(
+                            Paths.get(
+                                    String.valueOf(path.toAbsolutePath()),
+                                    "hive-" + UUID.randomUUID()));
+            copyFileFromContainer(
+                    NAME_NODE_LOG_PATH,
+                    Files.createFile(Paths.get(dir.toAbsolutePath().toString(), "namenode.log"))
+                            .toAbsolutePath()
+                            .toString());
+            copyFileFromContainer(
+                    METASTORE_LOG_PATH,
+                    Files.createFile(Paths.get(dir.toAbsolutePath().toString(), "metastore.log"))
+                            .toAbsolutePath()
+                            .toString());
+            copyFileFromContainer(
+                    MYSQL_METASTORE_LOG_PATH,
+                    Files.createFile(Paths.get(dir.toAbsolutePath().toString(), "mysql.log"))
+                            .toAbsolutePath()
+                            .toString());
+        } catch (Throwable e) {
+            LOG.warn("Failed to backup logs...", e);
+        }
     }
 }
