@@ -55,7 +55,7 @@ public class ArrayIntersectFunction extends BuiltInScalarFunction {
         elementGetter = ArrayData.createElementGetter(dataType.getLogicalType());
         equalityEvaluator =
                 context.createEvaluator(
-                        Expressions.call("HASHCODE", $("element1")),
+                        Expressions.call("$HASHCODE$1", $("element1")),
                         DataTypes.INT(),
                         DataTypes.FIELD("element1", dataType.notNull().toInternal()));
     }
