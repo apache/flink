@@ -1480,6 +1480,17 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayContains")(self, needle)
 
+    def split(self, delimiter) -> 'Expression':
+        """
+        Splits a string into an array of substrings based on a delimiter. If the delimiter is not
+        found, then the original string is returned as the only element in the array.
+        If the delimiter is empty, then all characters in the string are split.
+        If either, string or delimiter, are NULL, then a NULL value is returned.
+        If the delimiter is found at the beginning or end of the string,
+        or there are contiguous delimiters, then an empty space is added to the array.
+        """
+        return _binary_op("split")(self, delimiter)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property

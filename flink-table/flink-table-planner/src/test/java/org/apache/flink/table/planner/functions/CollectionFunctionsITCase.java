@@ -33,6 +33,10 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
+        return Stream.of(arrayContainsTestCases(), splitTestCases()).flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> arrayContainsTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_CONTAINS)
                         .onFieldsWithData(
@@ -111,5 +115,84 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").arrayContains(true),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
+    }
+
+    private Stream<TestSetSpec> splitTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.SPLIT)
+                        .onFieldsWithData(
+                                "123,123,23",
+                                null,
+                                ",123,123",
+                                ",123,123,",
+                                123,
+                                "12345",
+                                ",123,,,123,")
+                        .andDataTypes(
+                                DataTypes.STRING().notNull(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.STRING().notNull())
+                        .testResult(
+                                $("f0").split(","),
+                                "SPLIT(f0, ',')",
+                                new String[] {"123", "123", "23"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f0").split(null),
+                                "SPLIT(f0, NULL)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f0").split(""),
+                                "SPLIT(f0, '')",
+                                new String[] {"1", "2", "3", ",", "1", "2", "3", ",", "2", "3"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f1").split(","),
+                                "SPLIT(f1, ',')",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f1").split(null),
+                                "SPLIT(f1, null)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f2").split(","),
+                                "SPLIT(f2, ',')",
+                                new String[] {"", "123", "123"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f3").split(","),
+                                "SPLIT(f3, ',')",
+                                new String[] {"", "123", "123", ""},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f5").split(","),
+                                "SPLIT(f5, ',')",
+                                new String[] {"12345"},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testResult(
+                                $("f6").split(","),
+                                "SPLIT(f6, ',')",
+                                new String[] {"", "123", "", "", "123", ""},
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        .testTableApiValidationError(
+                                $("f4").split(","),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "SPLIT(<CHARACTER_STRING>, <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "SPLIT(f4, ',')",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "SPLIT(<CHARACTER_STRING>, <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "SPLIT()", "No match found for function signature SPLIT()")
+                        .testSqlValidationError(
+                                "SPLIT(f1, '1', '2')",
+                                "No match found for function signature SPLIT(<CHARACTER>, <CHARACTER>, <CHARACTER>)"));
     }
 }

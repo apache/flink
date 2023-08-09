@@ -157,6 +157,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIGN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIMILAR;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SINH;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SPLIT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SPLIT_INDEX;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.SQRT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.STDDEV_POP;
@@ -1347,6 +1348,20 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType arrayContains(InType needle) {
         return toApiSpecificExpression(
                 unresolvedCall(ARRAY_CONTAINS, toExpr(), objectToExpression(needle)));
+    }
+
+    /**
+     * Returns an array of substrings by splitting the input string based on a given delimiter.
+     *
+     * <p>If the delimiter is not found in the string, the original string is returned as the only
+     * element in the array. If the delimiter is empty, every character in the string is split. If
+     * the string or delimiter is null, a null value is returned. If the delimiter is found at the
+     * beginning or end of the string, or there are contiguous delimiters, then an empty string is
+     * added to the array.
+     */
+    public OutType split(InType delimiter) {
+        return toApiSpecificExpression(
+                unresolvedCall(SPLIT, toExpr(), objectToExpression(delimiter)));
     }
 
     // Time definition
