@@ -64,32 +64,31 @@ public class TestExecutionSlotAllocator implements ExecutionSlotAllocator, SlotO
     }
 
     @Override
-    public List<ExecutionSlotAssignment> allocateSlotsFor(
+    public Map<ExecutionAttemptID, ExecutionSlotAssignment> allocateSlotsFor(
             final List<ExecutionAttemptID> executionAttemptIds) {
-        final List<ExecutionSlotAssignment> executionSlotAssignments =
+        final Map<ExecutionAttemptID, ExecutionSlotAssignment> executionSlotAssignments =
                 createExecutionSlotAssignments(executionAttemptIds);
         registerPendingRequests(executionSlotAssignments);
         maybeCompletePendingRequests();
         return executionSlotAssignments;
     }
 
-    private List<ExecutionSlotAssignment> createExecutionSlotAssignments(
+    private Map<ExecutionAttemptID, ExecutionSlotAssignment> createExecutionSlotAssignments(
             final List<ExecutionAttemptID> executionAttemptIds) {
 
-        final List<ExecutionSlotAssignment> result = new ArrayList<>();
+        final Map<ExecutionAttemptID, ExecutionSlotAssignment> result = new HashMap<>();
         for (ExecutionAttemptID executionAttemptId : executionAttemptIds) {
             final CompletableFuture<LogicalSlot> logicalSlotFuture = new CompletableFuture<>();
-            result.add(new ExecutionSlotAssignment(executionAttemptId, logicalSlotFuture));
+            result.put(
+                    executionAttemptId,
+                    new ExecutionSlotAssignment(executionAttemptId, logicalSlotFuture));
         }
         return result;
     }
 
     private void registerPendingRequests(
-            final List<ExecutionSlotAssignment> executionSlotAssignments) {
-        for (ExecutionSlotAssignment executionSlotAssignment : executionSlotAssignments) {
-            pendingRequests.put(
-                    executionSlotAssignment.getExecutionAttemptId(), executionSlotAssignment);
-        }
+            final Map<ExecutionAttemptID, ExecutionSlotAssignment> executionSlotAssignments) {
+        pendingRequests.putAll(executionSlotAssignments);
     }
 
     private void maybeCompletePendingRequests() {

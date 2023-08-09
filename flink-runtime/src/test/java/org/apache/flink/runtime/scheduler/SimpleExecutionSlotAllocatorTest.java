@@ -288,7 +288,7 @@ class SimpleExecutionSlotAllocatorTest {
                 ExecutionAttemptID executionAttemptId) {
             return allocator
                     .allocateSlotsFor(Collections.singletonList(executionAttemptId))
-                    .get(0)
+                    .get(executionAttemptId)
                     .getLogicalSlotFuture();
         }
 
