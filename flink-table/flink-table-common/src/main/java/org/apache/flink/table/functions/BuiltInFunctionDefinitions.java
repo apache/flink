@@ -33,6 +33,7 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.strategies.MixedTypeOutputForRowStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -163,6 +164,17 @@ public final class BuiltInFunctionDefinitions {
                                     ConstantArgumentCount.of(0), explicit(DataTypes.BOOLEAN())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayContainsFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition ELT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ELT")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeRoot.ROW), logical(LogicalTypeRoot.INTEGER)))
+                    .outputTypeStrategy(new MixedTypeOutputForRowStrategy())
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.EltFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =

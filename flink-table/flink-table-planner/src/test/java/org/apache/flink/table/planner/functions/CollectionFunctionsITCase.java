@@ -33,6 +33,10 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
+        return Stream.of(arrayContainsTestCases(), eltTestCases()).flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> arrayContainsTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_CONTAINS)
                         .onFieldsWithData(
@@ -111,5 +115,68 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").arrayContains(true),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
+    }
+
+    private Stream<TestSetSpec> eltTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ELT)
+                        .onFieldsWithData(
+                                Row.of(1, 2, "123", 56, 1.2, null, Row.of(1, 2, 3)),
+                                null,
+                                new Integer[] {1, 2, 3})
+                        .andDataTypes(
+                                DataTypes.ROW(
+                                        DataTypes.INT(),
+                                        DataTypes.INT(),
+                                        DataTypes.STRING(),
+                                        DataTypes.INT(),
+                                        DataTypes.DOUBLE(),
+                                        DataTypes.INT(),
+                                        DataTypes.ROW(
+                                                DataTypes.INT(), DataTypes.INT(), DataTypes.INT())),
+                                DataTypes.ROW(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult($("f0").elt(null), "ELT(f0, null)", null, DataTypes.INT())
+                        .testResult($("f0").elt(1), "ELT(f0, 1)", 1, DataTypes.INT())
+                        .testResult($("f1").elt(1), "ELT(f1, 1)", null, DataTypes.INT())
+                        .testResult($("f0").elt(2), "ELT(f0, 2)", 2, DataTypes.INT())
+                        .testResult($("f0").elt(3), "ELT(f0, 3)", "123", DataTypes.STRING())
+                        .testResult($("f0").elt(4), "ELT(f0, 4)", 56, DataTypes.INT())
+                        .testResult($("f0").elt(5), "ELT(f0, 5)", 1.2, DataTypes.DOUBLE())
+                        .testResult($("f0").elt(6), "ELT(f0, 6)", null, DataTypes.INT())
+                        .testResult(
+                                $("f0").elt(7),
+                                "ELT(f0, 7)",
+                                Row.of(1, 2, 3),
+                                DataTypes.ROW(DataTypes.INT(), DataTypes.INT(), DataTypes.INT()))
+                        .testSqlValidationError(
+                                "elt(f0, 0)",
+                                "the input should not smaller than 1 and larger than 7")
+                        .testTableApiValidationError(
+                                $("f0").elt(0),
+                                "the input should not smaller than 1 and larger than 7")
+                        .testSqlValidationError(
+                                "elt(f0, 8)",
+                                "the input should not smaller than 1 and larger than 7")
+                        .testTableApiValidationError(
+                                $("f0").elt(8),
+                                "the input should not smaller than 1 and larger than 7")
+                        .testSqlValidationError(
+                                "ELT(f0, true)",
+                                "SQL validation failed. Invalid function call:\n"
+                                        + "ELT(ROW<`f0` INT, `f1` INT, `f2` STRING, `f3` INT, `f4` DOUBLE, `f5` INT, `f6` ROW<`f0` INT, `f1` INT, `f2` INT>>, BOOLEAN NOT NULL)")
+                        .testTableApiValidationError(
+                                $("f0").elt(true),
+                                "Invalid function call:\n"
+                                        + "ELT(ROW<`f0` INT, `f1` INT, `f2` STRING, `f3` INT, `f4` DOUBLE, `f5` INT, `f6` ROW<`f0` INT, `f1` INT, `f2` INT>>, BOOLEAN NOT NULL)")
+                        .testSqlValidationError(
+                                "ELT(f0, true, 'abc')",
+                                "No match found for function signature ELT(<RecordType:peek_no_expand(INTEGER f0, INTEGER f1, VARCHAR(2147483647) f2, INTEGER f3, DOUBLE f4, INTEGER f5, RecordType:peek_no_expand(INTEGER f0, INTEGER f1, INTEGER f2) f6)>, <BOOLEAN>, <CHARACTER>)")
+                        .testSqlValidationError(
+                                "ELT(f0)",
+                                "No match found for function signature ELT(<RecordType:peek_no_expand(INTEGER f0, INTEGER f1, VARCHAR(2147483647) f2, INTEGER f3, DOUBLE f4, INTEGER f5, RecordType:peek_no_expand(INTEGER f0, INTEGER f1, INTEGER f2) f6)>)")
+                        .testSqlValidationError(
+                                "ELT()", "No match found for function signature ELT()")
+                        .testSqlValidationError("ELT(null, 'abc')", "Illegal use of 'NULL'"));
     }
 }

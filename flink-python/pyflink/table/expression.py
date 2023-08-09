@@ -1480,6 +1480,14 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayContains")(self, needle)
 
+    def elt(self, n) -> 'Expression':
+        """
+        Returns the element at the n-th position from a list of input values.
+        If 'n' is less than 1 or greater than the number of inputs,
+        or if any of the inputs is null, the function will return null.
+        """
+        return _binary_op("elt")(self, n)
+
     # ---------------------------- time definition functions -----------------------------
 
     @property

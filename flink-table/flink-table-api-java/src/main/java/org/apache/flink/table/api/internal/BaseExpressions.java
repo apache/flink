@@ -76,6 +76,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DECODE
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DEGREES;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DISTINCT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.DIVIDE;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ELT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENCODE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXP;
@@ -1347,6 +1348,16 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType arrayContains(InType needle) {
         return toApiSpecificExpression(
                 unresolvedCall(ARRAY_CONTAINS, toExpr(), objectToExpression(needle)));
+    }
+
+    /**
+     * Returns the element at the n-th position from a list of input values.
+     *
+     * <p>If 'n' is less than 1 or greater than the number of inputs, or if any of the inputs is
+     * null, the function will return null.
+     */
+    public OutType elt(InType input) {
+        return toApiSpecificExpression(unresolvedCall(ELT, toExpr(), objectToExpression(input)));
     }
 
     // Time definition
