@@ -57,6 +57,27 @@ public class PrometheusPushGatewayReporterOptions {
                     .defaultValue("")
                     .withDescription("The job name under which metrics will be pushed");
 
+    public static final ConfigOption<Boolean> BASIC_AUTH =
+            ConfigOptions.key("basicAuth")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Specify whether the PushGateway requires HTTP basic authentication");
+
+    public static final ConfigOption<String> USERNAME =
+            ConfigOptions.key("username")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "The username if the PushGateway requires HTTP basic authentication");
+
+    public static final ConfigOption<String> PASSWORD =
+            ConfigOptions.key("password")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "The password if the PushGateway requires HTTP basic authentication");
+
     public static final ConfigOption<Boolean> RANDOM_JOB_NAME_SUFFIX =
             ConfigOptions.key("randomJobNameSuffix")
                     .booleanType()
