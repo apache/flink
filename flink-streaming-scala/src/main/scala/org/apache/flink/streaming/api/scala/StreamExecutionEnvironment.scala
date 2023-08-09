@@ -819,7 +819,12 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
    * should implement ParallelSourceFunction or extend RichParallelSourceFunction. In these cases
    * the resulting source will have the parallelism of the environment. To change this afterwards
    * call DataStreamSource.setParallelism(int)
+   *
+   * @deprecated
+   *   This method relies on the [[SourceFunction]] API, which is due to be removed. Use the
+   *   [[fromSource]] method based on the new [[Source]] API instead.
    */
+  @Deprecated
   def addSource[T: TypeInformation](function: SourceFunction[T]): DataStream[T] = {
     require(function != null, "Function must not be null.")
 
@@ -830,7 +835,11 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) extends AutoCloseable {
 
   /**
    * Create a DataStream using a user defined source function for arbitrary source functionality.
+   * @deprecated
+   *   This method relies on the [[SourceFunction]] API, which is due to be removed. Use the
+   *   [[fromSource]] method based on the new [[Source]] API instead.
    */
+  @Deprecated
   def addSource[T: TypeInformation](function: SourceContext[T] => Unit): DataStream[T] = {
     require(function != null, "Function must not be null.")
     val sourceFunction = new SourceFunction[T] {

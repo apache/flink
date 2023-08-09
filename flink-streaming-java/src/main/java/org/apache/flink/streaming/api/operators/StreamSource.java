@@ -31,7 +31,11 @@ import org.apache.flink.streaming.runtime.tasks.OperatorChain;
  *
  * @param <OUT> Type of the output elements
  * @param <SRC> Type of the source function of this stream source operator
+ * @deprecated This class is based on the {@link
+ *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
+ *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.
  */
+@Deprecated
 @Internal
 public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
         extends AbstractUdfStreamOperator<OUT, SRC> {
