@@ -743,6 +743,7 @@ def json_string(value) -> Expression:
     """
     return _unary_op("jsonString", value)
 
+
 def hashcode(value) -> Expression:
     """
     The hashcode function generates a hash code for a given input value,
@@ -750,6 +751,7 @@ def hashcode(value) -> Expression:
     It creates a unique integer that represents the value passed to the function.
     """
     return _unary_op("hashCodeGenerate", value)
+
 
 def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
     """
