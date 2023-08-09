@@ -28,6 +28,8 @@ under the License.
 
 # TRUNCATE 语句
 
+{{< label Batch >}}
+
 TRUNCATE 语句用于删除表中的全部数据，但不会删除表本身。
 
 <span class="label label-danger">注意</span> 目前, `TRUNCATE` 语句仅支持批模式, 并且要求目标表实现了 {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsTruncate.java" name="SupportsTruncate" >}} 接口。

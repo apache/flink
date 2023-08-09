@@ -26,6 +26,8 @@ under the License.
 
 # TRUNCATE Statements
 
+{{< label Batch >}}
+
 TRUNCATE statements are used to delete all rows from a table without dropping the table itself.
 
 <span class="label label-danger">Attention</span> Currently, `TRUNCATE` statement is supported in batch mode, and it requires the target table connector implements the  {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsTruncate.java" name="SupportsTruncate" >}}
