@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -70,6 +71,34 @@ class YarnApplicationFileUploaderTest {
                     yarnApplicationFileUploader.getRegisteredLocalResources().keySet();
 
             assertThat(registeredResources).containsExactlyInAnyOrderElementsOf(libJars.keySet());
+        }
+    }
+
+    @Test
+    void testRegisterProvidedLocalResourcesWithParentDir(@TempDir File flinkLibDir)
+            throws IOException {
+        final Map<String, String> filesWithParentDir = getFilesWithParentDir();
+
+        generateFilesInDirectory(flinkLibDir, filesWithParentDir);
+
+        try (final YarnApplicationFileUploader yarnApplicationFileUploader =
+                YarnApplicationFileUploader.from(
+                        FileSystem.get(new YarnConfiguration()),
+                        new Path(flinkLibDir.toURI()),
+                        Collections.singletonList(new Path(flinkLibDir.toURI())),
+                        ApplicationId.newInstance(0, 0),
+                        DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
+
+            List<String> classPath = yarnApplicationFileUploader.registerProvidedLocalResources();
+
+            Set<String> expectedClassPathEntries = new HashSet<>();
+            for (String filePath : filesWithParentDir.keySet()) {
+                String parentDir = new Path(filePath).getParent().toString();
+                expectedClassPathEntries.add(parentDir);
+                expectedClassPathEntries.add(filePath);
+            }
+
+            assertThat(classPath).containsExactlyInAnyOrderElementsOf(expectedClassPathEntries);
         }
     }
 
@@ -141,6 +170,16 @@ class YarnApplicationFileUploaderTest {
         libJars.put("flink-table.jar", jarContent);
 
         return libJars;
+    }
+
+    private static Map<String, String> getFilesWithParentDir() {
+        final HashMap<String, String> filesWithParentDir = new HashMap<>(2);
+        final String xmlContent = "XML Content";
+
+        filesWithParentDir.put("conf/hive-site.xml", xmlContent);
+        filesWithParentDir.put("conf/ivysettings.xml", xmlContent);
+
+        return filesWithParentDir;
     }
 
     private static Map<String, String> getUsrLibJars() {
