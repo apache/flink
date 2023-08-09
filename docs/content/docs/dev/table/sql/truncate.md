@@ -120,10 +120,10 @@ env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
 # register a table named "Orders"
-table_env.executeSql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)")
+table_env.execute_sql("CREATE TABLE Orders (`user` STRING, product STRING, amount INT) WITH (...)")
 # insert values
-table_env.executeSql("INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 2), ('Mr.White', 'Chicken', 3)").wait()
-table_env.executeSql("SELECT * FROM Orders").print()
+table_env.execute_sql("INSERT INTO Orders VALUES ('Lili', 'Apple', 1), ('Jessica', 'Banana', 2), ('Mr.White', 'Chicken', 3)").wait()
+table_env.execute_sql("SELECT * FROM Orders").print()
 # +--------------------------------+--------------------------------+-------------+
 # |                           user |                        product |      amount |
 # +--------------------------------+--------------------------------+-------------+
@@ -133,8 +133,8 @@ table_env.executeSql("SELECT * FROM Orders").print()
 # +--------------------------------+--------------------------------+-------------+
 # 3 rows in set
 # truncate the table "Orders"
-table_env.executeSql("TRUNCATE TABLE Orders").wait()
-table_env.executeSql("SELECT * FROM Orders").print()
+table_env.execute_sql("TRUNCATE TABLE Orders").wait()
+table_env.execute_sql("SELECT * FROM Orders").print()
 # Empty set
 ```
 {{< /tab >}}
