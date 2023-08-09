@@ -67,14 +67,14 @@ public class PrometheusPushGatewayReporterOptions {
     public static final ConfigOption<String> USERNAME =
             ConfigOptions.key("username")
                     .stringType()
-                    .defaultValue("")
+                    .noDefaultValue()
                     .withDescription(
                             "The username if the PushGateway requires HTTP basic authentication");
 
     public static final ConfigOption<String> PASSWORD =
             ConfigOptions.key("password")
                     .stringType()
-                    .defaultValue("")
+                    .noDefaultValue()
                     .withDescription(
                             "The password if the PushGateway requires HTTP basic authentication");
 
