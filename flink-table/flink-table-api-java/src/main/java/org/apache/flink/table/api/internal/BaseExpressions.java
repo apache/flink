@@ -80,6 +80,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ENCODE
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EQUALS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXP;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.EXTRACT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FIELD;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FIRST_VALUE;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLATTEN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.FLOOR;
@@ -1347,6 +1348,22 @@ public abstract class BaseExpressions<InType, OutType> {
     public OutType arrayContains(InType needle) {
         return toApiSpecificExpression(
                 unresolvedCall(ARRAY_CONTAINS, toExpr(), objectToExpression(needle)));
+    }
+
+    /**
+     * Returns the position of the given value in the list of arguments, where the position count
+     * starts from 1.
+     *
+     * <p>If the value is not found in the list or if the value is null, the function returns 0. If
+     * the list is null or the list is empty, the function returns 0.
+     */
+    public OutType field(InType... input) {
+        Expression[] args =
+                Stream.concat(
+                                Stream.of(toExpr()),
+                                Arrays.stream(input).map(ApiExpressionUtils::objectToExpression))
+                        .toArray(Expression[]::new);
+        return toApiSpecificExpression(unresolvedCall(FIELD, args));
     }
 
     // Time definition

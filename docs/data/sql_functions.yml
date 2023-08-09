@@ -631,6 +631,9 @@ collection:
   - sql: ARRAY_CONTAINS(haystack, needle)
     table: haystack.arrayContains(needle)
     description: Returns whether the given element exists in an array. Checking for null elements in the array is supported. If the array itself is null, the function will return null. The given element is cast implicitly to the array's element type if necessary.
+  - sql: FIELD(value, ...)
+    table: value.field(...)
+    description: Returns the position of the given value in the list of arguments, where the position count starts from 1. If the value is not found in the list or if the value is null, the function returns 0. If the list is null or the list is empty, the function returns 0.
 
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]

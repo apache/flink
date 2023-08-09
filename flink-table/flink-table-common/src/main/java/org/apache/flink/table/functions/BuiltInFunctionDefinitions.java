@@ -33,6 +33,7 @@ import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -163,6 +164,17 @@ public final class BuiltInFunctionDefinitions {
                                     ConstantArgumentCount.of(0), explicit(DataTypes.BOOLEAN())))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.ArrayContainsFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition FIELD =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("FIELD")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            varyingSequence(
+                                    new AnyArgumentTypeStrategy(), new AnyArgumentTypeStrategy()))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.INT())))
+                    .runtimeClass("org.apache.flink.table.runtime.functions.scalar.FieldFunction")
                     .build();
 
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
