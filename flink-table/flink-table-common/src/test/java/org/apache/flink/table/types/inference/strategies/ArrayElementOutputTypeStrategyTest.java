@@ -33,7 +33,7 @@ class ArrayElementOutputTypeStrategyTest extends TypeStrategiesTestBase {
                                 "infer an array's element type",
                                 SpecificTypeStrategies.ARRAY_ELEMENT)
                         .inputTypes(DataTypes.ARRAY(DataTypes.INT().notNull()).notNull())
-                        .expectDataType(DataTypes.INT().notNull().bridgedTo(int.class)),
+                        .expectDataType(DataTypes.INT().notNull()),
                 TestSpec.forStrategy(
                                 "infer an array's element type",
                                 SpecificTypeStrategies.ARRAY_ELEMENT)
@@ -43,6 +43,6 @@ class ArrayElementOutputTypeStrategyTest extends TypeStrategiesTestBase {
                                 "infer an array's element type",
                                 SpecificTypeStrategies.ARRAY_ELEMENT)
                         .inputTypes(DataTypes.ARRAY(DataTypes.INT().notNull()))
-                        .expectDataType(DataTypes.INT().bridgedTo(int.class)));
+                        .expectDataType(DataTypes.INT()));
     }
 }
