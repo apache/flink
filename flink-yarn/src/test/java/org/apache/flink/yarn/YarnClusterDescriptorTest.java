@@ -672,6 +672,30 @@ class YarnClusterDescriptorTest {
         }
     }
 
+    /** Tests that the {@code YarnConfigOptions.SHIP_ARCHIVES} only supports archive files. */
+    @Test
+    void testShipArchives() throws IOException {
+        final File homeFolder =
+                Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString()).toFile();
+        File dir1 = new File(homeFolder.getPath(), "dir1");
+        File archive1 = new File(homeFolder.getPath(), "archive1.zip");
+        File archive2 = new File(homeFolder.getPath(), "archive2.zip");
+        assertThat(dir1.createNewFile()).isTrue();
+        assertThat(archive1.createNewFile()).isTrue();
+        assertThat(archive2.createNewFile()).isTrue();
+        Configuration flinkConfiguration = new Configuration();
+        flinkConfiguration.set(YarnConfigOptions.SHIP_ARCHIVES,
+                Arrays.asList(dir1.getAbsolutePath(), archive1.getAbsolutePath()));
+
+        assertThrows("Not all files included in shipArchives are archive files.",
+                IllegalArgumentException.class,
+                () -> createYarnClusterDescriptor(flinkConfiguration));
+
+        flinkConfiguration.set(YarnConfigOptions.SHIP_ARCHIVES,
+                Arrays.asList(archive1.getAbsolutePath(), archive2.getAbsolutePath()));
+        createYarnClusterDescriptor(flinkConfiguration);
+    }
+
     /** Tests that the YarnClient is only shut down if it is not shared. */
     @Test
     void testYarnClientShutDown() {
