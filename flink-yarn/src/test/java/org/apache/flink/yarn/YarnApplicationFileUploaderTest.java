@@ -92,11 +92,15 @@ class YarnApplicationFileUploaderTest {
             List<String> classPath = yarnApplicationFileUploader.registerProvidedLocalResources();
 
             Set<String> expectedClassPathEntries = new HashSet<>();
+            Set<String> resources = new HashSet<>();
+            Set<String> resourcesDir = new HashSet<>();
             for (String filePath : filesWithParentDir.keySet()) {
                 String parentDir = new Path(filePath).getParent().toString();
-                expectedClassPathEntries.add(parentDir);
-                expectedClassPathEntries.add(filePath);
+                resourcesDir.add(parentDir);
+                resources.add(filePath);
             }
+            resourcesDir.stream().sorted().forEach(expectedClassPathEntries::add);
+            resources.stream().sorted().forEach(expectedClassPathEntries::add);
 
             assertThat(classPath).containsExactlyInAnyOrderElementsOf(expectedClassPathEntries);
         }
@@ -173,7 +177,7 @@ class YarnApplicationFileUploaderTest {
     }
 
     private static Map<String, String> getFilesWithParentDir() {
-        final HashMap<String, String> filesWithParentDir = new HashMap<>(2);
+        final Map<String, String> filesWithParentDir = new HashMap<>(2);
         final String xmlContent = "XML Content";
 
         filesWithParentDir.put("conf/hive-site.xml", xmlContent);
