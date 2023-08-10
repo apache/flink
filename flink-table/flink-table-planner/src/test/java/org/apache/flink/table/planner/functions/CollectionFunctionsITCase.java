@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.api.DataTypes;
@@ -26,6 +25,7 @@ import java.time.LocalDate;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.generateSeries;
 import static org.apache.flink.table.api.Expressions.row;
 
 /** Tests for {@link BuiltInFunctionDefinitions} around arrays. */
@@ -33,6 +33,10 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
+        return Stream.of(arrayContainsTestCases(), generateSeriesTestCases()).flatMap(s -> s);
+    }
+
+    private Stream<TestSetSpec> arrayContainsTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_CONTAINS)
                         .onFieldsWithData(
@@ -111,5 +115,82 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").arrayContains(true),
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "ARRAY_CONTAINS(haystack <ARRAY>, needle <ARRAY ELEMENT>)"));
+    }
+
+    private Stream<TestSetSpec> generateSeriesTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.GENERATE_SERIES)
+                        .onFieldsWithData(1, 2, 5, 9, 10, 0, -3, -10, 3.0)
+                        .andDataTypes(
+                                DataTypes.BIGINT(),
+                                DataTypes.BIGINT(),
+                                DataTypes.INT(),
+                                DataTypes.BIGINT(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.DOUBLE())
+                        .testResult(
+                                generateSeries($("f6"), $("f7")),
+                                "GENERATE_SERIES(f6, f7)",
+                                new Long[] {},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f6"), $("f7"), -2),
+                                "GENERATE_SERIES(f6, f7, -2)",
+                                new Long[] {-3L, -5L, -7L, -9L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f0"), $("f1")),
+                                "GENERATE_SERIES(f0, f1)",
+                                new Long[] {1L, 2L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f0"), $("f2")),
+                                "GENERATE_SERIES(f0, f2)",
+                                new Long[] {1L, 2L, 3L, 4L, 5L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f2"), $("f4")),
+                                "GENERATE_SERIES(f2, f4)",
+                                new Long[] {5L, 6L, 7L, 8L, 9L, 10L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f0"), $("f4"), 2),
+                                "GENERATE_SERIES(f0, f4, 2)",
+                                new Long[] {1L, 3L, 5L, 7L, 9L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f0"), $("f4"), -2),
+                                "GENERATE_SERIES(f0, f4, -2)",
+                                new Long[] {},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testResult(
+                                generateSeries($("f4"), $("f2"), -2),
+                                "GENERATE_SERIES(f4, f2, -2)",
+                                new Long[] {10L, 8L, 6L},
+                                DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .testTableApiRuntimeError(
+                                generateSeries($("f0"), $("f1"), $("f5")),
+                                "Step argument in GENERATE_SERIES function cannot be zero.")
+                        .testSqlRuntimeError(
+                                "GENERATE_SERIES(f0, f1, f5)",
+                                "Step argument in GENERATE_SERIES function cannot be zero.")
+                        .testSqlValidationError(
+                                "GENERATE_SERIES(f0)",
+                                "No match found for function signature GENERATE_SERIES(<NUMERIC>)")
+                        .testSqlValidationError(
+                                "GENERATE_SERIES(f0, f1, f2, f3)",
+                                "No match found for function signature GENERATE_SERIES(<NUMERIC>, <NUMERIC>, <NUMERIC>, <NUMERIC>)")
+                        .testSqlValidationError(
+                                "GENERATE_SERIES()",
+                                "No match found for function signature GENERATE_SERIES()")
+                        .testTableApiValidationError(
+                                generateSeries($("f6"), $("f7"), $("f8")),
+                                "Invalid function call:\n" + "GENERATE_SERIES(INT, INT, DOUBLE)")
+                        .testSqlValidationError(
+                                "GENERATE_SERIES(f6, f7, f8)",
+                                " Invalid function call:\n" + "GENERATE_SERIES(INT, INT, DOUBLE)"));
     }
 }

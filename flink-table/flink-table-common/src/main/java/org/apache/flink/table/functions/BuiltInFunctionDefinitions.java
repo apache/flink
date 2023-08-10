@@ -165,6 +165,25 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.ArrayContainsFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition GENERATE_SERIES =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("GENERATE_SERIES")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(
+                                            logical(LogicalTypeRoot.BIGINT),
+                                            logical(LogicalTypeRoot.BIGINT)),
+                                    sequence(
+                                            logical(LogicalTypeRoot.BIGINT),
+                                            logical(LogicalTypeRoot.BIGINT),
+                                            logical(LogicalTypeRoot.INTEGER))))
+                    .outputTypeStrategy(
+                            nullableIfArgs(explicit(DataTypes.ARRAY(DataTypes.BIGINT()))))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.GenerateSeriesFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
                     .name("$REPLICATE_ROWS$1")

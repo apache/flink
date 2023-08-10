@@ -33,7 +33,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
            'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
            'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date', 'to_timestamp',
-           'convert_tz', 'unix_timestamp']
+           'convert_tz', 'unix_timestamp', 'generate_series']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -722,6 +722,19 @@ def json_string(value) -> Expression:
         >>> json_string([1, 2])          # '[1,2]'
     """
     return _unary_op("jsonString", value)
+
+
+def generate_series(start, end, step=None) -> Expression:
+    """
+    Returns an array of values between start and end, inclusive.
+    Parameters start and end can be an INT or BIGINT.
+    Step, if supplied, specifies the step size. The step can be positive or negative.
+    If not supplied, step defaults to 1. Parameter step must be an INT.
+    """
+    if step is None:
+        return _binary_op("generateSeries", start, end)
+    else:
+        return _ternary_op("generateSeries", start, end, step)
 
 
 def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:

@@ -631,6 +631,9 @@ collection:
   - sql: ARRAY_CONTAINS(haystack, needle)
     table: haystack.arrayContains(needle)
     description: Returns whether the given element exists in an array. Checking for null elements in the array is supported. If the array itself is null, the function will return null. The given element is cast implicitly to the array's element type if necessary.
+  - sql: GENERATE_SERIES(start, end[, step])
+    table: generateSeries(start, end[, step])
+    description: Returns an array of values between start and end, inclusive. Parameters start and end can be an INT or BIGINT. Step, if supplied, specifies the step size. The step can be positive or negative. If not supplied, step defaults to 1. Parameter step must be an INT.
 
 json:
   - sql: IS JSON [ { VALUE | SCALAR | ARRAY | OBJECT } ]
