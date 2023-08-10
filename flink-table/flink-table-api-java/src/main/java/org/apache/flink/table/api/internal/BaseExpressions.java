@@ -55,7 +55,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_CONTAINS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_ELEMENT;
-import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_EXCEPT;
+import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ARRAY_INTERSECT;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASCII;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ASIN;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.AT;
@@ -217,13 +217,14 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Return an array of the elements in array1 but not in array2, without duplicates
+     * Returns an array of the elements in the intersection of array1 and array2, without
+     * duplicates.
      *
-     * <p>If array1 is null, the function will return null.
+     * <p>If one of the array is null, the function will return null.
      */
-    public OutType arrayExcept(InType array) {
+    public OutType arrayIntersect(InType array) {
         return toApiSpecificExpression(
-                unresolvedCall(ARRAY_EXCEPT, toExpr(), objectToExpression(array)));
+                unresolvedCall(ARRAY_INTERSECT, toExpr(), objectToExpression(array)));
     }
 
     /**

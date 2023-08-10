@@ -1480,12 +1480,12 @@ class Expression(Generic[T]):
         """
         return _binary_op("arrayContains")(self, needle)
 
-    def array_except(self, array) -> 'Expression':
+    def array_intersect(self, array) -> 'Expression':
         """
-        Returns an array of the elements in array1 but not in array2, without duplicates.
-        If array1 is null, the function will return null.
+        Returns an array of the elements in the intersection of array1 and array2, without
+        duplicates. If any of the array is null, the function will return null.
         """
-        return _binary_op("arrayExcept")(self, array)
+        return _binary_op("arrayIntersect")(self, array)
 
     # ---------------------------- time definition functions -----------------------------
 

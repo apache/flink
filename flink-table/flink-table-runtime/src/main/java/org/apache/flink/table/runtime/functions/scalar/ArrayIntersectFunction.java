@@ -40,48 +40,47 @@ import java.util.Set;
 
 import static org.apache.flink.table.api.Expressions.$;
 
-/** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_EXCEPT}. */
+/** Implementation of {@link BuiltInFunctionDefinitions#ARRAY_INTERSECT}. */
 @Internal
-public class ArrayExceptFunction extends BuiltInScalarFunction {
+public class ArrayIntersectFunction extends BuiltInScalarFunction {
     private final ArrayData.ElementGetter elementGetter;
-    private final SpecializedFunction.ExpressionEvaluator containsEvaluator;
-    private transient MethodHandle containsHandle;
+    private final SpecializedFunction.ExpressionEvaluator intersectEvaluator;
+    private transient MethodHandle intersectHandle;
 
-    public ArrayExceptFunction(SpecializedFunction.SpecializedContext context) {
-        super(BuiltInFunctionDefinitions.ARRAY_EXCEPT, context);
+    public ArrayIntersectFunction(SpecializedFunction.SpecializedContext context) {
+        super(BuiltInFunctionDefinitions.ARRAY_INTERSECT, context);
         final DataType dataType =
                 ((CollectionDataType) context.getCallContext().getArgumentDataTypes().get(0))
                         .getElementDataType();
         elementGetter = ArrayData.createElementGetter(dataType.getLogicalType());
-        containsEvaluator =
+        intersectEvaluator =
                 context.createEvaluator(
                         Expressions.call("$HASHCODE$1", $("element1")),
-                        DataTypes.INT(),
+                        DataTypes.INT().notNull(),
                         DataTypes.FIELD("element1", dataType.notNull().toInternal()));
     }
 
     @Override
     public void open(FunctionContext context) throws Exception {
-        containsHandle = containsEvaluator.open(context);
+        intersectHandle = intersectEvaluator.open(context);
     }
 
-    public @Nullable ArrayData eval(ArrayData arrayOne, ArrayData arrayTwo) {
+    public @Nullable ArrayData eval(ArrayData array1, ArrayData array2) {
         try {
-            if (arrayOne == null) {
+            if (array1 == null || array2 == null) {
                 return null;
             }
-
             List<Object> list = new ArrayList();
             Set<Integer> seen = new HashSet<>();
 
             boolean isNullPresentInArrayTwo = false;
-            if (arrayTwo != null) {
-                for (int pos = 0; pos < arrayTwo.size(); pos++) {
-                    final Object element = elementGetter.getElementOrNull(arrayTwo, pos);
+            if (array2 != null) {
+                for (int pos = 0; pos < array2.size(); pos++) {
+                    final Object element = elementGetter.getElementOrNull(array2, pos);
                     if (element == null) {
                         isNullPresentInArrayTwo = true;
                     } else {
-                        int hashCode = (int) containsHandle.invoke(element);
+                        int hashCode = (int) intersectHandle.invoke(element);
                         if (!seen.contains(hashCode)) {
                             seen.add(hashCode);
                         }
@@ -89,21 +88,20 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
                 }
             }
             boolean isNullPresentInArrayOne = false;
-            if (arrayOne != null) {
-                for (int pos = 0; pos < arrayOne.size(); pos++) {
-                    final Object element = elementGetter.getElementOrNull(arrayOne, pos);
+            if (array1 != null) {
+                for (int pos = 0; pos < array1.size(); pos++) {
+                    final Object element = elementGetter.getElementOrNull(array1, pos);
                     if (element == null) {
                         isNullPresentInArrayOne = true;
                     } else {
-                        int hashCode = (int) containsHandle.invoke(element);
-                        if (!seen.contains(hashCode)) {
-                            seen.add(hashCode);
+                        int hashCode = (int) intersectHandle.invoke(element);
+                        if (seen.contains(hashCode)) {
                             list.add(element);
                         }
                     }
                 }
             }
-            if (!isNullPresentInArrayTwo && isNullPresentInArrayOne) {
+            if (isNullPresentInArrayTwo && isNullPresentInArrayOne) {
                 list.add(null);
             }
             return new GenericArrayData(list.toArray());
@@ -114,6 +112,6 @@ public class ArrayExceptFunction extends BuiltInScalarFunction {
 
     @Override
     public void close() throws Exception {
-        containsEvaluator.close();
+        intersectEvaluator.close();
     }
 }
