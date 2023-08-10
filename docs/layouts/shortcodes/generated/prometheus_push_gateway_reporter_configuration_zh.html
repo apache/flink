@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>metrics.reporter.prometheus.basicAuth</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>指定PushGateway是否启用HTTP基础认证.</td>
+        </tr>
+        <tr>
             <td><h5>metrics.reporter.prometheus.deleteOnShutdown</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
@@ -39,28 +45,22 @@
             <td>推送运行指标数据时的作业名。</td>
         </tr>
         <tr>
+            <td><h5>metrics.reporter.prometheus.password</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>启用HTTP基础认证的PushGateway的密码.</td>
+        </tr>
+        <tr>
             <td><h5>metrics.reporter.prometheus.randomJobNameSuffix</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>是否在作业名后添加一个随机后缀。</td>
         </tr>
         <tr>
-            <td><h5>metrics.reporter.prometheus.basicAuth</h5></td>
-            <td style="word-wrap: break-word;">false</td>
-            <td>Boolean</td>
-            <td>指定PushGateway是否启用HTTP基础认证.</td>
-        </tr>
-        <tr>
             <td><h5>metrics.reporter.prometheus.username</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>启用HTTP基础认证的PushGateway的用户名.</td>
-        </tr>
-        <tr>
-            <td><h5>metrics.reporter.prometheus.password</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
-            <td>String</td>
-            <td>启用HTTP基础认证的PushGateway的密码.</td>
         </tr>
     </tbody>
 </table>
