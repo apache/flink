@@ -687,19 +687,24 @@ class YarnClusterDescriptorTest {
         assertThat(archive2.createNewFile()).isTrue();
 
         Configuration flinkConfiguration = new Configuration();
-        flinkConfiguration.set(YarnConfigOptions.SHIP_ARCHIVES,
+        flinkConfiguration.set(
+                YarnConfigOptions.SHIP_ARCHIVES,
                 Arrays.asList(dir1.getAbsolutePath(), archive1.getAbsolutePath()));
-        assertThrows("Directories or non-archive files are included.",
+        assertThrows(
+                "Directories or non-archive files are included.",
                 IllegalArgumentException.class,
                 () -> createYarnClusterDescriptor(flinkConfiguration));
 
-        flinkConfiguration.set(YarnConfigOptions.SHIP_ARCHIVES,
+        flinkConfiguration.set(
+                YarnConfigOptions.SHIP_ARCHIVES,
                 Arrays.asList(file1.getAbsolutePath(), archive1.getAbsolutePath()));
-        assertThrows("Directories or non-archive files are included.",
+        assertThrows(
+                "Directories or non-archive files are included.",
                 IllegalArgumentException.class,
                 () -> createYarnClusterDescriptor(flinkConfiguration));
 
-        flinkConfiguration.set(YarnConfigOptions.SHIP_ARCHIVES,
+        flinkConfiguration.set(
+                YarnConfigOptions.SHIP_ARCHIVES,
                 Arrays.asList(archive1.getAbsolutePath(), archive2.getAbsolutePath()));
         createYarnClusterDescriptor(flinkConfiguration);
     }
