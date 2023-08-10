@@ -678,16 +678,24 @@ class YarnClusterDescriptorTest {
         final File homeFolder =
                 Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString()).toFile();
         File dir1 = new File(homeFolder.getPath(), "dir1");
+        File file1 = new File(homeFolder.getPath(), "file1");
         File archive1 = new File(homeFolder.getPath(), "archive1.zip");
         File archive2 = new File(homeFolder.getPath(), "archive2.zip");
-        assertThat(dir1.createNewFile()).isTrue();
+        assertThat(dir1.mkdirs()).isTrue();
+        assertThat(file1.createNewFile()).isTrue();
         assertThat(archive1.createNewFile()).isTrue();
         assertThat(archive2.createNewFile()).isTrue();
+
         Configuration flinkConfiguration = new Configuration();
         flinkConfiguration.set(YarnConfigOptions.SHIP_ARCHIVES,
                 Arrays.asList(dir1.getAbsolutePath(), archive1.getAbsolutePath()));
+        assertThrows("Directories or non-archive files are included.",
+                IllegalArgumentException.class,
+                () -> createYarnClusterDescriptor(flinkConfiguration));
 
-        assertThrows("Not all files included in shipArchives are archive files.",
+        flinkConfiguration.set(YarnConfigOptions.SHIP_ARCHIVES,
+                Arrays.asList(file1.getAbsolutePath(), archive1.getAbsolutePath()));
+        assertThrows("Directories or non-archive files are included.",
                 IllegalArgumentException.class,
                 () -> createYarnClusterDescriptor(flinkConfiguration));
 

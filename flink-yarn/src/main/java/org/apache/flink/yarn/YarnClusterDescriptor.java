@@ -305,12 +305,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private void addShipArchives(List<File> shipArchives) {
         checkArgument(
                 isArchiveOnlyIncludedInShipArchiveFiles(shipArchives),
-                "Not all files included in shipArchives are archive files.");
+                "Directories or non-archive files are included.");
         this.shipArchives.addAll(shipArchives);
     }
 
     private static boolean isArchiveOnlyIncludedInShipArchiveFiles(List<File> shipFiles) {
-        List<String> shipFileNames = shipFiles.stream()
+        long archivedFileCount = shipFiles.stream()
                 .filter(File::isFile)
                 .map(File::getName)
                 .map(String::toLowerCase)
@@ -322,8 +322,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                                         || name.endsWith(".dst")
                                         || name.endsWith(".jar")
                                         || name.endsWith(".zip"))
-                .collect(Collectors.toList());
-        return shipFileNames.size() == shipFiles.size();
+                .count();
+        return archivedFileCount == shipFiles.size();
     }
 
     private void isReadyForDeployment(ClusterSpecification clusterSpecification) throws Exception {
