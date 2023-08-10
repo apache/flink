@@ -344,6 +344,11 @@ that a sink can still work on common data structures and perform a conversion at
         and consuming them to achieve the purpose of row(s) update.
         </td>
     </tr>
+    <tr>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsStaging.java" name="SupportsStaging" >}}</td>
+        <td>Enables to support atomic semantic for CTAS(CREATE TABLE AS SELECT) or RTAS([CREATE OR] REPLACE TABLE AS SELECT) in a <code>DynamicTableSink</code>. The table sink is responsible for returning <code>StagedTable</code> object that provides atomic semantics.
+        </td>
+    </tr>
     </tbody>
 </table>
 

@@ -547,14 +547,20 @@ CREATE TABLE my_ctas_table (
 INSERT INTO my_ctas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
-**注意** CTAS 有如下约束：
+**注意：** CTAS 有如下约束：
 * 暂不支持创建临时表。
 * 暂不支持指定列信息。
 * 暂不支持指定 Watermark。
 * 暂不支持创建分区表。
 * 暂不支持主键约束。
 
-**注意** 目前，CTAS 创建的目标表是非原子性的，如果在向表中插入数据时发生错误，该表不会被自动删除。
+**注意：** 默认情况下，CTAS 是非原子性的，这意味着如果在向表中插入数据时发生错误，该表不会被自动删除。
+
+#### 原子性
+
+如果要启用 CTAS 的原子性，则应确保：
+* 对应的 Connector sink 已经实现了 CTAS 的原子性语义，你可能需要阅读对应 Connector 的文档看是否已经支持了原子性语义。如果开发者想要实现原子性语义，请参考文档 [SupportsStaging]({{< ref "docs/dev/table/sourcesSinks" >}}#sink-abilities)。
+* 设置配置项 [table.rtas-ctas.atomicity-enabled]({{< ref "docs/dev/table/config" >}}#table-rtas-ctas-atomicity-enabled) 为 `true`。
 
 {{< top >}}
 
@@ -566,7 +572,7 @@ WITH (key1=val1, key2=val2, ...)
 AS select_query
 ```
 
-**注意** RTAS 有如下语义:
+**注意：** RTAS 有如下语义:
 * REPLACE TABLE AS SELECT 语句：要被替换的目标表必须存在，否则会报错。
 * CREATE OR REPLACE TABLE AS SELECT 语句：要被替换的目标表如果不存在，引擎会自动创建；如果存在的话，引擎就直接替换它。
 
@@ -601,12 +607,20 @@ CREATE TABLE my_rtas_table (
 INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 10) = 0;
 ```
 
-**注意** RTAS 有如下约束：
+**注意：** RTAS 有如下约束：
 * 暂不支持替换临时表。
 * 暂不支持指定列信息。
 * 暂不支持指定 Watermark。
 * 暂不支持创建分区表。
 * 暂不支持主键约束。
+
+**注意：** 默认情况下，RTAS 是非原子性的，这意味着如果在向表中插入数据时发生错误，该表不会被自动删除或还原成原来的表。
+
+### 原子性
+
+如果要启用 RTAS 的原子性，则应确保：
+* 对应的 Connector sink 已经实现了 RTAS 的原子性语义，你可能需要阅读对应 Connector 的文档看是否已经支持了原子性语义。如果开发者想要实现原子性语义，请参考文档 [SupportsStaging]({{< ref "docs/dev/table/sourcesSinks" >}}#sink-abilities)。
+* 设置配置项 [table.rtas-ctas.atomicity-enabled]({{< ref "docs/dev/table/config" >}}#table-rtas-ctas-atomicity-enabled) 为 `true`。
 
 {{< top >}}
 
