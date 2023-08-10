@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable, TableSourceTable}
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions
@@ -174,6 +175,13 @@ class FlinkRelMdHandlerTestBase {
     createTableSourceTable(ImmutableList.of("TableSourceTable1"), batchPhysicalTraits)
   protected lazy val tableSourceTableStreamScan: StreamPhysicalDataStreamScan =
     createTableSourceTable(ImmutableList.of("TableSourceTable1"), streamPhysicalTraits)
+
+  protected lazy val flinkLogicalIntermediateTableScan: FlinkLogicalIntermediateTableScan =
+    createIntermediateScan(streamExchangeById, flinkLogicalTraits, Set(ImmutableBitSet.of(0)))
+  protected lazy val batchPhysicalIntermediateTableScan: BatchPhysicalIntermediateTableScan =
+    createIntermediateScan(batchExchangeById, batchPhysicalTraits, Set(ImmutableBitSet.of(0)))
+  protected lazy val streamPhysicalIntermediateTableScan: StreamPhysicalIntermediateTableScan =
+    createIntermediateScan(streamExchangeById, streamPhysicalTraits, Set(ImmutableBitSet.of(0)))
 
   protected lazy val tablePartiallyProjectedKeyLogicalScan: LogicalTableScan =
     createTableSourceTable(
@@ -3587,6 +3595,35 @@ class FlinkRelMdHandlerTestBase {
           Collections.emptyList[RelHint](),
           table,
           table.getRowType)
+      case _ => throw new TableException(s"Unsupported convention trait: $conventionTrait")
+    }
+    scan.asInstanceOf[T]
+  }
+
+  protected def createIntermediateScan[T](
+      relNode: RelNode,
+      traitSet: RelTraitSet,
+      upsertKeys: util.Set[ImmutableBitSet],
+      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): T = {
+    val intermediateTable =
+      new IntermediateRelTable(Seq(""), relNode, null, false, upsertKeys, statistic)
+
+    val conventionTrait = traitSet.getTrait(ConventionTraitDef.INSTANCE)
+    val scan = conventionTrait match {
+      case FlinkConventions.LOGICAL =>
+        new FlinkLogicalIntermediateTableScan(cluster, traitSet, intermediateTable)
+      case FlinkConventions.BATCH_PHYSICAL =>
+        new BatchPhysicalIntermediateTableScan(
+          cluster,
+          traitSet,
+          intermediateTable,
+          intermediateTable.getRowType)
+      case FlinkConventions.STREAM_PHYSICAL =>
+        new StreamPhysicalIntermediateTableScan(
+          cluster,
+          traitSet,
+          intermediateTable,
+          intermediateTable.getRowType)
       case _ => throw new TableException(s"Unsupported convention trait: $conventionTrait")
     }
     scan.asInstanceOf[T]

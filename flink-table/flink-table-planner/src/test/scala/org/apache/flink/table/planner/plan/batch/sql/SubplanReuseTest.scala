@@ -335,6 +335,52 @@ class SubplanReuseTest extends TableTestBase {
   }
 
   @Test
+  def testSubplanReuseOnSortedView(): Unit = {
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE Source (
+                               |   a int,
+                               |   b bigint,
+                               |   c string,
+                               |   d string,
+                               |   e string
+                               |) WITH (
+                               |   'connector' = 'values',
+                               |   'bounded' = 'true'
+                               |)
+                               |""".stripMargin)
+    val query = "SELECT * FROM Source order by c"
+    val table = util.tableEnv.sqlQuery(query)
+    // Define a sorted view.
+    util.tableEnv.createTemporaryView("SortedView", table)
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE Sink1 (
+                               |   a int,
+                               |   b bigint,
+                               |   c string
+                               |) WITH (
+                               |   'connector' = 'values',
+                               |   'bounded' = 'true'
+                               |)
+                               |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE Sink2 (
+                               |   a int,
+                               |   b bigint,
+                               |   c string,
+                               |   d string
+                               |) WITH (
+                               |   'connector' = 'values',
+                               |   'bounded' = 'true'
+                               |)
+                               |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO Sink1 select a, b, listagg(d) from SortedView group by a, b")
+    stmtSet.addInsertSql("INSERT INTO Sink2 select a, b, c, d from SortedView")
+
+    util.verifyExecPlan(stmtSet)
+  }
+
+  @Test
   def testSubplanReuseOnOverWindowWithNonDeterministicAggCall(): Unit = {
     // FirstValueAggFunction is not deterministic
     util.addTemporarySystemFunction(

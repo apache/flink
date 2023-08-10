@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSor
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.rel._
-import org.apache.calcite.rel.core.{Calc, Sort, TableScan}
+import org.apache.calcite.rel.core.{Calc, Exchange, Sort, TableScan}
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rex.RexInputRef
 import org.apache.calcite.util.mapping.Mappings
@@ -84,6 +84,18 @@ class FlinkRelMdDistribution private extends MetadataHandler[FlinkDistribution] 
       FlinkRelDistribution.range(sort.getCollation.getFieldCollations)
     } else {
       FlinkRelDistribution.SINGLETON
+    }
+  }
+
+  def flinkDistribution(exchange: Exchange, mq: RelMetadataQuery): FlinkRelDistribution = {
+    val distribution = exchange.getDistribution
+    if (
+      distribution != null &&
+      distribution.getTraitDef.equals(FlinkRelDistributionTraitDef.INSTANCE)
+    ) {
+      distribution.asInstanceOf[FlinkRelDistribution]
+    } else {
+      getFlinkDistribution(exchange)
     }
   }
 

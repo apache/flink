@@ -50,6 +50,14 @@ class FlinkRelMdDistributionTest extends FlinkRelMdHandlerTestBase {
       ImmutableList.of("student"),
       streamPhysicalTraits.replace(distribution01))
     assertEquals(distribution01, mq.flinkDistribution(streamScan))
+
+    // Test intermediate table scan.
+    Array(
+      flinkLogicalIntermediateTableScan,
+      batchPhysicalIntermediateTableScan,
+      streamPhysicalIntermediateTableScan).foreach {
+      scan => assertEquals(scan.getTable.getDistribution, mq.flinkDistribution(scan))
+    }
   }
 
   @Test
