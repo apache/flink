@@ -34,7 +34,9 @@ import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -336,7 +338,7 @@ class CatalogManagerTest {
     }
 
     @Test
-    void testCatalogStore() {
+    void testCatalogStore() throws Exception {
         CatalogStore catalogStore = new GenericInMemoryCatalogStore();
 
         Configuration configuration = new Configuration();
@@ -350,6 +352,7 @@ class CatalogManagerTest {
                 .hasMessageContaining("CatalogStore is not opened yet.");
 
         CatalogManager catalogManager = CatalogManagerMocks.createCatalogManager(catalogStore);
+        catalogStore.storeCatalog("exist_cat", CatalogDescriptor.of("exist_cat", configuration));
 
         catalogManager.createCatalog("cat1", CatalogDescriptor.of("cat1", configuration));
         catalogManager.createCatalog("cat2", CatalogDescriptor.of("cat2", configuration));
@@ -378,6 +381,37 @@ class CatalogManagerTest {
                                         "cat4", CatalogDescriptor.of("cat4", configuration)))
                 .isInstanceOf(CatalogException.class)
                 .hasMessageContaining("Catalog cat4 already exists in initialized catalogs.");
+
+        catalogManager.createDatabase(
+                "exist_cat",
+                "cat_db",
+                new CatalogDatabaseImpl(Collections.emptyMap(), "database for exist_cat"),
+                false);
+        catalogManager.createTable(
+                CatalogTable.of(
+                        Schema.newBuilder().build(),
+                        null,
+                        Collections.emptyList(),
+                        Collections.emptyMap()),
+                ObjectIdentifier.of("exist_cat", "cat_db", "test_table"),
+                false);
+        assertThat(catalogManager.listSchemas("exist_cat"))
+                .isEqualTo(new HashSet<>(Arrays.asList("default", "cat_db")));
+        assertThat(catalogManager.listTables("exist_cat", "cat_db"))
+                .isEqualTo(Collections.singleton("test_table"));
+        catalogManager.setCurrentCatalog("exist_cat");
+        assertThat(catalogManager.listSchemas())
+                .isEqualTo(
+                        new HashSet<>(
+                                Arrays.asList(
+                                        "cat1",
+                                        "cat2",
+                                        "cat3",
+                                        "cat4",
+                                        "default_catalog",
+                                        "exist_cat")));
+        catalogManager.setCurrentDatabase("cat_db");
+        assertThat(catalogManager.listTables()).isEqualTo(Collections.singleton("test_table"));
 
         catalogManager.unregisterCatalog("cat1", false);
         catalogManager.unregisterCatalog("cat2", false);
