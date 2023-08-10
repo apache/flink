@@ -329,6 +329,12 @@ public class ScanReuserUtils {
         TableSourceTable table = scan.tableSourceTable();
         List<String> digest = new ArrayList<>();
         digest.addAll(table.getNames());
+
+        // input should be the first item
+        if (!scan.getInputs().isEmpty()) {
+            digest.add("input=[" + scan.getInputs() + "]");
+        }
+
         if (withoutEscape) {
             digest.addAll(extraDigestsWithoutEscapedAndIgnored(table));
         } else {
