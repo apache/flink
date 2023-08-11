@@ -115,7 +115,7 @@ jobs:
         sudo apt install ./libssl1.0.0_*.deb
       displayName: Prepare E2E run
       condition: not(eq(variables['SKIP'], '1'))
-    - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile.sh
+    - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile_ci.sh
       displayName: Build Flink
       condition: not(eq(variables['SKIP'], '1'))
     - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh ${{parameters.group}}
