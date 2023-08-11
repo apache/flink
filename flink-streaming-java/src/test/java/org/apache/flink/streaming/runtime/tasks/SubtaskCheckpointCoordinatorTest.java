@@ -459,6 +459,7 @@ public class SubtaskCheckpointCoordinatorTest {
             OperatorSnapshotFutures operatorSnapshotResult =
                     new OperatorSnapshotFutures(
                             DoneFuture.of(SnapshotResult.empty()),
+                            DoneFuture.of(SnapshotResult.empty()),
                             rawKeyedStateHandleFuture,
                             DoneFuture.of(SnapshotResult.empty()),
                             DoneFuture.of(SnapshotResult.empty()),

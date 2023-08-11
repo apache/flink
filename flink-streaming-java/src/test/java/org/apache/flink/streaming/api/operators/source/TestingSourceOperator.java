@@ -133,7 +133,7 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                                 new CloseableRegistry());
 
         final StateInitializationContext stateContext =
-                new StateInitializationContextImpl(null, operatorStateStore, null, null, null);
+                new StateInitializationContextImpl(null, operatorStateStore, null, null, null, null);
 
         TestProcessingTimeService timeService = new TestProcessingTimeService();
         timeService.setCurrentTime(Integer.MAX_VALUE); // start somewhere that is not zero

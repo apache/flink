@@ -46,6 +46,7 @@ public class MyAggregator extends AbstractStreamOperator<Tuple2<Integer, Long>>
     private final KeySelector<Integer, Integer> keySelector;
     private ValueState<Long> store;
     private PartitionableListState<Tuple2<Integer, Long>> bundleState;
+    private ValueState<Long> keyedBundleState;
     private long visits = 0;
 
     public MyAggregator(KeySelector<Integer, Integer> keySelector) {
@@ -63,6 +64,9 @@ public class MyAggregator extends AbstractStreamOperator<Tuple2<Integer, Long>>
         store =
                 context.getKeyedStateStore()
                         .getState(new ValueStateDescriptor<>("store", Long.class));
+        keyedBundleState =
+                context.getKeyedStateBufferStore()
+                        .getState(new ValueStateDescriptor<>("buffer", Long.class));
         this.bundle = new HashMap<>();
         bundleState =
                 (PartitionableListState<Tuple2<Integer, Long>>)

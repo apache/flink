@@ -42,6 +42,7 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -436,6 +437,22 @@ public class CheckpointStorageLoaderTest extends TestLogger {
         }
 
         @Override
+        public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+                Environment env,
+                JobID jobID,
+                String operatorIdentifier,
+                TypeSerializer<K> keySerializer,
+                int numberOfKeyGroups,
+                KeyGroupRange keyGroupRange,
+                TaskKvStateRegistry kvStateRegistry,
+                TtlTimeProvider ttlTimeProvider,
+                MetricGroup metricGroup,
+                @NotNull Collection<KeyedStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry) throws IOException {
+            return null;
+        }
+
+        @Override
         public OperatorStateBackend createOperatorStateBackend(
                 Environment env,
                 String operatorIdentifier,
@@ -462,6 +479,22 @@ public class CheckpointStorageLoaderTest extends TestLogger {
                 Collection<KeyedStateHandle> stateHandles,
                 CloseableRegistry cancelStreamRegistry)
                 throws Exception {
+            return null;
+        }
+
+        @Override
+        public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+                Environment env,
+                JobID jobID,
+                String operatorIdentifier,
+                TypeSerializer<K> keySerializer,
+                int numberOfKeyGroups,
+                KeyGroupRange keyGroupRange,
+                TaskKvStateRegistry kvStateRegistry,
+                TtlTimeProvider ttlTimeProvider,
+                MetricGroup metricGroup,
+                @NotNull Collection<KeyedStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry) throws IOException {
             return null;
         }
 

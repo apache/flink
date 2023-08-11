@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.Collection;
 
 /**
@@ -158,6 +159,20 @@ public interface StateBackend extends java.io.Serializable {
                 stateHandles,
                 cancelStreamRegistry);
     }
+
+    public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry)
+            throws IOException;
 
     /**
      * Creates a new {@link OperatorStateBackend} that can be used for storing operator state.

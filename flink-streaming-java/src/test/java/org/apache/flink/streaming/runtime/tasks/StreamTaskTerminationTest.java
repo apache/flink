@@ -84,6 +84,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -291,6 +292,22 @@ public class StreamTaskTerminationTest extends TestLogger {
                 MetricGroup metricGroup,
                 @Nonnull Collection<KeyedStateHandle> stateHandles,
                 CloseableRegistry cancelStreamRegistry) {
+            return null;
+        }
+
+        @Override
+        public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+                Environment env,
+                JobID jobID,
+                String operatorIdentifier,
+                TypeSerializer<K> keySerializer,
+                int numberOfKeyGroups,
+                KeyGroupRange keyGroupRange,
+                TaskKvStateRegistry kvStateRegistry,
+                TtlTimeProvider ttlTimeProvider,
+                MetricGroup metricGroup,
+                @NotNull Collection<KeyedStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry) throws IOException {
             return null;
         }
 

@@ -54,6 +54,8 @@ public interface StreamOperatorStateContext {
      */
     CheckpointableKeyedStateBackend<?> keyedStateBackend();
 
+    CheckpointableKeyedStateBackend<?> keyedStateBuffer();
+
     /**
      * Returns the internal timer service manager for the stream operator. This method returns null
      * for non-keyed operators.

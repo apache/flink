@@ -645,6 +645,7 @@ public class StreamTaskTest {
                         DoneFuture.of(SnapshotResult.empty()),
                         DoneFuture.of(SnapshotResult.empty()),
                         DoneFuture.of(SnapshotResult.empty()),
+                        DoneFuture.of(SnapshotResult.empty()),
                         DoneFuture.of(SnapshotResult.empty()));
 
         final TestingUncaughtExceptionHandler uncaughtExceptionHandler =
@@ -826,6 +827,7 @@ public class StreamTaskTest {
                         checkpointResponder);
 
         KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
+        KeyedStateHandle managedKeyedBufferHandle = mock(KeyedStateHandle.class);
         KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
         OperatorStateHandle managedOperatorStateHandle = mock(OperatorStreamStateHandle.class);
         OperatorStateHandle rawOperatorStateHandle = mock(OperatorStreamStateHandle.class);
@@ -833,6 +835,7 @@ public class StreamTaskTest {
         OperatorSnapshotFutures operatorSnapshotResult =
                 new OperatorSnapshotFutures(
                         DoneFuture.of(SnapshotResult.of(managedKeyedStateHandle)),
+                        DoneFuture.of(SnapshotResult.of(managedKeyedBufferHandle)),
                         DoneFuture.of(SnapshotResult.of(rawKeyedStateHandle)),
                         DoneFuture.of(SnapshotResult.of(managedOperatorStateHandle)),
                         DoneFuture.of(SnapshotResult.of(rawOperatorStateHandle)),
@@ -922,6 +925,7 @@ public class StreamTaskTest {
     void testAsyncCheckpointingConcurrentCloseBeforeAcknowledge() throws Exception {
 
         final TestingKeyedStateHandle managedKeyedStateHandle = new TestingKeyedStateHandle();
+        final TestingKeyedStateHandle managedKeyedBufferHandle = new TestingKeyedStateHandle();
         final TestingKeyedStateHandle rawKeyedStateHandle = new TestingKeyedStateHandle();
         final TestingOperatorStateHandle managedOperatorStateHandle =
                 new TestingOperatorStateHandle();
@@ -932,6 +936,7 @@ public class StreamTaskTest {
         OperatorSnapshotFutures operatorSnapshotResult =
                 new OperatorSnapshotFutures(
                         DoneFuture.of(SnapshotResult.of(managedKeyedStateHandle)),
+                        DoneFuture.of(SnapshotResult.of(managedKeyedBufferHandle)),
                         rawKeyedStateHandleFuture,
                         DoneFuture.of(SnapshotResult.of(managedOperatorStateHandle)),
                         DoneFuture.of(SnapshotResult.of(rawOperatorStateHandle)),
@@ -2333,6 +2338,11 @@ public class StreamTaskTest {
                     @Override
                     public CheckpointableKeyedStateBackend<?> keyedStateBackend() {
                         return controller.keyedStateBackend();
+                    }
+
+                    @Override
+                    public CheckpointableKeyedStateBackend<?> keyedStateBuffer() {
+                        return controller.keyedStateBuffer();
                     }
 
                     @Override

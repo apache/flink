@@ -76,6 +76,8 @@ public class StreamOperatorStateHandlerTest {
         try (CloseableRegistry closeableRegistry = new CloseableRegistry()) {
             RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture =
                     new CancelableFuture<>();
+            RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedBufferManagedFuture =
+                    new CancelableFuture<>();
             RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture =
                     new CancelableFuture<>();
             RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture =
@@ -90,6 +92,7 @@ public class StreamOperatorStateHandlerTest {
             OperatorSnapshotFutures operatorSnapshotResult =
                     new OperatorSnapshotFutures(
                             keyedStateManagedFuture,
+                            keyedBufferManagedFuture,
                             keyedStateRawFuture,
                             operatorStateManagedFuture,
                             operatorStateRawFuture,

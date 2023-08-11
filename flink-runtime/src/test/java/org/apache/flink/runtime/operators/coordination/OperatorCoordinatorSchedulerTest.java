@@ -54,6 +54,7 @@ import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -73,6 +74,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -1045,6 +1047,22 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 @Nonnull Collection<KeyedStateHandle> stateHandles,
                 CloseableRegistry cancelStreamRegistry)
                 throws Exception {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+                Environment env,
+                JobID jobID,
+                String operatorIdentifier,
+                TypeSerializer<K> keySerializer,
+                int numberOfKeyGroups,
+                KeyGroupRange keyGroupRange,
+                TaskKvStateRegistry kvStateRegistry,
+                TtlTimeProvider ttlTimeProvider,
+                MetricGroup metricGroup,
+                @NotNull Collection<KeyedStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry) throws IOException {
             throw new UnsupportedOperationException();
         }
 

@@ -66,6 +66,8 @@ public class OperatorSnapshotFinalizerTest extends TestLogger {
 
         SnapshotResult<KeyedStateHandle> manKeyed =
                 withLocalState(deepDummyCopy(keyedTemplate), deepDummyCopy(keyedTemplate));
+        SnapshotResult<KeyedStateHandle> manBuffered =
+                withLocalState(deepDummyCopy(keyedTemplate), deepDummyCopy(keyedTemplate));
         SnapshotResult<KeyedStateHandle> rawKeyed =
                 withLocalState(deepDummyCopy(keyedTemplate), deepDummyCopy(keyedTemplate));
         SnapshotResult<OperatorStateHandle> manOper =
@@ -84,6 +86,7 @@ public class OperatorSnapshotFinalizerTest extends TestLogger {
         OperatorSnapshotFutures snapshotFutures =
                 new OperatorSnapshotFutures(
                         new PseudoNotDoneFuture<>(manKeyed),
+                        new PseudoNotDoneFuture<>(manBuffered),
                         new PseudoNotDoneFuture<>(rawKeyed),
                         new PseudoNotDoneFuture<>(manOper),
                         new PseudoNotDoneFuture<>(rawOper),

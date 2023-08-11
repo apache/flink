@@ -40,7 +40,7 @@ public class MyJoinSource extends RichParallelSourceFunction<Integer> {
         long div = numValues / numTasks;
         long mod = numValues % numTasks;
         numValuesOnThisTask = mod > taskIdx ? div + 1 : div;
-        numPreGeneratedData = (int) Math.min(Math.max(numValues / 50, 10), 100000000);
+        numPreGeneratedData = (int) Math.min(Math.max(1000000, 10), 100000000);
     }
 
     @Override

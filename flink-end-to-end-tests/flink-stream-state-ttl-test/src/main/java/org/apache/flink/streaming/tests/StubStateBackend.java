@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -72,6 +74,33 @@ final class StubStateBackend implements StateBackend {
             throws Exception {
 
         return backend.createKeyedStateBackend(
+                env,
+                jobID,
+                operatorIdentifier,
+                keySerializer,
+                numberOfKeyGroups,
+                keyGroupRange,
+                kvStateRegistry,
+                this.ttlTimeProvider,
+                metricGroup,
+                stateHandles,
+                cancelStreamRegistry);
+    }
+
+    @Override
+    public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry) throws IOException {
+        return backend.createKeyedStateBuffer(
                 env,
                 jobID,
                 operatorIdentifier,

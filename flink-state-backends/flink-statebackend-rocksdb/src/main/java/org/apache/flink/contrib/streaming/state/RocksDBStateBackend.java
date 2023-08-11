@@ -36,10 +36,15 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
+import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
+import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -338,6 +343,46 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
                 metricGroup,
                 stateHandles,
                 cancelStreamRegistry);
+    }
+
+    @Override
+    public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry)
+            throws IOException {
+
+        TaskStateManager taskStateManager = env.getTaskStateManager();
+        LocalRecoveryConfig localRecoveryConfig = taskStateManager.createLocalRecoveryConfig();
+        HeapPriorityQueueSetFactory priorityQueueSetFactory =
+                new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
+
+        LatencyTrackingStateConfig latencyTrackingStateConfig =
+                latencyTrackingConfigBuilder.setMetricGroup(metricGroup).build();
+        return new HeapKeyedStateBackendBuilder<>(
+                kvStateRegistry,
+                keySerializer,
+                env.getUserCodeClassLoader().asClassLoader(),
+                numberOfKeyGroups,
+                keyGroupRange,
+                env.getExecutionConfig(),
+                ttlTimeProvider,
+                latencyTrackingStateConfig,
+                stateHandles,
+                getCompressionDecorator(env.getExecutionConfig()),
+                localRecoveryConfig,
+                priorityQueueSetFactory,
+                true,
+                cancelStreamRegistry)
+                .build();
     }
 
     @Override

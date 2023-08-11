@@ -80,9 +80,11 @@ public class StreamOperatorStateHandler {
 
     /** Backend for keyed state. This might be empty if we're not on a keyed stream. */
     @Nullable private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
-
+    private final CheckpointableKeyedStateBackend<?> keyedStateBuffer;
     private final CloseableRegistry closeableRegistry;
     @Nullable private final DefaultKeyedStateStore keyedStateStore;
+    private final DefaultKeyedStateStore keyedStateBufferStore;
+
     private final OperatorStateBackend operatorStateBackend;
     private final StreamOperatorStateContext context;
 
@@ -93,12 +95,19 @@ public class StreamOperatorStateHandler {
         this.context = context;
         operatorStateBackend = context.operatorStateBackend();
         keyedStateBackend = context.keyedStateBackend();
+        keyedStateBuffer = context.keyedStateBuffer();
         this.closeableRegistry = closeableRegistry;
 
         if (keyedStateBackend != null) {
             keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, executionConfig);
         } else {
             keyedStateStore = null;
+        }
+
+        if (keyedStateBuffer != null) {
+            keyedStateBufferStore = new DefaultKeyedStateStore(keyedStateBuffer, executionConfig);
+        } else {
+            keyedStateBufferStore = null;
         }
     }
 
@@ -116,6 +125,7 @@ public class StreamOperatorStateHandler {
                             checkpointId.isPresent() ? checkpointId.getAsLong() : null,
                             operatorStateBackend, // access to operator state backend
                             keyedStateStore, // access to keyed state backend
+                            keyedStateBufferStore,
                             keyedStateInputs, // access to keyed state stream
                             operatorStateInputs); // access to operator state stream
 
@@ -140,11 +150,17 @@ public class StreamOperatorStateHandler {
             if (closeableRegistry.unregisterCloseable(keyedStateBackend)) {
                 closer.register(keyedStateBackend);
             }
+            if (closeableRegistry.unregisterCloseable(keyedStateBuffer)) {
+                closer.register(keyedStateBuffer);
+            }
             if (operatorStateBackend != null) {
                 closer.register(operatorStateBackend::dispose);
             }
             if (keyedStateBackend != null) {
                 closer.register(keyedStateBackend::dispose);
+            }
+            if (keyedStateBuffer != null) {
+                closer.register(keyedStateBuffer::dispose);
             }
         }
     }
@@ -221,6 +237,7 @@ public class StreamOperatorStateHandler {
             }
             streamOperator.snapshotState(snapshotContext);
 
+            // TODO: maybe need to include keyed buffer
             snapshotInProgress.setKeyedStateRawFuture(snapshotContext.getKeyedStateStreamFuture());
             snapshotInProgress.setOperatorStateRawFuture(
                     snapshotContext.getOperatorStateStreamFuture());
@@ -244,6 +261,24 @@ public class StreamOperatorStateHandler {
                 } else {
                     snapshotInProgress.setKeyedStateManagedFuture(
                             keyedStateBackend.snapshot(
+                                    checkpointId, timestamp, factory, checkpointOptions));
+                }
+            }
+
+            // TODO: verify correctness
+            if (null != keyedStateBuffer) {
+                if (isCanonicalSavepoint(checkpointOptions.getCheckpointType())) {
+                    SnapshotStrategyRunner<KeyedStateHandle, ? extends FullSnapshotResources<?>>
+                            snapshotRunner =
+                            prepareCanonicalSavepoint(keyedStateBuffer, closeableRegistry);
+
+                    snapshotInProgress.setKeyedBufferManagedFuture(
+                            snapshotRunner.snapshot(
+                                    checkpointId, timestamp, factory, checkpointOptions));
+
+                } else {
+                    snapshotInProgress.setKeyedBufferManagedFuture(
+                            keyedStateBuffer.snapshot(
                                     checkpointId, timestamp, factory, checkpointOptions));
                 }
             }
@@ -300,11 +335,17 @@ public class StreamOperatorStateHandler {
         if (keyedStateBackend instanceof CheckpointListener) {
             ((CheckpointListener) keyedStateBackend).notifyCheckpointComplete(checkpointId);
         }
+        if (keyedStateBuffer instanceof CheckpointListener) {
+            ((CheckpointListener) keyedStateBuffer).notifyCheckpointComplete(checkpointId);
+        }
     }
 
     public void notifyCheckpointAborted(long checkpointId) throws Exception {
         if (keyedStateBackend instanceof CheckpointListener) {
             ((CheckpointListener) keyedStateBackend).notifyCheckpointAborted(checkpointId);
+        }
+        if (keyedStateBuffer instanceof CheckpointListener) {
+            ((CheckpointListener) keyedStateBuffer).notifyCheckpointAborted(checkpointId);
         }
     }
 
@@ -386,6 +427,10 @@ public class StreamOperatorStateHandler {
 
     public Optional<KeyedStateStore> getKeyedStateStore() {
         return Optional.ofNullable(keyedStateStore);
+    }
+
+    public Optional<KeyedStateStore> getKeyedStateBufferStore() {
+        return Optional.ofNullable(keyedStateBufferStore);
     }
 
     /** Custom state handling hooks to be invoked by {@link StreamOperatorStateHandler}. */

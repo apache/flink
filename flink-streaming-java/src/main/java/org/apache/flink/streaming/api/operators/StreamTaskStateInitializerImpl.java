@@ -154,6 +154,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                 taskStateManager.prioritizedOperatorState(operatorID);
 
         CheckpointableKeyedStateBackend<?> keyedStatedBackend = null;
+        CheckpointableKeyedStateBackend<?> keyedStateBuffer = null;
         OperatorStateBackend operatorStateBackend = null;
         CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs = null;
         CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs = null;
@@ -164,6 +165,15 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             // -------------- Keyed State Backend --------------
             keyedStatedBackend =
                     keyedStatedBackend(
+                            keySerializer,
+                            operatorIdentifierText,
+                            prioritizedOperatorSubtaskStates,
+                            streamTaskCloseableRegistry,
+                            metricGroup,
+                            managedMemoryFraction);
+
+            keyedStateBuffer =
+                    keyedStatedBuffer(
                             keySerializer,
                             operatorIdentifierText,
                             prioritizedOperatorSubtaskStates,
@@ -226,6 +236,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                     prioritizedOperatorSubtaskStates.getRestoredCheckpointId(),
                     operatorStateBackend,
                     keyedStatedBackend,
+                    keyedStateBuffer,
                     timeServiceManager,
                     rawOperatorStateInputs,
                     rawKeyedStateInputs);
@@ -238,6 +249,13 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                 }
                 // release resource (e.g native resource)
                 keyedStatedBackend.dispose();
+            }
+
+            if (keyedStateBuffer != null) {
+                if (streamTaskCloseableRegistry.unregisterCloseable(keyedStateBuffer)) {
+                    IOUtils.closeQuietly(keyedStateBuffer);
+                }
+                keyedStateBuffer.dispose();
             }
 
             if (operatorStateBackend != null) {
@@ -350,6 +368,71 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                                                         managedMemoryFraction),
                                 backendCloseableRegistry,
                                 logDescription);
+
+        try {
+            return backendRestorer.createAndRestore(
+                    prioritizedOperatorSubtaskStates.getPrioritizedManagedKeyedState());
+        } finally {
+            if (backendCloseableRegistry.unregisterCloseable(cancelStreamRegistryForRestore)) {
+                IOUtils.closeQuietly(cancelStreamRegistryForRestore);
+            }
+        }
+    }
+
+    protected <K> CheckpointableKeyedStateBackend<K> keyedStatedBuffer(
+            TypeSerializer<K> keySerializer,
+            String operatorIdentifierText,
+            PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskStates,
+            CloseableRegistry backendCloseableRegistry,
+            MetricGroup metricGroup,
+            double managedMemoryFraction)
+            throws Exception {
+
+        if (keySerializer == null) {
+            return null;
+        }
+
+        String logDescription = "keyed state backend for " + operatorIdentifierText;
+
+        TaskInfo taskInfo = environment.getTaskInfo();
+
+        final KeyGroupRange keyGroupRange =
+                KeyGroupRangeAssignment.computeKeyGroupRangeForOperatorIndex(
+                        taskInfo.getMaxNumberOfParallelSubtasks(),
+                        taskInfo.getNumberOfParallelSubtasks(),
+                        taskInfo.getIndexOfThisSubtask());
+
+        // Now restore processing is included in backend building/constructing process, so we need
+        // to make sure
+        // each stream constructed in restore could also be closed in case of task cancel, for
+        // example the data
+        // input stream opened for serDe during restore.
+        CloseableRegistry cancelStreamRegistryForRestore = new CloseableRegistry();
+        backendCloseableRegistry.registerCloseable(cancelStreamRegistryForRestore);
+        BackendRestorerProcedure<CheckpointableKeyedStateBackend<K>, KeyedStateHandle>
+                backendRestorer =
+                new BackendRestorerProcedure<>(
+                        (stateHandles) ->
+                                loadStateBackendFromKeyedStateHandles(
+                                        stateBackend,
+                                        environment
+                                                .getUserCodeClassLoader()
+                                                .asClassLoader(),
+                                        stateHandles)
+                                        .createKeyedStateBuffer(
+                                                environment,
+                                                environment.getJobID(),
+                                                operatorIdentifierText,
+                                                keySerializer,
+                                                taskInfo.getMaxNumberOfParallelSubtasks(),
+                                                keyGroupRange,
+                                                environment.getTaskKvStateRegistry(),
+                                                ttlTimeProvider,
+                                                metricGroup,
+                                                stateHandles,
+                                                cancelStreamRegistryForRestore),
+                        backendCloseableRegistry,
+                        logDescription);
 
         try {
             return backendRestorer.createAndRestore(
@@ -649,6 +732,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
 
         private final OperatorStateBackend operatorStateBackend;
         private final CheckpointableKeyedStateBackend<?> keyedStateBackend;
+        private final CheckpointableKeyedStateBackend<?> keyedStateBuffer;
         private final InternalTimeServiceManager<?> internalTimeServiceManager;
 
         private final CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs;
@@ -658,6 +742,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                 @Nullable Long restoredCheckpointId,
                 OperatorStateBackend operatorStateBackend,
                 CheckpointableKeyedStateBackend<?> keyedStateBackend,
+                CheckpointableKeyedStateBackend<?> keyedStateBuffer,
                 InternalTimeServiceManager<?> internalTimeServiceManager,
                 CloseableIterable<StatePartitionStreamProvider> rawOperatorStateInputs,
                 CloseableIterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs) {
@@ -665,6 +750,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             this.restoredCheckpointId = restoredCheckpointId;
             this.operatorStateBackend = operatorStateBackend;
             this.keyedStateBackend = keyedStateBackend;
+            this.keyedStateBuffer = keyedStateBuffer;
             this.internalTimeServiceManager = internalTimeServiceManager;
             this.rawOperatorStateInputs = rawOperatorStateInputs;
             this.rawKeyedStateInputs = rawKeyedStateInputs;
@@ -680,6 +766,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         @Override
         public CheckpointableKeyedStateBackend<?> keyedStateBackend() {
             return keyedStateBackend;
+        }
+
+        @Override
+        public CheckpointableKeyedStateBackend<?> keyedStateBuffer() {
+            return keyedStateBuffer;
         }
 
         @Override

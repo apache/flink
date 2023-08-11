@@ -584,6 +584,33 @@ public class FsStateBackend extends AbstractFileStateBackend implements Configur
     }
 
     @Override
+    public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry) throws IOException {
+        return createKeyedStateBackend(
+                env,
+                jobID,
+                operatorIdentifier,
+                keySerializer,
+                numberOfKeyGroups,
+                keyGroupRange,
+                kvStateRegistry,
+                ttlTimeProvider,
+                metricGroup,
+                stateHandles,
+                cancelStreamRegistry);
+    }
+
+    @Override
     public OperatorStateBackend createOperatorStateBackend(
             Environment env,
             String operatorIdentifier,

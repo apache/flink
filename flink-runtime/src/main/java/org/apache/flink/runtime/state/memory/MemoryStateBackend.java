@@ -132,7 +132,7 @@ public class MemoryStateBackend extends AbstractFileStateBackend
     private static final long serialVersionUID = 4109305377809414635L;
 
     /** The default maximal size that the snapshotted memory state may have (5 MiBytes). */
-    public static final int DEFAULT_MAX_STATE_SIZE = 5 * 1024 * 1024;
+    public static final int DEFAULT_MAX_STATE_SIZE = 20 * 1024 * 1024;
 
     /** The maximal size that the snapshotted memory state may have. */
     private final int maxStateSize;
@@ -382,6 +382,33 @@ public class MemoryStateBackend extends AbstractFileStateBackend
                         isUsingAsynchronousSnapshots(),
                         cancelStreamRegistry)
                 .build();
+    }
+
+    @Override
+    public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry) throws IOException {
+        return createKeyedStateBackend(
+                env,
+                jobID,
+                operatorIdentifier,
+                keySerializer,
+                numberOfKeyGroups,
+                keyGroupRange,
+                kvStateRegistry,
+                ttlTimeProvider,
+                metricGroup,
+                stateHandles,
+                cancelStreamRegistry);
     }
 
     // ------------------------------------------------------------------------

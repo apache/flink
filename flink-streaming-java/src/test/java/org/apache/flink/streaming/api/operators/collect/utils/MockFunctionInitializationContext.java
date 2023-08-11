@@ -50,4 +50,9 @@ public class MockFunctionInitializationContext implements FunctionInitialization
     public KeyedStateStore getKeyedStateStore() {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public KeyedStateStore getKeyedStateBufferStore() {
+        throw new UnsupportedOperationException();
+    }
 }

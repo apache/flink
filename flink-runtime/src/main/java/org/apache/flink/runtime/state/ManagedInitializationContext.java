@@ -51,4 +51,6 @@ public interface ManagedInitializationContext {
 
     /** Returns an interface that allows for registering keyed state with the backend. */
     KeyedStateStore getKeyedStateStore();
+
+    KeyedStateStore getKeyedStateBufferStore();
 }

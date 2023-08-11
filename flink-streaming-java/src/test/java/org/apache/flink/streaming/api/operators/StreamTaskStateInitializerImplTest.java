@@ -56,12 +56,14 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.CloseableIterable;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.OptionalLong;
@@ -156,6 +158,22 @@ public class StreamTaskStateInitializerImplTest {
                                     @Nonnull Collection<KeyedStateHandle> stateHandles,
                                     CloseableRegistry cancelStreamRegistry)
                                     throws Exception {
+                                return mock(AbstractKeyedStateBackend.class);
+                            }
+
+                            @Override
+                            public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+                                    Environment env,
+                                    JobID jobID,
+                                    String operatorIdentifier,
+                                    TypeSerializer<K> keySerializer,
+                                    int numberOfKeyGroups,
+                                    KeyGroupRange keyGroupRange,
+                                    TaskKvStateRegistry kvStateRegistry,
+                                    TtlTimeProvider ttlTimeProvider,
+                                    MetricGroup metricGroup,
+                                    @NotNull Collection<KeyedStateHandle> stateHandles,
+                                    CloseableRegistry cancelStreamRegistry) throws IOException {
                                 return mock(AbstractKeyedStateBackend.class);
                             }
 

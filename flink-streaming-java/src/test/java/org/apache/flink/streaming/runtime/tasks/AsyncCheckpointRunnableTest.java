@@ -89,6 +89,7 @@ public class AsyncCheckpointRunnableTest {
                         DoneFuture.of(SnapshotResult.empty()),
                         DoneFuture.of(SnapshotResult.empty()),
                         DoneFuture.of(SnapshotResult.empty()),
+                        DoneFuture.of(SnapshotResult.empty()),
                         DoneFuture.of(SnapshotResult.empty())));
 
         final TestEnvironment environment = new TestEnvironment();
@@ -114,6 +115,7 @@ public class AsyncCheckpointRunnableTest {
         snapshotsInProgress.put(
                 new OperatorID(),
                 new OperatorSnapshotFutures(
+                        DoneFuture.of(SnapshotResult.empty()),
                         DoneFuture.of(SnapshotResult.empty()),
                         DoneFuture.of(SnapshotResult.empty()),
                         DoneFuture.of(SnapshotResult.empty()),

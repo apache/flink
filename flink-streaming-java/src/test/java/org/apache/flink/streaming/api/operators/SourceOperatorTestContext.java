@@ -123,7 +123,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
         // Crate the state context.
         OperatorStateStore operatorStateStore = createOperatorStateStore();
         StateInitializationContext stateContext =
-                new StateInitializationContextImpl(null, operatorStateStore, null, null, null);
+                new StateInitializationContextImpl(null, operatorStateStore, null, null, null, null);
 
         // Update the context.
         stateContext

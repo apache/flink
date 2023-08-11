@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.Collection;
 
 /** A simple {@link StateBackend} which is used in a BATCH style execution. */
@@ -55,6 +57,22 @@ public class BatchExecutionStateBackend implements StateBackend {
             CloseableRegistry cancelStreamRegistry) {
         return new BatchExecutionKeyedStateBackend<>(
                 keySerializer, keyGroupRange, env.getExecutionConfig());
+    }
+
+    @Override
+    public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry) throws IOException {
+        return null;
     }
 
     @Override

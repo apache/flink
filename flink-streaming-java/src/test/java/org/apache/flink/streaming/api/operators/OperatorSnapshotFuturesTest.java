@@ -59,6 +59,7 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
         OperatorSnapshotFutures futures =
                 new OperatorSnapshotFutures(
                         DoneFuture.of(SnapshotResult.of(s1)),
+                        DoneFuture.of(SnapshotResult.empty()),
                         DoneFuture.of(SnapshotResult.of(s2)),
                         DoneFuture.of(SnapshotResult.empty()),
                         ExceptionallyDoneFuture.of(new RuntimeException()),
@@ -121,6 +122,7 @@ public class OperatorSnapshotFuturesTest extends TestLogger {
         operatorSnapshotResult =
                 new OperatorSnapshotFutures(
                         keyedStateManagedFuture,
+                        DoneFuture.of(SnapshotResult.empty()),
                         keyedStateRawFuture,
                         operatorStateManagedFuture,
                         operatorStateRawFuture,

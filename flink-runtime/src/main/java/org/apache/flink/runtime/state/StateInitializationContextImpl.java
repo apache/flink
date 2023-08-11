@@ -35,6 +35,8 @@ public class StateInitializationContextImpl implements StateInitializationContex
 
     private final KeyedStateStore keyedStateStore;
 
+    private final KeyedStateStore keyedStateBufferStore;
+
     private final Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs;
     private final Iterable<StatePartitionStreamProvider> rawOperatorStateInputs;
 
@@ -42,12 +44,14 @@ public class StateInitializationContextImpl implements StateInitializationContex
             @Nullable Long restoredCheckpointId,
             OperatorStateStore operatorStateStore,
             KeyedStateStore keyedStateStore,
+            KeyedStateStore keyedStateBufferStore,
             Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStateInputs,
             Iterable<StatePartitionStreamProvider> rawOperatorStateInputs) {
 
         this.restoredCheckpointId = restoredCheckpointId;
         this.operatorStateStore = operatorStateStore;
         this.keyedStateStore = keyedStateStore;
+        this.keyedStateBufferStore = keyedStateBufferStore;
         this.rawOperatorStateInputs = rawOperatorStateInputs;
         this.rawKeyedStateInputs = rawKeyedStateInputs;
     }
@@ -87,5 +91,10 @@ public class StateInitializationContextImpl implements StateInitializationContex
     @Override
     public KeyedStateStore getKeyedStateStore() {
         return keyedStateStore;
+    }
+
+    @Override
+    public KeyedStateStore getKeyedStateBufferStore() {
+        return keyedStateBufferStore;
     }
 }

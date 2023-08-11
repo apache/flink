@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -125,6 +126,22 @@ public class StateBackendITCase extends AbstractTestBase {
                 @Nonnull Collection<KeyedStateHandle> stateHandles,
                 CloseableRegistry cancelStreamRegistry)
                 throws IOException {
+            throw new SuccessException();
+        }
+
+        @Override
+        public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+                Environment env,
+                JobID jobID,
+                String operatorIdentifier,
+                TypeSerializer<K> keySerializer,
+                int numberOfKeyGroups,
+                KeyGroupRange keyGroupRange,
+                TaskKvStateRegistry kvStateRegistry,
+                TtlTimeProvider ttlTimeProvider,
+                MetricGroup metricGroup,
+                @NotNull Collection<KeyedStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry) throws IOException {
             throw new SuccessException();
         }
 

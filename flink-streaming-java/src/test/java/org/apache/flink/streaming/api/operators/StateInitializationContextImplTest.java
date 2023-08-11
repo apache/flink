@@ -229,6 +229,7 @@ public class StateInitializationContextImplTest {
                         restoredCheckpointId.isPresent() ? restoredCheckpointId.getAsLong() : null,
                         stateContext.operatorStateBackend(),
                         mock(KeyedStateStore.class),
+                        null,
                         stateContext.rawKeyedStateInputs(),
                         stateContext.rawOperatorStateInputs());
     }

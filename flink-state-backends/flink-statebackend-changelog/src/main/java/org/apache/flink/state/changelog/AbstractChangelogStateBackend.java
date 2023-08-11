@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -155,6 +156,23 @@ public abstract class AbstractChangelogStateBackend
                                         baseHandles,
                                         cancelStreamRegistry,
                                         managedMemoryFraction));
+    }
+
+    @Override
+    public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+            Environment env,
+            JobID jobID,
+            String operatorIdentifier,
+            TypeSerializer<K> keySerializer,
+            int numberOfKeyGroups,
+            KeyGroupRange keyGroupRange,
+            TaskKvStateRegistry kvStateRegistry,
+            TtlTimeProvider ttlTimeProvider,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            CloseableRegistry cancelStreamRegistry)
+            throws IOException {
+        return null;
     }
 
     @Override

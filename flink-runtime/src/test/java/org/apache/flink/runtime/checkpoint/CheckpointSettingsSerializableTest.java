@@ -48,6 +48,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -170,6 +171,22 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                 @Nonnull Collection<KeyedStateHandle> stateHandles,
                 CloseableRegistry cancelStreamRegistry)
                 throws Exception {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <K> AbstractKeyedStateBackend<K> createKeyedStateBuffer(
+                Environment env,
+                JobID jobID,
+                String operatorIdentifier,
+                TypeSerializer<K> keySerializer,
+                int numberOfKeyGroups,
+                KeyGroupRange keyGroupRange,
+                TaskKvStateRegistry kvStateRegistry,
+                TtlTimeProvider ttlTimeProvider,
+                MetricGroup metricGroup,
+                @NotNull Collection<KeyedStateHandle> stateHandles,
+                CloseableRegistry cancelStreamRegistry) throws IOException {
             throw new UnsupportedOperationException();
         }
 

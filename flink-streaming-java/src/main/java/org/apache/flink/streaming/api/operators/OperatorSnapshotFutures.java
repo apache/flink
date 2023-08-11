@@ -44,6 +44,8 @@ public class OperatorSnapshotFutures {
 
     @Nonnull private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture;
 
+    @Nonnull private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedBufferManagedFuture;
+
     @Nonnull private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture;
 
     @Nonnull private RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture;
@@ -65,11 +67,13 @@ public class OperatorSnapshotFutures {
                 DoneFuture.of(SnapshotResult.empty()),
                 DoneFuture.of(SnapshotResult.empty()),
                 DoneFuture.of(SnapshotResult.empty()),
+                DoneFuture.of(SnapshotResult.empty()),
                 DoneFuture.of(SnapshotResult.empty()));
     }
 
     public OperatorSnapshotFutures(
             @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture,
+            @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedBufferManagedFuture,
             @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture,
             @Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture,
             @Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture,
@@ -80,6 +84,7 @@ public class OperatorSnapshotFutures {
                     Future<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>
                             resultSubpartitionStateFuture) {
         this.keyedStateManagedFuture = keyedStateManagedFuture;
+        this.keyedBufferManagedFuture = keyedBufferManagedFuture;
         this.keyedStateRawFuture = keyedStateRawFuture;
         this.operatorStateManagedFuture = operatorStateManagedFuture;
         this.operatorStateRawFuture = operatorStateRawFuture;
@@ -95,6 +100,16 @@ public class OperatorSnapshotFutures {
     public void setKeyedStateManagedFuture(
             @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture) {
         this.keyedStateManagedFuture = keyedStateManagedFuture;
+    }
+
+    @Nonnull
+    public RunnableFuture<SnapshotResult<KeyedStateHandle>> getKeyedBufferManagedFuture() {
+        return keyedBufferManagedFuture;
+    }
+
+    public void setKeyedBufferManagedFuture(
+            @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedBufferManagedFuture) {
+        this.keyedBufferManagedFuture = keyedBufferManagedFuture;
     }
 
     @Nonnull
@@ -159,6 +174,7 @@ public class OperatorSnapshotFutures {
     public Tuple2<Long, Long> cancel() throws Exception {
         List<Tuple2<Future<? extends StateObject>, String>> pairs = new ArrayList<>();
         pairs.add(new Tuple2<>(getKeyedStateManagedFuture(), "managed keyed"));
+        pairs.add(new Tuple2<>(getKeyedBufferManagedFuture(), "managed buffered"));
         pairs.add(new Tuple2<>(getKeyedStateRawFuture(), "managed operator"));
         pairs.add(new Tuple2<>(getOperatorStateManagedFuture(), "raw keyed"));
         pairs.add(new Tuple2<>(getOperatorStateRawFuture(), "raw operator"));
@@ -189,6 +205,7 @@ public class OperatorSnapshotFutures {
     public Future<?>[] getAllFutures() {
         return new Future<?>[] {
             keyedStateManagedFuture,
+            keyedBufferManagedFuture,
             keyedStateRawFuture,
             operatorStateManagedFuture,
             operatorStateRawFuture,
