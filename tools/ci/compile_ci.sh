@@ -18,7 +18,7 @@
 ################################################################################
 
 #
-# This file contains tooling for compiling Flink
+# This script is the CI entrypoint for compiling Flink and running QA checks that don't require tests.
 #
 
 CI_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
