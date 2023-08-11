@@ -21,12 +21,10 @@ function run_mvn {
 		MVN_CMD="${M2_HOME}/bin/mvn"
 	fi
 
-	ARGS=$@
-	INVOCATION="$MVN_CMD $MVN_GLOBAL_OPTIONS $ARGS"
 	if [[ "$MVN_RUN_VERBOSE" != "false" ]]; then
-		echo "Invoking mvn with '$INVOCATION'"
+		echo "Invoking mvn with '$MVN_GLOBAL_OPTIONS ${@}'"
 	fi
-	eval $INVOCATION
+	$MVN_CMD $MVN_GLOBAL_OPTIONS "${@}"
 }
 export -f run_mvn
 
