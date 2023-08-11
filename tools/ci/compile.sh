@@ -21,12 +21,7 @@
 # This file contains tooling for compiling Flink
 #
 
-HERE="`dirname \"$0\"`"             # relative
-HERE="`( cd \"$HERE\" && pwd )`"    # absolutized and normalized
-if [ -z "$HERE" ] ; then
-    exit 1  # fail
-fi
-CI_DIR="$HERE/../ci"
+CI_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 MVN_CLEAN_COMPILE_OUT="/tmp/clean_compile.out"
 
 # Deploy into this directory, to run license checks on all jars staged for deployment.
