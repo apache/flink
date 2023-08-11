@@ -20,76 +20,64 @@ package org.apache.flink.runtime.memory;
 
 import org.apache.flink.core.memory.MemorySegment;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 
-import static org.junit.Assert.fail;
-
 /** Validate memory release under concurrent modification exceptions. */
-public class MemoryManagerConcurrentModReleaseTest {
+class MemoryManagerConcurrentModReleaseTest {
 
     @Test
-    public void testConcurrentModificationOnce() {
+    void testConcurrentModificationOnce() throws MemoryAllocationException {
+        final int numSegments = 10000;
+        final int segmentSize = 4096;
+
+        MemoryManager memMan =
+                MemoryManagerBuilder.newBuilder()
+                        .setMemorySize(numSegments * segmentSize)
+                        .setPageSize(segmentSize)
+                        .build();
+
+        ArrayList<MemorySegment> segs = new ListWithConcModExceptionOnFirstAccess<>();
+        memMan.allocatePages(this, segs, numSegments);
+
+        memMan.release(segs);
+    }
+
+    @Test
+    void testConcurrentModificationWhileReleasing() throws Exception {
+        final int numSegments = 10000;
+        final int segmentSize = 4096;
+
+        MemoryManager memMan =
+                MemoryManagerBuilder.newBuilder()
+                        .setMemorySize(numSegments * segmentSize)
+                        .setPageSize(segmentSize)
+                        .build();
+
+        ArrayList<MemorySegment> segs = new ArrayList<>(numSegments);
+        memMan.allocatePages(this, segs, numSegments);
+
+        // start a thread that performs concurrent modifications
+        Modifier mod = new Modifier(segs);
+        Thread modRunner = new Thread(mod);
+        modRunner.start();
+
+        // give the thread some time to start working
+        Thread.sleep(500);
+
         try {
-            final int numSegments = 10000;
-            final int segmentSize = 4096;
-
-            MemoryManager memMan =
-                    MemoryManagerBuilder.newBuilder()
-                            .setMemorySize(numSegments * segmentSize)
-                            .setPageSize(segmentSize)
-                            .build();
-
-            ArrayList<MemorySegment> segs = new ListWithConcModExceptionOnFirstAccess<>();
-            memMan.allocatePages(this, segs, numSegments);
-
             memMan.release(segs);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+        } finally {
+            mod.cancel();
         }
+
+        modRunner.join();
     }
 
-    @Test
-    public void testConcurrentModificationWhileReleasing() {
-        try {
-            final int numSegments = 10000;
-            final int segmentSize = 4096;
-
-            MemoryManager memMan =
-                    MemoryManagerBuilder.newBuilder()
-                            .setMemorySize(numSegments * segmentSize)
-                            .setPageSize(segmentSize)
-                            .build();
-
-            ArrayList<MemorySegment> segs = new ArrayList<>(numSegments);
-            memMan.allocatePages(this, segs, numSegments);
-
-            // start a thread that performs concurrent modifications
-            Modifier mod = new Modifier(segs);
-            Thread modRunner = new Thread(mod);
-            modRunner.start();
-
-            // give the thread some time to start working
-            Thread.sleep(500);
-
-            try {
-                memMan.release(segs);
-            } finally {
-                mod.cancel();
-            }
-
-            modRunner.join();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-    }
-
-    private class Modifier implements Runnable {
+    private static class Modifier implements Runnable {
 
         private final ArrayList<MemorySegment> toModify;
 
@@ -133,7 +121,7 @@ public class MemoryManagerConcurrentModReleaseTest {
         }
     }
 
-    private class ConcFailingIterator<E> implements Iterator<E> {
+    private static class ConcFailingIterator<E> implements Iterator<E> {
 
         @Override
         public boolean hasNext() {
