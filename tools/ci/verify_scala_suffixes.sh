@@ -61,9 +61,7 @@ if [ $EXIT_CODE != 0 ]; then
     exit 1
 fi
 
-cd "${CI_DIR}/flink-ci-tools/" || exit
-
-run_mvn exec:java -Dexec.mainClass=org.apache.flink.tools.ci.suffixcheck.ScalaSuffixChecker -Dexec.args=\""${dependency_plugin_output}" "${FLINK_ROOT}"\"
+run_mvn -pl tools/ci/flink-ci-tools exec:java exec:java -Dexec.mainClass=org.apache.flink.tools.ci.suffixcheck.ScalaSuffixChecker -Dexec.args=\""${dependency_plugin_output}" "${FLINK_ROOT}"\"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE == 0 ]; then
