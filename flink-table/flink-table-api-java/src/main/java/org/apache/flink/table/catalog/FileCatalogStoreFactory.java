@@ -20,42 +20,39 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.factories.CatalogStoreFactory;
-import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.FactoryUtil.FactoryHelper;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.apache.flink.table.catalog.FileCatalogStoreFactoryOptions.CHARSET;
 import static org.apache.flink.table.catalog.FileCatalogStoreFactoryOptions.IDENTIFIER;
 import static org.apache.flink.table.catalog.FileCatalogStoreFactoryOptions.PATH;
 import static org.apache.flink.table.factories.FactoryUtil.createCatalogStoreFactoryHelper;
 
-/** CatalogStore factory for {@link FileCatalogStore}. */
+/** Catalog store factory for {@link FileCatalogStore}. */
 public class FileCatalogStoreFactory implements CatalogStoreFactory {
 
     private String path;
 
-    private String charset;
-
     @Override
     public CatalogStore createCatalogStore() {
-        return new FileCatalogStore(path, charset);
+        return new FileCatalogStore(path);
     }
 
     @Override
-    public void open(Context context) throws CatalogException {
-        FactoryUtil.FactoryHelper factoryHelper = createCatalogStoreFactoryHelper(this, context);
+    public void open(Context context) {
+        FactoryHelper<CatalogStoreFactory> factoryHelper =
+                createCatalogStoreFactoryHelper(this, context);
         factoryHelper.validate();
-        ReadableConfig options = factoryHelper.getOptions();
 
+        ReadableConfig options = factoryHelper.getOptions();
         path = options.get(PATH);
-        charset = options.get(CHARSET);
     }
 
     @Override
-    public void close() throws CatalogException {}
+    public void close() {}
 
     @Override
     public String factoryIdentifier() {
@@ -66,13 +63,12 @@ public class FileCatalogStoreFactory implements CatalogStoreFactory {
     public Set<ConfigOption<?>> requiredOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(PATH);
-        return options;
+
+        return Collections.unmodifiableSet(options);
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(CHARSET);
-        return options;
+        return Collections.emptySet();
     }
 }

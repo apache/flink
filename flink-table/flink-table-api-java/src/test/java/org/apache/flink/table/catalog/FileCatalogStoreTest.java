@@ -20,130 +20,142 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.factories.CatalogStoreFactory;
-import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.util.FileUtils;
 
+import org.assertj.core.api.ThrowableAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.nio.file.Path;
+import java.util.Set;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** Test for {@link FileCatalogStore}. */
-public class FileCatalogStoreTest {
+/** Tests for {@link FileCatalogStore}. */
+class FileCatalogStoreTest {
+
+    private static final String CATALOG_STORE_DIR_NAME = "dummy-catalog-store";
+    private static final String DUMMY = "dummy";
+    private static final CatalogDescriptor DUMMY_CATALOG;
+
+    static {
+        Configuration conf = new Configuration();
+        conf.set(CommonCatalogOptions.CATALOG_TYPE, DUMMY);
+        conf.set(GenericInMemoryCatalogFactoryOptions.DEFAULT_DATABASE, "dummy_db");
+
+        DUMMY_CATALOG = CatalogDescriptor.of(DUMMY, conf);
+    }
+
+    @TempDir private Path tempDir;
+
     @Test
-    void testFileCatalogStoreFactoryDiscovery(@TempDir File tempFolder) {
+    void testNotOpened() {
+        CatalogStore catalogStore = initCatalogStore(false);
 
-        String factoryIdentifier = FileCatalogStoreFactoryOptions.IDENTIFIER;
-        Map<String, String> options = new HashMap<>();
-        options.put("path", tempFolder.getAbsolutePath());
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        final FactoryUtil.DefaultCatalogStoreContext discoveryContext =
-                new FactoryUtil.DefaultCatalogStoreContext(options, null, classLoader);
-        final CatalogStoreFactory factory =
-                FactoryUtil.discoverFactory(
-                        classLoader, CatalogStoreFactory.class, factoryIdentifier);
-        factory.open(discoveryContext);
-
-        CatalogStore catalogStore = factory.createCatalogStore();
-        assertThat(catalogStore instanceof FileCatalogStore).isTrue();
-
-        factory.close();
+        assertCatalogStoreNotOpened(catalogStore::listCatalogs);
+        assertCatalogStoreNotOpened(() -> catalogStore.contains(DUMMY));
+        assertCatalogStoreNotOpened(() -> catalogStore.getCatalog(DUMMY));
+        assertCatalogStoreNotOpened(() -> catalogStore.storeCatalog(DUMMY, DUMMY_CATALOG));
+        assertCatalogStoreNotOpened(() -> catalogStore.removeCatalog(DUMMY, true));
     }
 
     @Test
-    void testFileCatalogStoreSaveAndRead(@TempDir File tempFolder) throws IOException {
-        CatalogStore catalogStore = new FileCatalogStore(tempFolder.getAbsolutePath(), "utf-8");
-        catalogStore.open();
+    void testStoreDirNotExists() {
+        CatalogStore catalogStore = initCatalogStore(false);
+        Path catalogStorePath = tempDir.resolve(CATALOG_STORE_DIR_NAME);
 
-        Configuration catalogConfiguration = new Configuration();
-        catalogConfiguration.setString("type", "generic_in_memory");
-
-        // store catalog to catalog store
-        catalogStore.storeCatalog("cat1", CatalogDescriptor.of("cat1", catalogConfiguration));
-        catalogStore.storeCatalog("cat2", CatalogDescriptor.of("cat2", catalogConfiguration));
-
-        assertTrue(catalogStore.contains("cat1"));
-        assertTrue(catalogStore.contains("cat2"));
-
-        // check catalog file is right created
-        List<String> files =
-                Arrays.stream(tempFolder.listFiles())
-                        .map(file -> file.getName())
-                        .collect(Collectors.toList());
-        assertTrue(files.contains("cat1.yaml"));
-        assertTrue(files.contains("cat2.yaml"));
-
-        // check file content
-        String yamlPath1 = String.format("%s/%s", tempFolder, "cat1.yaml");
-        String content = FileUtils.readFileUtf8(new File(yamlPath1));
-        assertThat(content).isEqualTo("type: generic_in_memory\n");
-
-        catalogStore.close();
-
-        // create a new FileCatalogStore, check catalog is right loaded.
-        catalogStore = new FileCatalogStore(tempFolder.getAbsolutePath(), "utf-8");
-        catalogStore.open();
-
-        assertTrue(catalogStore.listCatalogs().contains("cat1"));
-        assertTrue(catalogStore.listCatalogs().contains("cat2"));
-
-        // test remove operation.
-        catalogStore.removeCatalog("cat1", false);
-        catalogStore.close();
-
-        catalogStore = new FileCatalogStore(tempFolder.getAbsolutePath(), "utf-8");
-        catalogStore.open();
-        assertFalse(catalogStore.listCatalogs().contains("cat1"));
-        assertTrue(catalogStore.listCatalogs().contains("cat2"));
+        assertThatThrownBy(catalogStore::open)
+                .isInstanceOf(CatalogException.class)
+                .hasMessageContaining(
+                        "Failed to open catalog store. The catalog store directory "
+                                + catalogStorePath
+                                + " does not exist.");
     }
 
     @Test
-    void testInvalidCases(@TempDir File tempFolder) {
-        // test catalog store the catalog already exists.
-        final CatalogStore catalogStore =
-                new FileCatalogStore(tempFolder.getAbsolutePath(), "utf-8");
+    void testStore() {
+        CatalogStore catalogStore = initCatalogStore(true);
         catalogStore.open();
 
-        Configuration catalogConfiguration = new Configuration();
-        catalogConfiguration.setString("type", "generic_in_memory");
+        catalogStore.storeCatalog(DUMMY, DUMMY_CATALOG);
 
-        // store catalog to catalog store
-        catalogStore.storeCatalog("cat1", CatalogDescriptor.of("cat1", catalogConfiguration));
-        assertThatThrownBy(
-                        () ->
-                                catalogStore.storeCatalog(
-                                        "cat1", CatalogDescriptor.of("cat1", catalogConfiguration)))
+        File catalog = getCatalogFile();
+        assertThat(catalog.exists()).isTrue();
+        assertThat(catalog.isFile()).isTrue();
+        assertThat(catalogStore.contains(DUMMY)).isTrue();
+
+        Set<String> storedCatalogs = catalogStore.listCatalogs();
+        assertThat(storedCatalogs.size()).isEqualTo(1);
+        assertThat(storedCatalogs.contains(DUMMY)).isTrue();
+    }
+
+    @Test
+    void testRemoveExisting() {
+        CatalogStore catalogStore = initCatalogStore(true);
+        catalogStore.open();
+
+        catalogStore.storeCatalog(DUMMY, DUMMY_CATALOG);
+        assertThat(catalogStore.listCatalogs().size()).isEqualTo(1);
+
+        catalogStore.removeCatalog(DUMMY, false);
+        assertThat(catalogStore.listCatalogs().size()).isEqualTo(0);
+        assertThat(catalogStore.contains(DUMMY)).isFalse();
+
+        File catalog = getCatalogFile();
+        assertThat(catalog.exists()).isFalse();
+    }
+
+    @Test
+    void testRemoveNonExisting() {
+        CatalogStore catalogStore = initCatalogStore(true);
+        catalogStore.open();
+
+        catalogStore.removeCatalog(DUMMY, true);
+
+        File catalog = getCatalogFile();
+        assertThatThrownBy(() -> catalogStore.removeCatalog(DUMMY, false))
                 .isInstanceOf(CatalogException.class)
-                .hasMessageContaining("Failed to save catalog cat1's configuration to file");
+                .hasMessageContaining(
+                        "Catalog " + DUMMY + "'s store file " + catalog + " does not exist.");
+    }
 
-        // get a no exist catalog
-        assertThat(catalogStore.getCatalog("cat3")).isEmpty();
+    @Test
+    void testClose() {
+        CatalogStore catalogStore = initCatalogStore(true);
+        catalogStore.open();
 
-        // remove a no exist catalog
-        assertThatThrownBy(() -> catalogStore.removeCatalog("cat3", false))
-                .isInstanceOf(CatalogException.class)
-                .hasMessageContaining("Failed to delete catalog cat3's store file");
+        catalogStore.storeCatalog(DUMMY, DUMMY_CATALOG);
+        assertThat(catalogStore.listCatalogs().size()).isEqualTo(1);
 
         catalogStore.close();
 
-        // test unsupported file schema
-        CatalogStore catalogStore2 =
-                new FileCatalogStore("hdfs://namenode:14565/some/path/to/a/file", "utf-8");
-        catalogStore2.open();
-        assertThatThrownBy(() -> catalogStore2.listCatalogs())
-                .isInstanceOf(CatalogException.class)
-                .hasMessageContaining("File catalog store only support local directory");
+        assertCatalogStoreNotOpened(catalogStore::listCatalogs);
+        assertCatalogStoreNotOpened(() -> catalogStore.contains(DUMMY));
+        assertCatalogStoreNotOpened(() -> catalogStore.getCatalog(DUMMY));
+        assertCatalogStoreNotOpened(() -> catalogStore.storeCatalog(DUMMY, DUMMY_CATALOG));
+        assertCatalogStoreNotOpened(() -> catalogStore.removeCatalog(DUMMY, true));
+    }
+
+    private void assertCatalogStoreNotOpened(
+            ThrowableAssert.ThrowingCallable shouldRaiseThrowable) {
+        assertThatThrownBy(shouldRaiseThrowable)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CatalogStore is not opened yet.");
+    }
+
+    private CatalogStore initCatalogStore(boolean createDir) {
+        Path catalogStorePath = tempDir.resolve(CATALOG_STORE_DIR_NAME);
+        if (createDir) {
+            catalogStorePath.toFile().mkdir();
+        }
+
+        return new FileCatalogStore(catalogStorePath.toString());
+    }
+
+    private File getCatalogFile() {
+        return tempDir.resolve(CATALOG_STORE_DIR_NAME)
+                .resolve(DUMMY + FileCatalogStore.FILE_EXTENSION)
+                .toFile();
     }
 }

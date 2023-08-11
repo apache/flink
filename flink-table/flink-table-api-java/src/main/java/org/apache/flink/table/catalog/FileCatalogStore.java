@@ -19,23 +19,26 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.util.FileUtils;
 
-import org.apache.flink.shaded.jackson2.org.yaml.snakeyaml.Yaml;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * A {@link CatalogStore} that stores all catalog configuration to a directory. Configuration of
@@ -46,42 +49,56 @@ public class FileCatalogStore extends AbstractCatalogStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileCatalogStore.class);
 
-    private static final String FILE_EXTENSION = ".yaml";
+    static final String FILE_EXTENSION = ".yaml";
+
+    /** The YAML mapper to use when reading and writing catalog files. */
+    private static final YAMLMapper YAML_MAPPER =
+            new YAMLMapper().disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER);
 
     /** The directory path where catalog configurations will be stored. */
-    private final String catalogStoreDirectory;
-
-    /** The character set to use when reading and writing catalog files. */
-    private final String charset;
-
-    /** The YAML parser to use when reading and writing catalog files. */
-    private final Yaml yaml = new Yaml();
+    private final Path catalogStorePath;
 
     /**
      * Creates a new {@link FileCatalogStore} instance with the specified directory path.
      *
-     * @param catalogStoreDirectory the directory path where catalog configurations will be stored
+     * @param catalogStorePath the directory path where catalog configurations will be stored
      */
-    public FileCatalogStore(String catalogStoreDirectory, String charset) {
-        this.catalogStoreDirectory = catalogStoreDirectory;
-        this.charset = charset;
+    public FileCatalogStore(String catalogStorePath) {
+        this.catalogStorePath = new Path(catalogStorePath);
     }
 
     /**
      * Opens the catalog store and initializes the catalog file map.
      *
-     * @throws CatalogException if the catalog store directory does not exist or if there is an
-     *     error reading the directory
+     * @throws CatalogException if the catalog store directory does not exist, not a directory, or
+     *     if there is an error reading the directory
      */
     @Override
     public void open() throws CatalogException {
-        super.open();
-
         try {
+            FileSystem fs = catalogStorePath.getFileSystem();
+            if (!fs.exists(catalogStorePath)) {
+                throw new CatalogException(
+                        String.format(
+                                "Failed to open catalog store. The catalog store directory %s does not exist.",
+                                catalogStorePath));
+            }
 
-        } catch (Throwable e) {
-            throw new CatalogException("Failed to open file catalog store directory", e);
+            if (!fs.getFileStatus(catalogStorePath).isDir()) {
+                throw new CatalogException(
+                        String.format(
+                                "Failed to open catalog store. The given catalog store path %s is not a directory.",
+                                catalogStorePath));
+            }
+        } catch (CatalogException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new CatalogException(
+                    String.format(
+                            "Failed to open file catalog store directory %s.", catalogStorePath),
+                    e);
         }
+        super.open();
     }
 
     /**
@@ -97,25 +114,29 @@ public class FileCatalogStore extends AbstractCatalogStore {
             throws CatalogException {
         checkOpenState();
 
-        Path filePath = getCatalogPath(catalogName);
+        Path catalogPath = getCatalogPath(catalogName);
         try {
-            File file = filePath.toFile();
-            if (file.exists()) {
+            FileSystem fs = catalogPath.getFileSystem();
+
+            if (fs.exists(catalogPath)) {
                 throw new CatalogException(
                         String.format(
                                 "Catalog %s's store file %s is already exist.",
-                                catalogName, filePath));
+                                catalogName, catalogPath));
             }
-            // create a new file
-            file.createNewFile();
-            String yamlString = yaml.dumpAsMap(catalog.getConfiguration().toMap());
-            FileUtils.writeFile(file, yamlString, charset);
-            LOG.info("Catalog {}'s configuration saved to file {}", catalogName, filePath);
-        } catch (Throwable e) {
+
+            try (FSDataOutputStream os = fs.create(catalogPath, WriteMode.NO_OVERWRITE)) {
+                YAML_MAPPER.writeValue(os, catalog.getConfiguration().toMap());
+            }
+
+            LOG.info("Catalog {}'s configuration saved to file {}", catalogName, catalogPath);
+        } catch (CatalogException e) {
+            throw e;
+        } catch (Exception e) {
             throw new CatalogException(
                     String.format(
-                            "Failed to save catalog %s's configuration to file %s : %s",
-                            catalogName, filePath, e.getMessage()),
+                            "Failed to store catalog %s's configuration to file %s.",
+                            catalogName, catalogPath),
                     e);
         }
     }
@@ -132,31 +153,23 @@ public class FileCatalogStore extends AbstractCatalogStore {
     public void removeCatalog(String catalogName, boolean ignoreIfNotExists)
             throws CatalogException {
         checkOpenState();
-
-        Path path = getCatalogPath(catalogName);
+        Path catalogPath = getCatalogPath(catalogName);
         try {
-            File file = path.toFile();
-            if (file.exists()) {
-                if (!file.isFile()) {
-                    throw new CatalogException(
-                            String.format(
-                                    "Catalog %s's store file %s is not a regular file",
-                                    catalogName, path.getFileName()));
-                }
-                Files.deleteIfExists(path);
-            } else {
-                if (!ignoreIfNotExists) {
-                    throw new CatalogException(
-                            String.format(
-                                    "Catalog %s's store file %s is not exist", catalogName, path));
-                }
+            FileSystem fs = catalogPath.getFileSystem();
+
+            if (fs.exists(catalogPath)) {
+                fs.delete(catalogPath, false);
+            } else if (!ignoreIfNotExists) {
+                throw new CatalogException(
+                        String.format(
+                                "Catalog %s's store file %s does not exist.",
+                                catalogName, catalogPath));
             }
-        } catch (Throwable e) {
+        } catch (CatalogException e) {
+            throw e;
+        } catch (Exception e) {
             throw new CatalogException(
-                    String.format(
-                            "Failed to delete catalog %s's store file: %s",
-                            catalogName, e.getMessage()),
-                    e);
+                    String.format("Failed to remove catalog %s's store file.", catalogName), e);
         }
     }
 
@@ -172,22 +185,28 @@ public class FileCatalogStore extends AbstractCatalogStore {
     @Override
     public Optional<CatalogDescriptor> getCatalog(String catalogName) throws CatalogException {
         checkOpenState();
-
-        Path path = getCatalogPath(catalogName);
+        Path catalogPath = getCatalogPath(catalogName);
         try {
-            File file = path.toFile();
-            if (!file.exists()) {
-                LOG.warn("Catalog {}'s store file %s does not exist.", catalogName, path);
+            FileSystem fs = catalogPath.getFileSystem();
+
+            if (!fs.exists(catalogPath)) {
                 return Optional.empty();
             }
-            String content = FileUtils.readFile(file, charset);
-            Map<String, String> options = yaml.load(content);
-            return Optional.of(CatalogDescriptor.of(catalogName, Configuration.fromMap(options)));
-        } catch (Throwable t) {
+
+            try (FSDataInputStream is = fs.open(catalogPath)) {
+                Map<String, String> configMap =
+                        YAML_MAPPER.readValue(is, new TypeReference<Map<String, String>>() {});
+
+                CatalogDescriptor catalog =
+                        CatalogDescriptor.of(catalogName, Configuration.fromMap(configMap));
+
+                return Optional.of(catalog);
+            }
+        } catch (Exception e) {
             throw new CatalogException(
                     String.format(
-                            "Failed to load catalog %s's configuration from file", catalogName),
-                    t);
+                            "Failed to load catalog %s's configuration from file.", catalogName),
+                    e);
         }
     }
 
@@ -201,8 +220,21 @@ public class FileCatalogStore extends AbstractCatalogStore {
     @Override
     public Set<String> listCatalogs() throws CatalogException {
         checkOpenState();
+        try {
+            FileStatus[] statusArr = catalogStorePath.getFileSystem().listStatus(catalogStorePath);
 
-        return Collections.unmodifiableSet(listAllCatalogFiles().keySet());
+            return Arrays.stream(statusArr)
+                    .filter(status -> !status.isDir())
+                    .map(FileStatus::getPath)
+                    .map(Path::getName)
+                    .map(filename -> filename.replace(FILE_EXTENSION, ""))
+                    .collect(Collectors.toSet());
+        } catch (Exception e) {
+            throw new CatalogException(
+                    String.format(
+                            "Failed to list file catalog store directory %s.", catalogStorePath),
+                    e);
+        }
     }
 
     /**
@@ -216,33 +248,19 @@ public class FileCatalogStore extends AbstractCatalogStore {
     @Override
     public boolean contains(String catalogName) throws CatalogException {
         checkOpenState();
-
-        return listAllCatalogFiles().containsKey(catalogName);
-    }
-
-    private Map<String, Path> listAllCatalogFiles() throws CatalogException {
-        Map<String, Path> files = new HashMap<>();
-        File directoryFile = new File(catalogStoreDirectory);
-        if (!directoryFile.isDirectory()) {
-            throw new CatalogException("File catalog store only support local directory");
-        }
-
+        Path catalogPath = getCatalogPath(catalogName);
         try {
-            Files.list(directoryFile.toPath())
-                    .filter(file -> file.getFileName().toString().endsWith(FILE_EXTENSION))
-                    .filter(Files::isRegularFile)
-                    .forEach(
-                            p ->
-                                    files.put(
-                                            p.getFileName().toString().replace(FILE_EXTENSION, ""),
-                                            p));
-        } catch (Throwable t) {
-            throw new CatalogException("Failed to list file catalog store directory", t);
+            return catalogPath.getFileSystem().exists(catalogPath);
+        } catch (Exception e) {
+            throw new CatalogException(
+                    String.format(
+                            "Failed to check if catalog %s exists in the catalog store.",
+                            catalogName),
+                    e);
         }
-        return files;
     }
 
     private Path getCatalogPath(String catalogName) {
-        return Paths.get(catalogStoreDirectory, catalogName + FILE_EXTENSION);
+        return new Path(catalogStorePath, catalogName + FILE_EXTENSION);
     }
 }
