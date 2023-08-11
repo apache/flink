@@ -23,6 +23,7 @@
 
 CI_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 MVN_CLEAN_COMPILE_OUT="/tmp/clean_compile.out"
+MVN=${MVN:-./mvnw}
 
 # Deploy into this directory, to run license checks on all jars staged for deployment.
 # This helps us ensure that ALL artifacts we deploy to maven central adhere to our license conditions.
@@ -32,10 +33,9 @@ rm -rf ${MVN_VALIDATION_DIR}
 # source required ci scripts
 source "${CI_DIR}/stage.sh"
 source "${CI_DIR}/shade.sh"
-source "${CI_DIR}/maven-utils.sh"
 
 echo "Maven version:"
-run_mvn -version
+$MVN -version
 
 echo "=============================================================================="
 echo "Compiling Flink"
@@ -43,7 +43,7 @@ echo "==========================================================================
 
 EXIT_CODE=0
 
-run_mvn clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence \
+$MVN clean deploy -DaltDeploymentRepository=validation_repository::default::file:$MVN_VALIDATION_DIR -Dflink.convergence.phase=install -Pcheck-convergence \
     -Dmaven.javadoc.skip=true -U -DskipTests | tee $MVN_CLEAN_COMPILE_OUT
 
 EXIT_CODE=${PIPESTATUS[0]}
@@ -92,11 +92,11 @@ fi
 
 echo "============ Checking bundled dependencies marked as optional ============"
 
-MVN=run_mvn ${CI_DIR}/verify_bundled_optional.sh $MVN_CLEAN_COMPILE_OUT || exit $?
+MVN=$MVN ${CI_DIR}/verify_bundled_optional.sh $MVN_CLEAN_COMPILE_OUT || exit $?
 
 echo "============ Checking scala suffixes ============"
 
-MVN=run_mvn ${CI_DIR}/verify_scala_suffixes.sh || exit $?
+MVN=$MVN ${CI_DIR}/verify_scala_suffixes.sh || exit $?
 
 echo "============ Checking shaded dependencies ============"
 
@@ -112,7 +112,7 @@ echo "============ Run license check ============"
 find $MVN_VALIDATION_DIR
 # We use a different Scala version with Java 17
 if [[ ${PROFILE} != *"jdk17"* ]]; then
-  MVN=run_mvn ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $MVN_VALIDATION_DIR || exit $?
+  MVN=$MVN ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $MVN_VALIDATION_DIR || exit $?
 fi
 
 exit $EXIT_CODE
