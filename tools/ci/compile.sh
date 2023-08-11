@@ -18,7 +18,22 @@
 ################################################################################
 
 #
-# This file contains tooling for compiling Flink
+# This script compiles Flink and runs all QA checks apart from tests.
+#
+# This script should not contain any CI-specific logic; put these into compile_ci.sh instead.
+#
+# Usage: [MVN=/path/to/maven] tools/ci/compile.sh [additional maven args]
+# - Use the MVN environment variable to point the script to another maven installation.
+# - Any script argument is forwarded to the Flink maven build. Use it to skip/modify parts of the build process.
+#
+# Tips:
+# - '-Pskip-webui-build' skips the WebUI build.
+# - '-Dfast' skips Maven QA checks.
+# - '-Dmaven.clean.skip' skips recompilation of classes.
+# Example: tools/ci/compile.sh -Dmaven.clean.skip -Dfast -Pskip-webui-build, use -Dmaven.clean.skip to avoid recompiling classes.
+#
+# Warnings:
+# - Skipping modules via '-pl [!]<module>' is not recommended because checks may assume/require a full build.
 #
 
 CI_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
