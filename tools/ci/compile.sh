@@ -97,11 +97,11 @@ fi
 
 echo "============ Checking bundled dependencies marked as optional ============"
 
-${CI_DIR}/verify_bundled_optional.sh $MVN_CLEAN_COMPILE_OUT "$CI_DIR" || exit $?
+MVN=run_mvn ${CI_DIR}/verify_bundled_optional.sh $MVN_CLEAN_COMPILE_OUT || exit $?
 
 echo "============ Checking scala suffixes ============"
 
-${CI_DIR}/verify_scala_suffixes.sh "$CI_DIR" || exit $?
+MVN=run_mvn ${CI_DIR}/verify_scala_suffixes.sh || exit $?
 
 echo "============ Checking shaded dependencies ============"
 
@@ -117,7 +117,7 @@ echo "============ Run license check ============"
 find $MVN_VALIDATION_DIR
 # We use a different Scala version with Java 17
 if [[ ${PROFILE} != *"jdk17"* ]]; then
-  ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $CI_DIR $MVN_VALIDATION_DIR || exit $?
+  MVN=run_mvn ${CI_DIR}/license_check.sh $MVN_CLEAN_COMPILE_OUT $MVN_VALIDATION_DIR || exit $?
 fi
 
 exit $EXIT_CODE
