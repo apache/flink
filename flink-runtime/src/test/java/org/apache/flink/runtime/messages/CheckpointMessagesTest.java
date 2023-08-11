@@ -30,7 +30,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.TestStreamStateHandle;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -44,61 +44,51 @@ import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNew
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for checkpoint messages. */
-public class CheckpointMessagesTest {
+class CheckpointMessagesTest {
 
     @Test
-    public void testConfirmTaskCheckpointed() {
+    void testConfirmTaskCheckpointed() throws Exception {
         final Random rnd = new Random();
-        try {
-            AcknowledgeCheckpoint noState =
-                    new AcknowledgeCheckpoint(new JobID(), createExecutionAttemptId(), 569345L);
+        AcknowledgeCheckpoint noState =
+                new AcknowledgeCheckpoint(new JobID(), createExecutionAttemptId(), 569345L);
 
-            KeyGroupRange keyGroupRange = KeyGroupRange.of(42, 42);
+        KeyGroupRange keyGroupRange = KeyGroupRange.of(42, 42);
 
-            TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
-            OperatorSubtaskState subtaskState =
-                    OperatorSubtaskState.builder()
-                            .setManagedOperatorState(
-                                    generatePartitionableStateHandle(
-                                            new JobVertexID(), 0, 2, 8, false))
-                            .setManagedKeyedState(
-                                    generateKeyGroupState(
-                                            keyGroupRange,
-                                            Collections.singletonList(new MyHandle())))
-                            .setInputChannelState(
-                                    singleton(createNewInputChannelStateHandle(10, rnd)))
-                            .setResultSubpartitionState(
-                                    singleton(createNewResultSubpartitionStateHandle(10, rnd)))
-                            .build();
-            checkpointStateHandles.putSubtaskStateByOperatorID(new OperatorID(), subtaskState);
+        TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
+        OperatorSubtaskState subtaskState =
+                OperatorSubtaskState.builder()
+                        .setManagedOperatorState(
+                                generatePartitionableStateHandle(new JobVertexID(), 0, 2, 8, false))
+                        .setManagedKeyedState(
+                                generateKeyGroupState(
+                                        keyGroupRange, Collections.singletonList(new MyHandle())))
+                        .setInputChannelState(singleton(createNewInputChannelStateHandle(10, rnd)))
+                        .setResultSubpartitionState(
+                                singleton(createNewResultSubpartitionStateHandle(10, rnd)))
+                        .build();
+        checkpointStateHandles.putSubtaskStateByOperatorID(new OperatorID(), subtaskState);
 
-            AcknowledgeCheckpoint withState =
-                    new AcknowledgeCheckpoint(
-                            new JobID(),
-                            createExecutionAttemptId(),
-                            87658976143L,
-                            new CheckpointMetrics(),
-                            checkpointStateHandles);
+        AcknowledgeCheckpoint withState =
+                new AcknowledgeCheckpoint(
+                        new JobID(),
+                        createExecutionAttemptId(),
+                        87658976143L,
+                        new CheckpointMetrics(),
+                        checkpointStateHandles);
 
-            testSerializabilityEqualsHashCode(noState);
-            testSerializabilityEqualsHashCode(withState);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        testSerializabilityEqualsHashCode(noState);
+        testSerializabilityEqualsHashCode(withState);
     }
 
     private static void testSerializabilityEqualsHashCode(Serializable o) throws IOException {
         Object copy = CommonTestUtils.createCopySerializable(o);
-        assertEquals(o, copy);
-        assertEquals(o.hashCode(), copy.hashCode());
-        assertNotNull(o.toString());
-        assertNotNull(copy.toString());
+        assertThat(copy).isEqualTo(o);
+        assertThat(copy).hasSameHashCodeAs(o);
+        assertThat(o).asString().isNotNull();
+        assertThat(copy).asString().isNotNull();
     }
 
     private static class MyHandle implements TestStreamStateHandle {
