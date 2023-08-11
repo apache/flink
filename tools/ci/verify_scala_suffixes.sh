@@ -37,17 +37,15 @@
 #
 # The script uses 'mvn dependency:tree -Dincludes=org.scala-lang' to list Scala
 # dependent modules.
-CI_DIR=$1
+MVN=${MVN:-./mvnw}
 
 echo "--- Flink Scala Dependency Analyzer ---"
 echo "Analyzing modules for Scala dependencies using 'mvn dependency:tree'."
 echo "If you haven't built the project, please do so first by running \"mvn clean install -DskipTests\""
 
-source "${CI_DIR}/maven-utils.sh"
-
 dependency_plugin_output=/tmp/dep.txt
 
-run_mvn dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} > "${dependency_plugin_output}"
+$MVN dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} > "${dependency_plugin_output}"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE != 0 ]; then
@@ -58,7 +56,7 @@ if [ $EXIT_CODE != 0 ]; then
     exit 1
 fi
 
-run_mvn -pl tools/ci/flink-ci-tools exec:java exec:java -Dexec.mainClass=org.apache.flink.tools.ci.suffixcheck.ScalaSuffixChecker -Dexec.args="${dependency_plugin_output} $(pwd)"
+$MVN -pl tools/ci/flink-ci-tools exec:java exec:java -Dexec.mainClass=org.apache.flink.tools.ci.suffixcheck.ScalaSuffixChecker -Dexec.args="${dependency_plugin_output} $(pwd)"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE == 0 ]; then

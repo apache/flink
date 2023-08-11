@@ -19,17 +19,16 @@
 
 ## Checks that all bundled dependencies are marked as optional in the poms
 MVN_CLEAN_COMPILE_OUT=$1
-CI_DIR=$2
 
-source "${CI_DIR}/maven-utils.sh"
+MVN=${MVN:-./mvnw}
 
 dependency_plugin_output=/tmp/optional_dep.txt
 
-run_mvn dependency:tree -B > "${dependency_plugin_output}"
+$MVN dependency:tree -B > "${dependency_plugin_output}"
 
 cat "${dependency_plugin_output}"
 
-run_mvn -pl tools/ci/flink-ci-tools exec:java -Dexec.mainClass=org.apache.flink.tools.ci.optional.ShadeOptionalChecker -Dexec.args="${MVN_CLEAN_COMPILE_OUT} ${dependency_plugin_output}"
+$MVN -pl tools/ci/flink-ci-tools exec:java -Dexec.mainClass=org.apache.flink.tools.ci.optional.ShadeOptionalChecker -Dexec.args="${MVN_CLEAN_COMPILE_OUT} ${dependency_plugin_output}"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE != 0 ]; then
