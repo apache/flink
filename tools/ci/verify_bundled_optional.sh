@@ -20,11 +20,8 @@
 ## Checks that all bundled dependencies are marked as optional in the poms
 MVN_CLEAN_COMPILE_OUT=$1
 CI_DIR=$2
-FLINK_ROOT=$3
 
 source "${CI_DIR}/maven-utils.sh"
-
-cd "$FLINK_ROOT" || exit
 
 dependency_plugin_output=/tmp/optional_dep.txt
 
