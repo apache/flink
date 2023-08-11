@@ -48,7 +48,7 @@ source "${CI_DIR}/maven-utils.sh"
 
 cd "$FLINK_ROOT" || exit
 
-dependency_plugin_output=${CI_DIR}/dep.txt
+dependency_plugin_output=/tmp/dep.txt
 
 run_mvn dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} > "${dependency_plugin_output}"
 EXIT_CODE=$?

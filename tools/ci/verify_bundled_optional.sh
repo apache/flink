@@ -26,7 +26,7 @@ source "${CI_DIR}/maven-utils.sh"
 
 cd "$FLINK_ROOT" || exit
 
-dependency_plugin_output=${CI_DIR}/optional_dep.txt
+dependency_plugin_output=/tmp/optional_dep.txt
 
 run_mvn dependency:tree -B > "${dependency_plugin_output}"
 

@@ -70,24 +70,28 @@ fi
 
 echo "============ Checking Javadocs ============"
 
+javadoc_output=/tmp/javadoc.out
+
 # use the same invocation as .github/workflows/docs.sh
-run_mvn javadoc:aggregate -DadditionalJOption='-Xdoclint:none' \
+$MVN javadoc:aggregate -DadditionalJOption='-Xdoclint:none' \
       -Dmaven.javadoc.failOnError=false -Dcheckstyle.skip=true -Denforcer.skip=true -Dspotless.skip=true -Drat.skip=true \
-      -Dheader=someTestHeader > javadoc.out
+      -Dheader=someTestHeader > ${javadoc_output}
 EXIT_CODE=$?
 if [ $EXIT_CODE != 0 ] ; then
   echo "ERROR in Javadocs. Printing full output:"
-  cat javadoc.out ; rm javadoc.out
+  cat ${javadoc_output}
   exit $EXIT_CODE
 fi
 
 echo "============ Checking Scaladocs ============"
 
-run_mvn scala:doc -Dcheckstyle.skip=true -Denforcer.skip=true -Dspotless.skip=true -pl flink-scala 2> scaladoc.out
+scaladoc_output=/tmp/scaladoc.out
+
+$MVN scala:doc -Dcheckstyle.skip=true -Denforcer.skip=true -Dspotless.skip=true -pl flink-scala 2> ${scaladoc_output}
 EXIT_CODE=$?
 if [ $EXIT_CODE != 0 ] ; then
   echo "ERROR in Scaladocs. Printing full output:"
-  cat scaladoc.out ; rm scaladoc.out
+  cat ${scaladoc_output}
   exit $EXIT_CODE
 fi
 
