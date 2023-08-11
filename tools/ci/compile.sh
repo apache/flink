@@ -32,6 +32,7 @@ MVN_CLEAN_COMPILE_OUT="/tmp/clean_compile.out"
 # Deploy into this directory, to run license checks on all jars staged for deployment.
 # This helps us ensure that ALL artifacts we deploy to maven central adhere to our license conditions.
 MVN_VALIDATION_DIR="/tmp/flink-validation-deployment"
+rm -rf ${MVN_VALIDATION_DIR}
 
 # source required ci scripts
 source "${CI_DIR}/stage.sh"

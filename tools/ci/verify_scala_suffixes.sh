@@ -50,7 +50,7 @@ cd "$FLINK_ROOT" || exit
 
 dependency_plugin_output=${CI_DIR}/dep.txt
 
-run_mvn dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} >> "${dependency_plugin_output}"
+run_mvn dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} > "${dependency_plugin_output}"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE != 0 ]; then
