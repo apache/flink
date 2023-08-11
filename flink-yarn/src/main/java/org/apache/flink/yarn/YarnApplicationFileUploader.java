@@ -379,7 +379,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
                 });
 
         // Construct classpath where resource directories go first followed
-        // by resource files. We also sort both resources and resource directories in
+        // by resource files. Sort both resources and resource directories in
         // order to make classpath deterministic.
         resourcesDir.stream().sorted().forEach(classPaths::add);
         resources.stream().sorted().forEach(classPaths::add);

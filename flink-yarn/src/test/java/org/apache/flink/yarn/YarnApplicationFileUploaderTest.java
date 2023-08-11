@@ -37,7 +37,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -90,17 +89,7 @@ class YarnApplicationFileUploaderTest {
                         DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
 
             List<String> classPath = yarnApplicationFileUploader.registerProvidedLocalResources();
-
-            Set<String> expectedClassPathEntries = new HashSet<>();
-            Set<String> resources = new HashSet<>();
-            Set<String> resourcesDir = new HashSet<>();
-            for (String filePath : filesWithParentDir.keySet()) {
-                String parentDir = new Path(filePath).getParent().toString();
-                resourcesDir.add(parentDir);
-                resources.add(filePath);
-            }
-            resourcesDir.stream().sorted().forEach(expectedClassPathEntries::add);
-            resources.stream().sorted().forEach(expectedClassPathEntries::add);
+            List<String> expectedClassPathEntries = getExpectedClassPathWithParentDir();
 
             assertThat(classPath).containsExactlyInAnyOrderElementsOf(expectedClassPathEntries);
         }
@@ -184,6 +173,14 @@ class YarnApplicationFileUploaderTest {
         filesWithParentDir.put("conf/ivysettings.xml", xmlContent);
 
         return filesWithParentDir;
+    }
+
+    private static List<String> getExpectedClassPathWithParentDir() {
+        List<String> expectedClassPathEntries = new ArrayList<>();
+        expectedClassPathEntries.add("conf");
+        expectedClassPathEntries.add("conf/hive-site.xml");
+        expectedClassPathEntries.add("conf/ivysettings.xml");
+        return expectedClassPathEntries;
     }
 
     private static Map<String, String> getUsrLibJars() {
