@@ -24,9 +24,7 @@ FLINK_DEPLOYED_ROOT=$4
 
 source "${CI_DIR}/maven-utils.sh"
 
-cd $CI_DIR/flink-ci-tools/
-
-run_mvn exec:java -Dexec.mainClass=org.apache.flink.tools.ci.licensecheck.LicenseChecker -Dexec.args=\"$MVN_CLEAN_COMPILE_OUT $FLINK_ROOT $FLINK_DEPLOYED_ROOT\"
+run_mvn -pl tools/ci/flink-ci-tools exec:java -Dexec.mainClass=org.apache.flink.tools.ci.licensecheck.LicenseChecker -Dexec.args=\"$MVN_CLEAN_COMPILE_OUT $FLINK_ROOT $FLINK_DEPLOYED_ROOT\"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE != 0 ]; then
