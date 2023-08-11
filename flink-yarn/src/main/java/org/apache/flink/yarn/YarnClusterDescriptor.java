@@ -305,23 +305,26 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private void addShipArchives(List<File> shipArchives) {
         checkArgument(
                 isArchiveOnlyIncludedInShipArchiveFiles(shipArchives),
-                "Non-archive files are included.");
+                "Directories or non-archive files are included.");
         this.shipArchives.addAll(shipArchives);
     }
 
     private static boolean isArchiveOnlyIncludedInShipArchiveFiles(List<File> shipFiles) {
-        return shipFiles.stream()
-                .filter(File::isFile)
-                .map(File::getName)
-                .map(String::toLowerCase)
-                .allMatch(
-                        name ->
-                                name.endsWith(".tar.gz")
-                                        || name.endsWith(".tar")
-                                        || name.endsWith(".tgz")
-                                        || name.endsWith(".dst")
-                                        || name.endsWith(".jar")
-                                        || name.endsWith(".zip"));
+        long archivedFileCount =
+                shipFiles.stream()
+                        .filter(File::isFile)
+                        .map(File::getName)
+                        .map(String::toLowerCase)
+                        .filter(
+                                name ->
+                                        name.endsWith(".tar.gz")
+                                                || name.endsWith(".tar")
+                                                || name.endsWith(".tgz")
+                                                || name.endsWith(".dst")
+                                                || name.endsWith(".jar")
+                                                || name.endsWith(".zip"))
+                        .count();
+        return archivedFileCount == shipFiles.size();
     }
 
     private void isReadyForDeployment(ClusterSpecification clusterSpecification) throws Exception {
