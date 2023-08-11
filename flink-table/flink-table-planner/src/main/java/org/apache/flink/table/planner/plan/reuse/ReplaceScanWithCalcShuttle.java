@@ -63,8 +63,7 @@ public class ReplaceScanWithCalcShuttle extends DefaultRelShuttle {
     }
 
     private void visitDppSource(RelNode scan) {
-        // If scan is BatchPhysicalDynamicFilteringTableSourceScan,the input should be recursive
-        // first
+        // If scan has input such as dpp dynamic scan node, traverse its input first
         if (!scan.getInputs().isEmpty()) {
             super.visit(scan.getInput(0));
         }

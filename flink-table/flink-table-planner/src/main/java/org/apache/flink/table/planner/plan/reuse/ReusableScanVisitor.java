@@ -42,7 +42,8 @@ public class ReusableScanVisitor extends RelVisitor {
             CommonPhysicalTableSourceScan scan = (CommonPhysicalTableSourceScan) node;
             String digest = getDigest(scan, true);
             digestToReusableScans.computeIfAbsent(digest, k -> new ArrayList<>()).add(scan);
-            // BatchPhysicalDynamicFilteringTableSourceScan has one input, so need to consider it
+            // If the scan has input such as dpp dynamic scan node, so also need to consider the
+            // input
             if (!scan.getInputs().isEmpty()) {
                 super.visit(scan.getInput(0), 0, scan);
             }

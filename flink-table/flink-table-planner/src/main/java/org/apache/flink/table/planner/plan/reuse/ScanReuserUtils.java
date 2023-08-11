@@ -332,7 +332,12 @@ public class ScanReuserUtils {
 
         // input should be the first item
         if (!scan.getInputs().isEmpty()) {
-            digest.add("input=[" + scan.getInputs() + "]");
+            digest.add(
+                    "input=["
+                            + scan.getInputs().stream()
+                                    .map(RelNode::getDigest)
+                                    .collect(Collectors.joining(","))
+                            + "]");
         }
 
         if (withoutEscape) {
