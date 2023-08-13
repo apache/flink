@@ -23,48 +23,46 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Integration tests for the {@link FlinkSecurityManager}. */
-public class FlinkSecurityManagerITCase extends TestLogger {
+class FlinkSecurityManagerITCase {
 
-    @Before
-    public void ensureSupportedOS() {
+    @BeforeEach
+    void ensureSupportedOS() {
         // based on the assumption in JvmExitOnFatalErrorTest, and manual testing on Mac, we do not
         // support all platforms (in particular not Windows)
-        assumeTrue(OperatingSystem.isLinux() || OperatingSystem.isMac());
+        assumeThat(OperatingSystem.isLinux() || OperatingSystem.isMac()).isTrue();
     }
 
     @Test
-    public void testForcedJVMExit() throws Exception {
+    void testForcedJVMExit() throws Exception {
         final ForcedJVMExitProcess testProcess =
                 new ForcedJVMExitProcess(ForcedExitEntryPoint.class);
 
         testProcess.startProcess();
         try {
             testProcess.waitFor();
-            assertThat(testProcess.exitCode(), is(222));
+            assertThat(testProcess.exitCode()).isEqualTo(222);
         } finally {
             testProcess.destroy();
         }
     }
 
     @Test
-    public void testIgnoredJVMExit() throws Exception {
+    void testIgnoredJVMExit() throws Exception {
         final ForcedJVMExitProcess testProcess =
                 new ForcedJVMExitProcess(IgnoredExitEntryPoint.class);
 
         testProcess.startProcess();
         try {
             testProcess.waitFor();
-            assertThat(testProcess.exitCode(), is(0));
+            assertThat(testProcess.exitCode()).isZero();
         } finally {
             testProcess.destroy();
         }

@@ -20,23 +20,19 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.flink.shaded.curator5.org.apache.curator.retry.ExponentialBackoffRetry;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ZooKeeperUtils}. */
-public class ZooKeeperUtilsTest extends TestLogger {
+class ZooKeeperUtilsTest {
 
     @Test
-    public void testZookeeperPathGeneration() {
+    void testZookeeperPathGeneration() {
         runZookeeperPathGenerationTest("/root/namespace", "root", "namespace");
         runZookeeperPathGenerationTest("/root/namespace", "/root/", "/namespace/");
         runZookeeperPathGenerationTest("/root/namespace", "//root//", "//namespace//");
@@ -49,7 +45,7 @@ public class ZooKeeperUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testZooKeeperEnsembleConnectStringConfiguration() throws Exception {
+    void testZooKeeperEnsembleConnectStringConfiguration() throws Exception {
         // ZooKeeper does not like whitespace in the quorum connect String.
         String actual, expected;
         Configuration conf = new Configuration();
@@ -59,15 +55,15 @@ public class ZooKeeperUtilsTest extends TestLogger {
 
             setQuorum(conf, expected);
             actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
-            assertEquals(expected, actual);
+            assertThat(actual).isEqualTo(expected);
 
             setQuorum(conf, " localhost:2891 "); // with leading and trailing whitespace
             actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
-            assertEquals(expected, actual);
+            assertThat(actual).isEqualTo(expected);
 
             setQuorum(conf, "localhost :2891"); // whitespace after port
             actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
-            assertEquals(expected, actual);
+            assertThat(actual).isEqualTo(expected);
         }
 
         {
@@ -75,24 +71,24 @@ public class ZooKeeperUtilsTest extends TestLogger {
 
             setQuorum(conf, "localhost:2891,localhost:2891");
             actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
-            assertEquals(expected, actual);
+            assertThat(actual).isEqualTo(expected);
 
             setQuorum(conf, "localhost:2891, localhost:2891");
             actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
-            assertEquals(expected, actual);
+            assertThat(actual).isEqualTo(expected);
 
             setQuorum(conf, "localhost :2891, localhost:2891");
             actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
-            assertEquals(expected, actual);
+            assertThat(actual).isEqualTo(expected);
 
             setQuorum(conf, " localhost:2891, localhost:2891 ");
             actual = ZooKeeperUtils.getZooKeeperEnsemble(conf);
-            assertEquals(expected, actual);
+            assertThat(actual).isEqualTo(expected);
         }
     }
 
     @Test
-    public void testStartCuratorFrameworkFailed() throws Exception {
+    void testStartCuratorFrameworkFailed() throws Exception {
         TestingFatalErrorHandler handler = new TestingFatalErrorHandler();
         String errorMsg = "unexpected exception";
         final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
@@ -105,13 +101,13 @@ public class ZooKeeperUtilsTest extends TestLogger {
                                 })
                         .namespace("flink");
         ZooKeeperUtils.startCuratorFramework(curatorFrameworkBuilder, handler);
-        Assert.assertEquals(errorMsg, handler.getErrorFuture().get().getMessage());
+        assertThat(handler.getErrorFuture().get()).hasMessage(errorMsg);
     }
 
     private void runZookeeperPathGenerationTest(String expectedValue, String... paths) {
         final String result = ZooKeeperUtils.generateZookeeperPath(paths);
 
-        assertThat(result, is(expectedValue));
+        assertThat(result).isEqualTo(expectedValue);
     }
 
     private Configuration setQuorum(Configuration conf, String quorum) {

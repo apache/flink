@@ -18,41 +18,37 @@
 
 package org.apache.flink.runtime.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class ResourceManagerUtilsTest {
+class ResourceManagerUtilsTest {
 
     @Test
-    public void testParseRestBindPortFromWebInterfaceUrlWithEmptyUrl() {
-        assertThat(ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl(""), is(-1));
+    void testParseRestBindPortFromWebInterfaceUrlWithEmptyUrl() {
+        assertThat(ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl("")).isEqualTo(-1);
     }
 
     @Test
-    public void testParseRestBindPortFromWebInterfaceUrlWithNullUrl() {
-        assertThat(ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl(null), is(-1));
+    void testParseRestBindPortFromWebInterfaceUrlWithNullUrl() {
+        assertThat(ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl(null)).isEqualTo(-1);
     }
 
     @Test
-    public void testParseRestBindPortFromWebInterfaceUrlWithInvalidSchema() {
-        assertThat(
-                ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl("localhost:8080//"),
-                is(-1));
+    void testParseRestBindPortFromWebInterfaceUrlWithInvalidSchema() {
+        assertThat(ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl("localhost:8080//"))
+                .isEqualTo(-1);
     }
 
     @Test
-    public void testParseRestBindPortFromWebInterfaceUrlWithInvalidPort() {
-        assertThat(
-                ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl("localhost:port1"),
-                is(-1));
+    void testParseRestBindPortFromWebInterfaceUrlWithInvalidPort() {
+        assertThat(ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl("localhost:port1"))
+                .isEqualTo(-1);
     }
 
     @Test
-    public void testParseRestBindPortFromWebInterfaceUrlWithValidPort() {
-        assertThat(
-                ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl("localhost:8080"),
-                is(8080));
+    void testParseRestBindPortFromWebInterfaceUrlWithValidPort() {
+        assertThat(ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl("localhost:8080"))
+                .isEqualTo(8080);
     }
 }
