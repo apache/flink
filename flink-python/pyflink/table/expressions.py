@@ -33,7 +33,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'not_', 'UNBOU
            'concat_ws', 'uuid', 'null_of', 'log', 'with_columns', 'without_columns', 'json_string',
            'json_object', 'json_object_agg', 'json_array', 'json_array_agg', 'call', 'call_sql',
            'source_watermark', 'to_timestamp_ltz', 'from_unixtime', 'to_date', 'to_timestamp',
-           'convert_tz', 'unix_timestamp']
+           'convert_tz', 'unix_timestamp', 'hashcode']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -742,6 +742,13 @@ def json_string(value) -> Expression:
         >>> json_string([1, 2])          # '[1,2]'
     """
     return _unary_op("jsonString", value)
+
+
+def hashcode(input) -> Expression:
+    """
+    This function returns a hashcode value of input.
+    """
+    return _unary_op("hashCodeGenerate", input)
 
 
 def json_object(on_null: JsonOnNull = JsonOnNull.NULL, *args) -> Expression:
