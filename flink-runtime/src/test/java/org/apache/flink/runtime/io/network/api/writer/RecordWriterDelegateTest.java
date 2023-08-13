@@ -53,7 +53,7 @@ class RecordWriterDelegateTest {
 
     @BeforeEach
     void setup() {
-        assertThat(memorySegmentSize % recordSize).as("Illegal memory segment size").isEqualTo(0);
+        assertThat(memorySegmentSize % recordSize).as("Illegal memory segment size").isZero();
         globalPool = new NetworkBufferPool(numberOfBuffers, memorySegmentSize);
     }
 
@@ -169,7 +169,7 @@ class RecordWriterDelegateTest {
         // verify the added messages in all the queues
         for (ResultPartition partition : partitions) {
             for (int i = 0; i < partition.getNumberOfSubpartitions(); i++) {
-                assertThat(partition.getNumberOfQueuedBuffers(i)).isEqualTo(1);
+                assertThat(partition.getNumberOfQueuedBuffers(i)).isOne();
 
                 ResultSubpartitionView view =
                         partition.createSubpartitionView(i, new NoOpBufferAvailablityListener());

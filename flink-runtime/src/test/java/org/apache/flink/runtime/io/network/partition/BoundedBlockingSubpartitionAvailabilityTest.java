@@ -53,7 +53,7 @@ class BoundedBlockingSubpartitionAvailabilityTest {
         final ResultSubpartitionView subpartitionView = createView(subpartition, listener);
 
         // assert
-        assertThat(listener.numNotifications).isEqualTo(0);
+        assertThat(listener.numNotifications).isZero();
 
         // cleanup
         subpartitionView.releaseAllResources();
@@ -93,7 +93,7 @@ class BoundedBlockingSubpartitionAvailabilityTest {
 
         // assert
         assertThat(reader.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable()).isTrue();
-        assertThat(listener.numNotifications).isEqualTo(1);
+        assertThat(listener.numNotifications).isOne();
 
         // cleanup
         reader.releaseAllResources();

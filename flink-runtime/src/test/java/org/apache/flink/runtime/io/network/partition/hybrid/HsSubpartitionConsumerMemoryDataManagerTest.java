@@ -142,14 +142,14 @@ class HsSubpartitionConsumerMemoryDataManagerTest {
         assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(0, Collections.emptyList()))
                 .hasValueSatisfying(
                         bufferAndBacklog -> {
-                            assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(0);
+                            assertThat(bufferAndBacklog.getSequenceNumber()).isZero();
                             assertThat(bufferAndBacklog.buffer().getDataType())
                                     .isEqualTo(Buffer.DataType.DATA_BUFFER);
                         });
         assertThat(subpartitionConsumerMemoryDataManager.consumeBuffer(1, Collections.emptyList()))
                 .hasValueSatisfying(
                         bufferAndBacklog -> {
-                            assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(1);
+                            assertThat(bufferAndBacklog.getSequenceNumber()).isOne();
                             assertThat(bufferAndBacklog.buffer().getDataType())
                                     .isEqualTo(Buffer.DataType.DATA_BUFFER);
                         });

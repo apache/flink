@@ -25,7 +25,7 @@ import org.junit.jupiter.api.TestTemplate;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Basic subpartition behaviour tests. */
 abstract class SubpartitionTestBase {
@@ -43,12 +43,8 @@ abstract class SubpartitionTestBase {
         final ResultSubpartition subpartition = createSubpartition();
         subpartition.release();
 
-        try {
-            subpartition.createReadView(() -> {});
-            fail("expected an exception");
-        } catch (IllegalStateException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> subpartition.createReadView(() -> {}))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @TestTemplate
@@ -57,16 +53,16 @@ abstract class SubpartitionTestBase {
 
         try {
             subpartition.finish();
-            assertThat(subpartition.getTotalNumberOfBuffersUnsafe()).isEqualTo(1);
-            assertThat(subpartition.getBuffersInBacklogUnsafe()).isEqualTo(0);
+            assertThat(subpartition.getTotalNumberOfBuffersUnsafe()).isOne();
+            assertThat(subpartition.getBuffersInBacklogUnsafe()).isZero();
 
             BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(4096);
 
             assertThat(subpartition.add(bufferConsumer)).isEqualTo(-1);
             assertThat(bufferConsumer.isRecycled()).isTrue();
 
-            assertThat(subpartition.getTotalNumberOfBuffersUnsafe()).isEqualTo(1);
-            assertThat(subpartition.getBuffersInBacklogUnsafe()).isEqualTo(0);
+            assertThat(subpartition.getTotalNumberOfBuffersUnsafe()).isOne();
+            assertThat(subpartition.getBuffersInBacklogUnsafe()).isZero();
         } finally {
             if (subpartition != null) {
                 subpartition.release();
@@ -149,14 +145,8 @@ abstract class SubpartitionTestBase {
             final BufferConsumer consumer =
                     BufferBuilderTestUtils.createFilledFinishedBufferConsumer(100);
 
-            try {
-                subpartition.add(consumer);
-                subpartition.flush();
-                fail("should fail with an exception");
-            } catch (Exception ignored) {
-                // expected
-            }
-
+            subpartition.add(consumer);
+            assertThatThrownBy(subpartition::flush);
             assertThat(consumer.isRecycled()).isTrue();
         } finally {
             subpartition.release();

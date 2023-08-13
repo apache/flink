@@ -144,7 +144,7 @@ class HsSubpartitionViewTest {
                 TestingHsDataView.builder()
                         .setPeekNextToConsumeDataTypeFunction(
                                 (bufferToConsume) -> {
-                                    assertThat(bufferToConsume).isEqualTo(1);
+                                    assertThat(bufferToConsume).isOne();
                                     return DataType.EVENT_BUFFER;
                                 })
                         .build();
@@ -400,9 +400,9 @@ class HsSubpartitionViewTest {
 
         assertThat(subpartitionView.getConsumingOffset(true)).isEqualTo(-1);
         subpartitionView.getNextBuffer();
-        assertThat(subpartitionView.getConsumingOffset(true)).isEqualTo(0);
+        assertThat(subpartitionView.getConsumingOffset(true)).isZero();
         subpartitionView.getNextBuffer();
-        assertThat(subpartitionView.getConsumingOffset(true)).isEqualTo(1);
+        assertThat(subpartitionView.getConsumingOffset(true)).isOne();
     }
 
     @Test

@@ -152,7 +152,7 @@ public class TieredStorageProducerClientTest {
                 isBroadcast
                         ? numSubpartitions * numToWriteRecords * bufferSize
                         : numToWriteRecords * bufferSize;
-        assertThat(numReceivedBuffersInTier1.get()).isEqualTo(1);
+        assertThat(numReceivedBuffersInTier1.get()).isOne();
         assertThat(numReceivedBuffers.get())
                 .isEqualTo(numReceivedBuffersInTier1.get() + numReceivedBuffersInTier2.get());
         assertThat(numReceivedBytes.get()).isEqualTo(numExpectedBytes);

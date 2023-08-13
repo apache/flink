@@ -130,7 +130,7 @@ class SortMergeResultPartitionReadSchedulerTest {
         assertThat(readScheduler.isRunning()).isTrue();
         assertThat(readScheduler.getDataFileChannel().isOpen()).isTrue();
         assertThat(readScheduler.getIndexFileChannel().isOpen()).isTrue();
-        assertThat(ioExecutor.numQueuedRunnables()).isEqualTo(1);
+        assertThat(ioExecutor.numQueuedRunnables()).isOne();
 
         int numBuffersRead = 0;
         while (numBuffersRead < numBuffersPerSubpartition) {
@@ -171,7 +171,7 @@ class SortMergeResultPartitionReadSchedulerTest {
 
         assertThat(subpartitionReader.getFailureCause()).isNotNull();
         assertThat(subpartitionReader.isReleased()).isTrue();
-        assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(0);
+        assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isZero();
         assertThat(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable()).isTrue();
 
         readScheduler.getReleaseFuture().get();

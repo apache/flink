@@ -225,7 +225,7 @@ class InputBuffersMetricsTest {
 
         drainBuffer(totalRequestedBuffers, remoteInputChannel1);
 
-        assertThat(remoteInputChannel1.unsynchronizedGetFloatingBuffersAvailable()).isEqualTo(0);
+        assertThat(remoteInputChannel1.unsynchronizedGetFloatingBuffersAvailable()).isZero();
         assertThat((double) inputBuffersUsageGauge.getValue())
                 .isEqualTo(
                         (double) (buffersPerChannel + totalRequestedBuffers) / totalBuffers,

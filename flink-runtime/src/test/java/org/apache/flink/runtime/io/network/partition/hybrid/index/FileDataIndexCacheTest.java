@@ -67,8 +67,8 @@ class FileDataIndexCacheTest {
         assertThat(regionOpt)
                 .hasValueSatisfying(
                         (region) -> {
-                            assertThat(region.getFirstBufferIndex()).isEqualTo(0);
-                            assertThat(region.getRegionStartOffset()).isEqualTo(0);
+                            assertThat(region.getFirstBufferIndex()).isZero();
+                            assertThat(region.getRegionStartOffset()).isZero();
                             assertThat(region.getNumBuffers()).isEqualTo(3);
                         });
     }
@@ -95,7 +95,7 @@ class FileDataIndexCacheTest {
 
         // number of regions exceeds numRetainedIndexEntry, trigger cache purge.
         indexCache.put(0, createTestRegions(9, 9L, 3, 1));
-        assertThat(spilledRegionManager.getSpilledRegionSize(0)).isEqualTo(1);
+        assertThat(spilledRegionManager.getSpilledRegionSize(0)).isOne();
         TestingFileDataIndexRegion region = spilledRegionManager.getRegion(0, 0);
         assertThat(region).isNotNull();
         assertRegionEquals(region, regionList.get(0));
@@ -130,15 +130,15 @@ class FileDataIndexCacheTest {
         spilledRegionManager = testingSpilledRegionManagerFactory.getLastSpilledRegionManager();
 
         indexCache.put(0, createTestRegions(0, 0L, 1, 2));
-        assertThat(spilledRegionManager.getSpilledRegionSize(0)).isEqualTo(1);
+        assertThat(spilledRegionManager.getSpilledRegionSize(0)).isOne();
 
         assertThat(spilledRegionManager.getFindRegionInvoked()).isZero();
         Optional<TestingFileDataIndexRegion> regionOpt = indexCache.get(0, 0);
         assertThat(spilledRegionManager.getSpilledRegionSize(0)).isEqualTo(2);
         assertThat(regionOpt).isPresent();
-        assertThat(spilledRegionManager.getFindRegionInvoked()).isEqualTo(1);
+        assertThat(spilledRegionManager.getFindRegionInvoked()).isOne();
         // previously get should already load this region to cache.
         assertThat(indexCache.get(0, 0)).isPresent();
-        assertThat(spilledRegionManager.getFindRegionInvoked()).isEqualTo(1);
+        assertThat(spilledRegionManager.getFindRegionInvoked()).isOne();
     }
 }

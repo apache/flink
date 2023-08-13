@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 class SeekableFileChannelInputViewTest {
@@ -76,11 +77,9 @@ class SeekableFileChannelInputViewTest {
             for (int i = 0; i < NUM_RECORDS; i += 4) {
                 assertThat(in.readInt()).isEqualTo(i);
             }
-            try {
-                in.readInt();
-                fail("should throw EOF exception");
-            } catch (EOFException ignored) {
-            }
+            assertThatThrownBy(in::readInt)
+                    .withFailMessage("should throw EOF exception")
+                    .isInstanceOf(EOFException.class);
 
             // seek to the middle of the 3rd page
             int i = 2 * PAGE_SIZE + PAGE_SIZE / 4;
@@ -88,11 +87,9 @@ class SeekableFileChannelInputViewTest {
             for (; i < NUM_RECORDS; i += 4) {
                 assertThat(in.readInt()).isEqualTo(i);
             }
-            try {
-                in.readInt();
-                fail("should throw EOF exception");
-            } catch (EOFException ignored) {
-            }
+            assertThatThrownBy(in::readInt)
+                    .withFailMessage("should throw EOF exception")
+                    .isInstanceOf(EOFException.class);
 
             // seek to the end
             i = 120000 - 4;
@@ -100,11 +97,9 @@ class SeekableFileChannelInputViewTest {
             for (; i < NUM_RECORDS; i += 4) {
                 assertThat(in.readInt()).isEqualTo(i);
             }
-            try {
-                in.readInt();
-                fail("should throw EOF exception");
-            } catch (EOFException ignored) {
-            }
+            assertThatThrownBy(in::readInt)
+                    .withFailMessage("should throw EOF exception")
+                    .isInstanceOf(EOFException.class);
 
             // seek to the beginning
             i = 0;
@@ -112,11 +107,9 @@ class SeekableFileChannelInputViewTest {
             for (; i < NUM_RECORDS; i += 4) {
                 assertThat(in.readInt()).isEqualTo(i);
             }
-            try {
-                in.readInt();
-                fail("should throw EOF exception");
-            } catch (EOFException ignored) {
-            }
+            assertThatThrownBy(in::readInt)
+                    .withFailMessage("should throw EOF exception")
+                    .isInstanceOf(EOFException.class);
 
             // seek to after a page
             i = PAGE_SIZE;
@@ -124,11 +117,9 @@ class SeekableFileChannelInputViewTest {
             for (; i < NUM_RECORDS; i += 4) {
                 assertThat(in.readInt()).isEqualTo(i);
             }
-            try {
-                in.readInt();
-                fail("should throw EOF exception");
-            } catch (EOFException ignored) {
-            }
+            assertThatThrownBy(in::readInt)
+                    .withFailMessage("should throw EOF exception")
+                    .isInstanceOf(EOFException.class);
 
             // seek to after a page
             i = 3 * PAGE_SIZE;
@@ -136,32 +127,24 @@ class SeekableFileChannelInputViewTest {
             for (; i < NUM_RECORDS; i += 4) {
                 assertThat(in.readInt()).isEqualTo(i);
             }
-            try {
-                in.readInt();
-                fail("should throw EOF exception");
-            } catch (EOFException ignored) {
-            }
+            assertThatThrownBy(in::readInt)
+                    .withFailMessage("should throw EOF exception")
+                    .isInstanceOf(EOFException.class);
 
             // seek to the end
             i = NUM_RECORDS;
             in.seek(i);
-            try {
-                in.readInt();
-                fail("should throw EOF exception");
-            } catch (EOFException ignored) {
-            }
+            assertThatThrownBy(in::readInt)
+                    .withFailMessage("should throw EOF exception")
+                    .isInstanceOf(EOFException.class);
 
             // seek out of bounds
-            try {
-                in.seek(-10);
-                fail("should throw an exception");
-            } catch (IllegalArgumentException ignored) {
-            }
-            try {
-                in.seek(NUM_RECORDS + 1);
-                fail("should throw an exception");
-            } catch (IllegalArgumentException ignored) {
-            }
+            assertThatThrownBy(() -> in.seek(-10))
+                    .withFailMessage("should throw an exception")
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> in.seek(NUM_RECORDS + 1))
+                    .withFailMessage("should throw an exception")
+                    .isInstanceOf(IllegalArgumentException.class);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

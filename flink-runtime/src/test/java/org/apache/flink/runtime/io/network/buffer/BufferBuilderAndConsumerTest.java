@@ -157,7 +157,7 @@ public class BufferBuilderAndConsumerTest {
     void buildEmptyBuffer() {
         try (BufferBuilder bufferBuilder = createBufferBuilder()) {
             Buffer buffer = buildSingleBuffer(bufferBuilder);
-            assertThat(buffer.getSize()).isEqualTo(0);
+            assertThat(buffer.getSize()).isZero();
             assertContent(buffer, FreeingBufferRecycler.INSTANCE);
         }
     }
@@ -222,7 +222,7 @@ public class BufferBuilderAndConsumerTest {
     void testWritableBytesWhenFull() {
         BufferBuilder bufferBuilder = createBufferBuilder();
         bufferBuilder.append(toByteBuffer(new int[bufferBuilder.getMaxCapacity()]));
-        assertThat(bufferBuilder.getWritableBytes()).isEqualTo(0);
+        assertThat(bufferBuilder.getWritableBytes()).isZero();
     }
 
     @Test
@@ -236,7 +236,7 @@ public class BufferBuilderAndConsumerTest {
         bufferBuilder.close();
 
         // then: Recycling successfully finished.
-        assertThat(recycler.recycleInvocationCounter).isEqualTo(1);
+        assertThat(recycler.recycleInvocationCounter).isOne();
     }
 
     @Test
@@ -253,13 +253,13 @@ public class BufferBuilderAndConsumerTest {
         bufferBuilder.close();
 
         // then: Nothing happened because BufferBuilder has already consumer.
-        assertThat(recycler.recycleInvocationCounter).isEqualTo(0);
+        assertThat(recycler.recycleInvocationCounter).isZero();
 
         // when: Close the consumer.
         bufferConsumer.close();
 
         // then: Recycling successfully finished.
-        assertThat(recycler.recycleInvocationCounter).isEqualTo(1);
+        assertThat(recycler.recycleInvocationCounter).isOne();
     }
 
     @Test
@@ -271,7 +271,7 @@ public class BufferBuilderAndConsumerTest {
         assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(BUFFER_SIZE / 2);
 
         bufferBuilder.trim(0);
-        assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(0);
+        assertThat(bufferBuilder.getMaxCapacity()).isZero();
     }
 
     @Test
@@ -280,7 +280,7 @@ public class BufferBuilderAndConsumerTest {
         assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(BUFFER_SIZE);
 
         bufferBuilder.trim(-1);
-        assertThat(bufferBuilder.getMaxCapacity()).isEqualTo(0);
+        assertThat(bufferBuilder.getMaxCapacity()).isZero();
     }
 
     @Test
@@ -315,7 +315,7 @@ public class BufferBuilderAndConsumerTest {
 
         assertThat(bufferBuilder.isFinished()).isFalse();
         assertThat(bufferConsumer.isFinished()).isFalse();
-        assertThat(bufferConsumer.getWrittenBytes()).isEqualTo(0);
+        assertThat(bufferConsumer.getWrittenBytes()).isZero();
 
         bufferConsumer.build();
         assertThat(bufferBuilder.isFinished()).isFalse();
@@ -334,7 +334,7 @@ public class BufferBuilderAndConsumerTest {
         assertThat(bufferConsumer.isFinished()).isFalse();
         assertThat(bufferConsumer.getWrittenBytes()).isEqualTo(expectedWrittenBytes);
 
-        assertThat(bufferConsumer.build().getSize()).isEqualTo(0);
+        assertThat(bufferConsumer.build().getSize()).isZero();
         assertThat(bufferBuilder.isFinished()).isTrue();
     }
 

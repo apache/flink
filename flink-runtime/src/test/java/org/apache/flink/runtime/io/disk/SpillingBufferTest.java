@@ -41,7 +41,7 @@ import java.io.EOFException;
 import java.util.ArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SpillingBufferTest {
 
@@ -188,35 +188,34 @@ class SpillingBufferTest {
 
         // notifyNonEmpty and re-generate all records and compare them
         final Tuple2<Integer, String> readRec = new Tuple2<>();
-        try {
-            for (int i = 0; i < NUM_PAIRS_INMEM + 1; i++) {
-                generator.next(rec);
-                serializer.deserialize(readRec, inView);
+        for (int i = 0; i < NUM_PAIRS_INMEM; i++) {
+            generator.next(rec);
+            serializer.deserialize(readRec, inView);
 
-                int k1 = rec.f0;
-                String v1 = rec.f1;
+            int k1 = rec.f0;
+            String v1 = rec.f1;
 
-                int k2 = readRec.f0;
-                String v2 = readRec.f1;
+            int k2 = readRec.f0;
+            String v2 = readRec.f1;
 
-                assertThat(k1 == k2 && v1.equals(v2))
-                        .withFailMessage(
-                                "The re-generated and the notifyNonEmpty record do not match.")
-                        .isTrue();
-            }
-            fail("Read too much, expected EOFException.");
-        } catch (EOFException eofex) {
-            // expected
+            assertThat(k1 == k2 && v1.equals(v2))
+                    .withFailMessage("The re-generated and the notifyNonEmpty record do not match.")
+                    .isTrue();
         }
 
+        generator.next(rec);
+        assertThatThrownBy(() -> serializer.deserialize(readRec, inView))
+                .withFailMessage("Read too much, expected EOFException.")
+                .isInstanceOf(EOFException.class);
+
         // re-notifyNonEmpty the data
-        inView = outView.flip();
+        DataInputView nextInView = outView.flip();
         generator.reset();
 
         // notifyNonEmpty and re-generate all records and compare them
         for (int i = 0; i < NUM_PAIRS_INMEM; i++) {
             generator.next(rec);
-            serializer.deserialize(readRec, inView);
+            serializer.deserialize(readRec, nextInView);
 
             int k1 = rec.f0;
             String v1 = rec.f1;
@@ -334,35 +333,34 @@ class SpillingBufferTest {
 
         // notifyNonEmpty and re-generate all records and compare them
         final Tuple2<Integer, String> readRec = new Tuple2<>();
-        try {
-            for (int i = 0; i < NUM_PAIRS_EXTERNAL + 1; i++) {
-                generator.next(rec);
-                serializer.deserialize(readRec, inView);
+        for (int i = 0; i < NUM_PAIRS_EXTERNAL; i++) {
+            generator.next(rec);
+            serializer.deserialize(readRec, inView);
 
-                int k1 = rec.f0;
-                String v1 = rec.f1;
+            int k1 = rec.f0;
+            String v1 = rec.f1;
 
-                int k2 = readRec.f0;
-                String v2 = readRec.f1;
+            int k2 = readRec.f0;
+            String v2 = readRec.f1;
 
-                assertThat(k1 == k2 && v1.equals(v2))
-                        .withFailMessage(
-                                "The re-generated and the notifyNonEmpty record do not match.")
-                        .isTrue();
-            }
-            fail("Read too much, expected EOFException.");
-        } catch (EOFException eofex) {
-            // expected
+            assertThat(k1 == k2 && v1.equals(v2))
+                    .withFailMessage("The re-generated and the notifyNonEmpty record do not match.")
+                    .isTrue();
         }
 
+        generator.next(rec);
+        assertThatThrownBy(() -> serializer.deserialize(readRec, inView))
+                .withFailMessage("Read too much, expected EOFException.")
+                .isInstanceOf(EOFException.class);
+
         // re-notifyNonEmpty the data
-        inView = outView.flip();
+        DataInputView nextInView = outView.flip();
         generator.reset();
 
         // notifyNonEmpty and re-generate all records and compare them
         for (int i = 0; i < NUM_PAIRS_EXTERNAL; i++) {
             generator.next(rec);
-            serializer.deserialize(readRec, inView);
+            serializer.deserialize(readRec, nextInView);
 
             int k1 = rec.f0;
             String v1 = rec.f1;

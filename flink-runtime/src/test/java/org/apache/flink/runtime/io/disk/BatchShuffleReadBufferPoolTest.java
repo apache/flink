@@ -138,7 +138,7 @@ class BatchShuffleReadBufferPoolTest {
                 owners[i] = new Object();
                 buffers.put(owners[i], bufferPool.requestBuffers());
             }
-            assertThat(bufferPool.getAvailableBuffers()).isEqualTo(0);
+            assertThat(bufferPool.getAvailableBuffers()).isZero();
 
             Thread[] requestThreads = new Thread[numRequestThreads];
             for (int i = 0; i < numRequestThreads; ++i) {
@@ -172,7 +172,7 @@ class BatchShuffleReadBufferPoolTest {
             }
 
             assertThat(exception.get()).isNull();
-            assertThat(bufferPool.getAvailableBuffers()).isEqualTo(0);
+            assertThat(bufferPool.getAvailableBuffers()).isZero();
             assertThat(buffers).hasSize(8);
         } finally {
             for (Object owner : buffers.keySet()) {
@@ -241,7 +241,7 @@ class BatchShuffleReadBufferPoolTest {
 
         bufferPool.destroy();
         assertThat(bufferPool.isDestroyed()).isTrue();
-        assertThat(bufferPool.getAvailableBuffers()).isEqualTo(0);
+        assertThat(bufferPool.getAvailableBuffers()).isZero();
     }
 
     @Test
@@ -260,7 +260,7 @@ class BatchShuffleReadBufferPoolTest {
         bufferPool.destroy();
 
         bufferPool.recycle(buffers);
-        assertThat(bufferPool.getAvailableBuffers()).isEqualTo(0);
+        assertThat(bufferPool.getAvailableBuffers()).isZero();
     }
 
     @Test

@@ -37,7 +37,7 @@ class InputChannelTest {
     void testExponentialBackoff() throws Exception {
         InputChannel ch = createInputChannel(500, 4000);
 
-        assertThat(ch.getCurrentBackoff()).isEqualTo(0);
+        assertThat(ch.getCurrentBackoff()).isZero();
 
         assertThat(ch.increaseBackoff()).isTrue();
         assertThat(ch.getCurrentBackoff()).isEqualTo(500);
@@ -59,7 +59,7 @@ class InputChannelTest {
     void testExponentialBackoffCappedAtMax() throws Exception {
         InputChannel ch = createInputChannel(500, 3000);
 
-        assertThat(ch.getCurrentBackoff()).isEqualTo(0);
+        assertThat(ch.getCurrentBackoff()).isZero();
 
         assertThat(ch.increaseBackoff()).isTrue();
         assertThat(ch.getCurrentBackoff()).isEqualTo(500);
@@ -81,7 +81,7 @@ class InputChannelTest {
     void testExponentialBackoffSingle() throws Exception {
         InputChannel ch = createInputChannel(500, 500);
 
-        assertThat(ch.getCurrentBackoff()).isEqualTo(0);
+        assertThat(ch.getCurrentBackoff()).isZero();
 
         assertThat(ch.increaseBackoff()).isTrue();
         assertThat(ch.getCurrentBackoff()).isEqualTo(500);
@@ -94,10 +94,10 @@ class InputChannelTest {
     void testExponentialNoBackoff() throws Exception {
         InputChannel ch = createInputChannel(0, 0);
 
-        assertThat(ch.getCurrentBackoff()).isEqualTo(0);
+        assertThat(ch.getCurrentBackoff()).isZero();
 
         assertThat(ch.increaseBackoff()).isFalse();
-        assertThat(ch.getCurrentBackoff()).isEqualTo(0);
+        assertThat(ch.getCurrentBackoff()).isZero();
     }
 
     private InputChannel createInputChannel(int initialBackoff, int maxBackoff) {

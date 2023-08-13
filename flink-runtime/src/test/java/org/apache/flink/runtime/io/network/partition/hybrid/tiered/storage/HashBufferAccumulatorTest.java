@@ -145,8 +145,7 @@ class HashBufferAccumulatorTest {
                 new TieredStorageSubpartitionId(0),
                 Buffer.DataType.DATA_BUFFER,
                 false);
-        assertThat(tieredStorageMemoryManager.numOwnerRequestedBuffer(bufferAccumulator))
-                .isEqualTo(1);
+        assertThat(tieredStorageMemoryManager.numOwnerRequestedBuffer(bufferAccumulator)).isOne();
         bufferAccumulator.close();
         assertThat(tieredStorageMemoryManager.numOwnerRequestedBuffer(this)).isZero();
     }

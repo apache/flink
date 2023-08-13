@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 class AsynchronousFileIOChannelTest {
@@ -359,10 +360,7 @@ class AsynchronousFileIOChannelTest {
                     writer.writeBlock(seg);
                 }
 
-                writer.close();
-                fail("did not forward exception");
-            } catch (IOException e) {
-                // expected
+                assertThatThrownBy(writer::close).isInstanceOf(IOException.class);
             } finally {
                 try {
                     writer.closeAndDelete();

@@ -155,7 +155,7 @@ class HsMemoryDataManagerTest {
         assertThatFuture(spilledFuture).eventuallySucceeds();
         assertThatFuture(readableFuture).eventuallySucceeds();
         assertThat(readableFuture).isCompletedWithValue(2);
-        assertThat(memoryDataManager.getNumTotalUnSpillBuffers()).isEqualTo(1);
+        assertThat(memoryDataManager.getNumTotalUnSpillBuffers()).isOne();
     }
 
     @Test

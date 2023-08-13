@@ -180,7 +180,7 @@ class ResultPartitionTest {
             // partitionWriter.emitRecord() should silently drop the given record
             bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
         } finally {
-            assertThat(bufferWritingResultPartition.numBuffersOut.getCount()).isEqualTo(1);
+            assertThat(bufferWritingResultPartition.numBuffersOut.getCount()).isOne();
             assertThat(bufferWritingResultPartition.numBytesOut.getCount()).isEqualTo(bufferSize);
             // the buffer should be recycled for the result partition has already been released
             assertThat(bufferWritingResultPartition.getBufferPool().bestEffortGetNumOfUsedBuffers())
@@ -230,10 +230,10 @@ class ResultPartitionTest {
             // partitionWriter.emitRecord() will allocate a new buffer and copies the record to it
             bufferWritingResultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
         } finally {
-            assertThat(bufferWritingResultPartition.numBuffersOut.getCount()).isEqualTo(1);
+            assertThat(bufferWritingResultPartition.numBuffersOut.getCount()).isOne();
             assertThat(bufferWritingResultPartition.numBytesOut.getCount()).isEqualTo(bufferSize);
             assertThat(bufferWritingResultPartition.getBufferPool().bestEffortGetNumOfUsedBuffers())
-                    .isEqualTo(1);
+                    .isOne();
         }
     }
 
@@ -533,7 +533,7 @@ class ResultPartitionTest {
                 bufferWritingResultPartition.getAllDataProcessedFuture();
         assertThat(allRecordsProcessedFuture).isNotDone();
         for (ResultSubpartition resultSubpartition : bufferWritingResultPartition.subpartitions) {
-            assertThat(resultSubpartition.getTotalNumberOfBuffersUnsafe()).isEqualTo(1);
+            assertThat(resultSubpartition.getTotalNumberOfBuffersUnsafe()).isOne();
             Buffer nextBuffer = ((PipelinedSubpartition) resultSubpartition).pollBuffer().buffer();
             assertThat(nextBuffer.isBuffer()).isFalse();
             assertThat(EventSerializer.fromBuffer(nextBuffer, getClass().getClassLoader()))
@@ -870,7 +870,7 @@ class ResultPartitionTest {
         assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(7);
 
         assertThat(subpartition1.pollBuffer().buffer().getSize()).isEqualTo(7);
-        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isEqualTo(0);
+        assertThat(resultPartition.getSizeOfQueuedBuffersUnsafe()).isZero();
     }
 
     @NotNull

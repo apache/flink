@@ -148,7 +148,7 @@ class ReadOnlySlicedBufferTest {
         ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice();
         assertThat(slice2.unwrap().unwrap()).isSameAs(buffer);
         assertThat(slice2.getMemorySegment()).isEqualTo(slice1.getMemorySegment());
-        assertThat(slice2.getMemorySegmentOffset()).isEqualTo(1);
+        assertThat(slice2.getMemorySegmentOffset()).isOne();
         assertThat(slice2.getMemorySegmentOffset()).isEqualTo(slice1.getMemorySegmentOffset());
 
         assertReadableBytes(slice1, 1, 2, 3, 4, 5, 6, 7, 8, 9);
@@ -163,7 +163,7 @@ class ReadOnlySlicedBufferTest {
         ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice(1, 2);
         assertThat(slice2.unwrap().unwrap()).isSameAs(buffer);
         assertThat(slice2.getMemorySegment()).isEqualTo(slice1.getMemorySegment());
-        assertThat(slice1.getMemorySegmentOffset()).isEqualTo(1);
+        assertThat(slice1.getMemorySegmentOffset()).isOne();
         assertThat(slice2.getMemorySegmentOffset()).isEqualTo(2);
 
         assertReadableBytes(slice1, 1, 2, 3, 4, 5, 6, 7, 8, 9);
@@ -177,8 +177,8 @@ class ReadOnlySlicedBufferTest {
         ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice();
         assertThat(slice2.unwrap().unwrap()).isSameAs(buffer);
         assertThat(slice2.getMemorySegment()).isSameAs(slice1.getMemorySegment());
-        assertThat(slice1.getMemorySegmentOffset()).isEqualTo(1);
-        assertThat(slice2.getMemorySegmentOffset()).isEqualTo(1);
+        assertThat(slice1.getMemorySegmentOffset()).isOne();
+        assertThat(slice2.getMemorySegmentOffset()).isOne();
 
         assertReadableBytes(slice1, 1, 2);
         assertReadableBytes(slice2, 1, 2);
@@ -191,7 +191,7 @@ class ReadOnlySlicedBufferTest {
         ReadOnlySlicedNetworkBuffer slice2 = slice1.readOnlySlice(1, 2);
         assertThat(slice2.unwrap().unwrap()).isSameAs(buffer);
         assertThat(slice2.getMemorySegment()).isSameAs(slice1.getMemorySegment());
-        assertThat(slice1.getMemorySegmentOffset()).isEqualTo(1);
+        assertThat(slice1.getMemorySegmentOffset()).isOne();
         assertThat(slice2.getMemorySegmentOffset()).isEqualTo(2);
 
         assertReadableBytes(slice1, 1, 2, 3, 4, 5);
@@ -225,11 +225,11 @@ class ReadOnlySlicedBufferTest {
     }
 
     private void testGetSetReaderIndex(ReadOnlySlicedNetworkBuffer slice) {
-        assertThat(buffer.getReaderIndex()).isEqualTo(0);
-        assertThat(slice.getReaderIndex()).isEqualTo(0);
+        assertThat(buffer.getReaderIndex()).isZero();
+        assertThat(slice.getReaderIndex()).isZero();
         slice.setReaderIndex(1);
-        assertThat(buffer.getReaderIndex()).isEqualTo(0);
-        assertThat(slice.getReaderIndex()).isEqualTo(1);
+        assertThat(buffer.getReaderIndex()).isZero();
+        assertThat(slice.getReaderIndex()).isOne();
     }
 
     /**
@@ -283,8 +283,8 @@ class ReadOnlySlicedBufferTest {
 
         // modify sliceByteBuffer position and verify nothing has changed in the original buffer
         sliceByteBuffer.position(1);
-        assertThat(buffer.getReaderIndex()).isEqualTo(0);
-        assertThat(slice.getReaderIndex()).isEqualTo(0);
+        assertThat(buffer.getReaderIndex()).isZero();
+        assertThat(slice.getReaderIndex()).isZero();
         assertThat(buffer.getSize()).isEqualTo(DATA_SIZE);
         assertThat(slice.getSize()).isEqualTo(sliceSize);
     }
@@ -302,14 +302,14 @@ class ReadOnlySlicedBufferTest {
     private void testGetNioBuffer(ReadOnlySlicedNetworkBuffer slice, int sliceSize) {
         ByteBuffer sliceByteBuffer = slice.getNioBuffer(1, 1);
         assertThat(sliceByteBuffer.isReadOnly()).isTrue();
-        assertThat(sliceByteBuffer.remaining()).isEqualTo(1);
-        assertThat(sliceByteBuffer.limit()).isEqualTo(1);
-        assertThat(sliceByteBuffer.capacity()).isEqualTo(1);
+        assertThat(sliceByteBuffer.remaining()).isOne();
+        assertThat(sliceByteBuffer.limit()).isOne();
+        assertThat(sliceByteBuffer.capacity()).isOne();
 
         // modify sliceByteBuffer position and verify nothing has changed in the original buffer
         sliceByteBuffer.position(1);
-        assertThat(buffer.getReaderIndex()).isEqualTo(0);
-        assertThat(slice.getReaderIndex()).isEqualTo(0);
+        assertThat(buffer.getReaderIndex()).isZero();
+        assertThat(slice.getReaderIndex()).isZero();
         assertThat(buffer.getSize()).isEqualTo(DATA_SIZE);
         assertThat(slice.getSize()).isEqualTo(sliceSize);
     }

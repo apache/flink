@@ -53,7 +53,7 @@ class HsBufferContextTest {
         assertThat(bufferContext.isSpillStarted()).isTrue();
         assertThat(buffer.refCnt()).isEqualTo(2);
         spilledFuture.complete(null);
-        assertThat(buffer.refCnt()).isEqualTo(1);
+        assertThat(buffer.refCnt()).isOne();
     }
 
     @Test
@@ -65,7 +65,7 @@ class HsBufferContextTest {
     @Test
     void testBufferReleaseRefCount() {
         Buffer buffer = bufferContext.getBuffer();
-        assertThat(buffer.refCnt()).isEqualTo(1);
+        assertThat(buffer.refCnt()).isOne();
         bufferContext.release();
         assertThat(bufferContext.isReleased()).isTrue();
         assertThat(buffer.isRecycled()).isTrue();
@@ -134,7 +134,7 @@ class HsBufferContextTest {
         Buffer buffer = bufferContext.getBuffer();
         bufferContext.consumed(HsConsumerId.DEFAULT);
         bufferContext.release();
-        assertThat(buffer.refCnt()).isEqualTo(1);
+        assertThat(buffer.refCnt()).isOne();
     }
 
     private static HsBufferContext createBufferContext() {

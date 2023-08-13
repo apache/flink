@@ -37,7 +37,6 @@ import org.apache.flink.runtime.io.network.util.TestSubpartitionProducer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.CheckedSupplier;
 
@@ -50,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -96,12 +96,10 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         // Successful request
         assertThat(subpartition.createReadView(new NoOpBufferAvailablityListener())).isNotNull();
 
-        try {
-            subpartition.createReadView(new NoOpBufferAvailablityListener());
-
-            fail("Did not throw expected exception after duplicate notifyNonEmpty view request.");
-        } catch (IllegalStateException expected) {
-        }
+        assertThatThrownBy(() -> subpartition.createReadView(new NoOpBufferAvailablityListener()))
+                .withFailMessage(
+                        "Did not throw expected exception after duplicate notifyNonEmpty view request.")
+                .isInstanceOf(IllegalStateException.class);
     }
 
     /** Verifies that the isReleased() check of the view checks the parent subpartition. */
@@ -263,7 +261,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
             }
 
             partition.release();
-            assertThat(partition.getNumberOfQueuedBuffers()).isEqualTo(0);
+            assertThat(partition.getNumberOfQueuedBuffers()).isZero();
 
             assertThat(partition.isReleased()).isTrue();
             if (createView) {
@@ -288,7 +286,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         }
         assertThat(partition.getTotalNumberOfBuffersUnsafe()).isEqualTo(2);
         assertThat(partition.getTotalNumberOfBytesUnsafe())
-                .isEqualTo(0); // buffer data is never consumed
+                .isZero(); // buffer data is never consumed
     }
 
     @TestTemplate
@@ -302,14 +300,14 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         final PipelinedSubpartition subpartition = createSubpartition();
 
         subpartition.add(createFilledFinishedBufferConsumer(4096));
-        assertThat(subpartition.getNumberOfQueuedBuffers()).isEqualTo(1);
+        assertThat(subpartition.getNumberOfQueuedBuffers()).isOne();
 
         subpartition.add(createFilledFinishedBufferConsumer(4096));
         assertThat(subpartition.getNumberOfQueuedBuffers()).isEqualTo(2);
 
         subpartition.getNextBuffer();
 
-        assertThat(subpartition.getNumberOfQueuedBuffers()).isEqualTo(1);
+        assertThat(subpartition.getNumberOfQueuedBuffers()).isOne();
     }
 
     @TestTemplate
@@ -463,14 +461,11 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
         CompletableFuture<List<Buffer>> checkpointFuture10 = subpartition.getChannelStateFuture();
         assertThat(checkpointFuture10).isNotNull();
 
-        try {
-            // It should fail due to currently does not support concurrent unaligned checkpoints.
-            subpartition.add(getTimeoutableBarrierBuffer(11L));
-            checkpointFuture10.get();
-            fail("Should fail with an IllegalStateException.");
-        } catch (Throwable e) {
-            ExceptionUtils.assertThrowable(e, IllegalStateException.class);
-        }
+        // It should fail due to currently does not support concurrent unaligned checkpoints.
+        subpartition.add(getTimeoutableBarrierBuffer(11L));
+        assertThatThrownBy(checkpointFuture10::get)
+                .hasCauseInstanceOf(IllegalStateException.class)
+                .isInstanceOf(ExecutionException.class);
     }
 
     private BufferConsumer getTimeoutableBarrierBuffer(long checkpointId) throws IOException {

@@ -203,7 +203,7 @@ class HsResultPartitionTest {
         try (HsResultPartition resultPartition = createHsResultPartition(2, bufferPool)) {
             resultPartition.broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
             // broadcast event does not request buffer
-            assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isEqualTo(1);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isOne();
 
             Tuple2[] viewAndListeners = createSubpartitionViews(resultPartition, 2);
 
@@ -502,7 +502,7 @@ class HsResultPartitionTest {
         BufferPool bufferPool = globalPool.createBufferPool(3, 3);
         try (HsResultPartition partition = createHsResultPartition(2, bufferPool, true)) {
             partition.broadcastRecord(ByteBuffer.allocate(bufferSize));
-            assertThat(taskIOMetricGroup.getNumBuffersOutCounter().getCount()).isEqualTo(1);
+            assertThat(taskIOMetricGroup.getNumBuffersOutCounter().getCount()).isOne();
             assertThat(taskIOMetricGroup.getNumBytesOutCounter().getCount()).isEqualTo(bufferSize);
             IOMetrics ioMetrics = taskIOMetricGroup.createSnapshot();
             assertThat(ioMetrics.getResultPartitionBytes()).hasSize(1);

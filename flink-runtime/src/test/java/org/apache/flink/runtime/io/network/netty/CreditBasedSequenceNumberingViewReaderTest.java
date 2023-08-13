@@ -50,7 +50,7 @@ class CreditBasedSequenceNumberingViewReaderTest {
         assertThat(reader2.getNumCreditsAvailable()).isEqualTo(numCredits);
 
         reader2.resumeConsumption();
-        assertThat(reader2.getNumCreditsAvailable()).isEqualTo(0);
+        assertThat(reader2.getNumCreditsAvailable()).isZero();
     }
 
     @Test

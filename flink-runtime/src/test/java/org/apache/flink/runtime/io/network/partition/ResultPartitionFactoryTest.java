@@ -228,7 +228,7 @@ class ResultPartitionFactoryTest {
                         1);
 
         // guard our test assumptions
-        assertThat(descriptor.getNumberOfSubpartitions()).isEqualTo(1);
+        assertThat(descriptor.getNumberOfSubpartitions()).isOne();
 
         final ResultPartition partition = factory.create("test", 0, descriptor);
         manager.registerResultPartition(partition);

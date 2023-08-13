@@ -84,7 +84,7 @@ class NettyConnectionReaderTest {
         reader.readBuffer(0);
         assertThat(requiredSegmentIdFuture).isNotDone();
         reader.readBuffer(1);
-        assertThat(requiredSegmentIdFuture.get()).isEqualTo(1);
+        assertThat(requiredSegmentIdFuture.get()).isOne();
     }
 
     private static Supplier<InputChannel> createInputChannelSupplier(

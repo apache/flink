@@ -44,6 +44,7 @@ import java.io.EOFException;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** */
@@ -240,7 +241,7 @@ class ChannelViewsTest {
         // read and re-generate all records and compare them
         try {
             final Tuple2<Integer, String> readRec = new Tuple2<>();
-            for (int i = 0; i < NUM_PAIRS_SHORT + 1; i++) {
+            for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
                 generator.next(rec);
                 serializer.deserialize(readRec, inView);
                 final int k1 = rec.f0;
@@ -251,9 +252,11 @@ class ChannelViewsTest {
                         .withFailMessage("The re-generated and the read record do not match.")
                         .isTrue();
             }
-            fail("Expected an EOFException which did not occur.");
-        } catch (EOFException eofex) {
-            // expected
+
+            generator.next(rec);
+            assertThatThrownBy(() -> serializer.deserialize(readRec, inView))
+                    .withFailMessage("Expected an EOFException which did not occur.")
+                    .isInstanceOf(EOFException.class);
         } catch (Throwable t) {
             // unexpected
             fail("Unexpected Exception: " + t.getMessage());

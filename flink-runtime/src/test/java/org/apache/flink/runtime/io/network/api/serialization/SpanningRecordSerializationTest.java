@@ -190,7 +190,7 @@ class SpanningRecordSerializationTest {
         }
 
         // assert that all records have been serialized and deserialized
-        assertThat(numRecords).isEqualTo(0);
+        assertThat(numRecords).isZero();
     }
 
     @Test
@@ -307,7 +307,7 @@ class SpanningRecordSerializationTest {
     private static void assertUnconsumedBuffer(
             ByteArrayOutputStream expected, CloseableIterator<Buffer> actual) throws Exception {
         if (!actual.hasNext()) {
-            assertThat(expected.size()).isEqualTo(0);
+            assertThat(expected.size()).isZero();
         }
 
         ByteBuffer expectedByteBuffer = ByteBuffer.wrap(expected.toByteArray());

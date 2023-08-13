@@ -340,7 +340,7 @@ public class SortMergeResultPartitionTest {
         assertThatThrownBy(
                         () -> partition.emitRecord(ByteBuffer.allocate(bufferSize * numBuffers), 2))
                 .isInstanceOf(IllegalStateException.class);
-        assertThat(fileChannelManager.getPaths()[0].list().length).isEqualTo(0);
+        assertThat(fileChannelManager.getPaths()[0].list().length).isZero();
     }
 
     @TestTemplate
@@ -373,7 +373,7 @@ public class SortMergeResultPartitionTest {
         while (partition.getResultFile() != null) {
             Thread.sleep(100);
         }
-        assertThat(checkNotNull(fileChannelManager.getPaths()[0].list()).length).isEqualTo(0);
+        assertThat(checkNotNull(fileChannelManager.getPaths()[0].list()).length).isZero();
     }
 
     @TestTemplate

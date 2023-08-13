@@ -259,14 +259,14 @@ class PartitionRequestQueueTest {
         // The reader is enqueued in the pipeline because the next buffer is an event, even though
         // no credits are available
         assertThat(queue.getAvailableReaders()).contains(reader); // contains only (this) one!
-        assertThat(reader.getNumCreditsAvailable()).isEqualTo(0);
+        assertThat(reader.getNumCreditsAvailable()).isZero();
 
         // Flush the buffer to make the channel writable again and see the final results
         channel.flush();
         assertThat((ByteBuf) channel.readOutbound()).isSameAs(channelBlockingBuffer);
 
         assertThat(queue.getAvailableReaders()).isEmpty();
-        assertThat(reader.getNumCreditsAvailable()).isEqualTo(0);
+        assertThat(reader.getNumCreditsAvailable()).isZero();
         assertThat((Object) channel.readOutbound()).isNull();
     }
 
@@ -317,7 +317,7 @@ class PartitionRequestQueueTest {
         assertThat(queue.getAvailableReaders()).isEmpty();
         assertThat(reader.hasBuffersAvailable().isAvailable()).isTrue();
         assertThat(reader.isRegisteredAsAvailable()).isFalse();
-        assertThat(reader.getNumCreditsAvailable()).isEqualTo(0);
+        assertThat(reader.getNumCreditsAvailable()).isZero();
 
         // Notify available credits to trigger enqueue the reader again
         final int notifyNumCredits = 3;
@@ -340,7 +340,7 @@ class PartitionRequestQueueTest {
         assertThat((ByteBuf) channel.readOutbound()).isSameAs(channelBlockingBuffer);
 
         assertThat(queue.getAvailableReaders()).isEmpty();
-        assertThat(reader.getNumCreditsAvailable()).isEqualTo(0);
+        assertThat(reader.getNumCreditsAvailable()).isZero();
         assertThat(reader.hasBuffersAvailable().isAvailable()).isTrue();
         assertThat(reader.isRegisteredAsAvailable()).isFalse();
         for (int i = 1; i <= notifyNumCredits; i++) {
@@ -382,12 +382,12 @@ class PartitionRequestQueueTest {
         reader.notifyDataAvailable();
         channel.runPendingTasks();
         assertThat(reader.getAvailabilityAndBacklog().isAvailable()).isFalse();
-        assertThat(subpartition.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(1);
+        assertThat(subpartition.unsynchronizedGetNumberOfQueuedBuffers()).isOne();
 
         queue.addCreditOrResumeConsumption(
                 receiverId, NetworkSequenceViewReader::resumeConsumption);
         assertThat(reader.getAvailabilityAndBacklog().isAvailable()).isFalse();
-        assertThat(subpartition.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(0);
+        assertThat(subpartition.unsynchronizedGetNumberOfQueuedBuffers()).isZero();
 
         Object data1 = channel.readOutbound();
         assertThat(((NettyMessage.BufferResponse) data1).buffer.getDataType()).isEqualTo(dataType1);

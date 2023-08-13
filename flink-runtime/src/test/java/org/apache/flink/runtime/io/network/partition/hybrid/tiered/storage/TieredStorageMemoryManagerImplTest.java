@@ -80,11 +80,11 @@ public class TieredStorageMemoryManagerImplTest {
                 createStorageMemoryManager(
                         bufferPool,
                         Collections.singletonList(new TieredStorageMemorySpec(this, 0)));
-        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(0);
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isZero();
         BufferBuilder builder = storageMemoryManager.requestBufferBlocking(this);
-        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(1);
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isOne();
         recycleBufferBuilder(builder);
-        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(0);
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isZero();
         storageMemoryManager.release();
     }
 
@@ -198,12 +198,12 @@ public class TieredStorageMemoryManagerImplTest {
             requestedBuffers.add(storageMemoryManager.requestBufferBlocking(this));
         }
 
-        assertThat(reclaimBufferCounter).isEqualTo(0);
+        assertThat(reclaimBufferCounter).isZero();
         assertThat(requestedBuffers.size()).isEqualTo(numBuffersBeforeTriggerReclaim);
         requestedBuffers.add(storageMemoryManager.requestBufferBlocking(this));
         assertThatFuture(hasReclaimBufferFinished).eventuallySucceeds();
-        assertThat(reclaimBufferCounter).isEqualTo(1);
-        assertThat(requestedBuffers.size()).isEqualTo(1);
+        assertThat(reclaimBufferCounter).isOne();
+        assertThat(requestedBuffers.size()).isOne();
         recycleRequestedBuffers();
 
         storageMemoryManager.release();
@@ -215,7 +215,7 @@ public class TieredStorageMemoryManagerImplTest {
                 createStorageMemoryManager(
                         1, Collections.singletonList(new TieredStorageMemorySpec(this, 0)));
         BufferBuilder bufferBuilder = memoryManager.requestBufferBlocking(this);
-        assertThat(memoryManager.numOwnerRequestedBuffer(this)).isEqualTo(1);
+        assertThat(memoryManager.numOwnerRequestedBuffer(this)).isOne();
 
         BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumerFromBeginning();
         Buffer buffer = bufferConsumer.build();
@@ -223,10 +223,10 @@ public class TieredStorageMemoryManagerImplTest {
         bufferConsumer.close();
         Object newOwner = new Object();
         memoryManager.transferBufferOwnership(this, newOwner, buffer);
-        assertThat(memoryManager.numOwnerRequestedBuffer(this)).isEqualTo(0);
-        assertThat(memoryManager.numOwnerRequestedBuffer(newOwner)).isEqualTo(1);
+        assertThat(memoryManager.numOwnerRequestedBuffer(this)).isZero();
+        assertThat(memoryManager.numOwnerRequestedBuffer(newOwner)).isOne();
         buffer.recycleBuffer();
-        assertThat(memoryManager.numOwnerRequestedBuffer(newOwner)).isEqualTo(0);
+        assertThat(memoryManager.numOwnerRequestedBuffer(newOwner)).isZero();
     }
 
     @Test

@@ -182,7 +182,7 @@ class HsSubpartitionFileReaderImplTest {
 
         subpartitionOperation.advanceConsumptionProgress();
         subpartitionOperation.advanceConsumptionProgress();
-        assertThat(subpartitionOperation.getConsumingOffset(true)).isEqualTo(1);
+        assertThat(subpartitionOperation.getConsumingOffset(true)).isOne();
         // update consumptionProgress
         subpartitionFileReader.prepareForScheduling();
         // read buffer, expected buffer with index: 2
@@ -456,7 +456,7 @@ class HsSubpartitionFileReaderImplTest {
                         (bufferAndBacklog -> {
                             assertThat(bufferAndBacklog.getNextDataType())
                                     .isEqualTo(DataType.DATA_BUFFER);
-                            assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(0);
+                            assertThat(bufferAndBacklog.getSequenceNumber()).isZero();
                             // first buffer's data is 0.
                             assertThat(
                                             bufferAndBacklog
@@ -464,7 +464,7 @@ class HsSubpartitionFileReaderImplTest {
                                                     .getNioBufferReadable()
                                                     .order(ByteOrder.nativeOrder())
                                                     .getInt())
-                                    .isEqualTo(0);
+                                    .isZero();
                         }));
 
         // if nextBufferToConsume is less than peek elements index, return Optional.empty.

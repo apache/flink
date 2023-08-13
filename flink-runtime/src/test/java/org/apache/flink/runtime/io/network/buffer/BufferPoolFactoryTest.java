@@ -149,7 +149,7 @@ class BufferPoolFactoryTest {
             buffers.remove(0).recycleBuffer();
             // recycle returns the excess buffer to the network buffer pool from where it's eagerly
             // fetched by pool 2
-            assertThat(networkBufferPool.getNumberOfAvailableMemorySegments()).isEqualTo(0);
+            assertThat(networkBufferPool.getNumberOfAvailableMemorySegments()).isZero();
             // verify the number of buffers taken from the pools
             assertThat(
                             bufferPool1.bestEffortGetNumOfUsedBuffers()
@@ -175,7 +175,7 @@ class BufferPoolFactoryTest {
     @Test
     void testBoundedPools() throws IOException {
         BufferPool bufferPool1 = networkBufferPool.createBufferPool(1, 1);
-        assertThat(bufferPool1.getNumBuffers()).isEqualTo(1);
+        assertThat(bufferPool1.getNumBuffers()).isOne();
 
         BufferPool bufferPool2 = networkBufferPool.createBufferPool(1, 2);
         assertThat(bufferPool2.getNumBuffers()).isEqualTo(2);
@@ -297,15 +297,15 @@ class BufferPoolFactoryTest {
             assertThat(second.getNumBuffers()).isNotEqualTo(3);
 
             BufferPool third = globalPool.createBufferPool(1, 10);
-            assertThat(first.getNumBuffers()).isEqualTo(1);
-            assertThat(second.getNumBuffers()).isEqualTo(1);
-            assertThat(third.getNumBuffers()).isEqualTo(1);
+            assertThat(first.getNumBuffers()).isOne();
+            assertThat(second.getNumBuffers()).isOne();
+            assertThat(third.getNumBuffers()).isOne();
 
             // similar to #verifyAllBuffersReturned()
             String msg = "Wrong number of available segments after creating buffer pools.";
             assertThat(globalPool.getNumberOfAvailableMemorySegments())
                     .withFailMessage(msg)
-                    .isEqualTo(0);
+                    .isZero();
         } finally {
             // in case buffers have actually been requested, we must release them again
             globalPool.destroyAllBufferPools();

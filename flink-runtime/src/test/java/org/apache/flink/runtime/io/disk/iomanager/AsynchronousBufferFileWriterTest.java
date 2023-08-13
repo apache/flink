@@ -67,12 +67,12 @@ class AsynchronousBufferFileWriterTest {
         addRequest();
         assertThat(writer.getNumberOfOutstandingRequests())
                 .withFailMessage("Didn't increment number of outstanding requests.")
-                .isEqualTo(1);
+                .isOne();
 
         handleRequest();
         assertThat(writer.getNumberOfOutstandingRequests())
                 .withFailMessage("Didn't decrement number of outstanding requests.")
-                .isEqualTo(0);
+                .isZero();
     }
 
     @Test
@@ -94,7 +94,7 @@ class AsynchronousBufferFileWriterTest {
         }
         assertThat(writer.getNumberOfOutstandingRequests())
                 .withFailMessage("Shouldn't increment number of outstanding requests.")
-                .isEqualTo(0);
+                .isZero();
     }
 
     @Test
@@ -117,7 +117,7 @@ class AsynchronousBufferFileWriterTest {
 
         assertThat(listener.getNumberOfNotifications())
                 .withFailMessage("Listener was not notified.")
-                .isEqualTo(1);
+                .isOne();
     }
 
     @Test
@@ -157,7 +157,7 @@ class AsynchronousBufferFileWriterTest {
 
         assertThat(listener.getNumberOfNotifications())
                 .withFailMessage("Listener was not notified.")
-                .isEqualTo(1);
+                .isOne();
     }
 
     @Test
@@ -200,12 +200,12 @@ class AsynchronousBufferFileWriterTest {
                         assertThat(listener.getNumberOfNotifications())
                                 .withFailMessage(
                                         "Race: Successfully subscribed, but was never notified.")
-                                .isEqualTo(1);
+                                .isOne();
                     } else {
                         assertThat(listener.getNumberOfNotifications())
                                 .withFailMessage(
                                         "Race: Never subscribed successfully, but was notified.")
-                                .isEqualTo(0);
+                                .isZero();
                     }
                 } catch (Throwable t) {
                     System.out.println(i);

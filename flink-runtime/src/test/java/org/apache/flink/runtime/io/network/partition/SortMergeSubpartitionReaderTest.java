@@ -94,14 +94,14 @@ class SortMergeSubpartitionReaderTest {
         Queue<MemorySegment> segments = createsMemorySegments(2);
         subpartitionReader.readBuffers(segments, FreeingBufferRecycler.INSTANCE);
 
-        assertThat(listener.numNotifications).isEqualTo(1);
-        assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(1);
+        assertThat(listener.numNotifications).isOne();
+        assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isOne();
         assertThat(segments).isEmpty();
 
         segments = createsMemorySegments(2);
         subpartitionReader.readBuffers(segments, FreeingBufferRecycler.INSTANCE);
 
-        assertThat(listener.numNotifications).isEqualTo(1);
+        assertThat(listener.numNotifications).isOne();
         assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(2);
         assertThat(segments).isEmpty();
 
@@ -115,7 +115,7 @@ class SortMergeSubpartitionReaderTest {
         assertThat(listener.numNotifications).isEqualTo(2);
         assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers())
                 .isEqualTo(numBuffersPerSubpartition - 2);
-        assertThat(segments.size()).isEqualTo(1);
+        assertThat(segments.size()).isOne();
     }
 
     @Test
@@ -159,7 +159,7 @@ class SortMergeSubpartitionReaderTest {
                     createSortMergeSubpartitionReader(listener);
 
             subpartitionReader.readBuffers(segments, segments::add);
-            assertThat(listener.numNotifications).isEqualTo(1);
+            assertThat(listener.numNotifications).isOne();
             assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(4);
 
             subpartitionReader.fail(new RuntimeException("Test exception."));
@@ -186,7 +186,7 @@ class SortMergeSubpartitionReaderTest {
                     createSortMergeSubpartitionReader(listener);
 
             subpartitionReader.readBuffers(segments, segments::add);
-            assertThat(listener.numNotifications).isEqualTo(1);
+            assertThat(listener.numNotifications).isOne();
             assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers()).isEqualTo(4);
 
             subpartitionReader.releaseAllResources();
@@ -195,7 +195,7 @@ class SortMergeSubpartitionReaderTest {
             assertThat(subpartitionReader.getAvailabilityAndBacklog(0).isAvailable()).isTrue();
             assertThat(subpartitionReader.isReleased()).isTrue();
 
-            assertThat(listener.numNotifications).isEqualTo(1);
+            assertThat(listener.numNotifications).isOne();
             assertThat(subpartitionReader.getFailureCause()).isNull();
         } finally {
             assertThat(segments).hasSize(numSegments);

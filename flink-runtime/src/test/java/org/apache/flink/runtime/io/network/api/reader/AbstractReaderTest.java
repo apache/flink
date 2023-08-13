@@ -32,7 +32,7 @@ import org.mockito.Matchers;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -81,23 +81,16 @@ class AbstractReaderTest {
         // Non-iterative reader cannot reach end of superstep
         assertThat(reader.hasReachedEndOfSuperstep()).isFalse();
 
-        try {
-            reader.startNextSuperstep();
+        assertThatThrownBy(reader::startNextSuperstep)
+                .withFailMessage(
+                        "Did not throw expected exception when starting next superstep with non-iterative reader.")
+                .isInstanceOf(IllegalStateException.class);
 
-            fail(
-                    "Did not throw expected exception when starting next superstep with non-iterative reader.");
-        } catch (Throwable t) {
-            // All good, expected exception.
-        }
-
-        try {
-            reader.handleEvent(EndOfSuperstepEvent.INSTANCE);
-
-            fail(
-                    "Did not throw expected exception when handling end of superstep event with non-iterative reader.");
-        } catch (Throwable t) {
-            // All good, expected exception.
-        }
+        assertThatThrownBy(() -> reader.handleEvent(EndOfSuperstepEvent.INSTANCE))
+                .withFailMessage(
+                        "Did not throw expected exception when handling end of superstep event with non-iterative reader.")
+                .hasCauseInstanceOf(IllegalStateException.class)
+                .isInstanceOf(IOException.class);
     }
 
     @Test
@@ -108,15 +101,11 @@ class AbstractReaderTest {
 
         reader.setIterativeReader();
 
-        try {
-            // The first superstep does not need not to be explicitly started
-            reader.startNextSuperstep();
-
-            fail(
-                    "Did not throw expected exception when starting next superstep before receiving all end of superstep events.");
-        } catch (Throwable t) {
-            // All good, expected exception.
-        }
+        // The first superstep does not need not to be explicitly started
+        assertThatThrownBy(reader::startNextSuperstep)
+                .withFailMessage(
+                        "Did not throw expected exception when starting next superstep before receiving all end of superstep events.")
+                .isInstanceOf(IllegalStateException.class);
 
         EndOfSuperstepEvent eos = EndOfSuperstepEvent.INSTANCE;
 
@@ -130,15 +119,10 @@ class AbstractReaderTest {
         assertThat(reader.handleEvent(eos)).isTrue();
         assertThat(reader.hasReachedEndOfSuperstep()).isTrue();
 
-        try {
-            // Verify exception, when receiving too many end of superstep events.
-            reader.handleEvent(eos);
-
-            fail(
-                    "Did not throw expected exception when receiving too many end of superstep events.");
-        } catch (Throwable t) {
-            // All good, expected exception.
-        }
+        assertThatThrownBy(() -> reader.handleEvent(eos))
+                .withFailMessage(
+                        "Did not throw expected exception when receiving too many end of superstep events.")
+                .isInstanceOf(IOException.class);
 
         // Start next superstep.
         reader.startNextSuperstep();

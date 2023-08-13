@@ -43,7 +43,7 @@ class NettyBufferPoolTest {
 
             // Checks in a separate loop in case we have sliced buffers.
             for (ByteBuf buf : needReleasing) {
-                assertThat(buf.refCnt()).isEqualTo(0);
+                assertThat(buf.refCnt()).isZero();
             }
         } finally {
             needReleasing.clear();

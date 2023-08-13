@@ -191,7 +191,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
                             new NetworkBufferAllocator(handler));
             handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse);
 
-            assertThat(inputChannel.getNumberOfQueuedBuffers()).isEqualTo(1);
+            assertThat(inputChannel.getNumberOfQueuedBuffers()).isOne();
             assertThat(inputChannel.getSenderBacklog()).isEqualTo(2);
         } finally {
             releaseResource(inputGate, networkBufferPool);
@@ -307,7 +307,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
 
         assertThat(inputChannel.getNumberOfAvailableBuffers())
                 .as("There should be no buffers available in the channel.")
-                .isEqualTo(0);
+                .isZero();
 
         final BufferResponse bufferResponse =
                 createBufferResponse(
@@ -471,7 +471,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
                             allocator);
             handler.channelRead(mock(ChannelHandlerContext.class), bufferResponse3);
 
-            assertThat(inputChannels[0].getUnannouncedCredit()).isEqualTo(1);
+            assertThat(inputChannels[0].getUnannouncedCredit()).isOne();
             assertThat(inputChannels[1].getUnannouncedCredit()).isZero();
 
             channel.runPendingTasks();
@@ -488,7 +488,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
             assertThat(channel.isWritable()).isTrue();
             readFromOutbound = channel.readOutbound();
             assertThat(readFromOutbound).isInstanceOf(AddCredit.class);
-            assertThat(((AddCredit) readFromOutbound).credit).isEqualTo(1);
+            assertThat(((AddCredit) readFromOutbound).credit).isOne();
             assertThat(inputChannels[0].getUnannouncedCredit()).isZero();
             assertThat(inputChannels[1].getUnannouncedCredit()).isZero();
 

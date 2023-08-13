@@ -168,7 +168,7 @@ class HsFileDataManagerTest {
                 (requestedBuffers, readBuffers) -> {
                     assertThat(prepareForSchedulingFinished).isCompleted();
                     assertThat(requestedBuffers).hasSize(BUFFER_POOL_SIZE);
-                    assertThat(bufferPool.getAvailableBuffers()).isEqualTo(0);
+                    assertThat(bufferPool.getAvailableBuffers()).isZero();
                     // read one buffer, return another buffer to data manager.
                     readBuffers.add(requestedBuffers.poll());
                 });
@@ -179,7 +179,7 @@ class HsFileDataManagerTest {
         ioExecutor.trigger();
 
         // not used buffer should be recycled.
-        assertThat(bufferPool.getAvailableBuffers()).isEqualTo(1);
+        assertThat(bufferPool.getAvailableBuffers()).isOne();
     }
 
     /** Test file data manager will schedule readers in order. */

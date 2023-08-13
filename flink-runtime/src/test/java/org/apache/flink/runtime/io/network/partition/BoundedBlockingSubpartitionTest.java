@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Behavior tests for the {@link BoundedBlockingSubpartition} and the {@link
@@ -97,11 +97,8 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
     void testCreateReaderBeforeFinished() throws Exception {
         final ResultSubpartition partition = createSubpartition();
 
-        try {
-            partition.createReadView(new NoOpBufferAvailablityListener());
-            fail("expected exception");
-        } catch (IllegalStateException ignored) {
-        }
+        assertThatThrownBy(() -> partition.createReadView(new NoOpBufferAvailablityListener()))
+                .isInstanceOf(IllegalStateException.class);
 
         partition.release();
     }
@@ -137,13 +134,9 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
                 BufferBuilderTestUtils.createFilledFinishedBufferConsumer(100);
 
         try {
-            try {
-                subpartition.add(consumer);
-                subpartition.createReadView(new NoOpBufferAvailablityListener());
-                fail("should fail with an exception");
-            } catch (Exception ignored) {
-                // expected
-            }
+            subpartition.add(consumer);
+            assertThatThrownBy(
+                    () -> subpartition.createReadView(new NoOpBufferAvailablityListener()));
 
             assertThat(consumer.isRecycled()).isFalse();
 

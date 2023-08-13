@@ -134,7 +134,7 @@ class FileChannelManagerImplTest {
             kill.waitFor();
             assertThat(kill.exitValue())
                     .withFailMessage("Failed to send SIG_TERM to process")
-                    .isEqualTo(0);
+                    .isZero();
 
             Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
             while (fileChannelManagerTestProcess.isAlive() && deadline.hasTimeLeft()) {

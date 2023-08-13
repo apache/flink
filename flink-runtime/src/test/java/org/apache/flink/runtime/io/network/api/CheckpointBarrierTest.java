@@ -24,7 +24,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link CheckpointBarrier} type. */
 class CheckpointBarrierTest {
@@ -34,25 +34,17 @@ class CheckpointBarrierTest {
      * serialization, in order to be immutable.
      */
     @Test
-    void testSerialization() throws Exception {
+    void testSerialization() {
         long id = Integer.MAX_VALUE + 123123L;
         long timestamp = Integer.MAX_VALUE + 1228L;
 
         CheckpointOptions options = CheckpointOptions.forCheckpointWithDefaultLocation();
         CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp, options);
 
-        try {
-            barrier.write(new DataOutputSerializer(1024));
-            fail("should throw an exception");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> barrier.write(new DataOutputSerializer(1024)))
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            barrier.read(new DataInputDeserializer(new byte[32]));
-            fail("should throw an exception");
-        } catch (UnsupportedOperationException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> barrier.read(new DataInputDeserializer(new byte[32])))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

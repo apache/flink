@@ -73,7 +73,7 @@ class LocalBufferPoolTest {
         networkBufferPool = new NetworkBufferPool(numBuffers, memorySegmentSize);
         localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
-        assertThat(localBufferPool.getNumberOfAvailableMemorySegments()).isEqualTo(1);
+        assertThat(localBufferPool.getNumberOfAvailableMemorySegments()).isOne();
     }
 
     @AfterEach
@@ -116,7 +116,7 @@ class LocalBufferPoolTest {
             bufferPool2.lazyDestroy();
 
             BufferPool bufferPool3 = networkBufferPool.createBufferPool(2, 10);
-            assertThat(bufferPool3.getNumberOfAvailableMemorySegments()).isEqualTo(1);
+            assertThat(bufferPool3.getNumberOfAvailableMemorySegments()).isOne();
             bufferPool3.reserveSegments(2);
             assertThat(bufferPool3.getNumberOfAvailableMemorySegments()).isEqualTo(2);
 

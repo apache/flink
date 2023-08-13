@@ -68,9 +68,9 @@ class PrioritizedDequeTest {
         deque.add(1);
         deque.add(3);
 
-        assertThat(deque.getAndRemove(v -> v == 1).intValue()).isEqualTo(1);
+        assertThat(deque.getAndRemove(v -> v == 1).intValue()).isOne();
         assertThat(deque.asUnmodifiableCollection()).containsExactly(0, 2, 1, 3);
-        assertThat(deque.getAndRemove(v -> v == 1).intValue()).isEqualTo(1);
+        assertThat(deque.getAndRemove(v -> v == 1).intValue()).isOne();
         assertThat(deque.asUnmodifiableCollection()).containsExactly(0, 2, 3);
         try {
             int removed = deque.getAndRemove(v -> v == 1);

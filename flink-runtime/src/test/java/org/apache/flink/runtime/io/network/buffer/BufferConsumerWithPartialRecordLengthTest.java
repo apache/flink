@@ -54,7 +54,7 @@ class BufferConsumerWithPartialRecordLengthTest {
 
         // buffer starts with a full record
         BufferConsumerWithPartialRecordLength consumer1 = buffers.poll();
-        assertThat(requireNonNull(consumer1).getPartialRecordLength()).isEqualTo(0);
+        assertThat(requireNonNull(consumer1).getPartialRecordLength()).isZero();
         assertThat(consumer1.cleanupPartialRecord()).isTrue();
         assertContent(consumer1.build(), FreeingBufferRecycler.INSTANCE, 0, 1, 2, 3);
 
@@ -62,7 +62,7 @@ class BufferConsumerWithPartialRecordLengthTest {
         // skip the partial record, return an empty buffer
         BufferConsumerWithPartialRecordLength consumer2 = buffers.poll();
         assertThat(requireNonNull(consumer2).cleanupPartialRecord()).isTrue();
-        assertThat(consumer2.build().readableBytes()).isEqualTo(0);
+        assertThat(consumer2.build().readableBytes()).isZero();
     }
 
     @Test
@@ -77,7 +77,7 @@ class BufferConsumerWithPartialRecordLengthTest {
         BufferConsumerWithPartialRecordLength consumer2 = buffers.poll();
         assertThat(requireNonNull(consumer2).getPartialRecordLength()).isEqualTo(BUFFER_SIZE);
         assertThat(consumer2.cleanupPartialRecord()).isFalse();
-        assertThat(consumer2.build().readableBytes()).isEqualTo(0);
+        assertThat(consumer2.build().readableBytes()).isZero();
 
         BufferConsumerWithPartialRecordLength consumer3 = buffers.poll();
         assertThat(requireNonNull(consumer3).cleanupPartialRecord()).isTrue();
@@ -96,7 +96,7 @@ class BufferConsumerWithPartialRecordLengthTest {
         BufferConsumerWithPartialRecordLength consumer2 = buffers.poll();
         assertThat(requireNonNull(consumer2).getPartialRecordLength()).isEqualTo(BUFFER_SIZE);
         assertThat(consumer2.cleanupPartialRecord()).isFalse();
-        assertThat(consumer2.build().readableBytes()).isEqualTo(0);
+        assertThat(consumer2.build().readableBytes()).isZero();
 
         BufferConsumerWithPartialRecordLength consumer3 = buffers.poll();
         assertThat(requireNonNull(consumer3).cleanupPartialRecord()).isTrue();

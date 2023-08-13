@@ -137,7 +137,7 @@ public class DataBufferTest {
             }
         }
 
-        assertThat(dataBuffer.numTotalBytes()).isEqualTo(0);
+        assertThat(dataBuffer.numTotalBytes()).isZero();
         checkWriteReadResult(
                 numSubpartitions, numBytesWritten, numBytesRead, dataWritten, buffersRead);
     }
@@ -410,14 +410,14 @@ public class DataBufferTest {
 
         assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(bufferPoolSize);
         assertThat(dataBuffer.hasRemaining()).isTrue();
-        assertThat(dataBuffer.numTotalRecords()).isEqualTo(1);
+        assertThat(dataBuffer.numTotalRecords()).isOne();
         assertThat(dataBuffer.numTotalBytes()).isEqualTo(recordSize);
 
         // should release all data and resources
         dataBuffer.release();
-        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isEqualTo(0);
+        assertThat(bufferPool.bestEffortGetNumOfUsedBuffers()).isZero();
         assertThat(dataBuffer.hasRemaining()).isTrue();
-        assertThat(dataBuffer.numTotalRecords()).isEqualTo(1);
+        assertThat(dataBuffer.numTotalRecords()).isOne();
         assertThat(dataBuffer.numTotalBytes()).isEqualTo(recordSize);
     }
 

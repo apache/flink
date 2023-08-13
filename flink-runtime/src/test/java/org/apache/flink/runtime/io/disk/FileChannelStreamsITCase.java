@@ -40,6 +40,7 @@ import java.io.EOFException;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 class FileChannelStreamsITCase {
@@ -243,19 +244,19 @@ class FileChannelStreamsITCase {
             generator.reset();
 
             // read and re-generate all records and compare them
-            try {
-                Pair readPair = new Pair();
-                for (int i = 0; i < NUM_PAIRS_SHORT + 1; i++) {
-                    generator.next(pair);
-                    readPair.read(inView);
-                    assertThat(readPair)
-                            .withFailMessage("The re-generated and the read record do not match.")
-                            .isEqualTo(pair);
-                }
-                fail("Expected an EOFException which did not occur.");
-            } catch (EOFException eofex) {
-                // expected
+            Pair readPair = new Pair();
+            for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
+                generator.next(pair);
+                readPair.read(inView);
+                assertThat(readPair)
+                        .withFailMessage("The re-generated and the read record do not match.")
+                        .isEqualTo(pair);
             }
+
+            generator.next(pair);
+            assertThatThrownBy(() -> readPair.read(inView))
+                    .withFailMessage("Read too much, expected EOFException.")
+                    .isInstanceOf(EOFException.class);
 
             inView.close();
             reader.deleteChannel();

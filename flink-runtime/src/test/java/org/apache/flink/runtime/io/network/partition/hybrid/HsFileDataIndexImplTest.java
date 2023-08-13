@@ -102,7 +102,7 @@ class HsFileDataIndexImplTest {
                         readableRegion -> {
                             assertRegionStartWithTargetBufferIndex(readableRegion, 1);
                             // Readable region will not include discontinuous buffer.
-                            assertThat(readableRegion.numReadable).isEqualTo(1);
+                            assertThat(readableRegion.numReadable).isOne();
                         });
         assertThat(hsDataIndex.getReadableRegion(subpartitionId, 3, 0))
                 .hasValueSatisfying(
@@ -116,7 +116,7 @@ class HsFileDataIndexImplTest {
                 .hasValueSatisfying(
                         readableRegion -> {
                             assertRegionStartWithTargetBufferIndex(readableRegion, 4);
-                            assertThat(readableRegion.numReadable).isEqualTo(1);
+                            assertThat(readableRegion.numReadable).isOne();
                         });
     }
 

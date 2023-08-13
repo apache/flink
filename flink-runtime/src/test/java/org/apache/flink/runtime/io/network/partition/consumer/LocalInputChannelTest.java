@@ -270,12 +270,8 @@ class LocalInputChannelTest {
         }
 
         // Exception after backoff is greater than the maximum backoff.
-        try {
-            ch.retriggerSubpartitionRequest(timer);
-            ch.getNextBuffer();
-            fail("Did not throw expected exception.");
-        } catch (Exception expected) {
-        }
+        ch.retriggerSubpartitionRequest(timer);
+        assertThatThrownBy(ch::getNextBuffer);
     }
 
     @Test
@@ -463,11 +459,7 @@ class LocalInputChannelTest {
         // release the subpartition view
         subpartitionView.releaseAllResources();
 
-        try {
-            channel.getNextBuffer();
-            fail("Did not throw expected CancelTaskException");
-        } catch (CancelTaskException ignored) {
-        }
+        assertThatThrownBy(channel::getNextBuffer).isInstanceOf(CancelTaskException.class);
 
         channel.releaseAllResources();
         assertThat(channel.getNextBuffer()).isEmpty();
@@ -662,7 +654,7 @@ class LocalInputChannelTest {
         inputGate.setInputChannels(localChannel);
 
         // then: Buffers in use should be equal to 0 until subpartition view initialization.
-        assertThat(localChannel.getBuffersInUseCount()).isEqualTo(0);
+        assertThat(localChannel.getBuffersInUseCount()).isZero();
 
         // when: The subpartition view is initialized.
         localChannel.requestSubpartition();
