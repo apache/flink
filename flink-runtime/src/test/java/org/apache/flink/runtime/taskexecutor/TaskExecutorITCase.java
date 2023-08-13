@@ -38,11 +38,11 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -50,30 +50,38 @@ import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests for the {@link TaskExecutor}. */
-public class TaskExecutorITCase extends TestLogger {
+class TaskExecutorITCase {
 
     private static final int NUM_TMS = 2;
     private static final int SLOTS_PER_TM = 2;
     private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
 
-    @Rule
-    public final MiniClusterResource miniClusterResource =
+    private final MiniClusterResource miniClusterResource =
             new MiniClusterResource(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(NUM_TMS)
                             .setNumberSlotsPerTaskManager(SLOTS_PER_TM)
                             .build());
 
+    @BeforeEach
+    void before() throws Exception {
+        miniClusterResource.before();
+    }
+
+    @AfterEach
+    void after() {
+        miniClusterResource.after();
+    }
+
     /**
      * Tests that a job can be re-executed after the job has failed due to a TaskExecutor
      * termination.
      */
     @Test
-    public void testJobReExecutionAfterTaskExecutorTermination() throws Exception {
+    void testJobReExecutionAfterTaskExecutorTermination() throws Exception {
         final JobGraph jobGraph = createJobGraph(PARALLELISM);
 
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
@@ -86,7 +94,7 @@ public class TaskExecutorITCase extends TestLogger {
 
         final JobResult jobResult = jobResultFuture.get();
 
-        assertThat(jobResult.isSuccess(), is(false));
+        assertThat(jobResult.isSuccess()).isFalse();
 
         miniCluster.startTaskManager();
 
@@ -99,7 +107,7 @@ public class TaskExecutorITCase extends TestLogger {
 
     /** Tests that the job can recover from a failing {@link TaskExecutor}. */
     @Test
-    public void testJobRecoveryWithFailingTaskExecutor() throws Exception {
+    void testJobRecoveryWithFailingTaskExecutor() throws Exception {
         final JobGraph jobGraph = createJobGraphWithRestartStrategy(PARALLELISM);
 
         final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
@@ -114,7 +122,7 @@ public class TaskExecutorITCase extends TestLogger {
 
         BlockingOperator.unblock();
 
-        assertThat(jobResultFuture.get().isSuccess(), is(true));
+        assertThat(jobResultFuture.get().isSuccess()).isTrue();
     }
 
     private static CompletableFuture<JobResult> submitJobAndWaitUntilRunning(
@@ -124,7 +132,7 @@ public class TaskExecutorITCase extends TestLogger {
         final CompletableFuture<JobResult> jobResultFuture =
                 miniCluster.requestJobResult(jobGraph.getJobID());
 
-        assertThat(jobResultFuture.isDone(), is(false));
+        assertThat(jobResultFuture.isDone()).isFalse();
 
         CommonTestUtils.waitUntilCondition(
                 jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())), 50L);

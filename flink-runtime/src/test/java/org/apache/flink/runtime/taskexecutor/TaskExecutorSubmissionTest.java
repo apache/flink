@@ -56,17 +56,16 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -79,31 +78,34 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
 /** Tests for submission logic of the {@link TaskExecutor}. */
-public class TaskExecutorSubmissionTest extends TestLogger {
+class TaskExecutorSubmissionTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
-
-    @Rule public final TestName testName = new TestName();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private static final Time timeout = Time.milliseconds(10000L);
 
     private JobID jobId = new JobID();
 
+    private TestInfo testInfo;
+
+    @BeforeEach
+    void setUp(TestInfo testInfo) {
+        this.testInfo = testInfo;
+    }
+
     /**
      * Tests that we can submit a task to the TaskManager given that we've allocated a slot there.
      */
     @Test
-    public void testTaskSubmission() throws Exception {
+    void testTaskSubmission() throws Exception {
         final ExecutionAttemptID eid = createExecutionAttemptId();
 
         final TaskDeploymentDescriptor tdd =
@@ -117,7 +119,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .setSlotSize(1)
                         .addTaskManagerActionListener(
                                 eid, ExecutionState.RUNNING, taskRunningFuture)
-                        .build(EXECUTOR_RESOURCE.getExecutor())) {
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
@@ -133,7 +135,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * message fails.
      */
     @Test
-    public void testSubmitTaskFailure() throws Exception {
+    void testSubmitTaskFailure() throws Exception {
         final ExecutionAttemptID eid = createExecutionAttemptId();
 
         final TaskDeploymentDescriptor tdd =
@@ -146,20 +148,20 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
         try (TaskSubmissionTestEnvironment env =
                 new TaskSubmissionTestEnvironment.Builder(jobId)
-                        .build(EXECUTOR_RESOURCE.getExecutor())) {
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
             taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
-            tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-        } catch (Exception e) {
-            assertThat(e.getCause(), instanceOf(IllegalArgumentException.class));
+
+            assertThatThrownBy(() -> tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get())
+                    .hasCauseInstanceOf(IllegalArgumentException.class);
         }
     }
 
     /** Tests that we can cancel the task of the TaskManager given that we've submitted it. */
     @Test
-    public void testTaskSubmissionAndCancelling() throws Exception {
+    void testTaskSubmissionAndCancelling() throws Exception {
         final ExecutionAttemptID eid1 = createExecutionAttemptId();
         final ExecutionAttemptID eid2 = createExecutionAttemptId();
 
@@ -181,7 +183,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                                 eid2, ExecutionState.RUNNING, task2RunningFuture)
                         .addTaskManagerActionListener(
                                 eid1, ExecutionState.CANCELED, task1CanceledFuture)
-                        .build(EXECUTOR_RESOURCE.getExecutor())) {
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -193,14 +195,18 @@ public class TaskExecutorSubmissionTest extends TestLogger {
             tmGateway.submitTask(tdd2, env.getJobMasterId(), timeout).get();
             task2RunningFuture.get();
 
-            assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.RUNNING);
-            assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.RUNNING);
+            assertThat(taskSlotTable.getTask(eid1).getExecutionState())
+                    .isEqualTo(ExecutionState.RUNNING);
+            assertThat(taskSlotTable.getTask(eid2).getExecutionState())
+                    .isEqualTo(ExecutionState.RUNNING);
 
             tmGateway.cancelTask(eid1, timeout);
             task1CanceledFuture.get();
 
-            assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.CANCELED);
-            assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.RUNNING);
+            assertThat(taskSlotTable.getTask(eid1).getExecutionState())
+                    .isEqualTo(ExecutionState.CANCELED);
+            assertThat(taskSlotTable.getTask(eid2).getExecutionState())
+                    .isEqualTo(ExecutionState.RUNNING);
         }
     }
 
@@ -209,7 +215,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * ResultPartitions/InputGates are set up.
      */
     @Test
-    public void testGateChannelEdgeMismatch() throws Exception {
+    void testGateChannelEdgeMismatch() throws Exception {
         final ExecutionAttemptID eid1 = createExecutionAttemptId();
         final ExecutionAttemptID eid2 = createExecutionAttemptId();
 
@@ -236,7 +242,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .addTaskManagerActionListener(
                                 eid2, ExecutionState.FAILED, task2FailedFuture)
                         .setSlotSize(2)
-                        .build(EXECUTOR_RESOURCE.getExecutor())) {
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -251,13 +257,15 @@ public class TaskExecutorSubmissionTest extends TestLogger {
             task1FailedFuture.get();
             task2FailedFuture.get();
 
-            assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.FAILED);
-            assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.FAILED);
+            assertThat(taskSlotTable.getTask(eid1).getExecutionState())
+                    .isEqualTo(ExecutionState.FAILED);
+            assertThat(taskSlotTable.getTask(eid2).getExecutionState())
+                    .isEqualTo(ExecutionState.FAILED);
         }
     }
 
     @Test
-    public void testRunJobWithForwardChannel() throws Exception {
+    void testRunJobWithForwardChannel() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor sdd =
                 createRemoteWithIdAndLocation(
@@ -294,7 +302,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .setJobMasterId(jobMasterId)
                         .setJobMasterGateway(testingJobMasterGateway)
                         .useRealNonMockShuffleEnvironment()
-                        .build(EXECUTOR_RESOURCE.getExecutor())) {
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -309,8 +317,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
             task1FinishedFuture.get();
             task2FinishedFuture.get();
 
-            assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.FINISHED);
-            assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.FINISHED);
+            assertThat(taskSlotTable.getTask(eid1).getExecutionState())
+                    .isEqualTo(ExecutionState.FINISHED);
+            assertThat(taskSlotTable.getTask(eid2).getExecutionState())
+                    .isEqualTo(ExecutionState.FINISHED);
         }
     }
 
@@ -319,7 +329,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * to the job manager. the second one blocks to be canceled
      */
     @Test
-    public void testCancellingDependentAndStateUpdateFails() throws Exception {
+    void testCancellingDependentAndStateUpdateFails() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor sdd =
                 createRemoteWithIdAndLocation(
@@ -371,7 +381,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .setJobMasterId(jobMasterId)
                         .setJobMasterGateway(testingJobMasterGateway)
                         .useRealNonMockShuffleEnvironment()
-                        .build(EXECUTOR_RESOURCE.getExecutor())) {
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -384,12 +394,14 @@ public class TaskExecutorSubmissionTest extends TestLogger {
             task2RunningFuture.get();
 
             task1FailedFuture.get();
-            assertSame(taskSlotTable.getTask(eid1).getExecutionState(), ExecutionState.FAILED);
+            assertThat(taskSlotTable.getTask(eid1).getExecutionState())
+                    .isEqualTo(ExecutionState.FAILED);
 
             tmGateway.cancelTask(eid2, timeout);
 
             task2CanceledFuture.get();
-            assertSame(taskSlotTable.getTask(eid2).getExecutionState(), ExecutionState.CANCELED);
+            assertThat(taskSlotTable.getTask(eid2).getExecutionState())
+                    .isEqualTo(ExecutionState.CANCELED);
         }
     }
 
@@ -397,7 +409,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * Tests that repeated remote {@link PartitionNotFoundException}s ultimately fail the receiver.
      */
     @Test
-    public void testRemotePartitionNotFound() throws Exception {
+    void testRemotePartitionNotFound() throws Exception {
         try (NetUtils.Port port = NetUtils.getAvailablePort()) {
             final int dataPort = port.getPort();
 
@@ -425,7 +437,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                             .setConfiguration(config)
                             .setLocalCommunication(false)
                             .useRealNonMockShuffleEnvironment()
-                            .build(EXECUTOR_RESOURCE.getExecutor())) {
+                            .build(EXECUTOR_EXTENSION.getExecutor())) {
                 TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
                 TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -434,16 +446,15 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                 taskRunningFuture.get();
 
                 taskFailedFuture.get();
-                assertThat(
-                        taskSlotTable.getTask(eid).getFailureCause(),
-                        instanceOf(PartitionNotFoundException.class));
+                assertThat(taskSlotTable.getTask(eid).getFailureCause())
+                        .isInstanceOf(PartitionNotFoundException.class);
             }
         }
     }
 
     /** Tests that the TaskManager fails the task if the partition update fails. */
     @Test
-    public void testUpdateTaskInputPartitionsFailure() throws Exception {
+    void testUpdateTaskInputPartitionsFailure() throws Exception {
         final ExecutionAttemptID eid = createExecutionAttemptId();
 
         final TaskDeploymentDescriptor tdd =
@@ -461,7 +472,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .addTaskManagerActionListener(
                                 eid, ExecutionState.RUNNING, taskRunningFuture)
                         .addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
-                        .build(EXECUTOR_RESOURCE.getExecutor())) {
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -486,8 +497,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
             updateFuture.get();
             taskFailedFuture.get();
             Task task = taskSlotTable.getTask(tdd.getExecutionAttemptId());
-            assertThat(task.getExecutionState(), is(ExecutionState.FAILED));
-            assertThat(task.getFailureCause(), instanceOf(IOException.class));
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
+            assertThat(task.getFailureCause()).isInstanceOf(IOException.class);
         }
     }
 
@@ -495,7 +506,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * Tests that repeated local {@link PartitionNotFoundException}s ultimately fail the receiver.
      */
     @Test
-    public void testLocalPartitionNotFound() throws Exception {
+    void testLocalPartitionNotFound() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor shuffleDescriptor =
                 createRemoteWithIdAndLocation(
@@ -519,7 +530,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                         .addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
                         .setConfiguration(config)
                         .useRealNonMockShuffleEnvironment()
-                        .build(EXECUTOR_RESOURCE.getExecutor())) {
+                        .build(EXECUTOR_EXTENSION.getExecutor())) {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
@@ -529,10 +540,10 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 
             taskFailedFuture.get();
 
-            assertSame(taskSlotTable.getTask(eid).getExecutionState(), ExecutionState.FAILED);
-            assertThat(
-                    taskSlotTable.getTask(eid).getFailureCause(),
-                    instanceOf(PartitionNotFoundException.class));
+            assertThat(taskSlotTable.getTask(eid).getExecutionState())
+                    .isEqualTo(ExecutionState.FAILED);
+            assertThat(taskSlotTable.getTask(eid).getFailureCause())
+                    .isInstanceOf(PartitionNotFoundException.class);
         }
     }
 
@@ -614,7 +625,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
         Preconditions.checkNotNull(inputGates);
         return createTaskDeploymentDescriptor(
                 jobId,
-                testName.getMethodName(),
+                testInfo.getDisplayName(),
                 eid,
                 new SerializedValue<>(new ExecutionConfig()),
                 taskName,
