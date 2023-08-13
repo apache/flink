@@ -79,7 +79,6 @@ Expressions
     json_array_agg
     call
     call_sql
-    hashcode
 
 
 Expression
