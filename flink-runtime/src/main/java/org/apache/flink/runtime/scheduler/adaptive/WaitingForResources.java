@@ -237,7 +237,7 @@ class WaitingForResources implements State, ResourceListener {
                 Logger log,
                 Duration initialResourceAllocationTimeout,
                 Duration resourceStabilizationTimeout,
-                ExecutionGraph previousExecutionGraph) {
+                @Nullable ExecutionGraph previousExecutionGraph) {
             this.context = context;
             this.log = log;
             this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
@@ -258,10 +258,5 @@ class WaitingForResources implements State, ResourceListener {
                     SystemClock.getInstance(),
                     previousExecutionGraph);
         }
-    }
-
-    @Nullable
-    public ExecutionGraph getPreviousExecutionGraph() {
-        return previousExecutionGraph;
     }
 }
