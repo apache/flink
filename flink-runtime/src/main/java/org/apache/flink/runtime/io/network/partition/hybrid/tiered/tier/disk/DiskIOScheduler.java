@@ -236,18 +236,18 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
     }
 
     private List<ScheduledSubpartitionReader> sortScheduledReaders() {
+        List<ScheduledSubpartitionReader> scheduledReaders;
         synchronized (lock) {
             if (isReleased) {
                 return new ArrayList<>();
             }
-            List<ScheduledSubpartitionReader> scheduledReaders = new ArrayList<>();
-            for (ScheduledSubpartitionReader reader : allScheduledReaders.values()) {
-                reader.prepareForScheduling();
-                scheduledReaders.add(reader);
-            }
-            Collections.sort(scheduledReaders);
-            return scheduledReaders;
+            scheduledReaders = new ArrayList<>(allScheduledReaders.values());
         }
+        for (ScheduledSubpartitionReader reader : scheduledReaders) {
+            reader.prepareForScheduling();
+        }
+        Collections.sort(scheduledReaders);
+        return scheduledReaders;
     }
 
     private Queue<MemorySegment> allocateBuffers() throws Exception {
