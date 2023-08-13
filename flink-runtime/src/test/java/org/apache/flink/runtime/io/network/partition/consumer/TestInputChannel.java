@@ -41,7 +41,7 @@ import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createB
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** A mocked input channel. */
 public class TestInputChannel extends InputChannel {

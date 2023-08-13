@@ -20,18 +20,15 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Basic subpartition behaviour tests. */
-public abstract class SubpartitionTestBase extends TestLogger {
+abstract class SubpartitionTestBase {
 
     /** Return the subpartition to be tested. */
     abstract ResultSubpartition createSubpartition() throws Exception;
@@ -41,8 +38,8 @@ public abstract class SubpartitionTestBase extends TestLogger {
 
     // ------------------------------------------------------------------------
 
-    @Test
-    public void createReaderAfterDispose() throws Exception {
+    @TestTemplate
+    void createReaderAfterDispose() throws Exception {
         final ResultSubpartition subpartition = createSubpartition();
         subpartition.release();
 
@@ -54,22 +51,22 @@ public abstract class SubpartitionTestBase extends TestLogger {
         }
     }
 
-    @Test
-    public void testAddAfterFinish() throws Exception {
+    @TestTemplate
+    void testAddAfterFinish() throws Exception {
         final ResultSubpartition subpartition = createSubpartition();
 
         try {
             subpartition.finish();
-            assertEquals(1, subpartition.getTotalNumberOfBuffersUnsafe());
-            assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
+            assertThat(subpartition.getTotalNumberOfBuffersUnsafe()).isEqualTo(1);
+            assertThat(subpartition.getBuffersInBacklogUnsafe()).isEqualTo(0);
 
             BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(4096);
 
-            assertEquals(-1, subpartition.add(bufferConsumer));
-            assertTrue(bufferConsumer.isRecycled());
+            assertThat(subpartition.add(bufferConsumer)).isEqualTo(-1);
+            assertThat(bufferConsumer.isRecycled()).isTrue();
 
-            assertEquals(1, subpartition.getTotalNumberOfBuffersUnsafe());
-            assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
+            assertThat(subpartition.getTotalNumberOfBuffersUnsafe()).isEqualTo(1);
+            assertThat(subpartition.getBuffersInBacklogUnsafe()).isEqualTo(0);
         } finally {
             if (subpartition != null) {
                 subpartition.release();
@@ -77,8 +74,8 @@ public abstract class SubpartitionTestBase extends TestLogger {
         }
     }
 
-    @Test
-    public void testAddAfterRelease() throws Exception {
+    @TestTemplate
+    void testAddAfterRelease() throws Exception {
         final ResultSubpartition subpartition = createSubpartition();
 
         try {
@@ -86,8 +83,8 @@ public abstract class SubpartitionTestBase extends TestLogger {
 
             BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(4096);
 
-            assertEquals(-1, subpartition.add(bufferConsumer));
-            assertTrue(bufferConsumer.isRecycled());
+            assertThat(subpartition.add(bufferConsumer)).isEqualTo(-1);
+            assertThat(bufferConsumer.isRecycled()).isTrue();
 
         } finally {
             if (subpartition != null) {
@@ -96,8 +93,8 @@ public abstract class SubpartitionTestBase extends TestLogger {
         }
     }
 
-    @Test
-    public void testReleasingReaderDoesNotReleasePartition() throws Exception {
+    @TestTemplate
+    void testReleasingReaderDoesNotReleasePartition() throws Exception {
         final ResultSubpartition partition = createSubpartition();
         partition.add(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
         partition.finish();
@@ -105,19 +102,19 @@ public abstract class SubpartitionTestBase extends TestLogger {
         final ResultSubpartitionView reader =
                 partition.createReadView(new NoOpBufferAvailablityListener());
 
-        assertFalse(partition.isReleased());
-        assertFalse(reader.isReleased());
+        assertThat(partition.isReleased()).isFalse();
+        assertThat(reader.isReleased()).isFalse();
 
         reader.releaseAllResources();
 
-        assertTrue(reader.isReleased());
-        assertFalse(partition.isReleased());
+        assertThat(reader.isReleased()).isTrue();
+        assertThat(partition.isReleased()).isFalse();
 
         partition.release();
     }
 
-    @Test
-    public void testReleaseIsIdempotent() throws Exception {
+    @TestTemplate
+    void testReleaseIsIdempotent() throws Exception {
         final ResultSubpartition partition = createSubpartition();
         partition.add(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
         partition.finish();
@@ -127,8 +124,8 @@ public abstract class SubpartitionTestBase extends TestLogger {
         partition.release();
     }
 
-    @Test
-    public void testReadAfterDispose() throws Exception {
+    @TestTemplate
+    void testReadAfterDispose() throws Exception {
         final ResultSubpartition partition = createSubpartition();
         partition.add(createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE));
         partition.finish();
@@ -145,8 +142,8 @@ public abstract class SubpartitionTestBase extends TestLogger {
         //		assertNull(reader.getNextBuffer());
     }
 
-    @Test
-    public void testRecycleBufferAndConsumerOnFailure() throws Exception {
+    @TestTemplate
+    void testRecycleBufferAndConsumerOnFailure() throws Exception {
         final ResultSubpartition subpartition = createFailingWritesSubpartition();
         try {
             final BufferConsumer consumer =
@@ -160,7 +157,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
                 // expected
             }
 
-            assertTrue(consumer.isRecycled());
+            assertThat(consumer.isRecycled()).isTrue();
         } finally {
             subpartition.release();
         }

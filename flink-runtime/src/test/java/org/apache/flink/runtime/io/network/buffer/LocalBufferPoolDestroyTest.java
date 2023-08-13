@@ -20,30 +20,24 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.runtime.execution.CancelTaskException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the destruction of a {@link LocalBufferPool}. */
 public class LocalBufferPoolDestroyTest {
     @Test
-    public void testRequestAfterDestroy() throws IOException {
+    void testRequestAfterDestroy() {
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 4096);
         LocalBufferPool localBufferPool = new LocalBufferPool(networkBufferPool, 1);
         localBufferPool.lazyDestroy();
 
-        try {
-            localBufferPool.requestBuffer();
-            fail("Call should have failed with an IllegalStateException");
-        } catch (CancelTaskException e) {
-            // we expect exactly that
-        }
+        assertThatThrownBy(localBufferPool::requestBuffer)
+                .withFailMessage("Call should have failed with an CancelTaskException")
+                .isInstanceOf(CancelTaskException.class);
     }
 
     /**
@@ -54,7 +48,7 @@ public class LocalBufferPoolDestroyTest {
      * and we check whether the request Thread threw the expected Exception.
      */
     @Test
-    public void testDestroyWhileBlockingRequest() throws Exception {
+    void testDestroyWhileBlockingRequest() throws Exception {
         AtomicReference<Exception> asyncException = new AtomicReference<>();
 
         NetworkBufferPool networkBufferPool = null;
@@ -65,8 +59,8 @@ public class LocalBufferPoolDestroyTest {
             localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
             // Drain buffer pool
-            assertNotNull(localBufferPool.requestBuffer());
-            assertNull(localBufferPool.requestBuffer());
+            assertThat(localBufferPool.requestBuffer()).isNotNull();
+            assertThat(localBufferPool.requestBuffer()).isNull();
 
             // Start request Thread
             Thread thread = new Thread(new BufferRequestTask(localBufferPool, asyncException));
@@ -88,7 +82,9 @@ public class LocalBufferPoolDestroyTest {
             }
 
             // Verify that Thread was in blocking request
-            assertTrue("Did not trigger blocking buffer request.", success);
+            assertThat(success)
+                    .withFailMessage("Did not trigger blocking buffer request.")
+                    .isTrue();
 
             // Destroy the buffer pool
             localBufferPool.lazyDestroy();
@@ -97,8 +93,10 @@ public class LocalBufferPoolDestroyTest {
             thread.join();
 
             // Verify expected Exception
-            assertNotNull("Did not throw expected Exception", asyncException.get());
-            assertTrue(asyncException.get() instanceof CancelTaskException);
+            assertThat(asyncException.get())
+                    .withFailMessage("Did not throw expected Exception")
+                    .isNotNull();
+            assertThat(asyncException.get()).isInstanceOf(CancelTaskException.class);
         } finally {
             if (localBufferPool != null) {
                 localBufferPool.lazyDestroy();
@@ -137,7 +135,7 @@ public class LocalBufferPoolDestroyTest {
         private final BufferPool bufferPool;
         private final AtomicReference<Exception> asyncException;
 
-        public BufferRequestTask(BufferPool bufferPool, AtomicReference<Exception> asyncException) {
+        BufferRequestTask(BufferPool bufferPool, AtomicReference<Exception> asyncException) {
             this.bufferPool = bufferPool;
             this.asyncException = asyncException;
         }
@@ -146,7 +144,7 @@ public class LocalBufferPoolDestroyTest {
         public void run() {
             try {
                 String msg = "Test assumption violated: expected no available buffer";
-                assertNull(msg, bufferPool.requestBuffer());
+                assertThat(bufferPool.requestBuffer()).withFailMessage(msg).isNull();
 
                 bufferPool.requestBufferBuilderBlocking();
             } catch (Exception t) {

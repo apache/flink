@@ -33,7 +33,7 @@ import org.apache.flink.testutils.TestingUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -49,7 +49,7 @@ import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -58,7 +58,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class CancelPartitionRequestTest {
+class CancelPartitionRequestTest {
 
     /**
      * Verifies that requests for non-existing (failed/cancelled) input channels are properly
@@ -66,7 +66,7 @@ public class CancelPartitionRequestTest {
      * This should cancel the request.
      */
     @Test
-    public void testCancelPartitionRequest() throws Exception {
+    void testCancelPartitionRequest() throws Exception {
 
         NettyServerAndClient serverAndClient = null;
 
@@ -123,7 +123,7 @@ public class CancelPartitionRequestTest {
     }
 
     @Test
-    public void testDuplicateCancel() throws Exception {
+    void testDuplicateCancel() throws Exception {
 
         NettyServerAndClient serverAndClient = null;
 

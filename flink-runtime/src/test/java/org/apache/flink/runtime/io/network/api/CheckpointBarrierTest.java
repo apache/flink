@@ -22,19 +22,19 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link CheckpointBarrier} type. */
-public class CheckpointBarrierTest {
+class CheckpointBarrierTest {
 
     /**
      * Test serialization of the checkpoint barrier. The checkpoint barrier does not support its own
      * serialization, in order to be immutable.
      */
     @Test
-    public void testSerialization() throws Exception {
+    void testSerialization() throws Exception {
         long id = Integer.MAX_VALUE + 123123L;
         long timestamp = Integer.MAX_VALUE + 1228L;
 

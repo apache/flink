@@ -65,7 +65,7 @@ class LocalBufferPoolTest {
     private BufferPool localBufferPool;
 
     @RegisterExtension
-    public static final TestExecutorExtension<ExecutorService> EXECUTOR_RESOURCE =
+    static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
             new TestExecutorExtension<>(Executors::newCachedThreadPool);
 
     @BeforeEach
@@ -587,7 +587,7 @@ class LocalBufferPoolTest {
         Future<Boolean>[] taskResults = new Future[numConcurrentTasks];
         for (int i = 0; i < numConcurrentTasks; i++) {
             taskResults[i] =
-                    EXECUTOR_RESOURCE
+                    EXECUTOR_EXTENSION
                             .getExecutor()
                             .submit(
                                     new BufferRequesterTask(

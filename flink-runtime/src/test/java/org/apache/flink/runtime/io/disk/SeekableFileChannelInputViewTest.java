@@ -27,18 +27,19 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class SeekableFileChannelInputViewTest {
+class SeekableFileChannelInputViewTest {
 
     @Test
-    public void testSeek() {
+    void testSeek() {
         final int PAGE_SIZE = 16 * 1024;
         final int NUM_RECORDS = 120000;
         // integers across 7.x pages (7 pages = 114.688 bytes, 8 pages = 131.072 bytes)
@@ -64,7 +65,7 @@ public class SeekableFileChannelInputViewTest {
             }
             // close for the first time, make sure all memory returns
             out.close();
-            assertTrue(memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty()).isTrue();
 
             memMan.allocatePages(new DummyInvokable(), memory, 4);
             SeekableFileChannelInputView in =
@@ -73,7 +74,7 @@ public class SeekableFileChannelInputViewTest {
 
             // read first, complete
             for (int i = 0; i < NUM_RECORDS; i += 4) {
-                assertEquals(i, in.readInt());
+                assertThat(in.readInt()).isEqualTo(i);
             }
             try {
                 in.readInt();
@@ -85,7 +86,7 @@ public class SeekableFileChannelInputViewTest {
             int i = 2 * PAGE_SIZE + PAGE_SIZE / 4;
             in.seek(i);
             for (; i < NUM_RECORDS; i += 4) {
-                assertEquals(i, in.readInt());
+                assertThat(in.readInt()).isEqualTo(i);
             }
             try {
                 in.readInt();
@@ -97,7 +98,7 @@ public class SeekableFileChannelInputViewTest {
             i = 120000 - 4;
             in.seek(i);
             for (; i < NUM_RECORDS; i += 4) {
-                assertEquals(i, in.readInt());
+                assertThat(in.readInt()).isEqualTo(i);
             }
             try {
                 in.readInt();
@@ -109,7 +110,7 @@ public class SeekableFileChannelInputViewTest {
             i = 0;
             in.seek(i);
             for (; i < NUM_RECORDS; i += 4) {
-                assertEquals(i, in.readInt());
+                assertThat(in.readInt()).isEqualTo(i);
             }
             try {
                 in.readInt();
@@ -121,7 +122,7 @@ public class SeekableFileChannelInputViewTest {
             i = PAGE_SIZE;
             in.seek(i);
             for (; i < NUM_RECORDS; i += 4) {
-                assertEquals(i, in.readInt());
+                assertThat(in.readInt()).isEqualTo(i);
             }
             try {
                 in.readInt();
@@ -133,7 +134,7 @@ public class SeekableFileChannelInputViewTest {
             i = 3 * PAGE_SIZE;
             in.seek(i);
             for (; i < NUM_RECORDS; i += 4) {
-                assertEquals(i, in.readInt());
+                assertThat(in.readInt()).isEqualTo(i);
             }
             try {
                 in.readInt();

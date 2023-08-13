@@ -22,30 +22,28 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.hamcrest.Matchers;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that read the BoundedBlockingSubpartition with multiple threads in parallel. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public abstract class BoundedDataTestBase {
 
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+    private Path subpartitionDataPath;
 
     /**
      * Max buffer sized used by the tests that write data. For implementations that need to
@@ -61,11 +59,16 @@ public abstract class BoundedDataTestBase {
     private static final BufferDecompressor DECOMPRESSOR =
             new BufferDecompressor(BUFFER_SIZE, COMPRESSION_CODEC);
 
-    @Parameterized.Parameter public static boolean compressionEnabled;
+    @Parameter public static boolean compressionEnabled;
 
-    @Parameterized.Parameters(name = "compressionEnabled = {0}")
-    public static Boolean[] compressionEnabled() {
-        return new Boolean[] {false, true};
+    @Parameters(name = "compressionEnabled = {0}")
+    public static List<Boolean> compressionEnabled() {
+        return Arrays.asList(false, true);
+    }
+
+    @BeforeEach
+    void before(@TempDir Path tempDir) {
+        this.subpartitionDataPath = tempDir.resolve("subpartitiondata");
     }
 
     // ------------------------------------------------------------------------
@@ -80,25 +83,25 @@ public abstract class BoundedDataTestBase {
             throws IOException;
 
     protected BoundedData createBoundedData() throws IOException {
-        return createBoundedData(createTempPath());
+        return createBoundedData(subpartitionDataPath);
     }
 
     private BoundedData createBoundedDataWithRegion(int regionSize) throws IOException {
-        return createBoundedDataWithRegion(createTempPath(), regionSize);
+        return createBoundedDataWithRegion(subpartitionDataPath, regionSize);
     }
 
     // ------------------------------------------------------------------------
     //  Tests
     // ------------------------------------------------------------------------
 
-    @Test
+    @TestTemplate
     public void testWriteAndReadData() throws Exception {
         try (BoundedData bd = createBoundedData()) {
             testWriteAndReadData(bd);
         }
     }
 
-    @Test
+    @TestTemplate
     public void testWriteAndReadDataAcrossRegions() throws Exception {
         if (!isRegionBased()) {
             return;
@@ -117,7 +120,7 @@ public abstract class BoundedDataTestBase {
         readLongs(bd.createReader(), numBuffers, numLongs);
     }
 
-    @Test
+    @TestTemplate
     public void returnNullAfterEmpty() throws Exception {
         try (BoundedData bd = createBoundedData()) {
             bd.finishWrite();
@@ -125,31 +128,30 @@ public abstract class BoundedDataTestBase {
             final BoundedData.Reader reader = bd.createReader();
 
             // check that multiple calls now return empty buffers
-            assertNull(reader.nextBuffer());
-            assertNull(reader.nextBuffer());
-            assertNull(reader.nextBuffer());
+            assertThat(reader.nextBuffer()).isNull();
+            assertThat(reader.nextBuffer()).isNull();
+            assertThat(reader.nextBuffer()).isNull();
         }
     }
 
-    @Test
+    @TestTemplate
     public void testDeleteFileOnClose() throws Exception {
-        final Path path = createTempPath();
-        final BoundedData bd = createBoundedData(path);
-        assertTrue(Files.exists(path));
+        final BoundedData bd = createBoundedData(subpartitionDataPath);
+        assertThat(Files.exists(subpartitionDataPath)).isTrue();
 
         bd.close();
 
-        assertFalse(Files.exists(path));
+        assertThat(Files.exists(subpartitionDataPath)).isFalse();
     }
 
-    @Test
+    @TestTemplate
     public void testGetSizeSingleRegion() throws Exception {
         try (BoundedData bd = createBoundedData()) {
             testGetSize(bd, 60_787, 76_687);
         }
     }
 
-    @Test
+    @TestTemplate
     public void testGetSizeMultipleRegions() throws Exception {
         if (!isRegionBased()) {
             return;
@@ -168,13 +170,13 @@ public abstract class BoundedDataTestBase {
                 bufferSize1 + bufferSize2 + 2 * BufferReaderWriterUtil.HEADER_LENGTH;
 
         bd.writeBuffer(BufferBuilderTestUtils.buildSomeBuffer(bufferSize1));
-        assertEquals(expectedSize1, bd.getSize());
+        assertThat(bd.getSize()).isEqualTo(expectedSize1);
 
         bd.writeBuffer(BufferBuilderTestUtils.buildSomeBuffer(bufferSize2));
-        assertEquals(expectedSizeFinal, bd.getSize());
+        assertThat(bd.getSize()).isEqualTo(expectedSizeFinal);
 
         bd.finishWrite();
-        assertEquals(expectedSizeFinal, bd.getSize());
+        assertThat(bd.getSize()).isEqualTo(expectedSizeFinal);
     }
 
     // ------------------------------------------------------------------------
@@ -232,11 +234,7 @@ public abstract class BoundedDataTestBase {
             b.recycleBuffer();
         }
 
-        assertEquals(numBuffersExpected, numBuffers);
-        assertThat(nextValue, Matchers.greaterThanOrEqualTo((long) numLongs));
-    }
-
-    private static Path createTempPath() throws IOException {
-        return new File(TMP_FOLDER.newFolder(), "subpartitiondata").toPath();
+        assertThat(numBuffers).isEqualTo(numBuffersExpected);
+        assertThat(nextValue).isGreaterThanOrEqualTo((long) numLongs);
     }
 }

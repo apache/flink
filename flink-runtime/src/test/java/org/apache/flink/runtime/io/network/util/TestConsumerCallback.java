@@ -24,7 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public interface TestConsumerCallback {
 
@@ -83,7 +83,7 @@ public interface TestConsumerCallback {
             int expected = getNumberOfReadBuffers() * (segment.size() / 4);
 
             for (int i = 0; i < segment.size(); i += 4) {
-                assertEquals(expected, segment.getInt(i));
+                assertThat(segment.getInt(i)).isEqualTo(expected);
 
                 expected++;
             }

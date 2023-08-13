@@ -18,15 +18,13 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.verifyCreateSubpartitionViewThrowsException;
 
 /** Tests for {@link ResultPartitionManager}. */
-public class ResultPartitionManagerTest extends TestLogger {
+class ResultPartitionManagerTest {
 
     /**
      * Tests that {@link ResultPartitionManager#createSubpartitionView(ResultPartitionID, int,
@@ -34,7 +32,7 @@ public class ResultPartitionManagerTest extends TestLogger {
      * was not registered before.
      */
     @Test
-    public void testThrowPartitionNotFoundException() throws Exception {
+    void testThrowPartitionNotFoundException() throws Exception {
         final ResultPartitionManager partitionManager = new ResultPartitionManager();
         final ResultPartition partition = createPartition();
 
@@ -46,7 +44,7 @@ public class ResultPartitionManagerTest extends TestLogger {
      * BufferAvailabilityListener)} successful if this partition was already registered before.
      */
     @Test
-    public void testCreateViewForRegisteredPartition() throws Exception {
+    void testCreateViewForRegisteredPartition() throws Exception {
         final ResultPartitionManager partitionManager = new ResultPartitionManager();
         final ResultPartition partition = createPartition();
 
@@ -61,7 +59,7 @@ public class ResultPartitionManagerTest extends TestLogger {
      * partition was already released before.
      */
     @Test
-    public void testCreateViewForReleasedPartition() throws Exception {
+    void testCreateViewForReleasedPartition() throws Exception {
         final ResultPartitionManager partitionManager = new ResultPartitionManager();
         final ResultPartition partition = createPartition();
 

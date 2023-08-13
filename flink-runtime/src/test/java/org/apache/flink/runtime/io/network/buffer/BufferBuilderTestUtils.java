@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Utility class for create {@link BufferBuilder}, {@link BufferConsumer} and {@link Buffer}. */
 public class BufferBuilderTestUtils {
@@ -120,7 +120,7 @@ public class BufferBuilderTestUtils {
         final ByteBuffer bb = buffer.getNioBufferReadable().order(ByteOrder.LITTLE_ENDIAN);
 
         for (int i = 0; i < numInts; i++) {
-            assertEquals(nextValue++, bb.getInt());
+            assertThat(bb.getInt()).isEqualTo(nextValue++);
         }
     }
 
@@ -140,7 +140,7 @@ public class BufferBuilderTestUtils {
         final ByteBuffer bb = buffer.getNioBufferReadable().order(ByteOrder.LITTLE_ENDIAN);
 
         for (int i = 0; i < numLongs; i++) {
-            assertEquals(nextValue++, bb.getLong());
+            assertThat(bb.getLong()).isEqualTo(nextValue++);
         }
     }
 

@@ -29,19 +29,20 @@ import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class FileChannelStreamsTest {
+class FileChannelStreamsTest {
 
     @Test
-    public void testCloseAndDeleteOutputView() {
+    void testCloseAndDeleteOutputView() {
         try (IOManager ioManager = new IOManagerAsync()) {
             MemoryManager memMan = MemoryManagerBuilder.newBuilder().build();
             List<MemorySegment> memory = new ArrayList<MemorySegment>();
@@ -56,14 +57,14 @@ public class FileChannelStreamsTest {
 
             // close for the first time, make sure all memory returns
             out.close();
-            assertTrue(memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty()).isTrue();
 
             // close again, should not cause an exception
             out.close();
 
             // delete, make sure file is removed
             out.closeAndDelete();
-            assertFalse(new File(channel.getPath()).exists());
+            assertThat(new File(channel.getPath()).exists()).isFalse();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -71,7 +72,7 @@ public class FileChannelStreamsTest {
     }
 
     @Test
-    public void testCloseAndDeleteInputView() {
+    void testCloseAndDeleteInputView() {
         try (IOManager ioManager = new IOManagerAsync()) {
             MemoryManager memMan = MemoryManagerBuilder.newBuilder().build();
             List<MemorySegment> memory = new ArrayList<MemorySegment>();
@@ -92,14 +93,14 @@ public class FileChannelStreamsTest {
 
             // close for the first time, make sure all memory returns
             in.close();
-            assertTrue(memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty()).isTrue();
 
             // close again, should not cause an exception
             in.close();
 
             // delete, make sure file is removed
             in.closeAndDelete();
-            assertFalse(new File(channel.getPath()).exists());
+            assertThat(new File(channel.getPath()).exists()).isFalse();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

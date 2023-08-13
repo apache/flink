@@ -21,19 +21,19 @@ package org.apache.flink.runtime.io.disk.iomanager;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class IOManagerAsyncTest {
+class IOManagerAsyncTest {
 
     private IOManagerAsync ioManager;
 
@@ -41,13 +41,13 @@ public class IOManagerAsyncTest {
     //                           Setup & Shutdown
     // ------------------------------------------------------------------------
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         this.ioManager.close();
     }
 
@@ -56,7 +56,7 @@ public class IOManagerAsyncTest {
     // ------------------------------------------------------------------------
 
     @Test
-    public void channelReadWriteOneSegment() {
+    void channelReadWriteOneSegment() {
         final int NUM_IOS = 1111;
 
         try {
@@ -98,7 +98,7 @@ public class IOManagerAsyncTest {
     }
 
     @Test
-    public void channelReadWriteMultipleSegments() {
+    void channelReadWriteMultipleSegments() {
         final int NUM_IOS = 1111;
         final int NUM_SEGS = 16;
 
@@ -161,7 +161,7 @@ public class IOManagerAsyncTest {
     }
 
     @Test
-    public void testExceptionPropagationReader() {
+    void testExceptionPropagationReader() {
         try {
             // use atomic boolean as a boolean reference
             final AtomicBoolean handlerCalled = new AtomicBoolean();
@@ -199,7 +199,7 @@ public class IOManagerAsyncTest {
                 }
             }
 
-            assertTrue(exceptionForwarded.get());
+            assertThat(exceptionForwarded.get()).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -207,7 +207,7 @@ public class IOManagerAsyncTest {
     }
 
     @Test
-    public void testExceptionPropagationWriter() {
+    void testExceptionPropagationWriter() {
         try {
             // use atomic boolean as a boolean reference
             final AtomicBoolean handlerCalled = new AtomicBoolean();
@@ -246,7 +246,7 @@ public class IOManagerAsyncTest {
                 }
             }
 
-            assertTrue(exceptionForwarded.get());
+            assertThat(exceptionForwarded.get()).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -254,7 +254,7 @@ public class IOManagerAsyncTest {
     }
 
     @Test
-    public void testExceptionInCallbackRead() {
+    void testExceptionInCallbackRead() {
         try {
             final AtomicBoolean handlerCalled = new AtomicBoolean();
 
@@ -304,7 +304,7 @@ public class IOManagerAsyncTest {
     }
 
     @Test
-    public void testExceptionInCallbackWrite() {
+    void testExceptionInCallbackWrite() {
         try {
             final AtomicBoolean handlerCalled = new AtomicBoolean();
 

@@ -22,27 +22,20 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel.ID;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class IOManagerTest {
-
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+class IOManagerTest {
 
     @Test
-    public void channelEnumerator() throws Exception {
-        File tempPath = temporaryFolder.newFolder();
-
+    void channelEnumerator(@TempDir File tempPath) throws Exception {
         String[] tempDirs =
                 new String[] {
                     new File(tempPath, "a").getAbsolutePath(),
@@ -61,12 +54,16 @@ public class IOManagerTest {
 
                 File path = id.getPathFile();
 
-                assertTrue("Channel IDs must name an absolute path.", path.isAbsolute());
-                assertFalse("Channel IDs must name a file, not a directory.", path.isDirectory());
+                assertThat(path.isAbsolute())
+                        .withFailMessage("Channel IDs must name an absolute path.")
+                        .isTrue();
+                assertThat(path.isDirectory())
+                        .withFailMessage("Channel IDs must name a file, not a directory.")
+                        .isFalse();
 
-                assertTrue(
-                        "Path is not in the temp directory.",
-                        tempPath.equals(path.getParentFile().getParentFile().getParentFile()));
+                assertThat(path.getParentFile().getParentFile().getParentFile())
+                        .withFailMessage("Path is not in the temp directory.")
+                        .isEqualTo(tempPath);
 
                 for (int k = 0; k < tempDirs.length; k++) {
                     if (path.getParentFile().getParent().equals(tempDirs[k])) {
@@ -76,7 +73,7 @@ public class IOManagerTest {
             }
 
             for (int k = 0; k < tempDirs.length; k++) {
-                assertEquals(3, counters[k]);
+                assertThat(counters[k]).isEqualTo(3);
             }
         }
     }

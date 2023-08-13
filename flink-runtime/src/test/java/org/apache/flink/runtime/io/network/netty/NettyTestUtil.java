@@ -40,7 +40,7 @@ import static org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorRespon
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test utility for Netty server and client setup. */
 public class NettyTestUtil {
@@ -198,7 +198,7 @@ public class NettyTestUtil {
         while ((encoded = channel.readOutbound()) != null) {
             msgNotEmpty = channel.writeInbound(encoded);
         }
-        assertTrue(msgNotEmpty);
+        assertThat(msgNotEmpty).isTrue();
 
         return channel.readInbound();
     }
@@ -213,7 +213,7 @@ public class NettyTestUtil {
         assertEquals(expected.cause.getMessage(), actual.cause.getMessage());
 
         if (expected.receiverId == null) {
-            assertTrue(actual.isFatalError());
+            assertThat(actual.isFatalError()).isTrue();
         }
     }
 

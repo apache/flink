@@ -31,18 +31,18 @@ import org.apache.flink.runtime.operators.testutils.PairGenerator;
 import org.apache.flink.runtime.operators.testutils.PairGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.PairGenerator.Pair;
 import org.apache.flink.runtime.operators.testutils.PairGenerator.ValueMode;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class FileChannelStreamsITCase extends TestLogger {
+class FileChannelStreamsITCase {
 
     private static final long SEED = 649180756312423613L;
 
@@ -66,8 +66,8 @@ public class FileChannelStreamsITCase extends TestLogger {
 
     // --------------------------------------------------------------------------------------------
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         memManager =
                 MemoryManagerBuilder.newBuilder()
                         .setMemorySize(NUM_MEMORY_SEGMENTS * MEMORY_PAGE_SIZE)
@@ -76,16 +76,18 @@ public class FileChannelStreamsITCase extends TestLogger {
         ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         ioManager.close();
-        assertTrue("The memory has not been properly released", memManager.verifyEmpty());
+        assertThat(memManager.verifyEmpty())
+                .withFailMessage("The memory has not been properly released")
+                .isTrue();
     }
 
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testWriteReadSmallRecords() {
+    void testWriteReadSmallRecords() {
         try {
             List<MemorySegment> memory =
                     memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
@@ -129,7 +131,9 @@ public class FileChannelStreamsITCase extends TestLogger {
             for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
                 generator.next(pair);
                 readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
+                assertThat(readPair)
+                        .withFailMessage("The re-generated and the read record do not match.")
+                        .isEqualTo(pair);
             }
 
             inView.close();
@@ -141,7 +145,7 @@ public class FileChannelStreamsITCase extends TestLogger {
     }
 
     @Test
-    public void testWriteAndReadLongRecords() {
+    void testWriteAndReadLongRecords() {
         try {
             final List<MemorySegment> memory =
                     memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
@@ -185,7 +189,9 @@ public class FileChannelStreamsITCase extends TestLogger {
             for (int i = 0; i < NUM_PAIRS_LONG; i++) {
                 generator.next(pair);
                 readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
+                assertThat(readPair)
+                        .withFailMessage("The re-generated and the read record do not match.")
+                        .isEqualTo(pair);
             }
 
             inView.close();
@@ -197,7 +203,7 @@ public class FileChannelStreamsITCase extends TestLogger {
     }
 
     @Test
-    public void testReadTooMany() {
+    void testReadTooMany() {
         try {
             final List<MemorySegment> memory =
                     memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
@@ -242,8 +248,9 @@ public class FileChannelStreamsITCase extends TestLogger {
                 for (int i = 0; i < NUM_PAIRS_SHORT + 1; i++) {
                     generator.next(pair);
                     readPair.read(inView);
-                    assertEquals(
-                            "The re-generated and the read record do not match.", pair, readPair);
+                    assertThat(readPair)
+                            .withFailMessage("The re-generated and the read record do not match.")
+                            .isEqualTo(pair);
                 }
                 fail("Expected an EOFException which did not occur.");
             } catch (EOFException eofex) {
@@ -259,7 +266,7 @@ public class FileChannelStreamsITCase extends TestLogger {
     }
 
     @Test
-    public void testWriteReadOneBufferOnly() {
+    void testWriteReadOneBufferOnly() {
         try {
             final List<MemorySegment> memory = memManager.allocatePages(new DummyInvokable(), 1);
 
@@ -301,7 +308,9 @@ public class FileChannelStreamsITCase extends TestLogger {
             for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
                 generator.next(pair);
                 readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
+                assertThat(readPair)
+                        .withFailMessage("The re-generated and the read record do not match.")
+                        .isEqualTo(pair);
             }
 
             inView.close();
@@ -313,7 +322,7 @@ public class FileChannelStreamsITCase extends TestLogger {
     }
 
     @Test
-    public void testWriteReadNotAll() {
+    void testWriteReadNotAll() {
         try {
             final List<MemorySegment> memory =
                     memManager.allocatePages(new DummyInvokable(), NUM_MEMORY_SEGMENTS);
@@ -357,7 +366,9 @@ public class FileChannelStreamsITCase extends TestLogger {
             for (int i = 0; i < NUM_PAIRS_SHORT / 2; i++) {
                 generator.next(pair);
                 readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
+                assertThat(readPair)
+                        .withFailMessage("The re-generated and the read record do not match.")
+                        .isEqualTo(pair);
             }
 
             inView.close();

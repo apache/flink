@@ -32,31 +32,25 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link PartitionRequestServerHandler}. */
-public class PartitionRequestServerHandlerTest extends TestLogger {
+class PartitionRequestServerHandlerTest {
 
     /**
      * Tests that {@link PartitionRequestServerHandler} responds {@link ErrorResponse} with wrapped
      * {@link PartitionNotFoundException} after receiving invalid {@link PartitionRequest}.
      */
     @Test
-    public void testResponsePartitionNotFoundException() {
+    void testResponsePartitionNotFoundException() {
         final PartitionRequestServerHandler serverHandler =
                 new PartitionRequestServerHandler(
                         new ResultPartitionManager(),
@@ -71,18 +65,18 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
 
         // Read the response message after handling partition request
         final Object msg = channel.readOutbound();
-        assertThat(msg, instanceOf(ErrorResponse.class));
+        assertThat(msg).isInstanceOf(ErrorResponse.class);
 
         final ErrorResponse err = (ErrorResponse) msg;
-        assertThat(err.cause, instanceOf(PartitionNotFoundException.class));
+        assertThat(err.cause).isInstanceOf(PartitionNotFoundException.class);
 
         final ResultPartitionID actualPartitionId =
                 ((PartitionNotFoundException) err.cause).getPartitionId();
-        assertThat(partitionId, is(actualPartitionId));
+        assertThat(partitionId).isEqualTo(actualPartitionId);
     }
 
     @Test
-    public void testResumeConsumption() {
+    void testResumeConsumption() {
         final InputChannelID inputChannelID = new InputChannelID();
         final PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
         final TestViewReader testViewReader =
@@ -99,11 +93,11 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
         channel.writeInbound(new ResumeConsumption(inputChannelID));
         channel.runPendingTasks();
 
-        assertTrue(testViewReader.consumptionResumed);
+        assertThat(testViewReader.consumptionResumed).isTrue();
     }
 
     @Test
-    public void testAcknowledgeAllRecordsProcessed() throws IOException {
+    void testAcknowledgeAllRecordsProcessed() throws IOException {
         InputChannelID inputChannelID = new InputChannelID();
 
         ResultPartition resultPartition =
@@ -132,16 +126,16 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
         resultPartition.notifyEndOfData(StopMode.DRAIN);
         CompletableFuture<Void> allRecordsProcessedFuture =
                 resultPartition.getAllDataProcessedFuture();
-        assertFalse(allRecordsProcessedFuture.isDone());
+        assertThat(allRecordsProcessedFuture.isDone()).isFalse();
         channel.writeInbound(new NettyMessage.AckAllUserRecordsProcessed(inputChannelID));
         channel.runPendingTasks();
 
-        assertTrue(allRecordsProcessedFuture.isDone());
-        assertFalse(allRecordsProcessedFuture.isCompletedExceptionally());
+        assertThat(allRecordsProcessedFuture.isDone()).isTrue();
+        assertThat(allRecordsProcessedFuture.isCompletedExceptionally()).isFalse();
     }
 
     @Test
-    public void testNewBufferSize() {
+    void testNewBufferSize() {
         final InputChannelID inputChannelID = new InputChannelID();
         final PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
         final TestViewReader testViewReader =
@@ -158,11 +152,11 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
         channel.writeInbound(new NettyMessage.NewBufferSize(666, inputChannelID));
         channel.runPendingTasks();
 
-        assertEquals(666, testViewReader.bufferSize);
+        assertThat(testViewReader.bufferSize).isEqualTo(666);
     }
 
     @Test
-    public void testReceivingNewBufferSizeBeforeReaderIsCreated() {
+    void testReceivingNewBufferSizeBeforeReaderIsCreated() {
         final InputChannelID inputChannelID = new InputChannelID();
         final PartitionRequestQueue partitionRequestQueue = new PartitionRequestQueue();
         final TestViewReader testViewReader =
@@ -179,10 +173,12 @@ public class PartitionRequestServerHandlerTest extends TestLogger {
         channel.runPendingTasks();
 
         // If error happens outbound messages would be not empty.
-        assertTrue(channel.outboundMessages().toString(), channel.outboundMessages().isEmpty());
+        assertThat(channel.outboundMessages().isEmpty())
+                .withFailMessage(channel.outboundMessages().toString())
+                .isTrue();
 
         // New buffer size should be silently ignored because it is possible situation.
-        assertEquals(-1, testViewReader.bufferSize);
+        assertThat(testViewReader.bufferSize).isEqualTo(-1);
     }
 
     private static class TestViewReader extends CreditBasedSequenceNumberingViewReader {

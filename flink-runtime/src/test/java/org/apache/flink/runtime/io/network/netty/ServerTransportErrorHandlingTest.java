@@ -33,7 +33,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
 import java.util.concurrent.CountDownLatch;
@@ -42,17 +42,17 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class ServerTransportErrorHandlingTest {
+class ServerTransportErrorHandlingTest {
 
     /** Verifies remote closes trigger the release of all resources. */
     @Test
-    public void testRemoteClose() throws Exception {
+    void testRemoteClose() throws Exception {
         final TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
 
         final CountDownLatch sync = new CountDownLatch(1);

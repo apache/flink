@@ -25,7 +25,6 @@ import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportExcept
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelException;
@@ -55,12 +54,12 @@ import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServer
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 /** {@link PartitionRequestClientFactory} test. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class PartitionRequestClientFactoryTest extends TestLogger {
+public class PartitionRequestClientFactoryTest {
     private static final ResourceID RESOURCE_ID = ResourceID.generate();
 
     @Parameter public boolean connectionReuseEnabled;
@@ -317,8 +316,7 @@ public class PartitionRequestClientFactoryTest extends TestLogger {
                         client = runnableFuture.get();
                         assertThat(client).isNotNull();
                     } catch (Exception e) {
-                        System.out.println(e.getMessage());
-                        fail();
+                        fail(e.getMessage());
                     }
                 });
 

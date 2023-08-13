@@ -33,15 +33,17 @@ import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.util.ArrayList;
 
-public class SpillingBufferTest {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
+class SpillingBufferTest {
 
     private static final long SEED = 649180756312423613L;
 
@@ -65,20 +67,21 @@ public class SpillingBufferTest {
 
     // --------------------------------------------------------------------------------------------
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
         ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         ioManager.close();
 
         if (memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory leak: not all segments have been returned to the memory manager.",
-                    memoryManager.verifyEmpty());
+            assertThat(memoryManager.verifyEmpty())
+                    .withFailMessage(
+                            "Memory leak: not all segments have been returned to the memory manager.")
+                    .isTrue();
             memoryManager.shutdown();
             memoryManager = null;
         }
@@ -87,7 +90,7 @@ public class SpillingBufferTest {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testWriteReadInMemory() throws Exception {
+    void testWriteReadInMemory() throws Exception {
         final TestData.TupleGenerator generator =
                 new TestData.TupleGenerator(
                         SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -126,9 +129,9 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertThat(k1 == k2 && v1.equals(v2))
+                    .withFailMessage("The re-generated and the notifyNonEmpty record do not match.")
+                    .isTrue();
         }
 
         // re-notifyNonEmpty the data
@@ -146,9 +149,9 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertThat(k1 == k2 && v1.equals(v2))
+                    .withFailMessage("The re-generated and the notifyNonEmpty record do not match.")
+                    .isTrue();
         }
 
         this.memoryManager.release(outView.close());
@@ -156,7 +159,7 @@ public class SpillingBufferTest {
     }
 
     @Test
-    public void testWriteReadTooMuchInMemory() throws Exception {
+    void testWriteReadTooMuchInMemory() throws Exception {
         final TestData.TupleGenerator generator =
                 new TestData.TupleGenerator(
                         SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -196,11 +199,12 @@ public class SpillingBufferTest {
                 int k2 = readRec.f0;
                 String v2 = readRec.f1;
 
-                Assert.assertTrue(
-                        "The re-generated and the notifyNonEmpty record do not match.",
-                        k1 == k2 && v1.equals(v2));
+                assertThat(k1 == k2 && v1.equals(v2))
+                        .withFailMessage(
+                                "The re-generated and the notifyNonEmpty record do not match.")
+                        .isTrue();
             }
-            Assert.fail("Read too much, expected EOFException.");
+            fail("Read too much, expected EOFException.");
         } catch (EOFException eofex) {
             // expected
         }
@@ -220,9 +224,9 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertThat(k1 == k2 && v1.equals(v2))
+                    .withFailMessage("The re-generated and the notifyNonEmpty record do not match.")
+                    .isTrue();
         }
 
         this.memoryManager.release(outView.close());
@@ -232,7 +236,7 @@ public class SpillingBufferTest {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testWriteReadExternal() throws Exception {
+    void testWriteReadExternal() throws Exception {
         final TestData.TupleGenerator generator =
                 new TestData.TupleGenerator(
                         SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -271,9 +275,9 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertThat(k1 == k2 && v1.equals(v2))
+                    .withFailMessage("The re-generated and the notifyNonEmpty record do not match.")
+                    .isTrue();
         }
 
         // re-notifyNonEmpty the data
@@ -291,9 +295,9 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertThat(k1 == k2 && v1.equals(v2))
+                    .withFailMessage("The re-generated and the notifyNonEmpty record do not match.")
+                    .isTrue();
         }
 
         this.memoryManager.release(outView.close());
@@ -301,7 +305,7 @@ public class SpillingBufferTest {
     }
 
     @Test
-    public void testWriteReadTooMuchExternal() throws Exception {
+    void testWriteReadTooMuchExternal() throws Exception {
         final TestData.TupleGenerator generator =
                 new TestData.TupleGenerator(
                         SEED, KEY_MAX, VALUE_LENGTH, KeyMode.RANDOM, ValueMode.RANDOM_LENGTH);
@@ -341,11 +345,12 @@ public class SpillingBufferTest {
                 int k2 = readRec.f0;
                 String v2 = readRec.f1;
 
-                Assert.assertTrue(
-                        "The re-generated and the notifyNonEmpty record do not match.",
-                        k1 == k2 && v1.equals(v2));
+                assertThat(k1 == k2 && v1.equals(v2))
+                        .withFailMessage(
+                                "The re-generated and the notifyNonEmpty record do not match.")
+                        .isTrue();
             }
-            Assert.fail("Read too much, expected EOFException.");
+            fail("Read too much, expected EOFException.");
         } catch (EOFException eofex) {
             // expected
         }
@@ -365,9 +370,9 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            assertThat(k1 == k2 && v1.equals(v2))
+                    .withFailMessage("The re-generated and the notifyNonEmpty record do not match.")
+                    .isTrue();
         }
 
         this.memoryManager.release(outView.close());

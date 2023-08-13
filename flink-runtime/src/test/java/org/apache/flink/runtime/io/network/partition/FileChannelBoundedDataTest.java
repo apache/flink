@@ -24,9 +24,9 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -34,25 +34,22 @@ import java.nio.file.Path;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSomeBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createView;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that read the BoundedBlockingSubpartition with multiple threads in parallel. */
-public class FileChannelBoundedDataTest extends BoundedDataTestBase {
+class FileChannelBoundedDataTest extends BoundedDataTestBase {
 
     private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
 
     private static FileChannelManager fileChannelManager;
 
-    @BeforeClass
-    public static void setUp() {
+    @BeforeAll
+    static void setUp() {
         fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
     }
 
-    @AfterClass
-    public static void shutdown() throws Exception {
+    @AfterAll
+    static void shutdown() throws Exception {
         fileChannelManager.close();
     }
 
@@ -73,7 +70,7 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
     }
 
     @Test
-    public void testReadNextBuffer() throws Exception {
+    void testReadNextBuffer() throws Exception {
         final int numberOfBuffers = 3;
         try (final BoundedData data = createBoundedData()) {
             writeBuffers(data, numberOfBuffers);
@@ -82,10 +79,10 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
             final Buffer buffer1 = reader.nextBuffer();
             final Buffer buffer2 = reader.nextBuffer();
 
-            assertNotNull(buffer1);
-            assertNotNull(buffer2);
+            assertThat(buffer1).isNotNull();
+            assertThat(buffer2).isNotNull();
             // there are only two available memory segments for reading data
-            assertNull(reader.nextBuffer());
+            assertThat(reader.nextBuffer()).isNull();
 
             // cleanup
             buffer1.recycleBuffer();
@@ -94,7 +91,7 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
     }
 
     @Test
-    public void testRecycleBufferForNotifyingSubpartitionView() throws Exception {
+    void testRecycleBufferForNotifyingSubpartitionView() throws Exception {
         final int numberOfBuffers = 2;
         try (final BoundedData data = createBoundedData()) {
             writeBuffers(data, numberOfBuffers);
@@ -104,28 +101,28 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
             final BoundedData.Reader reader = data.createReader(subpartitionView);
             final Buffer buffer1 = reader.nextBuffer();
             final Buffer buffer2 = reader.nextBuffer();
-            assertNotNull(buffer1);
-            assertNotNull(buffer2);
+            assertThat(buffer1).isNotNull();
+            assertThat(buffer2).isNotNull();
 
-            assertFalse(subpartitionView.isAvailable);
+            assertThat(subpartitionView.isAvailable).isFalse();
             buffer1.recycleBuffer();
             // the view is notified while recycling buffer if reader has not tagged finished
-            assertTrue(subpartitionView.isAvailable);
+            assertThat(subpartitionView.isAvailable).isTrue();
 
             subpartitionView.resetAvailable();
-            assertFalse(subpartitionView.isAvailable);
+            assertThat(subpartitionView.isAvailable).isFalse();
 
             // the next buffer is null to make reader tag finished
-            assertNull(reader.nextBuffer());
+            assertThat(reader.nextBuffer()).isNull();
 
             buffer2.recycleBuffer();
             // the view is not notified while recycling buffer if reader already finished
-            assertFalse(subpartitionView.isAvailable);
+            assertThat(subpartitionView.isAvailable).isFalse();
         }
     }
 
     @Test
-    public void testRecycleBufferForNotifyingBufferAvailabilityListener() throws Exception {
+    void testRecycleBufferForNotifyingBufferAvailabilityListener() throws Exception {
         final ResultSubpartition subpartition = createFileBoundedBlockingSubpartition();
         final int numberOfBuffers = 2;
         writeBuffers(subpartition, numberOfBuffers);
@@ -133,19 +130,20 @@ public class FileChannelBoundedDataTest extends BoundedDataTestBase {
         final VerifyNotificationBufferAvailabilityListener listener =
                 new VerifyNotificationBufferAvailabilityListener();
         final ResultSubpartitionView subpartitionView = createView(subpartition, listener);
-        assertFalse(listener.isAvailable);
+        assertThat(listener.isAvailable).isFalse();
 
         final BufferAndBacklog buffer1 = subpartitionView.getNextBuffer();
         final BufferAndBacklog buffer2 = subpartitionView.getNextBuffer();
-        assertNotNull(buffer1);
-        assertNotNull(buffer2);
+        assertThat(buffer1).isNotNull();
+        assertThat(buffer2).isNotNull();
 
         // the next buffer is null in view because FileBufferReader has no available buffers for
         // reading ahead
-        assertFalse(subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable());
+        assertThat(subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable())
+                .isFalse();
         // recycle a buffer to trigger notification of data available
         buffer1.buffer().recycleBuffer();
-        assertTrue(listener.isAvailable);
+        assertThat(listener.isAvailable).isTrue();
 
         // cleanup
         buffer2.buffer().recycleBuffer();

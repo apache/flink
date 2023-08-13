@@ -24,7 +24,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,16 +41,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class AsynchronousFileIOChannelTest {
+class AsynchronousFileIOChannelTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsynchronousFileIOChannelTest.class);
 
     @Test
-    public void testAllRequestsProcessedListenerNotification() throws Exception {
+    void testAllRequestsProcessedListenerNotification() throws Exception {
         // -- Config ----------------------------------------------------------
         final int numberOfRuns = 10;
         final int numberOfRequests = 100;
@@ -185,7 +184,7 @@ public class AsynchronousFileIOChannelTest {
     }
 
     @Test
-    public void testClosedButAddRequestAndRegisterListenerRace() throws Exception {
+    void testClosedButAddRequestAndRegisterListenerRace() throws Exception {
         // -- Config ----------------------------------------------------------
         final int numberOfRuns = 1024;
 
@@ -270,7 +269,7 @@ public class AsynchronousFileIOChannelTest {
     }
 
     @Test
-    public void testClosingWaits() {
+    void testClosingWaits() {
         try (final IOManagerAsync ioMan = new IOManagerAsync()) {
 
             final int NUM_BLOCKS = 100;
@@ -308,8 +307,8 @@ public class AsynchronousFileIOChannelTest {
 
                 writer.close();
 
-                assertEquals(NUM_BLOCKS, callbackCounter.get());
-                assertFalse(exceptionOccurred.get());
+                assertThat(callbackCounter.get()).isEqualTo(NUM_BLOCKS);
+                assertThat(exceptionOccurred.get()).isFalse();
             } finally {
                 writer.closeAndDelete();
             }
@@ -320,7 +319,7 @@ public class AsynchronousFileIOChannelTest {
     }
 
     @Test
-    public void testExceptionForwardsToClose() throws Exception {
+    void testExceptionForwardsToClose() throws Exception {
         try (IOManagerAsync ioMan = new IOManagerAsync()) {
             testExceptionForwardsToClose(ioMan, 100, 1);
             testExceptionForwardsToClose(ioMan, 100, 50);

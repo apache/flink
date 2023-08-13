@@ -26,7 +26,7 @@ import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -34,16 +34,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link AbstractPagedInputView} and {@link AbstractPagedOutputView}. */
-public class PagedViewsTest {
+class PagedViewsTest {
 
     @Test
-    public void testSequenceOfIntegersWithAlignedBuffers() {
+    void testSequenceOfIntegersWithAlignedBuffers() {
         try {
             final int numInts = 1000000;
 
@@ -57,7 +55,7 @@ public class PagedViewsTest {
     }
 
     @Test
-    public void testSequenceOfIntegersWithUnalignedBuffers() {
+    void testSequenceOfIntegersWithUnalignedBuffers() {
         try {
             final int numInts = 1000000;
 
@@ -71,7 +69,7 @@ public class PagedViewsTest {
     }
 
     @Test
-    public void testRandomTypes() {
+    void testRandomTypes() {
         try {
             final int numTypes = 100000;
 
@@ -85,7 +83,7 @@ public class PagedViewsTest {
     }
 
     @Test
-    public void testReadFully() {
+    void testReadFully() {
         int bufferSize = 100;
         byte[] expected = new byte[bufferSize];
         new Random().nextBytes(expected);
@@ -111,12 +109,12 @@ public class PagedViewsTest {
             fail("Unexpected exception: Could not read TestInputView.");
         }
 
-        assertEquals(inputView.getCurrentPositionInSegment(), bufferSize);
-        assertArrayEquals(expected, buffer);
+        assertThat(inputView.getCurrentPositionInSegment()).isEqualTo(bufferSize);
+        assertThat(buffer).isEqualTo(expected);
     }
 
     @Test
-    public void testReadFullyAcrossSegments() {
+    void testReadFullyAcrossSegments() {
         int bufferSize = 100;
         int segmentSize = 30;
         byte[] expected = new byte[bufferSize];
@@ -143,12 +141,12 @@ public class PagedViewsTest {
             fail("Unexpected exception: Could not read TestInputView.");
         }
 
-        assertEquals(inputView.getCurrentPositionInSegment(), bufferSize % segmentSize);
-        assertArrayEquals(expected, buffer);
+        assertThat(inputView.getCurrentPositionInSegment()).isEqualTo(bufferSize % segmentSize);
+        assertThat(buffer).isEqualTo(expected);
     }
 
     @Test
-    public void testReadAcrossSegments() {
+    void testReadAcrossSegments() {
         int bufferSize = 100;
         int bytes2Write = 75;
         int segmentSize = 30;
@@ -177,16 +175,16 @@ public class PagedViewsTest {
             fail("Unexpected exception: Could not read TestInputView.");
         }
 
-        assertEquals(bytes2Write, bytesRead);
-        assertEquals(inputView.getCurrentPositionInSegment(), bytes2Write % segmentSize);
+        assertThat(bytesRead).isEqualTo(bytes2Write);
+        assertThat(inputView.getCurrentPositionInSegment()).isEqualTo(bytes2Write % segmentSize);
 
         byte[] tempBuffer = new byte[bytesRead];
         System.arraycopy(buffer, 0, tempBuffer, 0, bytesRead);
-        assertArrayEquals(expected, tempBuffer);
+        assertThat(tempBuffer).isEqualTo(expected);
     }
 
     @Test
-    public void testEmptyingInputView() {
+    void testEmptyingInputView() {
         int bufferSize = 100;
         int bytes2Write = 75;
         int segmentSize = 30;
@@ -215,11 +213,11 @@ public class PagedViewsTest {
             fail("Unexpected exception: Could not read TestInputView.");
         }
 
-        assertEquals(bytes2Write, bytesRead);
+        assertThat(bytesRead).isEqualTo(bytes2Write);
 
         byte[] tempBuffer = new byte[bytesRead];
         System.arraycopy(buffer, 0, tempBuffer, 0, bytesRead);
-        assertArrayEquals(expected, tempBuffer);
+        assertThat(tempBuffer).isEqualTo(expected);
 
         try {
             bytesRead = inputView.read(buffer);
@@ -228,12 +226,12 @@ public class PagedViewsTest {
             fail("Unexpected exception: Input view should be empty and thus return -1.");
         }
 
-        assertEquals(-1, bytesRead);
-        assertEquals(inputView.getCurrentPositionInSegment(), bytes2Write % segmentSize);
+        assertThat(bytesRead).isEqualTo(-1);
+        assertThat(inputView.getCurrentPositionInSegment()).isEqualTo(bytes2Write % segmentSize);
     }
 
     @Test
-    public void testReadFullyWithNotEnoughData() {
+    void testReadFullyWithNotEnoughData() {
         int bufferSize = 100;
         int bytes2Write = 99;
         int segmentSize = 30;
@@ -265,7 +263,7 @@ public class PagedViewsTest {
             fail("Unexpected exception: Could not read TestInputView.");
         }
 
-        assertTrue("EOFException should have occurred.", eofException);
+        assertThat(eofException).withFailMessage("EOFException should have occurred.").isTrue();
 
         int bytesRead = 0;
 
@@ -276,11 +274,11 @@ public class PagedViewsTest {
             fail("Unexpected exception: Could not read TestInputView.");
         }
 
-        assertEquals(-1, bytesRead);
+        assertThat(bytesRead).isEqualTo(-1);
     }
 
     @Test
-    public void testReadFullyWithOffset() {
+    void testReadFullyWithOffset() {
         int bufferSize = 100;
         int segmentSize = 30;
         byte[] expected = new byte[bufferSize];
@@ -307,14 +305,14 @@ public class PagedViewsTest {
             fail("Unexpected exception: Could not read TestInputView.");
         }
 
-        assertEquals(inputView.getCurrentPositionInSegment(), bufferSize % segmentSize);
+        assertThat(inputView.getCurrentPositionInSegment()).isEqualTo(bufferSize % segmentSize);
         byte[] tempBuffer = new byte[bufferSize];
         System.arraycopy(buffer, bufferSize, tempBuffer, 0, bufferSize);
-        assertArrayEquals(expected, tempBuffer);
+        assertThat(tempBuffer).isEqualTo(expected);
     }
 
     @Test
-    public void testReadFullyEmptyView() {
+    void testReadFullyEmptyView() {
         int segmentSize = 30;
         TestOutputView outputView = new TestOutputView(segmentSize);
         outputView.close();
@@ -333,7 +331,7 @@ public class PagedViewsTest {
             fail("Unexpected exception: Could not read TestInputView.");
         }
 
-        assertTrue("EOFException expected.", eofException);
+        assertThat(eofException).withFailMessage("EOFException expected.").isTrue();
     }
 
     private static void testSequenceOfTypes(
@@ -356,7 +354,7 @@ public class PagedViewsTest {
         for (SerializationTestType reference : elements) {
             SerializationTestType result = reference.getClass().newInstance();
             result.read(inView);
-            assertEquals(reference, result);
+            assertThat(result).isEqualTo(reference);
         }
     }
 
@@ -367,7 +365,7 @@ public class PagedViewsTest {
         private final MemorySegment segment;
         private final int position;
 
-        public SegmentWithPosition(MemorySegment segment, int position) {
+        SegmentWithPosition(MemorySegment segment, int position) {
             this.segment = segment;
             this.position = position;
         }

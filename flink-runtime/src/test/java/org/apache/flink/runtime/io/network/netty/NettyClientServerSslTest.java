@@ -24,8 +24,10 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
 import org.apache.flink.runtime.net.SSLUtilsTest;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
@@ -33,10 +35,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringDecode
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringEncoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.net.ssl.SSLSessionContext;
 
@@ -48,31 +48,29 @@ import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_CLOSE_
 import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT;
 import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE;
 import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_SESSION_TIMEOUT;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the SSL connection between Netty Server and Client used for the data plane. */
-@RunWith(Parameterized.class)
-public class NettyClientServerSslTest extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+public class NettyClientServerSslTest {
 
-    @Parameterized.Parameter public String sslProvider;
+    @Parameter public String sslProvider;
 
-    @Parameterized.Parameters(name = "SSL provider = {0}")
+    @Parameters(name = "SSL provider = {0}")
     public static List<String> parameters() {
         return SSLUtilsTest.AVAILABLE_SSL_PROVIDERS;
     }
 
     /** Verify valid ssl configuration and connection. */
-    @Test
-    public void testValidSslConnection() throws Exception {
+    @TestTemplate
+    void testValidSslConnection() throws Exception {
         testValidSslConnection(createSslConfig());
     }
 
     /** Verify valid (advanced) ssl configuration and connection. */
-    @Test
-    public void testValidSslConnectionAdvanced() throws Exception {
+    @TestTemplate
+    void testValidSslConnectionAdvanced() throws Exception {
         Configuration sslConfig = createSslConfig();
         sslConfig.setInteger(SSL_INTERNAL_SESSION_CACHE_SIZE, 1);
 
@@ -110,8 +108,9 @@ public class NettyClientServerSslTest extends TestLogger {
             final NettyClient client = NettyTestUtil.initClient(nettyConfig, protocol, bufferPool);
             serverAndClient = new NettyServerAndClient(server, client);
         }
-        Assert.assertNotNull(
-                "serverAndClient is null due to fail to get a free port", serverAndClient);
+        assertThat(serverAndClient)
+                .withFailMessage("serverAndClient is null due to fail to get a free port")
+                .isNotNull();
 
         Channel ch = NettyTestUtil.connect(serverAndClient);
 
@@ -132,7 +131,7 @@ public class NettyClientServerSslTest extends TestLogger {
         // session context is only be available after a session was setup -> this should be true
         // after data was sent
         serverChannelInitComplete.await();
-        assertNotNull(serverSslHandler[0]);
+        assertThat(serverSslHandler[0]).isNotNull();
 
         // verify server parameters
         assertEqualsOrDefault(
@@ -145,7 +144,9 @@ public class NettyClientServerSslTest extends TestLogger {
                 serverSslHandler[0].getCloseNotifyFlushTimeoutMillis());
         SSLSessionContext sessionContext =
                 serverSslHandler[0].engine().getSession().getSessionContext();
-        assertNotNull("bug in unit test setup: session context not available", sessionContext);
+        assertThat(sessionContext)
+                .withFailMessage("bug in unit test setup: session context not available")
+                .isNotNull();
         // note: can't verify session cache setting at the client - delegate to server instead (with
         // our own channel initializer)
         assertEqualsOrDefault(
@@ -153,11 +154,11 @@ public class NettyClientServerSslTest extends TestLogger {
         int sessionTimeout = sslConfig.getInteger(SSL_INTERNAL_SESSION_TIMEOUT);
         if (sessionTimeout != -1) {
             // session timeout config is in milliseconds but the context returns it in seconds
-            assertEquals(sessionTimeout / 1000, sessionContext.getSessionTimeout());
+            assertThat(sessionContext.getSessionTimeout()).isEqualTo(sessionTimeout / 1000);
         } else {
-            assertTrue(
-                    "default value (-1) should not be propagated",
-                    sessionContext.getSessionTimeout() >= 0);
+            assertThat(sessionContext.getSessionTimeout())
+                    .withFailMessage("default value (-1) should not be propagated")
+                    .isGreaterThanOrEqualTo(0);
         }
 
         NettyTestUtil.shutdown(serverAndClient);
@@ -167,16 +168,17 @@ public class NettyClientServerSslTest extends TestLogger {
             Configuration sslConfig, ConfigOption<Integer> option, long actual) {
         long expected = sslConfig.getInteger(option);
         if (expected != option.defaultValue()) {
-            assertEquals(expected, actual);
+            assertThat(actual).isEqualTo(expected);
         } else {
-            assertTrue(
-                    "default value (" + option.defaultValue() + ") should not be propagated",
-                    actual >= 0);
+            assertThat(actual)
+                    .withFailMessage(
+                            "default value (%d) should not be propagated", option.defaultValue())
+                    .isGreaterThanOrEqualTo(0);
         }
     }
 
     /** Verify failure on invalid ssl configuration. */
-    @Test
+    @TestTemplate
     public void testInvalidSslConfiguration() throws Exception {
         NettyProtocol protocol = new NettyTestUtil.NoOpProtocol();
 
@@ -189,7 +191,7 @@ public class NettyClientServerSslTest extends TestLogger {
             NettyConfig nettyConfig = createNettyConfig(config, port);
 
             serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
-            Assert.fail("Created server and client from invalid configuration");
+            fail("Created server and client from invalid configuration");
         } catch (Exception e) {
             // Exception should be thrown as expected
         }
@@ -198,8 +200,8 @@ public class NettyClientServerSslTest extends TestLogger {
     }
 
     /** Verify SSL handshake error when untrusted server certificate is used. */
-    @Test
-    public void testSslHandshakeError() throws Exception {
+    @TestTemplate
+    void testSslHandshakeError() throws Exception {
         NettyProtocol protocol = new NettyTestUtil.NoOpProtocol();
 
         Configuration config = createSslConfig();
@@ -214,19 +216,20 @@ public class NettyClientServerSslTest extends TestLogger {
 
             serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
         }
-        Assert.assertNotNull(
-                "serverAndClient is null due to fail to get a free port", serverAndClient);
+        assertThat(serverAndClient)
+                .withFailMessage("serverAndClient is null due to fail to get a free port")
+                .isNotNull();
         Channel ch = NettyTestUtil.connect(serverAndClient);
         ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 
         // Attempting to write data over ssl should fail
-        assertFalse(ch.writeAndFlush("test").await().isSuccess());
+        assertThat(ch.writeAndFlush("test").await().isSuccess()).isFalse();
 
         NettyTestUtil.shutdown(serverAndClient);
     }
 
-    @Test
-    public void testClientUntrustedCertificate() throws Exception {
+    @TestTemplate
+    void testClientUntrustedCertificate() throws Exception {
         final Configuration serverConfig = createSslConfig();
         final Configuration clientConfig = createSslConfig();
 
@@ -249,20 +252,21 @@ public class NettyClientServerSslTest extends TestLogger {
                     NettyTestUtil.initClient(nettyClientConfig, protocol, bufferPool);
             serverAndClient = new NettyServerAndClient(server, client);
         }
-        Assert.assertNotNull(
-                "serverAndClient is null due to fail to get a free port", serverAndClient);
+        assertThat(serverAndClient)
+                .withFailMessage("serverAndClient is null due to fail to get a free port")
+                .isNotNull();
 
         final Channel ch = NettyTestUtil.connect(serverAndClient);
         ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 
         // Attempting to write data over ssl should fail
-        assertFalse(ch.writeAndFlush("test").await().isSuccess());
+        assertThat(ch.writeAndFlush("test").await().isSuccess()).isFalse();
 
         NettyTestUtil.shutdown(serverAndClient);
     }
 
-    @Test
-    public void testSslPinningForValidFingerprint() throws Exception {
+    @TestTemplate
+    void testSslPinningForValidFingerprint() throws Exception {
         NettyProtocol protocol = new NettyTestUtil.NoOpProtocol();
 
         Configuration config = createSslConfig();
@@ -277,19 +281,20 @@ public class NettyClientServerSslTest extends TestLogger {
 
             serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
         }
-        Assert.assertNotNull(
-                "serverAndClient is null due to fail to get a free port", serverAndClient);
+        assertThat(serverAndClient)
+                .withFailMessage("serverAndClient is null due to fail to get a free port")
+                .isNotNull();
 
         Channel ch = NettyTestUtil.connect(serverAndClient);
         ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 
-        assertTrue(ch.writeAndFlush("test").await().isSuccess());
+        assertThat(ch.writeAndFlush("test").await().isSuccess()).isTrue();
 
         NettyTestUtil.shutdown(serverAndClient);
     }
 
-    @Test
-    public void testSslPinningForInvalidFingerprint() throws Exception {
+    @TestTemplate
+    void testSslPinningForInvalidFingerprint() throws Exception {
         NettyProtocol protocol = new NettyTestUtil.NoOpProtocol();
 
         Configuration config = createSslConfig();
@@ -305,13 +310,14 @@ public class NettyClientServerSslTest extends TestLogger {
 
             serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
         }
-        Assert.assertNotNull(
-                "serverAndClient is null due to fail to get a free port", serverAndClient);
+        assertThat(serverAndClient)
+                .withFailMessage("serverAndClient is null due to fail to get a free port")
+                .isNotNull();
 
         Channel ch = NettyTestUtil.connect(serverAndClient);
         ch.pipeline().addLast(new StringDecoder()).addLast(new StringEncoder());
 
-        assertFalse(ch.writeAndFlush("test").await().isSuccess());
+        assertThat(ch.writeAndFlush("test").await().isSuccess()).isFalse();
 
         NettyTestUtil.shutdown(serverAndClient);
     }
@@ -354,7 +360,7 @@ public class NettyClientServerSslTest extends TestLogger {
             super.initChannel(channel);
 
             SslHandler sslHandler = (SslHandler) channel.pipeline().get("ssl");
-            assertNotNull(sslHandler);
+            assertThat(sslHandler).isNotNull();
             serverHandler[0] = sslHandler;
 
             latch.trigger();

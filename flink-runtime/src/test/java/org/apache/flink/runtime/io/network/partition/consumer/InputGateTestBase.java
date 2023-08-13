@@ -22,21 +22,19 @@ import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test base for {@link InputGate}. */
-public abstract class InputGateTestBase {
+abstract class InputGateTestBase {
 
     int gateIndex;
 
-    @Before
-    public void resetGateIndex() {
+    @BeforeEach
+    void resetGateIndex() {
         gateIndex = 0;
     }
 
@@ -46,38 +44,38 @@ public abstract class InputGateTestBase {
             TestInputChannel inputChannelWithNewData)
             throws Exception {
 
-        assertFalse(inputGateToTest.getAvailableFuture().isDone());
-        assertFalse(inputGateToTest.pollNext().isPresent());
+        assertThat(inputGateToTest.getAvailableFuture().isDone()).isFalse();
+        assertThat(inputGateToTest.pollNext()).isEmpty();
 
         CompletableFuture<?> future = inputGateToTest.getAvailableFuture();
 
-        assertFalse(inputGateToTest.getAvailableFuture().isDone());
-        assertFalse(inputGateToTest.pollNext().isPresent());
+        assertThat(inputGateToTest.getAvailableFuture().isDone()).isFalse();
+        assertThat(inputGateToTest.pollNext()).isEmpty();
 
-        assertEquals(future, inputGateToTest.getAvailableFuture());
+        assertThat(inputGateToTest.getAvailableFuture()).isEqualTo(future);
 
         inputChannelWithNewData.readBuffer();
         inputGateToNotify.notifyChannelNonEmpty(inputChannelWithNewData);
 
-        assertTrue(future.isDone());
-        assertTrue(inputGateToTest.getAvailableFuture().isDone());
-        assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.getAvailableFuture());
+        assertThat(future.isDone()).isTrue();
+        assertThat(inputGateToTest.getAvailableFuture().isDone()).isTrue();
+        assertThat(inputGateToTest.getAvailableFuture()).isEqualTo(PullingAsyncDataInput.AVAILABLE);
     }
 
     protected void testIsAvailableAfterFinished(
             InputGate inputGateToTest, Runnable endOfPartitionEvent) throws Exception {
 
         CompletableFuture<?> available = inputGateToTest.getAvailableFuture();
-        assertFalse(available.isDone());
-        assertFalse(inputGateToTest.pollNext().isPresent());
+        assertThat(available.isDone()).isFalse();
+        assertThat(inputGateToTest.pollNext()).isEmpty();
 
         endOfPartitionEvent.run();
 
-        assertTrue(inputGateToTest.pollNext().isPresent()); // EndOfPartitionEvent
+        assertThat(inputGateToTest.pollNext()).isNotEmpty(); // EndOfPartitionEvent
 
-        assertTrue(available.isDone());
-        assertTrue(inputGateToTest.getAvailableFuture().isDone());
-        assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.getAvailableFuture());
+        assertThat(available.isDone()).isTrue();
+        assertThat(inputGateToTest.getAvailableFuture().isDone()).isTrue();
+        assertThat(inputGateToTest.getAvailableFuture()).isEqualTo(PullingAsyncDataInput.AVAILABLE);
     }
 
     protected SingleInputGate createInputGate() {
@@ -104,7 +102,7 @@ public abstract class InputGateTestBase {
         }
 
         SingleInputGate inputGate = builder.build();
-        assertEquals(partitionType, inputGate.getConsumedPartitionType());
+        assertThat(inputGate.getConsumedPartitionType()).isEqualTo(partitionType);
         return inputGate;
     }
 }

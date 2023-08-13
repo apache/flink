@@ -24,14 +24,14 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
@@ -39,16 +39,13 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Behavior tests for the {@link BoundedBlockingSubpartition} and the {@link
@@ -57,7 +54,7 @@ import static org.junit.Assert.fail;
  * <p>Full read / write tests for the partition and the reader are in {@link
  * BoundedBlockingSubpartitionWriteReadTest}.
  */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 
     private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
@@ -68,23 +65,23 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 
     private final boolean sslEnabled;
 
-    @Parameterized.Parameters(name = "type = {0}, sslEnabled = {1}")
-    public static Collection<Object[]> parameters() {
+    @Parameters(name = "type = {0}, sslEnabled = {1}")
+    public static List<Object[]> parameters() {
         return Arrays.stream(BoundedBlockingSubpartitionType.values())
                 .map((type) -> new Object[][] {{type, true}, {type, false}})
                 .flatMap(Arrays::stream)
                 .collect(Collectors.toList());
     }
 
-    @ClassRule public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
+    @TempDir private Path tmpFolder;
 
-    @BeforeClass
-    public static void setUp() {
+    @BeforeAll
+    static void setUp() {
         fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
     }
 
-    @AfterClass
-    public static void shutdown() throws Exception {
+    @AfterAll
+    static void shutdown() throws Exception {
         fileChannelManager.close();
     }
 
@@ -96,8 +93,8 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 
     // ------------------------------------------------------------------------
 
-    @Test
-    public void testCreateReaderBeforeFinished() throws Exception {
+    @TestTemplate
+    void testCreateReaderBeforeFinished() throws Exception {
         final ResultSubpartition partition = createSubpartition();
 
         try {
@@ -109,8 +106,8 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
         partition.release();
     }
 
-    @Test
-    public void testCloseBoundedData() throws Exception {
+    @TestTemplate
+    void testCloseBoundedData() throws Exception {
         final TestingBoundedDataReader reader = new TestingBoundedDataReader();
         final TestingBoundedData data = new TestingBoundedData(reader);
         final BoundedBlockingSubpartitionReader bbspr =
@@ -122,11 +119,12 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 
         bbspr.releaseAllResources();
 
-        assertTrue(reader.closed);
+        assertThat(reader.closed).isTrue();
     }
 
-    @Test
-    public void testRecycleCurrentBufferOnFailure() throws Exception {
+    @TestTemplate
+    void testRecycleCurrentBufferOnFailure(BoundedBlockingSubpartitionType type, boolean sslEnabled)
+            throws Exception {
         final ResultPartition resultPartition =
                 createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
         final BoundedBlockingSubpartition subpartition =
@@ -147,16 +145,16 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
                 // expected
             }
 
-            assertFalse(consumer.isRecycled());
+            assertThat(consumer.isRecycled()).isFalse();
 
-            assertNotNull(subpartition.getCurrentBuffer());
-            assertFalse(subpartition.getCurrentBuffer().isRecycled());
+            assertThat(subpartition.getCurrentBuffer()).isNotNull();
+            assertThat(subpartition.getCurrentBuffer().isRecycled()).isFalse();
         } finally {
             subpartition.release();
 
-            assertTrue(consumer.isRecycled());
+            assertThat(consumer.isRecycled()).isTrue();
 
-            assertNull(subpartition.getCurrentBuffer());
+            assertThat(subpartition.getCurrentBuffer()).isNull();
         }
     }
 
@@ -169,7 +167,7 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
         return type.create(
                 0,
                 resultPartition,
-                new File(TMP_DIR.newFolder(), "subpartition"),
+                new File(tmpFolder.toFile(), "subpartition"),
                 BufferBuilderTestUtils.BUFFER_SIZE,
                 sslEnabled);
     }
