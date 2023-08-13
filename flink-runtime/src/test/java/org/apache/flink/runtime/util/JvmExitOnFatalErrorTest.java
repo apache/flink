@@ -69,13 +69,12 @@ import org.apache.flink.runtime.taskmanager.NoOpTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -84,27 +83,27 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assume.assumeFalse;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * Test that verifies the behavior of blocking shutdown hooks and of the {@link
  * JvmShutdownSafeguard} that guards against it.
  */
-public class JvmExitOnFatalErrorTest extends TestLogger {
+class JvmExitOnFatalErrorTest {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tempDir;
 
     @Test
-    public void testExitJvmOnOutOfMemory() throws Exception {
+    void testExitJvmOnOutOfMemory() throws Exception {
         // this test works only on linux and MacOS
-        assumeFalse(OperatingSystem.isWindows());
+        assumeThat(OperatingSystem.isWindows()).isFalse();
 
         // to check what went wrong (when the test hangs) uncomment this line
         //        ProcessEntryPoint.main(new
-        // String[]{temporaryFolder.newFolder().getAbsolutePath()});
+        // String[]{TempDirUtils.newFolder(tempDir).getAbsolutePath()});
 
         final KillOnFatalErrorProcess testProcess =
-                new KillOnFatalErrorProcess(temporaryFolder.newFolder());
+                new KillOnFatalErrorProcess(TempDirUtils.newFolder(tempDir));
 
         try {
             testProcess.startProcess();

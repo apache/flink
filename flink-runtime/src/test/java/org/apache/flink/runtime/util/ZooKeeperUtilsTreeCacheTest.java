@@ -20,11 +20,9 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.TreeCache;
@@ -33,21 +31,21 @@ import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cac
 import org.apache.flink.shaded.guava31.com.google.common.io.Closer;
 
 import org.apache.curator.test.TestingServer;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 
 /**
  * Tests for {@link ZooKeeperUtils#createTreeCache(CuratorFramework, String,
  * org.apache.flink.util.function.RunnableWithException)}.
  */
-public class ZooKeeperUtilsTreeCacheTest extends TestLogger {
+class ZooKeeperUtilsTreeCacheTest {
 
     private static final String PARENT_PATH = "/foo";
     private static final String CHILD_PATH = PARENT_PATH + "/bar";
@@ -59,8 +57,8 @@ public class ZooKeeperUtilsTreeCacheTest extends TestLogger {
     private final AtomicReference<CompletableFuture<Void>> callbackFutureReference =
             new AtomicReference<>();
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         closer = Closer.create();
         final TestingServer testingServer =
                 closer.register(ZooKeeperTestUtils.createAndStartZookeeperTestingServer());
@@ -85,14 +83,14 @@ public class ZooKeeperUtilsTreeCacheTest extends TestLogger {
         cache.start();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         closer.close();
         callbackFutureReference.set(null);
     }
 
     @Test
-    public void testCallbackCalledOnNodeCreation() throws Exception {
+    void testCallbackCalledOnNodeCreation() throws Exception {
         client.create().forPath(PARENT_PATH);
         callbackFutureReference.set(new CompletableFuture<>());
         client.create().forPath(CHILD_PATH);
@@ -100,7 +98,7 @@ public class ZooKeeperUtilsTreeCacheTest extends TestLogger {
     }
 
     @Test
-    public void testCallbackCalledOnNodeModification() throws Exception {
+    void testCallbackCalledOnNodeModification() throws Exception {
         testCallbackCalledOnNodeCreation();
 
         callbackFutureReference.set(new CompletableFuture<>());
@@ -109,7 +107,7 @@ public class ZooKeeperUtilsTreeCacheTest extends TestLogger {
     }
 
     @Test
-    public void testCallbackCalledOnNodeDeletion() throws Exception {
+    void testCallbackCalledOnNodeDeletion() throws Exception {
         testCallbackCalledOnNodeCreation();
 
         callbackFutureReference.set(new CompletableFuture<>());
@@ -118,38 +116,35 @@ public class ZooKeeperUtilsTreeCacheTest extends TestLogger {
     }
 
     @Test
-    public void testCallbackNotCalledOnCreationOfParents() throws Exception {
+    void testCallbackNotCalledOnCreationOfParents() throws Exception {
         callbackFutureReference.set(new CompletableFuture<>());
         client.create().forPath(PARENT_PATH);
-        assertThat(
-                callbackFutureReference.get(),
-                FlinkMatchers.willNotComplete(Duration.ofMillis(20)));
+        assertThatFuture(callbackFutureReference.get())
+                .willNotCompleteWithin(Duration.ofMillis(20));
     }
 
     @Test
-    public void testCallbackNotCalledOnCreationOfChildren() throws Exception {
+    void testCallbackNotCalledOnCreationOfChildren() throws Exception {
         testCallbackCalledOnNodeCreation();
 
         callbackFutureReference.set(new CompletableFuture<>());
         client.create().forPath(CHILD_PATH + "/baz");
-        assertThat(
-                callbackFutureReference.get(),
-                FlinkMatchers.willNotComplete(Duration.ofMillis(20)));
+        assertThatFuture(callbackFutureReference.get())
+                .willNotCompleteWithin(Duration.ofMillis(20));
     }
 
     @Test
-    public void testCallbackNotCalledOnCreationOfSimilarPaths() throws Exception {
+    void testCallbackNotCalledOnCreationOfSimilarPaths() throws Exception {
         callbackFutureReference.set(new CompletableFuture<>());
         client.create()
                 .creatingParentContainersIfNeeded()
                 .forPath(CHILD_PATH.substring(0, CHILD_PATH.length() - 1));
-        assertThat(
-                callbackFutureReference.get(),
-                FlinkMatchers.willNotComplete(Duration.ofMillis(20)));
+        assertThatFuture(callbackFutureReference.get())
+                .willNotCompleteWithin(Duration.ofMillis(20));
     }
 
     @Test
-    public void testCallbackNotCalledOnConnectionOrInitializationEvents() throws Exception {
+    void testCallbackNotCalledOnConnectionOrInitializationEvents() throws Exception {
         final TreeCacheListener treeCacheListener =
                 ZooKeeperUtils.createTreeCacheListener(
                         () -> {

@@ -18,58 +18,51 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
-import static org.hamcrest.collection.IsIterableWithSize.iterableWithSize;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** {@code BoundedFIFOQueueTest} tests {@link BoundedFIFOQueue}. */
-public class BoundedFIFOQueueTest extends TestLogger {
+class BoundedFIFOQueueTest {
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testConstructorFailing() {
-        new BoundedFIFOQueue<>(-1);
+    @Test
+    void testConstructorFailing() {
+        assertThatThrownBy(() -> new BoundedFIFOQueue<>(-1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testQueueWithMaxSize0() {
+    void testQueueWithMaxSize0() {
         final BoundedFIFOQueue<Integer> testInstance = new BoundedFIFOQueue<>(0);
-        assertThat(testInstance, iterableWithSize(0));
+        assertThat(testInstance).isEmpty();
         testInstance.add(1);
-        assertThat(testInstance, iterableWithSize(0));
+        assertThat(testInstance).isEmpty();
     }
 
     @Test
-    public void testQueueWithMaxSize2() {
+    void testQueueWithMaxSize2() {
         final BoundedFIFOQueue<Integer> testInstance = new BoundedFIFOQueue<>(2);
-        assertThat(testInstance, iterableWithSize(0));
+        assertThat(testInstance).isEmpty();
 
         testInstance.add(1);
-        assertThat(testInstance, contains(1));
+        assertThat(testInstance).contains(1);
 
         testInstance.add(2);
-        assertThat(testInstance, contains(1, 2));
+        assertThat(testInstance).contains(1, 2);
 
         testInstance.add(3);
-        assertThat(testInstance, contains(2, 3));
+        assertThat(testInstance).contains(2, 3);
     }
 
     @Test
-    public void testAddNullHandling() {
+    void testAddNullHandling() {
         final BoundedFIFOQueue<Integer> testInstance = new BoundedFIFOQueue<>(1);
-        try {
-            testInstance.add(null);
-            fail("A NullPointerException is expected to be thrown.");
-        } catch (NullPointerException e) {
-            // NullPointerException is expected
-        }
+        assertThatThrownBy(() -> testInstance.add(null))
+                .withFailMessage("A NullPointerException is expected to be thrown.")
+                .isInstanceOf(NullPointerException.class);
 
-        assertThat(testInstance, iterableWithSize(0));
+        assertThat(testInstance).isEmpty();
     }
 
     /**
@@ -77,12 +70,12 @@ public class BoundedFIFOQueueTest extends TestLogger {
      * the queue with a {@code maxSize} of 0.
      */
     @Test
-    public void testSizeWithMaxSize0() {
+    void testSizeWithMaxSize0() {
         final BoundedFIFOQueue<Integer> testInstance = new BoundedFIFOQueue<>(0);
-        assertThat(testInstance.size(), is(0));
+        assertThat(testInstance).isEmpty();
 
         testInstance.add(1);
-        assertThat(testInstance.size(), is(0));
+        assertThat(testInstance).isEmpty();
     }
 
     /**
@@ -90,18 +83,18 @@ public class BoundedFIFOQueueTest extends TestLogger {
      * the queue with a {@code maxSize} of 2.
      */
     @Test
-    public void testSizeWithMaxSize2() {
+    void testSizeWithMaxSize2() {
         final BoundedFIFOQueue<Integer> testInstance = new BoundedFIFOQueue<>(2);
-        assertThat(testInstance.size(), is(0));
+        assertThat(testInstance).isEmpty();
 
         testInstance.add(5);
-        assertThat(testInstance.size(), is(1));
+        assertThat(testInstance).hasSize(1);
 
         testInstance.add(6);
-        assertThat(testInstance.size(), is(2));
+        assertThat(testInstance).hasSize(2);
 
         // adding a 3rd element won't increase the size anymore
         testInstance.add(7);
-        assertThat(testInstance.size(), is(2));
+        assertThat(testInstance).hasSize(2);
     }
 }

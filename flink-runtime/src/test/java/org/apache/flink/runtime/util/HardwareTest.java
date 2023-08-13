@@ -18,16 +18,17 @@
 
 package org.apache.flink.runtime.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class HardwareTest {
+class HardwareTest {
 
     @Test
-    public void testCpuCores() {
+    void testCpuCores() {
         try {
-            assertTrue(Hardware.getNumberCPUCores() >= 0);
+            assertThat(Hardware.getNumberCPUCores()).isGreaterThanOrEqualTo(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -35,10 +36,10 @@ public class HardwareTest {
     }
 
     @Test
-    public void testPhysicalMemory() {
+    void testPhysicalMemory() {
         try {
             long physMem = Hardware.getSizeOfPhysicalMemory();
-            assertTrue(physMem >= -1);
+            assertThat(physMem).isGreaterThanOrEqualTo(-1);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
