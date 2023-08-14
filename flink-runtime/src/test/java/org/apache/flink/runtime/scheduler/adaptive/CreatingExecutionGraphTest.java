@@ -18,14 +18,11 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.failure.FailureEnricherUtils;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
@@ -36,7 +33,6 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
@@ -62,79 +58,6 @@ class CreatingExecutionGraphTest {
 
     @RegisterExtension
     MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext();
-
-    @Test
-    void testCancelTransitionsToFinished() {
-        final CreatingExecutionGraph creatingExecutionGraph =
-                new CreatingExecutionGraph(
-                        context,
-                        new CompletableFuture<>(),
-                        LOG,
-                        CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
-                        null);
-
-        context.setExpectFinished(
-                archivedExecutionGraph -> {
-                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.CANCELED);
-                    assertThat(archivedExecutionGraph.getFailureInfo()).isNull();
-                });
-        creatingExecutionGraph.cancel();
-    }
-
-    @Test
-    void testSuspendTransitionsToFinished() {
-        final CreatingExecutionGraph creatingExecutionGraph =
-                new CreatingExecutionGraph(
-                        context,
-                        new CompletableFuture<>(),
-                        LOG,
-                        CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
-                        null);
-
-        FlinkException expectedException = new FlinkException("This is a test exception");
-
-        context.setExpectFinished(
-                archivedExecutionGraph -> {
-                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.SUSPENDED);
-                    assertThat(archivedExecutionGraph.getFailureInfo()).isNotNull();
-                    assertThat(
-                                    archivedExecutionGraph
-                                            .getFailureInfo()
-                                            .getException()
-                                            .deserializeError(this.getClass().getClassLoader()))
-                            .isEqualTo(expectedException);
-                });
-
-        creatingExecutionGraph.suspend(expectedException);
-    }
-
-    @Test
-    void testGlobalFailureTransitionsToFinished() {
-        final CreatingExecutionGraph creatingExecutionGraph =
-                new CreatingExecutionGraph(
-                        context,
-                        new CompletableFuture<>(),
-                        LOG,
-                        CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler,
-                        null);
-
-        RuntimeException expectedException = new RuntimeException("This is a test exception");
-
-        context.setExpectFinished(
-                archivedExecutionGraph -> {
-                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.FAILED);
-                    assertThat(archivedExecutionGraph.getFailureInfo()).isNotNull();
-                    assertThat(
-                                    archivedExecutionGraph
-                                            .getFailureInfo()
-                                            .getException()
-                                            .deserializeError(this.getClass().getClassLoader()))
-                            .isEqualTo(expectedException);
-                });
-
-        creatingExecutionGraph.handleGlobalFailure(
-                expectedException, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
-    }
 
     @Test
     void testFailedExecutionGraphCreationTransitionsToFinished() {
@@ -235,10 +158,8 @@ class CreatingExecutionGraphTest {
         return new TestingOperatorCoordinatorHandler();
     }
 
-    static class MockCreatingExecutionGraphContext
-            implements CreatingExecutionGraph.Context, AfterEachCallback {
-        private final StateValidator<ArchivedExecutionGraph> finishedStateValidator =
-                new StateValidator<>("Finished");
+    static class MockCreatingExecutionGraphContext extends MockStateWithoutExecutionGraphContext
+            implements CreatingExecutionGraph.Context {
         private final StateValidator<Void> waitingForResourcesStateValidator =
                 new StateValidator<>("WaitingForResources");
         private final StateValidator<ExecutionGraph> executingStateValidator =
@@ -254,12 +175,6 @@ class CreatingExecutionGraphTest {
                 t -> {
                     // No-op.
                 };
-
-        private boolean hasStateTransition = false;
-
-        public void setExpectFinished(Consumer<ArchivedExecutionGraph> asserter) {
-            finishedStateValidator.expectInput(asserter);
-        }
 
         public void setExpectWaitingForResources() {
             waitingForResourcesStateValidator.expectInput((none) -> {});
@@ -282,12 +197,6 @@ class CreatingExecutionGraphTest {
         }
 
         @Override
-        public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
-            finishedStateValidator.validateInput(archivedExecutionGraph);
-            registerStateTransition();
-        }
-
-        @Override
         public void goToExecuting(
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
@@ -295,13 +204,6 @@ class CreatingExecutionGraphTest {
                 List<ExceptionHistoryEntry> failureCollection) {
             executingStateValidator.validateInput(executionGraph);
             registerStateTransition();
-        }
-
-        @Override
-        public ArchivedExecutionGraph getArchivedExecutionGraph(
-                JobStatus jobStatus, @Nullable Throwable cause) {
-            return ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
-                    new JobID(), "testJob", jobStatus, cause, null, 0L);
         }
 
         @Override
@@ -328,7 +230,7 @@ class CreatingExecutionGraphTest {
         @Override
         public void goToWaitingForResources(@Nullable ExecutionGraph previousExecutionGraph) {
             waitingForResourcesStateValidator.validateInput(null);
-            hasStateTransition = true;
+            registerStateTransition();
         }
 
         @Override
@@ -348,17 +250,9 @@ class CreatingExecutionGraphTest {
 
         @Override
         public void afterEach(ExtensionContext extensionContext) throws Exception {
-            finishedStateValidator.close();
+            super.afterEach(extensionContext);
             waitingForResourcesStateValidator.close();
             executingStateValidator.close();
-        }
-
-        public boolean hasStateTransition() {
-            return hasStateTransition;
-        }
-
-        public void registerStateTransition() {
-            hasStateTransition = true;
         }
     }
 

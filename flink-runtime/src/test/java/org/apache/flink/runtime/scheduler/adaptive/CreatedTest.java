@@ -18,23 +18,17 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.failure.FailureEnricherUtils;
-import org.apache.flink.util.FlinkException;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-
-import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -46,18 +40,6 @@ class CreatedTest {
     @RegisterExtension MockCreatedContext ctx = new MockCreatedContext();
 
     @Test
-    void testCancel() {
-        Created created = new Created(ctx, LOG);
-
-        ctx.setExpectFinished(
-                archivedExecutionGraph -> {
-                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.CANCELED);
-                    assertThat(archivedExecutionGraph.getFailureInfo()).isNull();
-                });
-        created.cancel();
-    }
-
-    @Test
     void testStartScheduling() {
         Created created = new Created(ctx, LOG);
 
@@ -67,76 +49,19 @@ class CreatedTest {
     }
 
     @Test
-    void testSuspend() {
-        FlinkException expectedException = new FlinkException("This is a test exception");
-        Created created = new Created(ctx, LOG);
-
-        ctx.setExpectFinished(
-                archivedExecutionGraph -> {
-                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.SUSPENDED);
-                    assertThat(archivedExecutionGraph.getFailureInfo()).isNotNull();
-                    assertThat(
-                                    archivedExecutionGraph
-                                            .getFailureInfo()
-                                            .getException()
-                                            .deserializeError(this.getClass().getClassLoader()))
-                            .isEqualTo(expectedException);
-                });
-
-        created.suspend(expectedException);
-    }
-
-    @Test
-    void testFailure() {
-        Created created = new Created(ctx, LOG);
-        RuntimeException expectedException = new RuntimeException("This is a test exception");
-
-        ctx.setExpectFinished(
-                archivedExecutionGraph -> {
-                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.FAILED);
-                    assertThat(archivedExecutionGraph.getFailureInfo()).isNotNull();
-                    assertThat(
-                                    archivedExecutionGraph
-                                            .getFailureInfo()
-                                            .getException()
-                                            .deserializeError(this.getClass().getClassLoader()))
-                            .isEqualTo(expectedException);
-                });
-
-        created.handleGlobalFailure(expectedException, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
-    }
-
-    @Test
     void testJobInformation() {
         Created created = new Created(ctx, LOG);
         ArchivedExecutionGraph job = created.getJob();
         assertThat(job.getState()).isEqualTo(JobStatus.INITIALIZING);
     }
 
-    static class MockCreatedContext implements Created.Context, AfterEachCallback {
-        private final StateValidator<ArchivedExecutionGraph> finishedStateValidator =
-                new StateValidator<>("finished");
+    static class MockCreatedContext extends MockStateWithoutExecutionGraphContext
+            implements Created.Context {
         private final StateValidator<Void> waitingForResourcesStateValidator =
                 new StateValidator<>("WaitingForResources");
 
-        public void setExpectFinished(Consumer<ArchivedExecutionGraph> asserter) {
-            finishedStateValidator.expectInput(asserter);
-        }
-
         public void setExpectWaitingForResources() {
             waitingForResourcesStateValidator.expectInput((none) -> {});
-        }
-
-        @Override
-        public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
-            finishedStateValidator.validateInput(archivedExecutionGraph);
-        }
-
-        @Override
-        public ArchivedExecutionGraph getArchivedExecutionGraph(
-                JobStatus jobStatus, @Nullable Throwable cause) {
-            return ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
-                    new JobID(), "testJob", jobStatus, cause, null, 0L);
         }
 
         @Override
@@ -146,7 +71,7 @@ class CreatedTest {
 
         @Override
         public void afterEach(ExtensionContext extensionContext) throws Exception {
-            finishedStateValidator.close();
+            super.afterEach(extensionContext);
             waitingForResourcesStateValidator.close();
         }
     }
