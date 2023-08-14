@@ -21,9 +21,10 @@ package org.apache.flink.runtime.webmonitor.history;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nonnull;
 
@@ -34,7 +35,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link HistoryServerUtils}. */
-class HistoryServerUtilsTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class HistoryServerUtilsTest {
 
     private static final String HOSTNAME = "foobar";
     private static final int PORT = 1234;

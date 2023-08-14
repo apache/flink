@@ -22,10 +22,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -36,7 +37,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 /** Test cases for the {@link LeaderGatewayRetriever}. */
-class LeaderGatewayRetrieverTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class LeaderGatewayRetrieverTest {
 
     /** Tests that the gateway retrieval is retried in case of a failure. */
     @Test

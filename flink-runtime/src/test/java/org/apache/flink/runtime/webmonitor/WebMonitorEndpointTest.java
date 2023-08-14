@@ -28,9 +28,10 @@ import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExecutorUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -39,7 +40,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /** Tests for the {@link WebMonitorEndpoint}. */
-class WebMonitorEndpointTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class WebMonitorEndpointTest {
 
     @Test
     void cleansUpExpiredExecutionGraphs() throws Exception {

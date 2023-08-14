@@ -28,11 +28,12 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -43,7 +44,8 @@ import java.util.function.Function;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link RpcGatewayRetriever}. */
-class RpcGatewayRetrieverTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class RpcGatewayRetrieverTest {
 
     private static final Time TIMEOUT = Time.seconds(10L);
     private static TestingRpcService rpcService;
