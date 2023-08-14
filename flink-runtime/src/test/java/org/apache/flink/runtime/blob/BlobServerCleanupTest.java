@@ -24,7 +24,6 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.TriConsumerWithException;
 
@@ -58,12 +57,14 @@ import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobServerGetTest.get;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
+import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFileCountForJob;
+import static org.apache.flink.runtime.blob.TestingBlobHelpers.checkFilesExist;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 /** A few tests for the cleanup of transient BLOBs at the {@link BlobServer}. */
-public class BlobServerCleanupTest extends TestLogger {
+class BlobServerCleanupTest {
 
     private static final Random RANDOM = new Random();
 
@@ -92,13 +93,13 @@ public class BlobServerCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testTransientBlobNoJobCleanup()
+    void testTransientBlobNoJobCleanup()
             throws IOException, InterruptedException, ExecutionException {
         testTransientBlobCleanup(null);
     }
 
     @Test
-    public void testTransientBlobForJobCleanup()
+    void testTransientBlobForJobCleanup()
             throws IOException, InterruptedException, ExecutionException {
         testTransientBlobCleanup(new JobID());
     }
@@ -210,7 +211,7 @@ public class BlobServerCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testLocalCleanup() throws Exception {
+    void testLocalCleanup() throws Exception {
         final TestingBlobStore blobStore =
                 createTestingBlobStoreBuilder()
                         .setDeleteAllFunction(
@@ -227,7 +228,7 @@ public class BlobServerCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testGlobalCleanup() throws Exception {
+    void testGlobalCleanup() throws Exception {
         final Set<JobID> actuallyDeletedJobData = new HashSet<>();
         final JobID jobId = new JobID();
         final TestingBlobStore blobStore =
@@ -248,7 +249,7 @@ public class BlobServerCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testGlobalCleanupUnsuccessfulInBlobStore() throws Exception {
+    void testGlobalCleanupUnsuccessfulInBlobStore() throws Exception {
         final TestingBlobStore blobStore =
                 createTestingBlobStoreBuilder()
                         .setDeleteAllFunction(jobDataToDelete -> false)
@@ -268,7 +269,7 @@ public class BlobServerCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testGlobalCleanupFailureInBlobStore() throws Exception {
+    void testGlobalCleanupFailureInBlobStore() throws Exception {
         final RuntimeException actualException = new RuntimeException("Expected RuntimeException");
         final TestingBlobStore blobStore =
                 createTestingBlobStoreBuilder()
@@ -364,12 +365,12 @@ public class BlobServerCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testBlobServerExpiresRecoveredTransientJobBlob() throws Exception {
+    void testBlobServerExpiresRecoveredTransientJobBlob() throws Exception {
         runBlobServerExpiresRecoveredTransientBlob(new JobID());
     }
 
     @Test
-    public void testBlobServerExpiresRecoveredTransientNoJobBlob() throws Exception {
+    void testBlobServerExpiresRecoveredTransientNoJobBlob() throws Exception {
         runBlobServerExpiresRecoveredTransientBlob(null);
     }
 
@@ -389,7 +390,7 @@ public class BlobServerCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testBlobServerRetainsJobs() throws Exception {
+    void testBlobServerRetainsJobs() throws Exception {
         final JobID jobId1 = new JobID();
         final JobID jobId2 = new JobID();
 
@@ -411,84 +412,6 @@ public class BlobServerCleanupTest extends TestLogger {
                     .isInstanceOf(NoSuchFileException.class);
         } finally {
             assertThat(executorService.shutdownNow()).isEmpty();
-        }
-    }
-
-    /**
-     * Checks how many of the files given by blob keys are accessible.
-     *
-     * @param jobId ID of a job
-     * @param keys blob keys to check
-     * @param blobService BLOB store to use
-     * @param doThrow whether exceptions should be ignored (<tt>false</tt>), or thrown
-     *     (<tt>true</tt>)
-     * @return number of files existing at {@link BlobServer#getStorageLocation(JobID, BlobKey)} and
-     *     {@link PermanentBlobCache#getStorageLocation(JobID, BlobKey)}, respectively
-     */
-    public static <T> int checkFilesExist(
-            JobID jobId, Collection<? extends BlobKey> keys, T blobService, boolean doThrow)
-            throws IOException {
-
-        int numFiles = 0;
-
-        for (BlobKey key : keys) {
-            final File storageDir;
-            if (blobService instanceof BlobServer) {
-                BlobServer server = (BlobServer) blobService;
-                storageDir = server.getStorageDir();
-            } else if (blobService instanceof PermanentBlobCache) {
-                PermanentBlobCache cache = (PermanentBlobCache) blobService;
-                storageDir = cache.getStorageDir();
-            } else if (blobService instanceof TransientBlobCache) {
-                TransientBlobCache cache = (TransientBlobCache) blobService;
-                storageDir = cache.getStorageDir();
-            } else {
-                throw new UnsupportedOperationException(
-                        "unsupported BLOB service class: "
-                                + blobService.getClass().getCanonicalName());
-            }
-
-            final File blobFile =
-                    new File(
-                            BlobUtils.getStorageLocationPath(
-                                    storageDir.getAbsolutePath(), jobId, key));
-            if (blobFile.exists()) {
-                ++numFiles;
-            } else if (doThrow) {
-                throw new IOException("File " + blobFile + " does not exist.");
-            }
-        }
-
-        return numFiles;
-    }
-
-    /**
-     * Checks how many of the files given by blob keys are accessible.
-     *
-     * @param expectedCount number of expected files in the blob service for the given job
-     * @param jobId ID of a job
-     * @param blobService BLOB store to use
-     */
-    public static void checkFileCountForJob(
-            int expectedCount, JobID jobId, PermanentBlobService blobService) throws IOException {
-
-        final File jobDir;
-        if (blobService instanceof BlobServer) {
-            BlobServer server = (BlobServer) blobService;
-            jobDir = server.getStorageLocation(jobId, new PermanentBlobKey()).getParentFile();
-        } else {
-            PermanentBlobCache cache = (PermanentBlobCache) blobService;
-            jobDir = cache.getStorageLocation(jobId, new PermanentBlobKey()).getParentFile();
-        }
-        File[] blobsForJob = jobDir.listFiles();
-        if (blobsForJob == null) {
-            if (expectedCount != 0) {
-                throw new IOException("File " + jobDir + " does not exist.");
-            }
-        } else {
-            assertThat(blobsForJob.length)
-                    .as("Too many/few files in job dir: " + Arrays.asList(blobsForJob))
-                    .isEqualTo(expectedCount);
         }
     }
 }

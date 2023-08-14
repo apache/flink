@@ -22,15 +22,15 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -40,18 +40,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test for using {@link BlobCacheSizeTracker} to track the size of BLOBs in {@link
  * PermanentBlobCache}. When new BLOBs are intended to be stored and the size limit exceeds, {@link
  * BlobCacheSizeTracker} will provide excess BLOBs for {@link PermanentBlobCache} to delete.
  */
-public class PermanentBlobCacheSizeLimitTest {
+class PermanentBlobCacheSizeLimitTest {
 
     private static final Random RANDOM = new Random();
 
@@ -61,14 +57,13 @@ public class PermanentBlobCacheSizeLimitTest {
     private static final int MAX_NUM_OF_ACCEPTED_BLOBS = 2;
     private static final int TOTAL_NUM_OF_BLOBS = 3;
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+    @TempDir Path tempDir;
 
     @Test
-    public void testTrackSizeLimitAndDeleteExcessSequentially() throws Exception {
+    void testTrackSizeLimitAndDeleteExcessSequentially() throws Exception {
         final Configuration config = new Configuration();
 
-        try (BlobServer server =
-                        new BlobServer(config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore());
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir, config);
                 BlobCacheService cache =
                         initBlobCacheServiceWithSizeLimit(
                                 config, new InetSocketAddress("localhost", server.getPort()))) {
@@ -86,13 +81,13 @@ public class PermanentBlobCacheSizeLimitTest {
 
                 // Retrieve the location of BLOBs from the blob cache
                 blobs[i].blobFile = getFile(cache, blobs[i].jobId, blobs[i].blobKey);
-                assertTrue(blobs[i].blobFile.exists());
+                assertThat(blobs[i].blobFile).exists();
             }
 
             // Since the size limit of the blob cache is the size of 2 BLOBs,
             // the first BLOB is removed and the second BLOB remains
-            assertFalse(blobs[0].blobFile.exists());
-            assertTrue(blobs[1].blobFile.exists());
+            assertThat(blobs[0].blobFile).doesNotExist();
+            assertThat(blobs[1].blobFile).exists();
 
             // Retrieve the second BLOB once again,
             // make the third BLOB to be the least recently used
@@ -103,20 +98,19 @@ public class PermanentBlobCacheSizeLimitTest {
             readFileAndVerifyContent(cache, blobs[0].jobId, blobs[0].blobKey, blobs[0].data);
             blobs[0].blobFile = getFile(cache, blobs[0].jobId, blobs[0].blobKey);
 
-            assertTrue(blobs[0].blobFile.exists());
-            assertTrue(blobs[1].blobFile.exists());
-            assertFalse(blobs[2].blobFile.exists());
+            assertThat(blobs[0].blobFile).exists();
+            assertThat(blobs[1].blobFile).exists();
+            assertThat(blobs[2].blobFile).doesNotExist();
         }
     }
 
     @Test
-    public void testTrackSizeLimitAndDeleteExcessConcurrently() throws Exception {
+    void testTrackSizeLimitAndDeleteExcessConcurrently() throws Exception {
 
         final ExecutorService executor = Executors.newFixedThreadPool(TOTAL_NUM_OF_BLOBS);
         final Configuration config = new Configuration();
 
-        try (BlobServer server =
-                        new BlobServer(config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore());
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir, config);
                 BlobCacheService cache =
                         initBlobCacheServiceWithSizeLimit(
                                 config, new InetSocketAddress("localhost", server.getPort()))) {
@@ -171,8 +165,8 @@ public class PermanentBlobCacheSizeLimitTest {
                     nonExists++;
                 }
             }
-            assertEquals(MAX_NUM_OF_ACCEPTED_BLOBS, exists);
-            assertEquals(TOTAL_NUM_OF_BLOBS - MAX_NUM_OF_ACCEPTED_BLOBS, nonExists);
+            assertThat(exists).isEqualTo(MAX_NUM_OF_ACCEPTED_BLOBS);
+            assertThat(nonExists).isEqualTo(TOTAL_NUM_OF_BLOBS - MAX_NUM_OF_ACCEPTED_BLOBS);
 
         } finally {
             executor.shutdownNow();
@@ -196,6 +190,25 @@ public class PermanentBlobCacheSizeLimitTest {
         }
     }
 
+    private BlobCacheService initBlobCacheServiceWithSizeLimit(
+            Configuration config, @Nullable final InetSocketAddress serverAddress)
+            throws IOException {
+
+        final PermanentBlobCache permanentBlobCache =
+                new PermanentBlobCache(
+                        config,
+                        tempDir.resolve("permanent_cache").toFile(),
+                        new VoidBlobStore(),
+                        serverAddress,
+                        new BlobCacheSizeTracker(MAX_NUM_OF_ACCEPTED_BLOBS * BLOB_SIZE));
+
+        final TransientBlobCache transientBlobCache =
+                new TransientBlobCache(
+                        config, tempDir.resolve("transient_cache").toFile(), serverAddress);
+
+        return new BlobCacheService(permanentBlobCache, transientBlobCache);
+    }
+
     private static BlobInfo[] putBlobsIntoBlobServer(BlobServer server) throws IOException {
         // Initialize the information of BLOBs
         BlobInfo[] blobs = new BlobInfo[TOTAL_NUM_OF_BLOBS];
@@ -206,41 +219,22 @@ public class PermanentBlobCacheSizeLimitTest {
 
             // Put the BLOB into the blob server
             blobs[i].blobKey = put(server, blobs[i].jobId, blobs[i].data, BLOB_TYPE);
-            assertNotNull(blobs[i].blobKey);
+            assertThat(blobs[i].blobKey).isNotNull();
         }
 
         return blobs;
-    }
-
-    private static BlobCacheService initBlobCacheServiceWithSizeLimit(
-            Configuration config, @Nullable final InetSocketAddress serverAddress)
-            throws IOException {
-
-        final PermanentBlobCache permanentBlobCache =
-                new PermanentBlobCache(
-                        config,
-                        TEMPORARY_FOLDER.newFolder(),
-                        new VoidBlobStore(),
-                        serverAddress,
-                        new BlobCacheSizeTracker(MAX_NUM_OF_ACCEPTED_BLOBS * BLOB_SIZE));
-
-        final TransientBlobCache transientBlobCache =
-                new TransientBlobCache(config, TEMPORARY_FOLDER.newFolder(), serverAddress);
-
-        return new BlobCacheService(permanentBlobCache, transientBlobCache);
     }
 
     private static void readFileAndVerifyContent(
             BlobService blobService, JobID jobId, BlobKey blobKey, byte[] expected)
             throws IOException {
 
-        assertNotNull(jobId);
-        assertNotNull(blobKey);
-        assertTrue(blobKey instanceof PermanentBlobKey);
+        assertThat(jobId).isNotNull();
+        assertThat(blobKey).isNotNull().isInstanceOf(PermanentBlobKey.class);
 
         byte[] target =
                 blobService.getPermanentBlobService().readFile(jobId, (PermanentBlobKey) blobKey);
-        assertArrayEquals(expected, target);
+        assertThat(target).isEqualTo(expected);
     }
 
     private static File getFile(BlobCacheService blobCacheService, JobID jobId, BlobKey blobKey)

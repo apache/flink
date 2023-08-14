@@ -25,21 +25,20 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link StringifiedAccumulatorResult}. */
-public class StringifiedAccumulatorResultTest {
+class StringifiedAccumulatorResultTest {
 
     @Test
-    public void testSerialization() throws IOException {
+    void testSerialization() throws IOException {
         final String name = "a";
         final String type = "b";
         final String value = "c";
@@ -47,20 +46,20 @@ public class StringifiedAccumulatorResultTest {
                 new StringifiedAccumulatorResult(name, type, value);
 
         // Confirm no funny business in the constructor to getter pathway
-        assertEquals(name, original.getName());
-        assertEquals(type, original.getType());
-        assertEquals(value, original.getValue());
+        assertThat(original.getName()).isEqualTo(name);
+        assertThat(original.getType()).isEqualTo(type);
+        assertThat(original.getValue()).isEqualTo(value);
 
         final StringifiedAccumulatorResult copy = CommonTestUtils.createCopySerializable(original);
 
         // Copy should have equivalent core fields
-        assertEquals(name, copy.getName());
-        assertEquals(type, copy.getType());
-        assertEquals(value, copy.getValue());
+        assertThat(copy.getName()).isEqualTo(name);
+        assertThat(copy.getType()).isEqualTo(type);
+        assertThat(copy.getValue()).isEqualTo(value);
     }
 
     @Test
-    public void stringifyingResultsShouldIncorporateAccumulatorLocalValueDirectly() {
+    void stringifyingResultsShouldIncorporateAccumulatorLocalValueDirectly() {
         final String name = "a";
         final int targetValue = 314159;
         final IntCounter acc = new IntCounter();
@@ -71,16 +70,16 @@ public class StringifiedAccumulatorResultTest {
         final StringifiedAccumulatorResult[] results =
                 StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 
-        assertEquals(1, results.length);
+        assertThat(results).hasSize(1);
 
         final StringifiedAccumulatorResult firstResult = results[0];
-        assertEquals(name, firstResult.getName());
-        assertEquals("IntCounter", firstResult.getType());
-        assertEquals(Integer.toString(targetValue), firstResult.getValue());
+        assertThat(firstResult.getName()).isEqualTo(name);
+        assertThat(firstResult.getType()).isEqualTo("IntCounter");
+        assertThat(firstResult.getValue()).isEqualTo(Integer.toString(targetValue));
     }
 
     @Test
-    public void stringifyingResultsShouldReportNullLocalValueAsNonnullValueString() {
+    void stringifyingResultsShouldReportNullLocalValueAsNonnullValueString() {
         final String name = "a";
         final NullBearingAccumulator acc = new NullBearingAccumulator();
         final Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap = new HashMap<>();
@@ -89,17 +88,17 @@ public class StringifiedAccumulatorResultTest {
         final StringifiedAccumulatorResult[] results =
                 StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 
-        assertEquals(1, results.length);
+        assertThat(results).hasSize(1);
 
         // Note the use of a String with a content of "null" rather than a null value
         final StringifiedAccumulatorResult firstResult = results[0];
-        assertEquals(name, firstResult.getName());
-        assertEquals("NullBearingAccumulator", firstResult.getType());
-        assertEquals("null", firstResult.getValue());
+        assertThat(firstResult.getName()).isEqualTo(name);
+        assertThat(firstResult.getType()).isEqualTo("NullBearingAccumulator");
+        assertThat(firstResult.getValue()).isEqualTo("null");
     }
 
     @Test
-    public void stringifyingResultsShouldReportNullAccumulatorWithNonnullValueAndTypeString() {
+    void stringifyingResultsShouldReportNullAccumulatorWithNonnullValueAndTypeString() {
         final String name = "a";
         final Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap = new HashMap<>();
         accumulatorMap.put(name, null);
@@ -107,17 +106,17 @@ public class StringifiedAccumulatorResultTest {
         final StringifiedAccumulatorResult[] results =
                 StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 
-        assertEquals(1, results.length);
+        assertThat(results).hasSize(1);
 
         // Note the use of String values with content of "null" rather than null values
         final StringifiedAccumulatorResult firstResult = results[0];
-        assertEquals(name, firstResult.getName());
-        assertEquals("null", firstResult.getType());
-        assertEquals("null", firstResult.getValue());
+        assertThat(firstResult.getName()).isEqualTo(name);
+        assertThat(firstResult.getType()).isEqualTo("null");
+        assertThat(firstResult.getValue()).isEqualTo("null");
     }
 
     @Test
-    public void stringifyingFailureResults() {
+    void stringifyingFailureResults() {
         final String name = "a";
         final Map<String, OptionalFailure<Accumulator<?, ?>>> accumulatorMap = new HashMap<>();
         accumulatorMap.put(name, OptionalFailure.ofFailure(new FlinkRuntimeException("Test")));
@@ -125,16 +124,14 @@ public class StringifiedAccumulatorResultTest {
         final StringifiedAccumulatorResult[] results =
                 StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 
-        assertEquals(1, results.length);
+        assertThat(results).hasSize(1);
 
         // Note the use of String values with content of "null" rather than null values
         final StringifiedAccumulatorResult firstResult = results[0];
-        assertEquals(name, firstResult.getName());
-        assertEquals("null", firstResult.getType());
-        assertTrue(
-                firstResult
-                        .getValue()
-                        .startsWith("org.apache.flink.util.FlinkRuntimeException: Test"));
+        assertThat(firstResult.getName()).isEqualTo(name);
+        assertThat(firstResult.getType()).isEqualTo("null");
+        assertThat(firstResult.getValue())
+                .startsWith("org.apache.flink.util.FlinkRuntimeException: Test");
     }
 
     private static class NullBearingAccumulator implements SimpleAccumulator<Serializable> {
