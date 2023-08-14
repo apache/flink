@@ -39,7 +39,6 @@ public class DeclarativeSlotManagerBuilder {
     private boolean evenlySpreadOutSlots;
     private final ScheduledExecutor scheduledExecutor;
     private Time taskManagerRequestTimeout;
-    private Time slotRequestTimeout;
     private Time taskManagerTimeout;
     private boolean waitResultConsumedBeforeRelease;
     private WorkerResourceSpec defaultWorkerResourceSpec;
@@ -56,7 +55,6 @@ public class DeclarativeSlotManagerBuilder {
         this.evenlySpreadOutSlots = false;
         this.scheduledExecutor = scheduledExecutor;
         this.taskManagerRequestTimeout = TestingUtils.infiniteTime();
-        this.slotRequestTimeout = TestingUtils.infiniteTime();
         this.taskManagerTimeout = TestingUtils.infiniteTime();
         this.waitResultConsumedBeforeRelease = true;
         this.defaultWorkerResourceSpec = WorkerResourceSpec.ZERO;
@@ -79,11 +77,6 @@ public class DeclarativeSlotManagerBuilder {
     public DeclarativeSlotManagerBuilder setTaskManagerRequestTimeout(
             Time taskManagerRequestTimeout) {
         this.taskManagerRequestTimeout = taskManagerRequestTimeout;
-        return this;
-    }
-
-    public DeclarativeSlotManagerBuilder setSlotRequestTimeout(Time slotRequestTimeout) {
-        this.slotRequestTimeout = slotRequestTimeout;
         return this;
     }
 
@@ -155,7 +148,6 @@ public class DeclarativeSlotManagerBuilder {
         final SlotManagerConfiguration slotManagerConfiguration =
                 new SlotManagerConfiguration(
                         taskManagerRequestTimeout,
-                        slotRequestTimeout,
                         taskManagerTimeout,
                         requirementCheckDelay,
                         declareNeededResourceDelay,

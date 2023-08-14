@@ -167,23 +167,12 @@ public class ResourceManagerOptions {
                     .withDescription("The delay of the declare needed resources.");
 
     /**
-     * The timeout for a slot request to be discarded, in milliseconds.
-     *
-     * @deprecated Use {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
-     */
-    @Deprecated
-    public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
-            ConfigOptions.key("slotmanager.request-timeout")
-                    .longType()
-                    .defaultValue(-1L)
-                    .withDescription("The timeout for a slot request to be discarded.");
-
-    /**
      * Time in milliseconds of the start-up period of a standalone cluster. During this time,
      * resource manager of the standalone cluster expects new task executors to be registered, and
      * will not fail slot requests that can not be satisfied by any current registered slots. After
      * this time, it will fail pending and new coming requests immediately that can not be satisfied
-     * by registered slots. If not set, {@link #SLOT_REQUEST_TIMEOUT} will be used by default.
+     * by registered slots. If not set, {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT} will be used
+     * by default.
      */
     public static final ConfigOption<Long> STANDALONE_CLUSTER_STARTUP_PERIOD_TIME =
             ConfigOptions.key("resourcemanager.standalone.start-up-time")

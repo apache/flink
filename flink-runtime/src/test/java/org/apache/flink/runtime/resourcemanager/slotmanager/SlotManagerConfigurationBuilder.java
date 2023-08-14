@@ -30,7 +30,6 @@ import java.time.Duration;
 /** Builder for {@link SlotManagerConfiguration}. */
 public class SlotManagerConfigurationBuilder {
     private Time taskManagerRequestTimeout;
-    private Time slotRequestTimeout;
     private Time taskManagerTimeout;
     private Duration requirementCheckDelay;
     private Duration declareNeededResourceDelay;
@@ -45,7 +44,6 @@ public class SlotManagerConfigurationBuilder {
 
     private SlotManagerConfigurationBuilder() {
         this.taskManagerRequestTimeout = TestingUtils.infiniteTime();
-        this.slotRequestTimeout = TestingUtils.infiniteTime();
         this.taskManagerTimeout = TestingUtils.infiniteTime();
         this.requirementCheckDelay = ResourceManagerOptions.REQUIREMENTS_CHECK_DELAY.defaultValue();
         this.declareNeededResourceDelay =
@@ -68,11 +66,6 @@ public class SlotManagerConfigurationBuilder {
     public SlotManagerConfigurationBuilder setTaskManagerRequestTimeout(
             Time taskManagerRequestTimeout) {
         this.taskManagerRequestTimeout = taskManagerRequestTimeout;
-        return this;
-    }
-
-    public SlotManagerConfigurationBuilder setSlotRequestTimeout(Time slotRequestTimeout) {
-        this.slotRequestTimeout = slotRequestTimeout;
         return this;
     }
 
@@ -138,7 +131,6 @@ public class SlotManagerConfigurationBuilder {
     public SlotManagerConfiguration build() {
         return new SlotManagerConfiguration(
                 taskManagerRequestTimeout,
-                slotRequestTimeout,
                 taskManagerTimeout,
                 requirementCheckDelay,
                 declareNeededResourceDelay,

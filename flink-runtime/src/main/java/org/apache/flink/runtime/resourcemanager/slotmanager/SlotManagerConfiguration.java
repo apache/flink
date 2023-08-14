@@ -23,7 +23,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -42,7 +41,6 @@ public class SlotManagerConfiguration {
     private static final Logger LOGGER = LoggerFactory.getLogger(SlotManagerConfiguration.class);
 
     private final Time taskManagerRequestTimeout;
-    private final Time slotRequestTimeout;
     private final Time taskManagerTimeout;
     private final Duration requirementCheckDelay;
     private final Duration declareNeededResourceDelay;
@@ -58,7 +56,6 @@ public class SlotManagerConfiguration {
 
     public SlotManagerConfiguration(
             Time taskManagerRequestTimeout,
-            Time slotRequestTimeout,
             Time taskManagerTimeout,
             Duration requirementCheckDelay,
             Duration declareNeededResourceDelay,
@@ -73,7 +70,6 @@ public class SlotManagerConfiguration {
             int redundantTaskManagerNum) {
 
         this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
-        this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
         this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
         this.requirementCheckDelay = Preconditions.checkNotNull(requirementCheckDelay);
         this.declareNeededResourceDelay = Preconditions.checkNotNull(declareNeededResourceDelay);
@@ -93,10 +89,6 @@ public class SlotManagerConfiguration {
 
     public Time getTaskManagerRequestTimeout() {
         return taskManagerRequestTimeout;
-    }
-
-    public Time getSlotRequestTimeout() {
-        return slotRequestTimeout;
     }
 
     public Time getTaskManagerTimeout() {
@@ -154,7 +146,6 @@ public class SlotManagerConfiguration {
         final Time rpcTimeout =
                 Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
 
-        final Time slotRequestTimeout = getSlotRequestTimeout(configuration);
         final Time taskManagerTimeout =
                 Time.milliseconds(
                         configuration.getLong(ResourceManagerOptions.TASK_MANAGER_TIMEOUT));
@@ -185,7 +176,6 @@ public class SlotManagerConfiguration {
 
         return new SlotManagerConfiguration(
                 rpcTimeout,
-                slotRequestTimeout,
                 taskManagerTimeout,
                 requirementCheckDelay,
                 declareNeededResourceDelay,
@@ -198,21 +188,6 @@ public class SlotManagerConfiguration {
                 getMaxTotalCpu(configuration, defaultWorkerResourceSpec, maxSlotNum),
                 getMaxTotalMem(configuration, defaultWorkerResourceSpec, maxSlotNum),
                 redundantTaskManagerNum);
-    }
-
-    private static Time getSlotRequestTimeout(final Configuration configuration) {
-        final long slotRequestTimeoutMs;
-        if (configuration.contains(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT)) {
-            LOGGER.warn(
-                    "Config key {} is deprecated; use {} instead.",
-                    ResourceManagerOptions.SLOT_REQUEST_TIMEOUT,
-                    JobManagerOptions.SLOT_REQUEST_TIMEOUT);
-            slotRequestTimeoutMs =
-                    configuration.getLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT);
-        } else {
-            slotRequestTimeoutMs = configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT);
-        }
-        return Time.milliseconds(slotRequestTimeoutMs);
     }
 
     private static CPUResource getMaxTotalCpu(
