@@ -37,6 +37,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Random;
 
@@ -75,6 +76,7 @@ public class CheckpointMetadataLoadingTest {
                 Checkpoints.loadAndValidateCheckpoint(
                         jobId,
                         tasks,
+                        new HashSet<>(),
                         testSavepoint,
                         cl,
                         false,
@@ -99,6 +101,7 @@ public class CheckpointMetadataLoadingTest {
             Checkpoints.loadAndValidateCheckpoint(
                     new JobID(),
                     tasks,
+                    new HashSet<>(),
                     testSavepoint,
                     cl,
                     false,
@@ -125,6 +128,7 @@ public class CheckpointMetadataLoadingTest {
             Checkpoints.loadAndValidateCheckpoint(
                     new JobID(),
                     tasks,
+                    new HashSet<>(),
                     testSavepoint,
                     cl,
                     false,
@@ -151,6 +155,7 @@ public class CheckpointMetadataLoadingTest {
                 Checkpoints.loadAndValidateCheckpoint(
                         new JobID(),
                         tasks,
+                        new HashSet<>(),
                         testSavepoint,
                         cl,
                         true,
@@ -180,6 +185,7 @@ public class CheckpointMetadataLoadingTest {
             Checkpoints.loadAndValidateCheckpoint(
                     new JobID(),
                     tasks,
+                    new HashSet<>(),
                     testSavepoint,
                     cl,
                     false,

@@ -53,6 +53,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -129,6 +130,7 @@ public class Checkpoints {
     public static CompletedCheckpoint loadAndValidateCheckpoint(
             JobID jobId,
             Map<JobVertexID, ExecutionJobVertex> tasks,
+            Set<OperatorID> coordinatorOperators,
             CompletedCheckpointStorageLocation location,
             ClassLoader classLoader,
             boolean allowNonRestoredState,
@@ -175,6 +177,8 @@ public class Checkpoints {
                 if (executionJobVertex.getMaxParallelism() == operatorState.getMaxParallelism()
                         || executionJobVertex.canRescaleMaxParallelism(
                                 operatorState.getMaxParallelism())) {
+                    checkCoordinatorStateIsRemoved(
+                            coordinatorOperators, allowNonRestoredState, operatorState);
                     operatorStates.put(operatorState.getOperatorID(), operatorState);
                 } else {
                     String msg =
@@ -224,6 +228,39 @@ public class Checkpoints {
                 location,
                 null,
                 checkpointMetadata.getCheckpointProperties());
+    }
+
+    private static void checkCoordinatorStateIsRemoved(
+            Set<OperatorID> coordinatorOperators,
+            boolean allowNonRestoredState,
+            OperatorState operatorState) {
+        if (operatorState.getCoordinatorState() == null) {
+            return;
+        }
+        // The operator has the coordinator state.
+
+        if (coordinatorOperators.contains(operatorState.getOperatorID())) {
+            // The operator is coordinator operator.
+            return;
+        }
+
+        // The operator has the coordinator state, however the operator isn't coordinator operator.
+        if (allowNonRestoredState) {
+            operatorState.setCoordinatorState(null);
+            LOG.info(
+                    "Skipping savepoint coordinator state for operator {} due to the new operator "
+                            + "isn't coordinator operator.",
+                    operatorState.getOperatorID());
+            return;
+        }
+
+        throw new IllegalStateException(
+                String.format(
+                        "The operator %s isn't coordinator operator, however, the operator has "
+                                + "coordinator state in the savepoint. If you want to allow to "
+                                + "skip this, you can set the --allowNonRestoredState option on "
+                                + "the CLI.",
+                        operatorState.getOperatorID()));
     }
 
     private static void throwNonRestoredStateException(

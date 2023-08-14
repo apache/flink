@@ -83,6 +83,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toMap;
@@ -1843,11 +1844,16 @@ public class CheckpointCoordinator {
                 throw new IllegalArgumentException("Unknown snapshot restore mode");
         }
 
+        Set<OperatorID> coordinatorOperators =
+                coordinatorsToCheckpoint.stream()
+                        .map(OperatorInfo::operatorId)
+                        .collect(Collectors.toSet());
         // Load the savepoint as a checkpoint into the system
         CompletedCheckpoint savepoint =
                 Checkpoints.loadAndValidateCheckpoint(
                         job,
                         tasks,
+                        coordinatorOperators,
                         checkpointLocation,
                         userClassLoader,
                         allowNonRestored,
