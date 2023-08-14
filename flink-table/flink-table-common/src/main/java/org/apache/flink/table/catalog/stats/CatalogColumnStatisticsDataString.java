@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
 /** Column statistics value of string type. */
+@PublicEvolving
 public class CatalogColumnStatisticsDataString extends CatalogColumnStatisticsDataBase {
     /** max length of all values. */
     private final Long maxLength;

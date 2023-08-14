@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.connector.source.lookup;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
@@ -31,6 +32,7 @@ import static org.apache.flink.table.connector.source.lookup.cache.trigger.Perio
 import static org.apache.flink.table.connector.source.lookup.cache.trigger.PeriodicCacheReloadTrigger.ScheduleMode.FIXED_RATE;
 
 /** Predefined options for lookup table. */
+@PublicEvolving
 public class LookupOptions {
     public static final ConfigOption<LookupCacheType> CACHE_TYPE =
             ConfigOptions.key("lookup.cache")
@@ -130,6 +132,7 @@ public class LookupOptions {
                             "Number of days between reloads of Full cache with TIMED strategy");
 
     /** Types of the lookup cache. */
+    @PublicEvolving
     public enum LookupCacheType {
         NONE,
         PARTIAL,
@@ -137,6 +140,7 @@ public class LookupOptions {
     }
 
     /** Defines which {@link CacheReloadTrigger} to use. */
+    @PublicEvolving
     public enum ReloadStrategy {
         PERIODIC,
         TIMED

@@ -150,6 +150,7 @@ public class WatermarkParams implements Serializable {
     }
 
     /** Builder of WatermarkHintParams. */
+    @Internal
     public static class WatermarkParamsBuilder {
         private WatermarkEmitStrategy emitStrategy =
                 FactoryUtil.WATERMARK_EMIT_STRATEGY.defaultValue();

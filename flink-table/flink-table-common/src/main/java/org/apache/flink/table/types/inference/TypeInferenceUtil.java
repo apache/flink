@@ -215,6 +215,7 @@ public final class TypeInferenceUtil {
      *
      * @see CallContext#getOutputDataType()
      */
+    @Internal
     public interface SurroundingInfo {
 
         static SurroundingInfo of(
@@ -268,6 +269,7 @@ public final class TypeInferenceUtil {
      * <p>This includes casts that need to be inserted, reordering of arguments (*), or insertion of
      * default values (*) where (*) is future work.
      */
+    @Internal
     public static final class Result {
 
         private final List<DataType> expectedArgumentTypes;

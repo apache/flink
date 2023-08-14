@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
 /** The AbstractCatalogStore class is an abstract base class for implementing a catalog store. */
+@Internal
 public abstract class AbstractCatalogStore implements CatalogStore {
 
     /** Catalog store state. */

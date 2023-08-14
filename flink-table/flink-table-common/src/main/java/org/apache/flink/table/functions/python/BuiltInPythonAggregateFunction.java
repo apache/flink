@@ -18,11 +18,14 @@
 
 package org.apache.flink.table.functions.python;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /** The list of the built-in aggregate functions which can be mixed with the Python UDAF. */
+@Internal
 public enum BuiltInPythonAggregateFunction implements PythonFunction {
 
     /*

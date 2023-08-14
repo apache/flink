@@ -66,6 +66,7 @@ public class CatalogStoreHolder implements AutoCloseable {
     }
 
     /** Builder for a fluent definition of a {@link CatalogStoreHolder}. */
+    @Internal
     public static final class Builder {
 
         private CatalogStore catalogStore;
