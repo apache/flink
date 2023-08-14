@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.module.ModuleEntry;
@@ -29,6 +30,7 @@ import static org.apache.flink.table.api.internal.TableResultUtils.buildStringAr
 import static org.apache.flink.table.api.internal.TableResultUtils.buildTableResult;
 
 /** Operation to describe a SHOW [FULL] MODULES statement. */
+@Internal
 public class ShowModulesOperation implements ShowOperation {
     private final boolean requireFull;
 

@@ -63,6 +63,7 @@ public class SetQueryOperation implements QueryOperation {
      *   <li><b>UNION</b> returns records from both relations as a single relation
      * </ul>
      */
+    @Internal
     public enum SetQueryOperationType {
         INTERSECT,
         MINUS,

@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 /**
  * Abstract Operation to describe all ALTER TABLE statements such as rename table /set properties.
  */
+@Internal
 public abstract class AlterTableOperation implements AlterOperation {
 
     protected final ObjectIdentifier tableIdentifier;

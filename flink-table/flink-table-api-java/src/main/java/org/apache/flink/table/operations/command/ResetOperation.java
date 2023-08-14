@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.Operation;
 
 import javax.annotation.Nullable;
@@ -28,6 +29,7 @@ import java.util.Optional;
  * Operation to represent RESET command. If {@link #getKey()} is empty, it means reset the session
  * configuration.
  */
+@Internal
 public class ResetOperation implements Operation {
 
     @Nullable private final String key;

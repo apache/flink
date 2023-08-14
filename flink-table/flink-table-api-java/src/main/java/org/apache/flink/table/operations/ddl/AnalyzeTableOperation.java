@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -31,6 +32,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Operation to describe an {@code ANALYZE TABLE} statement. */
+@Internal
 public class AnalyzeTableOperation implements Operation {
     private final ObjectIdentifier tableIdentifier;
     private final @Nullable List<CatalogPartitionSpec> partitionSpecs;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An abstract catalog table. */
+@Internal
 public abstract class AbstractCatalogTable implements CatalogTable {
     // Schema of the table (column names and types)
     private final TableSchema tableSchema;

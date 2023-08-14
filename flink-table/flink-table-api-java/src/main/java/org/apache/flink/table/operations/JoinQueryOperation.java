@@ -41,6 +41,7 @@ public class JoinQueryOperation implements QueryOperation {
     private final ResolvedSchema resolvedSchema;
 
     /** Specifies how the two Tables should be joined. */
+    @Internal
     public enum JoinType {
         INNER,
         LEFT_OUTER,

@@ -52,6 +52,7 @@ public interface ExecutableOperation extends Operation {
      * The context to execute the operation. Operation may make side effect to the context, e.g.
      * catalog manager, configuration.
      */
+    @Internal
     interface Context {
 
         CatalogManager getCatalogManager();

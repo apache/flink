@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -29,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Operation to describe a DROP TABLE statement. */
+@Internal
 public class DropTableOperation implements DropOperation {
     private final ObjectIdentifier tableIdentifier;
     private final boolean ifExists;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
@@ -44,6 +45,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Utility for dealing with {@link TableFactory} using the {@link TableFactoryService}. */
+@Internal
 public class TableFactoryUtil {
 
     /** Returns a table source matching the descriptor. */

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -75,6 +76,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  * Utility methods for extracting names and indices of fields from different {@link
  * TypeInformation}s.
  */
+@Internal
 public class FieldInfoUtils {
 
     private static final String ATOMIC_FIELD_NAME = "f0";
@@ -88,6 +90,7 @@ public class FieldInfoUtils {
      * @see FieldInfoUtils#getFieldsInfo(TypeInformation)
      * @see FieldInfoUtils#getFieldsInfo(TypeInformation, Expression[])
      */
+    @Internal
     public static class TypeInfoSchema {
         private final String[] fieldNames;
         private final int[] indices;

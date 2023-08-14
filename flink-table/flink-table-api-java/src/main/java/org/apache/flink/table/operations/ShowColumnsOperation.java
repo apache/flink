@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -43,6 +44,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.api.internal.TableResultUtils.buildTableResult;
 
 /** Show columns from [[catalog.]database.]table. */
+@Internal
 public class ShowColumnsOperation implements ShowOperation {
 
     private final ObjectIdentifier tableIdentifier;

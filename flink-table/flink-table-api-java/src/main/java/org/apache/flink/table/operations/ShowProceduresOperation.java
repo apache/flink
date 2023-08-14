@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.Catalog;
@@ -36,6 +37,7 @@ import static org.apache.flink.table.api.internal.TableResultUtils.buildStringAr
  * Operation to describe a SHOW PROCEDURES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT]
  * (LIKE | ILIKE) &lt;sql_like_pattern&gt; ] statement.
  */
+@Internal
 public class ShowProceduresOperation implements ExecutableOperation {
 
     private final @Nullable String catalogName;

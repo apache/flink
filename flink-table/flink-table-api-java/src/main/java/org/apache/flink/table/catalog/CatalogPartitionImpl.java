@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -25,6 +27,7 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A catalog partition implementation. */
+@Internal
 public class CatalogPartitionImpl implements CatalogPartition {
     private final Map<String, String> properties;
     private final String comment;

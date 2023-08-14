@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.command;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.operations.ShowOperation;
 import org.apache.flink.table.resource.ResourceUri;
@@ -25,6 +26,7 @@ import org.apache.flink.table.resource.ResourceUri;
 import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 
 /** Operation to describe a SHOW JARS statement. */
+@Internal
 public class ShowJarsOperation implements ShowOperation {
 
     @Override

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -29,6 +30,7 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 
 /** Utilities to build {@link TableResultInternal}. */
+@Internal
 public class TableResultUtils {
 
     /**
