@@ -71,7 +71,8 @@ under the License.
 							</transformers>
 							<artifactSet>
 								<includes>
-									<include>org.apache.flink:flink-connector-kafka</include>
+                                    <include>org.apache.flink:flink-connector-datagen</include>
+                                    <include>org.apache.flink:flink-connector-kafka</include>
 									<include>org.apache.flink:flink-examples-streaming</include>
 									<include>org.apache.kafka:*</include>
 								</includes>
