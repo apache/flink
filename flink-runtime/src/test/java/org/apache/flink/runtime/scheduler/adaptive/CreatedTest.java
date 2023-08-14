@@ -23,82 +23,97 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.failure.FailureEnricherUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.FlinkException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.util.function.Consumer;
 
-import static org.apache.flink.runtime.scheduler.adaptive.WaitingForResourcesTest.assertNonNull;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link Created} state. */
-public class CreatedTest extends TestLogger {
+class CreatedTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CreatedTest.class);
+
+    @RegisterExtension MockCreatedContext ctx = new MockCreatedContext();
 
     @Test
-    public void testCancel() throws Exception {
-        try (MockCreatedContext ctx = new MockCreatedContext()) {
-            Created created = new Created(ctx, log);
+    void testCancel() {
+        Created created = new Created(ctx, LOG);
 
-            ctx.setExpectFinished(assertNonNull());
-
-            created.cancel();
-        }
+        ctx.setExpectFinished(
+                archivedExecutionGraph -> {
+                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.CANCELED);
+                    assertThat(archivedExecutionGraph.getFailureInfo()).isNull();
+                });
+        created.cancel();
     }
 
     @Test
-    public void testStartScheduling() throws Exception {
-        try (MockCreatedContext ctx = new MockCreatedContext()) {
-            Created created = new Created(ctx, log);
+    void testStartScheduling() {
+        Created created = new Created(ctx, LOG);
 
-            ctx.setExpectWaitingForResources();
+        ctx.setExpectWaitingForResources();
 
-            created.startScheduling();
-        }
+        created.startScheduling();
     }
 
     @Test
-    public void testSuspend() throws Exception {
-        try (MockCreatedContext ctx = new MockCreatedContext()) {
-            Created created = new Created(ctx, log);
+    void testSuspend() {
+        FlinkException expectedException = new FlinkException("This is a test exception");
+        Created created = new Created(ctx, LOG);
 
-            ctx.setExpectFinished(
-                    archivedExecutionGraph -> {
-                        assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED));
-                    });
+        ctx.setExpectFinished(
+                archivedExecutionGraph -> {
+                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.SUSPENDED);
+                    assertThat(archivedExecutionGraph.getFailureInfo()).isNotNull();
+                    assertThat(
+                                    archivedExecutionGraph
+                                            .getFailureInfo()
+                                            .getException()
+                                            .deserializeError(this.getClass().getClassLoader()))
+                            .isEqualTo(expectedException);
+                });
 
-            created.suspend(new RuntimeException("Suspend"));
-        }
+        created.suspend(expectedException);
     }
 
     @Test
-    public void testFailure() throws Exception {
-        try (MockCreatedContext ctx = new MockCreatedContext()) {
-            Created created = new Created(ctx, log);
+    void testFailure() {
+        Created created = new Created(ctx, LOG);
+        RuntimeException expectedException = new RuntimeException("This is a test exception");
 
-            ctx.setExpectFinished(
-                    archivedExecutionGraph -> {
-                        assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED));
-                    });
+        ctx.setExpectFinished(
+                archivedExecutionGraph -> {
+                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.FAILED);
+                    assertThat(archivedExecutionGraph.getFailureInfo()).isNotNull();
+                    assertThat(
+                                    archivedExecutionGraph
+                                            .getFailureInfo()
+                                            .getException()
+                                            .deserializeError(this.getClass().getClassLoader()))
+                            .isEqualTo(expectedException);
+                });
 
-            created.handleGlobalFailure(
-                    new RuntimeException("Global"), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
-        }
+        created.handleGlobalFailure(expectedException, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
     }
 
     @Test
-    public void testJobInformation() throws Exception {
-        try (MockCreatedContext ctx = new MockCreatedContext()) {
-            Created created = new Created(ctx, log);
-            ArchivedExecutionGraph job = created.getJob();
-            assertThat(job.getState(), is(JobStatus.INITIALIZING));
-        }
+    void testJobInformation() {
+        Created created = new Created(ctx, LOG);
+        ArchivedExecutionGraph job = created.getJob();
+        assertThat(job.getState()).isEqualTo(JobStatus.INITIALIZING);
     }
 
-    static class MockCreatedContext implements Created.Context, AutoCloseable {
+    static class MockCreatedContext implements Created.Context, AfterEachCallback {
         private final StateValidator<ArchivedExecutionGraph> finishedStateValidator =
                 new StateValidator<>("finished");
         private final StateValidator<Void> waitingForResourcesStateValidator =
@@ -130,7 +145,7 @@ public class CreatedTest extends TestLogger {
         }
 
         @Override
-        public void close() throws Exception {
+        public void afterEach(ExtensionContext extensionContext) throws Exception {
             finishedStateValidator.close();
             waitingForResourcesStateValidator.close();
         }
