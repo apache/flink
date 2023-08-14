@@ -140,6 +140,20 @@ class CanalJsonSerDeSchemaTest {
         runTest(lines, deserializationSchema);
     }
 
+    @Test
+    void testDeserializingInitOp() throws Exception {
+        List<String> lines = readLines("canal-data-with-init.txt");
+        CanalJsonDeserializationSchema deserializationSchema =
+                CanalJsonDeserializationSchema.builder(
+                                PHYSICAL_DATA_TYPE,
+                                Collections.emptyList(),
+                                InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()))
+                        .setIgnoreParseErrors(false)
+                        .setTimestampFormat(TimestampFormat.ISO_8601)
+                        .build();
+        runTest(lines, deserializationSchema);
+    }
+
     public void runTest(List<String> lines, CanalJsonDeserializationSchema deserializationSchema)
             throws Exception {
         open(deserializationSchema);

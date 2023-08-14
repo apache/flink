@@ -66,6 +66,8 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     private static final String OP_UPDATE = "UPDATE";
     private static final String OP_DELETE = "DELETE";
     private static final String OP_CREATE = "CREATE";
+    // For compatibility with DTS on Alibaba Cloud
+    private static final String OP_INIT = "INIT";
 
     /** The deserializer to deserialize Canal JSON data. */
     private final JsonRowDataDeserializationSchema jsonDeserializer;
@@ -232,7 +234,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
             }
             final GenericRowData row = (GenericRowData) jsonDeserializer.convertToRowData(root);
             String type = row.getString(2).toString(); // "type" field
-            if (OP_INSERT.equals(type)) {
+            if (OP_INSERT.equals(type) || OP_INIT.equals(type)) {
                 // "data" field is an array of row, contains inserted rows
                 ArrayData data = row.getArray(0);
                 for (int i = 0; i < data.size(); i++) {
