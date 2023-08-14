@@ -18,19 +18,12 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.ScheduledTask;
-import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.failure.FailureEnricherUtils;
-import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.clock.Clock;
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
@@ -216,65 +209,6 @@ class WaitingForResourcesTest {
     }
 
     @Test
-    void testTransitionToFinishedOnGlobalFailure() {
-        ctx.setHasDesiredResources(() -> false);
-        WaitingForResources wfr =
-                new WaitingForResources(ctx, LOG, Duration.ZERO, STABILIZATION_TIMEOUT);
-        RuntimeException expectedException = new RuntimeException("This is a test exception");
-
-        ctx.setExpectFinished(
-                archivedExecutionGraph -> {
-                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.FAILED);
-                    assertThat(archivedExecutionGraph.getFailureInfo()).isNotNull();
-                    assertThat(
-                                    archivedExecutionGraph
-                                            .getFailureInfo()
-                                            .getException()
-                                            .deserializeError(this.getClass().getClassLoader()))
-                            .isEqualTo(expectedException);
-                });
-
-        wfr.handleGlobalFailure(expectedException, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
-    }
-
-    @Test
-    void testCancel() {
-        ctx.setHasDesiredResources(() -> false);
-        WaitingForResources wfr =
-                new WaitingForResources(ctx, LOG, Duration.ZERO, STABILIZATION_TIMEOUT);
-
-        ctx.setExpectFinished(
-                archivedExecutionGraph -> {
-                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.CANCELED);
-                    assertThat(archivedExecutionGraph.getFailureInfo()).isNull();
-                });
-        wfr.cancel();
-    }
-
-    @Test
-    void testSuspend() {
-        ctx.setHasDesiredResources(() -> false);
-        WaitingForResources wfr =
-                new WaitingForResources(ctx, LOG, Duration.ZERO, STABILIZATION_TIMEOUT);
-
-        FlinkException expectedException = new FlinkException("This is a test exception");
-
-        ctx.setExpectFinished(
-                archivedExecutionGraph -> {
-                    assertThat(archivedExecutionGraph.getState()).isEqualTo(JobStatus.SUSPENDED);
-                    assertThat(archivedExecutionGraph.getFailureInfo()).isNotNull();
-                    assertThat(
-                                    archivedExecutionGraph
-                                            .getFailureInfo()
-                                            .getException()
-                                            .deserializeError(this.getClass().getClassLoader()))
-                            .isEqualTo(expectedException);
-                });
-
-        wfr.suspend(expectedException);
-    }
-
-    @Test
     void testInternalRunScheduledTasks_correctExecutionOrder() {
         AtomicBoolean firstRun = new AtomicBoolean(false);
         AtomicBoolean secondRun = new AtomicBoolean(false);
@@ -352,14 +286,13 @@ class WaitingForResourcesTest {
         assertThat(executed).isTrue();
     }
 
-    private static class MockContext implements WaitingForResources.Context, AfterEachCallback {
+    private static class MockContext extends MockStateWithoutExecutionGraphContext
+            implements WaitingForResources.Context {
 
         private static final Logger LOG = LoggerFactory.getLogger(MockContext.class);
 
         private final StateValidator<Void> creatingExecutionGraphStateValidator =
                 new StateValidator<>("executing");
-        private final StateValidator<ArchivedExecutionGraph> finishedStateValidator =
-                new StateValidator<>("finished");
 
         private Supplier<Boolean> hasDesiredResourcesSupplier = () -> false;
         private Supplier<Boolean> hasSufficientResourcesSupplier = () -> false;
@@ -367,7 +300,6 @@ class WaitingForResourcesTest {
         private final Queue<ScheduledTask<Void>> scheduledTasks =
                 new PriorityQueue<>(
                         Comparator.comparingLong(o -> o.getDelay(TimeUnit.MILLISECONDS)));
-        private boolean hasStateTransition = false;
 
         private final ManualTestTime testTime =
                 new ManualTestTime(
@@ -380,10 +312,6 @@ class WaitingForResourcesTest {
 
         public void setHasSufficientResources(Supplier<Boolean> sup) {
             hasSufficientResourcesSupplier = sup;
-        }
-
-        void setExpectFinished(Consumer<ArchivedExecutionGraph> asserter) {
-            finishedStateValidator.expectInput(asserter);
         }
 
         void setExpectCreatingExecutionGraph() {
@@ -414,17 +342,8 @@ class WaitingForResourcesTest {
 
         @Override
         public void afterEach(ExtensionContext extensionContext) throws Exception {
+            super.afterEach(extensionContext);
             creatingExecutionGraphStateValidator.close();
-            finishedStateValidator.close();
-        }
-
-        @Override
-        public ArchivedExecutionGraph getArchivedExecutionGraph(
-                JobStatus jobStatus, @Nullable Throwable cause) {
-            return new ArchivedExecutionGraphBuilder()
-                    .setState(jobStatus)
-                    .setFailureCause(cause == null ? null : new ErrorInfo(cause, 1337))
-                    .build();
         }
 
         @Override
@@ -460,23 +379,9 @@ class WaitingForResourcesTest {
         }
 
         @Override
-        public void goToFinished(ArchivedExecutionGraph archivedExecutionGraph) {
-            finishedStateValidator.validateInput(archivedExecutionGraph);
-            registerStateTransition();
-        }
-
-        @Override
         public void goToCreatingExecutionGraph(@Nullable ExecutionGraph previousExecutionGraph) {
             creatingExecutionGraphStateValidator.validateInput(null);
             registerStateTransition();
-        }
-
-        public boolean hasStateTransition() {
-            return hasStateTransition;
-        }
-
-        public void registerStateTransition() {
-            hasStateTransition = true;
         }
 
         public Clock getClock() {
