@@ -76,6 +76,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                                 + "  dim_date_sk BIGINT\n"
                                 + ") WITH (\n"
                                 + " 'connector' = 'values',\n"
+                                + " 'runtime-source' = 'NewSource',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
     }
@@ -670,7 +671,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDimSideReuseWithUnionAllTwoFactSide() {
+    public void testDimSideReuseAfterProjectionPushdown() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE fact_part2 (\n"
@@ -689,16 +690,13 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                                 + ")");
 
         String query =
-                "SELECT * FROM\n"
+                "SELECT /*+ BROADCAST(dim) */ fact3.* FROM\n"
                         + "(SELECT /*+ BROADCAST(dim) */ fact.id, fact.price, fact.amount FROM (\n"
                         + " SELECT id, price, amount, fact_date_sk FROM fact_part "
                         + " UNION ALL SELECT id, price, amount, fact_date_sk FROM fact_part2) fact, dim\n"
                         + " WHERE fact_date_sk = dim_date_sk"
-                        + " and dim.price < 500 and dim.price > 300)\n"
-                        + " UNION ALL (\n"
-                        + " SELECT fact_part.id, fact_part.price, fact_part.amount FROM fact_part, dim"
-                        + " WHERE fact_part.id = dim.id AND dim.amount < 10"
-                        + " )";
+                        + " and dim.price < 500 and dim.price > 300)\n fact3 JOIN dim"
+                        + " ON fact3.amount = dim.id AND dim.amount < 10";
         util.verifyExecPlan(query);
     }
 }

@@ -143,51 +143,45 @@ HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id,
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testDimSideReuseWithUnionAllTwoFactSide">
+  <TestCase name="testDimSideReuseAfterProjectionPushdown">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM
+      <![CDATA[SELECT /*+ BROADCAST(dim) */ fact3.* FROM
 (SELECT /*+ BROADCAST(dim) */ fact.id, fact.price, fact.amount FROM (
  SELECT id, price, amount, fact_date_sk FROM fact_part  UNION ALL SELECT id, price, amount, fact_date_sk FROM fact_part2) fact, dim
  WHERE fact_date_sk = dim_date_sk and dim.price < 500 and dim.price > 300)
- UNION ALL (
- SELECT fact_part.id, fact_part.price, fact_part.amount FROM fact_part, dim WHERE fact_part.id = dim.id AND dim.amount < 10 )]]>
+ fact3 JOIN dim ON fact3.amount = dim.id AND dim.amount < 10]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(id=[$0], price=[$1], amount=[$2])
-:  +- LogicalProject(id=[$0], price=[$1], amount=[$2])
-:     +- LogicalFilter(condition=[AND(=($3, $8), <($7, 500), >($7, 300))])
-:        +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0, 0] options:[dim]]]])
-:           :- LogicalUnion(all=[true])
-:           :  :- LogicalProject(id=[$0], price=[$3], amount=[$2], fact_date_sk=[$4])
-:           :  :  +- LogicalTableScan(table=[[testCatalog, test_database, fact_part]], hints=[[[ALIAS inheritPath:[] options:[fact_part]]]])
-:           :  +- LogicalProject(id=[$0], price=[$3], amount=[$2], fact_date_sk=[$4])
-:           :     +- LogicalTableScan(table=[[testCatalog, test_database, fact_part2]], hints=[[[ALIAS inheritPath:[] options:[fact_part2]]]])
-:           +- LogicalTableScan(table=[[testCatalog, test_database, dim]], hints=[[[ALIAS inheritPath:[] options:[dim]]]])
-+- LogicalProject(id=[$0], price=[$3], amount=[$2])
-   +- LogicalFilter(condition=[AND(=($0, $5), <($7, 10))])
-      +- LogicalJoin(condition=[true], joinType=[inner])
-         :- LogicalTableScan(table=[[testCatalog, test_database, fact_part]], hints=[[[ALIAS inheritPath:[] options:[fact_part]]]])
-         +- LogicalTableScan(table=[[testCatalog, test_database, dim]], hints=[[[ALIAS inheritPath:[] options:[dim]]]])
+LogicalProject(id=[$0], price=[$1], amount=[$2])
++- LogicalJoin(condition=[AND(=($2, $3), <($5, 10))], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0] options:[dim]]]])
+   :- LogicalProject(id=[$0], price=[$1], amount=[$2])
+   :  +- LogicalFilter(condition=[AND(=($3, $8), <($7, 500), >($7, 300))])
+   :     +- LogicalJoin(condition=[true], joinType=[inner], joinHints=[[[BROADCAST inheritPath:[0, 0] options:[dim]]]])
+   :        :- LogicalUnion(all=[true])
+   :        :  :- LogicalProject(id=[$0], price=[$3], amount=[$2], fact_date_sk=[$4])
+   :        :  :  +- LogicalTableScan(table=[[testCatalog, test_database, fact_part]], hints=[[[ALIAS inheritPath:[] options:[fact_part]]]])
+   :        :  +- LogicalProject(id=[$0], price=[$3], amount=[$2], fact_date_sk=[$4])
+   :        :     +- LogicalTableScan(table=[[testCatalog, test_database, fact_part2]], hints=[[[ALIAS inheritPath:[] options:[fact_part2]]]])
+   :        +- LogicalTableScan(table=[[testCatalog, test_database, dim]], hints=[[[ALIAS inheritPath:[] options:[dim]]]])
+   +- LogicalTableScan(table=[[testCatalog, test_database, dim]], hints=[[[ALIAS inheritPath:[] options:[dim]]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-MultipleInput(readOrder=[0,2,1,1,1], members=[\nUnion(all=[true], union=[id, price, amount])\n:- Calc(select=[id, price, amount])\n:  +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[id, price, amount, fact_date_sk, dim_date_sk], isBroadcast=[true], build=[right])\n:     :- Union(all=[true], union=[id, price, amount, fact_date_sk])\n:     :  :- [#4] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[id, price, amount, fact_date_sk], metadata=[]]], fields=[id, price, amount, fact_date_sk])\n:     :  +- [#5] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part2, project=[id, price, amount, fact_date_sk], metadata=[]]], fields=[id, price, amount, fact_date_sk])\n:     +- [#1] Exchange(distribution=[broadcast])\n+- Calc(select=[id, price, amount])\n   +- HashJoin(joinType=[InnerJoin], where=[(id = id0)], select=[id, amount, price, id0], build=[right])\n      :- [#2] Exchange(distribution=[hash[id]])\n      +- [#3] Exchange(distribution=[hash[id]])\n])
-:- Exchange(distribution=[broadcast])
-:  +- Calc(select=[dim_date_sk], where=[SEARCH(price, Sarg[(300..500)])])(reuse_id=[2])
-:     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[id, amount, price, dim_date_sk], metadata=[]]], fields=[id, amount, price, dim_date_sk])(reuse_id=[1])
-:- Exchange(distribution=[hash[id]])
-:  +- TableSourceScan(table=[[testCatalog, test_database, fact_part, project=[id, amount, price], metadata=[]]], fields=[id, amount, price])
-:- Exchange(distribution=[hash[id]])
-:  +- Calc(select=[id], where=[(amount < 10)])
-:     +- Reused(reference_id=[1])
-:- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[id, price, amount, fact_date_sk], metadata=[]]], fields=[id, price, amount, fact_date_sk])
-:  +- DynamicFilteringDataCollector(fields=[dim_date_sk])(reuse_id=[3])
-:     +- Reused(reference_id=[2])
-+- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part2, project=[id, price, amount, fact_date_sk], metadata=[]]], fields=[id, price, amount, fact_date_sk])
-   +- Reused(reference_id=[3])
+Calc(select=[id, price, amount])
++- MultipleInput(readOrder=[0,0,1,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(amount = id0)], select=[id, price, amount, id0], isBroadcast=[true], build=[right])\n:- Calc(select=[id, price, amount])\n:  +- HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[id, price, amount, fact_date_sk, dim_date_sk], isBroadcast=[true], build=[right])\n:     :- Union(all=[true], union=[id, price, amount, fact_date_sk])\n:     :  :- [#3] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[id, price, amount, fact_date_sk], metadata=[]]], fields=[id, price, amount, fact_date_sk])\n:     :  +- [#4] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part2, project=[id, price, amount, fact_date_sk], metadata=[]]], fields=[id, price, amount, fact_date_sk])\n:     +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[id], where=[(amount < 10)])(reuse_id=[2])
+   :     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[id, amount, price, dim_date_sk], metadata=[]]], fields=[id, amount, price, dim_date_sk])(reuse_id=[1])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[dim_date_sk], where=[SEARCH(price, Sarg[(300..500)])])
+   :     +- Reused(reference_id=[1])
+   :- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part, project=[id, price, amount, fact_date_sk], metadata=[]]], fields=[id, price, amount, fact_date_sk])
+   :  +- DynamicFilteringDataCollector(fields=[id])(reuse_id=[3])
+   :     +- Reused(reference_id=[2])
+   +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part2, project=[id, price, amount, fact_date_sk], metadata=[]]], fields=[id, price, amount, fact_date_sk])
+      +- Reused(reference_id=[3])
 ]]>
     </Resource>
   </TestCase>

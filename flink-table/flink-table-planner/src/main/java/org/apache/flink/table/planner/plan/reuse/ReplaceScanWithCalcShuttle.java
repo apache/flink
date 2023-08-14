@@ -44,17 +44,15 @@ public class ReplaceScanWithCalcShuttle extends DefaultRelShuttle {
             // if there is already one Calc, we should merge it and new projection node.
             Calc calc = (Calc) rel;
             RelNode input = calc.getInput();
-            visitDppSource(input);
-
             RelNode newNode = replaceMap.get(input);
             if (newNode instanceof Calc && isMergeable(calc, (Calc) newNode)) {
+                visitScanInput(input);
                 return merge(calc, (Calc) newNode);
             }
         } else if (rel instanceof CommonPhysicalTableSourceScan) {
-            visitDppSource(rel);
-
             RelNode newNode = replaceMap.get(rel);
             if (newNode != null) {
+                visitScanInput(rel);
                 return newNode;
             }
         }
@@ -62,7 +60,7 @@ public class ReplaceScanWithCalcShuttle extends DefaultRelShuttle {
         return super.visit(rel);
     }
 
-    private void visitDppSource(RelNode scan) {
+    private void visitScanInput(RelNode scan) {
         // If scan has input such as dpp dynamic scan node, traverse its input first
         if (!scan.getInputs().isEmpty()) {
             super.visit(scan.getInput(0));
