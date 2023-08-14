@@ -2859,6 +2859,36 @@ class TableEnvironmentTest {
     checkData(expectedResult.iterator(), tableResult.collect())
   }
 
+  @Test
+  def testShowColumnsWithLike(): Unit = {
+    val createTableStmt =
+      """
+        |CREATE TABLE TestTb1 (
+        |  abc bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+    """.stripMargin
+    tableEnv.executeSql(createTableStmt)
+
+    var sql = "SHOW COLUMNS from TestTb1 LIKE 'abc'"
+    var tableResult = tableEnv.executeSql(sql)
+
+    val expectedResult = util.Arrays.asList(
+      Row.of("abc", "BIGINT", Boolean.box(true), null, null, null)
+    )
+
+    checkData(expectedResult.iterator(), tableResult.collect())
+
+    sql = "SHOW COLUMNS from TestTb1 LIKE 'a.c'"
+    tableResult = tableEnv.executeSql(sql)
+
+    checkData(Collections.emptyList().iterator(), tableResult.collect());
+  }
+
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
     while (expected.hasNext && actual.hasNext) {
       assertEquals(expected.next(), actual.next())
