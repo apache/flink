@@ -20,22 +20,19 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 
-import static org.apache.flink.util.ExceptionUtils.findThrowable;
-import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Testing a {@link BlobServer} would fail with improper SSL config. */
-public class BlobServerSSLTest extends TestLogger {
+class BlobServerSslTest {
 
     @Test
-    public void testFailedToInitWithTwoProtocolsSet() {
+    void testFailedToInitWithTwoProtocolsSet() {
         final Configuration config = new Configuration();
 
         config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
@@ -51,17 +48,13 @@ public class BlobServerSSLTest extends TestLogger {
         config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
         config.setString(SecurityOptions.SSL_ALGORITHMS, "TLSv1,TLSv1.1");
 
-        try (final BlobServer ignored =
-                new BlobServer(config, new File("foobar"), new VoidBlobStore())) {
-            fail();
-        } catch (Exception e) {
-            findThrowable(e, IOException.class);
-            findThrowableWithMessage(e, "Unable to open BLOB Server in specified port range: 0");
-        }
+        assertThatThrownBy(() -> new BlobServer(config, new File("foobar"), new VoidBlobStore()))
+                .isInstanceOf(IOException.class)
+                .hasMessage("Unable to open BLOB Server in specified port range: 0");
     }
 
     @Test
-    public void testFailedToInitWithInvalidSslKeystoreConfigured() {
+    void testFailedToInitWithInvalidSslKeystoreConfigured() {
         final Configuration config = new Configuration();
 
         config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
@@ -71,27 +64,19 @@ public class BlobServerSSLTest extends TestLogger {
         config.setString(SecurityOptions.SSL_TRUSTSTORE, "invalid.keystore");
         config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 
-        try (final BlobServer ignored =
-                new BlobServer(config, new File("foobar"), new VoidBlobStore())) {
-            fail();
-        } catch (Exception e) {
-            findThrowable(e, IOException.class);
-            findThrowableWithMessage(e, "Failed to initialize SSL for the blob server");
-        }
+        assertThatThrownBy(() -> new BlobServer(config, new File("foobar"), new VoidBlobStore()))
+                .isInstanceOf(IOException.class)
+                .hasMessage("Failed to initialize SSL for the blob server");
     }
 
     @Test
-    public void testFailedToInitWithMissingMandatorySslConfiguration() {
+    void testFailedToInitWithMissingMandatorySslConfiguration() {
         final Configuration config = new Configuration();
 
         config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 
-        try (final BlobServer ignored =
-                new BlobServer(config, new File("foobar"), new VoidBlobStore())) {
-            fail();
-        } catch (Exception e) {
-            findThrowable(e, IOException.class);
-            findThrowableWithMessage(e, "Failed to initialize SSL for the blob server");
-        }
+        assertThatThrownBy(() -> new BlobServer(config, new File("foobar"), new VoidBlobStore()))
+                .isInstanceOf(IOException.class)
+                .hasMessage("Failed to initialize SSL for the blob server");
     }
 }

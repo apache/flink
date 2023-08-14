@@ -23,24 +23,24 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Reference;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -61,12 +61,7 @@ import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobUtils.JOB_DIR_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * Tests how failing GET requests behave in the presence of failures when used with a {@link
@@ -75,29 +70,29 @@ import static org.junit.Assume.assumeTrue;
  * <p>Successful GET requests are tested in conjunction wit the PUT requests by {@link
  * BlobServerPutTest}.
  */
-public class BlobServerGetTest extends TestLogger {
+class BlobServerGetTest {
 
     private final Random rnd = new Random();
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private Path tempDir;
 
     @Test
-    public void testGetTransientFailsDuringLookup1() throws IOException {
+    void testGetTransientFailsDuringLookup1() throws IOException {
         testGetFailsDuringLookup(null, new JobID(), TRANSIENT_BLOB);
     }
 
     @Test
-    public void testGetTransientFailsDuringLookup2() throws IOException {
+    void testGetTransientFailsDuringLookup2() throws IOException {
         testGetFailsDuringLookup(new JobID(), new JobID(), TRANSIENT_BLOB);
     }
 
     @Test
-    public void testGetTransientFailsDuringLookup3() throws IOException {
+    void testGetTransientFailsDuringLookup3() throws IOException {
         testGetFailsDuringLookup(new JobID(), null, TRANSIENT_BLOB);
     }
 
     @Test
-    public void testGetPermanentFailsDuringLookup() throws IOException {
+    void testGetPermanentFailsDuringLookup() throws IOException {
         testGetFailsDuringLookup(new JobID(), new JobID(), PERMANENT_BLOB);
     }
 
@@ -111,11 +106,8 @@ public class BlobServerGetTest extends TestLogger {
     private void testGetFailsDuringLookup(
             @Nullable final JobID jobId1, @Nullable final JobID jobId2, BlobKey.BlobType blobType)
             throws IOException {
-        final Configuration config = new Configuration();
 
-        try (BlobServer server =
-                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
-
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir)) {
             server.start();
 
             byte[] data = new byte[2000000];
@@ -123,18 +115,18 @@ public class BlobServerGetTest extends TestLogger {
 
             // put content addressable (like libraries)
             BlobKey key = put(server, jobId1, data, blobType);
-            assertNotNull(key);
+            assertThat(key).isNotNull();
 
             // delete file to make sure that GET requests fail
             File blobFile = server.getStorageLocation(jobId1, key);
-            assertTrue(blobFile.delete());
+            assertThat(blobFile.delete()).isTrue();
 
             // issue a GET request that fails
             verifyDeleted(server, jobId1, key);
 
             // add the same data under a second jobId
             BlobKey key2 = put(server, jobId2, data, blobType);
-            assertNotNull(key2);
+            assertThat(key2).isNotNull();
             verifyKeyDifferentHashEquals(key, key2);
 
             // request for jobId2 should succeed
@@ -144,7 +136,7 @@ public class BlobServerGetTest extends TestLogger {
 
             // same checks as for jobId1 but for jobId2 should also work:
             blobFile = server.getStorageLocation(jobId2, key2);
-            assertTrue(blobFile.delete());
+            assertThat(blobFile.delete()).isTrue();
             verifyDeleted(server, jobId2, key2);
         }
     }
@@ -154,15 +146,15 @@ public class BlobServerGetTest extends TestLogger {
      * files. File transfers should fail.
      */
     @Test
-    public void testGetFailsIncomingForJobHa() throws IOException {
-        assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
+    void testGetFailsIncomingForJobHa() throws IOException {
+        assumeThat(OperatingSystem.isWindows()).as("setWritable doesn't work on Windows").isFalse();
 
         final JobID jobId = new JobID();
 
         final Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+                HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
 
         BlobStoreService blobStore = null;
 
@@ -170,22 +162,20 @@ public class BlobServerGetTest extends TestLogger {
             blobStore = BlobUtils.createBlobStoreFromConfig(config);
 
             File tempFileDir = null;
-            try (BlobServer server =
-                    new BlobServer(config, temporaryFolder.newFolder(), blobStore)) {
-
+            try (BlobServer server = TestingBlobUtils.createServer(tempDir, config, blobStore)) {
                 server.start();
 
                 // store the data on the server (and blobStore), remove from local store
                 byte[] data = new byte[2000000];
                 rnd.nextBytes(data);
                 BlobKey blobKey = put(server, jobId, data, PERMANENT_BLOB);
-                assertTrue(server.getStorageLocation(jobId, blobKey).delete());
+                assertThat(server.getStorageLocation(jobId, blobKey).delete()).isTrue();
 
                 // make sure the blob server cannot create any files in its storage dir
                 tempFileDir = server.createTemporaryFilename().getParentFile();
-                assertTrue(tempFileDir.setExecutable(true, false));
-                assertTrue(tempFileDir.setReadable(true, false));
-                assertTrue(tempFileDir.setWritable(false, false));
+                assertThat(tempFileDir.setExecutable(true, false)).isTrue();
+                assertThat(tempFileDir.setReadable(true, false)).isTrue();
+                assertThat(tempFileDir.setWritable(false, false)).isTrue();
 
                 // request the file from the BlobStore
                 try {
@@ -200,12 +190,13 @@ public class BlobServerGetTest extends TestLogger {
                     // only the incoming and job directory should exist (no job directory!)
                     File storageDir = tempFileDir.getParentFile();
                     String[] actualDirs = storageDir.list();
-                    assertNotNull(actualDirs);
-                    assertEquals(expectedDirs, new HashSet<>(Arrays.asList(actualDirs)));
+                    assertThat(actualDirs).isNotNull();
+                    assertThat(actualDirs).isNotEmpty();
+                    assertThat(new HashSet<>(Arrays.asList(actualDirs))).isEqualTo(expectedDirs);
 
                     // job directory should be empty
                     File jobDir = new File(tempFileDir.getParentFile(), JOB_DIR_PREFIX + jobId);
-                    assertArrayEquals(new String[] {}, jobDir.list());
+                    assertThat(jobDir.list()).isEmpty();
                 }
             } finally {
                 // set writable again to make sure we can remove the directory
@@ -226,15 +217,15 @@ public class BlobServerGetTest extends TestLogger {
      * storage file. File transfers should fail.
      */
     @Test
-    public void testGetFailsStoreForJobHa() throws IOException {
-        assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
+    void testGetFailsStoreForJobHa() throws IOException {
+        assumeThat(OperatingSystem.isWindows()).as("setWritable doesn't work on Windows").isFalse();
 
         final JobID jobId = new JobID();
 
         final Configuration config = new Configuration();
         config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.setString(
-                HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getPath());
+                HighAvailabilityOptions.HA_STORAGE_PATH, TempDirUtils.newFolder(tempDir).getPath());
 
         BlobStoreService blobStore = null;
 
@@ -242,22 +233,20 @@ public class BlobServerGetTest extends TestLogger {
             blobStore = BlobUtils.createBlobStoreFromConfig(config);
 
             File jobStoreDir = null;
-            try (BlobServer server =
-                    new BlobServer(config, temporaryFolder.newFolder(), blobStore)) {
-
+            try (BlobServer server = TestingBlobUtils.createServer(tempDir, config, blobStore)) {
                 server.start();
 
                 // store the data on the server (and blobStore), remove from local store
                 byte[] data = new byte[2000000];
                 rnd.nextBytes(data);
                 BlobKey blobKey = put(server, jobId, data, PERMANENT_BLOB);
-                assertTrue(server.getStorageLocation(jobId, blobKey).delete());
+                assertThat(server.getStorageLocation(jobId, blobKey).delete()).isTrue();
 
                 // make sure the blob cache cannot create any files in its storage dir
                 jobStoreDir = server.getStorageLocation(jobId, blobKey).getParentFile();
-                assertTrue(jobStoreDir.setExecutable(true, false));
-                assertTrue(jobStoreDir.setReadable(true, false));
-                assertTrue(jobStoreDir.setWritable(false, false));
+                assertThat(jobStoreDir.setExecutable(true, false)).isTrue();
+                assertThat(jobStoreDir.setReadable(true, false)).isTrue();
+                assertThat(jobStoreDir.setWritable(false, false)).isTrue();
 
                 // request the file from the BlobStore
                 try {
@@ -266,10 +255,10 @@ public class BlobServerGetTest extends TestLogger {
                 } finally {
                     // there should be no remaining incoming files
                     File incomingFileDir = new File(jobStoreDir.getParent(), "incoming");
-                    assertArrayEquals(new String[] {}, incomingFileDir.list());
+                    assertThat(incomingFileDir.list()).isEmpty();
 
                     // there should be no files in the job directory
-                    assertArrayEquals(new String[] {}, jobStoreDir.list());
+                    assertThat(jobStoreDir.list()).isEmpty();
                 }
             } finally {
                 // set writable again to make sure we can remove the directory
@@ -290,21 +279,17 @@ public class BlobServerGetTest extends TestLogger {
      * the file. File transfers should fail.
      */
     @Test
-    public void testGetFailsHaStoreForJobHa() throws IOException {
+    void testGetFailsHaStoreForJobHa() throws IOException {
         final JobID jobId = new JobID();
 
-        final Configuration config = new Configuration();
-
-        try (BlobServer server =
-                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
-
+        try (BlobServer server = TestingBlobUtils.createServer(tempDir)) {
             server.start();
 
             // store the data on the server (and blobStore), remove from local store
             byte[] data = new byte[2000000];
             rnd.nextBytes(data);
             BlobKey blobKey = put(server, jobId, data, PERMANENT_BLOB);
-            assertTrue(server.getStorageLocation(jobId, blobKey).delete());
+            assertThat(server.getStorageLocation(jobId, blobKey).delete()).isTrue();
 
             File tempFileDir = server.createTemporaryFilename().getParentFile();
 
@@ -319,41 +304,42 @@ public class BlobServerGetTest extends TestLogger {
                 // only the incoming and job directory should exist (no job directory!)
                 File storageDir = tempFileDir.getParentFile();
                 String[] actualDirs = storageDir.list();
-                assertNotNull(actualDirs);
-                assertEquals(expectedDirs, new HashSet<>(Arrays.asList(actualDirs)));
+                assertThat(actualDirs).isNotNull();
+                assertThat(actualDirs).isNotEmpty();
+                assertThat(new HashSet<>(Arrays.asList(actualDirs))).isEqualTo(expectedDirs);
 
                 // job directory should be empty
                 File jobDir = new File(tempFileDir.getParentFile(), JOB_DIR_PREFIX + jobId);
-                assertArrayEquals(new String[] {}, jobDir.list());
+                assertThat(jobDir.list()).isEmpty();
             }
         }
     }
 
     @Test
-    public void testConcurrentGetOperationsNoJob()
+    void testConcurrentGetOperationsNoJob()
             throws IOException, ExecutionException, InterruptedException {
         testConcurrentGetOperations(null, TRANSIENT_BLOB);
     }
 
     @Test
-    public void testConcurrentGetOperationsForJob()
+    void testConcurrentGetOperationsForJob()
             throws IOException, ExecutionException, InterruptedException {
         testConcurrentGetOperations(new JobID(), TRANSIENT_BLOB);
     }
 
     @Test
-    public void testConcurrentGetOperationsForJobHa()
+    void testConcurrentGetOperationsForJobHa()
             throws IOException, ExecutionException, InterruptedException {
         testConcurrentGetOperations(new JobID(), PERMANENT_BLOB);
     }
 
     @Test
-    public void testGetChecksForCorruptionInPermanentBlobInCaseOfRestart() throws IOException {
+    void testGetChecksForCorruptionInPermanentBlobInCaseOfRestart() throws IOException {
         runGetChecksForCorruptionInCaseOfRestartTest(PERMANENT_BLOB);
     }
 
     @Test
-    public void testGetChecksForCorruptionInTransientBlobInCaseOfRestart() throws IOException {
+    void testGetChecksForCorruptionInTransientBlobInCaseOfRestart() throws IOException {
         runGetChecksForCorruptionInCaseOfRestartTest(TRANSIENT_BLOB);
     }
 
@@ -363,7 +349,7 @@ public class BlobServerGetTest extends TestLogger {
         final byte[] data = new byte[] {1, 2, 3};
         final byte[] corruptedData = new byte[] {3, 2, 1};
 
-        final File storageDir = temporaryFolder.newFolder();
+        final File storageDir = TempDirUtils.newFolder(tempDir);
         try (final BlobServer blobServer =
                 new BlobServer(
                         new Configuration(), Reference.borrowed(storageDir), new VoidBlobStore())) {
@@ -380,25 +366,19 @@ public class BlobServerGetTest extends TestLogger {
                             new Configuration(),
                             Reference.borrowed(storageDir),
                             new VoidBlobStore())) {
-                try {
-                    // the file should be corrupted now
-                    get(restartedBlobServer, jobId, blobKey);
-                    fail("Expected to fail with an IOException because the file is corrupted.");
-                } catch (IOException expected) {
-                    // expected :-)
-                }
+                assertThatThrownBy(() -> get(restartedBlobServer, jobId, blobKey))
+                        .isInstanceOf(IOException.class);
             }
         }
     }
 
     @Test
-    public void testGetReDownloadsCorruptedPermanentBlobFromBlobStoreInCaseOfRestart()
-            throws IOException {
+    void testGetReDownloadsCorruptedPermanentBlobFromBlobStoreInCaseOfRestart() throws IOException {
         final JobID jobId = JobID.generate();
         final byte[] data = new byte[] {1, 2, 3};
         final byte[] corruptedData = new byte[] {3, 2, 1};
 
-        final File storageDir = temporaryFolder.newFolder();
+        final File storageDir = TempDirUtils.newFolder(tempDir);
         final OneShotLatch getCalled = new OneShotLatch();
         final BlobStore blobStore =
                 new TestingBlobStoreBuilder()
@@ -424,7 +404,7 @@ public class BlobServerGetTest extends TestLogger {
                             new Configuration(), Reference.borrowed(storageDir), blobStore)) {
                 // we should re-download the file from the BlobStore
                 final File file = get(restartedBlobServer, jobId, blobKey);
-                validateGetAndClose(new FileInputStream(file), data);
+                validateGetAndClose(Files.newInputStream(file.toPath()), data);
                 assertThat(getCalled.isTriggered()).isTrue();
             }
         }
@@ -459,7 +439,7 @@ public class BlobServerGetTest extends TestLogger {
                 Executors.newFixedThreadPool(numberConcurrentGetOperations);
 
         try (final BlobServer server =
-                new BlobServer(new Configuration(), temporaryFolder.newFolder(), blobStore)) {
+                TestingBlobUtils.createServer(tempDir, new Configuration(), blobStore)) {
 
             server.start();
 
@@ -470,7 +450,7 @@ public class BlobServerGetTest extends TestLogger {
             // store!)
             if (blobType == PERMANENT_BLOB) {
                 // remove local copy so that a transfer from HA store takes place
-                assertTrue(server.getStorageLocation(jobId, blobKey).delete());
+                assertThat(server.getStorageLocation(jobId, blobKey).delete()).isTrue();
             }
             for (int i = 0; i < numberConcurrentGetOperations; i++) {
                 CompletableFuture<File> getOperation =
@@ -479,7 +459,8 @@ public class BlobServerGetTest extends TestLogger {
                                     try {
                                         File file = get(server, jobId, blobKey);
                                         // check that we have read the right data
-                                        validateGetAndClose(new FileInputStream(file), data);
+                                        validateGetAndClose(
+                                                Files.newInputStream(file.toPath()), data);
                                         return file;
                                     } catch (IOException e) {
                                         throw new CompletionException(
@@ -532,13 +513,7 @@ public class BlobServerGetTest extends TestLogger {
      * @param jobId job ID or <tt>null</tt> if job-unrelated
      * @param key key identifying the BLOB to request
      */
-    static void verifyDeleted(BlobService service, @Nullable JobID jobId, BlobKey key)
-            throws IOException {
-        try {
-            get(service, jobId, key);
-            fail("File " + jobId + "/" + key + " should have been deleted.");
-        } catch (IOException e) {
-            // expected
-        }
+    static void verifyDeleted(BlobService service, @Nullable JobID jobId, BlobKey key) {
+        assertThatThrownBy(() -> get(service, jobId, key)).isInstanceOf(IOException.class);
     }
 }
