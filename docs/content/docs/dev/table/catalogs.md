@@ -808,7 +808,6 @@ Flink SQL> SET 'table.catalog-modification.listeners' = 'your_factory';
 Flink SQL> CREATE TABLE test_table(...);
 ```
 
-
 ## Catalog Store
 
 Catalog Store is used to store the configuration of catalogs. When using Catalog Store, the configurations
@@ -818,12 +817,10 @@ Even if the session is reconstructed, previously created catalogs can still be r
 ### Configure Catalog Store
 Users can configure the Catalog Store in different ways, one is to use the Table API, and another is to use YAML configuration.
 
-{{< tabs "9bb8994c-7c07-4c49-f5b8-f4ae3548ead4" >}}
-{{< tab "Java/Scala" >}}
-```java
-// Register a catalog store using catalog store instance.
+Register a catalog store using catalog store instance.
 
-// Initialize a catalog Store
+```java
+// Initialize a catalog Store instance
 CatalogStore catalogStore = new FileCatalogStore("file://path/to/catalog/store/");
 
 // set up the catalog store
@@ -831,11 +828,11 @@ final EnvironmentSettings settings =
         EnvironmentSettings.newInstance().inBatchMode()
         .withCatalogStore(catalogStore)
         .build();
+```
 
-final TableEnvironment tableEnv = TableEnvironment.create(settings);
+Register a catalog store using configuration.
 
-// Register a catalog store using configuration.
-        
+```java 
 // Set up configuration
 Configuration configuration = new Configuration();
 configuration.set("table.catalog-store.kind", "file");
@@ -848,8 +845,6 @@ final EnvironmentSettings settings =
 
 final TableEnvironment tableEnv = TableEnvironment.create(settings);
 ```
-{{< /tab >}}
-{{< tab "SQL Gateway" >}}
 
 In SQL Gateway, it is recommended to configure the settings in a yaml file so that all sessions can automatically
 use the pre-created Catalog. Usually, you need to configure the kind of Catalog Store and other
@@ -858,8 +853,6 @@ required parameters for the Catalog Store.
 table.catalog-store.kind: file
 table.catalog-store.file.path: /path/to/catalog/store/
 ```
-{{< /tab >}}
-{{< /tabs >}}
 
 ### Catalog Store Type
 Flink has two built-in Catalog Stores, namely GenericInMemoryCatalogStore and FileCatalogStore.
@@ -890,6 +883,15 @@ FileCatalogStore can save the user's Catalog configuration to a file. Currently,
 local files. To use FileCatalogStore, you need to specify the directory where the Catalog configuration
 needs to be saved. Different Catalogs will correspond to different files and each file will correspond to a Catalog Name.
 
+Here's an example directory structure representing the storage of Catalog configurations using FileCatalogStore:
+
+```shell
+- /path/to/save/the/catalog/
+  - catalog1.yaml
+  - catalog2.yaml
+  - catalog3.yaml
+```
+
 <table class="table table-bordered">
     <thead>
       <tr>
@@ -915,7 +917,6 @@ If SQL CLI or SQL Gateway needs to use Catalog Store, the corresponding CatalogS
 also needs to be implemented for this Catalog Store.
 
 ```java
-
 public class CustomCatalogStoreFactory implements CatalogStoreFactory {
 
     public static final String IDENTIFIER = "custom-kind";
@@ -994,6 +995,4 @@ public class CustomCatalogStore extends AbstractCatalogStore {
     public boolean contains(String catalogName) {
     }
 }
-
 ```
->>>>>>> 506f6a77644 ([FLINK-32653][docs] Add doc for catalog store)

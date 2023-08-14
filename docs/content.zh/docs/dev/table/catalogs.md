@@ -810,13 +810,10 @@ Catalog Store 用于保存 Catalog 的配置信息， 配置 Catalog Store 之�
 Catalog Store 对应的外部系统中，即使 session 重建， 之前创建的 Catalog 依旧可以从 Catalog Store 中重新获取。
 
 ### Catalog Store 的配置
-用户可以通过不同方式来配置 Catalog Store, Catalog Store 的主要使用
+用户可以以不同的方式配置 Catalog Store，一种是使用Table API，另一种是使用 YAML 配置。
 
-{{< tabs "c8c06cb8-e768-b91b-1612-413133754d88" >}}
-{{< tab "Java/Scala" >}}
+在 Table API 中使用 Catalog Store 实例来注册 Catalog Store 。
 ```java
-// Register a catalog store using catalog store instance.
-
 // Initialize a catalog Store
 CatalogStore catalogStore = new FileCatalogStore("file://path/to/catalog/store/");
 
@@ -827,10 +824,11 @@ final EnvironmentSettings settings =
         .build();
 
 final TableEnvironment tableEnv = TableEnvironment.create(settings);
+```
 
-// Register a catalog store using configuration.
-        
-// Set up configuration
+在 Table API 中使用 configuration 注册 Catalog Store 。
+```java
+// set up configuration
 Configuration configuration = new Configuration();
 configuration.set("table.catalog-store.kind", "file");
 configuration.set("table.catalog-store.file.path", "file://path/to/catalog/store/");
@@ -842,17 +840,13 @@ final EnvironmentSettings settings =
 
 final TableEnvironment tableEnv = TableEnvironment.create(settings);
 ```
-{{< /tab >}}
-{{< tab "SQL Gateway" >}}
 
-在 SQL Gateway 中，推荐在 yaml 文件中进行配置，所有的 session 可以自动使用已经创建好的 Catalog 。
+在 SQL Gateway 中，推荐在 `flink-conf.yaml` 文件中进行配置，所有的 session 可以自动使用已经创建好的 Catalog 。
 配置的格式如下，一般情况下需要配置 Catalog Store 的 kind ，以及 Catalog Store 需要的其他参数配置。
 ```yaml
 table.catalog-store.kind: file
 table.catalog-store.file.path: /path/to/catalog/store/
 ```
-{{< /tab >}}
-{{< /tabs >}}
 
 ### Catalog Store 类型
 Flink 框架内置了两种 Catalog Store，分别是 GenericInMemoryCatalogStore 和 FileCatalogStore。用户也可以自定义 Catalog Store 。
@@ -880,6 +874,14 @@ session 重建之后 store 中保存的 Catalog 配置也会自动清理。
 FileCatalogStore 可以将用户的 Catalog 配置信息保存至文件中，当前只支持本地文件，使用 FileCatalogStore 需要指定 Catalog 配置需要
 保存的目录，不同的 Catalog 会对应不同的文件并和 Catalog Name 一一对应。
 
+这是一个示例目录结构，用于表示使用 `FileCatalogStore` 保存 `catalog` 配置的情况：
+```shell
+- /path/to/save/the/catalog/
+  - catalog1.yaml
+  - catalog2.yaml
+  - catalog3.yaml
+```
+
 <table class="table table-bordered">
     <thead>
       <tr>
@@ -904,7 +906,6 @@ Catalog Store 是可拓展的， 用户可以通过实现 Catalog Store 的接�
 Catalog Store，还需要这个 Catalog Store 实现对应的 CatalogStoreFactory 接口。
 
 ```java
-
 public class CustomCatalogStoreFactory implements CatalogStoreFactory {
 
     public static final String IDENTIFIER = "custom-kind";
@@ -984,5 +985,4 @@ public class CustomCatalogStore extends AbstractCatalogStore {
     public boolean contains(String catalogName) {
     }
 }
-
 ```
