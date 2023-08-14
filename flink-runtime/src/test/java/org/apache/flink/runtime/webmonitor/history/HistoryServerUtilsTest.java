@@ -21,10 +21,8 @@ package org.apache.flink.runtime.webmonitor.history;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nonnull;
 
@@ -35,7 +33,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link HistoryServerUtils}. */
-@ExtendWith(TestLoggerExtension.class)
 class HistoryServerUtilsTest {
 
     private static final String HOSTNAME = "foobar";
@@ -84,7 +81,7 @@ class HistoryServerUtilsTest {
         final Optional<URL> historyServerURL =
                 HistoryServerUtils.getHistoryServerURL(configuration);
 
-        assertThat(historyServerURL.get()).isEqualTo(new URL("http", HOSTNAME, PORT, ""));
+        assertThat(historyServerURL).isPresent().hasValue(new URL("http", HOSTNAME, PORT, ""));
     }
 
     @Test
@@ -95,7 +92,7 @@ class HistoryServerUtilsTest {
         final Optional<URL> historyServerURL =
                 HistoryServerUtils.getHistoryServerURL(configuration);
 
-        assertThat(historyServerURL.get()).isEqualTo(new URL("https", HOSTNAME, PORT, ""));
+        assertThat(historyServerURL).isPresent().hasValue(new URL("https", HOSTNAME, PORT, ""));
     }
 
     @Test

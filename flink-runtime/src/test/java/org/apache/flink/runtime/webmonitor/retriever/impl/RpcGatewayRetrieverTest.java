@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingRetryStrategies;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
@@ -28,12 +29,10 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -44,7 +43,6 @@ import java.util.function.Function;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link RpcGatewayRetriever}. */
-@ExtendWith(TestLoggerExtension.class)
 class RpcGatewayRetrieverTest {
 
     private static final Time TIMEOUT = Time.seconds(10L);
@@ -99,7 +97,7 @@ class RpcGatewayRetrieverTest {
 
             final CompletableFuture<DummyGateway> gatewayFuture = gatewayRetriever.getFuture();
 
-            assertThat(gatewayFuture.isDone()).isFalse();
+            assertThat(gatewayFuture).isNotDone();
 
             settableLeaderRetrievalService.notifyListener(
                     dummyRpcEndpoint.getAddress(), leaderSessionId);
@@ -108,10 +106,8 @@ class RpcGatewayRetrieverTest {
                     gatewayFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 
             assertThat(dummyGateway.getAddress()).isEqualTo(dummyRpcEndpoint.getAddress());
-            assertThat(
-                            dummyGateway
-                                    .foobar(TIMEOUT)
-                                    .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS))
+            FlinkAssertions.assertThatFuture(dummyGateway.foobar(TIMEOUT))
+                    .eventuallySucceeds()
                     .isEqualTo(expectedValue);
 
             // elect a new leader
@@ -123,10 +119,8 @@ class RpcGatewayRetrieverTest {
                     gatewayFuture2.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
 
             assertThat(dummyGateway2.getAddress()).isEqualTo(dummyRpcEndpoint2.getAddress());
-            assertThat(
-                            dummyGateway2
-                                    .foobar(TIMEOUT)
-                                    .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS))
+            FlinkAssertions.assertThatFuture(dummyGateway2.foobar(TIMEOUT))
+                    .eventuallySucceeds()
                     .isEqualTo(expectedValue2);
         } finally {
             RpcUtils.terminateRpcEndpoint(dummyRpcEndpoint, dummyRpcEndpoint2);
