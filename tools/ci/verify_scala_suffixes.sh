@@ -37,6 +37,24 @@
 #
 # The script uses 'mvn dependency:tree -Dincludes=org.scala-lang' to list Scala
 # dependent modules.
+
+
+usage() {
+  echo "Usage: $0"
+  echo ""
+  echo "The environment variable MVN is used to specify the Maven binaries; defaults to 'mvnw'."
+  echo "See further details in the JavaDoc of ScalaSuffixChecker."
+}
+
+while getopts 'h' o; do
+  case "${o}" in
+    h)
+      usage
+      exit 0
+      ;;
+  esac
+done
+
 MVN=${MVN:-./mvnw}
 
 echo "--- Flink Scala Dependency Analyzer ---"

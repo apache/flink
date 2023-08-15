@@ -17,6 +17,30 @@
 # limitations under the License.
 #
 
+usage() {
+  echo "Usage: $0 <maven-build-output>"
+  echo "    <maven-build-output>                 A file containing the output of the Maven build."
+  echo ""
+  echo "mvnw clean package > <maven-build-output>"
+  echo ""
+  echo "The environment variable MVN is used to specify the Maven binaries; defaults to 'mvnw'."
+  echo "See further details in the JavaDoc of ShadeOptionalChecker."
+}
+
+while getopts 'h' o; do
+  case "${o}" in
+    h)
+      usage
+      exit 0
+      ;;
+  esac
+done
+
+if [[ "$#" != "1" ]]; then
+  usage
+  exit 1
+fi
+
 ## Checks that all bundled dependencies are marked as optional in the poms
 MVN_CLEAN_COMPILE_OUT=$1
 

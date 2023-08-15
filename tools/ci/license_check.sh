@@ -17,6 +17,32 @@
 # limitations under the License.
 ################################################################################
 
+usage() {
+  echo "Usage: $0 <maven-build-output> <deployed-artifacts-folder>"
+  echo "    <maven-build-output>                 A file containing the output of the Maven build."
+  echo "    <deployed-artifacts-folder>          A directory containing a Maven repository into which the Flink artifacts were deployed."
+  echo ""
+  echo "Example preparation:"
+  echo "    mvnw clean deploy -DaltDeploymentRepository=validation_repository::default::file:<deployed-artifacts-folder> > <maven-build-output>"
+  echo ""
+  echo "The environment variable MVN is used to specify the Maven binaries; defaults to 'mvnw'."
+  echo "See further details in the JavaDoc of LicenseChecker."
+}
+
+while getopts 'h' o; do
+  case "${o}" in
+    h)
+      usage
+      exit 0
+      ;;
+  esac
+done
+
+if [[ "$#" != "2" ]]; then
+  usage
+  exit 1
+fi
+
 MVN_CLEAN_COMPILE_OUT=$1
 FLINK_DEPLOYED_ROOT=$2
 
