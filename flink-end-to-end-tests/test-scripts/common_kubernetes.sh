@@ -59,15 +59,15 @@ function setup_kubernetes_for_linux {
     # crictl is required for cri-dockerd
     local crictl_version crictl_archive
     crictl_version="v1.24.2"
-    crictl_archive="crictl-$crictl_version-linux-amd64.tar.gz"
-    wget -nv "https://github.com/kubernetes-sigs/cri-tools/releases/download/${crictl_version}/crictl-${crictl_version}-linux-amd64.tar.gz"
+    crictl_archive="crictl-$crictl_version-linux-${arch}.tar.gz"
+    wget -nv "https://github.com/kubernetes-sigs/cri-tools/releases/download/${crictl_version}/${crictl_archive}"
     sudo tar zxvf ${crictl_archive} -C /usr/local/bin
     rm -f ${crictl_archive}
 
     # cri-dockerd is required to use Kubernetes 1.24+ and the none driver
     local cri_dockerd_version cri_dockerd_archive cri_dockerd_binary
     cri_dockerd_version="0.2.3"
-    cri_dockerd_archive="cri-dockerd-${cri_dockerd_version}.amd64.tgz"
+    cri_dockerd_archive="cri-dockerd-${cri_dockerd_version}.${arch}.tgz"
     cri_dockerd_binary="cri-dockerd"
     wget -nv "https://github.com/Mirantis/cri-dockerd/releases/download/v${cri_dockerd_version}/${cri_dockerd_archive}"
     tar xzvf $cri_dockerd_archive "cri-dockerd/${cri_dockerd_binary}" --strip-components=1
