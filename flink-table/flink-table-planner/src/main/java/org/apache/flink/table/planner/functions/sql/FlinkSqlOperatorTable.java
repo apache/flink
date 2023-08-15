@@ -803,7 +803,11 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                     null,
                     OperandTypes.or(
                             OperandTypes.family(SqlTypeFamily.CHARACTER),
-                            OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER)),
+                            OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER),
+                            OperandTypes.family(
+                                    SqlTypeFamily.CHARACTER,
+                                    SqlTypeFamily.CHARACTER,
+                                    SqlTypeFamily.CHARACTER)),
                     SqlFunctionCategory.TIMEDATE);
 
     public static final SqlFunction TO_TIMESTAMP_LTZ =

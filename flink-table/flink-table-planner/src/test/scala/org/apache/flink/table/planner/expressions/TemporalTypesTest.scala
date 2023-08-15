@@ -625,6 +625,11 @@ class TemporalTypesTest extends ExpressionTestBase {
       toTimestamp("1970-01-01 08:01:40", "yyyy-MM-dd HH:mm:ss"),
       "TO_TIMESTAMP('1970-01-01 08:01:40', 'yyyy-MM-dd HH:mm:ss')",
       "1970-01-01 08:01:40.000")
+    testAllApis(
+      toTimestamp("1970-01-01 16:01:40", "yyyy-MM-dd HH:mm:ss", "Asia/Shanghai"),
+      "TO_TIMESTAMP('1970-01-01 16:01:40', 'yyyy-MM-dd HH:mm:ss', 'Asia/Shanghai')",
+      "1970-01-01 08:01:40.000"
+    )
 
     // EXTRACT
     // testSqlApi("TO_DATE(1521331200)", "2018-03-18")

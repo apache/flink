@@ -449,6 +449,35 @@ public class DateTimeUtils {
         }
     }
 
+    public static TimestampData parseTimestampData(
+            String dateStr, String format, String timeZoneId) {
+        DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
+        formatter = formatter.withZone(TimeZone.getTimeZone(timeZoneId).toZoneId());
+
+        try {
+            TemporalAccessor accessor = formatter.parse(dateStr);
+            ZoneId zoneId = ZoneId.of(timeZoneId);
+            Instant instant = fromTemporalAccessor(accessor, 3).atZone(zoneId).toInstant();
+            return TimestampData.fromInstant(instant);
+        } catch (DateTimeParseException e) {
+            // fall back to support cases like '1999-9-10 05:20:10' or '1999-9-10'
+            try {
+                dateStr = dateStr.trim();
+                int space = dateStr.indexOf(' ');
+                if (space >= 0) {
+                    Timestamp ts = Timestamp.valueOf(dateStr);
+                    return TimestampData.fromTimestamp(ts);
+                } else {
+                    java.sql.Date dt = java.sql.Date.valueOf(dateStr);
+                    return TimestampData.fromLocalDateTime(
+                            LocalDateTime.of(dt.toLocalDate(), LocalTime.MIDNIGHT));
+                }
+            } catch (IllegalArgumentException ie) {
+                return null;
+            }
+        }
+    }
+
     /**
      * This is similar to {@link LocalDateTime#from(TemporalAccessor)}, but it's less strict and
      * introduces default values.

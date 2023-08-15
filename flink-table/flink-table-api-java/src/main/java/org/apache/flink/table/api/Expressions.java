@@ -348,6 +348,19 @@ public final class Expressions {
     }
 
     /**
+     * Converts the given time string with the specified format under the 'UTC+0' time zone to
+     * {@link DataTypes#TIMESTAMP()}.
+     *
+     * @param timestampStr The date time string.
+     * @param format The format of the string.
+     * @param timezone The format of the string.
+     * @return The timestamp value with {@link DataTypes#TIMESTAMP()} type.
+     */
+    public static ApiExpression toTimestamp(Object timestampStr, Object format, Object timezone) {
+        return apiCall(BuiltInFunctionDefinitions.TO_TIMESTAMP, timestampStr, format, timezone);
+    }
+
+    /**
      * Converts a numeric type epoch time to {@link DataTypes#TIMESTAMP_LTZ(int)}.
      *
      * <p>The supported precision is 0 or 3:

@@ -199,6 +199,13 @@ object StringCallGen {
             isCharacterString(operands(1).resultType) =>
         fallibleMethodGen(BuiltInMethods.STRING_TO_TIMESTAMP_WITH_FORMAT)
 
+      case TO_TIMESTAMP
+          if operands.size == 3 &&
+            isCharacterString(operands.head.resultType) &&
+            isCharacterString(operands(1).resultType) &&
+            isCharacterString(operands(2).resultType) =>
+        fallibleMethodGen(BuiltInMethods.STRING_TO_TIMESTAMP_WITH_FORMAT_AND_TIMEZONE)
+
       case UNIX_TIMESTAMP if operands.size == 1 && isCharacterString(operands.head.resultType) =>
         methodGen(BuiltInMethods.UNIX_TIMESTAMP_STR)
 

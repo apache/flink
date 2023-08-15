@@ -520,6 +520,17 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Converts the date time string with the specified format under the 'UTC+0' time zone to a
+   * timestamp value of [[DataTypes.TIMESTAMP]].
+   */
+  def toTimestamp(
+      timestampStr: Expression,
+      format: Expression,
+      timezone: Expression): Expression = {
+    Expressions.toTimestamp(timestampStr, format, timezone)
+  }
+
+  /**
    * Converts a numeric type epoch time to [[DataTypes#TIMESTAMP_LTZ]].
    *
    * The supported precision is 0 or 3:
