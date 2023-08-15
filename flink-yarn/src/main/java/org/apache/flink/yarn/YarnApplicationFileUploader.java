@@ -344,8 +344,8 @@ class YarnApplicationFileUploader implements AutoCloseable {
         checkNotNull(localResources);
 
         final ArrayList<String> classPaths = new ArrayList<>();
-        final Set<String> resources = new HashSet<>();
         final Set<String> resourcesDir = new HashSet<>();
+        final Set<String> resources = new HashSet<>();
         providedSharedLibs.forEach(
                 (fileName, fileStatus) -> {
                     final Path filePath = fileStatus.getPath();
@@ -362,15 +362,17 @@ class YarnApplicationFileUploader implements AutoCloseable {
                     envShipResourceList.add(descriptor);
 
                     if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
-                        URI parentDirectoryUri = new Path(fileName).getParent().toUri();
-                        String relativeParentDirectory =
-                                new Path(filePath.getName())
-                                        .toUri()
-                                        .relativize(parentDirectoryUri)
-                                        .toString();
+                        if (isResource(filePath)) {
+                            URI parentDirectoryUri = new Path(fileName).getParent().toUri();
+                            String relativeParentDirectory =
+                                    new Path(filePath.getName())
+                                            .toUri()
+                                            .relativize(parentDirectoryUri)
+                                            .toString();
 
-                        if (!resourcesDir.contains(relativeParentDirectory)) {
-                            resourcesDir.add(relativeParentDirectory);
+                            if (!resourcesDir.contains(relativeParentDirectory)) {
+                                resourcesDir.add(relativeParentDirectory);
+                            }
                         }
                         resources.add(fileName);
                     } else if (isFlinkDistJar(filePath.getName())) {
@@ -458,6 +460,17 @@ class YarnApplicationFileUploader implements AutoCloseable {
             parent = parent.getParent();
         }
 
+        return false;
+    }
+
+    private static boolean isResource(Path filePath) {
+        Path parent = filePath.getParent();
+        while (parent != null) {
+            if (ConfigConstants.DEFAULT_FLINK_RESOURCES_DIRS.equals(parent.getName())) {
+                return true;
+            }
+            parent = parent.getParent();
+        }
         return false;
     }
 

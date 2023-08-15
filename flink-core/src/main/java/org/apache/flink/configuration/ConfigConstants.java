@@ -1747,6 +1747,9 @@ public final class ConfigConstants {
      */
     public static final String DEFAULT_FLINK_PLUGINS_DIRS = "plugins";
 
+    /** The default Flink resources directory. */
+    public static final String DEFAULT_FLINK_RESOURCES_DIRS = "resources";
+
     /** The environment variable name which contains the location of the bin directory. */
     public static final String ENV_FLINK_BIN_DIR = "FLINK_BIN_DIR";
 

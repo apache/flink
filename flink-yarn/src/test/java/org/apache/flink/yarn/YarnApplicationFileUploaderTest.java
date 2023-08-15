@@ -169,17 +169,17 @@ class YarnApplicationFileUploaderTest {
         final Map<String, String> filesWithParentDir = new HashMap<>(2);
         final String xmlContent = "XML Content";
 
-        filesWithParentDir.put("conf/hive-site.xml", xmlContent);
-        filesWithParentDir.put("conf/ivysettings.xml", xmlContent);
+        filesWithParentDir.put("resources/conf/hive-site.xml", xmlContent);
+        filesWithParentDir.put("resources/conf/ivysettings.xml", xmlContent);
 
         return filesWithParentDir;
     }
 
     private static List<String> getExpectedClassPathWithParentDir() {
         List<String> expectedClassPathEntries = new ArrayList<>();
-        expectedClassPathEntries.add("conf");
-        expectedClassPathEntries.add("conf/hive-site.xml");
-        expectedClassPathEntries.add("conf/ivysettings.xml");
+        expectedClassPathEntries.add("resources/conf");
+        expectedClassPathEntries.add("resources/conf/hive-site.xml");
+        expectedClassPathEntries.add("resources/conf/ivysettings.xml");
         return expectedClassPathEntries;
     }
 
