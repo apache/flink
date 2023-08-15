@@ -24,16 +24,17 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Test for @{@link SerializedCompositeKeyBuilder}. */
-public class SerializedCompositeKeyBuilderTest {
+class SerializedCompositeKeyBuilderTest {
 
     private final DataOutputSerializer dataOutputSerializer = new DataOutputSerializer(128);
 
@@ -41,13 +42,13 @@ public class SerializedCompositeKeyBuilderTest {
     private static final Collection<Integer> TEST_INTS = Arrays.asList(42, 4711);
     private static final Collection<String> TEST_STRINGS = Arrays.asList("test123", "abc");
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         dataOutputSerializer.clear();
     }
 
     @Test
-    public void testSetKey() throws IOException {
+    void testSetKey() throws IOException {
         for (int parallelism : TEST_PARALLELISMS) {
             testSetKeyInternal(IntSerializer.INSTANCE, TEST_INTS, parallelism);
             testSetKeyInternal(StringSerializer.INSTANCE, TEST_STRINGS, parallelism);
@@ -55,12 +56,12 @@ public class SerializedCompositeKeyBuilderTest {
     }
 
     @Test
-    public void testSetKeyNamespace() throws IOException {
+    void testSetKeyNamespace() throws IOException {
         testSetKeyNamespaceInternal(BuildKeyAndNamespaceType.BUILD);
     }
 
     @Test
-    public void testSetKeyNamespaceWithSet() throws IOException {
+    void testSetKeyNamespaceWithSet() throws IOException {
         testSetKeyNamespaceInternal(BuildKeyAndNamespaceType.SET_AND_BUILD);
     }
 
@@ -99,12 +100,12 @@ public class SerializedCompositeKeyBuilderTest {
     }
 
     @Test
-    public void testSetKeyNamespaceUserKey() throws IOException {
+    void testSetKeyNamespaceUserKey() throws IOException {
         testSetKeyNamespaceUserKeyInternal(BuildKeyAndNamespaceType.BUILD);
     }
 
     @Test
-    public void testSetKeyNamespaceUserKeyWithSet() throws IOException {
+    void testSetKeyNamespaceUserKeyWithSet() throws IOException {
         testSetKeyNamespaceUserKeyInternal(BuildKeyAndNamespaceType.SET_AND_BUILD);
     }
 
@@ -199,7 +200,7 @@ public class SerializedCompositeKeyBuilderTest {
             byte[] result = dataOutputSerializer.getCopyOfBuffer();
             deserializer.setBuffer(result);
             assertKeyKeyGroupBytes(testKey, keyGroup, prefixBytes, serializer, deserializer, false);
-            Assert.assertEquals(0, deserializer.available());
+            assertThat(deserializer.available()).isZero();
         }
     }
 
@@ -248,7 +249,7 @@ public class SerializedCompositeKeyBuilderTest {
                         namespaceSerializer,
                         deserializer,
                         ambiguousPossible);
-                Assert.assertEquals(0, deserializer.available());
+                assertThat(deserializer.available()).isZero();
             }
         }
     }
@@ -306,7 +307,7 @@ public class SerializedCompositeKeyBuilderTest {
                             deserializer,
                             ambiguousPossible);
 
-                    Assert.assertEquals(0, deserializer.available());
+                    assertThat(deserializer.available()).isZero();
                 }
             }
         }
@@ -339,12 +340,12 @@ public class SerializedCompositeKeyBuilderTest {
             boolean ambiguousCompositeKeyPossible)
             throws IOException {
 
-        Assert.assertEquals(
-                keyGroup, CompositeKeySerializationUtils.readKeyGroup(prefixBytes, deserializer));
-        Assert.assertEquals(
-                key,
-                CompositeKeySerializationUtils.readKey(
-                        typeSerializer, deserializer, ambiguousCompositeKeyPossible));
+        assertThat(CompositeKeySerializationUtils.readKeyGroup(prefixBytes, deserializer))
+                .isEqualTo(keyGroup);
+        assertThat(
+                        CompositeKeySerializationUtils.readKey(
+                                typeSerializer, deserializer, ambiguousCompositeKeyPossible))
+                .isEqualTo(key);
     }
 
     private <K, N> void assertKeyGroupKeyNamespaceBytes(
@@ -367,7 +368,7 @@ public class SerializedCompositeKeyBuilderTest {
         N readNamespace =
                 CompositeKeySerializationUtils.readNamespace(
                         namespaceSerializer, deserializer, ambiguousCompositeKeyPossible);
-        Assert.assertEquals(namespace, readNamespace);
+        assertThat(readNamespace).isEqualTo(namespace);
     }
 
     private <K, N, U> void assertKeyGroupKeyNamespaceUserKeyBytes(
@@ -391,6 +392,6 @@ public class SerializedCompositeKeyBuilderTest {
                 namespaceSerializer,
                 deserializer,
                 ambiguousCompositeKeyPossible);
-        Assert.assertEquals(userKey, userKeySerializer.deserialize(deserializer));
+        assertThat(userKeySerializer.deserialize(deserializer)).isEqualTo(userKey);
     }
 }

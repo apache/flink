@@ -29,24 +29,26 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
 import static org.mockito.Mockito.mock;
 
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public abstract class HeapStateBackendTestBase {
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<Boolean> parameters() {
         return Arrays.asList(false, true);
     }
 
-    @Parameterized.Parameter public boolean async;
+    @Parameter public boolean async;
 
     public HeapKeyedStateBackend<String> createKeyedBackend(
             Collection<KeyedStateHandle> stateHandles) throws Exception {

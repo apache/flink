@@ -28,15 +28,16 @@ import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.StateBackendTestContext;
 import org.apache.flink.runtime.state.ttl.TtlStateTestBase;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TernaryBoolean;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -44,7 +45,7 @@ import static org.junit.Assert.assertTrue;
 
 /** Base test suite for rocksdb state TTL. */
 public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
-    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir private Path tempFolder;
 
     @Override
     protected StateBackendTestContext createStateBackendTestContext(TtlTimeProvider timeProvider) {
@@ -62,8 +63,8 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
         String dbPath;
         String checkpointPath;
         try {
-            dbPath = tempFolder.newFolder().getAbsolutePath();
-            checkpointPath = tempFolder.newFolder().toURI().toString();
+            dbPath = TempDirUtils.newFolder(tempFolder).getAbsolutePath();
+            checkpointPath = TempDirUtils.newFolder(tempFolder).toURI().toString();
         } catch (IOException e) {
             throw new FlinkRuntimeException("Failed to init rocksdb test state backend");
         }
@@ -76,17 +77,17 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
         return backend;
     }
 
-    @Test
+    @TestTemplate
     public void testCompactFilter() throws Exception {
         testCompactFilter(false, false);
     }
 
-    @Test
+    @TestTemplate
     public void testCompactFilterWithSnapshot() throws Exception {
         testCompactFilter(true, false);
     }
 
-    @Test
+    @TestTemplate
     public void testCompactFilterWithSnapshotAndRescalingAfterRestore() throws Exception {
         testCompactFilter(true, true);
     }

@@ -21,107 +21,110 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 /** Tests for {@link LocalRecoveryDirectoryProvider}. */
-public class LocalRecoveryDirectoryProviderImplTest extends TestLogger {
+class LocalRecoveryDirectoryProviderImplTest {
 
     private static final JobID JOB_ID = new JobID();
     private static final JobVertexID JOB_VERTEX_ID = new JobVertexID();
     private static final int SUBTASK_INDEX = 0;
 
-    @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tmpFolder;
 
     private LocalRecoveryDirectoryProviderImpl directoryProvider;
     private File[] allocBaseFolders;
 
-    @Before
-    public void setup() throws IOException {
+    @BeforeEach
+    void setup() throws IOException {
         this.allocBaseFolders =
-                new File[] {tmpFolder.newFolder(), tmpFolder.newFolder(), tmpFolder.newFolder()};
+                new File[] {
+                    TempDirUtils.newFolder(tmpFolder),
+                    TempDirUtils.newFolder(tmpFolder),
+                    TempDirUtils.newFolder(tmpFolder)
+                };
         this.directoryProvider =
                 new LocalRecoveryDirectoryProviderImpl(
                         allocBaseFolders, JOB_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
     }
 
     @Test
-    public void allocationBaseDir() {
+    void allocationBaseDir() {
         for (int i = 0; i < 10; ++i) {
-            Assert.assertEquals(
-                    allocBaseFolders[i % allocBaseFolders.length],
-                    directoryProvider.allocationBaseDirectory(i));
+            assertThat(directoryProvider.allocationBaseDirectory(i))
+                    .isEqualTo(allocBaseFolders[i % allocBaseFolders.length]);
         }
     }
 
     @Test
-    public void selectAllocationBaseDir() {
+    void selectAllocationBaseDir() {
         for (int i = 0; i < allocBaseFolders.length; ++i) {
-            Assert.assertEquals(
-                    allocBaseFolders[i], directoryProvider.selectAllocationBaseDirectory(i));
+            assertThat(directoryProvider.selectAllocationBaseDirectory(i))
+                    .isEqualTo(allocBaseFolders[i]);
         }
     }
 
     @Test
-    public void allocationBaseDirectoriesCount() {
-        Assert.assertEquals(allocBaseFolders.length, directoryProvider.allocationBaseDirsCount());
+    void allocationBaseDirectoriesCount() {
+        assertThat(directoryProvider.allocationBaseDirsCount()).isEqualTo(allocBaseFolders.length);
     }
 
     @Test
-    public void subtaskSpecificDirectory() {
+    void subtaskSpecificDirectory() {
         for (int i = 0; i < 10; ++i) {
-            Assert.assertEquals(
-                    new File(
-                            directoryProvider.allocationBaseDirectory(i),
-                            directoryProvider.subtaskDirString()),
-                    directoryProvider.subtaskBaseDirectory(i));
+            assertThat(directoryProvider.subtaskBaseDirectory(i))
+                    .isEqualTo(
+                            new File(
+                                    directoryProvider.allocationBaseDirectory(i),
+                                    directoryProvider.subtaskDirString()));
         }
     }
 
     @Test
-    public void subtaskCheckpointSpecificDirectory() {
+    void subtaskCheckpointSpecificDirectory() {
         for (int i = 0; i < 10; ++i) {
-            Assert.assertEquals(
-                    new File(
-                            directoryProvider.subtaskBaseDirectory(i),
-                            directoryProvider.checkpointDirString(i)),
-                    directoryProvider.subtaskSpecificCheckpointDirectory(i));
+            assertThat(directoryProvider.subtaskSpecificCheckpointDirectory(i))
+                    .isEqualTo(
+                            new File(
+                                    directoryProvider.subtaskBaseDirectory(i),
+                                    directoryProvider.checkpointDirString(i)));
         }
     }
 
     @Test
-    public void testPathStringConstants() {
+    void testPathStringConstants() {
 
-        Assert.assertEquals(
-                directoryProvider.subtaskDirString(),
-                "jid_"
-                        + JOB_ID
-                        + Path.SEPARATOR
-                        + "vtx_"
-                        + JOB_VERTEX_ID
-                        + "_sti_"
-                        + SUBTASK_INDEX);
+        assertThat(directoryProvider.subtaskDirString())
+                .isEqualTo(
+                        "jid_"
+                                + JOB_ID
+                                + Path.SEPARATOR
+                                + "vtx_"
+                                + JOB_VERTEX_ID
+                                + "_sti_"
+                                + SUBTASK_INDEX);
 
         final long checkpointId = 42;
-        Assert.assertEquals(
-                directoryProvider.checkpointDirString(checkpointId), "chk_" + checkpointId);
+        assertThat(directoryProvider.checkpointDirString(checkpointId))
+                .isEqualTo("chk_" + checkpointId);
     }
 
     @Test
-    public void testPreconditionsNotNullFiles() {
-        try {
-            new LocalRecoveryDirectoryProviderImpl(
-                    new File[] {null}, JOB_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
-            Assert.fail();
-        } catch (NullPointerException ignore) {
-        }
+    void testPreconditionsNotNullFiles() {
+        assertThatThrownBy(
+                        () ->
+                                new LocalRecoveryDirectoryProviderImpl(
+                                        new File[] {null}, JOB_ID, JOB_VERTEX_ID, SUBTASK_INDEX))
+                .isInstanceOf(NullPointerException.class);
     }
 }

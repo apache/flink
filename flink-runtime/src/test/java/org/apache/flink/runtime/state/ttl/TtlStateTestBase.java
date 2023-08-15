@@ -28,14 +28,16 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.CopyOnWriteStateMap;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.List;
@@ -43,15 +45,12 @@ import java.util.concurrent.RunnableFuture;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.state.ttl.StateBackendTestContext.NUMBER_OF_KEY_GROUPS;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeThat;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** State TTL base test suite. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public abstract class TtlStateTestBase {
     protected static final long TTL = 100;
     private static final int INC_CLEANUP_ALL_KEYS =
@@ -71,8 +70,8 @@ public abstract class TtlStateTestBase {
 
     private StateTtlConfig ttlConfig;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         timeProvider = new MockTtlTimeProvider();
         sbetc = createStateBackendTestContext(timeProvider);
     }
@@ -80,9 +79,9 @@ public abstract class TtlStateTestBase {
     protected abstract StateBackendTestContext createStateBackendTestContext(
             TtlTimeProvider timeProvider);
 
-    @Parameterized.Parameter public TtlStateTestContextBase<?, ?, ?> ctx;
+    @Parameter public TtlStateTestContextBase<?, ?, ?> ctx;
 
-    @Parameterized.Parameters(name = "{0}")
+    @Parameters(name = "{0}")
     public static List<TtlStateTestContextBase<?, ?, ?>> testContexts() {
         return Arrays.asList(
                 new TtlValueStateTestContext(),
@@ -180,14 +179,16 @@ public abstract class TtlStateTestBase {
         return false;
     }
 
-    @Test
-    public void testNonExistentValue() throws Exception {
+    @TestTemplate
+    void testNonExistentValue() throws Exception {
         initTest();
-        assertEquals("Non-existing state should be empty", ctx().emptyValue, ctx().get());
+        assertThat(ctx().get())
+                .withFailMessage("Non-existent state should be empty")
+                .isEqualTo(ctx().emptyValue);
     }
 
-    @Test
-    public void testExactExpirationOnWrite() throws Exception {
+    @TestTemplate
+    void testExactExpirationOnWrite() throws Exception {
         initTest(
                 StateTtlConfig.UpdateType.OnCreateAndWrite,
                 StateTtlConfig.StateVisibility.NeverReturnExpired);
@@ -200,7 +201,7 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 20;
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertThat(ctx().get()).withFailMessage(UNEXPIRED_AVAIL).isEqualTo(ctx().getUpdateEmpty);
 
         takeAndRestoreSnapshot();
 
@@ -210,7 +211,9 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 120;
-        assertEquals(UPDATED_UNEXPIRED_AVAIL, ctx().getUnexpired, ctx().get());
+        assertThat(ctx().get())
+                .withFailMessage(UPDATED_UNEXPIRED_AVAIL)
+                .isEqualTo(ctx().getUnexpired);
 
         takeAndRestoreSnapshot();
 
@@ -220,17 +223,21 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 220;
-        assertEquals(UPDATED_UNEXPIRED_AVAIL, ctx().getUpdateExpired, ctx().get());
+        assertThat(ctx().get())
+                .withFailMessage(UPDATED_UNEXPIRED_AVAIL)
+                .isEqualTo(ctx().getUpdateExpired);
 
         takeAndRestoreSnapshot();
 
         timeProvider.time = 300;
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
-        assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
+        assertThat(ctx().get()).withFailMessage(EXPIRED_UNAVAIL).isEqualTo(ctx().emptyValue);
+        assertThat(ctx().isOriginalEmptyValue())
+                .withFailMessage("Original state should be cleared on access")
+                .isTrue();
     }
 
-    @Test
-    public void testRelaxedExpirationOnWrite() throws Exception {
+    @TestTemplate
+    void testRelaxedExpirationOnWrite() throws Exception {
         initTest(
                 StateTtlConfig.UpdateType.OnCreateAndWrite,
                 StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp);
@@ -241,13 +248,17 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 120;
-        assertEquals(EXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
-        assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
-        assertEquals("Expired state should be cleared on access", ctx().emptyValue, ctx().get());
+        assertThat(ctx().get()).withFailMessage(UNEXPIRED_AVAIL).isEqualTo(ctx().getUpdateEmpty);
+        assertThat(ctx().isOriginalEmptyValue())
+                .withFailMessage("Original state should be cleared on access")
+                .isTrue();
+        assertThat(ctx().get())
+                .withFailMessage("Expired state should be cleared on access")
+                .isEqualTo(ctx().emptyValue);
     }
 
-    @Test
-    public void testExactExpirationOnRead() throws Exception {
+    @TestTemplate
+    void testExactExpirationOnRead() throws Exception {
         initTest(
                 StateTtlConfig.UpdateType.OnReadAndWrite,
                 StateTtlConfig.StateVisibility.NeverReturnExpired);
@@ -258,25 +269,26 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 50;
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertThat(ctx().get()).withFailMessage(UNEXPIRED_AVAIL).isEqualTo(ctx().getUpdateEmpty);
 
         takeAndRestoreSnapshot();
 
         timeProvider.time = 120;
-        assertEquals(
-                "Unexpired state should be available after read",
-                ctx().getUpdateEmpty,
-                ctx().get());
+        assertThat(ctx().get())
+                .withFailMessage("Unexpired state should be available after read")
+                .isEqualTo(ctx().getUpdateEmpty);
 
         takeAndRestoreSnapshot();
 
         timeProvider.time = 250;
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
-        assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
+        assertThat(ctx().get()).withFailMessage(EXPIRED_UNAVAIL).isEqualTo(ctx().emptyValue);
+        assertThat(ctx().isOriginalEmptyValue())
+                .withFailMessage("Original state should be cleared on access")
+                .isTrue();
     }
 
-    @Test
-    public void testRelaxedExpirationOnRead() throws Exception {
+    @TestTemplate
+    void testRelaxedExpirationOnRead() throws Exception {
         initTest(
                 StateTtlConfig.UpdateType.OnReadAndWrite,
                 StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp);
@@ -287,17 +299,19 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 50;
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertThat(ctx().get()).withFailMessage(UNEXPIRED_AVAIL).isEqualTo(ctx().getUpdateEmpty);
 
         takeAndRestoreSnapshot();
 
         timeProvider.time = 170;
-        assertEquals(EXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
-        assertEquals("Expired state should be cleared on access", ctx().emptyValue, ctx().get());
+        assertThat(ctx().get()).withFailMessage(EXPIRED_AVAIL).isEqualTo(ctx().getUpdateEmpty);
+        assertThat(ctx().get())
+                .withFailMessage("Expired state should be cleared on access")
+                .isEqualTo(ctx().emptyValue);
     }
 
-    @Test
-    public void testExpirationTimestampOverflow() throws Exception {
+    @TestTemplate
+    void testExpirationTimestampOverflow() throws Exception {
         initTest(
                 StateTtlConfig.UpdateType.OnCreateAndWrite,
                 StateTtlConfig.StateVisibility.NeverReturnExpired,
@@ -309,12 +323,12 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 50;
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertThat(ctx().get()).withFailMessage(UNEXPIRED_AVAIL).isEqualTo(ctx().getUpdateEmpty);
     }
 
-    @Test
-    public void testMergeNamespaces() throws Exception {
-        assumeThat(ctx, instanceOf(TtlMergingStateTestContext.class));
+    @TestTemplate
+    void testMergeNamespaces() throws Exception {
+        assumeThat(ctx).isInstanceOf(TtlMergingStateTestContext.class);
 
         initTest();
 
@@ -340,36 +354,35 @@ public abstract class TtlStateTestBase {
         timeProvider.time = 230;
         mctx().ttlState.mergeNamespaces("targetNamespace", TtlMergingStateTestContext.NAMESPACES);
         mctx().ttlState.setCurrentNamespace("targetNamespace");
-        assertEquals(
-                "Unexpected result of merge operation",
-                mctx().getMergeResult(unexpiredUpdatesToMerge, finalUpdatesToMerge),
-                mctx().get());
+        assertThat(mctx().get())
+                .withFailMessage("Unexpected result of merge operation")
+                .isEqualTo(mctx().getMergeResult(unexpiredUpdatesToMerge, finalUpdatesToMerge));
     }
 
-    @Test
-    public void testMultipleKeys() throws Exception {
+    @TestTemplate
+    void testMultipleKeys() throws Exception {
         initTest();
         testMultipleStateIds(id -> sbetc.setCurrentKey(id), false);
     }
 
-    @Test
-    public void testMultipleKeysWithSnapshotCleanup() throws Exception {
-        assumeTrue("full snapshot strategy", isSavepoint());
+    @TestTemplate
+    void testMultipleKeysWithSnapshotCleanup() throws Exception {
+        assumeThat(isSavepoint()).as("full snapshot strategy").isTrue();
         initTest(getConfBuilder(TTL).cleanupFullSnapshot().build());
         // set time back after restore to see entry unexpired if it was not cleaned up in snapshot
         // properly
         testMultipleStateIds(id -> sbetc.setCurrentKey(id), true);
     }
 
-    @Test
-    public void testMultipleNamespaces() throws Exception {
+    @TestTemplate
+    void testMultipleNamespaces() throws Exception {
         initTest();
         testMultipleStateIds(id -> ctx().ttlState.setCurrentNamespace(id), false);
     }
 
-    @Test
-    public void testMultipleNamespacesWithSnapshotCleanup() throws Exception {
-        assumeTrue("full snapshot strategy", isSavepoint());
+    @TestTemplate
+    void testMultipleNamespacesWithSnapshotCleanup() throws Exception {
+        assumeThat(isSavepoint()).as("full snapshot strategy").isTrue();
         initTest(getConfBuilder(TTL).cleanupFullSnapshot().build());
         // set time back after restore to see entry unexpired if it was not cleaned up in snapshot
         // properly
@@ -397,9 +410,11 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         idChanger.accept("id1");
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertThat(ctx().get()).withFailMessage(UNEXPIRED_AVAIL).isEqualTo(ctx().getUpdateEmpty);
         idChanger.accept("id2");
-        assertEquals(UPDATED_UNEXPIRED_AVAIL, ctx().getUnexpired, ctx().get());
+        assertThat(ctx().get())
+                .withFailMessage(UPDATED_UNEXPIRED_AVAIL)
+                .isEqualTo(ctx().getUnexpired);
 
         takeAndRestoreSnapshot();
 
@@ -412,22 +427,24 @@ public abstract class TtlStateTestBase {
 
         timeProvider.time = timeBackAfterRestore ? 170 : timeProvider.time;
         idChanger.accept("id1");
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertThat(ctx().get()).withFailMessage(EXPIRED_UNAVAIL).isEqualTo(ctx().emptyValue);
         idChanger.accept("id2");
-        assertEquals(UPDATED_UNEXPIRED_AVAIL, ctx().getUpdateExpired, ctx().get());
+        assertThat(ctx().get())
+                .withFailMessage(UPDATED_UNEXPIRED_AVAIL)
+                .isEqualTo(ctx().getUpdateExpired);
 
         timeProvider.time = 300;
         takeAndRestoreSnapshot();
 
         timeProvider.time = timeBackAfterRestore ? 230 : timeProvider.time;
         idChanger.accept("id1");
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertThat(ctx().get()).withFailMessage(EXPIRED_UNAVAIL).isEqualTo(ctx().emptyValue);
         idChanger.accept("id2");
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertThat(ctx().get()).withFailMessage(EXPIRED_UNAVAIL).isEqualTo(ctx().emptyValue);
     }
 
-    @Test
-    public void testSnapshotChangeRestore() throws Exception {
+    @TestTemplate
+    void testSnapshotChangeRestore() throws Exception {
         initTest();
 
         timeProvider.time = 0;
@@ -454,14 +471,14 @@ public abstract class TtlStateTestBase {
 
         timeProvider.time = 180;
         sbetc.setCurrentKey("k1");
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertThat(ctx().get()).withFailMessage(EXPIRED_UNAVAIL).isEqualTo(ctx().emptyValue);
         sbetc.setCurrentKey("k2");
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertThat(ctx().get()).withFailMessage(UNEXPIRED_AVAIL).isEqualTo(ctx().getUpdateEmpty);
     }
 
-    @Test(expected = StateMigrationException.class)
-    public void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
-        assumeThat(this, not(instanceOf(MockTtlStateTest.class)));
+    @TestTemplate
+    void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
+        assumeThat(this).isNotInstanceOf(MockTtlStateTest.class);
 
         initTest();
 
@@ -472,12 +489,13 @@ public abstract class TtlStateTestBase {
         sbetc.createAndRestoreKeyedStateBackend(snapshot);
 
         sbetc.setCurrentKey("defaultKey");
-        sbetc.createState(ctx().createStateDescriptor(), "");
+        assertThatThrownBy(() -> sbetc.createState(ctx().createStateDescriptor(), ""))
+                .isInstanceOf(StateMigrationException.class);
     }
 
-    @Test
-    public void testIncrementalCleanupWholeState() throws Exception {
-        assumeTrue(incrementalCleanupSupported());
+    @TestTemplate
+    void testIncrementalCleanupWholeState() throws Exception {
+        assumeThat(incrementalCleanupSupported()).isTrue();
         initTest(getConfBuilder(TTL).cleanupIncrementally(5, true).build());
         timeProvider.time = 0;
         // create enough keys to trigger incremental rehash
@@ -491,13 +509,15 @@ public abstract class TtlStateTestBase {
         // check all state cleaned up
         for (int i = 0; i < INC_CLEANUP_ALL_KEYS; i++) {
             sbetc.setCurrentKey(Integer.toString(i));
-            assertTrue("Original state should be cleared", isOriginalCleared());
+            assertThat(isOriginalCleared())
+                    .withFailMessage("Original state should be cleared")
+                    .isTrue();
         }
     }
 
-    @Test
-    public void testIncrementalCleanup() throws Exception {
-        assumeTrue(incrementalCleanupSupported());
+    @TestTemplate
+    void testIncrementalCleanup() throws Exception {
+        assumeThat(incrementalCleanupSupported()).isTrue();
 
         initTest(getConfBuilder(TTL).cleanupIncrementally(5, true).build());
 
@@ -559,14 +579,16 @@ public abstract class TtlStateTestBase {
     private <T> void checkUnexpiredKeys(int startKey, int endKey, T value) throws Exception {
         for (int i = startKey; i < endKey; i++) {
             sbetc.setCurrentKey(Integer.toString(i));
-            assertEquals(UNEXPIRED_AVAIL, value, ctx().get());
+            assertThat(ctx().get()).withFailMessage(UNEXPIRED_AVAIL).isEqualTo(value);
         }
     }
 
     private void checkExpiredKeys(int startKey, int endKey) throws Exception {
         for (int i = startKey; i < endKey; i++) {
             sbetc.setCurrentKey(Integer.toString(i));
-            assertTrue("Original state should be cleared", ctx().isOriginalEmptyValue());
+            assertThat(ctx().isOriginalEmptyValue())
+                    .withFailMessage("Original state should be cleared")
+                    .isTrue();
         }
     }
 
@@ -590,8 +612,8 @@ public abstract class TtlStateTestBase {
         return ((AbstractHeapState) original).getStateTable().get(ctx.currentNamespace) == null;
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         sbetc.dispose();
     }
 }

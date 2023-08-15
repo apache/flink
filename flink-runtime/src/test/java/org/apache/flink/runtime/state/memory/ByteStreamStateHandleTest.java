@@ -20,18 +20,18 @@ package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.core.fs.FSDataInputStream;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ByteStreamStateHandle}. */
-public class ByteStreamStateHandleTest {
+class ByteStreamStateHandleTest {
 
     @Test
-    public void testStreamSeekAndPos() throws IOException {
+    void testStreamSeekAndPos() throws IOException {
         final byte[] data = {34, 25, 22, 66, 88, 54};
         final ByteStreamStateHandle handle = new ByteStreamStateHandle("name", data);
 
@@ -40,14 +40,14 @@ public class ByteStreamStateHandleTest {
             FSDataInputStream in = handle.openInputStream();
             in.seek(i);
 
-            assertEquals(i, (int) in.getPos());
+            assertThat(in.getPos()).isEqualTo(i);
 
             if (i < data.length) {
-                assertEquals((int) data[i], in.read());
-                assertEquals(i + 1, (int) in.getPos());
+                assertThat(in.read()).isEqualTo(data[i]);
+                assertThat(in.getPos()).isEqualTo(i + 1);
             } else {
-                assertEquals(-1, in.read());
-                assertEquals(i, (int) in.getPos());
+                assertThat(in.read()).isEqualTo(-1);
+                assertThat(in.getPos()).isEqualTo(i);
             }
         }
 
@@ -56,48 +56,32 @@ public class ByteStreamStateHandleTest {
         in.seek(data.length);
 
         // read multiple times, should not affect anything
-        assertEquals(-1, in.read());
-        assertEquals(-1, in.read());
-        assertEquals(-1, in.read());
+        assertThat(in.read()).isEqualTo(-1);
+        assertThat(in.read()).isEqualTo(-1);
+        assertThat(in.read()).isEqualTo(-1);
 
-        assertEquals(data.length, (int) in.getPos());
+        assertThat(in.getPos()).isEqualTo(data.length);
     }
 
     @Test
-    public void testStreamSeekOutOfBounds() throws IOException {
+    void testStreamSeekOutOfBounds() {
         final int len = 10;
         final ByteStreamStateHandle handle = new ByteStreamStateHandle("name", new byte[len]);
 
         // check negative offset
-        FSDataInputStream in = handle.openInputStream();
-        try {
-            in.seek(-2);
-            fail("should fail with an exception");
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> handle.openInputStream().seek(-2)).isInstanceOf(IOException.class);
 
         // check integer overflow
-        in = handle.openInputStream();
-        try {
-            in.seek(len + 1);
-            fail("should fail with an exception");
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> handle.openInputStream().seek(len + 1))
+                .isInstanceOf(IOException.class);
 
         // check integer overflow
-        in = handle.openInputStream();
-        try {
-            in.seek(((long) Integer.MAX_VALUE) + 100L);
-            fail("should fail with an exception");
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> handle.openInputStream().seek(((long) Integer.MAX_VALUE) + 100L))
+                .isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testBulkRead() throws IOException {
+    void testBulkRead() throws IOException {
         final byte[] data = {34, 25, 22, 66};
         final ByteStreamStateHandle handle = new ByteStreamStateHandle("name", data);
         final int targetLen = 8;
@@ -110,78 +94,53 @@ public class ByteStreamStateHandleTest {
                 final byte[] target = new byte[targetLen];
                 final int read = in.read(target, targetLen - num, num);
 
-                assertEquals(Math.min(num, data.length - start), read);
+                assertThat(read).isEqualTo(Math.min(num, data.length - start));
                 for (int i = 0; i < read; i++) {
-                    assertEquals(data[start + i], target[targetLen - num + i]);
+                    assertThat(target[targetLen - num + i]).isEqualTo(data[start + i]);
                 }
 
                 int newPos = start + read;
-                assertEquals(newPos, (int) in.getPos());
-                assertEquals(newPos < data.length ? data[newPos] : -1, in.read());
+                assertThat(in.getPos()).isEqualTo(newPos);
+                assertThat(in.read()).isEqualTo(newPos < data.length ? data[newPos] : -1);
             }
         }
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @Test
-    public void testBulkReadINdexOutOfBounds() throws IOException {
+    void testBulkReadINdexOutOfBounds() throws IOException {
         final ByteStreamStateHandle handle = new ByteStreamStateHandle("name", new byte[10]);
 
         // check negative offset
-        FSDataInputStream in = handle.openInputStream();
-        try {
-            in.read(new byte[10], -1, 5);
-            fail("should fail with an exception");
-        } catch (IndexOutOfBoundsException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> handle.openInputStream().read(new byte[10], -1, 5))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // check offset overflow
-        in = handle.openInputStream();
-        try {
-            in.read(new byte[10], 10, 5);
-            fail("should fail with an exception");
-        } catch (IndexOutOfBoundsException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> handle.openInputStream().read(new byte[10], 10, 5))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // check negative length
-        in = handle.openInputStream();
-        try {
-            in.read(new byte[10], 0, -2);
-            fail("should fail with an exception");
-        } catch (IndexOutOfBoundsException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> handle.openInputStream().read(new byte[10], 0, -2))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // check length too large
-        in = handle.openInputStream();
-        try {
-            in.read(new byte[10], 5, 6);
-            fail("should fail with an exception");
-        } catch (IndexOutOfBoundsException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> handle.openInputStream().read(new byte[10], 5, 6))
+                .isInstanceOf(IndexOutOfBoundsException.class);
 
         // check length integer overflow
-        in = handle.openInputStream();
-        try {
-            in.read(new byte[10], 5, Integer.MAX_VALUE);
-            fail("should fail with an exception");
-        } catch (IndexOutOfBoundsException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> handle.openInputStream().read(new byte[10], 5, Integer.MAX_VALUE))
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     @Test
-    public void testStreamWithEmptyByteArray() throws IOException {
+    void testStreamWithEmptyByteArray() throws IOException {
         final byte[] data = new byte[0];
         final ByteStreamStateHandle handle = new ByteStreamStateHandle("name", data);
 
         try (FSDataInputStream in = handle.openInputStream()) {
             byte[] dataGot = new byte[1];
-            assertEquals(0, in.read(dataGot, 0, 0)); // got return 0 because len == 0.
-            assertEquals(-1, in.read()); // got -1 because of EOF.
+            assertThat(in.read(dataGot, 0, 0)).isZero(); // got return 0 because len == 0.
+            assertThat(in.read()).isEqualTo(-1); // got -1 because of EOF.
         }
     }
 }

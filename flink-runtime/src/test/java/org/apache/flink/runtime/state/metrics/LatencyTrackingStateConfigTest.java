@@ -22,41 +22,39 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LatencyTrackingStateConfig}. */
-public class LatencyTrackingStateConfigTest {
+class LatencyTrackingStateConfigTest {
 
     @Test
-    public void testDefaultDisabledLatencyTrackingStateConfig() {
+    void testDefaultDisabledLatencyTrackingStateConfig() {
         LatencyTrackingStateConfig latencyTrackingStateConfig =
                 LatencyTrackingStateConfig.newBuilder().build();
-        Assert.assertFalse(latencyTrackingStateConfig.isEnabled());
+        assertThat(latencyTrackingStateConfig.isEnabled()).isFalse();
     }
 
     @Test
-    public void testDefaultEnabledLatencyTrackingStateConfig() {
+    void testDefaultEnabledLatencyTrackingStateConfig() {
         UnregisteredMetricsGroup metricsGroup = new UnregisteredMetricsGroup();
         LatencyTrackingStateConfig latencyTrackingStateConfig =
                 LatencyTrackingStateConfig.newBuilder()
                         .setEnabled(true)
                         .setMetricGroup(metricsGroup)
                         .build();
-        Assert.assertTrue(latencyTrackingStateConfig.isEnabled());
-        Assert.assertEquals(
-                (int) StateBackendOptions.LATENCY_TRACK_SAMPLE_INTERVAL.defaultValue(),
-                latencyTrackingStateConfig.getSampleInterval());
-        Assert.assertEquals(
-                (long) StateBackendOptions.LATENCY_TRACK_HISTORY_SIZE.defaultValue(),
-                latencyTrackingStateConfig.getHistorySize());
-        Assert.assertEquals(
-                StateBackendOptions.LATENCY_TRACK_STATE_NAME_AS_VARIABLE.defaultValue(),
-                latencyTrackingStateConfig.isStateNameAsVariable());
+        assertThat(latencyTrackingStateConfig.isEnabled()).isTrue();
+        assertThat(latencyTrackingStateConfig.getSampleInterval())
+                .isEqualTo((int) StateBackendOptions.LATENCY_TRACK_SAMPLE_INTERVAL.defaultValue());
+        assertThat(latencyTrackingStateConfig.getHistorySize())
+                .isEqualTo((long) StateBackendOptions.LATENCY_TRACK_HISTORY_SIZE.defaultValue());
+        assertThat(latencyTrackingStateConfig.isStateNameAsVariable())
+                .isEqualTo(StateBackendOptions.LATENCY_TRACK_STATE_NAME_AS_VARIABLE.defaultValue());
     }
 
     @Test
-    public void testSetLatencyTrackingStateConfig() {
+    void testSetLatencyTrackingStateConfig() {
         UnregisteredMetricsGroup metricsGroup = new UnregisteredMetricsGroup();
         LatencyTrackingStateConfig latencyTrackingStateConfig =
                 LatencyTrackingStateConfig.newBuilder()
@@ -65,13 +63,13 @@ public class LatencyTrackingStateConfigTest {
                         .setSampleInterval(10)
                         .setHistorySize(500)
                         .build();
-        Assert.assertTrue(latencyTrackingStateConfig.isEnabled());
-        Assert.assertEquals(10, latencyTrackingStateConfig.getSampleInterval());
-        Assert.assertEquals(500L, latencyTrackingStateConfig.getHistorySize());
+        assertThat(latencyTrackingStateConfig.isEnabled()).isTrue();
+        assertThat(latencyTrackingStateConfig.getSampleInterval()).isEqualTo(10);
+        assertThat(latencyTrackingStateConfig.getHistorySize()).isEqualTo(500);
     }
 
     @Test
-    public void testConfigureFromReadableConfig() {
+    void testConfigureFromReadableConfig() {
         LatencyTrackingStateConfig.Builder builder = LatencyTrackingStateConfig.newBuilder();
         Configuration configuration = new Configuration();
         configuration.setBoolean(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
@@ -81,8 +79,8 @@ public class LatencyTrackingStateConfigTest {
                 builder.configure(configuration)
                         .setMetricGroup(new UnregisteredMetricsGroup())
                         .build();
-        Assert.assertTrue(latencyTrackingStateConfig.isEnabled());
-        Assert.assertEquals(10, latencyTrackingStateConfig.getSampleInterval());
-        Assert.assertEquals(500, latencyTrackingStateConfig.getHistorySize());
+        assertThat(latencyTrackingStateConfig.isEnabled()).isTrue();
+        assertThat(latencyTrackingStateConfig.getSampleInterval()).isEqualTo(10);
+        assertThat(latencyTrackingStateConfig.getHistorySize()).isEqualTo(500);
     }
 }

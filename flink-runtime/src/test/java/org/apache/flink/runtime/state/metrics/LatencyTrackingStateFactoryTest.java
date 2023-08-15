@@ -33,23 +33,24 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /** Tests for {@link LatencyTrackingStateFactory}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class LatencyTrackingStateFactoryTest {
 
-    @Parameterized.Parameter public boolean enableLatencyTracking;
+    @Parameter public boolean enableLatencyTracking;
 
     @Parameters(name = "enable latency tracking: {0}")
     public static Collection<Boolean> enabled() {
@@ -64,9 +65,9 @@ public class LatencyTrackingStateFactoryTest {
                 .build();
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public <K, N> void testTrackValueState() throws Exception {
+    <K, N> void testTrackValueState() throws Exception {
         InternalValueState<K, N, String> valueState = mock(InternalValueState.class);
         ValueStateDescriptor<String> valueStateDescriptor =
                 new ValueStateDescriptor<>("value", String.class);
@@ -74,15 +75,15 @@ public class LatencyTrackingStateFactoryTest {
                 LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                         valueState, valueStateDescriptor, getLatencyTrackingStateConfig());
         if (enableLatencyTracking) {
-            Assert.assertTrue(latencyTrackingState instanceof LatencyTrackingValueState);
+            assertThat(latencyTrackingState).isInstanceOf(LatencyTrackingValueState.class);
         } else {
-            Assert.assertEquals(valueState, latencyTrackingState);
+            assertThat(latencyTrackingState).isEqualTo(valueState);
         }
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public <K, N> void testTrackListState() throws Exception {
+    <K, N> void testTrackListState() throws Exception {
         InternalListState<K, N, String> listState = mock(InternalListState.class);
         ListStateDescriptor<String> listStateDescriptor =
                 new ListStateDescriptor<>("list", String.class);
@@ -90,15 +91,15 @@ public class LatencyTrackingStateFactoryTest {
                 LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                         listState, listStateDescriptor, getLatencyTrackingStateConfig());
         if (enableLatencyTracking) {
-            Assert.assertTrue(latencyTrackingState instanceof LatencyTrackingListState);
+            assertThat(latencyTrackingState).isInstanceOf(LatencyTrackingListState.class);
         } else {
-            Assert.assertEquals(listState, latencyTrackingState);
+            assertThat(latencyTrackingState).isEqualTo(listState);
         }
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public <K, N> void testTrackMapState() throws Exception {
+    <K, N> void testTrackMapState() throws Exception {
         InternalMapState<K, N, String, Long> mapState = mock(InternalMapState.class);
         MapStateDescriptor<String, Long> mapStateDescriptor =
                 new MapStateDescriptor<>("map", String.class, Long.class);
@@ -106,15 +107,15 @@ public class LatencyTrackingStateFactoryTest {
                 LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                         mapState, mapStateDescriptor, getLatencyTrackingStateConfig());
         if (enableLatencyTracking) {
-            Assert.assertTrue(latencyTrackingState instanceof LatencyTrackingMapState);
+            assertThat(latencyTrackingState).isInstanceOf(LatencyTrackingMapState.class);
         } else {
-            Assert.assertEquals(mapState, latencyTrackingState);
+            assertThat(latencyTrackingState).isEqualTo(mapState);
         }
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public <K, N> void testTrackReducingState() throws Exception {
+    <K, N> void testTrackReducingState() throws Exception {
         InternalReducingState<K, N, Long> reducingState = mock(InternalReducingState.class);
         ReducingStateDescriptor<Long> reducingStateDescriptor =
                 new ReducingStateDescriptor<>("reducing", Long::sum, Long.class);
@@ -122,15 +123,15 @@ public class LatencyTrackingStateFactoryTest {
                 LatencyTrackingStateFactory.createStateAndWrapWithLatencyTrackingIfEnabled(
                         reducingState, reducingStateDescriptor, getLatencyTrackingStateConfig());
         if (enableLatencyTracking) {
-            Assert.assertTrue(latencyTrackingState instanceof LatencyTrackingReducingState);
+            assertThat(latencyTrackingState).isInstanceOf(LatencyTrackingReducingState.class);
         } else {
-            Assert.assertEquals(reducingState, latencyTrackingState);
+            assertThat(latencyTrackingState).isEqualTo(reducingState);
         }
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
-    public <K, N> void testTrackAggregatingState() throws Exception {
+    <K, N> void testTrackAggregatingState() throws Exception {
         InternalAggregatingState<K, N, Long, Long, Long> aggregatingState =
                 mock(InternalAggregatingState.class);
         AggregatingStateDescriptor<Long, Long, Long> aggregatingStateDescriptor =
@@ -166,9 +167,9 @@ public class LatencyTrackingStateFactoryTest {
                         aggregatingStateDescriptor,
                         getLatencyTrackingStateConfig());
         if (enableLatencyTracking) {
-            Assert.assertTrue(latencyTrackingState instanceof LatencyTrackingAggregatingState);
+            assertThat(latencyTrackingState).isInstanceOf(LatencyTrackingAggregatingState.class);
         } else {
-            Assert.assertEquals(aggregatingState, latencyTrackingState);
+            assertThat(latencyTrackingState).isEqualTo(aggregatingState);
         }
     }
 }
