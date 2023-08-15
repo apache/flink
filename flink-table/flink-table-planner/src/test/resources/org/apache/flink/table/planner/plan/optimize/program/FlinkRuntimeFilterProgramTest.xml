@@ -1013,4 +1013,41 @@ HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[id,
 ]]>
 		</Resource>
 	</TestCase>
+
+	<TestCase name="testDoesNotApplyRuntimeFilterAndDPPOnSameKey">
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], male=[$1], amount=[$2], price=[$3], dim_date_sk=[$4], id0=[$5], name=[$6], amount0=[$7], price0=[$8], fact_date_sk=[$9])
++- LogicalFilter(condition=[AND(=($9, $4), <($3, 500))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+      +- LogicalTableScan(table=[[testCatalog, test_database, fact_part]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, male, amount, price, dim_date_sk, id0, name, amount0, price0, fact_date_sk], build=[left])
+:- Exchange(distribution=[hash[dim_date_sk]])
+:  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
+:     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
++- Exchange(distribution=[hash[fact_date_sk]])
+   +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
+      +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+         +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
+            +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[id, male, amount, price, dim_date_sk, id0, name, amount0, price0, fact_date_sk], build=[left])
+:- Exchange(distribution=[hash[dim_date_sk]])
+:  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[(price < 500)])(reuse_id=[1])
+:     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
++- Exchange(distribution=[hash[fact_date_sk]])
+   +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
+      +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+         +- Reused(reference_id=[1])
+]]>
+		</Resource>
+	</TestCase>
 </Root>

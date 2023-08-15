@@ -21,6 +21,8 @@ package org.apache.flink.table.planner.plan.optimize.program;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.catalog.CatalogPartitionImpl;
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
@@ -33,6 +35,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collections;
+import java.util.HashMap;
 
 /** Test for {@link FlinkRuntimeFilterProgram}. */
 public class FlinkRuntimeFilterProgramTest extends TableTestBase {
@@ -386,6 +389,48 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
                         + " where fact2.fact_date_sk = dim.dim_date_sk"
                         + " and dim.price < 500";
         util.verifyPlan(query);
+    }
+
+    @Test
+    public void testDoesNotApplyRuntimeFilterAndDPPOnSameKey() throws Exception {
+        // runtime filter will not success, because already applied DPP on the key
+        setupTableRowCount("dim", SUITABLE_DIM_ROW_COUNT);
+        createPartitionedFactTable(SUITABLE_FACT_ROW_COUNT);
+        String query =
+                "select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk and dim.price < 500";
+        util.verifyPlan(query);
+    }
+
+    private void createPartitionedFactTable(long rowCount) throws Exception {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE fact_part (\n"
+                                + "  id BIGINT,\n"
+                                + "  name STRING,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT,\n"
+                                + "  fact_date_sk BIGINT\n"
+                                + ") PARTITIONED BY (fact_date_sk)\n"
+                                + "WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'runtime-source' = 'NewSource',\n"
+                                + " 'partition-list' = 'fact_date_sk:1990;fact_date_sk:1991;fact_date_sk:1992',\n"
+                                + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+
+        final CatalogPartitionSpec partSpec =
+                new CatalogPartitionSpec(Collections.singletonMap("fact_date_sk", "666"));
+        catalog.createPartition(
+                new ObjectPath(util.getTableEnv().getCurrentDatabase(), "fact_part"),
+                partSpec,
+                new CatalogPartitionImpl(new HashMap<>(), ""),
+                true);
+        catalog.alterPartitionStatistics(
+                new ObjectPath(util.getTableEnv().getCurrentDatabase(), "fact_part"),
+                partSpec,
+                new CatalogTableStatistics(rowCount, 10, 1000L, 2000L),
+                true);
     }
 
     private void setupSuitableTableStatistics() throws Exception {
