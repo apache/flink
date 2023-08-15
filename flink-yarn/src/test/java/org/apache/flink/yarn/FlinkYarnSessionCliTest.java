@@ -565,7 +565,8 @@ class FlinkYarnSessionCliTest {
         YarnClusterDescriptor flinkYarnDescriptor =
                 (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
-        assertThat(flinkYarnDescriptor.getShipFiles()).isEqualTo(Lists.newArrayList(tmpFile));
+        assertThat(flinkYarnDescriptor.getShipFiles())
+                .isEqualTo(Lists.newArrayList(new org.apache.hadoop.fs.Path(tmpFile.toURI())));
     }
 
     @Test

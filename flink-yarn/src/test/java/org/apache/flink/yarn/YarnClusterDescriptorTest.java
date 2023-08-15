@@ -36,9 +36,11 @@ import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -543,22 +545,59 @@ class YarnClusterDescriptorTest {
                     Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString())
                             .toFile();
 
-            assertThat(descriptor.getShipFiles()).doesNotContain(libFile, libFolder);
+            assertThat(descriptor.getShipFiles())
+                    .doesNotContain(
+                            new Path(libFile.getAbsolutePath()),
+                            new Path(libFolder.getAbsolutePath()));
 
-            List<File> shipFiles = new ArrayList<>();
-            shipFiles.add(libFile);
-            shipFiles.add(libFolder);
+            List<Path> shipFiles = new ArrayList<>();
+            shipFiles.add(new Path(libFile.getAbsolutePath()));
+            shipFiles.add(new Path(libFolder.getAbsolutePath()));
 
             descriptor.addShipFiles(shipFiles);
 
-            assertThat(descriptor.getShipFiles()).contains(libFile, libFolder);
+            assertThat(descriptor.getShipFiles())
+                    .contains(
+                            new Path(libFile.getAbsolutePath()),
+                            new Path(libFolder.getAbsolutePath()));
 
             // only execute part of the deployment to test for shipped files
-            Set<File> effectiveShipFiles = new HashSet<>();
+            Set<Path> effectiveShipFiles = new HashSet<>();
             descriptor.addLibFoldersToShipFiles(effectiveShipFiles);
 
             assertThat(effectiveShipFiles).isEmpty();
-            assertThat(descriptor.getShipFiles()).hasSize(2).contains(libFile, libFolder);
+            assertThat(descriptor.getShipFiles())
+                    .hasSize(2)
+                    .contains(
+                            new Path(libFile.getAbsolutePath()),
+                            new Path(libFolder.getAbsolutePath()));
+
+            String hdfsDir = "hdfs:///flink/hdfs_dir";
+            String hdfsFile = "hdfs:///flink/hdfs_file";
+            final org.apache.hadoop.conf.Configuration hdConf =
+                    new org.apache.hadoop.conf.Configuration();
+            hdConf.set(
+                    MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
+                    temporaryFolder.toAbsolutePath().toString());
+            try (final MiniDFSCluster hdfsCluster = new MiniDFSCluster.Builder(hdConf).build()) {
+                final org.apache.hadoop.fs.Path hdfsRootPath =
+                        new org.apache.hadoop.fs.Path(hdfsCluster.getURI());
+                hdfsCluster.getFileSystem().mkdirs(new org.apache.hadoop.fs.Path(hdfsDir));
+                hdfsCluster.getFileSystem().createNewFile(new org.apache.hadoop.fs.Path(hdfsFile));
+
+                Configuration flinkConfiguration = new Configuration();
+                flinkConfiguration.set(
+                        YarnConfigOptions.SHIP_FILES,
+                        Arrays.asList(
+                                libFile.getAbsolutePath(),
+                                libFolder.getAbsolutePath(),
+                                hdfsDir,
+                                hdfsFile));
+                final YarnConfiguration yarnConfig = new YarnConfiguration();
+                yarnConfig.set(
+                        CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
+                createYarnClusterDescriptor(flinkConfiguration, yarnConfig);
+            }
         }
     }
 
@@ -581,7 +620,7 @@ class YarnClusterDescriptorTest {
             File libFile = new File(libFolder, "libFile.jar");
             assertThat(libFile.createNewFile()).isTrue();
 
-            Set<File> effectiveShipFiles = new HashSet<>();
+            Set<Path> effectiveShipFiles = new HashSet<>();
 
             final Map<String, String> oldEnv = System.getenv();
             try {
@@ -599,8 +638,13 @@ class YarnClusterDescriptorTest {
             }
 
             // only add the ship the folder, not the contents
-            assertThat(effectiveShipFiles).doesNotContain(libFile).contains(libFolder);
-            assertThat(descriptor.getShipFiles()).doesNotContain(libFile, libFolder);
+            assertThat(effectiveShipFiles)
+                    .doesNotContain(new Path(libFile.getAbsolutePath()))
+                    .contains(new Path(libFolder.getAbsolutePath()));
+            assertThat(descriptor.getShipFiles())
+                    .doesNotContain(
+                            new Path(libFile.getAbsolutePath()),
+                            new Path(libFolder.getAbsolutePath()));
         }
     }
 
@@ -612,7 +656,7 @@ class YarnClusterDescriptorTest {
                                     temporaryFolder.toFile().getAbsolutePath(),
                                     "s0m3_p4th_th4t_sh0uld_n0t_3x1sts")
                             .toFile();
-            Set<File> effectiveShipFiles = new HashSet<>();
+            Set<Path> effectiveShipFiles = new HashSet<>();
 
             final Map<String, String> oldEnv = System.getenv();
             try {
@@ -641,7 +685,7 @@ class YarnClusterDescriptorTest {
         assertThatThrownBy(
                         () ->
                                 yarnClusterDescriptor.addShipFiles(
-                                        Collections.singletonList(p.toFile())))
+                                        Collections.singletonList(new Path(p.toString()))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("User-shipped directories configured via :");
     }
@@ -707,6 +751,25 @@ class YarnClusterDescriptorTest {
                 YarnConfigOptions.SHIP_ARCHIVES,
                 Arrays.asList(archive1.getAbsolutePath(), archive2.getAbsolutePath()));
         createYarnClusterDescriptor(flinkConfiguration);
+
+        String archive3 = "hdfs:///flink/archive3.zip";
+        final org.apache.hadoop.conf.Configuration hdConf =
+                new org.apache.hadoop.conf.Configuration();
+        hdConf.set(
+                MiniDFSCluster.HDFS_MINIDFS_BASEDIR, temporaryFolder.toAbsolutePath().toString());
+        try (final MiniDFSCluster hdfsCluster = new MiniDFSCluster.Builder(hdConf).build()) {
+            final org.apache.hadoop.fs.Path hdfsRootPath =
+                    new org.apache.hadoop.fs.Path(hdfsCluster.getURI());
+            hdfsCluster.getFileSystem().createNewFile(new org.apache.hadoop.fs.Path(archive3));
+
+            flinkConfiguration.set(
+                    YarnConfigOptions.SHIP_ARCHIVES,
+                    Arrays.asList(archive1.getAbsolutePath(), archive3));
+            final YarnConfiguration yarnConfig = new YarnConfiguration();
+            yarnConfig.set(
+                    CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
+            createYarnClusterDescriptor(flinkConfiguration, yarnConfig);
+        }
     }
 
     /** Tests that the YarnClient is only shut down if it is not shared. */
@@ -805,6 +868,13 @@ class YarnClusterDescriptorTest {
     }
 
     private YarnClusterDescriptor createYarnClusterDescriptor(Configuration configuration) {
+        YarnTestUtils.configureLogFile(configuration, temporaryFolder.toFile().getAbsolutePath());
+
+        return this.createYarnClusterDescriptor(configuration, yarnConfiguration);
+    }
+
+    private YarnClusterDescriptor createYarnClusterDescriptor(
+            Configuration configuration, YarnConfiguration yarnConfiguration) {
         YarnTestUtils.configureLogFile(configuration, temporaryFolder.toFile().getAbsolutePath());
 
         return YarnClusterDescriptorBuilder.newBuilder(yarnClient, true)
