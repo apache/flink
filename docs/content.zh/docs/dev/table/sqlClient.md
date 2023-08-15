@@ -916,7 +916,7 @@ For more details about stopping jobs, please refer to [Job Statements]({{< ref "
 
 SQL Client can highlight SQL syntax with several color schemes.
 With `sql-client.display.color-schema` it could be set a color scheme.
-Available color schemes: `chester`, `dracula`, `solarized`, `vs2010`, `obsidian`, `geshi`, `default` (no highlighting).
+Available color schemes: `chester`, `dracula`, `solarized`, `vs2010`, `obsidian`, `geshi`, `dark`, `light`, `default` (no highlighting).
 In case of wrong name the fallback is to `default`.
 
 | Color schema \ Style | Keyword      | Default | Comment        | Hint         | Quoted  | SQL Identifier |
@@ -929,5 +929,6 @@ In case of wrong name the fallback is to `default`.
 | `Light`              | Bold red     | Black   | Italic bright  | Bold bright  | Green   | Cyan           |
 | `Obsidian`           | Bold green   | White   | Italic bright  | Bold bright  | Red     | Magenta        |
 | `VS2010`             | Bold blue    | White   | Italic green   | Bold green   | Red     | Magenta        |
+| `Solarized`          | Bold yellow  | Blue    | Italic bright  | Bold bright  | Green   | Red            |
 
 {{< top >}}
