@@ -45,6 +45,6 @@ class ArchivedJsonTest {
 
         assertThat(original).isEqualTo(original);
         assertThat(twin).isEqualTo(original);
-        assertThat(twin.hashCode()).isEqualTo(original.hashCode());
+        assertThat(twin).hasSameHashCodeAs(original);
     }
 }

@@ -99,7 +99,7 @@ class HistoryServerUtilsTest {
     void testGetHistoryServerURLWithoutHS() {
         final Configuration configuration = new Configuration();
 
-        assertThat(HistoryServerUtils.getHistoryServerURL(configuration).isPresent()).isFalse();
+        assertThat(HistoryServerUtils.getHistoryServerURL(configuration)).isNotPresent();
     }
 
     @Nonnull

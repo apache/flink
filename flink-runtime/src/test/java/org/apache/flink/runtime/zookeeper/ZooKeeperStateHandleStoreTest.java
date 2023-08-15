@@ -106,7 +106,7 @@ class ZooKeeperStateHandleStoreTest {
 
         // Verify
         // State handle created
-        assertThat(store.getAllAndLock().size()).isOne();
+        assertThat(store.getAllAndLock()).hasSize(1);
         assertThat(store.getAndLock(pathInZooKeeper).retrieveState().getValue()).isEqualTo(state);
 
         // Path created and is persistent
@@ -710,6 +710,7 @@ class ZooKeeperStateHandleStoreTest {
                                         IntegerResourceVersion.valueOf(0),
                                         new TestingLongStateHandleHelper.LongStateHandle(
                                                 replaceState)))
+                .as("Did not throw expected exception")
                 .isInstanceOf(expectedExceptionClass);
 
         // State handle created and discarded
@@ -943,7 +944,7 @@ class ZooKeeperStateHandleStoreTest {
 
         List<Tuple2<RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>, String>>
                 actual = store.getAllAndLock();
-        assertThat(actual.size()).isEqualTo(expected.length);
+        assertThat(actual).hasSize(expected.length);
 
         // bring the elements in sort order
         Arrays.sort(expected);
@@ -1103,7 +1104,7 @@ class ZooKeeperStateHandleStoreTest {
         Collection<String> children = getZooKeeperClient().getChildren().forPath(path);
 
         // there should be exactly one lock node from zkStore1
-        assertThat(children.size()).isOne();
+        assertThat(children).hasSize(1);
 
         zkStore1.releaseAndTryRemove(path);
 
