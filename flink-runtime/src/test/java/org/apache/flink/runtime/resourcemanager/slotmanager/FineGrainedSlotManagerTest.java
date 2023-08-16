@@ -1019,7 +1019,7 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                 runTest(
                         () -> {
                             // assign allocations to pending task managers
-                            runInMainThreadAndWait(
+                            runInMainThread(
                                     () ->
                                             getSlotManager()
                                                     .processResourceRequirements(
@@ -1037,11 +1037,17 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
 
                             // disconnect to job master,will trigger
                             // PendingTaskManager#clearPendingAllocationsOfJob again
-                            CompletableFuture<Void> clearFuture =
-                                    runInMainThreadAndReturn(
-                                            () ->
-                                                    getSlotManager()
-                                                            .clearResourceRequirements(jobId));
+                            CompletableFuture<Void> clearFuture = new CompletableFuture<>();
+                            runInMainThread(
+                                    () -> {
+                                        try {
+                                            getSlotManager().clearResourceRequirements(jobId);
+                                        } catch (Exception e) {
+                                            clearFuture.completeExceptionally(e);
+                                        }
+                                        clearFuture.complete(null);
+                                    });
+
                             assertFutureCompleteAndReturn(clearFuture);
                         });
             }
