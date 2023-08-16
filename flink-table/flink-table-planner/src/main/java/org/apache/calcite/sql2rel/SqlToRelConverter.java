@@ -17,8 +17,11 @@
 package org.apache.calcite.sql2rel;
 
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
@@ -124,6 +127,7 @@ import org.apache.calcite.sql.SqlDynamicParam;
 import org.apache.calcite.sql.SqlExplainFormat;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlHint;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlIntervalQualifier;
@@ -776,6 +780,14 @@ public class SqlToRelConverter {
         convertOrder(select, bb, collation, orderExprList, select.getOffset(), select.getFetch());
 
         if (select.hasHints()) {
+            FlinkContext context = ShortcutUtils.unwrapContext(cluster);
+            if (context.getTableConfig().get(TableConfigOptions.TABLE_QUERY_HINTS_IGNORE)) {
+                throw new ValidationException(
+                        String.format(
+                                "The '%s' hint is allowed only when the config option '%s' is set to true.",
+                                ((SqlHint) select.getHints().get(0)).getName(),
+                                TableConfigOptions.TABLE_QUERY_HINTS_IGNORE.key()));
+            }
             final List<RelHint> hints = SqlUtil.getRelHint(hintStrategies, select.getHints());
             // Attach the hints to the first Hintable node we found from the root node.
             bb.setRoot(

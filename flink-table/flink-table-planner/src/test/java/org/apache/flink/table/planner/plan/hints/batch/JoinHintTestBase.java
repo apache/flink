@@ -24,6 +24,7 @@ import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
@@ -228,6 +229,21 @@ public abstract class JoinHintTestBase extends TableTestBase {
                                 "The options of following hints cannot match the name of input tables or views: \n`%s` in `%s`",
                                 "T98, T99", getTestSingleJoinHint()));
         String sql = "select /*+ %s(T1, T99, T98) */* from T1 join T2 on T1.a1 = T2.a2";
+
+        verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
+    }
+
+    @Test
+    public void testJoinHintWithConfigQueryHintsIgnore() {
+        util.tableEnv().getConfig().set(TableConfigOptions.TABLE_QUERY_HINTS_IGNORE, true);
+
+        thrown().expect(ValidationException.class);
+        thrown().expectMessage(
+                        String.format(
+                                "The '%s' hint is allowed only when the config option '%s' is set to true.",
+                                getTestSingleJoinHint(),
+                                TableConfigOptions.TABLE_QUERY_HINTS_IGNORE.key()));
+        String sql = "select /*+ %s(T1) */* from T1 join T2 on T1.a1 = T2.a2";
 
         verifyRelPlanByCustom(String.format(sql, getTestSingleJoinHint()));
     }

@@ -92,6 +92,15 @@ public class TableConfigOptions {
                                     + "if any OPTIONS hint is specified");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_QUERY_HINTS_IGNORE =
+            key("table.optimizer.ignore-query-hints")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Enable or disable the QUERY hint used, if enabled, an exception "
+                                    + "would be thrown if any QUERY hints are specified");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<String> TABLE_SQL_DIALECT =
             key("table.sql-dialect")
                     .stringType()
