@@ -135,7 +135,7 @@ class RecordWriterDelegateTest {
     private void verifyAvailability(RecordWriterDelegate writerDelegate) throws Exception {
         // writer is available at the beginning
         assertThat(writerDelegate.isAvailable()).isTrue();
-        assertThat(writerDelegate.getAvailableFuture().isDone()).isTrue();
+        assertThat(writerDelegate.getAvailableFuture()).isDone();
 
         // request one buffer from the local pool to make it unavailable
         RecordWriter recordWriter = writerDelegate.getRecordWriter(0);
@@ -144,7 +144,7 @@ class RecordWriterDelegateTest {
         }
         assertThat(writerDelegate.isAvailable()).isFalse();
         CompletableFuture future = writerDelegate.getAvailableFuture();
-        assertThat(future.isDone()).isFalse();
+        assertThat(future).isNotDone();
 
         // recycle the buffer to make the local pool available again
         ResultSubpartitionView readView =
@@ -154,9 +154,9 @@ class RecordWriterDelegateTest {
         Buffer buffer = readView.getNextBuffer().buffer();
 
         buffer.recycleBuffer();
-        assertThat(future.isDone()).isTrue();
+        assertThat(future).isDone();
         assertThat(writerDelegate.isAvailable()).isTrue();
-        assertThat(writerDelegate.getAvailableFuture().isDone()).isTrue();
+        assertThat(writerDelegate.getAvailableFuture()).isDone();
     }
 
     private void verifyBroadcastEvent(

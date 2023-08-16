@@ -32,7 +32,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -137,11 +136,11 @@ public abstract class BoundedDataTestBase {
     @TestTemplate
     public void testDeleteFileOnClose() throws Exception {
         final BoundedData bd = createBoundedData(subpartitionDataPath);
-        assertThat(Files.exists(subpartitionDataPath)).isTrue();
+        assertThat(subpartitionDataPath).exists();
 
         bd.close();
 
-        assertThat(Files.exists(subpartitionDataPath)).isFalse();
+        assertThat(subpartitionDataPath).doesNotExist();
     }
 
     @TestTemplate

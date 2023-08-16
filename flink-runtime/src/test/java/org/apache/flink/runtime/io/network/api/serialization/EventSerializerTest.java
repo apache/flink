@@ -124,8 +124,7 @@ class EventSerializerTest {
             AbstractEvent deserialized =
                     EventSerializer.fromSerializedEvent(
                             serializedEvent, getClass().getClassLoader());
-            assertThat(deserialized).isNotNull();
-            assertThat(deserialized).isEqualTo(evt);
+            assertThat(deserialized).isNotNull().isEqualTo(evt);
         }
     }
 

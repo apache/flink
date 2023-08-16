@@ -44,12 +44,12 @@ abstract class InputGateTestBase {
             TestInputChannel inputChannelWithNewData)
             throws Exception {
 
-        assertThat(inputGateToTest.getAvailableFuture().isDone()).isFalse();
+        assertThat(inputGateToTest.getAvailableFuture()).isNotDone();
         assertThat(inputGateToTest.pollNext()).isEmpty();
 
         CompletableFuture<?> future = inputGateToTest.getAvailableFuture();
 
-        assertThat(inputGateToTest.getAvailableFuture().isDone()).isFalse();
+        assertThat(inputGateToTest.getAvailableFuture()).isNotDone();
         assertThat(inputGateToTest.pollNext()).isEmpty();
 
         assertThat(inputGateToTest.getAvailableFuture()).isEqualTo(future);
@@ -57,8 +57,8 @@ abstract class InputGateTestBase {
         inputChannelWithNewData.readBuffer();
         inputGateToNotify.notifyChannelNonEmpty(inputChannelWithNewData);
 
-        assertThat(future.isDone()).isTrue();
-        assertThat(inputGateToTest.getAvailableFuture().isDone()).isTrue();
+        assertThat(future).isDone();
+        assertThat(inputGateToTest.getAvailableFuture()).isDone();
         assertThat(inputGateToTest.getAvailableFuture()).isEqualTo(PullingAsyncDataInput.AVAILABLE);
     }
 
@@ -66,15 +66,15 @@ abstract class InputGateTestBase {
             InputGate inputGateToTest, Runnable endOfPartitionEvent) throws Exception {
 
         CompletableFuture<?> available = inputGateToTest.getAvailableFuture();
-        assertThat(available.isDone()).isFalse();
+        assertThat(available).isNotDone();
         assertThat(inputGateToTest.pollNext()).isEmpty();
 
         endOfPartitionEvent.run();
 
         assertThat(inputGateToTest.pollNext()).isNotEmpty(); // EndOfPartitionEvent
 
-        assertThat(available.isDone()).isTrue();
-        assertThat(inputGateToTest.getAvailableFuture().isDone()).isTrue();
+        assertThat(available).isDone();
+        assertThat(inputGateToTest.getAvailableFuture()).isDone();
         assertThat(inputGateToTest.getAvailableFuture()).isEqualTo(PullingAsyncDataInput.AVAILABLE);
     }
 

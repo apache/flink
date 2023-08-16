@@ -308,8 +308,8 @@ class AsynchronousFileIOChannelTest {
 
                 writer.close();
 
-                assertThat(callbackCounter.get()).isEqualTo(NUM_BLOCKS);
-                assertThat(exceptionOccurred.get()).isFalse();
+                assertThat(callbackCounter).hasValue(NUM_BLOCKS);
+                assertThat(exceptionOccurred).isFalse();
             } finally {
                 writer.closeAndDelete();
             }

@@ -153,7 +153,7 @@ class ResourceManagerPartitionTrackerImplTest {
         // ack the partition release
         reportEmpty(tracker, TASK_EXECUTOR_ID_1, TASK_EXECUTOR_ID_2);
 
-        assertThat(partitionReleaseFuture.isDone()).isTrue();
+        assertThat(partitionReleaseFuture).isDone();
         assertThat(tracker.areAllMapsEmpty()).isTrue();
     }
 

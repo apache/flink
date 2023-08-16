@@ -64,7 +64,7 @@ class FileChannelStreamsTest {
 
             // delete, make sure file is removed
             out.closeAndDelete();
-            assertThat(new File(channel.getPath()).exists()).isFalse();
+            assertThat(new File(channel.getPath())).doesNotExist();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -100,7 +100,7 @@ class FileChannelStreamsTest {
 
             // delete, make sure file is removed
             in.closeAndDelete();
-            assertThat(new File(channel.getPath()).exists()).isFalse();
+            assertThat(new File(channel.getPath())).doesNotExist();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

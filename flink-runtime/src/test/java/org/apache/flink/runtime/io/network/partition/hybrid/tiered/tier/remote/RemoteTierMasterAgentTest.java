@@ -43,15 +43,15 @@ class RemoteTierMasterAgentTest {
                 TieredStorageIdMappingUtils.convertId(new ResultPartitionID());
         File partitionFile = new File(getPartitionPath(partitionId, tempFolder.getAbsolutePath()));
         assertThat(partitionFile.createNewFile()).isTrue();
-        assertThat(partitionFile.exists()).isTrue();
+        assertThat(partitionFile).exists();
 
         TieredStorageResourceRegistry resourceRegistry = new TieredStorageResourceRegistry();
         RemoteTierMasterAgent masterAgent =
                 new RemoteTierMasterAgent(tempFolder.getAbsolutePath(), resourceRegistry);
         masterAgent.addPartition(partitionId);
-        assertThat(partitionFile.exists()).isTrue();
+        assertThat(partitionFile).exists();
         masterAgent.releasePartition(partitionId);
 
-        assertThat(partitionFile.exists()).isFalse();
+        assertThat(partitionFile).doesNotExist();
     }
 }

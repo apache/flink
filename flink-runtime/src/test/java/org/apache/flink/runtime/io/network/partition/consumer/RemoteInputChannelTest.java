@@ -154,7 +154,7 @@ class RemoteInputChannelTest {
             inputGate.pollNext(); // process announcement to allow the gate remember the SQN
 
             channel.convertToPriorityEvent(sequenceNumber);
-            assertThat(inputGate.getPriorityEventAvailableFuture().isDone()).isTrue();
+            assertThat(inputGate.getPriorityEventAvailableFuture()).isDone();
 
         } finally {
             networkBufferPool.destroy();

@@ -196,9 +196,9 @@ class ProducerMergedPartitionFileReaderTest {
 
     @Test
     void testRelease() {
-        assertThat(testFilePath.toFile().exists()).isTrue();
+        assertThat(testFilePath.toFile()).exists();
         partitionFileReader.release();
-        assertThat(testFilePath.toFile().exists()).isFalse();
+        assertThat(testFilePath.toFile()).doesNotExist();
     }
 
     private List<Buffer> readBuffer(int bufferIndex, TieredStorageSubpartitionId subpartitionId)

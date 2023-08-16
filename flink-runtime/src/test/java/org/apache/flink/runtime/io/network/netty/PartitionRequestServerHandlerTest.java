@@ -126,12 +126,12 @@ class PartitionRequestServerHandlerTest {
         resultPartition.notifyEndOfData(StopMode.DRAIN);
         CompletableFuture<Void> allRecordsProcessedFuture =
                 resultPartition.getAllDataProcessedFuture();
-        assertThat(allRecordsProcessedFuture.isDone()).isFalse();
+        assertThat(allRecordsProcessedFuture).isNotDone();
         channel.writeInbound(new NettyMessage.AckAllUserRecordsProcessed(inputChannelID));
         channel.runPendingTasks();
 
-        assertThat(allRecordsProcessedFuture.isDone()).isTrue();
-        assertThat(allRecordsProcessedFuture.isCompletedExceptionally()).isFalse();
+        assertThat(allRecordsProcessedFuture).isDone();
+        assertThat(allRecordsProcessedFuture).isNotCompletedExceptionally();
     }
 
     @Test

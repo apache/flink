@@ -54,9 +54,9 @@ class IOManagerTest {
 
                 File path = id.getPathFile();
 
-                assertThat(path.isAbsolute())
+                assertThat(path)
                         .withFailMessage("Channel IDs must name an absolute path.")
-                        .isTrue();
+                        .isAbsolute();
                 assertThat(path.isDirectory())
                         .withFailMessage("Channel IDs must name a file, not a directory.")
                         .isFalse();

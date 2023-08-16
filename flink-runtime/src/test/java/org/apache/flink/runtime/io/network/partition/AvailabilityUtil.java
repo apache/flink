@@ -40,7 +40,7 @@ public class AvailabilityUtil {
         runnable.run();
         assertThat(futureSupplier.get().isDone()).isEqualTo(after);
         if (after) {
-            assertThat(availableFuture.isDone()).isTrue();
+            assertThat(availableFuture).isDone();
         }
     }
 

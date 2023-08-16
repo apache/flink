@@ -220,7 +220,7 @@ class IOManagerITCase {
         // check that files are deleted
         for (int i = 0; i < NUM_CHANNELS; i++) {
             File f = new File(ids[i].getPath());
-            assertThat(f.exists()).withFailMessage("Channel file has not been deleted.").isFalse();
+            assertThat(f).withFailMessage("Channel file has not been deleted.").doesNotExist();
         }
     }
 

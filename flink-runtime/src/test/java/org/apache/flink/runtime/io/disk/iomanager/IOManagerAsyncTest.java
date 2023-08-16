@@ -199,7 +199,7 @@ class IOManagerAsyncTest {
                 }
             }
 
-            assertThat(exceptionForwarded.get()).isTrue();
+            assertThat(exceptionForwarded).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -246,7 +246,7 @@ class IOManagerAsyncTest {
                 }
             }
 
-            assertThat(exceptionForwarded.get()).isTrue();
+            assertThat(exceptionForwarded).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

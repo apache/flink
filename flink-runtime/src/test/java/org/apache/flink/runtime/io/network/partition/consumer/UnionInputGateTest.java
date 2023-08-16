@@ -203,11 +203,11 @@ class UnionInputGateTest extends InputGateTestBase {
         UnionInputGate inputGate = new UnionInputGate(inputGate1, inputGate2);
 
         inputChannel1.read(BufferBuilderTestUtils.buildSomeBuffer(1));
-        assertThat(inputGate.getAvailableFuture().isDone()).isTrue();
+        assertThat(inputGate.getAvailableFuture()).isDone();
         inputChannel1.read(BufferBuilderTestUtils.buildSomeBuffer(2));
-        assertThat(inputGate.getAvailableFuture().isDone()).isTrue();
+        assertThat(inputGate.getAvailableFuture()).isDone();
         assertThat(inputGate.getNext().get().getBuffer().getSize()).isOne();
-        assertThat(inputGate.getAvailableFuture().isDone()).isTrue();
+        assertThat(inputGate.getAvailableFuture()).isDone();
     }
 
     @Test
@@ -288,8 +288,8 @@ class UnionInputGateTest extends InputGateTestBase {
         UnionInputGate inputGate = new UnionInputGate(inputGate1, inputGate2);
 
         inputChannel1.notifyChannelNonEmpty();
-        assertThat(inputGate.getAvailableFuture().isDone()).isTrue();
+        assertThat(inputGate.getAvailableFuture()).isDone();
         assertThat(inputGate.pollNext()).isEmpty();
-        assertThat(inputGate.getAvailableFuture().isDone()).isFalse();
+        assertThat(inputGate.getAvailableFuture()).isNotDone();
     }
 }
