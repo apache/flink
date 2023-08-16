@@ -114,7 +114,7 @@ class GenerateSequenceProcedure extends Procedure {
   }
 
   @varargs // 类似 Java 的变长参数
-  def eval(context: ProcedureContext, d: Double*): Array[Integer] = {
+  def call(context: ProcedureContext, d: Double*): Array[Integer] = {
     Array(d.sum.toInt)
   }
 }
@@ -326,7 +326,7 @@ class OverloadedProcedure extends Procedure {
 
   // 一个 call 方法的实现，确保 call 方法存在于存储过程类中，可以被 JVM 调用
   @varargs
-  def eval(context: ProcedureContext, o: AnyRef*): Array[AnyRef]= {
+  def call(context: ProcedureContext, o: AnyRef*): Array[AnyRef]= {
     if (o.length == 0) {
       Array(Boolean.box(false))
     }

@@ -27,12 +27,12 @@ under the License.
 
 # Procedures
 
-Flink Table API & SQL empowers users to perform data manipulation or administrative tasks with procedures. Procedures can run FLINK jobs with `StreamExecutionEnvironment` provided, which make procedures more powerful and flexible.
+Flink Table API & SQL empowers users to perform data manipulation and administrative tasks with procedures. Procedures can run FLINK jobs with the provided `StreamExecutionEnvironment`, making them more powerful and flexible.
 
 ## Implementation Guide
 
-To call a procedure, the procedure should be provided by a catalog. To provide procedures in a catalog, you must implement a procedure and then return the procedure
-in method `Catalog.getProcedure(ObjectPath procedurePath)`. The following steps will guild how to implement a procedure and provide it in a catalog.
+To call a procedure, it must be available in a catalog. To provide procedures in a catalog, you need to implement the procedure and then return it using the `Catalog.getProcedure(ObjectPath procedurePath)` method.
+The following steps will guild you on how to implement and provide a procedure in a catalog.
 
 ### Procedure Class
 
@@ -47,7 +47,7 @@ The methods must be declared `public` and take a well-defined set of arguments.
 
 Please note:
 
-* The first parameter of the method `call` should always be `ProcedureContext` which provides the method `getExecutionEnvironment` to get a `StreamExecutionEnvironment` to enable to run a Flink Job
+* The first parameter of the method `call` should always be `ProcedureContext` which provides the method `getExecutionEnvironment` to get a `StreamExecutionEnvironment` for running a Flink Job
 * The return type should always be an array, like `int[]`, `String[]`, etc
 
 More detail can be found in the Java doc of the class `org.apache.flink.table.procedures.Procedure`.
@@ -115,7 +115,7 @@ class GenerateSequenceProcedure extends Procedure {
   }
 
   @varargs // generate var-args like Java
-  def eval(context: ProcedureContext, d: Double*): Array[Integer] = {
+  def call(context: ProcedureContext, d: Double*): Array[Integer] = {
     Array(d.sum.toInt)
   }
 }
@@ -133,13 +133,13 @@ The logic for validating input arguments and deriving data types for both the pa
 
 Flink's procedures implement an automatic type inference extraction that derives data types from the procedure's class and its `call` methods via reflection. If this implicit reflective extraction approach is not successful, the extraction process can be supported by annotating affected parameters, classes, or methods with `@DataTypeHint` and `@ProcedureHint`. More examples on how to annotate procedures are shown below.
 
-Note: although the return type in `call` method must be array type `T[]`, if use `@DataTypeHint` to annotate the return type , it's actually expected to annotate the component type of the array type, which is actually `T`.
+Note: although the return type in `call` method must be array type `T[]`, if use `@DataTypeHint` to annotate the return type, it's actually expected to annotate the component type of the array type, which is actually `T`.
 
 #### Automatic Type Inference
 
 The automatic type inference inspects the procedure's class and `call` methods to derive data types for the arguments and result of a procedure. `@DataTypeHint` and `@ProcedureHint` annotations support the automatic extraction.
 
-For a full list of classes that can be implicitly mapped to a data type, see the [data type extraction section]({{< ref "docs/dev/table/types" >}}#data-type-extraction).
+For a full list of classes that can be implicitly mapped to a data type, please refer to the [data type extraction section]({{< ref "docs/dev/table/types" >}}#data-type-extraction).
 
 **`@DataTypeHint`**
 
@@ -308,7 +308,7 @@ class OverloadedFunction extends Procedure {
   }
 }
 
-// decouples the type inference from evaluation methods,
+// decouples the type inference from call methods,
 // the type inference is entirely determined by the function hints
 @ProcedureHint(
   input = Array(new DataTypeHint("INT"), new DataTypeHint("INT")),
@@ -327,7 +327,7 @@ class OverloadedProcedure extends Procedure {
   // an implementer just needs to make sure that a method exists
   // that can be called by the JVM
   @varargs
-  def eval(context: ProcedureContext, o: AnyRef*): Array[AnyRef]= {
+  def call(context: ProcedureContext, o: AnyRef*): Array[AnyRef]= {
     if (o.length == 0) {
       Array(Boolean.box(false))
     }
@@ -341,7 +341,7 @@ class OverloadedProcedure extends Procedure {
 
 
 ### Return Procedure in Catalog
-After implement a procedure, the catalog can then return the procedure in method `Catalog.getProcedure(ObjectPath procedurePath)`. The following example shows how to return it in a catalog.
+After implementing a procedure, the catalog can then return the procedure in method `Catalog.getProcedure(ObjectPath procedurePath)`. The following example shows how to return it in a catalog.
 Also, it's expected to list all the procedures in method `Catalog.listProcedures(String dbName)`.
 
 {{< tabs "2e7d4b78-3052-11ee-be56-0242ac120002" >}}
