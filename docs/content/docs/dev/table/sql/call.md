@@ -37,29 +37,29 @@ If it doesn't exist, it'll throw an exception. You may need to refer to the doc 
 
 {{< tab "Java" >}}
 
-CALL statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` will call the procedure immediately, and return a `TableResult` instance which associates the procedure.
+CALL statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` will immediately call the procedure, and return a `TableResult` instance which associates the procedure.
 
-The following examples show how to run a CALL statement in `TableEnvironment`.
+The following examples show how to execute a CALL statement in `TableEnvironment`.
 
 {{< /tab >}}
 {{< tab "Scala" >}}
 
-CALL statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` will call the procedure immediately, and return a `TableResult` instance which associates the procedure.
+CALL statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` will immediately call the procedure, and return a `TableResult` instance which associates the procedure.
 
-The following examples show how to run a single CALL statement in `TableEnvironment`.
+The following examples show how to execute a single CALL statement in `TableEnvironment`.
 {{< /tab >}}
 {{< tab "Python" >}}
 
-CALL statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `executeSql()` will call the procedure immediately, and return a `TableResult` instance which associates the procedure.
+CALL statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `executeSql()` will immediately call the procedure, and return a `TableResult` instance which associates the procedure.
 
-The following examples show how to run a single CALL statement in `TableEnvironment`.
+The following examples show how to execute a single CALL statement in `TableEnvironment`.
 
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
 CALL statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
 
-The following examples show how to run a CALL statement in SQL CLI.
+The following examples show how to execute a CALL statement in SQL CLI.
 
 {{< /tab >}}
 {{< /tabs >}}
