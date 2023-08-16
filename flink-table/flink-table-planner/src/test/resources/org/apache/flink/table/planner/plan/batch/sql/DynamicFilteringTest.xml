@@ -145,10 +145,7 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
    :           +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
    +- Exchange(distribution=[hash[b10]])
       +- Calc(select=[a1, b1, c1, p1, CAST(b1 AS BIGINT) AS b10])
-         +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
-            +- DynamicFilteringDataCollector(fields=[p])
-               +- Calc(select=[x, y, z, p], where=[>(x, 10)])
-                  +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+         +- TableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
 
 == Optimized Execution Plan ==
 Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
@@ -156,7 +153,7 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
    :- Exchange(distribution=[hash[y]])
    :  +- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])
    :     :- Exchange(distribution=[hash[p1]])
-   :     :  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])(reuse_id=[2])
+   :     :  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
    :     :     +- DynamicFilteringDataCollector(fields=[p])
    :     :        +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
    :     :           +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
@@ -164,7 +161,7 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
    :        +- Reused(reference_id=[1])
    +- Exchange(distribution=[hash[b10]])
       +- Calc(select=[a1, b1, c1, p1, CAST(b1 AS BIGINT) AS b10])
-         +- Reused(reference_id=[2])
+         +- TableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
 
 == Physical Execution Plan ==
 {
@@ -232,6 +229,12 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
       "ship_strategy" : "HASH[p1]",
       "side" : "second"
     } ]
+  }, {
+    "id" : ,
+    "type" : "Source: fact1[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])",
+    "parallelism" : 10
   }, {
     "id" : ,
     "type" : "Calc[]",
@@ -302,10 +305,7 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
    :           +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
    +- Exchange(distribution=[hash[b10]])
       +- Calc(select=[a1, b1, c1, p1, CAST(b1 AS BIGINT) AS b10])
-         +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
-            +- DynamicFilteringDataCollector(fields=[p])
-               +- Calc(select=[x, y, z, p], where=[>(x, 10)])
-                  +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+         +- TableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
 
 == Optimized Execution Plan ==
 Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
@@ -313,16 +313,16 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
    :- Exchange(distribution=[hash[y]])
    :  +- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])
    :     :- Exchange(distribution=[hash[p1]])
-   :     :  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])(reuse_id=[2])
+   :     :  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
    :     :     +- Exchange(distribution=[any], shuffle_mode=[BATCH])
    :     :        +- DynamicFilteringDataCollector(fields=[p])
    :     :           +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
    :     :              +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
    :     +- Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])
    :        +- Reused(reference_id=[1])
-   +- Exchange(distribution=[hash[b10]], shuffle_mode=[BATCH])
+   +- Exchange(distribution=[hash[b10]])
       +- Calc(select=[a1, b1, c1, p1, CAST(b1 AS BIGINT) AS b10])
-         +- Reused(reference_id=[2])
+         +- TableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
 
 == Physical Execution Plan ==
 {
@@ -390,6 +390,12 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
       "ship_strategy" : "HASH[p1]",
       "side" : "second"
     } ]
+  }, {
+    "id" : ,
+    "type" : "Source: fact1[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])",
+    "parallelism" : 10
   }, {
     "id" : ,
     "type" : "Calc[]",

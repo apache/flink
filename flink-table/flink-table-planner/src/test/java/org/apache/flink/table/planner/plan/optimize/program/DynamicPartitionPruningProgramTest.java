@@ -76,6 +76,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                                 + "  dim_date_sk BIGINT\n"
                                 + ") WITH (\n"
                                 + " 'connector' = 'values',\n"
+                                + " 'runtime-source' = 'NewSource',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
     }
@@ -657,5 +658,45 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                         + " and dim.id = item.id "
                         + " and dim.price < 500 and dim.price > 300";
         util.verifyRelPlan(query);
+    }
+
+    @Test
+    public void testDppFactSideCannotReuseWithSameCommonSource() {
+        String query =
+                "SELECT * FROM(\n"
+                        + " Select fact_part.id, fact_part.price, fact_part.amount from fact_part join (Select * from dim) t1"
+                        + " on fact_part.fact_date_sk = dim_date_sk where t1.price < 500\n"
+                        + " UNION ALL Select fact_part.id, fact_part.price, fact_part.amount from fact_part)";
+        util.verifyExecPlan(query);
+    }
+
+    @Test
+    public void testDimSideReuseAfterProjectionPushdown() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE fact_part2 (\n"
+                                + "  id BIGINT,\n"
+                                + "  name STRING,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT,\n"
+                                + "  fact_date_sk BIGINT\n"
+                                + ") PARTITIONED BY (fact_date_sk)\n"
+                                + "WITH (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'runtime-source' = 'NewSource',\n"
+                                + " 'partition-list' = 'fact_date_sk:1990;fact_date_sk:1991;fact_date_sk:1992',\n"
+                                + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+
+        String query =
+                "SELECT /*+ BROADCAST(dim) */ fact3.* FROM\n"
+                        + "(SELECT /*+ BROADCAST(dim) */ fact.id, fact.price, fact.amount FROM (\n"
+                        + " SELECT id, price, amount, fact_date_sk FROM fact_part "
+                        + " UNION ALL SELECT id, price, amount, fact_date_sk FROM fact_part2) fact, dim\n"
+                        + " WHERE fact_date_sk = dim_date_sk"
+                        + " and dim.price < 500 and dim.price > 300)\n fact3 JOIN dim"
+                        + " ON fact3.amount = dim.id AND dim.amount < 10";
+        util.verifyExecPlan(query);
     }
 }
