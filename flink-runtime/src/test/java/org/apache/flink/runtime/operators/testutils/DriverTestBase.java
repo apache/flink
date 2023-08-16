@@ -41,15 +41,14 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -57,9 +56,10 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
-@RunWith(Parameterized.class)
-public abstract class DriverTestBase<S extends Function> extends TestLogger
-        implements TaskContext<S, Record> {
+import static org.assertj.core.api.Assertions.assertThat;
+
+@ExtendWith(ParameterizedTestExtension.class)
+public abstract class DriverTestBase<S extends Function> implements TaskContext<S, Record> {
 
     protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
 
@@ -127,7 +127,7 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
         this.taskManageInfo = new TestingTaskManagerRuntimeInfo();
     }
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<Object[]> getConfigurations() {
 
         LinkedList<Object[]> configs = new LinkedList<Object[]>();
@@ -395,8 +395,8 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
 
     // --------------------------------------------------------------------------------------------
 
-    @After
-    public void shutdownAll() throws Exception {
+    @AfterEach
+    void shutdownAll() throws Exception {
         // 1st, shutdown sorters
         for (Sorter<?> sorter : this.sorters) {
             if (sorter != null) {
@@ -411,9 +411,9 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
         // last, verify all memory is returned and shutdown mem manager
         MemoryManager memMan = getMemoryManager();
         if (memMan != null) {
-            Assert.assertTrue(
-                    "Memory Manager managed memory was not completely freed.",
-                    memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty())
+                    .withFailMessage("Memory Manager managed memory was not completely freed.")
+                    .isTrue();
             memMan.shutdown();
         }
     }

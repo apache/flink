@@ -41,14 +41,13 @@ import org.apache.flink.runtime.operators.sort.Sorter;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -56,8 +55,10 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
-@RunWith(Parameterized.class)
-public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogger
+import static org.assertj.core.api.Assertions.assertThat;
+
+@ExtendWith(ParameterizedTestExtension.class)
+public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT>
         implements TaskContext<S, OUT> {
 
     protected static final int PAGE_SIZE = 32 * 1024;
@@ -122,7 +123,7 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT> extend
         this.taskManageInfo = new TestingTaskManagerRuntimeInfo();
     }
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<Object[]> getConfigurations() throws IOException {
         LinkedList<Object[]> configs = new LinkedList<>();
 
@@ -388,8 +389,8 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT> extend
 
     // --------------------------------------------------------------------------------------------
 
-    @After
-    public void shutdownAll() throws Exception {
+    @AfterEach
+    void shutdownAll() throws Exception {
         // 1st, shutdown sorters
         for (Sorter<?> sorter : this.sorters) {
             if (sorter != null) {
@@ -404,9 +405,9 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT> extend
         // last, verify all memory is returned and shutdown mem manager
         MemoryManager memMan = getMemoryManager();
         if (memMan != null) {
-            Assert.assertTrue(
-                    "Memory Manager managed memory was not completely freed.",
-                    memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty())
+                    .withFailMessage("Memory Manager managed memory was not completely freed.")
+                    .isTrue();
             memMan.shutdown();
         }
     }

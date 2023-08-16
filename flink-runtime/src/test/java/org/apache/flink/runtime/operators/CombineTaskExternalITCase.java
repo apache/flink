@@ -31,11 +31,13 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Record, ?>> {
 
@@ -56,8 +58,8 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
         combine_frac = (double) COMBINE_MEM / this.getMemoryManager().getMemorySize();
     }
 
-    @Test
-    public void testSingleLevelMergeCombineTask() {
+    @TestTemplate
+    void testSingleLevelMergeCombineTask() {
         final int keyCnt = 40000;
         final int valCnt = 8;
 
@@ -76,7 +78,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
             testDriver(testTask, MockCombiningReduceStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Invoke method caused exception.");
+            fail("Invoke method caused exception.");
         }
 
         int expSum = 0;
@@ -100,19 +102,19 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
             }
         }
 
-        Assert.assertTrue(
-                "Resultset size was " + aggMap.size() + ". Expected was " + keyCnt,
-                aggMap.size() == keyCnt);
+        assertThat(aggMap)
+                .withFailMessage("Resultset size was %d. Expected was %d", aggMap.size(), keyCnt)
+                .hasSize(keyCnt);
 
         for (IntValue integer : aggMap.values()) {
-            Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
+            assertThat(integer.getValue()).withFailMessage("Incorrect result").isEqualTo(expSum);
         }
 
         this.outList.clear();
     }
 
-    @Test
-    public void testMultiLevelMergeCombineTask() throws Exception {
+    @TestTemplate
+    void testMultiLevelMergeCombineTask() throws Exception {
         final int keyCnt = 100000;
         final int valCnt = 8;
 
@@ -131,7 +133,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
             testDriver(testTask, MockCombiningReduceStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Invoke method caused exception.");
+            fail("Invoke method caused exception.");
         }
 
         int expSum = 0;
@@ -155,12 +157,12 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
             }
         }
 
-        Assert.assertTrue(
-                "Resultset size was " + aggMap.size() + ". Expected was " + keyCnt,
-                aggMap.size() == keyCnt);
+        assertThat(aggMap)
+                .withFailMessage("Resultset size was %d. Expected was %d", aggMap.size(), keyCnt)
+                .hasSize(keyCnt);
 
         for (IntValue integer : aggMap.values()) {
-            Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
+            assertThat(integer.getValue()).withFailMessage("Incorrect result").isEqualTo(expSum);
         }
 
         this.outList.clear();

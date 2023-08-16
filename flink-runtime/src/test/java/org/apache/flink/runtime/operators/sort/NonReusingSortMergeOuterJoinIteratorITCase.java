@@ -27,10 +27,9 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-public class NonReusingSortMergeOuterJoinIteratorITCase
-        extends AbstractSortMergeOuterJoinIteratorITCase {
+class NonReusingSortMergeOuterJoinIteratorITCase extends AbstractSortMergeOuterJoinIteratorITCase {
 
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -64,44 +63,44 @@ public class NonReusingSortMergeOuterJoinIteratorITCase
     }
 
     @Test
-    public void testFullOuterWithSample() throws Exception {
+    protected void testFullOuterWithSample() throws Exception {
         super.testFullOuterWithSample();
     }
 
     @Test
-    public void testLeftOuterWithSample() throws Exception {
+    protected void testLeftOuterWithSample() throws Exception {
         super.testLeftOuterWithSample();
     }
 
     @Test
-    public void testRightOuterWithSample() throws Exception {
+    protected void testRightOuterWithSample() throws Exception {
         super.testRightOuterWithSample();
     }
 
     @Test
-    public void testRightSideEmpty() throws Exception {
+    protected void testRightSideEmpty() throws Exception {
         super.testRightSideEmpty();
     }
 
     @Test
-    public void testLeftSideEmpty() throws Exception {
+    protected void testLeftSideEmpty() throws Exception {
         super.testLeftSideEmpty();
     }
 
     @Test
-    public void testFullOuterJoinWithHighNumberOfCommonKeys() {
+    protected void testFullOuterJoinWithHighNumberOfCommonKeys() {
         testOuterJoinWithHighNumberOfCommonKeys(
                 OuterJoinType.FULL, 200, 500, 2048, 0.02f, 200, 500, 2048, 0.02f);
     }
 
     @Test
-    public void testLeftOuterJoinWithHighNumberOfCommonKeys() {
+    protected void testLeftOuterJoinWithHighNumberOfCommonKeys() {
         testOuterJoinWithHighNumberOfCommonKeys(
                 OuterJoinType.LEFT, 200, 10, 4096, 0.02f, 100, 4000, 2048, 0.02f);
     }
 
     @Test
-    public void testRightOuterJoinWithHighNumberOfCommonKeys() {
+    protected void testRightOuterJoinWithHighNumberOfCommonKeys() {
         testOuterJoinWithHighNumberOfCommonKeys(
                 OuterJoinType.RIGHT, 100, 10, 2048, 0.02f, 200, 4000, 4096, 0.02f);
     }

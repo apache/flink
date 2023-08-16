@@ -37,13 +37,15 @@ import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.util.List;
 
-public abstract class TaskTestBase extends TestLogger {
+public abstract class TaskTestBase {
+
+    @TempDir protected java.nio.file.Path tempFolder;
 
     protected long memorySize = 0;
 
@@ -158,8 +160,8 @@ public abstract class TaskTestBase extends TestLogger {
         return this.mockEnv.getMemoryManager();
     }
 
-    @After
-    public void shutdown() throws Exception {
+    @AfterEach
+    void shutdown() throws Exception {
         mockEnv.close();
     }
 }

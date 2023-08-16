@@ -23,8 +23,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class LeftOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExternalITCase {
 
@@ -53,8 +54,8 @@ public class LeftOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExtern
         return DriverStrategy.LEFT_OUTER_MERGE;
     }
 
-    @Test
-    public void testExternalHashLeftOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testExternalHashLeftOuterJoinTask() throws Exception {
 
         final int keyCnt1 = 65536;
         final int valCnt1 = 8;
@@ -87,6 +88,8 @@ public class LeftOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExtern
                 this.comparator2.duplicate());
         testDriver(testTask, MockJoinStub.class);
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result set size.")
+                .isEqualTo(expCnt);
     }
 }

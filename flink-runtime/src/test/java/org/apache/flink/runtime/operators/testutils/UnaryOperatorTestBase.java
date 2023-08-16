@@ -41,14 +41,13 @@ import org.apache.flink.runtime.operators.sort.Sorter;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -56,8 +55,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-@RunWith(Parameterized.class)
-public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends TestLogger
+import static org.assertj.core.api.Assertions.assertThat;
+
+@ExtendWith(ParameterizedTestExtension.class)
+public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT>
         implements TaskContext<S, OUT> {
 
     protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
@@ -129,7 +130,7 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
         this.taskManageInfo = new TestingTaskManagerRuntimeInfo();
     }
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<Object[]> getConfigurations() {
         ExecutionConfig withReuse = new ExecutionConfig();
         withReuse.enableObjectReuse();
@@ -386,8 +387,8 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
 
     // --------------------------------------------------------------------------------------------
 
-    @After
-    public void shutdownAll() throws Exception {
+    @AfterEach
+    void shutdownAll() throws Exception {
         // 1st, shutdown sorters
         if (this.sorter != null) {
             sorter.close();
@@ -399,9 +400,9 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
         // last, verify all memory is returned and shutdown mem manager
         MemoryManager memMan = getMemoryManager();
         if (memMan != null) {
-            Assert.assertTrue(
-                    "Memory Manager managed memory was not completely freed.",
-                    memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty())
+                    .withFailMessage("Memory Manager managed memory was not completely freed.")
+                    .isTrue();
             memMan.shutdown();
         }
     }

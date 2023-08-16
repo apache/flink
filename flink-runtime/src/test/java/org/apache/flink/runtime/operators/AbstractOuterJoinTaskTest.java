@@ -38,15 +38,15 @@ import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.guava31.com.google.common.base.Throwables;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 public abstract class AbstractOuterJoinTaskTest
         extends BinaryOperatorTestBase<
@@ -94,8 +94,8 @@ public abstract class AbstractOuterJoinTaskTest
         bnljn_frac = (double) BNLJN_MEM / this.getMemoryManager().getMemorySize();
     }
 
-    @Test
-    public void testSortBoth1OuterJoinTask() throws Exception {
+    @TestTemplate
+    void testSortBoth1OuterJoinTask() throws Exception {
         final int keyCnt1 = 20;
         final int valCnt1 = 1;
 
@@ -105,8 +105,8 @@ public abstract class AbstractOuterJoinTaskTest
         testSortBothOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
     }
 
-    @Test
-    public void testSortBoth2OuterJoinTask() throws Exception {
+    @TestTemplate
+    void testSortBoth2OuterJoinTask() throws Exception {
         final int keyCnt1 = 20;
         final int valCnt1 = 1;
 
@@ -116,8 +116,8 @@ public abstract class AbstractOuterJoinTaskTest
         testSortBothOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
     }
 
-    @Test
-    public void testSortBoth3OuterJoinTask() throws Exception {
+    @TestTemplate
+    void testSortBoth3OuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 1;
 
@@ -127,8 +127,8 @@ public abstract class AbstractOuterJoinTaskTest
         testSortBothOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
     }
 
-    @Test
-    public void testSortBoth4OuterJoinTask() throws Exception {
+    @TestTemplate
+    void testSortBoth4OuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -138,8 +138,8 @@ public abstract class AbstractOuterJoinTaskTest
         testSortBothOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
     }
 
-    @Test
-    public void testSortBoth5OuterJoinTask() throws Exception {
+    @TestTemplate
+    void testSortBoth5OuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -149,8 +149,8 @@ public abstract class AbstractOuterJoinTaskTest
         testSortBothOuterJoinTask(keyCnt1, valCnt1, keyCnt2, valCnt2);
     }
 
-    @Test
-    public void testSortBoth6OuterJoinTask() throws Exception {
+    @TestTemplate
+    void testSortBoth6OuterJoinTask() throws Exception {
         int keyCnt1 = 10;
         int valCnt1 = 1;
 
@@ -188,15 +188,15 @@ public abstract class AbstractOuterJoinTaskTest
 
         final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
-        Assert.assertTrue(
-                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+        assertThat(this.outList)
+                .withFailMessage("Result set size was %d. Expected was %d", outList.size(), expCnt)
+                .hasSize(expCnt);
 
         this.outList.clear();
     }
 
-    @Test
-    public void testSortFirstOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testSortFirstOuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -226,15 +226,15 @@ public abstract class AbstractOuterJoinTaskTest
 
         final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
-        Assert.assertTrue(
-                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+        assertThat(this.outList)
+                .withFailMessage("Result set size was %d. Expected was %d", outList.size(), expCnt)
+                .hasSize(expCnt);
 
         this.outList.clear();
     }
 
-    @Test
-    public void testSortSecondOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testSortSecondOuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -264,15 +264,15 @@ public abstract class AbstractOuterJoinTaskTest
 
         final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
-        Assert.assertTrue(
-                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+        assertThat(this.outList)
+                .withFailMessage("Result set size was %d. Expected was %d", outList.size(), expCnt)
+                .hasSize(expCnt);
 
         this.outList.clear();
     }
 
-    @Test
-    public void testMergeOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testMergeOuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -300,15 +300,15 @@ public abstract class AbstractOuterJoinTaskTest
 
         final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
-        Assert.assertTrue(
-                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+        assertThat(this.outList)
+                .withFailMessage("Result set size was %d. Expected was %d", outList.size(), expCnt)
+                .hasSize(expCnt);
 
         this.outList.clear();
     }
 
-    @Test(expected = ExpectedTestException.class)
-    public void testFailingOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testFailingOuterJoinTask() throws Exception {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -332,11 +332,12 @@ public abstract class AbstractOuterJoinTaskTest
         addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, true), this.serializer);
         addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
 
-        testDriver(testTask, MockFailingJoinStub.class);
+        assertThatThrownBy(() -> testDriver(testTask, MockFailingJoinStub.class))
+                .isInstanceOf(ExpectedTestException.class);
     }
 
-    @Test
-    public void testCancelOuterJoinTaskWhileSort1() throws Exception {
+    @TestTemplate
+    void testCancelOuterJoinTaskWhileSort1() throws Exception {
         setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
         addDriverComparator(this.comparator1);
         addDriverComparator(this.comparator2);
@@ -379,7 +380,9 @@ public abstract class AbstractOuterJoinTaskTest
 
         taskRunner.join(60000);
 
-        assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+        assertThat(taskRunner.isAlive())
+                .withFailMessage("Task thread did not finish within 60 seconds")
+                .isFalse();
 
         final Throwable taskError = error.get();
         if (taskError != null) {
@@ -387,8 +390,8 @@ public abstract class AbstractOuterJoinTaskTest
         }
     }
 
-    @Test
-    public void testCancelOuterJoinTaskWhileSort2() throws Exception {
+    @TestTemplate
+    void testCancelOuterJoinTaskWhileSort2() throws Exception {
         setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
         addDriverComparator(this.comparator1);
         addDriverComparator(this.comparator2);
@@ -431,7 +434,9 @@ public abstract class AbstractOuterJoinTaskTest
 
         taskRunner.join(60000);
 
-        assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+        assertThat(taskRunner.isAlive())
+                .withFailMessage("Task thread did not finish within 60 seconds")
+                .isFalse();
 
         final Throwable taskError = error.get();
         if (taskError != null) {
@@ -439,8 +444,8 @@ public abstract class AbstractOuterJoinTaskTest
         }
     }
 
-    @Test
-    public void testCancelOuterJoinTaskWhileRunning() throws Exception {
+    @TestTemplate
+    void testCancelOuterJoinTaskWhileRunning() throws Exception {
         setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
         addDriverComparator(this.comparator1);
         addDriverComparator(this.comparator2);
@@ -480,7 +485,9 @@ public abstract class AbstractOuterJoinTaskTest
 
         taskRunner.join(60000);
 
-        assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+        assertThat(taskRunner.isAlive())
+                .withFailMessage("Task thread did not finish within 60 seconds")
+                .isFalse();
 
         final Throwable taskError = error.get();
         if (taskError != null) {

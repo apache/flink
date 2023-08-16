@@ -35,19 +35,19 @@ import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
-public class LargeRecordHandlerTest {
+class LargeRecordHandlerTest {
 
     @Test
-    public void testEmptyRecordHandler() {
+    void testEmptyRecordHandler() {
         final int PAGE_SIZE = 4 * 1024;
         final int NUM_PAGES = 50;
 
@@ -81,22 +81,19 @@ public class LargeRecordHandlerTest {
                             128,
                             owner.getExecutionConfig());
 
-            assertFalse(handler.hasData());
+            assertThat(handler.hasData()).isFalse();
 
             handler.close();
 
-            assertFalse(handler.hasData());
+            assertThat(handler.hasData()).isFalse();
 
             handler.close();
 
-            try {
-                handler.addRecord(new Tuple2<Long, String>(92L, "peter pepper"));
-                fail("should throw an exception");
-            } catch (IllegalStateException e) {
-                // expected
-            }
+            assertThatThrownBy(() -> handler.addRecord(new Tuple2<>(92L, "peter pepper")))
+                    .withFailMessage("should throw an exception")
+                    .isInstanceOf(IllegalStateException.class);
 
-            assertTrue(memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty()).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -104,7 +101,7 @@ public class LargeRecordHandlerTest {
     }
 
     @Test
-    public void testRecordHandlerSingleKey() {
+    void testRecordHandlerSingleKey() {
         final int PAGE_SIZE = 4 * 1024;
         final int NUM_PAGES = 24;
         final int NUM_RECORDS = 25000;
@@ -141,7 +138,7 @@ public class LargeRecordHandlerTest {
                             128,
                             owner.getExecutionConfig());
 
-            assertFalse(handler.hasData());
+            assertThat(handler.hasData()).isFalse();
 
             // add the test data
             Random rnd = new Random();
@@ -149,36 +146,33 @@ public class LargeRecordHandlerTest {
             for (int i = 0; i < NUM_RECORDS; i++) {
                 long val = rnd.nextLong();
                 handler.addRecord(new Tuple2<Long, String>(val, String.valueOf(val)));
-                assertTrue(handler.hasData());
+                assertThat(handler.hasData()).isTrue();
             }
 
             MutableObjectIterator<Tuple2<Long, String>> sorted =
                     handler.finishWriteAndSortKeys(sortMemory);
 
-            try {
-                handler.addRecord(new Tuple2<Long, String>(92L, "peter pepper"));
-                fail("should throw an exception");
-            } catch (IllegalStateException e) {
-                // expected
-            }
+            assertThatThrownBy(() -> handler.addRecord(new Tuple2<>(92L, "peter pepper")))
+                    .withFailMessage("should throw an exception")
+                    .isInstanceOf(IllegalStateException.class);
 
             Tuple2<Long, String> previous = null;
             Tuple2<Long, String> next;
 
             while ((next = sorted.next(null)) != null) {
                 // key and value must be equal
-                assertTrue(next.f0.equals(Long.parseLong(next.f1)));
+                assertThat(next.f0).isEqualTo(Long.parseLong(next.f1));
 
                 // order must be correct
                 if (previous != null) {
-                    assertTrue(previous.f0 <= next.f0);
+                    assertThat(previous.f0).isLessThanOrEqualTo(next.f0);
                 }
                 previous = next;
             }
 
             handler.close();
 
-            assertFalse(handler.hasData());
+            assertThat(handler.hasData()).isFalse();
 
             handler.close();
 
@@ -189,7 +183,7 @@ public class LargeRecordHandlerTest {
                 // expected
             }
 
-            assertTrue(memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty()).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -197,7 +191,7 @@ public class LargeRecordHandlerTest {
     }
 
     @Test
-    public void testRecordHandlerCompositeKey() {
+    void testRecordHandlerCompositeKey() {
         final int PAGE_SIZE = 4 * 1024;
         final int NUM_PAGES = 24;
         final int NUM_RECORDS = 25000;
@@ -234,7 +228,7 @@ public class LargeRecordHandlerTest {
                             128,
                             owner.getExecutionConfig());
 
-            assertFalse(handler.hasData());
+            assertThat(handler.hasData()).isFalse();
 
             // add the test data
             Random rnd = new Random();
@@ -243,40 +237,38 @@ public class LargeRecordHandlerTest {
                 long val = rnd.nextLong();
                 handler.addRecord(
                         new Tuple3<Long, String, Byte>(val, String.valueOf(val), (byte) val));
-                assertTrue(handler.hasData());
+                assertThat(handler.hasData()).isTrue();
             }
 
             MutableObjectIterator<Tuple3<Long, String, Byte>> sorted =
                     handler.finishWriteAndSortKeys(sortMemory);
 
-            try {
-                handler.addRecord(new Tuple3<Long, String, Byte>(92L, "peter pepper", (byte) 1));
-                fail("should throw an exception");
-            } catch (IllegalStateException e) {
-                // expected
-            }
+            assertThatThrownBy(() -> handler.addRecord(new Tuple3<>(92L, "peter pepper", (byte) 1)))
+                    .withFailMessage("should throw an exception")
+                    .isInstanceOf(IllegalStateException.class);
 
             Tuple3<Long, String, Byte> previous = null;
             Tuple3<Long, String, Byte> next;
 
             while ((next = sorted.next(null)) != null) {
                 // key and value must be equal
-                assertTrue(next.f0.equals(Long.parseLong(next.f1)));
-                assertTrue(next.f0.byteValue() == next.f2);
+                assertThat(next.f0).isEqualTo(Long.parseLong(next.f1));
+                assertThat(next.f0.byteValue()).isEqualTo(next.f2);
 
                 // order must be correct
                 if (previous != null) {
-                    assertTrue(previous.f2 <= next.f2);
-                    assertTrue(
-                            previous.f2.byteValue() != next.f2.byteValue()
-                                    || previous.f0 <= next.f0);
+                    assertThat(previous.f2).isLessThanOrEqualTo(next.f2);
+                    assertThat(
+                                    previous.f2.byteValue() != next.f2.byteValue()
+                                            || previous.f0 <= next.f0)
+                            .isTrue();
                 }
                 previous = next;
             }
 
             handler.close();
 
-            assertFalse(handler.hasData());
+            assertThat(handler.hasData()).isFalse();
 
             handler.close();
 
@@ -287,7 +279,7 @@ public class LargeRecordHandlerTest {
                 // expected
             }
 
-            assertTrue(memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty()).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

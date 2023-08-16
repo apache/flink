@@ -44,12 +44,10 @@ import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -64,9 +62,11 @@ import static org.apache.flink.runtime.operators.hash.NonReusingHashJoinIterator
 import static org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.joinTuples;
 import static org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.leftOuterJoinTuples;
 import static org.apache.flink.runtime.operators.hash.NonReusingHashJoinIteratorITCase.rightOuterJoinTuples;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings({"serial"})
-public class ReusingHashJoinIteratorITCase extends TestLogger {
+class ReusingHashJoinIteratorITCase {
 
     private static final int MEMORY_SIZE = 16000000; // total memory
 
@@ -93,8 +93,8 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
     private TypePairComparator<Tuple2<Integer, String>, IntPair> recordPairPairComparator;
 
     @SuppressWarnings("unchecked")
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         this.recordSerializer = TestData.getIntStringTupleSerializer();
 
         this.record1Comparator = TestData.getIntStringTupleComparator();
@@ -112,24 +112,25 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
         this.ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         if (this.ioManager != null) {
             this.ioManager.close();
             this.ioManager = null;
         }
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .withFailMessage(
+                            "Memory Leak: Not all memory has been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
     }
 
     @Test
-    public void testBuildFirst() {
+    void testBuildFirst() {
         try {
             TestData.TupleGenerator generator1 =
                     new TestData.TupleGenerator(
@@ -186,18 +187,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildFirstWithHighNumberOfCommonKeys() {
+    void testBuildFirstWithHighNumberOfCommonKeys() {
         // the size of the left and right inputs
         final int INPUT_1_SIZE = 200;
         final int INPUT_2_SIZE = 100;
@@ -294,18 +295,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildSecond() {
+    void testBuildSecond() {
         try {
             TestData.TupleGenerator generator1 =
                     new TestData.TupleGenerator(
@@ -362,18 +363,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildSecondWithHighNumberOfCommonKeys() {
+    void testBuildSecondWithHighNumberOfCommonKeys() {
         // the size of the left and right inputs
         final int INPUT_1_SIZE = 200;
         final int INPUT_2_SIZE = 100;
@@ -470,18 +471,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildFirstWithMixedDataTypes() {
+    void testBuildFirstWithMixedDataTypes() {
         try {
             MutableObjectIterator<IntPair> input1 = new UniformIntPairGenerator(500, 40, false);
 
@@ -533,18 +534,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleIntPairMatch>> entry :
                     expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildSecondWithMixedDataTypes() {
+    void testBuildSecondWithMixedDataTypes() {
         try {
             MutableObjectIterator<IntPair> input1 = new UniformIntPairGenerator(500, 40, false);
 
@@ -596,18 +597,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleIntPairMatch>> entry :
                     expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildFirstAndProbeSideOuterJoin() {
+    void testBuildFirstAndProbeSideOuterJoin() {
         try {
             TestData.TupleGenerator generator1 =
                     new TestData.TupleGenerator(
@@ -664,18 +665,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildFirstAndBuildSideOuterJoin() {
+    void testBuildFirstAndBuildSideOuterJoin() {
         try {
             TestData.TupleGenerator generator1 =
                     new TestData.TupleGenerator(
@@ -732,18 +733,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildFirstAndFullOuterJoin() {
+    void testBuildFirstAndFullOuterJoin() {
         try {
             TestData.TupleGenerator generator1 =
                     new TestData.TupleGenerator(
@@ -800,18 +801,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildSecondAndProbeSideOuterJoin() {
+    void testBuildSecondAndProbeSideOuterJoin() {
         try {
             TestData.TupleGenerator generator1 =
                     new TestData.TupleGenerator(
@@ -868,18 +869,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildSecondAndBuildSideOuterJoin() {
+    void testBuildSecondAndBuildSideOuterJoin() {
         try {
             TestData.TupleGenerator generator1 =
                     new TestData.TupleGenerator(
@@ -936,18 +937,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testBuildSecondAndFullOuterJoin() {
+    void testBuildSecondAndFullOuterJoin() {
         try {
             TestData.TupleGenerator generator1 =
                     new TestData.TupleGenerator(
@@ -1004,13 +1005,13 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<TupleMatch>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
@@ -1039,13 +1040,14 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
             // System.err.println("rec1 key = "+key+"  rec2 key= "+rec2.getField(0,
             // TestData.Key.class));
             Collection<TupleMatch> matches = this.toRemoveFrom.get(key);
-            if (matches == null) {
-                Assert.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
-            }
+            assertThat(matches)
+                    .withFailMessage("Match %d - %s:%s is unexpected.", key, value1, value2)
+                    .isNotNull();
 
-            Assert.assertTrue(
-                    "Produced match was not contained: " + key + " - " + value1 + ":" + value2,
-                    matches.remove(new TupleMatch(value1, value2)));
+            assertThat(matches.remove(new TupleMatch(value1, value2)))
+                    .withFailMessage(
+                            "Produced match was not contained: %d - %s:%s", key, value1, value2)
+                    .isTrue();
 
             if (matches.isEmpty()) {
                 this.toRemoveFrom.remove(key);
@@ -1072,17 +1074,18 @@ public class ReusingHashJoinIteratorITCase extends TestLogger {
             final Integer key = rec2.f0;
             final String value = rec2.f1;
 
-            Assert.assertTrue(
-                    "Key does not match for matching IntPair Tuple combination.", k == key);
+            assertThat(key)
+                    .withFailMessage("Key does not match for matching IntPair Tuple combination.")
+                    .isEqualTo(k);
 
             Collection<TupleIntPairMatch> matches = this.toRemoveFrom.get(key);
-            if (matches == null) {
-                Assert.fail("Match " + key + " - " + v + ":" + value + " is unexpected.");
-            }
+            assertThat(matches)
+                    .withFailMessage("Match %d - %d:%s is unexpected.", key, v, value)
+                    .isNotNull();
 
-            Assert.assertTrue(
-                    "Produced match was not contained: " + key + " - " + v + ":" + value,
-                    matches.remove(new TupleIntPairMatch(v, value)));
+            assertThat(matches.remove(new TupleIntPairMatch(v, value)))
+                    .withFailMessage("Produced match was not contained: %d - %d:%s", key, v, value)
+                    .isTrue();
 
             if (matches.isEmpty()) {
                 this.toRemoveFrom.remove(key);

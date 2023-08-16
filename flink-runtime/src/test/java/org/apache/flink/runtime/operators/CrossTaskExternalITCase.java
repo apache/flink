@@ -25,8 +25,10 @@ import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.Record;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record, Record, Record>> {
     private static final long CROSS_MEM = 1024 * 1024;
@@ -40,8 +42,8 @@ public class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record
         cross_frac = (double) CROSS_MEM / this.getMemoryManager().getMemorySize();
     }
 
-    @Test
-    public void testExternalBlockCrossTask() {
+    @TestTemplate
+    void testExternalBlockCrossTask() {
 
         int keyCnt1 = 2;
         int valCnt1 = 1;
@@ -67,14 +69,16 @@ public class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result size.")
+                .isEqualTo(expCnt);
     }
 
-    @Test
-    public void testExternalStreamCrossTask() {
+    @TestTemplate
+    void testExternalStreamCrossTask() {
 
         int keyCnt1 = 2;
         int valCnt1 = 1;
@@ -100,9 +104,11 @@ public class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result size.")
+                .isEqualTo(expCnt);
     }
 }

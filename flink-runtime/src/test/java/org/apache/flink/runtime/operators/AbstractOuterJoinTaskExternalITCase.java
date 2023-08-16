@@ -32,8 +32,9 @@ import org.apache.flink.runtime.operators.testutils.BinaryOperatorTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class AbstractOuterJoinTaskExternalITCase
         extends BinaryOperatorTestBase<
@@ -80,8 +81,8 @@ public abstract class AbstractOuterJoinTaskExternalITCase
         bnljn_frac = (double) BNLJN_MEM / this.getMemoryManager().getMemorySize();
     }
 
-    @Test
-    public void testExternalSortOuterJoinTask() throws Exception {
+    @TestTemplate
+    void testExternalSortOuterJoinTask() throws Exception {
         final int keyCnt1 = 16384 * 4;
         final int valCnt1 = 2;
 
@@ -114,7 +115,9 @@ public abstract class AbstractOuterJoinTaskExternalITCase
                 this.comparator2.duplicate());
         testDriver(testTask, MockJoinStub.class);
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result set size.")
+                .isEqualTo(expCnt);
     }
 
     protected abstract int calculateExpectedCount(

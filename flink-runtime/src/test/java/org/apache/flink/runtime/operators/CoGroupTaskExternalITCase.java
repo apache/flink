@@ -30,8 +30,10 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class CoGroupTaskExternalITCase
         extends DriverTestBase<CoGroupFunction<Record, Record, Record>> {
@@ -53,8 +55,8 @@ public class CoGroupTaskExternalITCase
         super(config, 0, 2, SORT_MEM);
     }
 
-    @Test
-    public void testExternalSortCoGroupTask() {
+    @TestTemplate
+    void testExternalSortCoGroupTask() {
 
         int keyCnt1 = 16384 * 8;
         int valCnt1 = 32;
@@ -87,10 +89,12 @@ public class CoGroupTaskExternalITCase
             testDriver(testTask, MockCoGroupStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            fail("The test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result set size.")
+                .isEqualTo(expCnt);
     }
 
     public static final class MockCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {

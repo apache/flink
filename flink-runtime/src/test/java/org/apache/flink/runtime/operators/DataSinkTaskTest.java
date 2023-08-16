@@ -31,10 +31,7 @@ import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,12 +45,10 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class DataSinkTaskTest extends TaskTestBase {
-
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+class DataSinkTaskTest extends TaskTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(DataSinkTaskTest.class);
 
@@ -62,7 +57,7 @@ public class DataSinkTaskTest extends TaskTestBase {
     private static final int NETWORK_BUFFER_SIZE = 1024;
 
     @Test
-    public void testDataSinkTask() {
+    void testDataSinkTask() {
         FileReader fr = null;
         BufferedReader br = null;
         try {
@@ -74,13 +69,13 @@ public class DataSinkTaskTest extends TaskTestBase {
 
             DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
-            File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+            File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
             super.registerFileOutputTask(
                     MockOutputFormat.class, tempTestFile.toURI().toString(), new Configuration());
 
             testTask.invoke();
 
-            Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
+            assertThat(tempTestFile).withFailMessage("Temp output file does not exist").exists();
 
             fr = new FileReader(tempTestFile);
             br = new BufferedReader(fr);
@@ -100,26 +95,22 @@ public class DataSinkTaskTest extends TaskTestBase {
                 keyValueCountMap.get(key).add(val);
             }
 
-            Assert.assertTrue(
-                    "Invalid key count in out file. Expected: "
-                            + keyCnt
-                            + " Actual: "
-                            + keyValueCountMap.keySet().size(),
-                    keyValueCountMap.keySet().size() == keyCnt);
+            assertThat(keyValueCountMap)
+                    .withFailMessage(
+                            "Invalid key count in out file. Expected: %d Actual: %d",
+                            keyCnt, keyValueCountMap.size())
+                    .hasSize(keyCnt);
 
             for (Integer key : keyValueCountMap.keySet()) {
-                Assert.assertTrue(
-                        "Invalid value count for key: "
-                                + key
-                                + ". Expected: "
-                                + valCnt
-                                + " Actual: "
-                                + keyValueCountMap.get(key).size(),
-                        keyValueCountMap.get(key).size() == valCnt);
+                assertThat(keyValueCountMap.get(key))
+                        .withFailMessage(
+                                "Invalid value count for key: %d. Expected: %d Actual: %d",
+                                key, valCnt, keyValueCountMap.get(key).size())
+                        .hasSize(valCnt);
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         } finally {
             if (br != null) {
                 try {
@@ -137,7 +128,7 @@ public class DataSinkTaskTest extends TaskTestBase {
     }
 
     @Test
-    public void testUnionDataSinkTask() {
+    void testUnionDataSinkTask() {
         int keyCnt = 10;
         int valCnt = 20;
 
@@ -159,7 +150,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 
         DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
-        File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+        File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
         super.registerFileOutputTask(
                 MockOutputFormat.class, tempTestFile.toURI().toString(), new Configuration());
 
@@ -174,10 +165,10 @@ public class DataSinkTaskTest extends TaskTestBase {
             testTask.invoke();
         } catch (Exception e) {
             LOG.debug("Exception while invoking the test task.", e);
-            Assert.fail("Invoke method caused exception.");
+            fail("Invoke method caused exception.");
         }
 
-        Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
+        assertThat(tempTestFile).withFailMessage("Temp output file does not exist").exists();
 
         FileReader fr = null;
         BufferedReader br = null;
@@ -200,28 +191,24 @@ public class DataSinkTaskTest extends TaskTestBase {
                 keyValueCountMap.get(key).add(val);
             }
 
-            Assert.assertTrue(
-                    "Invalid key count in out file. Expected: "
-                            + keyCnt
-                            + " Actual: "
-                            + keyValueCountMap.keySet().size(),
-                    keyValueCountMap.keySet().size() == keyCnt * 4);
+            assertThat(keyValueCountMap)
+                    .withFailMessage(
+                            "Invalid key count in out file. Expected: %d Actual: %d",
+                            keyCnt * 4, keyValueCountMap.size())
+                    .hasSize(keyCnt * 4);
 
             for (Integer key : keyValueCountMap.keySet()) {
-                Assert.assertTrue(
-                        "Invalid value count for key: "
-                                + key
-                                + ". Expected: "
-                                + valCnt
-                                + " Actual: "
-                                + keyValueCountMap.get(key).size(),
-                        keyValueCountMap.get(key).size() == valCnt);
+                assertThat(keyValueCountMap.get(key))
+                        .withFailMessage(
+                                "Invalid value count for key: %d. Expected: %d Actual: %d",
+                                key, valCnt, keyValueCountMap.get(key).size())
+                        .hasSize(valCnt);
             }
 
         } catch (FileNotFoundException e) {
-            Assert.fail("Out file got lost...");
+            fail("Out file got lost...");
         } catch (IOException ioe) {
-            Assert.fail("Caught IOE while reading out file");
+            fail("Caught IOE while reading out file");
         } finally {
             if (br != null) {
                 try {
@@ -240,7 +227,7 @@ public class DataSinkTaskTest extends TaskTestBase {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testSortingDataSinkTask() {
+    void testSortingDataSinkTask() {
 
         int keyCnt = 100;
         int valCnt = 20;
@@ -262,7 +249,7 @@ public class DataSinkTaskTest extends TaskTestBase {
         super.getTaskConfig().setFilehandlesInput(0, 8);
         super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-        File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+        File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
         super.registerFileOutputTask(
                 MockOutputFormat.class, tempTestFile.toURI().toString(), new Configuration());
 
@@ -270,10 +257,10 @@ public class DataSinkTaskTest extends TaskTestBase {
             testTask.invoke();
         } catch (Exception e) {
             LOG.debug("Exception while invoking the test task.", e);
-            Assert.fail("Invoke method caused exception.");
+            fail("Invoke method caused exception.");
         }
 
-        Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
+        assertThat(tempTestFile).withFailMessage("Temp output file does not exist").exists();
 
         FileReader fr = null;
         BufferedReader br = null;
@@ -292,12 +279,14 @@ public class DataSinkTaskTest extends TaskTestBase {
                         Integer.parseInt(line.substring(line.indexOf("_") + 1, line.length()));
 
                 // check that values are in correct order
-                Assert.assertTrue("Values not in ascending order", val >= curVal);
+                assertThat(val)
+                        .withFailMessage("Values not in ascending order")
+                        .isGreaterThanOrEqualTo(curVal);
                 // next value hit
                 if (val > curVal) {
                     if (curVal != -1) {
                         // check that we saw 100 distinct keys for this values
-                        Assert.assertTrue("Keys missing for value", keys.size() == 100);
+                        assertThat(keys).withFailMessage("Keys missing for value").hasSize(100);
                     }
                     // empty keys set
                     keys.clear();
@@ -305,13 +294,13 @@ public class DataSinkTaskTest extends TaskTestBase {
                     curVal = val;
                 }
 
-                Assert.assertTrue("Duplicate key for value", keys.add(key));
+                assertThat(keys.add(key)).withFailMessage("Duplicate key for value").isTrue();
             }
 
         } catch (FileNotFoundException e) {
-            Assert.fail("Out file got lost...");
+            fail("Out file got lost...");
         } catch (IOException ioe) {
-            Assert.fail("Caught IOE while reading out file");
+            fail("Caught IOE while reading out file");
         } finally {
             if (br != null) {
                 try {
@@ -329,7 +318,7 @@ public class DataSinkTaskTest extends TaskTestBase {
     }
 
     @Test
-    public void testFailingDataSinkTask() {
+    void testFailingDataSinkTask() {
 
         int keyCnt = 100;
         int valCnt = 20;
@@ -340,7 +329,7 @@ public class DataSinkTaskTest extends TaskTestBase {
         DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
         Configuration stubParams = new Configuration();
 
-        File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+        File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
         super.registerFileOutputTask(
                 MockFailingOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
@@ -351,15 +340,17 @@ public class DataSinkTaskTest extends TaskTestBase {
         } catch (Exception e) {
             stubFailed = true;
         }
-        Assert.assertTrue("Function exception was not forwarded.", stubFailed);
+        assertThat(stubFailed).withFailMessage("Function exception was not forwarded.").isTrue();
 
         // assert that temp file was removed
-        Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
+        assertThat(tempTestFile)
+                .withFailMessage("Temp output file has not been removed")
+                .doesNotExist();
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testFailingSortingDataSinkTask() {
+    void testFailingSortingDataSinkTask() {
 
         int keyCnt = 100;
         int valCnt = 20;
@@ -381,7 +372,7 @@ public class DataSinkTaskTest extends TaskTestBase {
         super.getTaskConfig().setFilehandlesInput(0, 8);
         super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-        File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+        File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
         super.registerFileOutputTask(
                 MockFailingOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
@@ -392,21 +383,23 @@ public class DataSinkTaskTest extends TaskTestBase {
         } catch (Exception e) {
             stubFailed = true;
         }
-        Assert.assertTrue("Function exception was not forwarded.", stubFailed);
+        assertThat(stubFailed).withFailMessage("Function exception was not forwarded.").isTrue();
 
         // assert that temp file was removed
-        Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
+        assertThat(tempTestFile)
+                .withFailMessage("Temp output file has not been removed")
+                .doesNotExist();
     }
 
     @Test
-    public void testCancelDataSinkTask() throws Exception {
+    void testCancelDataSinkTask() throws Exception {
         super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
         super.addInput(new InfiniteInputIterator(), 0);
 
         final DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
         Configuration stubParams = new Configuration();
 
-        File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+        File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
 
         super.registerFileOutputTask(
                 MockOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
@@ -419,7 +412,7 @@ public class DataSinkTaskTest extends TaskTestBase {
                             testTask.invoke();
                         } catch (Exception ie) {
                             ie.printStackTrace();
-                            Assert.fail("Task threw exception although it was properly canceled");
+                            fail("Task threw exception although it was properly canceled");
                         }
                     }
                 };
@@ -430,7 +423,9 @@ public class DataSinkTaskTest extends TaskTestBase {
         while (!tempTestFile.exists() && System.currentTimeMillis() < deadline) {
             Thread.sleep(10);
         }
-        assertTrue("Task did not create file within 60 seconds", tempTestFile.exists());
+        assertThat(tempTestFile)
+                .withFailMessage("Task did not create file within 60 seconds")
+                .exists();
 
         // cancel the task
         Thread.sleep(500);
@@ -441,12 +436,14 @@ public class DataSinkTaskTest extends TaskTestBase {
         taskRunner.join();
 
         // assert that temp file was created
-        assertFalse("Temp output file has not been removed", tempTestFile.exists());
+        assertThat(tempTestFile)
+                .withFailMessage("Task did not create file within 60 seconds")
+                .doesNotExist();
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testCancelSortingDataSinkTask() {
+    void testCancelSortingDataSinkTask() {
         double memoryFraction = 1.0;
 
         super.initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
@@ -465,7 +462,7 @@ public class DataSinkTaskTest extends TaskTestBase {
         super.getTaskConfig().setFilehandlesInput(0, 8);
         super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-        File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+        File tempTestFile = new File(tempFolder.toFile(), UUID.randomUUID().toString());
         super.registerFileOutputTask(
                 MockOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
@@ -477,7 +474,7 @@ public class DataSinkTaskTest extends TaskTestBase {
                             testTask.invoke();
                         } catch (Exception ie) {
                             ie.printStackTrace();
-                            Assert.fail("Task threw exception although it was properly canceled");
+                            fail("Task threw exception although it was properly canceled");
                         }
                     }
                 };
@@ -490,7 +487,7 @@ public class DataSinkTaskTest extends TaskTestBase {
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            fail("Joining threads failed");
         }
     }
 
