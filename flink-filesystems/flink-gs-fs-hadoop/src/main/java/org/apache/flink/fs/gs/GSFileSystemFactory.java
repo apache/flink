@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import org.apache.hadoop.fs.Path;
@@ -92,6 +93,7 @@ public class GSFileSystemFactory implements FileSystemFactory {
         LOGGER.info("Using file system options {}", fileSystemOptions);
 
         StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
+        storageOptionsBuilder.setTransportOptions(getHttpTransportOptions(fileSystemOptions));
 
         // get storage credentials
         Optional<GoogleCredentials> credentials =
@@ -102,6 +104,16 @@ public class GSFileSystemFactory implements FileSystemFactory {
         ConfigUtils.getGcsRootUrl(hadoopConfig).ifPresent(storageOptionsBuilder::setHost);
 
         this.storage = storageOptionsBuilder.build().getService();
+    }
+
+    private HttpTransportOptions getHttpTransportOptions(GSFileSystemOptions fileSystemOptions) {
+        Optional<Integer> connectionTimeout = fileSystemOptions.getHTTPConnectionTimeout();
+        Optional<Integer> readTimeout = fileSystemOptions.getHTTPReadTimeout();
+        HttpTransportOptions.Builder httpTransportOptionsBuilder =
+                HttpTransportOptions.newBuilder();
+        connectionTimeout.ifPresent(httpTransportOptionsBuilder::setConnectTimeout);
+        readTimeout.ifPresent(httpTransportOptionsBuilder::setReadTimeout);
+        return httpTransportOptionsBuilder.build();
     }
 
     @Override

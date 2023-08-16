@@ -59,6 +59,27 @@ public class GSFileSystemOptions {
                                     + "gcs path of the temporary objects. The final object path "
                                     + "remains unchanged.");
 
+    /**
+     * Flink config option to set the http connection timeout. It will be used by cloud-storage
+     * library.
+     */
+    public static final ConfigOption<Integer> GCS_HTTP_CONNECT_TIMEOUT =
+            ConfigOptions.key("gs.http.connect-timeout")
+                    .intType()
+                    .defaultValue(20_000)
+                    .withDescription(
+                            "This option sets the timeout in milliseconds to establish a connection.");
+
+    /**
+     * Flink config option to set the http read timeout. It will be used by cloud-storage library.
+     */
+    public static final ConfigOption<Integer> GCS_HTTP_READ_TIMEOUT =
+            ConfigOptions.key("gs.http.read-timeout")
+                    .intType()
+                    .defaultValue(20_000)
+                    .withDescription(
+                            "This option sets the timeout in milliseconds to read data from an established connection.");
+
     /** The Flink configuration. */
     private final Configuration flinkConfig;
 
@@ -85,6 +106,16 @@ public class GSFileSystemOptions {
      */
     public Optional<String> getWriterTemporaryBucketName() {
         return flinkConfig.getOptional(WRITER_TEMPORARY_BUCKET_NAME);
+    }
+
+    /** Timeout in millisecond to establish the connection. */
+    public Optional<Integer> getHTTPConnectionTimeout() {
+        return flinkConfig.getOptional(GCS_HTTP_CONNECT_TIMEOUT);
+    }
+
+    /** Timeout in millisecond to read content from connection. */
+    public Optional<Integer> getHTTPReadTimeout() {
+        return flinkConfig.getOptional(GCS_HTTP_READ_TIMEOUT);
     }
 
     /** The chunk size to use for writes on the underlying Google WriteChannel. */
