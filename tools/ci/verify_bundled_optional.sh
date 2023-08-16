@@ -49,6 +49,15 @@ MVN=${MVN:-./mvnw}
 dependency_plugin_output=/tmp/optional_dep.txt
 
 $MVN dependency:tree -B > "${dependency_plugin_output}"
+EXIT_CODE=$?
+
+if [ $EXIT_CODE != 0 ]; then
+    cat ${dependency_plugin_output}
+    echo "=============================================================================="
+    echo "Optional Check failed. The dependency tree could not be determined. See previous output for details."
+    echo "=============================================================================="
+    exit 1
+fi
 
 cat "${dependency_plugin_output}"
 
