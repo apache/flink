@@ -28,7 +28,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.fail;
  * This class contains tests that verify when rescaling a {@link JobGraph}, constructed {@link
  * ExecutionGraph}s are correct.
  */
-public class DefaultExecutionGraphRescalingTest extends TestLogger {
+class DefaultExecutionGraphRescalingTest extends TestLoggerExtension {
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();

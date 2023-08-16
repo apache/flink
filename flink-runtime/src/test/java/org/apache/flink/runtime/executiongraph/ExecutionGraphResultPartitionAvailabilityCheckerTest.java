@@ -22,7 +22,7 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAva
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 
@@ -34,7 +34,7 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ExecutionGraphResultPartitionAvailabilityChecker}. */
-public class ExecutionGraphResultPartitionAvailabilityCheckerTest extends TestLogger {
+class ExecutionGraphResultPartitionAvailabilityCheckerTest extends TestLoggerExtension {
 
     @Test
     void testPartitionAvailabilityCheck() {

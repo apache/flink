@@ -18,7 +18,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultVertexAttemptNumberStore}. */
-public class DefaultVertexAttemptNumberStoreTest extends TestLogger {
+class DefaultVertexAttemptNumberStoreTest extends TestLoggerExtension {
     @Test
     void testSetAttemptCount() {
         final DefaultVertexAttemptNumberStore vertexAttemptNumberStore =

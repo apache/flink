@@ -22,7 +22,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link RestartBackoffTimeStrategyFactoryLoader}. */
-public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
+class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLoggerExtension {
 
     private static final RestartStrategies.RestartStrategyConfiguration
             DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION = RestartStrategies.fallBackRestart();

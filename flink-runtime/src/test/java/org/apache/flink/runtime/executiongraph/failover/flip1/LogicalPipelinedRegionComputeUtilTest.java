@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link LogicalPipelinedRegionComputeUtil}. */
-public class LogicalPipelinedRegionComputeUtilTest {
+class LogicalPipelinedRegionComputeUtilTest {
     /**
      * Tests that the computation of the job graph with isolated vertices works correctly.
      *

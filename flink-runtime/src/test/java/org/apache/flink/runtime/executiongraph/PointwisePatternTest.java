@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.fail;
  * Tests for building {@link DistributionPattern#POINTWISE} connections in {@link
  * VertexInputInfoComputationUtils#computeVertexInputInfoForPointwise}.
  */
-public class PointwisePatternTest {
+class PointwisePatternTest {
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
             TestingUtils.defaultExecutorExtension();

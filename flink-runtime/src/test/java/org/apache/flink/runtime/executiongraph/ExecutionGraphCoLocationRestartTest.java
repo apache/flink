@@ -50,7 +50,7 @@ import static org.apache.flink.api.common.JobStatus.FINISHED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that co-location constraints work as expected in the case of task restarts. */
-public class ExecutionGraphCoLocationRestartTest {
+class ExecutionGraphCoLocationRestartTest {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =

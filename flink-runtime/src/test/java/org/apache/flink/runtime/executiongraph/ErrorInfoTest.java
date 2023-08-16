@@ -28,7 +28,7 @@ import java.io.Serializable;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Simple test for the {@link ErrorInfo}. */
-public class ErrorInfoTest {
+class ErrorInfoTest {
 
     @Test
     void testSerializationWithExceptionOutsideClassLoader() throws Exception {

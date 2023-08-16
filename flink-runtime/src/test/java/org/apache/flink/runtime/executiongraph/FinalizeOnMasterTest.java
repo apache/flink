@@ -27,7 +27,7 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -45,7 +45,7 @@ import static org.mockito.Mockito.verify;
  * Tests that the {@link JobVertex#finalizeOnMaster(ClassLoader)} is called properly and only when
  * the execution graph reaches the a successful final state.
  */
-public class FinalizeOnMasterTest extends TestLogger {
+class FinalizeOnMasterTest extends TestLoggerExtension {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =

@@ -17,7 +17,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultSubtaskAttemptNumberStore}. */
-public class DefaultSubtaskAttemptNumberStoreTest extends TestLogger {
+class DefaultSubtaskAttemptNumberStoreTest extends TestLoggerExtension {
 
     @Test
     void testGetAttemptCount() {

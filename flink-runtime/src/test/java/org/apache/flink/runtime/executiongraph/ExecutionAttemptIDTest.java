@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ExecutionAttemptID}. */
-public class ExecutionAttemptIDTest {
+class ExecutionAttemptIDTest {
     private static final NettyBufferPool ALLOCATOR = new NettyBufferPool(1);
 
     @Test

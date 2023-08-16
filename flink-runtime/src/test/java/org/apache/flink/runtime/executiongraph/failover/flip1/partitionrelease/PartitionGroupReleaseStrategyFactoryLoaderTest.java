@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link PartitionGroupReleaseStrategyFactoryLoader}. */
-public class PartitionGroupReleaseStrategyFactoryLoaderTest {
+class PartitionGroupReleaseStrategyFactoryLoaderTest {
 
     @Test
     public void featureEnabledByDefault() {

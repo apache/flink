@@ -18,14 +18,14 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link FixedDelayRestartBackoffTimeStrategy}. */
-public class FixedDelayRestartBackoffTimeStrategyTest extends TestLogger {
+class FixedDelayRestartBackoffTimeStrategyTest extends TestLoggerExtension {
 
     private final Exception failure = new Exception();
 
