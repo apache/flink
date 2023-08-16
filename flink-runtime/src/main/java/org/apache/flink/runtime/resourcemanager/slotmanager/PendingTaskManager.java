@@ -83,7 +83,9 @@ public class PendingTaskManager {
 
     public void clearPendingAllocationsOfJob(JobID jobId) {
         ResourceCounter resourceCounter = pendingSlotAllocationRecords.remove(jobId);
-        unusedResource = unusedResource.merge(resourceCounter.getTotalResource());
+        if (resourceCounter != null) {
+            unusedResource = unusedResource.merge(resourceCounter.getTotalResource());
+        }
     }
 
     private ResourceProfile calculateUnusedResourceProfile() {

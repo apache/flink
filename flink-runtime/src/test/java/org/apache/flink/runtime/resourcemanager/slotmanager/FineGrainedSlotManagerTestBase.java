@@ -199,6 +199,20 @@ abstract class FineGrainedSlotManagerTestBase {
             mainThreadExecutor.execute(runnable);
         }
 
+        CompletableFuture<Void> runInMainThreadAndReturn(Runnable runnable) {
+            CompletableFuture<Void> runFuture = new CompletableFuture<>();
+            mainThreadExecutor.execute(
+                    () -> {
+                        try {
+                            runnable.run();
+                        } catch (Exception e) {
+                            runFuture.completeExceptionally(e);
+                        }
+                        runFuture.complete(null);
+                    });
+            return runFuture;
+        }
+
         void runInMainThreadAndWait(Runnable runnable) throws InterruptedException {
             final OneShotLatch latch = new OneShotLatch();
             mainThreadExecutor.execute(

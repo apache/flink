@@ -985,4 +985,66 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
             }
         };
     }
+
+    @Test
+    void testClearResourceRequirementsWithPendingTaskManager() throws Exception {
+        new Context() {
+            {
+                final JobID jobId = new JobID();
+                final CompletableFuture<Void> allocateResourceFuture = new CompletableFuture<>();
+
+                resourceAllocatorBuilder.setDeclareResourceNeededConsumer(
+                        (resourceDeclarations) -> allocateResourceFuture.complete(null));
+
+                final PendingTaskManager pendingTaskManager1 =
+                        new PendingTaskManager(
+                                DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
+                final PendingTaskManager pendingTaskManager2 =
+                        new PendingTaskManager(
+                                DEFAULT_TOTAL_RESOURCE_PROFILE, DEFAULT_NUM_SLOTS_PER_WORKER);
+                resourceAllocationStrategyBuilder.setTryFulfillRequirementsFunction(
+                        ((jobIDCollectionMap, taskManagerResourceInfoProvider) ->
+                                ResourceAllocationResult.builder()
+                                        .addPendingTaskManagerAllocate(pendingTaskManager1)
+                                        .addPendingTaskManagerAllocate(pendingTaskManager2)
+                                        .addAllocationOnPendingResource(
+                                                jobId,
+                                                pendingTaskManager1.getPendingTaskManagerId(),
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                        .addAllocationOnPendingResource(
+                                                jobId,
+                                                pendingTaskManager2.getPendingTaskManagerId(),
+                                                DEFAULT_SLOT_RESOURCE_PROFILE)
+                                        .build()));
+                runTest(
+                        () -> {
+                            // assign allocations to pending task managers
+                            runInMainThreadAndWait(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            createResourceRequirements(jobId, 2)));
+                            assertFutureCompleteAndReturn(allocateResourceFuture);
+
+                            // cancel all slot requests, will trigger
+                            // PendingTaskManager#clearPendingAllocationsOfJob
+                            runInMainThreadAndWait(
+                                    () ->
+                                            getSlotManager()
+                                                    .processResourceRequirements(
+                                                            ResourceRequirements.empty(
+                                                                    jobId, "foobar")));
+
+                            // disconnect to job master,will trigger
+                            // PendingTaskManager#clearPendingAllocationsOfJob again
+                            CompletableFuture<Void> clearFuture =
+                                    runInMainThreadAndReturn(
+                                            () ->
+                                                    getSlotManager()
+                                                            .clearResourceRequirements(jobId));
+                            assertFutureCompleteAndReturn(clearFuture);
+                        });
+            }
+        };
+    }
 }
