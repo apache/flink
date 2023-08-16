@@ -26,28 +26,28 @@ import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the finish behaviour of the {@link ExecutionGraph}. */
 public class ExecutionGraphFinishTest extends TestLogger {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testJobFinishes() throws Exception {
+    void testJobFinishes() throws Exception {
 
         JobGraph jobGraph =
                 JobGraphTestUtils.streamingJobGraph(
@@ -76,17 +76,17 @@ public class ExecutionGraphFinishTest extends TestLogger {
 
         // test getNumExecutionVertexFinished
         senderVertices.get(0).getCurrentExecutionAttempt().markFinished();
-        assertEquals(1, sender.getNumExecutionVertexFinished());
-        assertEquals(JobStatus.RUNNING, eg.getState());
+        assertThat(sender.getNumExecutionVertexFinished()).isEqualTo(1);
+        assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
         senderVertices.get(1).getCurrentExecutionAttempt().markFinished();
-        assertEquals(2, sender.getNumExecutionVertexFinished());
-        assertEquals(JobStatus.RUNNING, eg.getState());
+        assertThat(sender.getNumExecutionVertexFinished()).isEqualTo(2);
+        assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
         // test job finishes
         receiverVertices.get(0).getCurrentExecutionAttempt().markFinished();
         receiverVertices.get(1).getCurrentExecutionAttempt().markFinished();
-        assertEquals(4, eg.getNumFinishedVertices());
-        assertEquals(JobStatus.FINISHED, eg.getState());
+        assertThat(eg.getNumFinishedVertices()).isEqualTo(4);
+        assertThat(eg.getState()).isEqualTo(JobStatus.FINISHED);
     }
 }

@@ -25,12 +25,12 @@ import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVer
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingPipelinedRegion;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link PipelinedRegionExecutionView}. */
 public class PipelinedRegionExecutionViewTest extends TestLogger {
@@ -50,7 +50,7 @@ public class PipelinedRegionExecutionViewTest extends TestLogger {
         final PipelinedRegionExecutionView pipelinedRegionExecutionView =
                 new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
-        assertFalse(pipelinedRegionExecutionView.isFinished());
+        assertThat(pipelinedRegionExecutionView.isFinished()).isFalse();
     }
 
     @Test
@@ -60,7 +60,7 @@ public class PipelinedRegionExecutionViewTest extends TestLogger {
 
         pipelinedRegionExecutionView.vertexFinished(TEST_EXECUTION_VERTEX_ID);
 
-        assertTrue(pipelinedRegionExecutionView.isFinished());
+        assertThat(pipelinedRegionExecutionView.isFinished()).isTrue();
     }
 
     @Test
@@ -71,15 +71,16 @@ public class PipelinedRegionExecutionViewTest extends TestLogger {
         pipelinedRegionExecutionView.vertexFinished(TEST_EXECUTION_VERTEX_ID);
         pipelinedRegionExecutionView.vertexUnfinished(TEST_EXECUTION_VERTEX_ID);
 
-        assertFalse(pipelinedRegionExecutionView.isFinished());
+        assertThat(pipelinedRegionExecutionView.isFinished()).isFalse();
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void finishingUnknownVertexThrowsException() {
         final PipelinedRegionExecutionView pipelinedRegionExecutionView =
                 new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
         final ExecutionVertexID unknownVertexId = new ExecutionVertexID(new JobVertexID(), 0);
-        pipelinedRegionExecutionView.vertexFinished(unknownVertexId);
+        assertThatThrownBy(() -> pipelinedRegionExecutionView.vertexFinished(unknownVertexId))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

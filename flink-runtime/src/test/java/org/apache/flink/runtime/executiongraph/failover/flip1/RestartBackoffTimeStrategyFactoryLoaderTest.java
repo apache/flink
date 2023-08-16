@@ -24,11 +24,10 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static junit.framework.TestCase.assertEquals;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link RestartBackoffTimeStrategyFactoryLoader}. */
 public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
@@ -37,7 +36,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
             DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION = RestartStrategies.fallBackRestart();
 
     @Test
-    public void testNoRestartStrategySpecifiedInJobConfig() {
+    void testNoRestartStrategySpecifiedInJobConfig() {
         final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
 
@@ -45,12 +44,12 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                         RestartStrategies.noRestart(), conf, false);
 
-        assertEquals(
-                NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory.INSTANCE, factory);
+        assertThat(NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory.INSTANCE)
+                .isEqualTo(factory);
     }
 
     @Test
-    public void testFixedDelayRestartStrategySpecifiedInJobConfig() {
+    void testFixedDelayRestartStrategySpecifiedInJobConfig() {
         final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
 
@@ -60,15 +59,14 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
                         conf,
                         false);
 
-        assertThat(
-                factory,
-                instanceOf(
+        assertThat(factory)
+                .isInstanceOf(
                         FixedDelayRestartBackoffTimeStrategy
-                                .FixedDelayRestartBackoffTimeStrategyFactory.class));
+                                .FixedDelayRestartBackoffTimeStrategyFactory.class);
     }
 
     @Test
-    public void testExponentialDelayRestartStrategySpecifiedInJobConfig() {
+    void testExponentialDelayRestartStrategySpecifiedInJobConfig() {
         final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
 
@@ -83,15 +81,14 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
                         conf,
                         false);
 
-        assertThat(
-                factory,
-                instanceOf(
+        assertThat(factory)
+                .isInstanceOf(
                         ExponentialDelayRestartBackoffTimeStrategy
-                                .ExponentialDelayRestartBackoffTimeStrategyFactory.class));
+                                .ExponentialDelayRestartBackoffTimeStrategyFactory.class);
     }
 
     @Test
-    public void testFailureRateRestartStrategySpecifiedInJobConfig() {
+    void testFailureRateRestartStrategySpecifiedInJobConfig() {
         final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
 
@@ -102,15 +99,14 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
                         conf,
                         false);
 
-        assertThat(
-                factory,
-                instanceOf(
+        assertThat(factory)
+                .isInstanceOf(
                         FailureRateRestartBackoffTimeStrategy
-                                .FailureRateRestartBackoffTimeStrategyFactory.class));
+                                .FailureRateRestartBackoffTimeStrategyFactory.class);
     }
 
     @Test
-    public void testNoRestartStrategySpecifiedInClusterConfig() {
+    void testNoRestartStrategySpecifiedInClusterConfig() {
         final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "none");
 
@@ -118,12 +114,12 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                         DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, conf, false);
 
-        assertEquals(
-                NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory.INSTANCE, factory);
+        assertThat(NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory.INSTANCE)
+                .isEqualTo(factory);
     }
 
     @Test
-    public void testFixedDelayStrategySpecifiedInClusterConfig() {
+    void testFixedDelayStrategySpecifiedInClusterConfig() {
         final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
 
@@ -131,15 +127,14 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                         DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, conf, false);
 
-        assertThat(
-                factory,
-                instanceOf(
+        assertThat(factory)
+                .isInstanceOf(
                         FixedDelayRestartBackoffTimeStrategy
-                                .FixedDelayRestartBackoffTimeStrategyFactory.class));
+                                .FixedDelayRestartBackoffTimeStrategyFactory.class);
     }
 
     @Test
-    public void testExponentialDelayStrategySpecifiedInClusterConfig() {
+    void testExponentialDelayStrategySpecifiedInClusterConfig() {
         final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "exponential-delay");
 
@@ -147,15 +142,14 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                         DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, conf, false);
 
-        assertThat(
-                factory,
-                instanceOf(
+        assertThat(factory)
+                .isInstanceOf(
                         ExponentialDelayRestartBackoffTimeStrategy
-                                .ExponentialDelayRestartBackoffTimeStrategyFactory.class));
+                                .ExponentialDelayRestartBackoffTimeStrategyFactory.class);
     }
 
     @Test
-    public void testFailureRateStrategySpecifiedInClusterConfig() {
+    void testFailureRateStrategySpecifiedInClusterConfig() {
         final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
 
@@ -163,49 +157,52 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                         DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, conf, false);
 
-        assertThat(
-                factory,
-                instanceOf(
+        assertThat(factory)
+                .isInstanceOf(
                         FailureRateRestartBackoffTimeStrategy
-                                .FailureRateRestartBackoffTimeStrategyFactory.class));
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testInvalidStrategySpecifiedInClusterConfig() {
-        final Configuration conf = new Configuration();
-        conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "invalid-strategy");
-
-        RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
-                DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, conf, false);
+                                .FailureRateRestartBackoffTimeStrategyFactory.class);
     }
 
     @Test
-    public void testNoStrategySpecifiedWhenCheckpointingEnabled() {
+    void testInvalidStrategySpecifiedInClusterConfig() {
+        final Configuration conf = new Configuration();
+        conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "invalid-strategy");
+
+        assertThatThrownBy(
+                        () ->
+                                RestartBackoffTimeStrategyFactoryLoader
+                                        .createRestartBackoffTimeStrategyFactory(
+                                                DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION,
+                                                conf,
+                                                false))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testNoStrategySpecifiedWhenCheckpointingEnabled() {
         final RestartBackoffTimeStrategy.Factory factory =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                         DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, new Configuration(), true);
 
         RestartBackoffTimeStrategy strategy = factory.create();
-        assertThat(strategy, instanceOf(FixedDelayRestartBackoffTimeStrategy.class));
+        assertThat(strategy).isInstanceOf(FixedDelayRestartBackoffTimeStrategy.class);
 
         FixedDelayRestartBackoffTimeStrategy fixedDelayStrategy =
                 (FixedDelayRestartBackoffTimeStrategy) strategy;
-        assertEquals(
-                RestartBackoffTimeStrategyFactoryLoader.DEFAULT_RESTART_DELAY,
-                fixedDelayStrategy.getBackoffTime());
-        assertEquals(
-                RestartBackoffTimeStrategyFactoryLoader.DEFAULT_RESTART_ATTEMPTS,
-                fixedDelayStrategy.getMaxNumberRestartAttempts());
+        assertThat(RestartBackoffTimeStrategyFactoryLoader.DEFAULT_RESTART_DELAY)
+                .isEqualTo(fixedDelayStrategy.getBackoffTime());
+        assertThat(RestartBackoffTimeStrategyFactoryLoader.DEFAULT_RESTART_ATTEMPTS)
+                .isEqualTo(fixedDelayStrategy.getMaxNumberRestartAttempts());
     }
 
     @Test
-    public void testNoStrategySpecifiedWhenCheckpointingDisabled() {
+    void testNoStrategySpecifiedWhenCheckpointingDisabled() {
         final RestartBackoffTimeStrategy.Factory factory =
                 RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                         DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, new Configuration(), false);
 
-        assertThat(
-                factory,
-                instanceOf(NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory.class));
+        assertThat(factory)
+                .isInstanceOf(
+                        NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory.class);
     }
 }

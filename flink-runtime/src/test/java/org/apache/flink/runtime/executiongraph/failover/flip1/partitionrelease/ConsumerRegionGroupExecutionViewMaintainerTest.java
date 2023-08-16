@@ -22,13 +22,12 @@ import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVer
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingPipelinedRegion;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link ConsumerRegionGroupExecutionView} and {@link
@@ -42,7 +41,7 @@ public class ConsumerRegionGroupExecutionViewMaintainerTest extends TestLogger {
     private ConsumerRegionGroupExecutionView consumerRegionGroupExecutionView;
     private ConsumerRegionGroupExecutionViewMaintainer consumerRegionGroupExecutionViewMaintainer;
 
-    @Before
+    @BeforeEach
     public void setup() {
         createProducerAndConsumer();
         createConsumerRegionGroupExecutionViewMaintainer();
@@ -51,7 +50,7 @@ public class ConsumerRegionGroupExecutionViewMaintainerTest extends TestLogger {
     @Test
     public void testRegionFinished() throws Exception {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
-        assertTrue(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isTrue();
     }
 
     @Test
@@ -59,7 +58,7 @@ public class ConsumerRegionGroupExecutionViewMaintainerTest extends TestLogger {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(consumerRegion);
 
-        assertFalse(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isFalse();
     }
 
     @Test
@@ -67,7 +66,7 @@ public class ConsumerRegionGroupExecutionViewMaintainerTest extends TestLogger {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
 
-        assertTrue(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isTrue();
     }
 
     @Test
@@ -75,22 +74,22 @@ public class ConsumerRegionGroupExecutionViewMaintainerTest extends TestLogger {
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(consumerRegion);
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(consumerRegion);
 
-        assertFalse(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isFalse();
 
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
-        assertTrue(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isTrue();
     }
 
     @Test
     public void testFinishWrongRegion() {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(producerRegion);
-        assertFalse(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isFalse();
     }
 
     @Test
     public void testUnfinishedWrongRegion() {
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(producerRegion);
-        assertFalse(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isFalse();
     }
 
     private void createProducerAndConsumer() {

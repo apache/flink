@@ -26,16 +26,16 @@ import org.apache.flink.runtime.jobgraph.JobVertex.FinalizeOnMasterContext;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.createScheduler;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -47,12 +47,12 @@ import static org.mockito.Mockito.verify;
  */
 public class FinalizeOnMasterTest extends TestLogger {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testFinalizeIsCalledUponSuccess() throws Exception {
+    void testFinalizeIsCalledUponSuccess() throws Exception {
         final JobVertex vertex1 = spy(new JobVertex("test vertex 1"));
         vertex1.setInvokableClass(NoOpInvokable.class);
         vertex1.setParallelism(3);
@@ -70,22 +70,22 @@ public class FinalizeOnMasterTest extends TestLogger {
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-        assertEquals(JobStatus.RUNNING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
         ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
         // move all vertices to finished state
         ExecutionGraphTestUtils.finishAllVertices(eg);
-        assertEquals(JobStatus.FINISHED, eg.waitUntilTerminal());
+        assertThat(eg.waitUntilTerminal()).isEqualTo(JobStatus.FINISHED);
 
         verify(vertex1, times(1)).finalizeOnMaster(any(FinalizeOnMasterContext.class));
         verify(vertex2, times(1)).finalizeOnMaster(any(FinalizeOnMasterContext.class));
 
-        assertEquals(0, eg.getRegisteredExecutions().size());
+        assertThat(eg.getRegisteredExecutions()).isEmpty();
     }
 
     @Test
-    public void testFinalizeIsNotCalledUponFailure() throws Exception {
+    void testFinalizeIsNotCalledUponFailure() throws Exception {
         final JobVertex vertex = spy(new JobVertex("test vertex 1"));
         vertex.setInvokableClass(NoOpInvokable.class);
         vertex.setParallelism(1);
@@ -99,7 +99,7 @@ public class FinalizeOnMasterTest extends TestLogger {
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-        assertEquals(JobStatus.RUNNING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
         ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
@@ -108,10 +108,10 @@ public class FinalizeOnMasterTest extends TestLogger {
                 eg.getJobVertex(vertex.getID()).getTaskVertices()[0].getCurrentExecutionAttempt();
         exec.fail(new Exception("test"));
 
-        assertEquals(JobStatus.FAILED, eg.waitUntilTerminal());
+        assertThat(eg.waitUntilTerminal()).isEqualTo(JobStatus.FAILED);
 
         verify(vertex, times(0)).finalizeOnMaster(any(FinalizeOnMasterContext.class));
 
-        assertEquals(0, eg.getRegisteredExecutions().size());
+        assertThat(eg.getRegisteredExecutions()).isEmpty();
     }
 }

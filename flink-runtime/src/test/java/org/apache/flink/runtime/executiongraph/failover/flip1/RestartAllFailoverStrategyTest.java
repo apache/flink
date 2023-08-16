@@ -23,18 +23,18 @@ import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVer
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashSet;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RestartAllFailoverStrategy}. */
 public class RestartAllFailoverStrategyTest extends TestLogger {
 
     @Test
-    public void testGetTasksNeedingRestart() {
+    void testGetTasksNeedingRestart() {
         final TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         final TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
@@ -46,8 +46,8 @@ public class RestartAllFailoverStrategyTest extends TestLogger {
 
         final RestartAllFailoverStrategy strategy = new RestartAllFailoverStrategy(topology);
 
-        assertEquals(
-                new HashSet<>(Arrays.asList(v1.getId(), v2.getId(), v3.getId())),
-                strategy.getTasksNeedingRestart(v1.getId(), new Exception("Test failure")));
+        assertThat(new HashSet<>(Arrays.asList(v1.getId(), v2.getId(), v3.getId())))
+                .isEqualTo(
+                        strategy.getTasksNeedingRestart(v1.getId(), new Exception("Test failure")));
     }
 }
