@@ -38,14 +38,13 @@ import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
-
 import org.junit._
 import org.junit.Assert._
 
 import java.time.Instant
 import java.util
-
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 class CalcITCase extends StreamingTestBase {
 
@@ -792,5 +791,30 @@ class CalcITCase extends StreamingTestBase {
 
     val expected = List("2.0", "2.0", "2.0")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testFilterOnString(): Unit = {
+    val data = new mutable.MutableList[(Int, Long, String)]
+    data.+=((3, 2L, "H.llo"))
+    data.+=((3, 2L, "Hello"))
+    val table = env
+      .fromCollection(data)
+      .toTable(tEnv, 'a, 'b, 'c)
+    tEnv.createTemporaryView("testTable", table)
+
+    val result = tEnv
+      .sqlQuery(s"""
+                   |SELECT c FROM testTable
+                   |  WHERE c LIKE 'H.llo'
+                   |""".stripMargin)
+      .toAppendStream[Row]
+
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("H.llo")
+    assertEquals(expected, sink.getAppendResults)
   }
 }
