@@ -56,7 +56,7 @@ if [ $EXIT_CODE != 0 ]; then
     echo "=============================================================================="
     echo "Optional Check failed. The dependency tree could not be determined. See previous output for details."
     echo "=============================================================================="
-    exit 1
+    exit $EXIT_CODE
 fi
 
 cat "${dependency_plugin_output}"
@@ -68,7 +68,7 @@ if [ $EXIT_CODE != 0 ]; then
     echo "=============================================================================="
     echo "Optional Check failed. See previous output for details."
     echo "=============================================================================="
-    exit 1
+    exit $EXIT_CODE
 fi
 
 exit 0
