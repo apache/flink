@@ -71,18 +71,18 @@ if [ $EXIT_CODE != 0 ]; then
     echo "=============================================================================="
     echo "Suffix Check failed. The dependency tree could not be determined. See previous output for details."
     echo "=============================================================================="
-    exit 1
+    exit $EXIT_CODE
 fi
 
 $MVN -pl tools/ci/flink-ci-tools exec:java exec:java -Dexec.mainClass=org.apache.flink.tools.ci.suffixcheck.ScalaSuffixChecker -Dexec.args="${dependency_plugin_output} $(pwd)"
 EXIT_CODE=$?
 
-if [ $EXIT_CODE == 0 ]; then
-    exit 0
+if [ $EXIT_CODE != 0 ]; then
+    echo "=============================================================================="
+    echo "Suffix Check failed. See previous output for details."
+    echo "=============================================================================="
+    exit $EXIT_CODE
 fi
 
-echo "=============================================================================="
-echo "Suffix Check failed. See previous output for details."
-echo "=============================================================================="
-exit 1
+exit 0
 
