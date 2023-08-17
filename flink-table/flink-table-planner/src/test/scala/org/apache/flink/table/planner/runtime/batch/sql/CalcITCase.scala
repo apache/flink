@@ -410,6 +410,30 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testFilterOnString(): Unit = {
+    val rows = Seq(row(3, "H.llo"), row(3, "Hello"))
+    val dataId = TestValuesTableFactory.registerData(rows)
+
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a int,
+         |  c string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      s"""
+         |SELECT c FROM MyTable
+         |  WHERE c LIKE 'H.llo'
+         |""".stripMargin,
+      Seq(row("H.llo"))
+    )
+
     checkResult(
       "SELECT * FROM Table3 WHERE c LIKE '%world%'",
       Seq(
