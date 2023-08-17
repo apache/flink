@@ -63,7 +63,8 @@ echo "If you haven't built the project, please do so first by running \"mvn clea
 
 dependency_plugin_output=/tmp/dep.txt
 
-$MVN dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} > "${dependency_plugin_output}"
+# run with -T1 because our maven output parsers don't support multi-threaded builds
+$MVN dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} -T1 > "${dependency_plugin_output}"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE != 0 ]; then
