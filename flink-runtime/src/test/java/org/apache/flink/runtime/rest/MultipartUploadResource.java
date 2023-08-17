@@ -134,34 +134,33 @@ public class MultipartUploadResource extends ExternalResource {
                 (request, restfulGateway) -> {
                     // the default verifier checks for identiy (i.e. same name and content) of all
                     // uploaded files
-                    List<Path> expectedFiles =
-                            getFilesToUpload().stream()
-                                    .map(File::toPath)
-                                    .collect(Collectors.toList());
-                    List<Path> uploadedFiles =
-                            request.getUploadedFiles().stream()
-                                    .map(File::toPath)
-                                    .collect(Collectors.toList());
-
-                    assertEquals(expectedFiles.size(), uploadedFiles.size());
-
-                    List<Path> expectedList = new ArrayList<>(expectedFiles);
-                    List<Path> actualList = new ArrayList<>(uploadedFiles);
-                    expectedList.sort(Comparator.comparing(Path::toString));
-                    actualList.sort(Comparator.comparing(Path::toString));
-
-                    for (int x = 0; x < expectedList.size(); x++) {
-                        Path expected = expectedList.get(x);
-                        Path actual = actualList.get(x);
-
-                        assertEquals(
-                                expected.getFileName().toString(), actual.getFileName().toString());
-
-                        byte[] originalContent = Files.readAllBytes(expected);
-                        byte[] receivedContent = Files.readAllBytes(actual);
-                        assertArrayEquals(originalContent, receivedContent);
-                    }
+                    assertUploadedFilesEqual(request, getFilesToUpload());
                 });
+    }
+
+    public static void assertUploadedFilesEqual(HandlerRequest<?> request, Collection<File> files)
+            throws IOException {
+        List<Path> expectedFiles = files.stream().map(File::toPath).collect(Collectors.toList());
+        List<Path> uploadedFiles =
+                request.getUploadedFiles().stream().map(File::toPath).collect(Collectors.toList());
+
+        assertEquals(expectedFiles.size(), uploadedFiles.size());
+
+        List<Path> expectedList = new ArrayList<>(expectedFiles);
+        List<Path> actualList = new ArrayList<>(uploadedFiles);
+        expectedList.sort(Comparator.comparing(Path::toString));
+        actualList.sort(Comparator.comparing(Path::toString));
+
+        for (int x = 0; x < expectedList.size(); x++) {
+            Path expected = expectedList.get(x);
+            Path actual = actualList.get(x);
+
+            assertEquals(expected.getFileName().toString(), actual.getFileName().toString());
+
+            byte[] originalContent = Files.readAllBytes(expected);
+            byte[] receivedContent = Files.readAllBytes(actual);
+            assertArrayEquals(originalContent, receivedContent);
+        }
     }
 
     public void setFileUploadVerifier(
