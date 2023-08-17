@@ -318,7 +318,7 @@ public abstract class TestJvmProcess {
         }
 
         assertThat(exists)
-                .as("The marker file was not found within " + timeoutMillis + " msecs")
+                .withFailMessage("The marker file was not found within %s msecs", timeoutMillis)
                 .isTrue();
     }
 
@@ -326,7 +326,9 @@ public abstract class TestJvmProcess {
         // send it a regular kill command (SIG_TERM)
         final Process kill = Runtime.getRuntime().exec("kill " + pid);
         kill.waitFor();
-        assertThat(kill.exitValue()).as("failed to send SIG_TERM to process " + pid).isZero();
+        assertThat(kill.exitValue())
+                .withFailMessage("failed to send SIG_TERM to process %s", pid)
+                .isZero();
     }
 
     public static void waitForMarkerFiles(File basedir, String prefix, int num, long timeout) {
