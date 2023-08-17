@@ -57,8 +57,7 @@ import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNew
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.empty;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A collection of utility methods for testing the (de)serialization of checkpoint metadata for
@@ -237,9 +236,9 @@ public class CheckpointTestUtils {
      * well defined in the raw contents.
      */
     public static void assertMasterStateEquality(MasterState a, MasterState b) {
-        assertEquals(a.version(), b.version());
-        assertEquals(a.name(), b.name());
-        assertArrayEquals(a.bytes(), b.bytes());
+        assertThat(b.version()).isEqualTo(a.version());
+        assertThat(b.name()).isEqualTo(a.name());
+        assertThat(b.bytes()).isEqualTo(a.bytes());
     }
 
     // ------------------------------------------------------------------------

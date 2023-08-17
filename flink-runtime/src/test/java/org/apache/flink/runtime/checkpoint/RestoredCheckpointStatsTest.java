@@ -20,17 +20,16 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.core.execution.SavepointFormatType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class RestoredCheckpointStatsTest {
+class RestoredCheckpointStatsTest {
 
     /** Tests simple access to restore properties. */
     @Test
-    public void testSimpleAccess() throws Exception {
+    void testSimpleAccess() {
         long checkpointId = Integer.MAX_VALUE + 1L;
-        long triggerTimestamp = Integer.MAX_VALUE + 1L;
         CheckpointProperties props =
                 new CheckpointProperties(
                         true,
@@ -47,9 +46,9 @@ public class RestoredCheckpointStatsTest {
         RestoredCheckpointStats restored =
                 new RestoredCheckpointStats(checkpointId, props, restoreTimestamp, externalPath);
 
-        assertEquals(checkpointId, restored.getCheckpointId());
-        assertEquals(props, restored.getProperties());
-        assertEquals(restoreTimestamp, restored.getRestoreTimestamp());
-        assertEquals(externalPath, restored.getExternalPath());
+        assertThat(restored.getCheckpointId()).isEqualTo(checkpointId);
+        assertThat(restored.getProperties()).isEqualTo(props);
+        assertThat(restored.getRestoreTimestamp()).isEqualTo(restoreTimestamp);
+        assertThat(restored.getExternalPath()).isEqualTo(externalPath);
     }
 }

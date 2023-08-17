@@ -18,50 +18,51 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.Offset.offset;
 
-public class StatsSummaryTest {
+class StatsSummaryTest {
 
     /** Test the initial/empty state. */
     @Test
-    public void testInitialState() throws Exception {
+    void testInitialState() {
         StatsSummary mma = new StatsSummary();
 
-        assertEquals(0, mma.getMinimum());
-        assertEquals(0, mma.getMaximum());
-        assertEquals(0, mma.getSum());
-        assertEquals(0, mma.getCount());
-        assertEquals(0, mma.getAverage());
+        assertThat(mma.getMinimum()).isZero();
+        assertThat(mma.getMaximum()).isZero();
+        assertThat(mma.getSum()).isZero();
+        assertThat(mma.getCount()).isZero();
+        assertThat(mma.getAverage()).isZero();
     }
 
     /** Test that non-positive numbers are not counted. */
     @Test
-    public void testAddNonPositiveStats() throws Exception {
+    void testAddNonPositiveStats() {
         StatsSummary mma = new StatsSummary();
         mma.add(-1);
 
-        assertEquals(0, mma.getMinimum());
-        assertEquals(0, mma.getMaximum());
-        assertEquals(0, mma.getSum());
-        assertEquals(0, mma.getCount());
-        assertEquals(0, mma.getAverage());
+        assertThat(mma.getMinimum()).isZero();
+        assertThat(mma.getMaximum()).isZero();
+        assertThat(mma.getSum()).isZero();
+        assertThat(mma.getCount()).isZero();
+        assertThat(mma.getAverage()).isZero();
 
         mma.add(0);
 
-        assertEquals(0, mma.getMinimum());
-        assertEquals(0, mma.getMaximum());
-        assertEquals(0, mma.getSum());
-        assertEquals(1, mma.getCount());
-        assertEquals(0, mma.getAverage());
+        assertThat(mma.getMinimum()).isZero();
+        assertThat(mma.getMaximum()).isZero();
+        assertThat(mma.getSum()).isZero();
+        assertThat(mma.getCount()).isOne();
+        assertThat(mma.getAverage()).isZero();
     }
 
     /** Test sequence of random numbers. */
     @Test
-    public void testAddRandomNumbers() throws Exception {
+    void testAddRandomNumbers() {
         ThreadLocalRandom rand = ThreadLocalRandom.current();
 
         StatsSummary mma = new StatsSummary();
@@ -80,15 +81,15 @@ public class StatsSummaryTest {
             mma.add(number);
         }
 
-        assertEquals(min, mma.getMinimum());
-        assertEquals(max, mma.getMaximum());
-        assertEquals(sum, mma.getSum());
-        assertEquals(count, mma.getCount());
-        assertEquals(sum / count, mma.getAverage());
+        assertThat(mma.getMinimum()).isEqualTo(min);
+        assertThat(mma.getMaximum()).isEqualTo(max);
+        assertThat(mma.getSum()).isEqualTo(sum);
+        assertThat(mma.getCount()).isEqualTo(count);
+        assertThat(mma.getAverage()).isEqualTo(sum / count);
     }
 
     @Test
-    public void testQuantile() {
+    void testQuantile() {
         StatsSummary summary = new StatsSummary(100);
         for (int i = 0; i < 123; i++) {
             summary.add(100000); // should be forced out by the later values
@@ -98,7 +99,7 @@ public class StatsSummaryTest {
         }
         StatsSummarySnapshot snapshot = summary.createSnapshot();
         for (double q = 0.01; q <= 1; q++) {
-            assertEquals(q, snapshot.getQuantile(q), 1);
+            assertThat(snapshot.getQuantile(q)).isCloseTo(q, offset(1d));
         }
     }
 }

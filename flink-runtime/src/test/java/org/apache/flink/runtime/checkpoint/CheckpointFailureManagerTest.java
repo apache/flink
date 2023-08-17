@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
@@ -28,7 +27,7 @@ import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVE
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the checkpoint failure manager. */
-class CheckpointFailureManagerTest extends TestLogger {
+class CheckpointFailureManagerTest {
 
     @Test
     void testIgnoresPastCheckpoints() {

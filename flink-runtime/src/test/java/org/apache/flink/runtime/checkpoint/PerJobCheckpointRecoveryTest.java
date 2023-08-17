@@ -21,21 +21,20 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /** Tests related to {@link PerJobCheckpointRecoveryFactory}. */
-public class PerJobCheckpointRecoveryTest extends TestLogger {
+class PerJobCheckpointRecoveryTest {
 
     @Test
-    public void testFactoryWithoutCheckpointStoreRecovery() throws Exception {
+    void testFactoryWithoutCheckpointStoreRecovery() throws Exception {
         final TestingCompletedCheckpointStore store =
                 TestingCompletedCheckpointStore
                         .createStoreWithShutdownCheckAndNoCompletedCheckpoints(
@@ -44,41 +43,41 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
                 PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
                         maxCheckpoints -> store);
         final JobID firstJobId = new JobID();
-        assertSame(
-                store,
-                factory.createRecoveredCompletedCheckpointStore(
-                        firstJobId,
-                        1,
-                        SharedStateRegistry.DEFAULT_FACTORY,
-                        Executors.directExecutor(),
-                        RestoreMode.DEFAULT));
-        assertThrows(
-                UnsupportedOperationException.class,
-                () ->
+        assertThat(
                         factory.createRecoveredCompletedCheckpointStore(
                                 firstJobId,
                                 1,
                                 SharedStateRegistry.DEFAULT_FACTORY,
                                 Executors.directExecutor(),
-                                RestoreMode.DEFAULT));
+                                RestoreMode.DEFAULT))
+                .isSameAs(store);
+        assertThatExceptionOfType(UnsupportedOperationException.class)
+                .isThrownBy(
+                        () ->
+                                factory.createRecoveredCompletedCheckpointStore(
+                                        firstJobId,
+                                        1,
+                                        SharedStateRegistry.DEFAULT_FACTORY,
+                                        Executors.directExecutor(),
+                                        RestoreMode.DEFAULT));
 
         final JobID secondJobId = new JobID();
-        assertSame(
-                store,
-                factory.createRecoveredCompletedCheckpointStore(
-                        secondJobId,
-                        1,
-                        SharedStateRegistry.DEFAULT_FACTORY,
-                        Executors.directExecutor(),
-                        RestoreMode.DEFAULT));
-        assertThrows(
-                UnsupportedOperationException.class,
-                () ->
+        assertThat(
                         factory.createRecoveredCompletedCheckpointStore(
                                 secondJobId,
                                 1,
                                 SharedStateRegistry.DEFAULT_FACTORY,
                                 Executors.directExecutor(),
-                                RestoreMode.DEFAULT));
+                                RestoreMode.DEFAULT))
+                .isSameAs(store);
+        assertThatExceptionOfType(UnsupportedOperationException.class)
+                .isThrownBy(
+                        () ->
+                                factory.createRecoveredCompletedCheckpointStore(
+                                        secondJobId,
+                                        1,
+                                        SharedStateRegistry.DEFAULT_FACTORY,
+                                        Executors.directExecutor(),
+                                        RestoreMode.DEFAULT));
     }
 }

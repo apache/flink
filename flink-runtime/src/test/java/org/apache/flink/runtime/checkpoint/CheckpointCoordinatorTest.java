@@ -77,7 +77,6 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TernaryBoolean;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -149,7 +148,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for the checkpoint coordinator. */
-class CheckpointCoordinatorTest extends TestLogger {
+class CheckpointCoordinatorTest {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -3115,7 +3114,7 @@ class CheckpointCoordinatorTest extends TestLogger {
                     .isEqualTo(expectedRootCauseMessage);
         }
 
-        assertThat(invocationCounterAndException.f0.intValue()).isEqualTo(1L);
+        assertThat(invocationCounterAndException.f0.intValue()).isOne();
         assertThat(
                         invocationCounterAndException.f1 instanceof CheckpointException
                                 && invocationCounterAndException

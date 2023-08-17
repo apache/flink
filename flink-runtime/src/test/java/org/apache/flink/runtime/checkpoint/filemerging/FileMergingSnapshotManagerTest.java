@@ -56,7 +56,7 @@ public class FileMergingSnapshotManagerTest {
     }
 
     @Test
-    public void testCreateFileMergingSnapshotManager() throws IOException {
+    void testCreateFileMergingSnapshotManager() throws IOException {
         try (FileMergingSnapshotManagerBase fmsm =
                 (FileMergingSnapshotManagerBase)
                         createFileMergingSnapshotManager(checkpointBaseDir)) {
@@ -80,7 +80,7 @@ public class FileMergingSnapshotManagerTest {
     }
 
     @Test
-    public void testCreateAndReuseFiles() throws IOException {
+    void testCreateAndReuseFiles() throws IOException {
         try (FileMergingSnapshotManagerBase fmsm =
                 (FileMergingSnapshotManagerBase)
                         createFileMergingSnapshotManager(checkpointBaseDir)) {
@@ -167,7 +167,7 @@ public class FileMergingSnapshotManagerTest {
     }
 
     @Test
-    public void testRefCountBetweenLogicalAndPhysicalFiles() throws IOException {
+    void testRefCountBetweenLogicalAndPhysicalFiles() throws IOException {
         try (FileMergingSnapshotManagerBase fmsm =
                 (FileMergingSnapshotManagerBase)
                         createFileMergingSnapshotManager(checkpointBaseDir)) {
@@ -182,9 +182,9 @@ public class FileMergingSnapshotManagerTest {
             LogicalFile logicalFile1 = fmsm.createLogicalFile(physicalFile1, 0, 10, subtaskKey1);
             assertThat(logicalFile1.getSubtaskKey()).isEqualTo(subtaskKey1);
             assertThat(logicalFile1.getPhysicalFile()).isEqualTo(physicalFile1);
-            assertThat(logicalFile1.getStartOffset()).isEqualTo(0);
+            assertThat(logicalFile1.getStartOffset()).isZero();
             assertThat(logicalFile1.getLength()).isEqualTo(10);
-            assertThat(physicalFile1.getRefCount()).isEqualTo(1);
+            assertThat(physicalFile1.getRefCount()).isOne();
 
             assertThat(logicalFile1.isDiscarded()).isFalse();
             logicalFile1.advanceLastCheckpointId(2);
@@ -199,7 +199,7 @@ public class FileMergingSnapshotManagerTest {
             // the stream is still open for reuse
             assertThat(physicalFile1.isOpen()).isTrue();
             assertThat(physicalFile1.isDeleted()).isFalse();
-            assertThat(physicalFile1.getRefCount()).isEqualTo(0);
+            assertThat(physicalFile1.getRefCount()).isZero();
 
             physicalFile1.close();
             assertThat(physicalFile1.isOpen()).isFalse();
@@ -211,9 +211,9 @@ public class FileMergingSnapshotManagerTest {
                             subtaskKey1, 0, CheckpointedStateScope.SHARED);
             LogicalFile logicalFile2 = fmsm.createLogicalFile(physicalFile2, 0, 10, subtaskKey1);
             assertThat(logicalFile2.getPhysicalFile()).isEqualTo(physicalFile2);
-            assertThat(logicalFile2.getStartOffset()).isEqualTo(0);
+            assertThat(logicalFile2.getStartOffset()).isZero();
             assertThat(logicalFile2.getLength()).isEqualTo(10);
-            assertThat(physicalFile2.getRefCount()).isEqualTo(1);
+            assertThat(physicalFile2.getRefCount()).isOne();
             logicalFile2.advanceLastCheckpointId(2);
 
             assertThat(physicalFile2.isOpen()).isTrue();
@@ -221,17 +221,17 @@ public class FileMergingSnapshotManagerTest {
             physicalFile2.close();
             assertThat(physicalFile2.isOpen()).isFalse();
             assertThat(physicalFile2.isDeleted()).isFalse();
-            assertThat(physicalFile2.getRefCount()).isEqualTo(1);
+            assertThat(physicalFile2.getRefCount()).isOne();
 
             logicalFile2.discardWithCheckpointId(2);
             assertThat(logicalFile2.isDiscarded()).isTrue();
             assertThat(physicalFile2.isDeleted()).isTrue();
-            assertThat(physicalFile2.getRefCount()).isEqualTo(0);
+            assertThat(physicalFile2.getRefCount()).isZero();
         }
     }
 
     @Test
-    public void testSizeStatsInPhysicalFile() throws IOException {
+    void testSizeStatsInPhysicalFile() throws IOException {
         try (FileMergingSnapshotManagerBase fmsm =
                 (FileMergingSnapshotManagerBase)
                         createFileMergingSnapshotManager(checkpointBaseDir)) {
@@ -241,7 +241,7 @@ public class FileMergingSnapshotManagerTest {
                     fmsm.getOrCreatePhysicalFileForCheckpoint(
                             subtaskKey1, 0, CheckpointedStateScope.SHARED);
 
-            assertThat(physicalFile.getSize()).isEqualTo(0);
+            assertThat(physicalFile.getSize()).isZero();
             physicalFile.incSize(123);
             assertThat(physicalFile.getSize()).isEqualTo(123);
             physicalFile.incSize(456);

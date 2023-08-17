@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.checkpoint.metadata.MetadataV3Serializer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -29,14 +29,13 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import static java.util.Collections.emptyList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link Checkpoints} test. */
-public class CheckpointsTest {
+class CheckpointsTest {
 
     @Test
-    public void testVersion3Compatibility() throws IOException {
+    void testVersion3Compatibility() throws IOException {
         CheckpointMetadata metadata = new CheckpointMetadata(1L, emptyList(), emptyList(), null);
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
                 DataOutputStream dos = new DataOutputStream(out)) {
@@ -51,10 +50,11 @@ public class CheckpointsTest {
                                 // written into the data
                                 dis, metadata.getClass().getClassLoader(), "");
 
-                assertNull(deserialized.getCheckpointProperties());
-                assertEquals(metadata.getCheckpointId(), deserialized.getCheckpointId());
-                assertEquals(metadata.getOperatorStates(), deserialized.getOperatorStates());
-                assertEquals(metadata.getMasterStates(), deserialized.getMasterStates());
+                assertThat(deserialized.getCheckpointProperties()).isNull();
+                assertThat(deserialized.getCheckpointId()).isEqualTo(metadata.getCheckpointId());
+                assertThat(deserialized.getOperatorStates())
+                        .isEqualTo(metadata.getOperatorStates());
+                assertThat(deserialized.getMasterStates()).isEqualTo(metadata.getMasterStates());
             }
         }
     }

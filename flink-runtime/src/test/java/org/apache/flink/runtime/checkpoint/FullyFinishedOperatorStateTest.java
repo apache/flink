@@ -21,37 +21,32 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests the properties of {@link FullyFinishedOperatorState}. */
-public class FullyFinishedOperatorStateTest {
+class FullyFinishedOperatorStateTest {
 
     @Test
-    public void testFullyFinishedOperatorState() {
+    void testFullyFinishedOperatorState() {
         OperatorState operatorState = new FullyFinishedOperatorState(new OperatorID(), 5, 256);
-        assertTrue(operatorState.isFullyFinished());
+        assertThat(operatorState.isFullyFinished()).isTrue();
 
-        assertEquals(0, operatorState.getSubtaskStates().size());
-        assertEquals(0, operatorState.getStates().size());
-        assertEquals(0, operatorState.getNumberCollectedStates());
+        assertThat(operatorState.getSubtaskStates()).isEmpty();
+        assertThat(operatorState.getStates()).isEmpty();
+        assertThat(operatorState.getNumberCollectedStates()).isZero();
 
-        try {
-            operatorState.putState(0, OperatorSubtaskState.builder().build());
-            fail("Should not be able to put new subtask states for a fully finished state");
-        } catch (UnsupportedOperationException e) {
-            // Expected
-        }
+        assertThatThrownBy(() -> operatorState.putState(0, OperatorSubtaskState.builder().build()))
+                .as("Should not be able to put new subtask states for a fully finished state")
+                .isInstanceOf(UnsupportedOperationException.class);
 
-        try {
-            operatorState.setCoordinatorState(
-                    new ByteStreamStateHandle("test", new byte[] {1, 2, 3, 4}));
-            fail("Should not be able to set coordinator states for a fully finished state");
-        } catch (UnsupportedOperationException e) {
-            // Excepted
-        }
+        assertThatThrownBy(
+                        () ->
+                                operatorState.setCoordinatorState(
+                                        new ByteStreamStateHandle("test", new byte[] {1, 2, 3, 4})))
+                .as("Should not be able to put new subtask states for a fully finished state")
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 }

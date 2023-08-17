@@ -108,7 +108,7 @@ class PendingCheckpointTest {
 
     /** Tests that pending checkpoints can be subsumed iff they are forced. */
     @Test
-    public void testCanBeSubsumed() throws Exception {
+    void testCanBeSubsumed() throws Exception {
         // Forced checkpoints cannot be subsumed
         CheckpointProperties forced =
                 new CheckpointProperties(
@@ -143,7 +143,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testSyncSavepointCannotBeSubsumed() throws Exception {
+    void testSyncSavepointCannotBeSubsumed() throws Exception {
         // Forced checkpoints cannot be subsumed
         CheckpointProperties forced =
                 CheckpointProperties.forSyncSavepoint(true, false, SavepointFormatType.CANONICAL);
@@ -161,7 +161,7 @@ class PendingCheckpointTest {
      * during finalize.
      */
     @Test
-    public void testCompletionFuture() throws Exception {
+    void testCompletionFuture() throws Exception {
         CheckpointProperties props =
                 new CheckpointProperties(
                         false,
@@ -224,7 +224,7 @@ class PendingCheckpointTest {
 
     /** Tests that abort discards state. */
     @Test
-    public void testAbortDiscardsState() throws Exception {
+    void testAbortDiscardsState() throws Exception {
         CheckpointProperties props =
                 new CheckpointProperties(
                         false, CheckpointType.CHECKPOINT, false, false, false, false, false, false);
@@ -283,7 +283,7 @@ class PendingCheckpointTest {
      * This means that they should not appear in the task states map of the checkpoint.
      */
     @Test
-    public void testNullSubtaskStateLeadsToStatelessTask() throws Exception {
+    void testNullSubtaskStateLeadsToStatelessTask() throws Exception {
         PendingCheckpoint pending =
                 createPendingCheckpoint(
                         CheckpointProperties.forCheckpoint(
@@ -303,7 +303,7 @@ class PendingCheckpointTest {
      * states of the checkpoint.
      */
     @Test
-    public void testNonNullSubtaskStateLeadsToStatefulTask() throws Exception {
+    void testNonNullSubtaskStateLeadsToStatefulTask() throws Exception {
         PendingCheckpoint pending =
                 createPendingCheckpoint(
                         CheckpointProperties.forCheckpoint(
@@ -314,7 +314,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testSetCanceller() throws Exception {
+    void testSetCanceller() throws Exception {
         final CheckpointProperties props =
                 new CheckpointProperties(
                         false, CheckpointType.CHECKPOINT, true, true, true, true, true, false);
@@ -333,7 +333,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testMasterState() throws Exception {
+    void testMasterState() throws Exception {
         final TestingMasterTriggerRestoreHook masterHook =
                 new TestingMasterTriggerRestoreHook("master hook");
         masterHook.addStateContent("state");
@@ -360,7 +360,7 @@ class PendingCheckpointTest {
         assertThat(pending.areTasksFullyAcknowledged()).isTrue();
 
         final List<MasterState> resultMasterStates = pending.getMasterStates();
-        assertThat(resultMasterStates.size()).isEqualTo(1);
+        assertThat(resultMasterStates).hasSize(1);
         final String deserializedState =
                 masterHook
                         .createCheckpointDataSerializer()
@@ -369,7 +369,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testMasterStateWithNullState() throws Exception {
+    void testMasterStateWithNullState() throws Exception {
         final TestingMasterTriggerRestoreHook masterHook =
                 new TestingMasterTriggerRestoreHook("master hook");
         masterHook.addStateContent("state");
@@ -422,7 +422,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testInitiallyUnacknowledgedCoordinatorStates() throws Exception {
+    void testInitiallyUnacknowledgedCoordinatorStates() throws Exception {
         final PendingCheckpoint checkpoint =
                 createPendingCheckpointWithCoordinators(
                         new TestingOperatorInfo(), new TestingOperatorInfo());
@@ -432,7 +432,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testAcknowledgedCoordinatorStates() throws Exception {
+    void testAcknowledgedCoordinatorStates() throws Exception {
         final OperatorInfo coord1 = new TestingOperatorInfo();
         final OperatorInfo coord2 = new TestingOperatorInfo();
         final PendingCheckpoint checkpoint =
@@ -451,7 +451,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testDuplicateAcknowledgeCoordinator() throws Exception {
+    void testDuplicateAcknowledgeCoordinator() throws Exception {
         final OperatorInfo coordinator = new TestingOperatorInfo();
         final PendingCheckpoint checkpoint = createPendingCheckpointWithCoordinators(coordinator);
 
@@ -463,7 +463,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testAcknowledgeUnknownCoordinator() throws Exception {
+    void testAcknowledgeUnknownCoordinator() throws Exception {
         final PendingCheckpoint checkpoint =
                 createPendingCheckpointWithCoordinators(new TestingOperatorInfo());
 
@@ -474,7 +474,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testDisposeDisposesCoordinatorStates() throws Exception {
+    void testDisposeDisposesCoordinatorStates() throws Exception {
         final TestingStreamStateHandle handle1 = new TestingStreamStateHandle();
         final TestingStreamStateHandle handle2 = new TestingStreamStateHandle();
         final PendingCheckpoint checkpoint =
@@ -487,7 +487,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testReportTaskFinishedOnRestore() throws IOException {
+    void testReportTaskFinishedOnRestore() throws IOException {
         RecordCheckpointPlan recordCheckpointPlan =
                 new RecordCheckpointPlan(new ArrayList<>(ACK_TASKS));
         PendingCheckpoint checkpoint = createPendingCheckpoint(recordCheckpointPlan);
@@ -500,7 +500,7 @@ class PendingCheckpointTest {
     }
 
     @Test
-    public void testReportTaskFinishedOperators() throws IOException {
+    void testReportTaskFinishedOperators() throws IOException {
         RecordCheckpointPlan recordCheckpointPlan =
                 new RecordCheckpointPlan(new ArrayList<>(ACK_TASKS));
         PendingCheckpoint checkpoint = createPendingCheckpoint(recordCheckpointPlan);
@@ -690,13 +690,12 @@ class PendingCheckpointTest {
         @Nullable
         @Override
         public CompletableFuture<String> triggerCheckpoint(
-                long checkpointId, long timestamp, Executor executor) throws Exception {
+                long checkpointId, long timestamp, Executor executor) {
             return CompletableFuture.completedFuture(stateContents.poll());
         }
 
         @Override
-        public void restoreCheckpoint(long checkpointId, @Nullable String checkpointData)
-                throws Exception {}
+        public void restoreCheckpoint(long checkpointId, @Nullable String checkpointData) {}
 
         @Override
         public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
@@ -706,9 +705,9 @@ class PendingCheckpointTest {
 
     private static class RecordCheckpointPlan extends DefaultCheckpointPlan {
 
-        private List<ExecutionVertex> reportedFinishedOnRestoreTasks = new ArrayList<>();
+        private final List<ExecutionVertex> reportedFinishedOnRestoreTasks = new ArrayList<>();
 
-        private List<ExecutionVertex> reportedOperatorsFinishedTasks = new ArrayList<>();
+        private final List<ExecutionVertex> reportedOperatorsFinishedTasks = new ArrayList<>();
 
         public RecordCheckpointPlan(List<Execution> tasksToWaitFor) {
             super(
