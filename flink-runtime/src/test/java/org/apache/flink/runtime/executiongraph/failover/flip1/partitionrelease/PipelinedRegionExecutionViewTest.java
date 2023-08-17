@@ -23,7 +23,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingPipelinedRegion;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link PipelinedRegionExecutionView}. */
-class PipelinedRegionExecutionViewTest extends TestLoggerExtension {
+class PipelinedRegionExecutionViewTest {
 
     private static final ExecutionVertexID TEST_EXECUTION_VERTEX_ID =
             new ExecutionVertexID(new JobVertexID(), 0);

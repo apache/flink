@@ -23,7 +23,6 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link SchedulingPipelinedRegionComputeUtil}. */
-class SchedulingPipelinedRegionComputeUtilTest extends TestLoggerExtension {
+class SchedulingPipelinedRegionComputeUtilTest {
 
     /**
      * Tests that validates that a graph with single unconnected vertices works correctly.

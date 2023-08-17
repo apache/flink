@@ -47,7 +47,6 @@ import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -63,7 +62,7 @@ import java.util.function.Consumer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the restart behaviour of the {@link ExecutionGraph}. */
-class ExecutionGraphRestartTest extends TestLoggerExtension {
+class ExecutionGraphRestartTest {
 
     private static final int NUM_TASKS = 31;
 

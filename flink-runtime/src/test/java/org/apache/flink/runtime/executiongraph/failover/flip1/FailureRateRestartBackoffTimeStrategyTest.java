@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.Test;
@@ -28,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link FailureRateRestartBackoffTimeStrategy}. */
-class FailureRateRestartBackoffTimeStrategyTest extends TestLoggerExtension {
+class FailureRateRestartBackoffTimeStrategyTest {
 
     private final Exception failure = new Exception();
 

@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +30,7 @@ import java.util.HashSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RestartAllFailoverStrategy}. */
-class RestartAllFailoverStrategyTest extends TestLoggerExtension {
+class RestartAllFailoverStrategyTest {
 
     @Test
     void testGetTasksNeedingRestart() {

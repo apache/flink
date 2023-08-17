@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.util.TestLoggerExtension;
-
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -35,7 +33,7 @@ import static org.apache.flink.runtime.executiongraph.failover.flip1.StronglyCon
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link StronglyConnectedComponentsComputeUtils}. */
-class StronglyConnectedComponentsComputeUtilsTest extends TestLoggerExtension {
+class StronglyConnectedComponentsComputeUtilsTest {
 
     @Test
     void testWithCycles() {

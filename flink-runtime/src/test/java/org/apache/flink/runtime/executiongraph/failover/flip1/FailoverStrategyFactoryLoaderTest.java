@@ -21,7 +21,6 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 
@@ -29,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FailoverStrategyFactoryLoader}. */
-class FailoverStrategyFactoryLoaderTest extends TestLoggerExtension {
+class FailoverStrategyFactoryLoaderTest {
 
     @Test
     void testLoadRestartAllStrategyFactory() {
