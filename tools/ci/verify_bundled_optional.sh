@@ -46,7 +46,7 @@ MVN_CLEAN_COMPILE_OUT=$1
 
 MVN=${MVN:-./mvnw}
 
-dependency_plugin_output=/tmp/optional_dep.txt
+dependency_plugin_output=/tmp/dependency_tree_optional.txt
 
 # run with -T1 because our maven output parsers don't support multi-threaded builds
 $MVN dependency:tree -B -T1 > "${dependency_plugin_output}"
