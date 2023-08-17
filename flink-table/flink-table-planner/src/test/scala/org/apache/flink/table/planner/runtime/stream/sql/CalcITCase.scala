@@ -38,11 +38,13 @@ import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
+
 import org.junit._
 import org.junit.Assert._
 
 import java.time.Instant
 import java.util
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
