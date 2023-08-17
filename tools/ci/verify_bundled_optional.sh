@@ -48,7 +48,8 @@ MVN=${MVN:-./mvnw}
 
 dependency_plugin_output=/tmp/optional_dep.txt
 
-$MVN dependency:tree -B > "${dependency_plugin_output}"
+# run with -T1 because our maven output parsers don't support multi-threaded builds
+$MVN dependency:tree -B -T1 > "${dependency_plugin_output}"
 EXIT_CODE=$?
 
 if [ $EXIT_CODE != 0 ]; then
