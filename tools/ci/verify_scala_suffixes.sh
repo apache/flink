@@ -61,7 +61,7 @@ echo "--- Flink Scala Dependency Analyzer ---"
 echo "Analyzing modules for Scala dependencies using 'mvn dependency:tree'."
 echo "If you haven't built the project, please do so first by running \"mvn clean install -DskipTests\""
 
-dependency_plugin_output=/tmp/dep.txt
+dependency_plugin_output=/tmp/dependency_tree_scala.txt
 
 # run with -T1 because our maven output parsers don't support multi-threaded builds
 $MVN dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: ${MAVEN_ARGUMENTS} -T1 > "${dependency_plugin_output}"
