@@ -879,8 +879,7 @@ automatically cleared after session reconstruction.
 </table>
 
 #### FileCatalogStore
-FileCatalogStore can save the user's Catalog configuration to a file. Currently, it only supports
-local files. To use FileCatalogStore, you need to specify the directory where the Catalog configuration
+FileCatalogStore can save the user's Catalog configuration to a file. To use FileCatalogStore, you need to specify the directory where the Catalog configuration
 needs to be saved. Different Catalogs will correspond to different files and each file will correspond to a Catalog Name.
 
 Here's an example directory structure representing the storage of Catalog configurations using FileCatalogStore:

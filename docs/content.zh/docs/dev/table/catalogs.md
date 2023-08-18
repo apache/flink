@@ -871,7 +871,7 @@ session 重建之后 store 中保存的 Catalog 配置也会自动清理。
 </table>
 
 #### FileCatalogStore
-FileCatalogStore 可以将用户的 Catalog 配置信息保存至文件中，当前只支持本地文件，使用 FileCatalogStore 需要指定 Catalog 配置需要
+FileCatalogStore 可以将用户的 Catalog 配置信息保存至文件中，使用 FileCatalogStore 需要指定 Catalog 配置需要
 保存的目录，不同的 Catalog 会对应不同的文件并和 Catalog Name 一一对应。
 
 这是一个示例目录结构，用于表示使用 `FileCatalogStore` 保存 `catalog` 配置的情况：
