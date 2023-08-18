@@ -77,7 +77,7 @@ class SchedulingPipelinedRegionComputeUtilTest {
      * </pre>
      */
     @Test
-    public void testEmbarrassinglyParallelCase() {
+    void testEmbarrassinglyParallelCase() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();

@@ -118,10 +118,10 @@ class ExecutionPartitionLifecycleTest {
                 testingShuffleMaster);
 
         stateTransition1.accept(execution);
-        assertThat(releasePartitionsCallFuture.isDone()).isFalse();
+        assertThat(releasePartitionsCallFuture).isNotDone();
 
         stateTransition2.accept(execution);
-        assertThat(releasePartitionsCallFuture.isDone()).isTrue();
+        assertThat(releasePartitionsCallFuture).isDone();
 
         final Tuple2<JobID, Collection<ResultPartitionID>> releasePartitionsCall =
                 releasePartitionsCallFuture.get();
@@ -224,12 +224,12 @@ class ExecutionPartitionLifecycleTest {
 
         switch (partitionReleaseResult) {
             case NONE:
-                assertThat(partitionStopTrackingFuture.isDone()).isFalse();
-                assertThat(partitionStopTrackingAndReleaseFuture.isDone()).isFalse();
+                assertThat(partitionStopTrackingFuture).isNotDone();
+                assertThat(partitionStopTrackingAndReleaseFuture).isNotDone();
                 break;
             case STOP_TRACKING:
-                assertThat(partitionStopTrackingFuture.isDone()).isTrue();
-                assertThat(partitionStopTrackingAndReleaseFuture.isDone()).isFalse();
+                assertThat(partitionStopTrackingFuture).isDone();
+                assertThat(partitionStopTrackingAndReleaseFuture).isNotDone();
                 final Collection<ResultPartitionID> stopTrackingCall =
                         partitionStopTrackingFuture.get();
                 assertThat(
@@ -238,8 +238,8 @@ class ExecutionPartitionLifecycleTest {
                         .isEqualTo(stopTrackingCall);
                 break;
             case STOP_TRACKING_AND_RELEASE:
-                assertThat(partitionStopTrackingFuture.isDone()).isFalse();
-                assertThat(partitionStopTrackingAndReleaseFuture.isDone()).isTrue();
+                assertThat(partitionStopTrackingFuture).isNotDone();
+                assertThat(partitionStopTrackingAndReleaseFuture).isDone();
                 final Collection<ResultPartitionID> stopTrackingAndReleaseCall =
                         partitionStopTrackingAndReleaseFuture.get();
                 assertThat(

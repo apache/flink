@@ -59,10 +59,10 @@ class ExecutionVertexDeploymentTest {
                 // as expected
             }
 
-            assertThat(vertex.getFailureInfo().isPresent()).isFalse();
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -91,11 +91,11 @@ class ExecutionVertexDeploymentTest {
                 // as expected
             }
 
-            assertThat(vertex.getFailureInfo().isPresent()).isFalse();
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.RUNNING) == 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.RUNNING)).isZero();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -132,9 +132,9 @@ class ExecutionVertexDeploymentTest {
                 // as expected
             }
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.RUNNING) == 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.RUNNING)).isZero();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -158,13 +158,13 @@ class ExecutionVertexDeploymentTest {
             vertex.deployToSlot(slot);
 
             assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.FAILED);
-            assertThat(vertex.getFailureInfo().isPresent()).isTrue();
+            assertThat(vertex.getFailureInfo()).isPresent();
             assertThat(vertex.getFailureInfo().map(ErrorInfo::getExceptionAsString).get())
                     .contains(ERROR_MESSAGE);
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.FAILED) > 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.FAILED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -198,13 +198,13 @@ class ExecutionVertexDeploymentTest {
             }
 
             assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.FAILED);
-            assertThat(vertex.getFailureInfo().isPresent()).isTrue();
+            assertThat(vertex.getFailureInfo()).isPresent();
             assertThat(vertex.getFailureInfo().map(ErrorInfo::getExceptionAsString).get())
                     .contains(ERROR_MESSAGE);
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.FAILED) > 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.FAILED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -238,9 +238,9 @@ class ExecutionVertexDeploymentTest {
                                     .deserializeError(ClassLoader.getSystemClassLoader()))
                     .isEqualTo(testError);
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.FAILED) > 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.DEPLOYING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.FAILED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

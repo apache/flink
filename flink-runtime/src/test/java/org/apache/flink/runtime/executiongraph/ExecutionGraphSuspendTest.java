@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
@@ -219,7 +220,10 @@ class ExecutionGraphSuspendTest {
         validateCancelRpcCalls(gateway, parallelism);
 
         ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-        assertThat(eg.getTerminationFuture().get()).isEqualTo(JobStatus.CANCELED);
+
+        FlinkAssertions.assertThatFuture(eg.getTerminationFuture())
+                .eventuallySucceeds()
+                .isEqualTo(JobStatus.CANCELED);
 
         // suspend
         scheduler.closeAsync();
@@ -290,12 +294,12 @@ class ExecutionGraphSuspendTest {
         validateNoInteractions(gateway);
 
         for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
-            assertThat(ev.getCurrentExecutionAttempt().getAttemptNumber()).isEqualTo(0);
+            assertThat(ev.getCurrentExecutionAttempt().getAttemptNumber()).isZero();
         }
     }
 
     private static void validateNoInteractions(InteractionsCountingTaskManagerGateway gateway) {
-        assertThat(gateway.getInteractionsCount()).isEqualTo(0);
+        assertThat(gateway.getInteractionsCount()).isZero();
     }
 
     private static void validateAllVerticesInState(ExecutionGraph eg, ExecutionState expected) {

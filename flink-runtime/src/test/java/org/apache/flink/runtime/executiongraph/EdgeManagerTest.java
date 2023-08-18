@@ -86,7 +86,7 @@ class EdgeManagerTest {
     }
 
     @Test
-    public void testCalculateNumberOfConsumers() throws Exception {
+    void testCalculateNumberOfConsumers() throws Exception {
         testCalculateNumberOfConsumers(5, 2, ALL_TO_ALL, new int[] {2, 2});
         testCalculateNumberOfConsumers(5, 2, POINTWISE, new int[] {1, 1});
         testCalculateNumberOfConsumers(2, 5, ALL_TO_ALL, new int[] {5, 5, 5, 5, 5});

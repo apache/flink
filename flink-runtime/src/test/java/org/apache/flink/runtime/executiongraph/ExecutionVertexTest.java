@@ -88,11 +88,11 @@ class ExecutionVertexTest {
         Execution execution =
                 producerExecutionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
-        assertThat(releasePartitionsFuture.isDone()).isFalse();
+        assertThat(releasePartitionsFuture).isNotDone();
 
         execution.markFinished();
 
-        assertThat(releasePartitionsFuture.isDone()).isFalse();
+        assertThat(releasePartitionsFuture).isNotDone();
 
         for (ExecutionVertex executionVertex : producerExecutionJobVertex.getTaskVertices()) {
             executionVertex.resetForNewExecution();

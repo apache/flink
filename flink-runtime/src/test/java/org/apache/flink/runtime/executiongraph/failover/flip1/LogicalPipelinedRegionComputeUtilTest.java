@@ -205,7 +205,7 @@ class LogicalPipelinedRegionComputeUtilTest {
 
     private static void checkRegionSize(
             Set<Set<LogicalVertex>> regions, int numOfRegions, int... sizes) {
-        assertThat(regions.size()).isEqualTo(numOfRegions);
+        assertThat(regions).hasSize(numOfRegions);
         assertThat(regions.stream().map(Set::size).collect(Collectors.toList()))
                 .containsExactlyInAnyOrderElementsOf(
                         Arrays.stream(sizes).boxed().collect(Collectors.toList()));

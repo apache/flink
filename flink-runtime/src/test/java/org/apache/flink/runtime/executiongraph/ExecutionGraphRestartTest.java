@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -118,7 +119,7 @@ class ExecutionGraphRestartTest {
 
             scheduler.cancel();
             assertThat(executionGraph.getState()).isEqualTo(JobStatus.CANCELLING);
-            assertThat(slotPool.getNumPendingRequests()).isEqualTo(0);
+            assertThat(slotPool.getNumPendingRequests()).isZero();
         }
     }
 
@@ -147,7 +148,7 @@ class ExecutionGraphRestartTest {
 
             scheduler.handleGlobalFailure(new Exception("test"));
             assertThat(executionGraph.getState()).isEqualTo(JobStatus.FAILING);
-            assertThat(slotPool.getNumPendingRequests()).isEqualTo(0);
+            assertThat(slotPool.getNumPendingRequests()).isZero();
         }
     }
 
@@ -369,7 +370,9 @@ class ExecutionGraphRestartTest {
                 v.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
             }
 
-            assertThat(eg.getTerminationFuture().get()).isEqualTo(JobStatus.CANCELED);
+            FlinkAssertions.assertThatFuture(eg.getTerminationFuture())
+                    .eventuallySucceeds()
+                    .isEqualTo(JobStatus.CANCELED);
 
             Execution execution =
                     eg.getAllExecutionVertices().iterator().next().getCurrentExecutionAttempt();

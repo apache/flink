@@ -69,11 +69,11 @@ class ExecutionVertexCancelTest {
 
             assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
 
-            assertThat(vertex.getFailureInfo().isPresent()).isFalse();
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -92,11 +92,11 @@ class ExecutionVertexCancelTest {
 
             assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
 
-            assertThat(vertex.getFailureInfo().isPresent()).isFalse();
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -127,11 +127,11 @@ class ExecutionVertexCancelTest {
 
             assertThat(slot.isAlive()).isFalse();
 
-            assertThat(vertex.getFailureInfo().isPresent()).isFalse();
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -169,11 +169,11 @@ class ExecutionVertexCancelTest {
 
             assertThat(slot.isAlive()).isFalse();
 
-            assertThat(vertex.getFailureInfo().isPresent()).isFalse();
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -201,10 +201,10 @@ class ExecutionVertexCancelTest {
 
             assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELING);
 
-            assertThat(vertex.getFailureInfo().isPresent()).isFalse();
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -234,8 +234,8 @@ class ExecutionVertexCancelTest {
 
             assertThat(slot.isAlive()).isFalse();
 
-            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED) > 0).isTrue();
-            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0).isTrue();
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -258,7 +258,7 @@ class ExecutionVertexCancelTest {
 
         final ExecutionVertex[] vertices =
                 graph.getVerticesTopologically().iterator().next().getTaskVertices();
-        assertThat(graph.getRegisteredExecutions().size()).isEqualTo(vertices.length);
+        assertThat(graph.getRegisteredExecutions()).hasSize(vertices.length);
 
         final Execution exec = vertices[3].getCurrentExecutionAttempt();
         exec.cancel();
@@ -271,7 +271,7 @@ class ExecutionVertexCancelTest {
                 .isTrue();
 
         assertThat(exec.getAssignedResource().isAlive()).isFalse();
-        assertThat(graph.getRegisteredExecutions().size()).isEqualTo(vertices.length - 1);
+        assertThat(graph.getRegisteredExecutions()).hasSize(vertices.length - 1);
     }
 
     private static class CancelSequenceSimpleAckingTaskManagerGateway

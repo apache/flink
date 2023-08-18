@@ -497,9 +497,9 @@ public class ExecutionGraphTestUtils {
 
         // verify produced data sets
         if (outputJobVertices == null) {
-            assertThat(ejv.getProducedDataSets().length).isEqualTo(0);
+            assertThat(ejv.getProducedDataSets().length).isZero();
         } else {
-            assertThat(outputJobVertices.size()).isEqualTo(ejv.getProducedDataSets().length);
+            assertThat(outputJobVertices).hasSize(ejv.getProducedDataSets().length);
             for (int i = 0; i < outputJobVertices.size(); i++) {
                 assertThat(originJobVertex.getProducedDataSets().get(i).getId())
                         .isEqualTo(ejv.getProducedDataSets()[i].getId());
@@ -521,9 +521,9 @@ public class ExecutionGraphTestUtils {
             assertThat(subtaskIndex).isEqualTo(ev.getParallelSubtaskIndex());
 
             if (inputJobVertices == null) {
-                assertThat(ev.getNumberOfInputs()).isEqualTo(0);
+                assertThat(ev.getNumberOfInputs()).isZero();
             } else {
-                assertThat(inputJobVertices.size()).isEqualTo(ev.getNumberOfInputs());
+                assertThat(inputJobVertices).hasSize(ev.getNumberOfInputs());
 
                 for (int i = 0; i < inputJobVertices.size(); i++) {
                     ConsumedPartitionGroup consumedPartitionGroup = ev.getConsumedPartitionGroup(i);

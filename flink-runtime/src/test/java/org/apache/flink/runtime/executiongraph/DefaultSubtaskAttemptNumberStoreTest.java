@@ -46,7 +46,7 @@ class DefaultSubtaskAttemptNumberStoreTest {
                 new DefaultSubtaskAttemptNumberStore(initialAttemptCounts);
 
         assertThat(subtaskAttemptNumberStore.getAttemptCount(initialAttemptCounts.size() * 2))
-                .isEqualTo(0);
+                .isZero();
     }
 
     @Test

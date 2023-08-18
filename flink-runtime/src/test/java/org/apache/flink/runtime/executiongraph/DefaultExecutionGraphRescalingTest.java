@@ -81,7 +81,7 @@ class DefaultExecutionGraphRescalingTest {
                         .build(EXECUTOR_RESOURCE.getExecutor());
 
         for (JobVertex jv : jobVertices) {
-            assertThat(jv.getParallelism()).isEqualTo(1);
+            assertThat(jv.getParallelism()).isOne();
         }
         verifyGeneratedExecutionGraphOfSimpleBitartiteJobGraph(eg, jobVertices);
 

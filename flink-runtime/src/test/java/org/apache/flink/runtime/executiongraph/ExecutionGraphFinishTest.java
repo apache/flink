@@ -75,7 +75,7 @@ class ExecutionGraphFinishTest {
 
         // test getNumExecutionVertexFinished
         senderVertices.get(0).getCurrentExecutionAttempt().markFinished();
-        assertThat(sender.getNumExecutionVertexFinished()).isEqualTo(1);
+        assertThat(sender.getNumExecutionVertexFinished()).isOne();
         assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
         senderVertices.get(1).getCurrentExecutionAttempt().markFinished();

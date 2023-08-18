@@ -41,19 +41,19 @@ class ConsumerRegionGroupExecutionViewMaintainerTest {
     private ConsumerRegionGroupExecutionViewMaintainer consumerRegionGroupExecutionViewMaintainer;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         createProducerAndConsumer();
         createConsumerRegionGroupExecutionViewMaintainer();
     }
 
     @Test
-    public void testRegionFinished() throws Exception {
+    void testRegionFinished() throws Exception {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
         assertThat(consumerRegionGroupExecutionView.isFinished()).isTrue();
     }
 
     @Test
-    public void testRegionUnfinished() throws Exception {
+    void testRegionUnfinished() throws Exception {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(consumerRegion);
 
@@ -61,7 +61,7 @@ class ConsumerRegionGroupExecutionViewMaintainerTest {
     }
 
     @Test
-    public void testRegionFinishedMultipleTimes() throws Exception {
+    void testRegionFinishedMultipleTimes() throws Exception {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
 
@@ -69,7 +69,7 @@ class ConsumerRegionGroupExecutionViewMaintainerTest {
     }
 
     @Test
-    public void testRegionUnfinishedMultipleTimes() throws Exception {
+    void testRegionUnfinishedMultipleTimes() throws Exception {
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(consumerRegion);
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(consumerRegion);
 
@@ -80,13 +80,13 @@ class ConsumerRegionGroupExecutionViewMaintainerTest {
     }
 
     @Test
-    public void testFinishWrongRegion() {
+    void testFinishWrongRegion() {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(producerRegion);
         assertThat(consumerRegionGroupExecutionView.isFinished()).isFalse();
     }
 
     @Test
-    public void testUnfinishedWrongRegion() {
+    void testUnfinishedWrongRegion() {
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(producerRegion);
         assertThat(consumerRegionGroupExecutionView.isFinished()).isFalse();
     }

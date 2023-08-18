@@ -101,7 +101,7 @@ class ExecutionTest {
         CompletableFuture<Boolean> restartFuture =
                 terminationFuture.thenApply(
                         ignored -> {
-                            assertThat(returnedSlotFuture.isDone()).isTrue();
+                            assertThat(returnedSlotFuture).isDone();
                             return true;
                         });
 
@@ -231,7 +231,7 @@ class ExecutionTest {
 
                     physicalSlot.releasePayload(new FlinkException("Test exception"));
 
-                    assertThat(execution.getReleaseFuture().isDone()).isTrue();
+                    assertThat(execution.getReleaseFuture()).isDone();
                 });
     }
 
