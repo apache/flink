@@ -669,7 +669,7 @@ class HsResultPartitionTest {
             subpartitionDataRead.flip();
             assertThat(subpartitionDataWritten).isEqualTo(subpartitionDataRead);
 
-            assertThat(eventsWritten.size()).isEqualTo(eventsRead.size());
+            assertThat(eventsWritten).hasSameSizeAs(eventsRead);
             for (int i = 0; i < eventsWritten.size(); i++) {
                 assertThat(eventsWritten.get(i).f1).isEqualTo(eventsRead.get(i).getDataType());
                 assertThat(eventsWritten.get(i).f0)

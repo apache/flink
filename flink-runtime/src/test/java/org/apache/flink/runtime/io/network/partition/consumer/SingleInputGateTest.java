@@ -661,7 +661,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 
             Map<SubpartitionInfo, InputChannel> channelMap = gate.getInputChannels();
 
-            assertThat(channelMap.size()).isEqualTo(3);
+            assertThat(channelMap).hasSize(3);
             channelMap
                     .values()
                     .forEach(
@@ -932,7 +932,7 @@ public class SingleInputGateTest extends InputGateTestBase {
         SubpartitionInfo info5 = createSubpartitionInfo(partitionIds[2], 0);
         SubpartitionInfo info6 = createSubpartitionInfo(partitionIds[2], 1);
 
-        assertThat(gate.getInputChannels().size()).isEqualTo(6);
+        assertThat(gate.getInputChannels()).hasSize(6);
         assertThat(gate.getInputChannels().get(info1).getConsumedSubpartitionIndex()).isZero();
         assertThat(gate.getInputChannels().get(info2).getConsumedSubpartitionIndex()).isOne();
         assertThat(gate.getInputChannels().get(info3).getConsumedSubpartitionIndex()).isZero();
@@ -1098,7 +1098,7 @@ public class SingleInputGateTest extends InputGateTestBase {
             Map<InputGateID, SingleInputGate> createdInputGatesById =
                     createInputGateWithLocalChannels(network, numberOfGates, 1);
 
-            assertThat(createdInputGatesById.size()).isEqualTo(numberOfGates);
+            assertThat(createdInputGatesById).hasSize(numberOfGates);
 
             for (InputGateID id : createdInputGatesById.keySet()) {
                 assertThat(network.getInputGate(id).isPresent()).isTrue();

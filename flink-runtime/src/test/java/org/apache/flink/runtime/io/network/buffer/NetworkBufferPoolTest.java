@@ -163,7 +163,7 @@ class NetworkBufferPoolTest {
             }
         }
 
-        assertThat(buffers.size()).isEqualTo(globalPool.getTotalNumberOfMemorySegments());
+        assertThat(buffers).hasSize(globalPool.getTotalNumberOfMemorySegments());
 
         assertThat(fixedPool.requestBuffer()).isNull();
         assertThat(boundedPool.requestBuffer()).isNull();
@@ -220,7 +220,7 @@ class NetworkBufferPoolTest {
         List<MemorySegment> memorySegments = Collections.emptyList();
         try {
             memorySegments = globalPool.requestUnpooledMemorySegments(numBuffers / 2);
-            assertThat(memorySegments.size()).isEqualTo(numBuffers / 2);
+            assertThat(memorySegments).hasSize(numBuffers / 2);
 
             globalPool.recycleUnpooledMemorySegments(memorySegments);
             memorySegments.clear();

@@ -199,11 +199,11 @@ public class TieredStorageMemoryManagerImplTest {
         }
 
         assertThat(reclaimBufferCounter).isZero();
-        assertThat(requestedBuffers.size()).isEqualTo(numBuffersBeforeTriggerReclaim);
+        assertThat(requestedBuffers).hasSize(numBuffersBeforeTriggerReclaim);
         requestedBuffers.add(storageMemoryManager.requestBufferBlocking(this));
         assertThatFuture(hasReclaimBufferFinished).eventuallySucceeds();
         assertThat(reclaimBufferCounter).isOne();
-        assertThat(requestedBuffers.size()).isOne();
+        assertThat(requestedBuffers).hasSize(1);
         recycleRequestedBuffers();
 
         storageMemoryManager.release();

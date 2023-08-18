@@ -204,7 +204,7 @@ public class DataBufferTest {
             subpartitionDataRead.flip();
             assertThat(subpartitionDataRead).isEqualTo(subpartitionDataWritten);
 
-            assertThat(eventsRead.size()).isEqualTo(eventsWritten.size());
+            assertThat(eventsRead).hasSameSizeAs(eventsWritten);
             for (int i = 0; i < eventsWritten.size(); ++i) {
                 assertThat(eventsRead.get(i).getDataType())
                         .isEqualTo(eventsWritten.get(i).dataType);

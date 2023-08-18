@@ -239,7 +239,7 @@ class TieredStorageSortBufferTest {
             subpartitionDataRead.flip();
             assertThat(subpartitionDataWritten).isEqualTo(subpartitionDataRead);
 
-            assertThat(eventsWritten.size()).isEqualTo(eventsRead.size());
+            assertThat(eventsWritten).hasSameSizeAs(eventsRead);
             for (int i = 0; i < eventsWritten.size(); ++i) {
                 assertThat(eventsWritten.get(i).dataType)
                         .isEqualTo(eventsRead.get(i).getDataType());

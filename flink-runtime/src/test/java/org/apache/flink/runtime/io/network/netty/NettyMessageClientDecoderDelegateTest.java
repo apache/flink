@@ -324,7 +324,7 @@ class NettyMessageClientDecoderDelegateTest {
 
     private void verifyDecodedMessages(
             List<BufferResponse> expectedMessages, List<NettyMessage> decodedMessages) {
-        assertThat(decodedMessages.size()).isEqualTo(expectedMessages.size());
+        assertThat(decodedMessages).hasSameSizeAs(expectedMessages);
         for (int i = 0; i < expectedMessages.size(); ++i) {
             assertThat(decodedMessages.get(i)).isInstanceOf(expectedMessages.get(i).getClass());
 

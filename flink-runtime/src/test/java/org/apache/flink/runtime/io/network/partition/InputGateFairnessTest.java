@@ -411,9 +411,9 @@ public class InputGateFairnessTest {
                 }
             }
 
-            assertThat(uniquenessChecker.size())
+            assertThat(uniquenessChecker)
                     .withFailMessage("found duplicate input channels")
-                    .isEqualTo(channels.size());
+                    .hasSameSizeAs(channels);
             uniquenessChecker.clear();
         }
     }

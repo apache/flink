@@ -1790,7 +1790,7 @@ class RemoteInputChannelTest {
 
         simulatedNetworkThread.join();
 
-        assertThat(timedOutOrInterrupted.get())
+        assertThat(timedOutOrInterrupted)
                 .withFailMessage(
                         "Test ended by timeout or interruption - this indicates that the network thread was blocked.")
                 .isFalse();

@@ -174,7 +174,7 @@ class SegmentPartitionFileTest {
         SegmentPartitionFile.writeSegmentFinishFile(
                 baseDir, partitionId, subpartitionId, segmentId);
         File segmentFinishDir = getSegmentFinishDir(baseDir, partitionId, subpartitionId);
-        assertThat(segmentFinishDir.isDirectory()).isTrue();
+        assertThat(segmentFinishDir).isDirectory();
         File[] segmentFinishFiles = segmentFinishDir.listFiles();
         assertThat(segmentFinishFiles).hasSize(1);
         assertThat(segmentFinishFiles[0]).isFile();

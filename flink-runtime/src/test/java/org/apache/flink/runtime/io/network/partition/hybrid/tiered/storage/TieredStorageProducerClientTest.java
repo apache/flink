@@ -152,10 +152,10 @@ public class TieredStorageProducerClientTest {
                 isBroadcast
                         ? numSubpartitions * numToWriteRecords * bufferSize
                         : numToWriteRecords * bufferSize;
-        assertThat(numReceivedBuffersInTier1.get()).isOne();
-        assertThat(numReceivedBuffers.get())
-                .isEqualTo(numReceivedBuffersInTier1.get() + numReceivedBuffersInTier2.get());
-        assertThat(numReceivedBytes.get()).isEqualTo(numExpectedBytes);
+        assertThat(numReceivedBuffersInTier1).hasValue(1);
+        assertThat(numReceivedBuffers)
+                .hasValue(numReceivedBuffersInTier1.get() + numReceivedBuffersInTier2.get());
+        assertThat(numReceivedBytes).hasValue(numExpectedBytes);
     }
 
     @TestTemplate
@@ -215,8 +215,8 @@ public class TieredStorageProducerClientTest {
 
         int numExpectedBuffers = isBroadcast ? numSubpartitions : 1;
         int numExpectedBytes = isBroadcast ? bufferSize * numSubpartitions : bufferSize;
-        assertThat(numWriteBuffers.get()).isEqualTo(numExpectedBuffers);
-        assertThat(numWriteBytes.get()).isEqualTo(numExpectedBytes);
+        assertThat(numWriteBuffers).hasValue(numExpectedBuffers);
+        assertThat(numWriteBytes).hasValue(numExpectedBytes);
     }
 
     @TestTemplate
@@ -233,9 +233,9 @@ public class TieredStorageProducerClientTest {
                 createTieredStorageProducerClient(
                         numSubpartitions, Collections.singletonList(tierProducerAgent));
 
-        assertThat(isClosed.get()).isFalse();
+        assertThat(isClosed).isFalse();
         tieredStorageProducerClient.close();
-        assertThat(isClosed.get()).isTrue();
+        assertThat(isClosed).isTrue();
     }
 
     private static TieredStorageProducerClient createTieredStorageProducerClient(

@@ -54,6 +54,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -441,7 +442,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
             pollBufferAndCheckType(subpartition, Buffer.DataType.DATA_BUFFER);
         }
 
-        assertThat(channelStateFuture.get()).isEqualTo(expectedBuffers);
+        assertThatFuture(channelStateFuture).eventuallySucceeds().isEqualTo(expectedBuffers);
     }
 
     private void pollBufferAndCheckType(

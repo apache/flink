@@ -36,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.DATA_BUFFER;
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.NONE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -84,7 +85,7 @@ class NettyConnectionReaderTest {
         reader.readBuffer(0);
         assertThat(requiredSegmentIdFuture).isNotDone();
         reader.readBuffer(1);
-        assertThat(requiredSegmentIdFuture.get()).isOne();
+        assertThatFuture(requiredSegmentIdFuture).eventuallySucceeds().isEqualTo(1);
     }
 
     private static Supplier<InputChannel> createInputChannelSupplier(

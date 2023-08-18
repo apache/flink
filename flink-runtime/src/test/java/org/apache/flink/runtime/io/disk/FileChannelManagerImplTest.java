@@ -90,7 +90,7 @@ class FileChannelManagerImplTest {
             threads[i].join();
         }
 
-        assertThat(counter2.get()).isEqualTo(counter1.get());
+        assertThat(counter2).hasValue(counter1.get());
     }
 
     @Test

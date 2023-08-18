@@ -103,7 +103,7 @@ class HashBufferAccumulatorTest {
                 bufferAccumulator.receive(record, subpartitionId, dataType, false);
             }
 
-            assertThat(numReceivedFinishedBuffer.get()).isEqualTo(numExpectBuffers);
+            assertThat(numReceivedFinishedBuffer).hasValue(numExpectBuffers);
         }
     }
 

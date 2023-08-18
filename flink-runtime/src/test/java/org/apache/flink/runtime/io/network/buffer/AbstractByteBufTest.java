@@ -2239,7 +2239,7 @@ abstract class AbstractByteBufTest {
         set.add(elemA);
         set.add(elemB);
 
-        assertThat(set.size()).isEqualTo(2);
+        assertThat(set).hasSize(2);
         ByteBuf elemACopy = elemA.copy();
         assertThat(set.contains(elemACopy)).isTrue();
 
@@ -2250,14 +2250,14 @@ abstract class AbstractByteBufTest {
         buffer.writeBytes(elemA.duplicate());
 
         assertThat(set.remove(buffer)).isTrue();
-        assertThat(set.contains(elemA)).isFalse();
-        assertThat(set.size()).isOne();
+        assertThat(set).doesNotContainSequence(elemA);
+        assertThat(set).hasSize(1);
 
         buffer.clear();
         buffer.writeBytes(elemB.duplicate());
         assertThat(set.remove(buffer)).isTrue();
-        assertThat(set.contains(elemB)).isFalse();
-        assertThat(set.size()).isZero();
+        assertThat(set).doesNotContainSequence(elemB);
+        assertThat(set).isEmpty();
         elemA.release();
         elemB.release();
         elemACopy.release();
@@ -4900,7 +4900,7 @@ abstract class AbstractByteBufTest {
             t1.start();
 
             latch.await();
-            assertThat(cnt.get()).isZero();
+            assertThat(cnt).hasValue(0);
             innerLatch.countDown();
         }
     }

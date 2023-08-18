@@ -51,6 +51,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HsConsumerId.DEFAULT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -256,11 +257,13 @@ class HsFileDataManagerTest {
         // second round run will trigger timeout.
         fileDataManager.run();
 
-        assertThat(prepareForSchedulingFinished).isCompleted();
-        assertThat(cause).isCompleted();
-        assertThat(cause.get())
-                .isInstanceOf(TimeoutException.class)
-                .hasMessageContaining("Buffer request timeout");
+        assertThatFuture(cause)
+                .eventuallySucceeds()
+                .satisfies(
+                        e ->
+                                assertThat(e)
+                                        .isInstanceOf(TimeoutException.class)
+                                        .hasMessageContaining("Buffer request timeout"));
     }
 
     /**
@@ -282,10 +285,13 @@ class HsFileDataManagerTest {
 
         ioExecutor.trigger();
 
-        assertThat(cause).isCompleted();
-        assertThat(cause.get())
-                .isInstanceOf(IOException.class)
-                .hasMessageContaining("expected exception.");
+        assertThatFuture(cause)
+                .eventuallySucceeds()
+                .satisfies(
+                        e ->
+                                assertThat(e)
+                                        .isInstanceOf(IOException.class)
+                                        .hasMessageContaining("expected exception."));
     }
 
     // ----------------------- test release ---------------------------------------
@@ -329,10 +335,14 @@ class HsFileDataManagerTest {
 
         releaseThread.sync();
 
-        assertThat(cause).isCompleted();
-        assertThat(cause.get())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Result partition has been already released.");
+        assertThatFuture(cause)
+                .eventuallySucceeds()
+                .satisfies(
+                        e ->
+                                assertThat(e)
+                                        .isInstanceOf(IllegalStateException.class)
+                                        .hasMessageContaining(
+                                                "Result partition has been already released."));
     }
 
     /** Test file data manager was released, but receive new subpartition reader registration. */

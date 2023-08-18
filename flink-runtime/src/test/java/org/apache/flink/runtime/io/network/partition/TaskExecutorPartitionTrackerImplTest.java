@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link TaskExecutorPartitionTrackerImpl}. */
@@ -113,7 +114,9 @@ class TaskExecutorPartitionTrackerImplTest {
         partitionTracker.stopTrackingAndReleaseJobPartitions(
                 Collections.singleton(resultPartitionId1));
 
-        assertThat(shuffleReleaseFuture.get()).contains(resultPartitionId1);
+        assertThatFuture(shuffleReleaseFuture)
+                .eventuallySucceeds()
+                .satisfies(actual -> assertThat(actual).containsExactly(resultPartitionId1));
     }
 
     @Test
@@ -144,7 +147,10 @@ class TaskExecutorPartitionTrackerImplTest {
                         1));
         partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId1);
 
-        assertThat(shuffleReleaseFuture.get()).contains(resultPartitionId1);
+        assertThatFuture(shuffleReleaseFuture)
+                .eventuallySucceeds()
+                .asList()
+                .contains(resultPartitionId1);
     }
 
     @Test
@@ -175,7 +181,10 @@ class TaskExecutorPartitionTrackerImplTest {
         partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
 
         partitionTracker.stopTrackingAndReleaseJobPartitionsFor(jobId);
-        assertThat(shuffleReleaseFuture.get()).doesNotContain(resultPartitionId1);
+        assertThatFuture(shuffleReleaseFuture)
+                .eventuallySucceeds()
+                .asList()
+                .doesNotContain(resultPartitionId1);
     }
 
     @Test
@@ -205,7 +214,9 @@ class TaskExecutorPartitionTrackerImplTest {
         partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
 
         partitionTracker.stopTrackingAndReleaseAllClusterPartitions();
-        assertThat(shuffleReleaseFuture.get()).contains(resultPartitionId1);
+        assertThatFuture(shuffleReleaseFuture)
+                .eventuallySucceeds()
+                .satisfies(actual -> assertThat(actual).contains(resultPartitionId1));
     }
 
     @Test
@@ -234,7 +245,9 @@ class TaskExecutorPartitionTrackerImplTest {
         partitionTracker.promoteJobPartitions(Collections.singleton(resultPartitionId1));
 
         partitionTracker.stopTrackingAndReleaseClusterPartitions(Collections.singleton(dataSetId1));
-        assertThat(shuffleReleaseFuture.get()).contains(resultPartitionId1);
+        assertThatFuture(shuffleReleaseFuture)
+                .eventuallySucceeds()
+                .satisfies(actual -> assertThat(actual).contains(resultPartitionId1));
     }
 
     private static class TestingShuffleEnvironment

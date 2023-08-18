@@ -162,7 +162,7 @@ public class PartitionRequestClientFactoryTest {
                             RESOURCE_ID, (int) (Math.random() * Integer.MAX_VALUE));
             set.add(factory.createPartitionRequestClient(connectionID));
         }
-        assertThat(set.size()).isLessThanOrEqualTo(maxNumberOfConnections);
+        assertThat(set).hasSizeLessThanOrEqualTo(maxNumberOfConnections);
     }
 
     /**

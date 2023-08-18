@@ -115,7 +115,7 @@ class SortMergeSubpartitionReaderTest {
         assertThat(listener.numNotifications).isEqualTo(2);
         assertThat(subpartitionReader.unsynchronizedGetNumberOfQueuedBuffers())
                 .isEqualTo(numBuffersPerSubpartition - 2);
-        assertThat(segments.size()).isOne();
+        assertThat(segments).hasSize(1);
     }
 
     @Test
