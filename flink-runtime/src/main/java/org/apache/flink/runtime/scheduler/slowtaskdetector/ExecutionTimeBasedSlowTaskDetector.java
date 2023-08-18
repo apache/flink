@@ -214,7 +214,17 @@ public class ExecutionTimeBasedSlowTaskDetector implements SlowTaskDetector {
             ExecutionTimeWithInputBytes baseline,
             long currentTimeMillis) {
         return executions.stream()
-                .filter(e -> !e.getState().isTerminal() && e.getState() != ExecutionState.CANCELING)
+                .filter(
+                        // We will filter out tasks that are in the CREATED state, as we do not
+                        // allow speculative execution for them because they have not been
+                        // scheduled.
+                        // However, for tasks that are already in the SCHEDULED state, we allow
+                        // speculative execution to provide the capability of parallel execution
+                        // running.
+                        e ->
+                                !e.getState().isTerminal()
+                                        && e.getState() != ExecutionState.CANCELING
+                                        && e.getState() != ExecutionState.CREATED)
                 .filter(
                         e -> {
                             ExecutionTimeWithInputBytes timeWithBytes =
