@@ -640,7 +640,7 @@ class YarnClusterDescriptorTest {
             // only add the ship the folder, not the contents
             assertThat(effectiveShipFiles)
                     .doesNotContain(new Path(libFile.getAbsolutePath()))
-                    .contains(new Path(libFolder.getAbsolutePath()));
+                    .contains(new Path(libFolder.toURI()));
             assertThat(descriptor.getShipFiles())
                     .doesNotContain(
                             new Path(libFile.getAbsolutePath()),

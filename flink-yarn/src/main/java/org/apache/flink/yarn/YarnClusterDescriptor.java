@@ -210,18 +210,18 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         checkNotNull(configOption);
 
         List<Path> files = ConfigUtils.decodeListFromConfig(configuration, configOption, Path::new);
-        files =
-                files.stream()
-                        .map(
-                                path ->
-                                        isLocalPath(path)
-                                                ? new Path(new File(path.toString()).toURI())
-                                                : path)
-                        .collect(Collectors.toList());
+        files = files.stream().map(this::enrichPathSchemaIfNeeded).collect(Collectors.toList());
         return files.isEmpty() ? Optional.empty() : Optional.of(files);
     }
 
-    private boolean isLocalPath(Path path) {
+    private Path enrichPathSchemaIfNeeded(Path path) {
+        if (isWithoutSchema(path)) {
+            return new Path(new File(path.toString()).toURI());
+        }
+        return path;
+    }
+
+    private boolean isWithoutSchema(Path path) {
         return StringUtils.isNullOrWhitespaceOnly(path.toUri().getScheme());
     }
 
@@ -863,7 +863,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         final String logConfigFilePath =
                 configuration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE);
         if (logConfigFilePath != null) {
-            systemShipFiles.add(new Path(logConfigFilePath));
+            systemShipFiles.add(new Path(new File(logConfigFilePath).toURI()));
         }
 
         // Set-up ApplicationSubmissionContext for the application
@@ -1776,7 +1776,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         if (libDir != null) {
             File directoryFile = new File(libDir);
             if (directoryFile.isDirectory()) {
-                effectiveShipFiles.add(new Path(libDir));
+                effectiveShipFiles.add(new Path(directoryFile.toURI()));
             } else {
                 throw new YarnDeploymentException(
                         "The environment variable '"
@@ -1811,7 +1811,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     @VisibleForTesting
     void addPluginsFoldersToShipFiles(Collection<Path> effectiveShipFiles) {
         final Optional<File> pluginsDir = PluginConfig.getPluginsDir();
-        pluginsDir.ifPresent(dir -> effectiveShipFiles.add(new Path(dir.toString())));
+        pluginsDir.ifPresent(dir -> effectiveShipFiles.add(new Path(dir.toURI())));
     }
 
     ContainerLaunchContext setupApplicationMasterContainer(
