@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -334,7 +335,7 @@ class TaskSlotTableImplTest {
             List<SlotStatus> slotStatuses = new ArrayList<>();
             slotReport.iterator().forEachRemaining(slotStatuses::add);
 
-            assertThat(slotStatuses.size()).isEqualTo(4);
+            assertThat(slotStatuses).hasSize(4);
             assertThat(slotStatuses)
                     .containsExactlyInAnyOrder(
                             new SlotStatus(
@@ -411,7 +412,7 @@ class TaskSlotTableImplTest {
             // to enable that the last remaining finished task does the final slot freeing
             taskSlotTable.freeSlot(allocationId);
             taskSlotTable.removeTask(executionAttemptId);
-            assertThat(freeSlotFuture.get()).isEqualTo(allocationId);
+            assertThatFuture(freeSlotFuture).eventuallySucceeds().isEqualTo(allocationId);
         }
     }
 
@@ -435,7 +436,7 @@ class TaskSlotTableImplTest {
                 createTaskSlotTableWithStartedTask(task);
         assertThat(taskSlotTable.freeSlot(task.getAllocationId())).isEqualTo(-1);
         CompletableFuture<Void> closingFuture = taskSlotTable.closeAsync();
-        assertThat(closingFuture.isDone()).isFalse();
+        assertThat(closingFuture).isNotDone();
         task.terminate();
         closingFuture.get();
     }
@@ -456,7 +457,7 @@ class TaskSlotTableImplTest {
                             taskSlotTable.allocateSlot(
                                     0, new JobID(), allocationId, Time.milliseconds(1L)))
                     .isTrue();
-            assertThat(timeoutFuture.join()).isEqualTo(allocationId);
+            assertThatFuture(timeoutFuture).eventuallySucceeds().isEqualTo(allocationId);
         }
     }
 

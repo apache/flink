@@ -112,7 +112,7 @@ class TaskExecutorExecutionDeploymentReconciliationTest {
     private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerExtension =
             new TestingFatalErrorHandlerExtension();
 
-    @TempDir private Path tmp;
+    @TempDir private Path tempDir;
 
     @BeforeEach
     void setup() {
@@ -145,7 +145,7 @@ class TaskExecutorExecutionDeploymentReconciliationTest {
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
-                        Reference.owned(new File[] {TempDirUtils.newFolder(tmp)}),
+                        Reference.owned(new File[] {TempDirUtils.newFolder(tempDir)}),
                         Executors.directExecutor());
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
@@ -190,7 +190,7 @@ class TaskExecutorExecutionDeploymentReconciliationTest {
 
             // nothing as deployed, so the deployment report should be empty
             taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, slotAllocationReport);
-            assertThat(deployedExecutionsQueue.take()).hasSize(0);
+            assertThat(deployedExecutionsQueue.take()).isEmpty();
 
             taskExecutorGateway
                     .submitTask(
@@ -209,7 +209,7 @@ class TaskExecutorExecutionDeploymentReconciliationTest {
             // task is finished ans was cleaned up, so the deployment report should be empty
             taskFinishedFuture.get();
             taskExecutorGateway.heartbeatFromJobManager(jobManagerResourceId, slotAllocationReport);
-            assertThat(deployedExecutionsQueue.take()).hasSize(0);
+            assertThat(deployedExecutionsQueue.take()).isEmpty();
         } finally {
             RpcUtils.terminateRpcEndpoint(taskExecutor);
         }

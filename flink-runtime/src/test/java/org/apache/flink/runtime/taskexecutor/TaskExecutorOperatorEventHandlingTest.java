@@ -57,10 +57,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for the (failure handling of the) delivery of Operator Events. */
 class TaskExecutorOperatorEventHandlingTest {
@@ -105,12 +103,12 @@ class TaskExecutorOperatorEventHandlingTest {
                     tmGateway.sendOperatorEventToTask(
                             eid, new OperatorID(), new SerializedValue<>(new TestOperatorEvent()));
 
-            assertThat(
-                    resultFuture,
-                    futureWillCompleteExceptionally(FlinkException.class, Duration.ofSeconds(10)));
-            assertThat(
-                    env.getTaskSlotTable().getTask(eid).getExecutionState(),
-                    is(ExecutionState.FAILED));
+            assertThat(resultFuture)
+                    .failsWithin(Duration.ofSeconds(10))
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(FlinkException.class);
+            assertThat(env.getTaskSlotTable().getTask(eid).getExecutionState())
+                    .isEqualTo(ExecutionState.FAILED);
         }
     }
 
@@ -124,7 +122,7 @@ class TaskExecutorOperatorEventHandlingTest {
             final Task task = env.getTaskSlotTable().getTask(eid);
 
             task.getExecutingThread().join(10_000);
-            assertThat(task.getExecutionState(), is(ExecutionState.FAILED));
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         }
     }
 
@@ -139,7 +137,7 @@ class TaskExecutorOperatorEventHandlingTest {
             final Task task = env.getTaskSlotTable().getTask(eid);
 
             task.getExecutingThread().join(10_000);
-            assertThat(task.getExecutionState(), is(ExecutionState.FAILED));
+            assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         }
     }
 

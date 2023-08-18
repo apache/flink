@@ -47,7 +47,7 @@ class DefaultTimerServiceTest {
         timerService.unregisterAllTimeouts();
 
         Map<?, ?> timeouts = timerService.getTimeouts();
-        assertThat(timeouts.isEmpty()).isTrue();
+        assertThat(timeouts).isEmpty();
 
         for (ScheduledFuture<?> scheduledTask : scheduledExecutorService.getAllScheduledTasks()) {
             assertThat(scheduledTask.isCancelled()).isTrue();

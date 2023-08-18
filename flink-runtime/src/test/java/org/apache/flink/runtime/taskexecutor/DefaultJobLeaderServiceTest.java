@@ -40,17 +40,16 @@ import org.apache.flink.util.FlinkException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultJobLeaderService}. */
 class DefaultJobLeaderServiceTest {
@@ -237,9 +236,7 @@ class DefaultJobLeaderServiceTest {
             leaderRetrievalService.notifyListener(
                     jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
-            assertThatThrownBy(() -> newLeaderFuture.get(10, TimeUnit.MILLISECONDS))
-                    .withFailMessage("The leader future should not be completed.")
-                    .isInstanceOf(TimeoutException.class);
+            assertThatFuture(newLeaderFuture).willNotCompleteWithin(Duration.ofMillis(10));
         } finally {
             jobLeaderService.stop();
         }
@@ -280,7 +277,7 @@ class DefaultJobLeaderServiceTest {
             leaderRetrievalService.notifyListener(
                     jobMasterGateway.getAddress(), jobMasterGateway.getFencingToken().toUUID());
 
-            assertThat(rejectedRegistrationFuture.get()).isEqualTo(jobId);
+            assertThatFuture(rejectedRegistrationFuture).eventuallySucceeds().isEqualTo(jobId);
         } finally {
             jobLeaderService.stop();
         }

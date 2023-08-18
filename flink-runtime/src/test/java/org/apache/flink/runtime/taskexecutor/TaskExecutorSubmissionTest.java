@@ -74,12 +74,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
@@ -154,8 +155,9 @@ class TaskExecutorSubmissionTest {
 
             taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
 
-            assertThatThrownBy(() -> tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get())
-                    .hasCauseInstanceOf(IllegalArgumentException.class);
+            assertThatFuture(tmGateway.submitTask(tdd, env.getJobMasterId(), timeout))
+                    .eventuallyFailsWith(ExecutionException.class)
+                    .withCauseInstanceOf(IllegalArgumentException.class);
         }
     }
 

@@ -40,8 +40,7 @@ class PartitionTableTest {
         // an empty table should always return an empty collection
         Collection<ResultPartitionID> partitionsForNonExistingJob =
                 table.stopTrackingPartitions(JOB_ID);
-        assertThat(partitionsForNonExistingJob).isNotNull();
-        assertThat(partitionsForNonExistingJob).isEmpty();
+        assertThat(partitionsForNonExistingJob).isNotNull().isEmpty();
 
         assertThat(table.hasTrackedPartitions(JOB_ID)).isFalse();
     }

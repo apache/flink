@@ -98,6 +98,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the partition-lifecycle logic in the {@link TaskExecutor}. */
@@ -115,7 +116,7 @@ class TaskExecutorPartitionLifecycleTest {
             new SettableLeaderRetrievalService();
     private final JobID jobId = new JobID();
 
-    @TempDir private Path tmp;
+    @TempDir private Path tempDir;
 
     @RegisterExtension
     private static final TestExecutorExtension<ScheduledExecutorService>
@@ -216,7 +217,7 @@ class TaskExecutorPartitionLifecycleTest {
                     taskExecutor.getSelfGateway(TaskExecutorGateway.class);
 
             trackerIsTrackingPartitions.set(true);
-            assertThat(firstReleasePartitionsCallFuture.isDone()).isFalse();
+            assertThat(firstReleasePartitionsCallFuture).isNotDone();
 
             taskExecutorGateway.releasePartitions(
                     jobId, Collections.singleton(new ResultPartitionID()));
@@ -227,7 +228,7 @@ class TaskExecutorPartitionLifecycleTest {
             firstReleasePartitionsCallFuture.get();
 
             // connection should be kept alive since the table still contains partitions
-            assertThat(disconnectFuture.isDone()).isFalse();
+            assertThat(disconnectFuture).isNotDone();
 
             trackerIsTrackingPartitions.set(false);
 
@@ -251,7 +252,9 @@ class TaskExecutorPartitionLifecycleTest {
                 (jobId, resultPartitionDeploymentDescriptor, taskExecutor, taskExecutorGateway) -> {
                     taskExecutorGateway.disconnectJobManager(jobId, new Exception("test"));
 
-                    assertThat(releasePartitionsForJobFuture.get()).isEqualTo(jobId);
+                    assertThatFuture(releasePartitionsForJobFuture)
+                            .eventuallySucceeds()
+                            .isEqualTo(jobId);
                 });
     }
 
@@ -272,6 +275,7 @@ class TaskExecutorPartitionLifecycleTest {
                     taskExecutorGateway.releasePartitions(
                             jobId, Collections.singleton(resultPartitionId));
 
+                    assertThat(releasePartitionsFuture.get()).contains(resultPartitionId);
                     assertThat(releasePartitionsFuture.get()).contains(resultPartitionId);
                 });
     }
@@ -423,7 +427,7 @@ class TaskExecutorPartitionLifecycleTest {
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
-                        Reference.owned(new File[] {TempDirUtils.newFolder(tmp)}),
+                        Reference.owned(new File[] {TempDirUtils.newFolder(tempDir)}),
                         Executors.directExecutor());
 
         final TaskManagerServices taskManagerServices =
@@ -540,7 +544,8 @@ class TaskExecutorPartitionLifecycleTest {
             TestingInvokable.sync.awaitBlocker();
 
             // the task is still running => the partition is in in-progress and should be tracked
-            assertThat(startTrackingFuture.get())
+            assertThatFuture(startTrackingFuture)
+                    .eventuallySucceeds()
                     .isEqualTo(
                             taskResultPartitionDescriptor
                                     .getShuffleDescriptor()

@@ -47,7 +47,7 @@ class TaskSlotTest {
             task.waitForFailure();
             MemoryManager memoryManager = taskSlot.getMemoryManager();
 
-            assertThat(closingFuture.isDone()).isFalse();
+            assertThat(closingFuture).isNotDone();
             assertThat(memoryManager.isShutdown()).isFalse();
             task.terminate();
             closingFuture.get();

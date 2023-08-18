@@ -90,7 +90,7 @@ class TaskExecutorSlotLifetimeTest {
     private final TestingFatalErrorHandlerExtension testingFatalErrorHandlerExtension =
             new TestingFatalErrorHandlerExtension();
 
-    @TempDir private Path tmp;
+    @TempDir private Path tempDir;
 
     @BeforeEach
     void setup() {
@@ -246,7 +246,7 @@ class TaskExecutorSlotLifetimeTest {
             throws IOException {
         return new TaskExecutorLocalStateStoresManager(
                 false,
-                Reference.owned(new File[] {TempDirUtils.newFolder(tmp)}),
+                Reference.owned(new File[] {TempDirUtils.newFolder(tempDir)}),
                 Executors.directExecutor());
     }
 

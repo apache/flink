@@ -42,7 +42,6 @@ import org.apache.flink.util.TimeUtils;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
@@ -52,10 +51,10 @@ import java.net.InetAddress;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link TaskManagerRunner}. */
-@Timeout(30)
 class TaskManagerRunnerTest {
 
     @TempDir private Path temporaryFolder;
@@ -78,7 +77,8 @@ class TaskManagerRunnerTest {
 
         taskManagerRunner.onFatalError(new RuntimeException());
 
-        assertThat(taskManagerRunner.getTerminationFuture().join())
+        assertThatFuture(taskManagerRunner.getTerminationFuture())
+                .eventuallySucceeds()
                 .isEqualTo(TaskManagerRunner.Result.FAILURE);
     }
 
@@ -89,7 +89,8 @@ class TaskManagerRunnerTest {
                 TaskManagerOptions.REGISTRATION_TIMEOUT, TimeUtils.parseDuration("10 ms"));
         taskManagerRunner = createTaskManagerRunner(configuration);
 
-        assertThat(taskManagerRunner.getTerminationFuture().join())
+        assertThatFuture(taskManagerRunner.getTerminationFuture())
+                .eventuallySucceeds()
                 .isEqualTo(TaskManagerRunner.Result.FAILURE);
     }
 
@@ -112,7 +113,7 @@ class TaskManagerRunnerTest {
         final ResourceID taskManagerResourceID =
                 TaskManagerRunner.getTaskManagerResourceID(configuration, "", -1).unwrap();
 
-        assertThat(taskManagerResourceID.getMetadata()).isEqualTo("");
+        assertThat(taskManagerResourceID.getMetadata()).isEmpty();
         assertThat(taskManagerResourceID.getStringWithMetadata()).isEqualTo("test");
     }
 
@@ -169,7 +170,8 @@ class TaskManagerRunnerTest {
 
         terminationFuture.complete(null);
 
-        assertThat(taskManagerRunner.getTerminationFuture().join())
+        assertThatFuture(taskManagerRunner.getTerminationFuture())
+                .eventuallySucceeds()
                 .isEqualTo(TaskManagerRunner.Result.FAILURE);
     }
 
@@ -190,7 +192,8 @@ class TaskManagerRunnerTest {
 
         terminationFuture.complete(null);
 
-        assertThat(taskManagerRunner.getTerminationFuture().join())
+        assertThatFuture(taskManagerRunner.getTerminationFuture())
+                .eventuallySucceeds()
                 .isEqualTo(TaskManagerRunner.Result.SUCCESS);
     }
 
@@ -207,15 +210,15 @@ class TaskManagerRunnerTest {
         final TaskManagerRunner taskManagerRunner = createTaskManagerRunner(configuration);
 
         try {
-            assertThat(workingDir.exists()).isTrue();
+            assertThat(workingDir).exists();
         } finally {
             taskManagerRunner.close();
         }
 
-        assertThat(workingDir.exists())
+        assertThat(workingDir)
                 .withFailMessage(
                         "The working dir should be cleaned up when stopping the TaskManager process gracefully.")
-                .isFalse();
+                .doesNotExist();
     }
 
     @Nonnull
@@ -246,9 +249,8 @@ class TaskManagerRunnerTest {
 
         assertThat(
                         ClusterEntrypointUtils.generateTaskManagerWorkingDirectoryFile(
-                                        configuration, resourceId)
-                                .exists())
-                .isTrue();
+                                configuration, resourceId))
+                .exists();
     }
 
     @Nonnull
