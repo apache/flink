@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
@@ -166,13 +165,6 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     public void start() throws Exception {
         LOG.debug("Start leadership runner for job {}.", getJobID());
         leaderElection.startLeaderElection(this);
-    }
-
-    // TODO: This method can be removed with the migration of the LeaderElection instantiation into
-    // the HighAvailabilityServices in FLINK-31797
-    @VisibleForTesting
-    public LeaderElection getLeaderElection() {
-        return leaderElection;
     }
 
     @Override
