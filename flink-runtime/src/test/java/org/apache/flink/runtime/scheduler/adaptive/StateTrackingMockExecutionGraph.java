@@ -53,6 +53,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
@@ -327,7 +328,9 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     }
 
     @Override
-    public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
+    public void attachJobGraph(
+            List<JobVertex> topologicallySorted, JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            throws JobException {
         throw new UnsupportedOperationException();
     }
 
@@ -381,7 +384,8 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     public void initializeJobVertex(
             ExecutionJobVertex ejv,
             long createTimestamp,
-            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup)
             throws JobException {
         throw new UnsupportedOperationException();
     }

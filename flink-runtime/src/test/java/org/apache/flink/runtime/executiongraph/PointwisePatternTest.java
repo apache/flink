@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.testutils.TestingUtils;
@@ -265,7 +266,8 @@ public class PointwisePatternTest {
                                 SchedulerBase.computeVertexParallelismStore(ordered))
                         .build(EXECUTOR_RESOURCE.getExecutor());
         try {
-            eg.attachJobGraph(ordered);
+            eg.attachJobGraph(
+                    ordered, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
         } catch (JobException e) {
             e.printStackTrace();
             fail("Job failed with exception: " + e.getMessage());

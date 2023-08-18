@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
@@ -92,7 +93,9 @@ public class VertexSlotSharingTest {
                             .setVertexParallelismStore(
                                     SchedulerBase.computeVertexParallelismStore(vertices))
                             .build(EXECUTOR_RESOURCE.getExecutor());
-            eg.attachJobGraph(vertices);
+            eg.attachJobGraph(
+                    vertices,
+                    UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
             // verify that the vertices are all in the same slot sharing group
             SlotSharingGroup group1;

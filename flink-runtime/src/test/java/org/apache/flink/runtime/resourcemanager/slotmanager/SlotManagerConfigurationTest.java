@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
@@ -32,42 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SlotManagerConfiguration}. */
 class SlotManagerConfigurationTest {
-
-    /**
-     * Tests that {@link SlotManagerConfiguration#getSlotRequestTimeout()} returns the value
-     * configured under key {@link JobManagerOptions#SLOT_REQUEST_TIMEOUT}.
-     */
-    @Test
-    void testSetSlotRequestTimeout() throws Exception {
-        final long slotIdleTimeout = 42;
-
-        final Configuration configuration = new Configuration();
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, slotIdleTimeout);
-        final SlotManagerConfiguration slotManagerConfiguration =
-                SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
-
-        assertThat(slotIdleTimeout)
-                .isEqualTo(slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds());
-    }
-
-    /**
-     * Tests that {@link ResourceManagerOptions#SLOT_REQUEST_TIMEOUT} is preferred over {@link
-     * JobManagerOptions#SLOT_REQUEST_TIMEOUT} if set.
-     */
-    @Test
-    void testPreferLegacySlotRequestTimeout() throws Exception {
-        final long legacySlotIdleTimeout = 42;
-
-        final Configuration configuration = new Configuration();
-        configuration.setLong(ResourceManagerOptions.SLOT_REQUEST_TIMEOUT, legacySlotIdleTimeout);
-        configuration.setLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT, 300000L);
-        final SlotManagerConfiguration slotManagerConfiguration =
-                SlotManagerConfiguration.fromConfiguration(configuration, WorkerResourceSpec.ZERO);
-
-        assertThat(legacySlotIdleTimeout)
-                .isEqualTo(slotManagerConfiguration.getSlotRequestTimeout().toMilliseconds());
-    }
-
     @Test
     void testComputeMaxTotalCpu() throws Exception {
         final Configuration configuration = new Configuration();

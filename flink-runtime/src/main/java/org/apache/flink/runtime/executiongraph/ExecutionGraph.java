@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -151,7 +152,9 @@ public interface ExecutionGraph extends AccessExecutionGraph {
 
     void setInternalTaskFailuresListener(InternalFailuresListener internalTaskFailuresListener);
 
-    void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException;
+    void attachJobGraph(
+            List<JobVertex> topologicallySorted, JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            throws JobException;
 
     void transitionToRunning();
 
@@ -213,13 +216,17 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     @Nonnull
     ComponentMainThreadExecutor getJobMasterMainThreadExecutor();
 
-    default void initializeJobVertex(ExecutionJobVertex ejv, long createTimestamp)
+    default void initializeJobVertex(
+            ExecutionJobVertex ejv,
+            long createTimestamp,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup)
             throws JobException {
         initializeJobVertex(
                 ejv,
                 createTimestamp,
                 VertexInputInfoComputationUtils.computeVertexInputInfos(
-                        ejv, getAllIntermediateResults()::get));
+                        ejv, getAllIntermediateResults()::get),
+                jobManagerJobMetricGroup);
     }
 
     /**
@@ -234,7 +241,8 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     void initializeJobVertex(
             ExecutionJobVertex ejv,
             long createTimestamp,
-            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup)
             throws JobException;
 
     /**

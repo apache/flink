@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.optimize.program;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalGroupAggregateBase;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalHashJoin;
@@ -52,9 +53,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
@@ -474,6 +477,16 @@ public class FlinkRuntimeFilterProgram implements FlinkOptimizeProgram<BatchOpti
                         tryPushDownProbeAndInjectRuntimeFilter(input, probeIndices, buildSideInfo));
             }
             return union.copy(union.getTraitSet(), newInputs, union.all);
+        } else if (rel instanceof BatchPhysicalDynamicFilteringTableSourceScan) {
+            BatchPhysicalDynamicFilteringTableSourceScan tableScan =
+                    (BatchPhysicalDynamicFilteringTableSourceScan) rel;
+            final Set<Integer> dynamicFilteringIndices =
+                    new HashSet<>(tableScan.dynamicFilteringIndices());
+            if (dynamicFilteringIndices.containsAll(probeIndices)) {
+                // do nothing, return current probe side directly. Because the fields have already
+                // filtered by DPP.
+                return rel;
+            }
         } else {
             // the above cases can cover all cases of TPC-DS test
             // we may find more cases later

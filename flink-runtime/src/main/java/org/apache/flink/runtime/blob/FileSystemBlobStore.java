@@ -77,15 +77,11 @@ public class FileSystemBlobStore implements BlobStoreService {
     @Override
     public boolean put(File localFile, JobID jobId, BlobKey blobKey) throws IOException {
         createBasePathIfNeeded();
-        return put(localFile, BlobUtils.getStorageLocationPath(basePath, jobId, blobKey));
-    }
-
-    private boolean put(File fromFile, String toBlobPath) throws IOException {
-        createBasePathIfNeeded();
+        String toBlobPath = BlobUtils.getStorageLocationPath(basePath, jobId, blobKey);
         try (FSDataOutputStream os =
                 fileSystem.create(new Path(toBlobPath), FileSystem.WriteMode.OVERWRITE)) {
-            LOG.debug("Copying from {} to {}.", fromFile, toBlobPath);
-            Files.copy(fromFile, os);
+            LOG.debug("Copying from {} to {}.", localFile, toBlobPath);
+            Files.copy(localFile, os);
 
             os.sync();
         }

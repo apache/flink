@@ -61,6 +61,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex.FinalizeOnMasterContext;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
@@ -810,7 +811,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     }
 
     @Override
-    public void attachJobGraph(List<JobVertex> verticesToAttach) throws JobException {
+    public void attachJobGraph(
+            List<JobVertex> verticesToAttach, JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            throws JobException {
 
         assertRunningInJobMasterMainThread();
 
@@ -823,7 +826,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         attachJobVertices(verticesToAttach);
         if (!isDynamic) {
-            initializeJobVertices(verticesToAttach);
+            initializeJobVertices(verticesToAttach, jobManagerJobMetricGroup);
         }
 
         // the topology assigning should happen before notifying new vertices to failoverStrategy
@@ -862,12 +865,14 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
-    private void initializeJobVertices(List<JobVertex> topologicallySorted) throws JobException {
+    private void initializeJobVertices(
+            List<JobVertex> topologicallySorted, JobManagerJobMetricGroup jobManagerJobMetricGroup)
+            throws JobException {
         final long createTimestamp = System.currentTimeMillis();
 
         for (JobVertex jobVertex : topologicallySorted) {
             final ExecutionJobVertex ejv = tasks.get(jobVertex.getID());
-            initializeJobVertex(ejv, createTimestamp);
+            initializeJobVertex(ejv, createTimestamp, jobManagerJobMetricGroup);
         }
     }
 
@@ -875,7 +880,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     public void initializeJobVertex(
             ExecutionJobVertex ejv,
             long createTimestamp,
-            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos)
+            Map<IntermediateDataSetID, JobVertexInputInfo> jobVertexInputInfos,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup)
             throws JobException {
 
         checkNotNull(ejv);
@@ -890,7 +896,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 rpcTimeout,
                 createTimestamp,
                 this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()),
-                coordinatorStore);
+                coordinatorStore,
+                jobManagerJobMetricGroup);
 
         ejv.connectToPredecessors(this.intermediateResults);
 

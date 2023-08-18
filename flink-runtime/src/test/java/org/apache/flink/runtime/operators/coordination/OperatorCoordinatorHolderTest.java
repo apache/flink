@@ -526,12 +526,10 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                                 1,
                                 1,
                                 NoOpInvokable.class.getName(),
-                                new Configuration()));
+                                new Configuration()),
+                        UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
 
-        holder.lazyInitialize(
-                globalFailureHandler,
-                mainThreadExecutor,
-                UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
+        holder.lazyInitialize(globalFailureHandler, mainThreadExecutor);
         holder.start();
 
         return holder;

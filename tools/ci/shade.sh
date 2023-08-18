@@ -17,10 +17,12 @@
 # limitations under the License.
 ################################################################################
 
+jarContents=/tmp/allClasses
+
 # Check the final fat jar for illegal or missing artifacts
 check_shaded_artifacts() {
-	jar tf build-target/lib/flink-dist*.jar > allClasses
-	ASM=`cat allClasses | grep '^org/objectweb/asm/' | wc -l`
+	jar tf build-target/lib/flink-dist*.jar > ${jarContents}
+	ASM=`cat ${jarContents} | grep '^org/objectweb/asm/' | wc -l`
 	if [ "$ASM" != "0" ]; then
 		echo "=============================================================================="
 		echo "Detected '$ASM' unshaded asm dependencies in fat jar"
@@ -28,7 +30,7 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	GUAVA=`cat allClasses | grep '^com/google/common' | wc -l`
+	GUAVA=`cat ${jarContents} | grep '^com/google/common' | wc -l`
 	if [ "$GUAVA" != "0" ]; then
 		echo "=============================================================================="
 		echo "Detected '$GUAVA' guava dependencies in fat jar"
@@ -36,7 +38,7 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	CODEHAUS_JACKSON=`cat allClasses | grep '^org/codehaus/jackson' | wc -l`
+	CODEHAUS_JACKSON=`cat ${jarContents} | grep '^org/codehaus/jackson' | wc -l`
 	if [ "$CODEHAUS_JACKSON" != "0" ]; then
 		echo "=============================================================================="
 		echo "Detected '$CODEHAUS_JACKSON' unshaded org.codehaus.jackson classes in fat jar"
@@ -44,7 +46,7 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	FASTERXML_JACKSON=`cat allClasses | grep '^com/fasterxml/jackson' | wc -l`
+	FASTERXML_JACKSON=`cat ${jarContents} | grep '^com/fasterxml/jackson' | wc -l`
 	if [ "$FASTERXML_JACKSON" != "0" ]; then
 		echo "=============================================================================="
 		echo "Detected '$FASTERXML_JACKSON' unshaded com.fasterxml.jackson classes in fat jar"
@@ -52,7 +54,7 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	SNAPPY=`cat allClasses | grep '^org/xerial/snappy' | wc -l`
+	SNAPPY=`cat ${jarContents} | grep '^org/xerial/snappy' | wc -l`
 	if [ "$SNAPPY" = "0" ]; then
 		echo "=============================================================================="
 		echo "Missing snappy dependencies in fat jar"
@@ -60,7 +62,7 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	IO_NETTY=`cat allClasses | grep '^io/netty' | wc -l`
+	IO_NETTY=`cat ${jarContents} | grep '^io/netty' | wc -l`
 	if [ "$IO_NETTY" != "0" ]; then
 		echo "=============================================================================="
 		echo "Detected '$IO_NETTY' unshaded io.netty classes in fat jar"
@@ -68,7 +70,7 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	ORG_NETTY=`cat allClasses | grep '^org/jboss/netty' | wc -l`
+	ORG_NETTY=`cat ${jarContents} | grep '^org/jboss/netty' | wc -l`
 	if [ "$ORG_NETTY" != "0" ]; then
 		echo "=============================================================================="
 		echo "Detected '$ORG_NETTY' unshaded org.jboss.netty classes in fat jar"
@@ -76,7 +78,7 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	ZOOKEEPER=`cat allClasses | grep '^org/apache/zookeeper' | wc -l`
+	ZOOKEEPER=`cat ${jarContents} | grep '^org/apache/zookeeper' | wc -l`
 	if [ "$ZOOKEEPER" != "0" ]; then
 		echo "=============================================================================="
 		echo "Detected '$ZOOKEEPER' unshaded org.apache.zookeeper classes in fat jar"
@@ -84,7 +86,7 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	CURATOR=`cat allClasses | grep '^org/apache/curator' | wc -l`
+	CURATOR=`cat ${jarContents} | grep '^org/apache/curator' | wc -l`
 	if [ "$CURATOR" != "0" ]; then
 		echo "=============================================================================="
 		echo "Detected '$CURATOR' unshaded org.apache.curator classes in fat jar"
@@ -92,7 +94,7 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	FLINK_PYTHON=`cat allClasses | grep '^org/apache/flink/python' | wc -l`
+	FLINK_PYTHON=`cat ${jarContents} | grep '^org/apache/flink/python' | wc -l`
 	if [ "$FLINK_PYTHON" != "0" ]; then
 		echo "=============================================================================="
 		echo "Detected that the Flink Python artifact is in the dist jar"
@@ -100,7 +102,7 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	HADOOP=`cat allClasses | grep '^org/apache/hadoop' | wc -l`
+	HADOOP=`cat ${jarContents} | grep '^org/apache/hadoop' | wc -l`
 	if [ "$HADOOP" != "0" ]; then
 		echo "=============================================================================="
 		echo "Detected '$HADOOP' Hadoop classes in the dist jar"
@@ -114,9 +116,9 @@ check_shaded_artifacts() {
 # Check the S3 fs implementations' fat jars for illegal or missing artifacts
 check_shaded_artifacts_s3_fs() {
 	VARIANT=$1
-	jar tf flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar > allClasses
+	jar tf flink-filesystems/flink-s3-fs-${VARIANT}/target/flink-s3-fs-${VARIANT}*.jar > ${jarContents}
 
-	if [ ! `cat allClasses | grep '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$'` ]; then
+	if [ ! `cat ${jarContents} | grep '^META-INF/services/org\.apache\.flink\.core\.fs\.FileSystemFactory$'` ]; then
 		echo "=============================================================================="
 		echo "${VARIANT}: File does not exist: services/org.apache.flink.core.fs.FileSystemFactory"
 		echo "=============================================================================="

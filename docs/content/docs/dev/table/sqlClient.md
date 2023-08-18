@@ -67,6 +67,25 @@ For gateway mode, you can start the CLI by calling:
 
 In the gateway mode, the CLI submits the SQL to the specified remote gateway to execute statements.
 
+The `<gateway address>` can be provided in two formats: as a `host:port` combination or as a full URL.
+
+If you need to pass custom HTTP headers, you can do so by setting the FLINK_REST_CLIENT_HEADERS environment variable. For example:
+
+```bash
+export FLINK_REST_CLIENT_HEADERS="Cookie:myauthcookie=foobar;othercookie=baz"
+./bin/sql-client.sh gateway --endpoint https://your-sql-gateway.endpoint.com/authenticated/sql
+```
+For multiple headers, separate them with a newline:
+
+```bash
+export FLINK_REST_CLIENT_HEADERS=$(cat << EOF
+Cookie:myauthcookie=foobar
+Cache-Control: no-cache
+EOF)
+```
+
+By default, the SQL Client will use the truststore configured using the `security.ssl.rest.truststore` and `security.ssl.rest.truststore-password` properties in the `flink-conf.yaml` file on the SQL client side. If these properties aren't explicitly configured, the client will use the default certificate stores provided by the JDK.
+
 <span class="label label-danger">Note</span> SQL Client only supports connecting to the [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) since version v2.
 
 See [SQL Client startup options](#sql-client-startup-options) below for more details.
@@ -855,7 +874,7 @@ For more details about stopping jobs, please refer to [Job Statements]({{< ref "
 
 SQL Client can highlight SQL syntax with several color schemes.
 With `sql-client.display.color-schema` it could be set a color scheme.
-Available color schemes: `chester`, `dracula`, `solarized`, `vs2010`, `obsidian`, `geshi`, `default` (no highlighting).
+Available color schemes: `chester`, `dracula`, `solarized`, `vs2010`, `obsidian`, `geshi`, `dark`, `light`, `default` (no highlighting).
 In case of wrong name the fallback is to `default`.
 
 | Color schema \ Style | Keyword      | Default | Comment        | Hint         | Quoted  | SQL Identifier |
@@ -868,5 +887,6 @@ In case of wrong name the fallback is to `default`.
 | `Light`              | Bold red     | Black   | Italic bright  | Bold bright  | Green   | Cyan           |
 | `Obsidian`           | Bold green   | White   | Italic bright  | Bold bright  | Red     | Magenta        |
 | `VS2010`             | Bold blue    | White   | Italic green   | Bold green   | Red     | Magenta        |
+| `Solarized`          | Bold yellow  | Blue    | Italic bright  | Bold bright  | Green   | Red            |
 
 {{< top >}}

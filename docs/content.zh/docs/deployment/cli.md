@@ -400,7 +400,7 @@ $ ./bin/flink run \
 - Run a PyFlink job with pyFiles and the main entry module specified in `--pyModule`:
 ```bash
 $ ./bin/flink run \
-      --pyModule table.word_count \
+      --pyModule word_count \
       --pyFiles examples/python/table
 ```
 
