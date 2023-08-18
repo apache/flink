@@ -2103,7 +2103,7 @@ class TaskExecutorTest {
                 new TestingJobMasterGatewayBuilder()
                         .setOfferSlotsFunction(
                                 (resourceID, slotOffers) -> {
-                                    assertThat(slotOffers.size()).isOne();
+                                    assertThat(slotOffers).hasSize(1);
                                     slotOfferings.countDown();
 
                                     if (slotOfferings.getCount() == 0) {
