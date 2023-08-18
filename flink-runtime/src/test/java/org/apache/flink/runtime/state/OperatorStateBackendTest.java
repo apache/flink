@@ -140,14 +140,14 @@ class OperatorStateBackendTest {
                 .isInstanceOf(com.esotericsoftware.kryo.serializers.JavaSerializer.class);
 
         Iterator<String> it = listState2.get().iterator();
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
         listState2.add("kevin");
         listState2.add("sunny");
 
         it = listState2.get().iterator();
         assertThat(it.next()).isEqualTo("kevin");
         assertThat(it.next()).isEqualTo("sunny");
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
     }
 
     @Test
@@ -171,19 +171,19 @@ class OperatorStateBackendTest {
         assertThat(listState1).isNotNull();
         assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(1);
         Iterator<Serializable> it = listState1.get().iterator();
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
         listState1.add(42);
         listState1.add(4711);
 
         it = listState1.get().iterator();
         assertThat(it.next()).isEqualTo(42);
         assertThat(it.next()).isEqualTo(4711);
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
 
         ListState<Serializable> listState2 = operatorStateBackend.getListState(stateDescriptor2);
         assertThat(listState2).isNotNull();
         assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(2);
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
         listState2.add(7);
         listState2.add(13);
         listState2.add(23);
@@ -192,13 +192,13 @@ class OperatorStateBackendTest {
         assertThat(it.next()).isEqualTo(7);
         assertThat(it.next()).isEqualTo(13);
         assertThat(it.next()).isEqualTo(23);
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
 
         ListState<Serializable> listState3 =
                 operatorStateBackend.getUnionListState(stateDescriptor3);
         assertThat(listState3).isNotNull();
         assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
         listState3.add(17);
         listState3.add(3);
         listState3.add(123);
@@ -207,7 +207,7 @@ class OperatorStateBackendTest {
         assertThat(it.next()).isEqualTo(17);
         assertThat(it.next()).isEqualTo(3);
         assertThat(it.next()).isEqualTo(123);
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
 
         ListState<Serializable> listState1b = operatorStateBackend.getListState(stateDescriptor1);
         assertThat(listState1b).isNotNull();
@@ -216,19 +216,19 @@ class OperatorStateBackendTest {
         assertThat(it.next()).isEqualTo(42);
         assertThat(it.next()).isEqualTo(4711);
         assertThat(it.next()).isEqualTo(123);
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
 
         it = listState1.get().iterator();
         assertThat(it.next()).isEqualTo(42);
         assertThat(it.next()).isEqualTo(4711);
         assertThat(it.next()).isEqualTo(123);
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
 
         it = listState1b.get().iterator();
         assertThat(it.next()).isEqualTo(42);
         assertThat(it.next()).isEqualTo(4711);
         assertThat(it.next()).isEqualTo(123);
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
 
         assertThatThrownBy(() -> operatorStateBackend.getUnionListState(stateDescriptor2))
                 .isInstanceOf(IllegalStateException.class);
@@ -633,42 +633,42 @@ class OperatorStateBackendTest {
             Iterator<Serializable> it = listState1.get().iterator();
             assertThat(it.next()).isEqualTo(42);
             assertThat(it.next()).isEqualTo(4711);
-            assertThat(it.hasNext()).isFalse();
+            assertThat(it).isExhausted();
 
             it = listState2.get().iterator();
             assertThat(it.next()).isEqualTo(7);
             assertThat(it.next()).isEqualTo(13);
             assertThat(it.next()).isEqualTo(23);
-            assertThat(it.hasNext()).isFalse();
+            assertThat(it).isExhausted();
 
             it = listState3.get().iterator();
             assertThat(it.next()).isEqualTo(17);
             assertThat(it.next()).isEqualTo(18);
             assertThat(it.next()).isEqualTo(19);
             assertThat(it.next()).isEqualTo(20);
-            assertThat(it.hasNext()).isFalse();
+            assertThat(it).isExhausted();
 
             Iterator<Map.Entry<Serializable, Serializable>> bIt = broadcastState1.iterator();
-            assertThat(bIt.hasNext()).isTrue();
+            assertThat(bIt).hasNext();
             Map.Entry<Serializable, Serializable> entry = bIt.next();
             assertThat(entry.getKey()).isEqualTo(1);
             assertThat(entry.getValue()).isEqualTo(2);
 
-            assertThat(bIt.hasNext()).isTrue();
+            assertThat(bIt).hasNext();
             entry = bIt.next();
             assertThat(entry.getKey()).isEqualTo(2);
             assertThat(entry.getValue()).isEqualTo(5);
-            assertThat(bIt.hasNext()).isFalse();
+            assertThat(bIt).isExhausted();
 
             bIt = broadcastState2.iterator();
-            assertThat(bIt.hasNext()).isTrue();
+            assertThat(bIt).hasNext();
             entry = bIt.next();
             assertThat(entry.getKey()).isEqualTo(2);
             assertThat(entry.getValue()).isEqualTo(5);
-            assertThat(bIt.hasNext()).isFalse();
+            assertThat(bIt).isExhausted();
 
             bIt = broadcastState3.iterator();
-            assertThat(bIt.hasNext()).isFalse();
+            assertThat(bIt).isExhausted();
 
             operatorStateBackend.close();
             operatorStateBackend.dispose();
@@ -819,41 +819,41 @@ class OperatorStateBackendTest {
             Iterator<MutableType> it = listState1.get().iterator();
             assertThat(it.next().value).isEqualTo(42);
             assertThat(it.next().value).isEqualTo(4711);
-            assertThat(it.hasNext()).isFalse();
+            assertThat(it).isExhausted();
 
             it = listState2.get().iterator();
             assertThat(it.next().value).isEqualTo(7);
             assertThat(it.next().value).isEqualTo(13);
             assertThat(it.next().value).isEqualTo(23);
-            assertThat(it.hasNext()).isFalse();
+            assertThat(it).isExhausted();
 
             it = listState3.get().iterator();
             assertThat(it.next().value).isEqualTo(17);
             assertThat(it.next().value).isEqualTo(18);
             assertThat(it.next().value).isEqualTo(19);
             assertThat(it.next().value).isEqualTo(20);
-            assertThat(it.hasNext()).isFalse();
+            assertThat(it).isExhausted();
 
             Iterator<Map.Entry<MutableType, MutableType>> bIt = broadcastState1.iterator();
-            assertThat(bIt.hasNext()).isTrue();
+            assertThat(bIt).hasNext();
             Map.Entry<MutableType, MutableType> entry = bIt.next();
             assertThat(entry.getKey().value).isEqualTo(1);
             assertThat(entry.getValue().value).isEqualTo(2);
-            assertThat(bIt.hasNext()).isTrue();
+            assertThat(bIt).hasNext();
             entry = bIt.next();
             assertThat(entry.getKey().value).isEqualTo(2);
             assertThat(entry.getValue().value).isEqualTo(5);
-            assertThat(bIt.hasNext()).isFalse();
+            assertThat(bIt).isExhausted();
 
             bIt = broadcastState2.iterator();
-            assertThat(bIt.hasNext()).isTrue();
+            assertThat(bIt).hasNext();
             entry = bIt.next();
             assertThat(entry.getKey().value).isEqualTo(2);
             assertThat(entry.getValue().value).isEqualTo(5);
-            assertThat(bIt.hasNext()).isFalse();
+            assertThat(bIt).isExhausted();
 
             bIt = broadcastState3.iterator();
-            assertThat(bIt.hasNext()).isFalse();
+            assertThat(bIt).isExhausted();
 
             operatorStateBackend.close();
             operatorStateBackend.dispose();

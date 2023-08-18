@@ -200,10 +200,10 @@ public class MemoryCheckpointStorageAccessTest extends AbstractFileCheckpointSto
                         new JobID(), randomTempPath(), null, DEFAULT_MAX_STATE_SIZE);
 
         File baseDir = new File(storage.getCheckpointsDirectory().getPath());
-        assertThat(baseDir.exists()).isFalse();
+        assertThat(baseDir).doesNotExist();
 
         // mkdirs only be called when initializeLocationForCheckpoint
         storage.initializeLocationForCheckpoint(177L);
-        assertThat(baseDir.exists()).isTrue();
+        assertThat(baseDir).exists();
     }
 }

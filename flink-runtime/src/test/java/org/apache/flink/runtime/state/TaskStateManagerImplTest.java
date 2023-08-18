@@ -49,7 +49,7 @@ import java.util.concurrent.Executor;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class TaskStateManagerImplTest {
+class TaskStateManagerImplTest {
 
     /** Test reporting and retrieving prioritized local and remote state. */
     @Test
@@ -167,29 +167,29 @@ public class TaskStateManagerImplTest {
         Iterator<StateObjectCollection<KeyedStateHandle>> prioritizedManagedKeyedState_1 =
                 prioritized_1.getPrioritizedManagedKeyedState().iterator();
 
-        assertThat(prioritizedManagedKeyedState_1.hasNext()).isTrue();
+        assertThat(prioritizedManagedKeyedState_1).hasNext();
         StateObjectCollection<KeyedStateHandle> current = prioritizedManagedKeyedState_1.next();
         KeyedStateHandle keyedStateHandleExp =
                 tmOperatorSubtaskState_1.getManagedKeyedState().iterator().next();
         KeyedStateHandle keyedStateHandleAct = current.iterator().next();
         assertThat(keyedStateHandleExp).isSameAs(keyedStateHandleAct);
-        assertThat(prioritizedManagedKeyedState_1.hasNext()).isTrue();
+        assertThat(prioritizedManagedKeyedState_1).hasNext();
         current = prioritizedManagedKeyedState_1.next();
         keyedStateHandleExp = jmOperatorSubtaskState_1.getManagedKeyedState().iterator().next();
         keyedStateHandleAct = current.iterator().next();
         assertThat(keyedStateHandleExp).isSameAs(keyedStateHandleAct);
-        assertThat(prioritizedManagedKeyedState_1.hasNext()).isFalse();
+        assertThat(prioritizedManagedKeyedState_1).isExhausted();
 
         // checks for operator 2.
         Iterator<StateObjectCollection<KeyedStateHandle>> prioritizedRawKeyedState_2 =
                 prioritized_2.getPrioritizedRawKeyedState().iterator();
 
-        assertThat(prioritizedRawKeyedState_2.hasNext()).isTrue();
+        assertThat(prioritizedRawKeyedState_2).hasNext();
         current = prioritizedRawKeyedState_2.next();
         keyedStateHandleExp = jmOperatorSubtaskState_2.getRawKeyedState().iterator().next();
         keyedStateHandleAct = current.iterator().next();
         assertThat(keyedStateHandleExp).isSameAs(keyedStateHandleAct);
-        assertThat(prioritizedRawKeyedState_2.hasNext()).isFalse();
+        assertThat(prioritizedRawKeyedState_2).isExhausted();
     }
 
     /**
@@ -301,7 +301,7 @@ public class TaskStateManagerImplTest {
         assertThat(nonEmptyStateManager.getRestoreCheckpointId().get()).isEqualTo(2L);
     }
 
-    public static TaskStateManager taskStateManager(
+    private static TaskStateManager taskStateManager(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,
             CheckpointResponder checkpointResponderMock,

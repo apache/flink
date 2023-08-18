@@ -51,7 +51,7 @@ import static org.mockito.Mockito.mock;
  * Tests for the {@link FsCheckpointStorageAccess}, which implements the checkpoint storage aspects
  * of the {@link FsStateBackend}.
  */
-public class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessTestBase {
+class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorageAccessTestBase {
 
     private static final int FILE_SIZE_THRESHOLD = 1024;
     private static final int WRITE_BUFFER_SIZE = 4096;
@@ -229,11 +229,11 @@ public class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorage
                         WRITE_BUFFER_SIZE);
 
         File baseDir = new File(storage.getCheckpointsDirectory().getPath());
-        assertThat(baseDir.exists()).isFalse();
+        assertThat(baseDir).doesNotExist();
 
         // mkdirs would only be called when initializeBaseLocations
         storage.initializeBaseLocationsForCheckpoint();
-        assertThat(baseDir.exists()).isTrue();
+        assertThat(baseDir).exists();
 
         // mkdir would not be called when resolveCheckpointStorageLocation
         storage =
@@ -251,7 +251,7 @@ public class FsCheckpointStorageAccessTest extends AbstractFileCheckpointStorage
 
         Path checkpointPath = location.getCheckpointDirectory();
         File checkpointDir = new File(checkpointPath.getPath());
-        assertThat(checkpointDir.exists()).isFalse();
+        assertThat(checkpointDir).doesNotExist();
     }
 
     @Test

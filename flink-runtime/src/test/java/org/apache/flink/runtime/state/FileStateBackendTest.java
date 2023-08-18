@@ -69,23 +69,23 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
     // disable these because the verification does not work for this state backend
     @Override
     @TestTemplate
-    public void testValueStateRestoreWithWrongSerializers() {}
+    void testValueStateRestoreWithWrongSerializers() {}
 
     @Override
     @TestTemplate
-    public void testListStateRestoreWithWrongSerializers() {}
+    void testListStateRestoreWithWrongSerializers() {}
 
     @Override
     @TestTemplate
-    public void testReducingStateRestoreWithWrongSerializers() {}
+    void testReducingStateRestoreWithWrongSerializers() {}
 
     @Override
     @TestTemplate
-    public void testMapStateRestoreWithWrongSerializers() {}
+    void testMapStateRestoreWithWrongSerializers() {}
 
     @Disabled
     @TestTemplate
-    public void testConcurrentMapIfQueryable() throws Exception {
+    protected void testConcurrentMapIfQueryable() throws Exception {
         super.testConcurrentMapIfQueryable();
     }
 }

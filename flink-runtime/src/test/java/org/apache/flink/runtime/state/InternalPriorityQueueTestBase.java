@@ -136,7 +136,7 @@ public abstract class InternalPriorityQueueTestBase {
             --lastSize;
         }
 
-        assertThat(priorityQueue.isEmpty()).isTrue();
+        assertThat(priorityQueue);
         assertThat(priorityQueue.size()).isZero();
         assertThat(checkSet).isEmpty();
     }
@@ -281,7 +281,7 @@ public abstract class InternalPriorityQueueTestBase {
 
         // test empty iterator
         try (CloseableIterator<TestElement> iterator = priorityQueue.iterator()) {
-            assertThat(iterator.hasNext()).isFalse();
+            assertThat(iterator).isExhausted();
             assertThatThrownBy(iterator::next).isInstanceOf(NoSuchElementException.class);
         }
 

@@ -396,8 +396,8 @@ public class FsCheckpointStateOutputStreamTest {
         verify(fs, times(0)).delete(any(Path.class), anyBoolean());
 
         // the directory must still exist as a proper directory
-        assertThat(directory.exists()).isTrue();
-        assertThat(directory.isDirectory()).isTrue();
+        assertThat(directory).exists();
+        assertThat(directory).isDirectory();
     }
 
     // ------------------------------------------------------------------------
@@ -408,7 +408,7 @@ public class FsCheckpointStateOutputStreamTest {
         URI uri = path.toUri();
         if ("file".equals(uri.getScheme())) {
             File file = new File(uri.getPath());
-            assertThat(file.exists()).withFailMessage("file not properly deleted").isFalse();
+            assertThat(file).withFailMessage("file not properly deleted").doesNotExist();
         } else {
             throw new IllegalArgumentException("not a local path");
         }

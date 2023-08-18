@@ -411,11 +411,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                         keysStream.mapToInt(value -> value.intValue()).iterator();
 
                 for (int expectedKey = 0; expectedKey < namespace1ElementsNum; expectedKey++) {
-                    assertThat(actualIterator.hasNext()).isTrue();
+                    assertThat(actualIterator).hasNext();
                     assertThat(actualIterator.nextInt()).isEqualTo(expectedKey);
                 }
 
-                assertThat(actualIterator.hasNext()).isFalse();
+                assertThat(actualIterator).isExhausted();
             }
 
             // valid for namespace2
@@ -426,11 +426,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                 for (int expectedKey = namespace1ElementsNum;
                         expectedKey < namespace1ElementsNum + namespace2ElementsNum;
                         expectedKey++) {
-                    assertThat(actualIterator.hasNext()).isTrue();
+                    assertThat(actualIterator).hasNext();
                     assertThat(actualIterator.nextInt()).isEqualTo(expectedKey);
                 }
 
-                assertThat(actualIterator.hasNext()).isFalse();
+                assertThat(actualIterator).isExhausted();
             }
         } finally {
             IOUtils.closeQuietly(backend);
@@ -952,42 +952,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                     .addDefaultKryoSerializer(
                             TestPojo.class, (Class) CustomKryoTestSerializer.class);
 
-            assertThatThrownBy(
-                            () -> {
-                                // state backends that eagerly deserializes (such as the memory
-                                // state backend) will fail here
-                                CheckpointableKeyedStateBackend<Integer> restoreBackend = null;
-                                try {
-                                    restoreBackend =
-                                            restoreKeyedBackend(
-                                                    IntSerializer.INSTANCE, snapshot2, env);
-
-                                    ValueState<TestPojo> restoreState =
-                                            restoreBackend.getPartitionedState(
-                                                    VoidNamespace.INSTANCE,
-                                                    VoidNamespaceSerializer.INSTANCE,
-                                                    new ValueStateDescriptor<>("id", pojoType));
-
-                                    restoreBackend.setCurrentKey(1);
-                                    // state backends that lazily deserializes (such as RocksDB)
-                                    // will fail here
-                                    restoreState.value();
-
-                                    restoreBackend.dispose();
-                                } finally {
-                                    if (restoreBackend != null) {
-                                        IOUtils.closeQuietly(restoreBackend);
-                                        restoreBackend.dispose();
-                                    }
-                                }
-                            })
-                    .satisfiesAnyOf(
-                            actual ->
-                                    assertThat(actual)
-                                            .isInstanceOf(ExpectedKryoTestException.class),
-                            actual ->
-                                    assertThat(actual)
-                                            .hasCauseInstanceOf(ExpectedKryoTestException.class));
+            assertRestoreKeyedBackendFail(snapshot2, kvId);
 
             snapshot2.discardState();
         } finally {
@@ -1090,41 +1055,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             env.getExecutionConfig()
                     .registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
 
-            assertThatThrownBy(
-                            () -> {
-                                // state backends that eagerly deserializes (such as the memory
-                                // state backend) will fail
-                                // here
-                                CheckpointableKeyedStateBackend<Integer> restoreBackend = null;
-                                try {
-                                    restoreBackend =
-                                            restoreKeyedBackend(
-                                                    IntSerializer.INSTANCE, snapshot2, env);
-
-                                    ValueState<TestPojo> restoreState =
-                                            restoreBackend.getPartitionedState(
-                                                    VoidNamespace.INSTANCE,
-                                                    VoidNamespaceSerializer.INSTANCE,
-                                                    new ValueStateDescriptor<>("id", pojoType));
-
-                                    restoreBackend.setCurrentKey(1);
-                                    // state backends that lazily deserializes (such as RocksDB)
-                                    // will fail here
-                                    restoreState.value();
-                                } finally {
-                                    if (restoreBackend != null) {
-                                        restoreBackend.dispose();
-                                    }
-                                }
-                            })
-                    .satisfiesAnyOf(
-                            actual ->
-                                    assertThat(actual)
-                                            .isInstanceOf(ExpectedKryoTestException.class),
-                            actual ->
-                                    assertThat(actual)
-                                            .hasCauseInstanceOf(ExpectedKryoTestException.class));
-
+            assertRestoreKeyedBackendFail(snapshot2, kvId);
         } finally {
             // ensure that native resources are also released in case of exception
             if (backend != null) {
@@ -3803,7 +3734,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
             backend.setCurrentKey(1);
             assertThat(state.entries()).isNotNull();
-            assertThat(state.entries().iterator().hasNext()).isFalse();
+            assertThat(state.entries().iterator()).isExhausted();
 
             state.put("Ciao", "Hello");
             state.put("Bello", "Nice");
@@ -3814,7 +3745,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
             state.clear();
             assertThat(state.entries()).isNotNull();
-            assertThat(state.entries().iterator().hasNext()).isFalse();
+            assertThat(state.entries().iterator()).isExhausted();
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -4935,7 +4866,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                     new KeyedStateFunction<Integer, ListState<String>>() {
                         @Override
                         public void process(Integer key, ListState<String> state) throws Exception {
-                            assertThat(state.get().iterator().hasNext()).isFalse();
+                            assertThat(state.get().iterator()).isExhausted();
                         }
                     });
 
@@ -5113,11 +5044,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                         keysStream.mapToInt(value -> value.intValue()).iterator();
 
                 for (int expectedKey = 0; expectedKey < namespace1ElementsNum; expectedKey++) {
-                    assertThat(actualIterator.hasNext()).isTrue();
+                    assertThat(actualIterator).hasNext();
                     assertThat(actualIterator.nextInt()).isEqualTo(expectedKey);
                 }
 
-                assertThat(actualIterator.hasNext()).isFalse();
+                assertThat(actualIterator).isExhausted();
             }
 
             // valid for namespace2
@@ -5128,11 +5059,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                 for (int expectedKey = namespace1ElementsNum;
                         expectedKey < namespace1ElementsNum + namespace2ElementsNum;
                         expectedKey++) {
-                    assertThat(actualIterator.hasNext()).isTrue();
+                    assertThat(actualIterator).hasNext();
                     assertThat(actualIterator.nextInt()).isEqualTo(expectedKey);
                 }
 
-                assertThat(actualIterator.hasNext()).isFalse();
+                assertThat(actualIterator).isExhausted();
             }
         } finally {
             IOUtils.closeQuietly(backend);
@@ -5226,6 +5157,44 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             backend.dispose();
             executorService.shutdown();
         }
+    }
+
+    private void assertRestoreKeyedBackendFail(
+            KeyedStateHandle keyedStateHandle, ValueStateDescriptor<TestPojo> kvId) {
+        assertThatThrownBy(
+                        () -> {
+                            // state backends that eagerly deserializes (such as the memory
+                            // state backend) will fail here
+                            CheckpointableKeyedStateBackend<Integer> restoreBackend = null;
+                            try {
+                                restoreBackend =
+                                        restoreKeyedBackend(
+                                                IntSerializer.INSTANCE, keyedStateHandle, env);
+
+                                ValueState<TestPojo> restoreState =
+                                        restoreBackend.getPartitionedState(
+                                                VoidNamespace.INSTANCE,
+                                                VoidNamespaceSerializer.INSTANCE,
+                                                kvId);
+
+                                restoreBackend.setCurrentKey(1);
+                                // state backends that lazily deserializes (such as RocksDB)
+                                // will fail here
+                                restoreState.value();
+
+                                restoreBackend.dispose();
+                            } finally {
+                                if (restoreBackend != null) {
+                                    IOUtils.closeQuietly(restoreBackend);
+                                    restoreBackend.dispose();
+                                }
+                            }
+                        })
+                .satisfiesAnyOf(
+                        actual -> assertThat(actual).isInstanceOf(ExpectedKryoTestException.class),
+                        actual ->
+                                assertThat(actual)
+                                        .hasCauseInstanceOf(ExpectedKryoTestException.class));
     }
 
     protected Future<SnapshotResult<KeyedStateHandle>> runSnapshotAsync(

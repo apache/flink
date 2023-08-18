@@ -45,16 +45,16 @@ class SnapshotDirectoryTest {
         File innerNewFolder = new File(newFolder, String.valueOf(UUID.randomUUID()));
         Path path = innerNewFolder.toPath();
 
-        assertThat(newFolder.isDirectory()).isFalse();
-        assertThat(innerNewFolder.isDirectory()).isFalse();
+        assertThat(newFolder).doesNotExist();
+        assertThat(innerNewFolder).doesNotExist();
         SnapshotDirectory snapshotDirectory = SnapshotDirectory.permanent(path);
         assertThat(snapshotDirectory.exists()).isFalse();
-        assertThat(newFolder.isDirectory()).isFalse();
-        assertThat(innerNewFolder.isDirectory()).isFalse();
+        assertThat(newFolder).doesNotExist();
+        assertThat(innerNewFolder).doesNotExist();
 
         assertThat(snapshotDirectory.mkdirs()).isTrue();
-        assertThat(newFolder.isDirectory()).isTrue();
-        assertThat(innerNewFolder.isDirectory()).isTrue();
+        assertThat(newFolder).isDirectory();
+        assertThat(innerNewFolder).isDirectory();
         assertThat(snapshotDirectory.exists()).isTrue();
     }
 
@@ -64,7 +64,7 @@ class SnapshotDirectoryTest {
         File folderRoot = temporaryFolder.toFile();
         File folderA = new File(folderRoot, String.valueOf(UUID.randomUUID()));
 
-        assertThat(folderA.isDirectory()).isFalse();
+        assertThat(folderA).doesNotExist();
         Path path = folderA.toPath();
         SnapshotDirectory snapshotDirectory = SnapshotDirectory.permanent(path);
         assertThat(snapshotDirectory.exists()).isFalse();
@@ -111,11 +111,11 @@ class SnapshotDirectoryTest {
         DirectoryStateHandle handle = snapshotDirectory.completeSnapshotAndGetHandle();
         assertThat(handle).isNotNull();
         assertThat(snapshotDirectory.cleanup()).isTrue();
-        assertThat(folderA.isDirectory()).isTrue();
+        assertThat(folderA).isDirectory();
         assertThat(handle.getDirectory()).isEqualTo(folderAPath);
         handle.discardState();
 
-        assertThat(folderA.isDirectory()).isFalse();
+        assertThat(folderA).doesNotExist();
         assertThat(folderA.mkdirs()).isTrue();
 
         SnapshotDirectory newSnapshotDirectory = SnapshotDirectory.permanent(folderAPath);
@@ -139,14 +139,14 @@ class SnapshotDirectoryTest {
         Path folderAPath = folderA.toPath();
         SnapshotDirectory snapshotDirectory = SnapshotDirectory.permanent(folderAPath);
         assertThat(snapshotDirectory.cleanup()).isTrue();
-        assertThat(folderA.isDirectory()).isFalse();
+        assertThat(folderA).doesNotExist();
         assertThat(folderA.mkdirs()).isTrue();
         assertThat(file.createNewFile()).isTrue();
         snapshotDirectory = SnapshotDirectory.permanent(folderAPath);
         snapshotDirectory.completeSnapshotAndGetHandle();
         assertThat(snapshotDirectory.cleanup()).isTrue();
-        assertThat(folderA.isDirectory()).isTrue();
-        assertThat(file.exists()).isTrue();
+        assertThat(folderA).isDirectory();
+        assertThat(file).exists();
     }
 
     /**
@@ -180,6 +180,6 @@ class SnapshotDirectoryTest {
         assertThat(tmpSnapshotDirectory.completeSnapshotAndGetHandle()).isNull();
         // check that the directory is deleted even after we called #completeSnapshotAndGetHandle.
         assertThat(tmpSnapshotDirectory.cleanup()).isTrue();
-        assertThat(folder.exists()).isFalse();
+        assertThat(folder).doesNotExist();
     }
 }

@@ -57,7 +57,7 @@ public class CheckpointStateOutputStreamTest {
 
     @TempDir private java.nio.file.Path tmp;
 
-    public enum CheckpointStateOutputStreamType {
+    private enum CheckpointStateOutputStreamType {
         FileBasedState,
         FsCheckpointMetaData
     }

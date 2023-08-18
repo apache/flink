@@ -331,20 +331,20 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             assertThat(iterable1.next()).isEqualTo(new TestType("key-1", 1));
             assertThat(iterable1.next()).isEqualTo(new TestType("key-1", 2));
             assertThat(iterable1.next()).isEqualTo(new TestType("key-1", 3));
-            assertThat(iterable1.hasNext()).isFalse();
+            assertThat(iterable1).isExhausted();
             listState.add(new TestType("new-key-1", 123));
 
             backend.setCurrentKey(2);
             Iterator<TestType> iterable2 = listState.get().iterator();
             assertThat(iterable2.next()).isEqualTo(new TestType("key-2", 1));
-            assertThat(iterable2.hasNext()).isFalse();
+            assertThat(iterable2).isExhausted();
             listState.add(new TestType("new-key-2", 456));
 
             backend.setCurrentKey(3);
             Iterator<TestType> iterable3 = listState.get().iterator();
             assertThat(iterable3.next()).isEqualTo(new TestType("key-3", 1));
             assertThat(iterable3.next()).isEqualTo(new TestType("key-3", 2));
-            assertThat(iterable3.hasNext()).isFalse();
+            assertThat(iterable3).isExhausted();
             listState.add(new TestType("new-key-3", 777));
 
             // do another snapshot to verify the snapshot logic after migration
@@ -501,7 +501,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             assertThat(actual.getKey()).isEqualTo(3);
             assertThat(actual.getValue()).isEqualTo(new TestType("key-1", 3));
 
-            assertThat(iterable1.hasNext()).isFalse();
+            assertThat(iterable1).isExhausted();
 
             mapState.put(123, new TestType("new-key-1", 123));
 
@@ -511,7 +511,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             actual = iterable2.next();
             assertThat(actual.getKey()).isOne();
             assertThat(actual.getValue()).isEqualTo(new TestType("key-2", 1));
-            assertThat(iterable2.hasNext()).isFalse();
+            assertThat(iterable2).isExhausted();
 
             mapState.put(456, new TestType("new-key-2", 456));
 
@@ -527,7 +527,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             assertThat(actual.getKey()).isEqualTo(2);
             assertThat(actual.getValue()).isEqualTo(new TestType("key-3", 2));
 
-            assertThat(iterable3.hasNext()).isFalse();
+            assertThat(iterable3).isExhausted();
             mapState.put(777, new TestType("new-key-3", 777));
 
             // do another snapshot to verify the snapshot logic after migration
@@ -879,7 +879,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             Iterator<TestType> iterator = state.get().iterator();
             assertThat(iterator.next()).isEqualTo(new TestType("foo", 13));
             assertThat(iterator.next()).isEqualTo(new TestType("bar", 278));
-            assertThat(iterator.hasNext()).isFalse();
+            assertThat(iterator).isExhausted();
             state.add(new TestType("new-entry", 777));
         } finally {
             backend.dispose();
@@ -977,7 +977,7 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
             Iterator<TestType> iterator = state.get().iterator();
             assertThat(iterator.next()).isEqualTo(new TestType("foo", 13));
             assertThat(iterator.next()).isEqualTo(new TestType("bar", 278));
-            assertThat(iterator.hasNext()).isFalse();
+            assertThat(iterator).isExhausted();
             state.add(new TestType("new-entry", 777));
         } finally {
             backend.dispose();

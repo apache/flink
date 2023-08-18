@@ -31,7 +31,6 @@ import javax.annotation.Nonnull;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -87,7 +86,7 @@ class AsyncSnapshotCallableTest {
 
         assertThat(task.get()).isEqualTo(SUCCESS);
         assertThat(testAsyncSnapshotCallable.getInvocationOrder())
-                .isEqualTo(Arrays.asList(METHOD_CALL, METHOD_LOG, METHOD_CLEANUP));
+                .containsExactly(METHOD_CALL, METHOD_LOG, METHOD_CLEANUP);
 
         assertThat(testBlocker.isClosed()).isTrue();
     }
@@ -110,7 +109,7 @@ class AsyncSnapshotCallableTest {
         runner.join();
 
         assertThat(testAsyncSnapshotCallable.getInvocationOrder())
-                .isEqualTo(Arrays.asList(METHOD_CALL, METHOD_CLEANUP));
+                .containsExactly(METHOD_CALL, METHOD_CLEANUP);
 
         assertThat(testBlocker.isClosed()).isTrue();
     }
@@ -132,7 +131,7 @@ class AsyncSnapshotCallableTest {
         runner.join();
 
         assertThat(testAsyncSnapshotCallable.getInvocationOrder())
-                .isEqualTo(Arrays.asList(METHOD_CALL, METHOD_CANCEL, METHOD_CLEANUP));
+                .containsExactly(METHOD_CALL, METHOD_CANCEL, METHOD_CLEANUP);
         assertThat(testProvidedResource.isClosed()).isTrue();
         assertThat(testBlocker.isClosed()).isTrue();
     }
@@ -153,7 +152,7 @@ class AsyncSnapshotCallableTest {
         runner.join();
 
         assertThat(testAsyncSnapshotCallable.getInvocationOrder())
-                .isEqualTo(Arrays.asList(METHOD_CALL, METHOD_CANCEL, METHOD_CLEANUP));
+                .containsExactly(METHOD_CALL, METHOD_CANCEL, METHOD_CLEANUP);
         assertThat(testBlocker.isClosed()).isTrue();
     }
 
@@ -169,7 +168,7 @@ class AsyncSnapshotCallableTest {
         runner.join();
 
         assertThat(testAsyncSnapshotCallable.getInvocationOrder())
-                .isEqualTo(Arrays.asList(METHOD_CANCEL, METHOD_CLEANUP));
+                .containsExactly(METHOD_CANCEL, METHOD_CLEANUP);
         assertThat(testProvidedResource.isClosed()).isTrue();
     }
 

@@ -53,7 +53,7 @@ class KeyGroupRangeOffsetTest {
 
         intersection = keyGroupRangeOffsets.getIntersection(KeyGroupRange.of(11, 13));
         assertThat(intersection.getKeyGroupRange()).isEqualTo(KeyGroupRange.EMPTY_KEY_GROUP_RANGE);
-        assertThat(intersection.iterator().hasNext()).isFalse();
+        assertThat(intersection.iterator()).isExhausted();
 
         intersection = keyGroupRangeOffsets.getIntersection(KeyGroupRange.of(5, 13));
         expected =
