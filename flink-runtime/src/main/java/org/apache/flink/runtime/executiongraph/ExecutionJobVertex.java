@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
@@ -160,7 +161,8 @@ public class ExecutionJobVertex
             Time timeout,
             long createTimestamp,
             SubtaskAttemptNumberStore initialAttemptCounts,
-            CoordinatorStore coordinatorStore)
+            CoordinatorStore coordinatorStore,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup)
             throws JobException {
 
         checkState(parallelismInfo.getParallelism() > 0);
@@ -221,7 +223,10 @@ public class ExecutionJobVertex
                         coordinatorProviders) {
                     coordinators.add(
                             createOperatorCoordinatorHolder(
-                                    provider, graph.getUserClassLoader(), coordinatorStore));
+                                    provider,
+                                    graph.getUserClassLoader(),
+                                    coordinatorStore,
+                                    jobManagerJobMetricGroup));
                 }
             } catch (Exception | LinkageError e) {
                 IOUtils.closeAllQuietly(coordinators);
@@ -281,10 +286,17 @@ public class ExecutionJobVertex
     protected OperatorCoordinatorHolder createOperatorCoordinatorHolder(
             SerializedValue<OperatorCoordinator.Provider> provider,
             ClassLoader classLoader,
-            CoordinatorStore coordinatorStore)
+            CoordinatorStore coordinatorStore,
+            JobManagerJobMetricGroup jobManagerJobMetricGroup)
             throws Exception {
         return OperatorCoordinatorHolder.create(
-                provider, this, classLoader, coordinatorStore, false, getTaskInformation());
+                provider,
+                this,
+                classLoader,
+                coordinatorStore,
+                false,
+                getTaskInformation(),
+                jobManagerJobMetricGroup);
     }
 
     public boolean isInitialized() {

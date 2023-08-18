@@ -22,6 +22,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TestingDefaultExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
@@ -58,6 +59,7 @@ public class BuildExecutionGraphBenchmark extends SchedulerBenchmarkBase {
     }
 
     public void buildTopology() throws Exception {
-        executionGraph.attachJobGraph(jobVertices);
+        executionGraph.attachJobGraph(
+                jobVertices, UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup());
     }
 }

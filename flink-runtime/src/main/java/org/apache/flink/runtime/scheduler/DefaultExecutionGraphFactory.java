@@ -184,7 +184,8 @@ public class DefaultExecutionGraphFactory implements ExecutionGraphFactory {
                         isDynamicGraph,
                         executionJobVertexFactory,
                         markPartitionFinishedStrategy,
-                        nonFinishedHybridPartitionShouldBeUnknown);
+                        nonFinishedHybridPartitionShouldBeUnknown,
+                        jobManagerJobMetricGroup);
 
         final CheckpointCoordinator checkpointCoordinator =
                 newExecutionGraph.getCheckpointCoordinator();
