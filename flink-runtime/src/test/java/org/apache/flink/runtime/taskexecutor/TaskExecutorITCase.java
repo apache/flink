@@ -21,6 +21,8 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.core.testutils.CustomExtension;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
@@ -36,13 +38,13 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -59,22 +61,27 @@ class TaskExecutorITCase {
     private static final int SLOTS_PER_TM = 2;
     private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
 
-    private final MiniClusterResource miniClusterResource =
-            new MiniClusterResource(
+    private static final InternalMiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(NUM_TMS)
                             .setNumberSlotsPerTaskManager(SLOTS_PER_TM)
                             .build());
 
-    @BeforeEach
-    void before() throws Exception {
-        miniClusterResource.before();
-    }
+    @RegisterExtension
+    private final EachCallbackWrapper<?> miniClusterExtensionWrapper =
+            new EachCallbackWrapper<>(
+                    new CustomExtension() {
+                        @Override
+                        public void before(ExtensionContext context) throws Exception {
+                            MINI_CLUSTER_EXTENSION.beforeAll(context);
+                        }
 
-    @AfterEach
-    void after() {
-        miniClusterResource.after();
-    }
+                        @Override
+                        public void after(ExtensionContext context) throws Exception {
+                            MINI_CLUSTER_EXTENSION.afterAll(context);
+                        }
+                    });
 
     /**
      * Tests that a job can be re-executed after the job has failed due to a TaskExecutor
@@ -84,7 +91,7 @@ class TaskExecutorITCase {
     void testJobReExecutionAfterTaskExecutorTermination() throws Exception {
         final JobGraph jobGraph = createJobGraph(PARALLELISM);
 
-        final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
+        final MiniCluster miniCluster = MINI_CLUSTER_EXTENSION.getMiniCluster();
 
         final CompletableFuture<JobResult> jobResultFuture =
                 submitJobAndWaitUntilRunning(jobGraph, miniCluster);
@@ -110,7 +117,7 @@ class TaskExecutorITCase {
     void testJobRecoveryWithFailingTaskExecutor() throws Exception {
         final JobGraph jobGraph = createJobGraphWithRestartStrategy(PARALLELISM);
 
-        final MiniCluster miniCluster = miniClusterResource.getMiniCluster();
+        final MiniCluster miniCluster = MINI_CLUSTER_EXTENSION.getMiniCluster();
 
         final CompletableFuture<JobResult> jobResultFuture =
                 submitJobAndWaitUntilRunning(jobGraph, miniCluster);
