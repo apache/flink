@@ -410,6 +410,13 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testFilterOnString(): Unit = {
+    checkResult(
+      "SELECT * FROM Table3 WHERE c LIKE '%world%'",
+      Seq(
+        row(3, 2L, "Hello world"),
+        row(4, 3L, "Hello world, how are you?")
+      ))
+
     val rows = Seq(row(3, "H.llo"), row(3, "Hello"))
     val dataId = TestValuesTableFactory.registerData(rows)
 
@@ -433,13 +440,6 @@ class CalcITCase extends BatchTestBase {
          |""".stripMargin,
       Seq(row("H.llo"))
     )
-
-    checkResult(
-      "SELECT * FROM Table3 WHERE c LIKE '%world%'",
-      Seq(
-        row(3, 2L, "Hello world"),
-        row(4, 3L, "Hello world, how are you?")
-      ))
   }
 
   @Test
