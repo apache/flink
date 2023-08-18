@@ -28,47 +28,49 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ClientUtils}. */
-public class ClientUtilsTest extends TestLogger {
+public class ClientUtilsTest {
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private static java.nio.file.Path temporaryFolder;
 
     private static BlobServer blobServer = null;
 
-    @BeforeClass
-    public static void setup() throws IOException {
+    @BeforeAll
+    static void setup() throws IOException {
         Configuration config = new Configuration();
-        blobServer = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
+        blobServer =
+                new BlobServer(
+                        config, TempDirUtils.newFolder(temporaryFolder), new VoidBlobStore());
         blobServer.start();
     }
 
-    @AfterClass
-    public static void teardown() throws IOException {
+    @AfterAll
+    static void teardown() throws IOException {
         if (blobServer != null) {
             blobServer.close();
         }
     }
 
     @Test
-    public void uploadAndSetUserJars() throws Exception {
-        java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
+    void uploadAndSetUserJars() throws Exception {
+        java.nio.file.Path tmpDir = TempDirUtils.newFolder(temporaryFolder).toPath();
         JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
 
         Collection<Path> jars =
@@ -78,8 +80,8 @@ public class ClientUtilsTest extends TestLogger {
 
         jars.forEach(jobGraph::addJar);
 
-        assertEquals(jars.size(), jobGraph.getUserJars().size());
-        assertEquals(0, jobGraph.getUserJarBlobKeys().size());
+        assertThat(jobGraph.getUserJars()).hasSameSizeAs(jars);
+        assertThat(jobGraph.getUserJarBlobKeys()).isEmpty();
 
         ClientUtils.extractAndUploadJobGraphFiles(
                 jobGraph,
@@ -88,9 +90,9 @@ public class ClientUtilsTest extends TestLogger {
                                 new InetSocketAddress("localhost", blobServer.getPort()),
                                 new Configuration()));
 
-        assertEquals(jars.size(), jobGraph.getUserJars().size());
-        assertEquals(jars.size(), jobGraph.getUserJarBlobKeys().size());
-        assertEquals(jars.size(), jobGraph.getUserJarBlobKeys().stream().distinct().count());
+        assertThat(jobGraph.getUserJars()).hasSameSizeAs(jars);
+        assertThat(jobGraph.getUserJarBlobKeys()).hasSameSizeAs(jars);
+        assertThat(jobGraph.getUserJarBlobKeys().stream().distinct()).hasSameSizeAs(jars);
 
         for (PermanentBlobKey blobKey : jobGraph.getUserJarBlobKeys()) {
             blobServer.getFile(jobGraph.getJobID(), blobKey);
@@ -98,8 +100,8 @@ public class ClientUtilsTest extends TestLogger {
     }
 
     @Test
-    public void uploadAndSetUserArtifacts() throws Exception {
-        java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
+    void uploadAndSetUserArtifacts() throws Exception {
+        java.nio.file.Path tmpDir = TempDirUtils.newFolder(temporaryFolder).toPath();
         JobGraph jobGraph = JobGraphTestUtils.emptyJobGraph();
 
         Collection<DistributedCache.DistributedCacheEntry> localArtifacts =
@@ -114,7 +116,7 @@ public class ClientUtilsTest extends TestLogger {
                                 Files.createFile(tmpDir.resolve("art4")).toString(), true, false));
 
         Collection<DistributedCache.DistributedCacheEntry> distributedArtifacts =
-                Arrays.asList(
+                Collections.singletonList(
                         new DistributedCache.DistributedCacheEntry(
                                 "hdfs://localhost:1234/test", true, false));
 
@@ -127,12 +129,11 @@ public class ClientUtilsTest extends TestLogger {
 
         final int totalNumArtifacts = localArtifacts.size() + distributedArtifacts.size();
 
-        assertEquals(totalNumArtifacts, jobGraph.getUserArtifacts().size());
-        assertEquals(
-                0,
-                jobGraph.getUserArtifacts().values().stream()
-                        .filter(entry -> entry.blobKey != null)
-                        .count());
+        assertThat(jobGraph.getUserArtifacts()).hasSize(totalNumArtifacts);
+        assertThat(
+                        jobGraph.getUserArtifacts().values().stream()
+                                .filter(entry -> entry.blobKey != null))
+                .isEmpty();
 
         ClientUtils.extractAndUploadJobGraphFiles(
                 jobGraph,
@@ -141,24 +142,21 @@ public class ClientUtilsTest extends TestLogger {
                                 new InetSocketAddress("localhost", blobServer.getPort()),
                                 new Configuration()));
 
-        assertEquals(totalNumArtifacts, jobGraph.getUserArtifacts().size());
-        assertEquals(
-                localArtifacts.size(),
-                jobGraph.getUserArtifacts().values().stream()
-                        .filter(entry -> entry.blobKey != null)
-                        .count());
-        assertEquals(
-                distributedArtifacts.size(),
-                jobGraph.getUserArtifacts().values().stream()
-                        .filter(entry -> entry.blobKey == null)
-                        .count());
+        assertThat(jobGraph.getUserArtifacts()).hasSize(totalNumArtifacts);
+        assertThat(
+                        jobGraph.getUserArtifacts().values().stream()
+                                .filter(entry -> entry.blobKey != null))
+                .hasSameSizeAs(localArtifacts);
+        assertThat(
+                        jobGraph.getUserArtifacts().values().stream()
+                                .filter(entry -> entry.blobKey == null))
+                .hasSameSizeAs(distributedArtifacts);
         // 1 unique key for each local artifact, and null for distributed artifacts
-        assertEquals(
-                localArtifacts.size() + 1,
-                jobGraph.getUserArtifacts().values().stream()
-                        .map(entry -> entry.blobKey)
-                        .distinct()
-                        .count());
+        assertThat(
+                        jobGraph.getUserArtifacts().values().stream()
+                                .map(entry -> entry.blobKey)
+                                .distinct())
+                .hasSize(localArtifacts.size() + 1);
         for (DistributedCache.DistributedCacheEntry original : localArtifacts) {
             assertState(
                     original,
@@ -181,10 +179,10 @@ public class ClientUtilsTest extends TestLogger {
             boolean isBlobKeyNull,
             JobID jobId)
             throws Exception {
-        assertEquals(original.isZipped, actual.isZipped);
-        assertEquals(original.isExecutable, actual.isExecutable);
-        assertEquals(original.filePath, actual.filePath);
-        assertEquals(isBlobKeyNull, actual.blobKey == null);
+        assertThat(actual.isZipped).isEqualTo(original.isZipped);
+        assertThat(actual.isExecutable).isEqualTo(original.isExecutable);
+        assertThat(actual.filePath).isEqualTo(original.filePath);
+        assertThat(actual.blobKey == null).isEqualTo(isBlobKeyNull);
         if (!isBlobKeyNull) {
             blobServer.getFile(
                     jobId,
