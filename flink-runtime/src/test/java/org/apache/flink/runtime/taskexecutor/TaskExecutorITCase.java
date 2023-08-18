@@ -132,7 +132,7 @@ class TaskExecutorITCase {
         final CompletableFuture<JobResult> jobResultFuture =
                 miniCluster.requestJobResult(jobGraph.getJobID());
 
-        assertThat(jobResultFuture.isDone()).isFalse();
+        assertThat(jobResultFuture).isNotDone();
 
         CommonTestUtils.waitUntilCondition(
                 jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())), 50L);
