@@ -312,7 +312,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
     }
 
     private void printLogIfNotValidLeader(String actionDescription, UUID leaderSessionId) {
-        LOG.trace(
+        LOG.debug(
                 "Ignore leader action '{}' because the leadership runner is no longer the valid leader for {}.",
                 actionDescription,
                 leaderSessionId);
@@ -479,7 +479,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
             if (isRunning()) {
                 action.run();
             } else {
-                LOG.trace(
+                LOG.debug(
                         "Ignore '{}' because the leadership runner is no longer running.",
                         actionDescription);
             }
@@ -492,7 +492,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
             if (isRunning()) {
                 return Optional.of(supplier.get());
             } else {
-                LOG.trace(
+                LOG.debug(
                         "Ignore '{}' because the leadership runner is no longer running.",
                         supplierDescription);
                 return Optional.empty();
