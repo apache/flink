@@ -24,6 +24,7 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -39,13 +40,16 @@ import okhttp3.Response;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -70,6 +74,8 @@ public class FileUploadHandlerITCase extends TestLogger {
 
     @Rule
     public final MultipartUploadResource multipartUpdateResource = new MultipartUploadResource();
+
+    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
     private static final ObjectMapper OBJECT_MAPPER = RestMapperUtils.getStrictObjectMapper();
 
@@ -112,6 +118,15 @@ public class FileUploadHandlerITCase extends TestLogger {
             throws IOException {
         MultipartBody.Builder builder = new MultipartBody.Builder();
         builder = addJsonPart(builder, json, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
+        return finalizeRequest(builder, headerUrl);
+    }
+
+    private Request buildMixedRequest(
+            String headerUrl, MultipartUploadResource.TestRequestBody json, File file)
+            throws IOException {
+        MultipartBody.Builder builder = new MultipartBody.Builder();
+        builder = addJsonPart(builder, json, FileUploadHandler.HTTP_ATTRIBUTE_REQUEST);
+        builder = addFilePart(builder, file, file.getName());
         return finalizeRequest(builder, headerUrl);
     }
 
@@ -210,6 +225,49 @@ public class FileUploadHandlerITCase extends TestLogger {
                 buildMixedRequest(
                         mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), json);
         try (Response response = client.newCall(mixedRequest).execute()) {
+            assertEquals(
+                    mixedHandler.getMessageHeaders().getResponseStatusCode().code(),
+                    response.code());
+            assertEquals(json, mixedHandler.lastReceivedRequest);
+        }
+
+        verifyNoFileIsRegisteredToDeleteOnExitHook();
+    }
+
+    /**
+     * This test checks for a specific multipart request chunk layout using a magic number.
+     *
+     * <p>These things are very susceptible to interference from other requests or parts of the
+     * payload; for example if the JSON payload increases by a single byte it can already break the
+     * number. Do not reuse the client.
+     *
+     * <p>To find the magic number you can define a static counter, and loop the test in the IDE
+     * (without forking!) while incrementing the counter on each run.
+     */
+    @Test
+    public void testMixedMultipartEndOfDataDecoderExceptionHandling() throws Exception {
+        OkHttpClient client = createOkHttpClientWithNoTimeouts();
+
+        MultipartUploadResource.MultipartMixedHandler mixedHandler =
+                multipartUpdateResource.getMixedHandler();
+
+        MultipartUploadResource.TestRequestBody json =
+                new MultipartUploadResource.TestRequestBody();
+
+        File file = TempDirUtils.newFile(tmp.newFolder().toPath());
+        try (RandomAccessFile rw = new RandomAccessFile(file, "rw")) {
+            // magic value that reliably reproduced EndOfDataDecoderException in hasNext()
+            rw.setLength(1424);
+        }
+        multipartUpdateResource.setFileUploadVerifier(
+                (handlerRequest, restfulGateway) ->
+                        MultipartUploadResource.assertUploadedFilesEqual(
+                                handlerRequest, Collections.singleton(file)));
+
+        Request singleFileMixedRequest =
+                buildMixedRequest(
+                        mixedHandler.getMessageHeaders().getTargetRestEndpointURL(), json, file);
+        try (Response response = client.newCall(singleFileMixedRequest).execute()) {
             assertEquals(
                     mixedHandler.getMessageHeaders().getResponseStatusCode().code(),
                     response.code());
