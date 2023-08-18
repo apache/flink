@@ -329,14 +329,15 @@ class DefaultResourceAllocationStrategyTest {
                                 () -> Collections.singleton(registeredTaskManager))
                         .build();
 
-        ResourceReleaseResult result =
-                ANY_MATCHING_STRATEGY.tryReleaseUnusedResources(taskManagerResourceInfoProvider);
+        ResourceReconcileResult result =
+                ANY_MATCHING_STRATEGY.tryReconcileClusterResources(taskManagerResourceInfoProvider);
 
         assertThat(result.getTaskManagersToRelease()).isEmpty();
 
         registeredTaskManager.setIdleSince(System.currentTimeMillis() - 10);
 
-        result = ANY_MATCHING_STRATEGY.tryReleaseUnusedResources(taskManagerResourceInfoProvider);
+        result =
+                ANY_MATCHING_STRATEGY.tryReconcileClusterResources(taskManagerResourceInfoProvider);
         assertThat(result.getTaskManagersToRelease()).containsExactly(registeredTaskManager);
     }
 
@@ -350,8 +351,8 @@ class DefaultResourceAllocationStrategyTest {
                                 () -> Collections.singleton(pendingTaskManager))
                         .build();
 
-        ResourceReleaseResult result =
-                ANY_MATCHING_STRATEGY.tryReleaseUnusedResources(taskManagerResourceInfoProvider);
+        ResourceReconcileResult result =
+                ANY_MATCHING_STRATEGY.tryReconcileClusterResources(taskManagerResourceInfoProvider);
 
         assertThat(result.getPendingTaskManagersToRelease()).containsExactly(pendingTaskManager);
     }
@@ -369,8 +370,8 @@ class DefaultResourceAllocationStrategyTest {
                                 () -> Collections.singleton(pendingTaskManager))
                         .build();
 
-        ResourceReleaseResult result =
-                ANY_MATCHING_STRATEGY.tryReleaseUnusedResources(taskManagerResourceInfoProvider);
+        ResourceReconcileResult result =
+                ANY_MATCHING_STRATEGY.tryReconcileClusterResources(taskManagerResourceInfoProvider);
 
         assertThat(result.getPendingTaskManagersToRelease()).isEmpty();
     }
@@ -440,11 +441,50 @@ class DefaultResourceAllocationStrategyTest {
                         .build();
 
         DefaultResourceAllocationStrategy strategy = createStrategy(1);
-        ResourceReleaseResult result =
-                strategy.tryReleaseUnusedResources(taskManagerResourceInfoProvider);
+        ResourceReconcileResult result =
+                strategy.tryReconcileClusterResources(taskManagerResourceInfoProvider);
         assertThat(result.getPendingTaskManagersToRelease())
                 .containsExactly(pendingTaskManagerIdle);
         assertThat(result.getTaskManagersToRelease()).containsExactly(taskManagerIdle);
+    }
+
+    @Test
+    void testRedundantResourceShouldBeFulfilled() {
+        final TaskManagerInfo taskManagerInUse =
+                new TestingTaskManagerInfo(
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE.multiply(2),
+                        DEFAULT_SLOT_RESOURCE);
+
+        final TestingTaskManagerInfo taskManagerIdle =
+                new TestingTaskManagerInfo(
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE.multiply(5),
+                        DEFAULT_SLOT_RESOURCE);
+        taskManagerIdle.setIdleSince(System.currentTimeMillis() - 10);
+
+        final PendingTaskManager pendingTaskManagerIdle =
+                new PendingTaskManager(DEFAULT_SLOT_RESOURCE.multiply(5), NUM_OF_SLOTS);
+
+        final TaskManagerResourceInfoProvider taskManagerResourceInfoProvider =
+                TestingTaskManagerResourceInfoProvider.newBuilder()
+                        .setRegisteredTaskManagersSupplier(
+                                () -> Arrays.asList(taskManagerInUse, taskManagerIdle))
+                        .setPendingTaskManagersSupplier(
+                                () -> Collections.singletonList(pendingTaskManagerIdle))
+                        .build();
+
+        DefaultResourceAllocationStrategy strategy = createStrategy(4);
+        ResourceReconcileResult result =
+                strategy.tryReconcileClusterResources(taskManagerResourceInfoProvider);
+
+        // pending task manager should reserved for redundant
+        assertThat(result.getPendingTaskManagersToRelease()).isEmpty();
+        // both in use and idle task manager should be reserved for redundant
+        assertThat(result.getTaskManagersToRelease()).isEmpty();
+        // add two more pending task manager for redundant since total available resource equals
+        // 12(2+5+5)
+        assertThat(result.getPendingTaskManagersToAllocate()).hasSize(2);
     }
 
     @Test
@@ -474,8 +514,8 @@ class DefaultResourceAllocationStrategyTest {
                         .build();
 
         DefaultResourceAllocationStrategy strategy = createStrategy(1);
-        ResourceReleaseResult result =
-                strategy.tryReleaseUnusedResources(taskManagerResourceInfoProvider);
+        ResourceReconcileResult result =
+                strategy.tryReconcileClusterResources(taskManagerResourceInfoProvider);
         // pending task manager should release at first
         assertThat(result.getPendingTaskManagersToRelease())
                 .containsExactly(pendingTaskManagerIdle);

@@ -22,15 +22,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Contains the results of the {@link ResourceAllocationStrategy}. */
-public class ResourceReleaseResult {
+public class ResourceReconcileResult {
+
+    private final List<PendingTaskManager> pendingTaskManagersToAllocate;
     private final List<PendingTaskManager> pendingTaskManagersToRelease;
     private final List<TaskManagerInfo> taskManagersToRelease;
 
-    public ResourceReleaseResult(
+    public ResourceReconcileResult(
+            List<PendingTaskManager> pendingTaskManagersToAllocate,
             List<PendingTaskManager> pendingTaskManagersToRelease,
             List<TaskManagerInfo> taskManagersToRelease) {
+        this.pendingTaskManagersToAllocate = pendingTaskManagersToAllocate;
         this.pendingTaskManagersToRelease = pendingTaskManagersToRelease;
         this.taskManagersToRelease = taskManagersToRelease;
+    }
+
+    public List<PendingTaskManager> getPendingTaskManagersToAllocate() {
+        return pendingTaskManagersToAllocate;
     }
 
     public List<PendingTaskManager> getPendingTaskManagersToRelease() {
@@ -41,8 +49,15 @@ public class ResourceReleaseResult {
         return taskManagersToRelease;
     }
 
-    public boolean needRelease() {
-        return !pendingTaskManagersToRelease.isEmpty() || !taskManagersToRelease.isEmpty();
+    /**
+     * Returns whether the cluster resource need reconcile.
+     *
+     * @return True if the cluster resource need reconcile, otherwise false.
+     */
+    public boolean needReconcile() {
+        return pendingTaskManagersToRelease.size() > 0
+                || taskManagersToRelease.size() > 0
+                || pendingTaskManagersToAllocate.size() > 0;
     }
 
     public static Builder builder() {
@@ -50,8 +65,14 @@ public class ResourceReleaseResult {
     }
 
     public static class Builder {
+        private final List<PendingTaskManager> pendingTaskManagersToAllocate = new ArrayList<>();
         private final List<PendingTaskManager> pendingTaskManagersToRelease = new ArrayList<>();
         private final List<TaskManagerInfo> taskManagersToRelease = new ArrayList<>();
+
+        public Builder addPendingTaskManagerToAllocate(PendingTaskManager pendingTaskManager) {
+            this.pendingTaskManagersToAllocate.add(pendingTaskManager);
+            return this;
+        }
 
         public Builder addPendingTaskManagerToRelease(PendingTaskManager pendingTaskManager) {
             this.pendingTaskManagersToRelease.add(pendingTaskManager);
@@ -63,8 +84,11 @@ public class ResourceReleaseResult {
             return this;
         }
 
-        public ResourceReleaseResult build() {
-            return new ResourceReleaseResult(pendingTaskManagersToRelease, taskManagersToRelease);
+        public ResourceReconcileResult build() {
+            return new ResourceReconcileResult(
+                    pendingTaskManagersToAllocate,
+                    pendingTaskManagersToRelease,
+                    taskManagersToRelease);
         }
     }
 }
