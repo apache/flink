@@ -77,6 +77,27 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
     }
 
     @Test
+    void testAllTasksInCreatedAndNoSlowTasks() throws Exception {
+        final int parallelism = 3;
+        final JobVertex jobVertex = createNoOpVertex(parallelism);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertex);
+
+        // all tasks are in the CREATED state, which is not classified as slow tasks.
+        final ExecutionGraph executionGraph =
+                SchedulerTestingUtils.createScheduler(
+                                jobGraph,
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .getExecutionGraph();
+
+        final ExecutionTimeBasedSlowTaskDetector slowTaskDetector = createSlowTaskDetector(0, 1, 0);
+        final Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks =
+                slowTaskDetector.findSlowTasks(executionGraph);
+
+        assertThat(slowTasks.size()).isZero();
+    }
+
+    @Test
     void testFinishedTaskNotExceedRatio() throws Exception {
         final int parallelism = 3;
         final JobVertex jobVertex = createNoOpVertex(parallelism);
