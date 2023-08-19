@@ -57,9 +57,11 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
@@ -430,6 +432,15 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> exte
         }
     }
 
+    private Iterator<Map.Entry<Integer, TestType>> sortedIterator(
+            Iterator<Map.Entry<Integer, TestType>> iterator) {
+        TreeSet<Map.Entry<Integer, TestType>> set =
+                new TreeSet<Map.Entry<Integer, TestType>>(
+                        Comparator.comparing(Map.Entry<Integer, TestType>::getKey));
+        iterator.forEachRemaining(set::add);
+        return set.iterator();
+    }
+
     private void testKeyedMapStateUpgrade(
             MapStateDescriptor<Integer, TestType> initialAccessDescriptor,
             MapStateDescriptor<Integer, TestType> newAccessDescriptorAfterRestore)
@@ -479,7 +490,9 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> exte
 
             // make sure that reading and writing each key state works with the new serializer
             backend.setCurrentKey(1);
-            Iterator<Map.Entry<Integer, TestType>> iterable1 = mapState.iterator();
+            // sort iterator because the order of elements is otherwise not deterministic
+            Iterator<Map.Entry<Integer, TestType>> iterable1 = sortedIterator(mapState.iterator());
+
             Map.Entry<Integer, TestType> actual = iterable1.next();
             assertEquals((Integer) 1, actual.getKey());
             assertEquals(new TestType("key-1", 1), actual.getValue());
@@ -507,7 +520,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> exte
             mapState.put(456, new TestType("new-key-2", 456));
 
             backend.setCurrentKey(3);
-            Iterator<Map.Entry<Integer, TestType>> iterable3 = mapState.iterator();
+            // sort iterator because the order of elements is otherwise not deterministic
+            Iterator<Map.Entry<Integer, TestType>> iterable3 = sortedIterator(mapState.iterator());
 
             actual = iterable3.next();
             assertEquals((Integer) 1, actual.getKey());
