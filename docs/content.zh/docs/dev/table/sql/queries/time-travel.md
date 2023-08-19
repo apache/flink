@@ -25,9 +25,9 @@ under the License.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-时间旅行是一种用于查询历史数据的 SQL 语法。它允许用户指定一个时间点，查询对应时间点的表的数据，并使用与该时间相对应的 schema。
+`时间旅行`是一种用于查询历史数据的 SQL 语法。它允许用户指定一个时间点，查询对应时间点 table 的数据。
 
-<span class="label label-danger">注意</span> 目前, `Time Travel` 语法需要相应的 Catalog 支持 {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/catalog/Catalog.java" name="getTable(ObjectPath tablePath, long timestamp)" >}} 接口。
+<span class="label label-danger">注意</span> 目前, `时间旅行`语法需要查询 table 所属的 catalog 实现了 {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/catalog/Catalog.java" name="getTable(ObjectPath tablePath, long timestamp)" >}} 接口。
 
 ```sql
 SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00'
@@ -35,7 +35,7 @@ SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00
 
 ## 表达式说明
 
-<span class="label label-danger">注意</span> 时间旅行当前只能够支持部分常量表达式， 不支持使用函数或自定义函数。
+<span class="label label-danger">注意</span> `时间旅行`当前只能够支持部分常量表达式， 不支持使用函数或自定义函数。
 
 ### 常量表达式
 
@@ -60,5 +60,4 @@ SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TO_TIMESTAMP_LTZ(0, 3)
 ## 时区的处理
 
 默认情况下， TIMESTAMP 表达式生成的数据类型应该是 TIMESTAMP， 而 Catalog 提供的接口是 `getTable(ObjectPath tablePath, long timestamp)`,
-因此框架需要将 TIMESTAMP 类型转换为 LONG 类型。 TIMESTAMP 会先转换为 TIMESTAMP_LTZ 类型， 之后再将 TIMESTAMP_LTZ 转换为 LONG 类型。 
-因此，同一个 Time Travel 查询语句在不同时区下查询到的结果是不一样的。
+在执行`时间旅行`语句时，框架会基于本地时区将 TIMESTAMP 类型时间转换为 LONG 值，因此同一个`时间旅行`查询语句在不同时区下查询到的结果是不一样的。

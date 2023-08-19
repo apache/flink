@@ -444,5 +444,6 @@ Flink SQL> SELECT 'Hello World', 'It''s me';
 - [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}})
 - [去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}})
 - [模式识别]({{< ref "docs/dev/table/sql/queries/match_recognize" >}})
+- [时间旅行]({{< ref "docs/dev/table/sql/queries/time-travel" >}})
 
 {{< top >}}
