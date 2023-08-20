@@ -639,10 +639,7 @@ class BootstrapToolsTest {
         Map<String, String> res =
                 ConfigurationUtils.getPrefixedKeyValuePairs("containerized.master.env.", testConf);
 
-        assertThat(res).hasSize(1);
-        Map.Entry<String, String> entry = res.entrySet().iterator().next();
-        assertThat(entry.getKey()).isEqualTo("LD_LIBRARY_PATH");
-        assertThat(entry.getValue()).isEqualTo("/usr/lib/native");
+        assertThat(res).hasSize(1).containsEntry("LD_LIBRARY_PATH", "/usr/lib/native");
     }
 
     @Test
@@ -667,7 +664,7 @@ class BootstrapToolsTest {
                 Arrays.asList("A,B,C,D", "A'B'C'D", "A;BCD", "AB\"C\"D", "AB'\"D:B");
         flinkConfig.set(listStringConfigOption, list);
         assertThat(flinkConfig.get(listStringConfigOption))
-                .containsAnyOf(list.toArray(new String[0]));
+                .containsExactlyInAnyOrderElementsOf(list);
 
         final ConfigOption<List<Duration>> listDurationConfigOption =
                 ConfigOptions.key("test-list-duration-key")
@@ -678,7 +675,7 @@ class BootstrapToolsTest {
                 Arrays.asList(Duration.ofSeconds(3), Duration.ofMinutes(1));
         flinkConfig.set(listDurationConfigOption, durationList);
         assertThat(flinkConfig.get(listDurationConfigOption))
-                .containsAnyOf(durationList.toArray(new Duration[0]));
+                .containsExactlyInAnyOrderElementsOf(durationList);
 
         final ConfigOption<Map<String, String>> mapConfigOption =
                 ConfigOptions.key("test-map-key").mapType().noDefaultValue();
@@ -701,9 +698,9 @@ class BootstrapToolsTest {
         final Configuration loadedFlinkConfig =
                 GlobalConfiguration.loadConfiguration(flinkConfDir.getAbsolutePath());
         assertThat(loadedFlinkConfig.get(listStringConfigOption))
-                .contains(list.toArray((new String[0])));
+                .containsExactlyInAnyOrderElementsOf(list);
         assertThat(loadedFlinkConfig.get(listDurationConfigOption))
-                .contains(durationList.toArray((new Duration[0])));
+                .containsExactlyInAnyOrderElementsOf(durationList);
         assertThat(loadedFlinkConfig.get(mapConfigOption)).containsAllEntriesOf(map);
         assertThat(loadedFlinkConfig.get(durationConfigOption)).isEqualTo(duration);
     }
