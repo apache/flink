@@ -36,29 +36,24 @@ import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
-import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.collection.IsMapContaining;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link AbstractMetricGroup}. */
-public class AbstractMetricGroupTest extends TestLogger {
+class AbstractMetricGroupTest {
     /**
      * Verifies that no {@link NullPointerException} is thrown when {@link
      * AbstractMetricGroup#getAllVariables()} is called and the parent is null.
      */
     @Test
-    public void testGetAllVariables() throws Exception {
+    void testGetAllVariables() throws Exception {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
@@ -75,30 +70,30 @@ public class AbstractMetricGroupTest extends TestLogger {
                         return "";
                     }
                 };
-        assertTrue(group.getAllVariables().isEmpty());
+        assertThat(group.getAllVariables()).isEmpty();
 
         registry.closeAsync().get();
     }
 
     @Test
-    public void testGetAllVariablesWithOutExclusions() {
+    void testGetAllVariablesWithOutExclusions() {
         MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
 
         AbstractMetricGroup<?> group = new ProcessMetricGroup(registry, "host");
-        assertThat(group.getAllVariables(), IsMapContaining.hasKey(ScopeFormat.SCOPE_HOST));
+        assertThat(group.getAllVariables()).containsKey(ScopeFormat.SCOPE_HOST);
     }
 
     @Test
-    public void testGetAllVariablesWithExclusions() {
+    void testGetAllVariablesWithExclusions() {
         MetricRegistry registry = NoOpMetricRegistry.INSTANCE;
 
         AbstractMetricGroup<?> group = new ProcessMetricGroup(registry, "host");
-        assertEquals(
-                group.getAllVariables(-1, Collections.singleton(ScopeFormat.SCOPE_HOST)).size(), 0);
+        assertThat(group.getAllVariables(-1, Collections.singleton(ScopeFormat.SCOPE_HOST)))
+                .isEmpty();
     }
 
     @Test
-    public void testGetAllVariablesWithExclusionsForReporters() {
+    void testGetAllVariablesWithExclusionsForReporters() {
         MetricRegistry registry = TestingMetricRegistry.builder().setNumberReporters(2).build();
 
         AbstractMetricGroup<?> group =
@@ -112,18 +107,10 @@ public class AbstractMetricGroupTest extends TestLogger {
 
         group.getAllVariables(-1, Collections.emptySet());
 
-        assertThat(
-                group.getAllVariables(0, Collections.singleton("k1")),
-                not(IsMapContaining.hasKey("k1")));
-        assertThat(
-                group.getAllVariables(0, Collections.singleton("k1")),
-                IsMapContaining.hasKey("k2"));
-        assertThat(
-                group.getAllVariables(1, Collections.singleton("k2")),
-                IsMapContaining.hasKey("k1"));
-        assertThat(
-                group.getAllVariables(1, Collections.singleton("k2")),
-                not(IsMapContaining.hasKey("k2")));
+        assertThat(group.getAllVariables(0, Collections.singleton("k1"))).doesNotContainKey("k1");
+        assertThat(group.getAllVariables(0, Collections.singleton("k1"))).containsKey("k2");
+        assertThat(group.getAllVariables(1, Collections.singleton("k2"))).containsKey("k1");
+        assertThat(group.getAllVariables(1, Collections.singleton("k2"))).doesNotContainKey("k2");
     }
 
     // ========================================================================
@@ -146,7 +133,7 @@ public class AbstractMetricGroupTest extends TestLogger {
             };
 
     @Test
-    public void testScopeCachingForMultipleReporters() throws Exception {
+    void testScopeCachingForMultipleReporters() throws Exception {
         String counterName = "1";
         Configuration config = new Configuration();
         config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
@@ -181,10 +168,9 @@ public class AbstractMetricGroupTest extends TestLogger {
                     TaskManagerMetricGroup.createTaskManagerMetricGroup(
                             testRegistry, "host", new ResourceID("id"));
             tmGroup.counter(counterName);
-            assertEquals(
-                    "Reporters were not properly instantiated",
-                    2,
-                    testRegistry.getReporters().size());
+            assertThat(testRegistry.getReporters())
+                    .withFailMessage("Reporters were not properly instantiated")
+                    .hasSize(2);
             {
                 // verify reporter1
                 MetricGroupAndName nameAndGroup =
@@ -199,20 +185,21 @@ public class AbstractMetricGroupTest extends TestLogger {
                 // calls; in
                 // this case
                 // no filter is used at all
-                assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName));
+                assertThat(group.getMetricIdentifier(metricName)).isEqualTo("A-B-C-D-1");
                 // from now on the scope string is cached and should not be reliant
                 // on the
                 // given filter
-                assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName, FILTER_C));
-                assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName, reporter1));
+                assertThat(group.getMetricIdentifier(metricName, FILTER_C)).isEqualTo("A-B-C-D-1");
+                assertThat(group.getMetricIdentifier(metricName, reporter1)).isEqualTo("A-B-C-D-1");
+
                 // the metric name however is still affected by the filter as it is
                 // not
                 // cached
-                assertEquals(
-                        "A-B-C-D-4",
-                        group.getMetricIdentifier(
-                                metricName,
-                                input -> input.replace("B", "X").replace(counterName, "4")));
+                assertThat(
+                                group.getMetricIdentifier(
+                                        metricName,
+                                        input -> input.replace("B", "X").replace(counterName, "4")))
+                        .isEqualTo("A-B-C-D-4");
             }
             {
                 // verify reporter2
@@ -224,17 +211,18 @@ public class AbstractMetricGroupTest extends TestLogger {
                 String metricName = nameAndGroup.name;
                 MetricGroup group = nameAndGroup.group;
                 // the first call determines which filter is applied to all future calls
-                assertEquals("A!B!X!D!1", group.getMetricIdentifier(metricName, reporter2));
+                assertThat(group.getMetricIdentifier(metricName, reporter2)).isEqualTo("A!B!X!D!1");
                 // from now on the scope string is cached and should not be reliant on the given
                 // filter
-                assertEquals("A!B!X!D!1", group.getMetricIdentifier(metricName));
-                assertEquals("A!B!X!D!1", group.getMetricIdentifier(metricName, FILTER_C));
+                assertThat(group.getMetricIdentifier(metricName)).isEqualTo("A!B!X!D!1");
+                assertThat(group.getMetricIdentifier(metricName, FILTER_C)).isEqualTo("A!B!X!D!1");
+
                 // the metric name however is still affected by the filter as it is not cached
-                assertEquals(
-                        "A!B!X!D!3",
-                        group.getMetricIdentifier(
-                                metricName,
-                                input -> input.replace("A", "X").replace(counterName, "3")));
+                assertThat(
+                                group.getMetricIdentifier(
+                                        metricName,
+                                        input -> input.replace("A", "X").replace(counterName, "3")))
+                        .isEqualTo("A!B!X!D!3");
             }
         } finally {
             testRegistry.closeAsync().get();
@@ -243,7 +231,7 @@ public class AbstractMetricGroupTest extends TestLogger {
 
     @Test
     @SuppressWarnings("unchecked")
-    public void testLogicalScopeCachingForMultipleReporters() throws Exception {
+    void testLogicalScopeCachingForMultipleReporters() throws Exception {
         String counterName = "1";
         CollectingMetricsReporter reporter1 = new CollectingMetricsReporter(FILTER_B);
         CollectingMetricsReporter reporter2 = new CollectingMetricsReporter(FILTER_C);
@@ -260,27 +248,26 @@ public class AbstractMetricGroupTest extends TestLogger {
                             .addGroup("B")
                             .addGroup("C");
             tmGroup.counter(counterName);
-            assertEquals(
-                    "Reporters were not properly instantiated",
-                    2,
-                    testRegistry.getReporters().size());
-            assertEquals(
-                    "taskmanager-X-C",
-                    ((FrontMetricGroup<AbstractMetricGroup<?>>)
-                                    reporter1.findAdded(counterName).group)
-                            .getLogicalScope(reporter1, '-'));
-            assertEquals(
-                    "taskmanager,B,X",
-                    ((FrontMetricGroup<AbstractMetricGroup<?>>)
-                                    reporter2.findAdded(counterName).group)
-                            .getLogicalScope(reporter2, ','));
+            assertThat(testRegistry.getReporters())
+                    .withFailMessage("Reporters were not properly instantiated")
+                    .hasSize(2);
+            assertThat(
+                            ((FrontMetricGroup<AbstractMetricGroup<?>>)
+                                            reporter1.findAdded(counterName).group)
+                                    .getLogicalScope(reporter1, '-'))
+                    .isEqualTo("taskmanager-X-C");
+            assertThat(
+                            ((FrontMetricGroup<AbstractMetricGroup<?>>)
+                                            reporter2.findAdded(counterName).group)
+                                    .getLogicalScope(reporter2, ','))
+                    .isEqualTo("taskmanager,B,X");
         } finally {
             testRegistry.closeAsync().get();
         }
     }
 
     @Test
-    public void testScopeGenerationWithoutReporters() throws Exception {
+    void testScopeGenerationWithoutReporters() throws Exception {
         Configuration config = new Configuration();
         config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
         MetricRegistryImpl testRegistry =
@@ -290,23 +277,24 @@ public class AbstractMetricGroupTest extends TestLogger {
             TaskManagerMetricGroup group =
                     TaskManagerMetricGroup.createTaskManagerMetricGroup(
                             testRegistry, "host", new ResourceID("id"));
-            assertEquals(
-                    "MetricReporters list should be empty", 0, testRegistry.getReporters().size());
+            assertThat(testRegistry.getReporters())
+                    .withFailMessage("MetricReporters list should be empty")
+                    .isEmpty();
 
             // default delimiter should be used
-            assertEquals("A.B.X.D.1", group.getMetricIdentifier("1", FILTER_C));
+            assertThat(group.getMetricIdentifier("1", FILTER_C)).isEqualTo("A.B.X.D.1");
             // no caching should occur
-            assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B));
+            assertThat(group.getMetricIdentifier("1", FILTER_B)).isEqualTo("A.X.C.D.1");
             // invalid reporter indices do not throw errors
-            assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, -1, '.'));
-            assertEquals("A.X.C.D.1", group.getMetricIdentifier("1", FILTER_B, 2, '.'));
+            assertThat(group.getMetricIdentifier("1", FILTER_B, -1, '.')).isEqualTo("A.X.C.D.1");
+            assertThat(group.getMetricIdentifier("1", FILTER_B, 2, '.')).isEqualTo("A.X.C.D.1");
         } finally {
             testRegistry.closeAsync().get();
         }
     }
 
     @Test
-    public void testGetAllVariablesDoesNotDeadlock() throws InterruptedException {
+    void testGetAllVariablesDoesNotDeadlock() throws InterruptedException {
         final BlockerSync parentSync = new BlockerSync();
         final BlockerSync childSync = new BlockerSync();
 

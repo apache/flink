@@ -31,39 +31,37 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rpc.TestingRpcService;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link MetricQueryService}. */
-public class MetricQueryServiceTest extends TestLogger {
+class MetricQueryServiceTest {
 
     private static final Time TIMEOUT = Time.seconds(1);
 
     private static TestingRpcService rpcService;
 
-    @BeforeClass
-    public static void setupClass() {
+    @BeforeAll
+    static void setupClass() {
         rpcService = new TestingRpcService();
     }
 
-    @After
-    public void teardown() {
+    @AfterEach
+    void teardown() {
         rpcService.clearGateways();
     }
 
-    @AfterClass
-    public static void teardownClass() {
+    @AfterAll
+    static void teardownClass() {
         if (rpcService != null) {
             rpcService.closeAsync();
             rpcService = null;
@@ -71,7 +69,7 @@ public class MetricQueryServiceTest extends TestLogger {
     }
 
     @Test
-    public void testCreateDump() throws Exception {
+    void testCreateDump() throws Exception {
         MetricQueryService queryService =
                 MetricQueryService.createMetricQueryService(
                         rpcService, ResourceID.generate(), Long.MAX_VALUE);
@@ -93,10 +91,10 @@ public class MetricQueryServiceTest extends TestLogger {
         MetricDumpSerialization.MetricSerializationResult dump =
                 queryService.queryMetrics(TIMEOUT).get();
 
-        assertTrue(dump.serializedCounters.length > 0);
-        assertTrue(dump.serializedGauges.length > 0);
-        assertTrue(dump.serializedHistograms.length > 0);
-        assertTrue(dump.serializedMeters.length > 0);
+        assertThat(dump.serializedCounters).isNotEmpty();
+        assertThat(dump.serializedGauges).isNotEmpty();
+        assertThat(dump.serializedHistograms).isNotEmpty();
+        assertThat(dump.serializedMeters).isNotEmpty();
 
         queryService.removeMetric(c);
         queryService.removeMetric(g);
@@ -106,14 +104,14 @@ public class MetricQueryServiceTest extends TestLogger {
         MetricDumpSerialization.MetricSerializationResult emptyDump =
                 queryService.queryMetrics(TIMEOUT).get();
 
-        assertEquals(0, emptyDump.serializedCounters.length);
-        assertEquals(0, emptyDump.serializedGauges.length);
-        assertEquals(0, emptyDump.serializedHistograms.length);
-        assertEquals(0, emptyDump.serializedMeters.length);
+        assertThat(emptyDump.serializedCounters).isEmpty();
+        assertThat(emptyDump.serializedGauges).isEmpty();
+        assertThat(emptyDump.serializedHistograms).isEmpty();
+        assertThat(emptyDump.serializedMeters).isEmpty();
     }
 
     @Test
-    public void testHandleOversizedMetricMessage() throws Exception {
+    void testHandleOversizedMetricMessage() throws Exception {
         final long sizeLimit = 200L;
         MetricQueryService queryService =
                 MetricQueryService.createMetricQueryService(
@@ -138,17 +136,17 @@ public class MetricQueryServiceTest extends TestLogger {
         MetricDumpSerialization.MetricSerializationResult dump =
                 queryService.queryMetrics(TIMEOUT).get();
 
-        assertTrue(dump.serializedCounters.length > 0);
-        assertEquals(1, dump.numCounters);
-        assertTrue(dump.serializedMeters.length > 0);
-        assertEquals(1, dump.numMeters);
+        assertThat(dump.serializedCounters).isNotEmpty();
+        assertThat(dump.numCounters).isOne();
+        assertThat(dump.serializedMeters).isNotEmpty();
+        assertThat(dump.numMeters).isOne();
 
         // gauges exceeded the size limit and will be excluded
-        assertEquals(0, dump.serializedGauges.length);
-        assertEquals(0, dump.numGauges);
+        assertThat(dump.serializedGauges).isEmpty();
+        assertThat(dump.numGauges).isZero();
 
-        assertTrue(dump.serializedHistograms.length > 0);
-        assertEquals(1, dump.numHistograms);
+        assertThat(dump.serializedHistograms).isNotEmpty();
+        assertThat(dump.numHistograms).isOne();
 
         // unregister all but one gauge to ensure gauges are reported again if the remaining fit
         for (int x = 1; x < gauges.size(); x++) {
@@ -158,13 +156,13 @@ public class MetricQueryServiceTest extends TestLogger {
         MetricDumpSerialization.MetricSerializationResult recoveredDump =
                 queryService.queryMetrics(TIMEOUT).get();
 
-        assertTrue(recoveredDump.serializedCounters.length > 0);
-        assertEquals(1, recoveredDump.numCounters);
-        assertTrue(recoveredDump.serializedMeters.length > 0);
-        assertEquals(1, recoveredDump.numMeters);
-        assertTrue(recoveredDump.serializedGauges.length > 0);
-        assertEquals(1, recoveredDump.numGauges);
-        assertTrue(recoveredDump.serializedHistograms.length > 0);
-        assertEquals(1, recoveredDump.numHistograms);
+        assertThat(recoveredDump.serializedCounters).isNotEmpty();
+        assertThat(recoveredDump.numCounters).isOne();
+        assertThat(recoveredDump.serializedMeters).isNotEmpty();
+        assertThat(recoveredDump.numMeters).isOne();
+        assertThat(recoveredDump.serializedGauges).isNotEmpty();
+        assertThat(recoveredDump.numGauges).isOne();
+        assertThat(recoveredDump.serializedHistograms).isNotEmpty();
+        assertThat(recoveredDump.numHistograms).isOne();
     }
 }

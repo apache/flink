@@ -507,7 +507,7 @@ public class ExecutionGraphTestUtils {
 
         // verify produced data sets
         if (outputJobVertices == null) {
-            assertThat(ejv.getProducedDataSets().length).isZero();
+            assertThat(ejv.getProducedDataSets()).isEmpty();
         } else {
             assertThat(outputJobVertices).hasSize(ejv.getProducedDataSets().length);
             for (int i = 0; i < outputJobVertices.size(); i++) {

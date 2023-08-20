@@ -25,18 +25,16 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link JobManagerJobMetricGroup}. */
-public class JobManagerJobGroupTest extends TestLogger {
+class JobManagerJobGroupTest {
 
     @Test
-    public void testGenerateScopeDefault() throws Exception {
+    void testGenerateScopeDefault() throws Exception {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
@@ -45,17 +43,17 @@ public class JobManagerJobGroupTest extends TestLogger {
                 JobManagerMetricGroup.createJobManagerMetricGroup(registry, "theHostName")
                         .addJob(new JobID(), "myJobName");
 
-        assertArrayEquals(
-                new String[] {"theHostName", "jobmanager", "myJobName"},
-                jmGroup.getScopeComponents());
+        assertThat(jmGroup.getScopeComponents())
+                .containsExactly("theHostName", "jobmanager", "myJobName");
 
-        assertEquals("theHostName.jobmanager.myJobName.name", jmGroup.getMetricIdentifier("name"));
+        assertThat(jmGroup.getMetricIdentifier("name"))
+                .isEqualTo("theHostName.jobmanager.myJobName.name");
 
         registry.closeAsync().get();
     }
 
     @Test
-    public void testGenerateScopeCustom() throws Exception {
+    void testGenerateScopeCustom() throws Exception {
         Configuration cfg = new Configuration();
         cfg.setString(MetricOptions.SCOPE_NAMING_JM, "abc");
         cfg.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "some-constant.<job_name>");
@@ -66,16 +64,15 @@ public class JobManagerJobGroupTest extends TestLogger {
                 JobManagerMetricGroup.createJobManagerMetricGroup(registry, "theHostName")
                         .addJob(new JobID(), "myJobName");
 
-        assertArrayEquals(
-                new String[] {"some-constant", "myJobName"}, jmGroup.getScopeComponents());
+        assertThat(jmGroup.getScopeComponents()).containsExactly("some-constant", "myJobName");
 
-        assertEquals("some-constant.myJobName.name", jmGroup.getMetricIdentifier("name"));
+        assertThat(jmGroup.getMetricIdentifier("name")).isEqualTo("some-constant.myJobName.name");
 
         registry.closeAsync().get();
     }
 
     @Test
-    public void testGenerateScopeCustomWildcard() throws Exception {
+    void testGenerateScopeCustomWildcard() throws Exception {
         Configuration cfg = new Configuration();
         cfg.setString(MetricOptions.SCOPE_NAMING_JM, "peter");
         cfg.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "*.some-constant.<job_id>");
@@ -88,17 +85,17 @@ public class JobManagerJobGroupTest extends TestLogger {
                 JobManagerMetricGroup.createJobManagerMetricGroup(registry, "theHostName")
                         .addJob(jid, "myJobName");
 
-        assertArrayEquals(
-                new String[] {"peter", "some-constant", jid.toString()},
-                jmGroup.getScopeComponents());
+        assertThat(jmGroup.getScopeComponents())
+                .containsExactly("peter", "some-constant", jid.toString());
 
-        assertEquals("peter.some-constant." + jid + ".name", jmGroup.getMetricIdentifier("name"));
+        assertThat(jmGroup.getMetricIdentifier("name"))
+                .isEqualTo("peter.some-constant." + jid + ".name");
 
         registry.closeAsync().get();
     }
 
     @Test
-    public void testCreateQueryServiceMetricInfo() {
+    void testCreateQueryServiceMetricInfo() {
         JobID jid = new JobID();
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
@@ -109,7 +106,7 @@ public class JobManagerJobGroupTest extends TestLogger {
 
         QueryScopeInfo.JobQueryScopeInfo info =
                 jmj.createQueryServiceMetricInfo(new DummyCharacterFilter());
-        assertEquals("", info.scope);
-        assertEquals(jid.toString(), info.jobID);
+        assertThat(info.scope).isEmpty();
+        assertThat(info.jobID).isEqualTo(jid.toString());
     }
 }
