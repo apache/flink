@@ -45,9 +45,8 @@ import org.apache.flink.runtime.jobmaster.TestingAbstractInvokables.Sender;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -57,16 +56,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.hamcrest.core.StringStartsWith.startsWith;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Integration test cases for the {@link MiniCluster}. */
-public class MiniClusterITCase extends TestLogger {
+class MiniClusterITCase {
 
     @Test
-    public void runJobWithSingleRpcService() throws Exception {
+    void runJobWithSingleRpcService() throws Exception {
         final int numOfTMs = 3;
         final int slotsPerTM = 7;
 
@@ -86,7 +84,7 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     @Test
-    public void runJobWithMultipleRpcServices() throws Exception {
+    void runJobWithMultipleRpcServices() throws Exception {
         final int numOfTMs = 3;
         final int slotsPerTM = 7;
 
@@ -106,7 +104,7 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     @Test
-    public void testHandleStreamingJobsWhenNotEnoughSlot() throws Exception {
+    void testHandleStreamingJobsWhenNotEnoughSlot() throws Exception {
         try {
             final JobVertex vertex1 = new JobVertex("Test Vertex1");
             vertex1.setParallelism(1);
@@ -127,8 +125,13 @@ public class MiniClusterITCase extends TestLogger {
 
             fail("Job should fail.");
         } catch (JobExecutionException e) {
-            assertThat(e, FlinkMatchers.containsMessage("Job execution failed"));
-            assertThat(e, FlinkMatchers.containsCause(NoResourceAvailableException.class));
+            assertThat(e)
+                    .satisfies(matching(FlinkMatchers.containsMessage("Job execution failed")));
+            assertThat(e)
+                    .satisfies(
+                            matching(
+                                    FlinkMatchers.containsCause(
+                                            NoResourceAvailableException.class)));
         }
     }
 
@@ -155,7 +158,7 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     @Test
-    public void testForwardJob() throws Exception {
+    void testForwardJob() throws Exception {
         final int parallelism = 31;
 
         final MiniClusterConfiguration cfg =
@@ -186,7 +189,7 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     @Test
-    public void testBipartiteJob() throws Exception {
+    void testBipartiteJob() throws Exception {
         final int parallelism = 31;
 
         final MiniClusterConfiguration cfg =
@@ -217,7 +220,7 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     @Test
-    public void testTwoInputJobFailingEdgeMismatch() throws Exception {
+    void testTwoInputJobFailingEdgeMismatch() throws Exception {
         final int parallelism = 1;
 
         final MiniClusterConfiguration cfg =
@@ -255,14 +258,14 @@ public class MiniClusterITCase extends TestLogger {
 
                 fail("Job should fail.");
             } catch (JobExecutionException e) {
-                assertTrue(findThrowable(e, ArrayIndexOutOfBoundsException.class).isPresent());
-                assertTrue(findThrowableWithMessage(e, "2").isPresent());
+                assertThat(findThrowable(e, ArrayIndexOutOfBoundsException.class)).isPresent();
+                assertThat(findThrowableWithMessage(e, "2")).isPresent();
             }
         }
     }
 
     @Test
-    public void testTwoInputJob() throws Exception {
+    void testTwoInputJob() throws Exception {
         final int parallelism = 11;
 
         final MiniClusterConfiguration cfg =
@@ -300,7 +303,7 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     @Test
-    public void testSchedulingAllAtOnce() throws Exception {
+    void testSchedulingAllAtOnce() throws Exception {
         final int parallelism = 11;
 
         final MiniClusterConfiguration cfg =
@@ -343,7 +346,7 @@ public class MiniClusterITCase extends TestLogger {
     }
 
     @Test
-    public void testJobWithAFailingSenderVertex() throws Exception {
+    void testJobWithAFailingSenderVertex() throws Exception {
         final int parallelism = 11;
 
         final MiniClusterConfiguration cfg =
@@ -374,14 +377,14 @@ public class MiniClusterITCase extends TestLogger {
 
                 fail("Job should fail.");
             } catch (JobExecutionException e) {
-                assertTrue(findThrowable(e, Exception.class).isPresent());
-                assertTrue(findThrowableWithMessage(e, "Test exception").isPresent());
+                assertThat(findThrowable(e, Exception.class)).isPresent();
+                assertThat(findThrowableWithMessage(e, "Test exception")).isPresent();
             }
         }
     }
 
     @Test
-    public void testJobWithAnOccasionallyFailingSenderVertex() throws Exception {
+    void testJobWithAnOccasionallyFailingSenderVertex() throws Exception {
         final int parallelism = 11;
 
         final MiniClusterConfiguration cfg =
@@ -422,14 +425,14 @@ public class MiniClusterITCase extends TestLogger {
 
                 fail("Job should fail.");
             } catch (JobExecutionException e) {
-                assertTrue(findThrowable(e, Exception.class).isPresent());
-                assertTrue(findThrowableWithMessage(e, "Test exception").isPresent());
+                assertThat(findThrowable(e, Exception.class)).isPresent();
+                assertThat(findThrowableWithMessage(e, "Test exception")).isPresent();
             }
         }
     }
 
     @Test
-    public void testJobWithAFailingReceiverVertex() throws Exception {
+    void testJobWithAFailingReceiverVertex() throws Exception {
         final int parallelism = 11;
 
         final MiniClusterConfiguration cfg =
@@ -460,14 +463,14 @@ public class MiniClusterITCase extends TestLogger {
 
                 fail("Job should fail.");
             } catch (JobExecutionException e) {
-                assertTrue(findThrowable(e, Exception.class).isPresent());
-                assertTrue(findThrowableWithMessage(e, "Test exception").isPresent());
+                assertThat(findThrowable(e, Exception.class)).isPresent();
+                assertThat(findThrowableWithMessage(e, "Test exception")).isPresent();
             }
         }
     }
 
     @Test
-    public void testJobWithAllVerticesFailingDuringInstantiation() throws Exception {
+    void testJobWithAllVerticesFailingDuringInstantiation() throws Exception {
         final int parallelism = 11;
 
         final MiniClusterConfiguration cfg =
@@ -498,15 +501,15 @@ public class MiniClusterITCase extends TestLogger {
 
                 fail("Job should fail.");
             } catch (JobExecutionException e) {
-                assertTrue(findThrowable(e, Exception.class).isPresent());
-                assertTrue(
+                assertThat(findThrowable(e, Exception.class)).isPresent();
+                assertThat(
                         findThrowableWithMessage(e, "Test exception in constructor").isPresent());
             }
         }
     }
 
     @Test
-    public void testJobWithSomeVerticesFailingDuringInstantiation() throws Exception {
+    void testJobWithSomeVerticesFailingDuringInstantiation() throws Exception {
         final int parallelism = 11;
 
         final MiniClusterConfiguration cfg =
@@ -547,15 +550,15 @@ public class MiniClusterITCase extends TestLogger {
 
                 fail("Job should fail.");
             } catch (JobExecutionException e) {
-                assertTrue(findThrowable(e, Exception.class).isPresent());
-                assertTrue(
+                assertThat(findThrowable(e, Exception.class)).isPresent();
+                assertThat(
                         findThrowableWithMessage(e, "Test exception in constructor").isPresent());
             }
         }
     }
 
     @Test
-    public void testCallFinalizeOnMasterBeforeJobCompletes() throws Exception {
+    void testCallFinalizeOnMasterBeforeJobCompletes() throws Exception {
         final int parallelism = 11;
 
         final MiniClusterConfiguration cfg =
@@ -593,12 +596,12 @@ public class MiniClusterITCase extends TestLogger {
 
             jobResultFuture.get().toJobExecutionResult(getClass().getClassLoader());
 
-            assertTrue(WaitOnFinalizeJobVertex.finalizedOnMaster.get());
+            assertThat(WaitOnFinalizeJobVertex.finalizedOnMaster.get()).isTrue();
         }
     }
 
     @Test
-    public void testOutOfMemoryErrorMessageEnrichmentInJobVertexFinalization() throws Exception {
+    void testOutOfMemoryErrorMessageEnrichmentInJobVertexFinalization() throws Exception {
         final int parallelism = 1;
 
         final MiniClusterConfiguration cfg =
@@ -628,19 +631,20 @@ public class MiniClusterITCase extends TestLogger {
             try {
                 jobResultFuture.get().toJobExecutionResult(getClass().getClassLoader());
             } catch (JobExecutionException e) {
-                assertThat(e, FlinkMatchers.containsCause(OutOfMemoryError.class));
+                assertThat(e)
+                        .satisfies(matching(FlinkMatchers.containsCause(OutOfMemoryError.class)));
                 assertThat(
-                        findThrowable(e, OutOfMemoryError.class)
-                                .map(OutOfMemoryError::getMessage)
-                                .get(),
-                        startsWith(
-                                "Java heap space. A heap space-related out-of-memory error has occurred."));
+                                findThrowable(e, OutOfMemoryError.class)
+                                        .map(OutOfMemoryError::getMessage)
+                                        .get())
+                        .startsWith(
+                                "Java heap space. A heap space-related out-of-memory error has occurred.");
             }
         }
     }
 
     @Test
-    public void testOutOfMemoryErrorMessageEnrichmentInJobVertexInitialization() throws Exception {
+    void testOutOfMemoryErrorMessageEnrichmentInJobVertexInitialization() throws Exception {
         final int parallelism = 1;
 
         final MiniClusterConfiguration cfg =
@@ -670,11 +674,13 @@ public class MiniClusterITCase extends TestLogger {
             try {
                 jobResultFuture.get();
             } catch (ExecutionException e) {
-                assertThat(e, FlinkMatchers.containsCause(OutOfMemoryError.class));
-                assertThat(
-                        e,
-                        FlinkMatchers.containsMessage(
-                                "Java heap space. A heap space-related out-of-memory error has occurred."));
+                assertThat(e)
+                        .satisfies(matching(FlinkMatchers.containsCause(OutOfMemoryError.class)));
+                assertThat(e)
+                        .satisfies(
+                                matching(
+                                        FlinkMatchers.containsMessage(
+                                                "Java heap space. A heap space-related out-of-memory error has occurred.")));
             }
         }
     }

@@ -150,7 +150,7 @@ public class SSLUtilsTest {
 
     @ParameterizedTest
     @MethodSource("parameters")
-    public void testRESTSSLConfigCipherAlgorithms(String sslProvider) throws Exception {
+    void testRESTSSLConfigCipherAlgorithms(String sslProvider) throws Exception {
         String testSSLAlgorithms = "test_algorithm1,test_algorithm2";
         Configuration config = createRestSslConfigWithTrustStore(sslProvider);
         config.setBoolean(SecurityOptions.SSL_REST_ENABLED, true);
