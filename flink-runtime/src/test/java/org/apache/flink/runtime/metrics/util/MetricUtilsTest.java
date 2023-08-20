@@ -35,15 +35,12 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
@@ -54,17 +51,17 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_FLINK;
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_MANAGED_MEMORY;
 import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_MEMORY;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link MetricUtils} class. */
-public class MetricUtilsTest extends TestLogger {
+class MetricUtilsTest {
 
     /** Container for local objects to keep them from gc runs. */
     private final List<Object> referencedObjects = new ArrayList<>();
 
-    @After
-    public void cleanupReferencedObjects() {
+    @AfterEach
+    void cleanupReferencedObjects() {
         referencedObjects.clear();
     }
 
@@ -73,7 +70,7 @@ public class MetricUtilsTest extends TestLogger {
      * RpcSystem)} respects the given {@link MetricOptions#QUERY_SERVICE_THREAD_PRIORITY}.
      */
     @Test
-    public void testStartMetricActorSystemRespectsThreadPriority() throws Exception {
+    void testStartMetricActorSystemRespectsThreadPriority() throws Exception {
         final Configuration configuration = new Configuration();
         final int expectedThreadPriority = 3;
         configuration.setInteger(
@@ -90,27 +87,29 @@ public class MetricUtilsTest extends TestLogger {
                             .schedule(
                                     () -> Thread.currentThread().getPriority(), 0, TimeUnit.SECONDS)
                             .get();
-            assertThat(threadPriority, is(expectedThreadPriority));
+            assertThat(threadPriority).isEqualTo(expectedThreadPriority);
         } finally {
             rpcService.closeAsync().get();
         }
     }
 
     @Test
-    public void testNonHeapMetricsCompleteness() {
+    void testNonHeapMetricsCompleteness() {
         final InterceptingOperatorMetricGroup nonHeapMetrics =
                 new InterceptingOperatorMetricGroup();
 
         MetricUtils.instantiateNonHeapMemoryMetrics(nonHeapMetrics);
 
-        Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_USED));
-        Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_COMMITTED));
-        Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_MAX));
+        assertThat(nonHeapMetrics.get(MetricNames.MEMORY_USED)).isNotNull();
+        assertThat(nonHeapMetrics.get(MetricNames.MEMORY_COMMITTED)).isNotNull();
+        assertThat(nonHeapMetrics.get(MetricNames.MEMORY_MAX)).isNotNull();
     }
 
     @Test
-    public void testMetaspaceCompleteness() {
-        Assume.assumeTrue("Requires JVM with Metaspace memory pool", hasMetaspaceMemoryPool());
+    void testMetaspaceCompleteness() {
+        assertThat(hasMetaspaceMemoryPool())
+                .withFailMessage("Requires JVM with Metaspace memory pool")
+                .isTrue();
 
         final InterceptingOperatorMetricGroup metaspaceMetrics =
                 new InterceptingOperatorMetricGroup() {
@@ -122,20 +121,20 @@ public class MetricUtilsTest extends TestLogger {
 
         MetricUtils.instantiateMetaspaceMemoryMetrics(metaspaceMetrics);
 
-        Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_USED));
-        Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_COMMITTED));
-        Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_MAX));
+        assertThat(metaspaceMetrics.get(MetricNames.MEMORY_USED)).isNotNull();
+        assertThat(metaspaceMetrics.get(MetricNames.MEMORY_COMMITTED)).isNotNull();
+        assertThat(metaspaceMetrics.get(MetricNames.MEMORY_MAX)).isNotNull();
     }
 
     @Test
-    public void testHeapMetricsCompleteness() {
+    void testHeapMetricsCompleteness() {
         final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
 
         MetricUtils.instantiateHeapMemoryMetrics(heapMetrics);
 
-        Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_USED));
-        Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_COMMITTED));
-        Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_MAX));
+        assertThat(heapMetrics.get(MetricNames.MEMORY_USED)).isNotNull();
+        assertThat(heapMetrics.get(MetricNames.MEMORY_COMMITTED)).isNotNull();
+        assertThat(heapMetrics.get(MetricNames.MEMORY_MAX)).isNotNull();
     }
 
     /**
@@ -145,7 +144,7 @@ public class MetricUtilsTest extends TestLogger {
      * proxy for testing the functionality in general.
      */
     @Test
-    public void testHeapMetricUsageNotStatic() throws Exception {
+    void testHeapMetricUsageNotStatic() throws Exception {
         final InterceptingOperatorMetricGroup heapMetrics = new InterceptingOperatorMetricGroup();
 
         MetricUtils.instantiateHeapMemoryMetrics(heapMetrics);
@@ -157,8 +156,10 @@ public class MetricUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testMetaspaceMetricUsageNotStatic() throws Exception {
-        Assume.assumeTrue("Requires JVM with Metaspace memory pool", hasMetaspaceMemoryPool());
+    void testMetaspaceMetricUsageNotStatic() throws Exception {
+        assertThat(hasMetaspaceMemoryPool())
+                .withFailMessage("Requires JVM with Metaspace memory pool")
+                .isTrue();
 
         final InterceptingOperatorMetricGroup metaspaceMetrics =
                 new InterceptingOperatorMetricGroup() {
@@ -177,7 +178,7 @@ public class MetricUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testNonHeapMetricUsageNotStatic() throws Exception {
+    void testNonHeapMetricUsageNotStatic() throws Exception {
         final InterceptingOperatorMetricGroup nonHeapMetrics =
                 new InterceptingOperatorMetricGroup();
 
@@ -190,8 +191,7 @@ public class MetricUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testManagedMemoryMetricsInitialization()
-            throws MemoryAllocationException, FlinkException {
+    void testManagedMemoryMetricsInitialization() throws MemoryAllocationException, FlinkException {
         final int maxMemorySize = 16284;
         final int numberOfAllocatedPages = 2;
         final int pageSize = 4096;
@@ -228,16 +228,16 @@ public class MetricUtilsTest extends TestLogger {
             Gauge<Number> usedMetric = (Gauge<Number>) metricGroup.get("Used");
             Gauge<Number> maxMetric = (Gauge<Number>) metricGroup.get("Total");
 
-            assertThat(usedMetric.getValue().intValue(), is(numberOfAllocatedPages * pageSize));
-            assertThat(maxMetric.getValue().intValue(), is(maxMemorySize));
+            assertThat(usedMetric.getValue().intValue())
+                    .isEqualTo(numberOfAllocatedPages * pageSize);
+            assertThat(maxMetric.getValue().intValue()).isEqualTo(maxMemorySize);
 
-            assertThat(
-                    actualSubGroupPath,
-                    is(
+            assertThat(actualSubGroupPath)
+                    .containsAnyElementsOf(
                             Arrays.asList(
                                     METRIC_GROUP_FLINK,
                                     METRIC_GROUP_MEMORY,
-                                    METRIC_GROUP_MANAGED_MEMORY)));
+                                    METRIC_GROUP_MANAGED_MEMORY));
         } finally {
             taskManagerServices.shutDown();
         }
@@ -266,8 +266,8 @@ public class MetricUtilsTest extends TestLogger {
 
         Class<?> newClass = classLoader.loadClass(clazz.getName());
 
-        Assert.assertNotSame(clazz, newClass);
-        Assert.assertEquals(clazz.getName(), newClass.getName());
+        assertThat(newClass).isNotSameAs(clazz);
+        assertThat(newClass.getName()).isEqualTo(clazz.getName());
         return newClass;
     }
 
@@ -294,6 +294,6 @@ public class MetricUtilsTest extends TestLogger {
         String msg =
                 String.format(
                         "%s usage metric never changed its value after %d runs.", name, maxRuns);
-        Assert.fail(msg);
+        fail(msg);
     }
 }
