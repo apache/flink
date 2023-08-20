@@ -325,15 +325,10 @@ class ClientTransportErrorHandlingTest {
 
                                     try {
                                         assertThat(cause)
-                                                .isInstanceOf(RemoteTransportException.class);
-                                        assertThat(cause)
-                                                .hasMessageNotContaining(
-                                                        "Connection reset by peer");
-
-                                        assertThat(cause.getCause())
-                                                .isInstanceOf(IOException.class);
-                                        assertThat(cause.getCause())
-                                                .hasMessage("Connection reset by peer");
+                                                .hasMessageNotContaining("Connection reset by peer")
+                                                .isInstanceOf(RemoteTransportException.class)
+                                                .hasRootCauseInstanceOf(IOException.class)
+                                                .hasRootCauseMessage("Connection reset by peer");
                                     } catch (Throwable t) {
                                         error[0] = t;
                                     }

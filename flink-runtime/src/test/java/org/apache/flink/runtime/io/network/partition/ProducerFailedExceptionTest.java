@@ -40,7 +40,6 @@ class ProducerFailedExceptionTest {
         // of a user level Exception, which can not be deserialized by the
         // remote receiver's system class loader.
         ProducerFailedException e = new ProducerFailedException(new Exception());
-        assertThat(e.getCause()).isNotNull();
-        assertThat(e.getCause()).isInstanceOf(SerializedThrowable.class);
+        assertThat(e).hasCauseInstanceOf(SerializedThrowable.class);
     }
 }

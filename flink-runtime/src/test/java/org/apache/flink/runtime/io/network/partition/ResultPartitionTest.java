@@ -560,7 +560,7 @@ class ResultPartitionTest {
                 createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);
 
         ResultSubpartition[] subpartitions = bufferWritingResultPartition.subpartitions;
-        assertThat(subpartitions.length).isEqualTo(2);
+        assertThat(subpartitions).hasSize(2);
 
         PipelinedSubpartition subpartition0 = (PipelinedSubpartition) subpartitions[0];
         PipelinedSubpartition subpartition1 = (PipelinedSubpartition) subpartitions[1];

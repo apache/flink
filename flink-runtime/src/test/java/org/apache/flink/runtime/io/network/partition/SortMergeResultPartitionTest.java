@@ -303,7 +303,7 @@ public class SortMergeResultPartitionTest {
         int eventSize = EventSerializer.toSerializedEvent(EndOfPartitionEvent.INSTANCE).remaining();
         long dataSize = numSubpartitions * numRecords * bufferSize + numSubpartitions * eventSize;
         assertThat(partition.getResultFile()).isNotNull();
-        assertThat(checkNotNull(fileChannelManager.getPaths()[0].list()).length).isEqualTo(2);
+        assertThat(checkNotNull(fileChannelManager.getPaths()[0].list())).hasSize(2);
         for (File file : checkNotNull(fileChannelManager.getPaths()[0].listFiles())) {
             if (file.getName().endsWith(PartitionedFile.DATA_FILE_SUFFIX)) {
                 assertThat(file.length()).isLessThan(numSubpartitions * numRecords * bufferSize);
@@ -333,14 +333,14 @@ public class SortMergeResultPartitionTest {
 
         partition.emitRecord(ByteBuffer.allocate(bufferSize), 2);
         assertThat(partition.getResultFile()).isNull();
-        assertThat(fileChannelManager.getPaths()[0].list().length).isEqualTo(2);
+        assertThat(fileChannelManager.getPaths()[0].list()).hasSize(2);
 
         partition.release();
 
         assertThatThrownBy(
                         () -> partition.emitRecord(ByteBuffer.allocate(bufferSize * numBuffers), 2))
                 .isInstanceOf(IllegalStateException.class);
-        assertThat(fileChannelManager.getPaths()[0].list().length).isZero();
+        assertThat(fileChannelManager.getPaths()[0].list()).isEmpty();
     }
 
     @TestTemplate
@@ -357,7 +357,7 @@ public class SortMergeResultPartitionTest {
         partition.close();
 
         assertThat(partition.getResultFile().getNumRegions()).isEqualTo(3);
-        assertThat(checkNotNull(fileChannelManager.getPaths()[0].list()).length).isEqualTo(2);
+        assertThat(checkNotNull(fileChannelManager.getPaths()[0].list())).hasSize(2);
 
         ResultSubpartitionView view = partition.createSubpartitionView(0, listener);
         partition.release();
@@ -373,7 +373,7 @@ public class SortMergeResultPartitionTest {
         while (partition.getResultFile() != null) {
             Thread.sleep(100);
         }
-        assertThat(checkNotNull(fileChannelManager.getPaths()[0].list()).length).isZero();
+        assertThat(checkNotNull(fileChannelManager.getPaths()[0].list())).isEmpty();
     }
 
     @TestTemplate

@@ -75,7 +75,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
     /** Executor service for concurrent produce/consume tests. */
     @RegisterExtension
-    static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
+    private static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
             new TestExecutorExtension<>(Executors::newCachedThreadPool);
 
     @Override

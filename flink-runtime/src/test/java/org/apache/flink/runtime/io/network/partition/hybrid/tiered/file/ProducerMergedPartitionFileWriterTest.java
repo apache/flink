@@ -76,7 +76,7 @@ class ProducerMergedPartitionFileWriterTest {
         int numExpectedBytes =
                 numExpectedBuffers * (BufferReaderWriterUtil.HEADER_LENGTH + bufferSizeBytes);
         assertThat(receivedBuffers).hasValue(numExpectedBuffers);
-        assertThat(bytesRead.length).isEqualTo(numExpectedBytes);
+        assertThat(bytesRead).hasSize(numExpectedBytes);
     }
 
     @Test

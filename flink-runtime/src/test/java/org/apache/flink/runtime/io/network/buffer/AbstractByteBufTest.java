@@ -4658,7 +4658,7 @@ abstract class AbstractByteBufTest {
         buffer.clear();
         assertThat(buffer.isReadable()).isFalse();
         ByteBuffer[] nioBuffers = buffer.nioBuffers();
-        assertThat(nioBuffers.length).isOne();
+        assertThat(nioBuffers).hasSize(1);
         assertThat(nioBuffers[0].hasRemaining()).isFalse();
         buffer.release();
     }

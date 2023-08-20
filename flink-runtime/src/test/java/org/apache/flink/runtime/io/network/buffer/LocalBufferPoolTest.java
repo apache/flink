@@ -65,7 +65,7 @@ class LocalBufferPoolTest {
     private BufferPool localBufferPool;
 
     @RegisterExtension
-    static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
+    private static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
             new TestExecutorExtension<>(Executors::newCachedThreadPool);
 
     @BeforeEach
