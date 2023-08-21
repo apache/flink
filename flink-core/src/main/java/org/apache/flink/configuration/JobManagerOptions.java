@@ -479,7 +479,7 @@ public class JobManagerOptions {
     public static final ConfigOption<SchedulerExecutionMode> SCHEDULER_MODE =
             key("scheduler-mode")
                     .enumType(SchedulerExecutionMode.class)
-                    .defaultValue(null)
+                    .defaultValue(SchedulerExecutionMode.DEFAULT)
                     .withDescription(
                             Description.builder()
                                     .text(
