@@ -229,7 +229,7 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
 
     @Override
     protected String getLeaderPathForJobManager(JobID jobID) {
-        return jobID.toString();
+        return "job-" + jobID.toString();
     }
 
     @Override
