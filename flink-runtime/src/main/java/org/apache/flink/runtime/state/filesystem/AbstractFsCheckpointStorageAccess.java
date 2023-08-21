@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -190,6 +191,37 @@ public abstract class AbstractFsCheckpointStorageAccess implements CheckpointSto
 
         throw new IOException(
                 "Failed to create savepoint directory at " + savepointBasePath, latestException);
+    }
+
+    @Override
+    public CheckpointStorageLocation initializeLocationForDetachSavepoint(
+            long checkpointId, String externalLocationPointer) throws IOException {
+        Preconditions.checkNotNull(externalLocationPointer);
+
+        final Path detachSavepointBasePath = new Path(externalLocationPointer);
+
+        // generate the savepoint directory
+
+        final FileSystem fs = detachSavepointBasePath.getFileSystem();
+
+        Exception latestException = null;
+        for (int attempt = 0; attempt < 10; attempt++) {
+            try {
+                if (fs.mkdirs(detachSavepointBasePath)) {
+                    // we make the path qualified, to make it independent of default schemes and
+                    // authorities
+                    final Path qp = detachSavepointBasePath.makeQualified(fs);
+
+                    return createSavepointLocation(fs, qp);
+                }
+            } catch (Exception e) {
+                latestException = e;
+            }
+        }
+
+        throw new IOException(
+                "Failed to create detach savepoint directory at " + detachSavepointBasePath,
+                latestException);
     }
 
     protected abstract CheckpointStorageLocation createSavepointLocation(

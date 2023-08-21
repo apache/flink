@@ -908,6 +908,54 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     @Override
+    public CompletableFuture<String> triggerDetachSavepoint(
+            final String savepointId,
+            final String targetDirectory,
+            final boolean cancelJob,
+            final SavepointFormatType formatType) {
+        mainThreadExecutor.assertRunningInMainThread();
+
+        final CheckpointCoordinator checkpointCoordinator =
+                executionGraph.getCheckpointCoordinator();
+        StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
+                checkpointCoordinator, savepointId, getJobId(), log);
+
+        log.info(
+                "Triggering {}detach-savepoint for job {}, with savepoint_id {}.",
+                cancelJob ? "cancel-with-" : "",
+                jobGraph.getJobID(),
+                savepointId);
+
+        if (cancelJob) {
+            stopCheckpointScheduler();
+        }
+
+        String detachSavepointPath = String.format("%s/%s", targetDirectory, savepointId);
+        log.info("On triggering detach savepoint at {}", detachSavepointPath);
+
+        return checkpointCoordinator
+                .triggerDetachSavepoint(detachSavepointPath, formatType, savepointId)
+                .thenApply(CompletedCheckpoint::getExternalPointer)
+                .handleAsync(
+                        (path, throwable) -> {
+                            if (throwable != null) {
+                                if (cancelJob) {
+                                    startCheckpointScheduler();
+                                }
+                                throw new CompletionException(throwable);
+                            } else if (cancelJob) {
+                                log.info(
+                                        "Savepoint stored in {}. Now cancelling {}.",
+                                        path,
+                                        jobGraph.getJobID());
+                                cancel();
+                            }
+                            return path;
+                        },
+                        mainThreadExecutor);
+    }
+
+    @Override
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(CheckpointType checkpointType) {
         mainThreadExecutor.assertRunningInMainThread();
 

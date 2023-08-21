@@ -139,6 +139,15 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
     CompletableFuture<String> triggerSavepoint(
             @Nullable String targetDirectory, boolean cancelJob, SavepointFormatType formatType);
 
+    default CompletableFuture<String> triggerDetachSavepoint(
+            String savepointId,
+            @Nullable String targetDirectory,
+            boolean cancelJob,
+            SavepointFormatType formatType) {
+        throw new UnsupportedOperationException(
+                "Do not support triggerDetachSavepoint except for RestClusterClient");
+    }
+
     CompletableFuture<CompletedCheckpoint> triggerCheckpoint(CheckpointType checkpointType);
 
     void acknowledgeCheckpoint(

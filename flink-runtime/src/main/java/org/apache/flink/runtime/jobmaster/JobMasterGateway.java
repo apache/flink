@@ -231,6 +231,23 @@ public interface JobMasterGateway
             @RpcTimeout final Time timeout);
 
     /**
+     * Triggers taking a savepoint in detach mode of the executed job.
+     *
+     * @param savepointId savepoint id of this detached savepoint
+     * @param targetDirectory to which to write the savepoint data or null if the default savepoint
+     *     directory should be used
+     * @param formatType binary format for the savepoint
+     * @param timeout for the rpc call
+     * @return Future which is completed with the savepoint path once completed
+     */
+    CompletableFuture<String> triggerDetachSavepoint(
+            String savepointId,
+            final String targetDirectory,
+            final boolean cancelJob,
+            final SavepointFormatType formatType,
+            @RpcTimeout final Time timeout);
+
+    /**
      * Triggers taking a checkpoint of the executed job.
      *
      * @param checkpointType to determine how checkpoint should be taken

@@ -157,6 +157,14 @@ public class CliFrontendParser {
                             + " for changing state backends, native = a specific format for the"
                             + " chosen state backend, might be faster to take and restore from.");
 
+    public static final Option SAVEPOINT_DETACH_OPTION =
+            new Option(
+                    "dcp",
+                    "detachSavepoint",
+                    false,
+                    "Triggering savepoint in detach mode, client and JM are decoupled,"
+                            + " return UUID as the unique identification of savepoint.");
+
     // list specific options
     static final Option RUNNING_OPTION =
             new Option("r", "running", false, "Show only running programs and their JobIDs");
@@ -439,7 +447,8 @@ public class CliFrontendParser {
         return buildGeneralOptions(new Options())
                 .addOption(SAVEPOINT_DISPOSE_OPTION)
                 .addOption(JAR_OPTION)
-                .addOption(SAVEPOINT_FORMAT_OPTION);
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(SAVEPOINT_DETACH_OPTION);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -479,7 +488,8 @@ public class CliFrontendParser {
     private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
         return options.addOption(SAVEPOINT_DISPOSE_OPTION)
                 .addOption(SAVEPOINT_FORMAT_OPTION)
-                .addOption(JAR_OPTION);
+                .addOption(JAR_OPTION)
+                .addOption(SAVEPOINT_DETACH_OPTION);
     }
 
     /** Prints the help for the client. */

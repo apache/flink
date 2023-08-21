@@ -78,6 +78,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -776,16 +777,35 @@ public class CliFrontend {
                         "Provided more arguments than required. Ignoring not needed arguments.");
             }
 
-            runClusterAction(
-                    activeCommandLine,
-                    commandLine,
-                    (clusterClient, effectiveConfiguration) ->
-                            triggerSavepoint(
-                                    clusterClient,
-                                    jobId,
-                                    savepointDirectory,
-                                    savepointOptions.getFormatType(),
-                                    getClientTimeout(effectiveConfiguration)));
+            // Trigger savepoint in detached mode
+            if (savepointOptions.isDetached()) {
+                // (1) generate a UUID for the detached savepoint
+                UUID savepointId = UUID.randomUUID();
+
+                // (2) trigger savepoint in detached mode and return immediately
+                runClusterAction(
+                        activeCommandLine,
+                        commandLine,
+                        (clusterClient, effectiveConfiguration) ->
+                                triggerDetachSavepoint(
+                                        clusterClient,
+                                        jobId,
+                                        savepointId,
+                                        savepointDirectory,
+                                        savepointOptions.getFormatType(),
+                                        getClientTimeout(effectiveConfiguration)));
+            } else {
+                runClusterAction(
+                        activeCommandLine,
+                        commandLine,
+                        (clusterClient, effectiveConfiguration) ->
+                                triggerSavepoint(
+                                        clusterClient,
+                                        jobId,
+                                        savepointDirectory,
+                                        savepointOptions.getFormatType(),
+                                        getClientTimeout(effectiveConfiguration)));
+            }
         }
     }
 
@@ -814,6 +834,33 @@ public class CliFrontend {
             Throwable cause = ExceptionUtils.stripExecutionException(e);
             throw new FlinkException(
                     "Triggering a savepoint for the job " + jobId + " failed.", cause);
+        }
+    }
+
+    /** Sends a SavepointTriggerMessage to the job manager in detach mode. */
+    private void triggerDetachSavepoint(
+            ClusterClient<?> clusterClient,
+            JobID jobId,
+            UUID savepointId,
+            String savepointDirectory,
+            SavepointFormatType formatType,
+            Duration clientTimeout)
+            throws FlinkException {
+        logAndSysout("Triggering savepoint in detach mode for job " + jobId + '.');
+
+        try {
+            final String triggerId =
+                    clusterClient
+                            .triggerDetachSavepoint(
+                                    jobId, savepointId.toString(), savepointDirectory, formatType)
+                            .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+
+            logAndSysout("Successfully trigger manual savepoint, triggerId: " + triggerId);
+            logAndSysout("Savepoint UUID: " + savepointId);
+        } catch (Exception e) {
+            Throwable cause = ExceptionUtils.stripExecutionException(e);
+            throw new FlinkException(
+                    "Triggering a detach savepoint for the job " + jobId + " failed.", cause);
         }
     }
 

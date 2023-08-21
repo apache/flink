@@ -254,8 +254,28 @@ public class SavepointHandlers {
                             : TriggerSavepointMode.SAVEPOINT;
             final String targetDirectory = requestedTargetDirectory.orElse(defaultSavepointDir);
             final SavepointFormatType formatType = request.getRequestBody().getFormatType();
-            return gateway.triggerSavepoint(
-                    operationKey, targetDirectory, formatType, savepointMode, RpcUtils.INF_TIMEOUT);
+
+            final String savepointId = request.getRequestBody().getSavepointId();
+            CompletableFuture<Acknowledge> acknowledge;
+            if (savepointId != null) {
+                acknowledge =
+                        gateway.triggerDetachSavepoint(
+                                operationKey,
+                                savepointId,
+                                targetDirectory,
+                                formatType,
+                                savepointMode,
+                                RpcUtils.INF_TIMEOUT);
+            } else {
+                acknowledge =
+                        gateway.triggerSavepoint(
+                                operationKey,
+                                targetDirectory,
+                                formatType,
+                                savepointMode,
+                                RpcUtils.INF_TIMEOUT);
+            }
+            return acknowledge;
         }
     }
 

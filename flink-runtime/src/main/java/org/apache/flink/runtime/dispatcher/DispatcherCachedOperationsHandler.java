@@ -46,17 +46,21 @@ public class DispatcherCachedOperationsHandler {
 
     private final TriggerSavepointFunction triggerSavepointFunction;
 
+    private final TriggerDetachSavepointFunction triggerDetachSavepointFunction;
+
     private final TriggerSavepointFunction stopWithSavepointFunction;
 
     DispatcherCachedOperationsHandler(
             DispatcherOperationCaches operationCaches,
             TriggerCheckpointFunction triggerCheckpointFunction,
             TriggerSavepointFunction triggerSavepointFunction,
+            TriggerDetachSavepointFunction triggerDetachSavepointFunction,
             TriggerSavepointFunction stopWithSavepointFunction) {
         this(
                 triggerCheckpointFunction,
                 operationCaches.getCheckpointTriggerCache(),
                 triggerSavepointFunction,
+                triggerDetachSavepointFunction,
                 stopWithSavepointFunction,
                 operationCaches.getSavepointTriggerCache());
     }
@@ -68,9 +72,27 @@ public class DispatcherCachedOperationsHandler {
             TriggerSavepointFunction triggerSavepointFunction,
             TriggerSavepointFunction stopWithSavepointFunction,
             CompletedOperationCache<AsynchronousJobOperationKey, String> savepointTriggerCache) {
+        this(
+                triggerCheckpointFunction,
+                checkpointTriggerCache,
+                triggerSavepointFunction,
+                null,
+                stopWithSavepointFunction,
+                savepointTriggerCache);
+    }
+
+    @VisibleForTesting
+    DispatcherCachedOperationsHandler(
+            TriggerCheckpointFunction triggerCheckpointFunction,
+            CompletedOperationCache<AsynchronousJobOperationKey, Long> checkpointTriggerCache,
+            TriggerSavepointFunction triggerSavepointFunction,
+            TriggerDetachSavepointFunction triggerDetachSavepointFunction,
+            TriggerSavepointFunction stopWithSavepointFunction,
+            CompletedOperationCache<AsynchronousJobOperationKey, String> savepointTriggerCache) {
         this.triggerCheckpointFunction = triggerCheckpointFunction;
         this.checkpointTriggerCache = checkpointTriggerCache;
         this.triggerSavepointFunction = triggerSavepointFunction;
+        this.triggerDetachSavepointFunction = triggerDetachSavepointFunction;
         this.stopWithSavepointFunction = stopWithSavepointFunction;
         this.savepointTriggerCache = savepointTriggerCache;
     }
@@ -109,6 +131,25 @@ public class DispatcherCachedOperationsHandler {
                 () ->
                         triggerSavepointFunction.apply(
                                 operationKey.getJobId(),
+                                targetDirectory,
+                                formatType,
+                                savepointMode,
+                                timeout));
+    }
+
+    public CompletableFuture<Acknowledge> triggerDetachSavepoint(
+            AsynchronousJobOperationKey operationKey,
+            String savepointId,
+            String targetDirectory,
+            SavepointFormatType formatType,
+            TriggerSavepointMode savepointMode,
+            Time timeout) {
+        return registerOperationIdempotently(
+                operationKey,
+                () ->
+                        triggerDetachSavepointFunction.apply(
+                                operationKey.getJobId(),
+                                savepointId,
                                 targetDirectory,
                                 formatType,
                                 savepointMode,

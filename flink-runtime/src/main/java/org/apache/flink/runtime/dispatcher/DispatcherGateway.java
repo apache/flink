@@ -91,6 +91,28 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
     }
 
     /**
+     * Triggers a savepoint with the given savepoint directory as a target, returning a future that
+     * completes with the savepoint location when it is complete.
+     *
+     * @param jobId the job id
+     * @param savepointId savepoint id
+     * @param targetDirectory Target directory for the savepoint.
+     * @param formatType Binary format of the savepoint.
+     * @param savepointMode context of the savepoint operation
+     * @param timeout Timeout for the asynchronous operation
+     * @return Future which is completed once the operation is triggered successfully
+     */
+    default CompletableFuture<String> triggerDetachSavepointAndGetLocation(
+            JobID jobId,
+            String savepointId,
+            String targetDirectory,
+            SavepointFormatType formatType,
+            TriggerSavepointMode savepointMode,
+            @RpcTimeout Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Stops the job with a savepoint, returning a future that completes with the savepoint location
      * when the savepoint is completed.
      *

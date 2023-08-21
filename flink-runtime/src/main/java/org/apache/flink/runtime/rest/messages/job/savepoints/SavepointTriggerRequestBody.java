@@ -37,6 +37,8 @@ public class SavepointTriggerRequestBody implements RequestBody {
 
     private static final String FIELD_NAME_CANCEL_JOB = "cancel-job";
 
+    private static final String FIELD_NAME_SAVEPOINT_ID = "savepoint-id";
+
     private static final String FIELD_NAME_TRIGGER_ID = "triggerId";
     private static final String FIELD_NAME_FORMAT_TYPE = "formatType";
 
@@ -47,6 +49,10 @@ public class SavepointTriggerRequestBody implements RequestBody {
     @JsonProperty(FIELD_NAME_CANCEL_JOB)
     private final boolean cancelJob;
 
+    @JsonProperty(FIELD_NAME_SAVEPOINT_ID)
+    @Nullable
+    private final String savepointId;
+
     @JsonProperty(FIELD_NAME_TRIGGER_ID)
     @Nullable
     private final TriggerId triggerId;
@@ -55,16 +61,26 @@ public class SavepointTriggerRequestBody implements RequestBody {
     @Nullable
     private final SavepointFormatType formatType;
 
+    public SavepointTriggerRequestBody(
+            @Nullable final String targetDirectory,
+            final Boolean cancelJob,
+            final SavepointFormatType formatType,
+            TriggerId triggerId) {
+        this(targetDirectory, cancelJob, formatType, triggerId, null);
+    }
+
     @JsonCreator
     public SavepointTriggerRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
             @Nullable @JsonProperty(FIELD_NAME_CANCEL_JOB) final Boolean cancelJob,
             @Nullable @JsonProperty(FIELD_NAME_FORMAT_TYPE) final SavepointFormatType formatType,
-            @Nullable @JsonProperty(FIELD_NAME_TRIGGER_ID) TriggerId triggerId) {
+            @Nullable @JsonProperty(FIELD_NAME_TRIGGER_ID) TriggerId triggerId,
+            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_ID) final String savepointId) {
         this.targetDirectory = targetDirectory;
         this.cancelJob = cancelJob != null ? cancelJob : false;
         this.triggerId = triggerId;
         this.formatType = formatType != null ? formatType : SavepointFormatType.DEFAULT;
+        this.savepointId = savepointId;
     }
 
     @JsonIgnore
@@ -84,5 +100,10 @@ public class SavepointTriggerRequestBody implements RequestBody {
     @JsonIgnore
     public SavepointFormatType getFormatType() {
         return formatType;
+    }
+
+    @Nullable
+    public String getSavepointId() {
+        return savepointId;
     }
 }

@@ -441,6 +441,16 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
+    public CompletableFuture<String> triggerDetachSavepoint(
+            @Nullable final String savepointId,
+            final String targetDirectory,
+            final boolean cancelJob,
+            final SavepointFormatType formatType,
+            final Time timeout) {
+        return CompletableFuture.completedFuture(savepointId);
+    }
+
+    @Override
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
             CheckpointType checkpointType, Time timeout) {
         return triggerCheckpointFunction.apply(checkpointType);

@@ -891,6 +891,18 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     @Override
+    public CompletableFuture<String> triggerDetachSavepoint(
+            final String savepointId,
+            @Nullable final String targetDirectory,
+            final boolean cancelJob,
+            final SavepointFormatType formatType,
+            final Time timeout) {
+
+        return schedulerNG.triggerDetachSavepoint(
+                savepointId, targetDirectory, cancelJob, formatType);
+    }
+
+    @Override
     public CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory,
             final SavepointFormatType formatType,
