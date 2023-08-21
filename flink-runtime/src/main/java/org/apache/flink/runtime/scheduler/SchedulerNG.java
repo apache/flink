@@ -60,6 +60,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -146,6 +147,11 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
             SavepointFormatType formatType) {
         throw new UnsupportedOperationException(
                 "Do not support triggerDetachSavepoint except for RestClusterClient");
+    }
+
+    default CompletableFuture<List<String>> dumpPendingSavepoints() {
+        throw new UnsupportedOperationException(
+                "Do not support dumpPendingSavepoints except for RestClusterClient");
     }
 
     CompletableFuture<CompletedCheckpoint> triggerCheckpoint(CheckpointType checkpointType);

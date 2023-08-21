@@ -129,6 +129,12 @@ public class CheckpointCoordinator {
     private final Map<Long, PendingCheckpoint> pendingCheckpoints;
 
     /**
+     * Mapping from checkpointing ID to the pending detach savepoints, the pending savepoint ids are
+     * just reported to JM's rest api "savepoint-dump".
+     */
+    private final Map<Long, String> pendingSavepointsUnsafe;
+
+    /**
      * Completed checkpoints. Implementations can be blocking. Make sure calls to methods accessing
      * this don't block the job manager actor and run asynchronously.
      */
@@ -303,6 +309,7 @@ public class CheckpointCoordinator {
         this.coordinatorsToCheckpoint =
                 Collections.unmodifiableCollection(coordinatorsToCheckpoint);
         this.pendingCheckpoints = new LinkedHashMap<>();
+        this.pendingSavepointsUnsafe = new LinkedHashMap<>();
         this.checkpointIdCounter = checkNotNull(checkpointIDCounter);
         this.completedCheckpointStore = checkNotNull(completedCheckpointStore);
         this.executor = checkNotNull(executor);
@@ -465,6 +472,18 @@ public class CheckpointCoordinator {
                 CheckpointProperties.forSavepoint(!unalignedCheckpointsEnabled, formatType);
         return triggerSavepointInternal(
                 properties, targetLocation, new DetachSavepointProperties(savepointId));
+    }
+
+    /**
+     * Dump pending detach savepoint ids.
+     *
+     * @return A future to the list of all detach savepoint ids, if no pending detach savepoints in
+     *     flight, just return empty list.
+     */
+    public CompletableFuture<List<String>> getPendingSavepointsUnsafe() {
+        List<String> pendingSavepointIds = new ArrayList<>(pendingSavepointsUnsafe.values());
+
+        return CompletableFuture.completedFuture(pendingSavepointIds);
     }
 
     /**
@@ -871,6 +890,7 @@ public class CheckpointCoordinator {
             checkpointStorageLocation =
                     checkpointStorageView.initializeLocationForDetachSavepoint(
                             checkpointID, externalSavepointLocation);
+            pendingSavepointsUnsafe.put(checkpointID, detachSavepointProperties.savepointId);
         } else if (props.isSavepoint()) {
             checkpointStorageLocation =
                     checkpointStorageView.initializeLocationForSavepoint(
@@ -1378,6 +1398,7 @@ public class CheckpointCoordinator {
             throw exception;
         } finally {
             pendingCheckpoints.remove(checkpointId);
+            pendingSavepointsUnsafe.remove(checkpointId);
             scheduleTriggerRequest();
         }
 
@@ -2218,6 +2239,7 @@ public class CheckpointCoordinator {
                         pendingCheckpoint.getCheckpointID(),
                         pendingCheckpoint.getCheckpointTimestamp());
                 pendingCheckpoints.remove(pendingCheckpoint.getCheckpointID());
+                pendingSavepointsUnsafe.remove(pendingCheckpoint.getCheckpointID());
                 rememberRecentCheckpointId(pendingCheckpoint.getCheckpointID());
                 scheduleTriggerRequest();
             }

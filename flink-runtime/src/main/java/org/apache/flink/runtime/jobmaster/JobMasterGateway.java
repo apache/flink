@@ -56,6 +56,7 @@ import org.apache.flink.util.SerializedValue;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** {@link JobMaster} rpc gateway interface. */
@@ -246,6 +247,13 @@ public interface JobMasterGateway
             final boolean cancelJob,
             final SavepointFormatType formatType,
             @RpcTimeout final Time timeout);
+
+    /**
+     * Dump all pending detach savepoints to a list.
+     *
+     * @return the pending detach savepoints list future
+     */
+    CompletableFuture<List<String>> dumpPendingSavepoints();
 
     /**
      * Triggers taking a checkpoint of the executed job.

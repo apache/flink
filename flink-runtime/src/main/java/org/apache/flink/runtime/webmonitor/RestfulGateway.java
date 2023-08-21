@@ -49,6 +49,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -225,6 +226,11 @@ public interface RestfulGateway extends RpcGateway {
             SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
             @RpcTimeout Time timeout) {
+        throw new UnsupportedOperationException();
+    }
+
+    /** Dump all pending savepoints. */
+    default CompletableFuture<List<String>> dumpPendingSavepoints(JobID jobId) {
         throw new UnsupportedOperationException();
     }
 

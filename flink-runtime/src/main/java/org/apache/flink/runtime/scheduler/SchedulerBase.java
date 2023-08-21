@@ -957,6 +957,20 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     }
 
     @Override
+    public CompletableFuture<List<String>> dumpPendingSavepoints() {
+        mainThreadExecutor.assertRunningInMainThread();
+
+        final CheckpointCoordinator checkpointCoordinator =
+                executionGraph.getCheckpointCoordinator();
+        if (checkpointCoordinator == null) {
+            throw new IllegalStateException(
+                    String.format("Job %s is not a streaming job.", jobGraph.getJobID()));
+        }
+
+        return checkpointCoordinator.getPendingSavepointsUnsafe();
+    }
+
+    @Override
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(CheckpointType checkpointType) {
         mainThreadExecutor.assertRunningInMainThread();
 

@@ -1073,6 +1073,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
+    public CompletableFuture<List<String>> dumpPendingSavepoints(JobID jobId) {
+        return performOperationOnJobMasterGateway(jobId, JobMasterGateway::dumpPendingSavepoints);
+    }
+
+    @Override
     public CompletableFuture<OperationResult<String>> getTriggeredSavepointStatus(
             AsynchronousJobOperationKey operationKey) {
         return dispatcherCachedOperationsHandler.getSavepointStatus(operationKey);

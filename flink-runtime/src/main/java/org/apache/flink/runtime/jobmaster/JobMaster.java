@@ -117,6 +117,7 @@ import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -900,6 +901,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         return schedulerNG.triggerDetachSavepoint(
                 savepointId, targetDirectory, cancelJob, formatType);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> dumpPendingSavepoints() {
+        return schedulerNG.dumpPendingSavepoints();
     }
 
     @Override

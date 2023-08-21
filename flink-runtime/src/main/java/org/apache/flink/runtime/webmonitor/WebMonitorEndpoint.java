@@ -66,6 +66,7 @@ import org.apache.flink.runtime.rest.handler.job.JobVertexDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexFlameGraphHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexTaskManagersHandler;
 import org.apache.flink.runtime.rest.handler.job.JobsOverviewHandler;
+import org.apache.flink.runtime.rest.handler.job.SavepointDumpHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskCurrentAttemptDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskExecutionAttemptAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.SubtaskExecutionAttemptDetailsHandler;
@@ -142,6 +143,7 @@ import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHe
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.coordination.ClientCoordinationHeaders;
+import org.apache.flink.runtime.rest.messages.job.savepoints.SavepointDumpHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerCustomLogHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
@@ -649,6 +651,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         executor,
                         metricFetcher);
 
+        final SavepointDumpHandler savepointDumpHandler =
+                new SavepointDumpHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        SavepointDumpHeaders.getInstance());
+
         final GeneratedLogUrlHandler jobManagerLogUrlHandler =
                 new GeneratedLogUrlHandler(
                         localAddressFuture.thenApply(url -> url + "/#/job-manager/logs"));
@@ -862,6 +871,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         handlers.add(
                 Tuple2.of(rescalingTriggerHandler.getMessageHeaders(), rescalingTriggerHandler));
         handlers.add(Tuple2.of(rescalingStatusHandler.getMessageHeaders(), rescalingStatusHandler));
+        handlers.add(Tuple2.of(savepointDumpHandler.getMessageHeaders(), savepointDumpHandler));
         handlers.add(
                 Tuple2.of(
                         savepointDisposalTriggerHandler.getMessageHeaders(),
