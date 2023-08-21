@@ -34,8 +34,7 @@ import org.junit.jupiter.api.TestTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-public class JoinTaskExternalITCase
-        extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
+class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
 
     private static final long HASH_MEM = 4 * 1024 * 1024;
 

@@ -30,7 +30,7 @@ import org.junit.jupiter.api.TestTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-public class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record, Record, Record>> {
+class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record, Record, Record>> {
     private static final long CROSS_MEM = 1024 * 1024;
 
     private final double cross_frac;

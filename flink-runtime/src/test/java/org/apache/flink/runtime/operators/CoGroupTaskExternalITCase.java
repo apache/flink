@@ -35,8 +35,7 @@ import org.junit.jupiter.api.TestTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-public class CoGroupTaskExternalITCase
-        extends DriverTestBase<CoGroupFunction<Record, Record, Record>> {
+class CoGroupTaskExternalITCase extends DriverTestBase<CoGroupFunction<Record, Record, Record>> {
     private static final long SORT_MEM = 3 * 1024 * 1024;
 
     @SuppressWarnings("unchecked")

@@ -39,7 +39,7 @@ import java.util.HashMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Record, ?>> {
+class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Record, ?>> {
 
     private static final long COMBINE_MEM = 3 * 1024 * 1024;
 

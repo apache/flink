@@ -200,7 +200,6 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
         GroupReduceDriver<Record, Record> testTask = new GroupReduceDriver<>();
 
         assertThatThrownBy(() -> testDriver(testTask, MockFailingReduceStub.class))
-                .withFailMessage("Function exception was not forwarded.")
                 .isInstanceOf(ExpectedTestException.class);
 
         this.outList.clear();

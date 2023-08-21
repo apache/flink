@@ -44,8 +44,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-public class ReduceTaskExternalITCase
-        extends DriverTestBase<RichGroupReduceFunction<Record, Record>> {
+class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Record, Record>> {
     private static final Logger LOG = LoggerFactory.getLogger(ReduceTaskExternalITCase.class);
 
     @SuppressWarnings("unchecked")

@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
-public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>> {
+class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>> {
 
     private static final long CROSS_MEM = 1024 * 1024;
 

@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
-public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
+class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
 
     private static final long HASH_MEM = 6 * 1024 * 1024;
 

@@ -76,7 +76,7 @@ class ReduceDriverTest {
             driver.prepare();
             driver.run();
 
-            assertThat(result.getList()).hasSize(0);
+            assertThat(result.getList()).isEmpty();
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();

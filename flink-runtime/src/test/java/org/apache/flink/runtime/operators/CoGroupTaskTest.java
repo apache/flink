@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
-public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Record>> {
+class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Record>> {
     private static final long SORT_MEM = 3 * 1024 * 1024;
 
     @SuppressWarnings("unchecked")
@@ -282,7 +282,6 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
                 new CoGroupDriver<Record, Record, Record>();
 
         assertThatThrownBy(() -> testDriver(testTask, MockFailingCoGroupStub.class))
-                .withFailMessage("Function exception was not forwarded.")
                 .isInstanceOf(ExpectedTestException.class);
     }
 

@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
-public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
+class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
 
     private static final long HASH_MEM = 6 * 1024 * 1024;
 
@@ -775,7 +775,6 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 
         assertThatThrownBy(() -> testDriver(testTask, MockFailingMatchStub.class))
-                .withFailMessage("Function exception was not forwarded.")
                 .isInstanceOf(ExpectedTestException.class);
     }
 
@@ -799,7 +798,6 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         JoinDriver<Record, Record, Record> testTask = new JoinDriver<>();
 
         assertThatThrownBy(() -> testDriver(testTask, MockFailingMatchStub.class))
-                .withFailMessage("Function exception was not forwarded.")
                 .isInstanceOf(ExpectedTestException.class);
     }
 

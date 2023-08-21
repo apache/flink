@@ -82,7 +82,6 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
 
         final FlatMapDriver<Record, Record> testTask = new FlatMapDriver<>();
         assertThatThrownBy(() -> testDriver(testTask, MockFailingMapStub.class))
-                .withFailMessage("Function exception was not forwarded.")
                 .isInstanceOf(ExpectedTestException.class);
     }
 
