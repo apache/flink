@@ -206,7 +206,7 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
         clock.advanceTime(resetBackoffThresholdMS + 9 + 1, TimeUnit.MILLISECONDS);
         restartStrategy.notifyFailure(failure);
         assertThat(restartStrategy.canRestart()).isTrue();
-        assertThat(restartStrategy.getBackoffTime()).isEqualTo(1L);
+        assertThat(restartStrategy.getBackoffTime()).isOne();
 
         // ensure backoff still increases
         restartStrategy.notifyFailure(failure);
