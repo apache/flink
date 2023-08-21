@@ -136,7 +136,7 @@ public abstract class InternalPriorityQueueTestBase {
             --lastSize;
         }
 
-        assertThat(priorityQueue);
+        assertThat(priorityQueue.isEmpty()).isTrue();
         assertThat(priorityQueue.size()).isZero();
         assertThat(checkSet).isEmpty();
     }
