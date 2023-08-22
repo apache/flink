@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.dispatcher.NoOpJobGraphListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
@@ -28,8 +29,9 @@ import org.apache.flink.runtime.jobmanager.JobGraphStore.JobGraphListener;
 import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
+import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
-import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
@@ -37,9 +39,8 @@ import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.PathChildrenCache;
 
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -50,13 +51,8 @@ import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doAnswer;
@@ -72,7 +68,15 @@ import static org.mockito.Mockito.verify;
  */
 public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
-    private static final ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
+    private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
+
+    @RegisterExtension
+    final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
+            new EachCallbackWrapper<>(zooKeeperExtension);
+
+    @RegisterExtension
+    final TestingFatalErrorHandlerExtension testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerExtension();
 
     private static final RetrievableStateStorageHelper<JobGraph> localStateStorage =
             jobGraph -> {
@@ -82,16 +86,6 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
                                 InstantiationUtil.serializeObject(jobGraph));
                 return new RetrievableStreamStateHandle<>(byteStreamStateHandle);
             };
-
-    @AfterClass
-    public static void tearDown() throws Exception {
-        ZooKeeper.shutdown();
-    }
-
-    @Before
-    public void cleanUp() throws Exception {
-        ZooKeeper.deleteAll();
-    }
 
     @Test
     public void testPutAndRemoveJobGraph() throws Exception {
@@ -105,14 +99,14 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
             JobGraph jobGraph = createJobGraph(new JobID(), "JobName");
 
             // Empty state
-            assertEquals(0, jobGraphs.getJobIds().size());
+            assertThat(jobGraphs.getJobIds()).isEmpty();
 
             // Add initial
             jobGraphs.putJobGraph(jobGraph);
 
             // Verify initial job graph
             Collection<JobID> jobIds = jobGraphs.getJobIds();
-            assertEquals(1, jobIds.size());
+            assertThat(jobIds).hasSize(1);
 
             JobID jobId = jobIds.iterator().next();
 
@@ -124,7 +118,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
             // Verify updated
             jobIds = jobGraphs.getJobIds();
-            assertEquals(1, jobIds.size());
+            assertThat(jobIds).hasSize(1);
 
             jobId = jobIds.iterator().next();
 
@@ -134,7 +128,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
             jobGraphs.globalCleanupAsync(jobGraph.getJobID(), Executors.directExecutor()).join();
 
             // Empty state
-            assertEquals(0, jobGraphs.getJobIds().size());
+            assertThat(jobGraphs.getJobIds()).isEmpty();
 
             // Nothing should have been notified
             verify(listener, atMost(1)).onAddedJobGraph(any(JobID.class));
@@ -149,7 +143,9 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
     @Nonnull
     private JobGraphStore createZooKeeperJobGraphStore(String fullPath) throws Exception {
-        final CuratorFramework client = ZooKeeper.getClient();
+        final CuratorFramework client =
+                zooKeeperExtension.getZooKeeperClient(
+                        testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
         // Ensure that the job graphs path exists
         client.newNamespaceAwareEnsurePath(fullPath).ensure(client.getZookeeperClient());
 
@@ -186,11 +182,11 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
             Collection<JobID> actual = jobGraphs.getJobIds();
 
-            assertEquals(expected.size(), actual.size());
+            assertThat(actual).hasSameSizeAs(expected.entrySet());
 
             for (JobID jobId : actual) {
                 JobGraph jobGraph = jobGraphs.recoverJobGraph(jobId);
-                assertTrue(expected.containsKey(jobGraph.getJobID()));
+                assertThat(expected).containsKey(jobGraph.getJobID());
 
                 verifyJobGraphs(expected.get(jobGraph.getJobID()), jobGraph);
 
@@ -200,7 +196,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
             }
 
             // Empty state
-            assertEquals(0, jobGraphs.getJobIds().size());
+            assertThat(jobGraphs.getJobIds()).isEmpty();
 
             // Nothing should have been notified
             verify(listener, atMost(expected.size())).onAddedJobGraph(any(JobID.class));
@@ -260,7 +256,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
             verify(listener, times(1)).onAddedJobGraph(any(JobID.class));
             verify(listener, never()).onRemovedJobGraph(any(JobID.class));
 
-            assertEquals(otherJobGraph.getJobID(), actualOtherJobId[0]);
+            assertThat(actualOtherJobId[0]).isEqualTo(otherJobGraph.getJobID());
         } finally {
             if (jobGraphs != null) {
                 jobGraphs.stop();
@@ -272,7 +268,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testUpdateJobGraphYouDidNotGetOrAdd() throws Exception {
         JobGraphStore jobGraphs =
                 createZooKeeperJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
@@ -287,7 +283,8 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
         jobGraphs.putJobGraph(jobGraph);
 
-        otherJobGraphs.putJobGraph(jobGraph);
+        assertThatExceptionOfType(IllegalStateException.class)
+                .isThrownBy(() -> otherJobGraphs.putJobGraph(jobGraph));
     }
 
     /**
@@ -313,17 +310,18 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
         final JobGraph recoveredJobGraph =
                 otherSubmittedJobGraphStore.recoverJobGraph(jobGraph.getJobID());
 
-        assertThat(recoveredJobGraph, is(notNullValue()));
+        assertThat(recoveredJobGraph).isNotNull();
 
-        try {
-            otherSubmittedJobGraphStore
-                    .globalCleanupAsync(recoveredJobGraph.getJobID(), Executors.directExecutor())
-                    .join();
-            fail(
-                    "It should not be possible to remove the JobGraph since the first store still has a lock on it.");
-        } catch (Exception ignored) {
-            // expected
-        }
+        assertThatExceptionOfType(Exception.class)
+                .as(
+                        "It should not be possible to remove the JobGraph since the first store still has a lock on it.")
+                .isThrownBy(
+                        () ->
+                                otherSubmittedJobGraphStore
+                                        .globalCleanupAsync(
+                                                recoveredJobGraph.getJobID(),
+                                                Executors.directExecutor())
+                                        .join());
 
         submittedJobGraphStore.stop();
 
@@ -332,9 +330,8 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
                 .globalCleanupAsync(recoveredJobGraph.getJobID(), Executors.directExecutor())
                 .join();
 
-        assertThat(
-                otherSubmittedJobGraphStore.recoverJobGraph(recoveredJobGraph.getJobID()),
-                is(nullValue()));
+        assertThat(otherSubmittedJobGraphStore.recoverJobGraph(recoveredJobGraph.getJobID()))
+                .isNull();
 
         otherSubmittedJobGraphStore.stop();
     }
@@ -357,7 +354,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
     }
 
     private void verifyJobGraphs(JobGraph expected, JobGraph actual) {
-        assertEquals(expected.getName(), actual.getName());
-        assertEquals(expected.getJobID(), actual.getJobID());
+        assertThat(actual.getName()).isEqualTo(expected.getName());
+        assertThat(actual.getJobID()).isEqualTo(expected.getJobID());
     }
 }
