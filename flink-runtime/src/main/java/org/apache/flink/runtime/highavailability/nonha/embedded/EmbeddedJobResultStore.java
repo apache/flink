@@ -25,7 +25,6 @@ import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.concurrent.Executors;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -49,7 +48,7 @@ public class EmbeddedJobResultStore extends AbstractThreadsafeJobResultStore {
     }
 
     @Override
-    public void markResultAsCleanInternal(JobID jobId) throws IOException, NoSuchElementException {
+    public void markResultAsCleanInternal(JobID jobId) throws NoSuchElementException {
         final JobResultEntry jobResultEntry = dirtyJobResults.remove(jobId);
         if (jobResultEntry != null) {
             cleanJobResults.put(jobId, jobResultEntry);
@@ -62,17 +61,17 @@ public class EmbeddedJobResultStore extends AbstractThreadsafeJobResultStore {
     }
 
     @Override
-    public boolean hasDirtyJobResultEntryInternal(JobID jobId) throws IOException {
+    public boolean hasDirtyJobResultEntryInternal(JobID jobId) {
         return dirtyJobResults.containsKey(jobId);
     }
 
     @Override
-    public boolean hasCleanJobResultEntryInternal(JobID jobId) throws IOException {
+    public boolean hasCleanJobResultEntryInternal(JobID jobId) {
         return cleanJobResults.containsKey(jobId);
     }
 
     @Override
-    public Set<JobResult> getDirtyResultsInternal() throws IOException {
+    public Set<JobResult> getDirtyResultsInternal() {
         return dirtyJobResults.values().stream()
                 .map(JobResultEntry::getJobResult)
                 .collect(Collectors.toSet());
