@@ -31,11 +31,14 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.util.ExceptionUtils;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -74,13 +77,15 @@ public class SegmentPartitionFileReader implements PartitionFileReader {
     }
 
     @Override
-    public Buffer readBuffer(
+    public ReadBufferResult readBuffer(
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
             int bufferIndex,
             MemorySegment memorySegment,
-            BufferRecycler recycler)
+            BufferRecycler recycler,
+            @Nullable ReadProgress readProgress,
+            @Nullable PartialBuffer partialBuffer)
             throws IOException {
 
         // Get the channel of the segment file for a subpartition.
@@ -109,7 +114,8 @@ public class SegmentPartitionFileReader implements PartitionFileReader {
         if (bufferHeaderResult == -1) {
             channel.close();
             openedChannelAndSegmentIds.get(partitionId).remove(subpartitionId);
-            return new NetworkBuffer(memorySegment, recycler, Buffer.DataType.END_OF_SEGMENT);
+            return getSingletonReadResult(
+                    new NetworkBuffer(memorySegment, recycler, Buffer.DataType.END_OF_SEGMENT));
         }
         reusedHeaderBuffer.flip();
         BufferHeader header = parseBufferHeader(reusedHeaderBuffer);
@@ -119,8 +125,13 @@ public class SegmentPartitionFileReader implements PartitionFileReader {
             throw new IOException("The length of data buffer is illegal.");
         }
         Buffer.DataType dataType = header.getDataType();
-        return new NetworkBuffer(
-                memorySegment, recycler, dataType, header.isCompressed(), header.getLength());
+        return getSingletonReadResult(
+                new NetworkBuffer(
+                        memorySegment,
+                        recycler,
+                        dataType,
+                        header.isCompressed(),
+                        header.getLength()));
     }
 
     @Override
@@ -165,5 +176,9 @@ public class SegmentPartitionFileReader implements PartitionFileReader {
                                 ExceptionUtils.rethrow(e);
                             }
                         });
+    }
+
+    private static ReadBufferResult getSingletonReadResult(NetworkBuffer buffer) {
+        return new ReadBufferResult(Collections.singletonList(buffer), false, null);
     }
 }

@@ -79,6 +79,9 @@ public interface FileDataIndexRegionHelper<T extends FileDataIndexRegionHelper.R
         /** Get the file start offset of this region. */
         long getRegionFileOffset();
 
+        /** Get the file end offset of the region. */
+        long getRegionFileEndOffset();
+
         /** Get the number of buffers in this region. */
         int getNumBuffers();
 

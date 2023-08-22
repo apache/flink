@@ -35,6 +35,7 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
@@ -338,6 +339,8 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
 
         private boolean isFailed;
 
+        @Nullable private PartitionFileReader.ReadProgress readProgress;
+
         private ScheduledSubpartitionReader(
                 TieredStorageSubpartitionId subpartitionId,
                 NettyConnectionWriter nettyConnectionWriter) {
@@ -354,34 +357,52 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                                 + subpartitionId
                                 + " has already been failed.");
             }
-            while (!buffers.isEmpty()
-                    && nettyConnectionWriter.numQueuedBufferPayloads() < maxBufferReadAhead
-                    && nextSegmentId >= 0) {
-                MemorySegment memorySegment = buffers.poll();
-                Buffer buffer;
-                try {
-                    if ((buffer =
-                                    partitionFileReader.readBuffer(
-                                            partitionId,
-                                            subpartitionId,
-                                            nextSegmentId,
-                                            nextBufferIndex,
-                                            memorySegment,
-                                            recycler))
-                            == null) {
+
+            PartitionFileReader.PartialBuffer partialBuffer = null;
+            boolean shouldContinueRead = true;
+            try {
+                while (!buffers.isEmpty() && shouldContinueRead && nextSegmentId >= 0) {
+                    MemorySegment memorySegment = buffers.poll();
+                    PartitionFileReader.ReadBufferResult readBufferResult;
+                    try {
+                        readBufferResult =
+                                partitionFileReader.readBuffer(
+                                        partitionId,
+                                        subpartitionId,
+                                        nextSegmentId,
+                                        nextBufferIndex,
+                                        memorySegment,
+                                        recycler,
+                                        readProgress,
+                                        partialBuffer);
+                        if (readBufferResult == null) {
+                            buffers.add(memorySegment);
+                            break;
+                        }
+                    } catch (Throwable throwable) {
+                        buffers.add(memorySegment);
+                        throw throwable;
+                    }
+
+                    List<Buffer> readBuffers = readBufferResult.getReadBuffers();
+                    shouldContinueRead = readBufferResult.shouldContinueReadHint();
+                    readProgress = readBufferResult.getReadProgress();
+                    if (!shouldContinueRead) {
+                        checkState(
+                                readProgress.getCurrentReadOffset()
+                                        == readProgress.getEndOfReadOffset());
+                        readProgress = null;
+                    }
+                    if (readBuffers.isEmpty()) {
                         buffers.add(memorySegment);
                         break;
                     }
-                } catch (Throwable throwable) {
-                    buffers.add(memorySegment);
-                    throw throwable;
+
+                    partialBuffer = writeFullBuffersAndGetPartialBuffer(readBuffers);
                 }
-                writeToNettyConnectionWriter(
-                        NettyPayload.newBuffer(
-                                buffer, nextBufferIndex++, subpartitionId.getSubpartitionId()));
-                if (buffer.getDataType() == Buffer.DataType.END_OF_SEGMENT) {
-                    nextSegmentId = -1;
-                    updateSegmentId();
+            } finally {
+                if (partialBuffer != null) {
+                    partialBuffer.recycleBuffer();
                 }
             }
         }
@@ -396,11 +417,44 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
             if (nextSegmentId < 0) {
                 updateSegmentId();
             }
+            if (nextSegmentId < 0) {
+                priority = Long.MAX_VALUE;
+                return;
+            }
             priority =
-                    nextSegmentId < 0
-                            ? Long.MAX_VALUE
+                    readProgress != null
+                            ? readProgress.getCurrentReadOffset()
                             : partitionFileReader.getPriority(
                                     partitionId, subpartitionId, nextSegmentId, nextBufferIndex);
+        }
+
+        private PartitionFileReader.PartialBuffer writeFullBuffersAndGetPartialBuffer(
+                List<Buffer> readBuffers) {
+            PartitionFileReader.PartialBuffer partialBuffer = null;
+            for (int i = 0; i < readBuffers.size(); i++) {
+                Buffer readBuffer = readBuffers.get(i);
+                if (i == readBuffers.size() - 1 && isPartialBuffer(readBuffer)) {
+                    partialBuffer = (PartitionFileReader.PartialBuffer) readBuffer;
+                    continue;
+                }
+                writeNettyBufferAndUpdateSegmentId(readBuffer);
+            }
+            return partialBuffer;
+        }
+
+        private boolean isPartialBuffer(Buffer readBuffer) {
+            return readBuffer instanceof PartitionFileReader.PartialBuffer
+                    && ((PartitionFileReader.PartialBuffer) readBuffer).missingLength() > 0;
+        }
+
+        private void writeNettyBufferAndUpdateSegmentId(Buffer readBuffer) {
+            writeToNettyConnectionWriter(
+                    NettyPayload.newBuffer(
+                            readBuffer, nextBufferIndex++, subpartitionId.getSubpartitionId()));
+            if (readBuffer.getDataType() == Buffer.DataType.END_OF_SEGMENT) {
+                nextSegmentId = -1;
+                updateSegmentId();
+            }
         }
 
         private void writeToNettyConnectionWriter(NettyPayload nettyPayload) {

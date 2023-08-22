@@ -119,9 +119,12 @@ public class HybridShuffleTestUtils {
     }
 
     public static FileDataIndexRegionHelper.Region createSingleFixedSizeRegion(
-            int firstBufferIndex, long firstBufferOffset, int numBuffersPerRegion) {
+            int firstBufferIndex,
+            long firstBufferOffset,
+            long lastBufferEndOffset,
+            int numBuffersPerRegion) {
         return new ProducerMergedPartitionFileIndex.FixedSizeRegion(
-                firstBufferIndex, firstBufferOffset, numBuffersPerRegion);
+                firstBufferIndex, firstBufferOffset, lastBufferEndOffset, numBuffersPerRegion);
     }
 
     public static void assertRegionEquals(

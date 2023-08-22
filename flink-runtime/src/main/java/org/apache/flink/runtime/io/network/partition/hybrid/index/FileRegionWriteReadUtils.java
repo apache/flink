@@ -123,6 +123,7 @@ public class FileRegionWriteReadUtils {
         regionBuffer.putInt(region.getFirstBufferIndex());
         regionBuffer.putInt(region.getNumBuffers());
         regionBuffer.putLong(region.getRegionFileOffset());
+        regionBuffer.putLong(region.getRegionFileEndOffset());
         regionBuffer.flip();
         BufferReaderWriterUtil.writeBuffers(channel, regionBuffer.capacity(), regionBuffer);
     }
@@ -145,6 +146,8 @@ public class FileRegionWriteReadUtils {
         int firstBufferIndex = regionBuffer.getInt();
         int numBuffers = regionBuffer.getInt();
         long firstBufferOffset = regionBuffer.getLong();
-        return new FixedSizeRegion(firstBufferIndex, firstBufferOffset, numBuffers);
+        long lastBufferEndOffset = regionBuffer.getLong();
+        return new FixedSizeRegion(
+                firstBufferIndex, firstBufferOffset, lastBufferEndOffset, numBuffers);
     }
 }

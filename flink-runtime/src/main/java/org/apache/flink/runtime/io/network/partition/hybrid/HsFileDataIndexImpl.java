@@ -225,6 +225,11 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
         }
 
         @Override
+        public long getRegionFileEndOffset() {
+            throw new UnsupportedOperationException("This method is not supported.");
+        }
+
+        @Override
         public int getNumBuffers() {
             return numBuffers;
         }

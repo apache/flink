@@ -36,6 +36,7 @@ import java.util.UUID;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.InternalRegion.HEADER_SIZE;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.assertRegionEquals;
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createSingleFixedSizeRegion;
+import static org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.ProducerMergedPartitionFileIndex.FixedSizeRegion.REGION_SIZE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -83,9 +84,9 @@ class FileRegionWriteReadUtilsTest {
     @Test
     void testReadPrematureEndOfFileForFixedSizeRegion(@TempDir Path tmpPath) throws Exception {
         FileChannel channel = tmpFileChannel(tmpPath);
-        ByteBuffer buffer = FileRegionWriteReadUtils.allocateAndConfigureBuffer(HEADER_SIZE);
+        ByteBuffer buffer = FileRegionWriteReadUtils.allocateAndConfigureBuffer(REGION_SIZE);
         FileRegionWriteReadUtils.writeFixedSizeRegionToFile(
-                channel, buffer, createSingleFixedSizeRegion(0, 0L, 1));
+                channel, buffer, createSingleFixedSizeRegion(0, 0L, 10L, 1));
         channel.truncate(channel.position() - 1);
         buffer.flip();
         assertThatThrownBy(
@@ -98,8 +99,8 @@ class FileRegionWriteReadUtilsTest {
     @Test
     void testWriteAndReadFixedSizeRegion(@TempDir Path tmpPath) throws Exception {
         FileChannel channel = tmpFileChannel(tmpPath);
-        ByteBuffer buffer = FileRegionWriteReadUtils.allocateAndConfigureBuffer(HEADER_SIZE);
-        FileDataIndexRegionHelper.Region region = createSingleFixedSizeRegion(10, 100L, 1);
+        ByteBuffer buffer = FileRegionWriteReadUtils.allocateAndConfigureBuffer(REGION_SIZE);
+        FileDataIndexRegionHelper.Region region = createSingleFixedSizeRegion(10, 100L, 110L, 1);
         FileRegionWriteReadUtils.writeFixedSizeRegionToFile(channel, buffer, region);
         buffer.flip();
         ProducerMergedPartitionFileIndex.FixedSizeRegion readRegion =
