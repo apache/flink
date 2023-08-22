@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -51,14 +50,11 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.util.ExceptionUtils.findThrowable;
-import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Integration test cases for the {@link MiniCluster}. */
 class MiniClusterITCase {
@@ -104,35 +100,26 @@ class MiniClusterITCase {
     }
 
     @Test
-    void testHandleStreamingJobsWhenNotEnoughSlot() throws Exception {
-        try {
-            final JobVertex vertex1 = new JobVertex("Test Vertex1");
-            vertex1.setParallelism(1);
-            vertex1.setMaxParallelism(1);
-            vertex1.setInvokableClass(BlockingNoOpInvokable.class);
+    void testHandleStreamingJobsWhenNotEnoughSlot() {
+        final JobVertex vertex1 = new JobVertex("Test Vertex1");
+        vertex1.setParallelism(1);
+        vertex1.setMaxParallelism(1);
+        vertex1.setInvokableClass(BlockingNoOpInvokable.class);
 
-            final JobVertex vertex2 = new JobVertex("Test Vertex2");
-            vertex2.setParallelism(1);
-            vertex2.setMaxParallelism(1);
-            vertex2.setInvokableClass(BlockingNoOpInvokable.class);
+        final JobVertex vertex2 = new JobVertex("Test Vertex2");
+        vertex2.setParallelism(1);
+        vertex2.setMaxParallelism(1);
+        vertex2.setInvokableClass(BlockingNoOpInvokable.class);
 
-            vertex2.connectNewDataSetAsInput(
-                    vertex1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        vertex2.connectNewDataSetAsInput(
+                vertex1, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-            final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex1, vertex2);
+        final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex1, vertex2);
 
-            runHandleJobsWhenNotEnoughSlots(jobGraph);
-
-            fail("Job should fail.");
-        } catch (JobExecutionException e) {
-            assertThat(e)
-                    .satisfies(matching(FlinkMatchers.containsMessage("Job execution failed")));
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    FlinkMatchers.containsCause(
-                                            NoResourceAvailableException.class)));
-        }
+        assertThatThrownBy(() -> runHandleJobsWhenNotEnoughSlots(jobGraph))
+                .isInstanceOf(JobExecutionException.class)
+                .satisfies(anyCauseMatches(NoResourceAvailableException.class))
+                .satisfies(anyCauseMatches("Job execution failed"));
     }
 
     private void runHandleJobsWhenNotEnoughSlots(final JobGraph jobGraph) throws Exception {
@@ -253,14 +240,10 @@ class MiniClusterITCase {
             final JobGraph jobGraph =
                     JobGraphTestUtils.streamingJobGraph(sender1, receiver, sender2);
 
-            try {
-                miniCluster.executeJobBlocking(jobGraph);
-
-                fail("Job should fail.");
-            } catch (JobExecutionException e) {
-                assertThat(findThrowable(e, ArrayIndexOutOfBoundsException.class)).isPresent();
-                assertThat(findThrowableWithMessage(e, "2")).isPresent();
-            }
+            assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
+                    .isInstanceOf(JobExecutionException.class)
+                    .satisfies(anyCauseMatches(ArrayIndexOutOfBoundsException.class))
+                    .satisfies(anyCauseMatches("2"));
         }
     }
 
@@ -372,14 +355,10 @@ class MiniClusterITCase {
 
             final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender, receiver);
 
-            try {
-                miniCluster.executeJobBlocking(jobGraph);
-
-                fail("Job should fail.");
-            } catch (JobExecutionException e) {
-                assertThat(findThrowable(e, Exception.class)).isPresent();
-                assertThat(findThrowableWithMessage(e, "Test exception")).isPresent();
-            }
+            assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
+                    .isInstanceOf(JobExecutionException.class)
+                    .hasCauseInstanceOf(Exception.class)
+                    .satisfies(anyCauseMatches("Test exception"));
         }
     }
 
@@ -420,14 +399,10 @@ class MiniClusterITCase {
 
             final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender, receiver);
 
-            try {
-                miniCluster.executeJobBlocking(jobGraph);
-
-                fail("Job should fail.");
-            } catch (JobExecutionException e) {
-                assertThat(findThrowable(e, Exception.class)).isPresent();
-                assertThat(findThrowableWithMessage(e, "Test exception")).isPresent();
-            }
+            assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
+                    .isInstanceOf(JobExecutionException.class)
+                    .hasCauseInstanceOf(Exception.class)
+                    .satisfies(anyCauseMatches("Test exception"));
         }
     }
 
@@ -458,14 +433,10 @@ class MiniClusterITCase {
 
             final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender, receiver);
 
-            try {
-                miniCluster.executeJobBlocking(jobGraph);
-
-                fail("Job should fail.");
-            } catch (JobExecutionException e) {
-                assertThat(findThrowable(e, Exception.class)).isPresent();
-                assertThat(findThrowableWithMessage(e, "Test exception")).isPresent();
-            }
+            assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
+                    .isInstanceOf(JobExecutionException.class)
+                    .hasCauseInstanceOf(Exception.class)
+                    .satisfies(anyCauseMatches("Test exception"));
         }
     }
 
@@ -496,15 +467,10 @@ class MiniClusterITCase {
 
             final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender, receiver);
 
-            try {
-                miniCluster.executeJobBlocking(jobGraph);
-
-                fail("Job should fail.");
-            } catch (JobExecutionException e) {
-                assertThat(findThrowable(e, Exception.class)).isPresent();
-                assertThat(
-                        findThrowableWithMessage(e, "Test exception in constructor").isPresent());
-            }
+            assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
+                    .isInstanceOf(JobExecutionException.class)
+                    .hasCauseInstanceOf(Exception.class)
+                    .satisfies(anyCauseMatches("Test exception in constructor"));
         }
     }
 
@@ -545,15 +511,10 @@ class MiniClusterITCase {
 
             final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(sender, receiver);
 
-            try {
-                miniCluster.executeJobBlocking(jobGraph);
-
-                fail("Job should fail.");
-            } catch (JobExecutionException e) {
-                assertThat(findThrowable(e, Exception.class)).isPresent();
-                assertThat(
-                        findThrowableWithMessage(e, "Test exception in constructor").isPresent());
-            }
+            assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
+                    .isInstanceOf(JobExecutionException.class)
+                    .hasCauseInstanceOf(Exception.class)
+                    .satisfies(anyCauseMatches("Test exception in constructor"));
         }
     }
 
@@ -596,7 +557,7 @@ class MiniClusterITCase {
 
             jobResultFuture.get().toJobExecutionResult(getClass().getClassLoader());
 
-            assertThat(WaitOnFinalizeJobVertex.finalizedOnMaster.get()).isTrue();
+            assertThat(WaitOnFinalizeJobVertex.finalizedOnMaster).isTrue();
         }
     }
 
@@ -628,18 +589,16 @@ class MiniClusterITCase {
                             (JobSubmissionResult ignored) ->
                                     miniCluster.requestJobResult(jobGraph.getJobID()));
 
-            try {
-                jobResultFuture.get().toJobExecutionResult(getClass().getClassLoader());
-            } catch (JobExecutionException e) {
-                assertThat(e)
-                        .satisfies(matching(FlinkMatchers.containsCause(OutOfMemoryError.class)));
-                assertThat(
-                                findThrowable(e, OutOfMemoryError.class)
-                                        .map(OutOfMemoryError::getMessage)
-                                        .get())
-                        .startsWith(
-                                "Java heap space. A heap space-related out-of-memory error has occurred.");
-            }
+            assertThatThrownBy(
+                            () ->
+                                    jobResultFuture
+                                            .get()
+                                            .toJobExecutionResult(getClass().getClassLoader()))
+                    .isInstanceOf(JobExecutionException.class)
+                    .satisfies(anyCauseMatches(OutOfMemoryError.class))
+                    .satisfies(
+                            anyCauseMatches(
+                                    "Java heap space. A heap space-related out-of-memory error has occurred."));
         }
     }
 
@@ -671,17 +630,14 @@ class MiniClusterITCase {
                             (JobSubmissionResult ignored) ->
                                     miniCluster.requestJobResult(jobGraph.getJobID()));
 
-            try {
-                jobResultFuture.get();
-            } catch (ExecutionException e) {
-                assertThat(e)
-                        .satisfies(matching(FlinkMatchers.containsCause(OutOfMemoryError.class)));
-                assertThat(e)
-                        .satisfies(
-                                matching(
-                                        FlinkMatchers.containsMessage(
-                                                "Java heap space. A heap space-related out-of-memory error has occurred.")));
-            }
+            assertThatThrownBy(
+                            () ->
+                                    jobResultFuture
+                                            .get()
+                                            .toJobExecutionResult(getClass().getClassLoader()))
+                    .isInstanceOf(JobExecutionException.class)
+                    .satisfies(anyCauseMatches(OutOfMemoryError.class))
+                    .satisfies(anyCauseMatches("Java heap space"));
         }
     }
 

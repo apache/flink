@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mockStatic;
 
 /** Tests for the network utilities. */
-public class ConnectionUtilsTest {
+class ConnectionUtilsTest {
 
     @Test
     void testReturnLocalHostAddressUsingHeuristics() throws Exception {
