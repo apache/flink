@@ -21,7 +21,6 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
-import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -40,10 +39,8 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -412,38 +409,5 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
                         .chooseRequestToExecute(regularCheckpoint(), false, 0)
                         .isPresent());
         checkpointStore.shutdown(JobStatus.FINISHED, checkpointsCleaner);
-    }
-
-    static class HeapRetrievableStateHandle<T extends Serializable>
-            implements RetrievableStateHandle<T> {
-
-        private static final long serialVersionUID = -268548467968932L;
-
-        private static AtomicInteger nextKey = new AtomicInteger(0);
-
-        private static HashMap<Integer, Object> stateMap = new HashMap<>();
-
-        private final int key;
-
-        public HeapRetrievableStateHandle(T state) {
-            key = nextKey.getAndIncrement();
-            stateMap.put(key, state);
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public T retrieveState() {
-            return (T) stateMap.get(key);
-        }
-
-        @Override
-        public void discardState() throws Exception {
-            stateMap.remove(key);
-        }
-
-        @Override
-        public long getStateSize() {
-            return 0;
-        }
     }
 }
