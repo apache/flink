@@ -58,7 +58,6 @@ public enum FlinkVersion {
     v1_18("1.18"),
     v1_19("1.19");
 
-
     private final String versionStr;
 
     FlinkVersion(String versionStr) {
