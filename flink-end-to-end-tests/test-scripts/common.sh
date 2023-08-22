@@ -67,6 +67,13 @@ cat << EOT >> ${HOME}/.curlrc
 --retry 10
 EOT
 
+cat << EOT >> ${HOME}/.wgetrc
+# only print basic information (no progress bar)
+verbose=off
+# retries in case of errors
+tries=10
+EOT
+
 # REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
 # they should be used in curl command to query Flink REST API
 REST_PROTOCOL="http"
