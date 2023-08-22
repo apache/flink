@@ -62,9 +62,10 @@ public interface StreamOperatorFactory<OUT> extends Serializable {
     }
 
     /**
-     * Is called by the {@link StreamGraph#addOperator} method when the {@link StreamGraph} is
-     * generated. The method is called with the output {@link TypeInformation} which is also used
-     * for the {@link StreamTask} output serializer.
+     * Is called by the {@link StreamGraph#addOperator(Integer, String, String,
+     * StreamOperatorFactory, TypeInformation, TypeInformation, String)} method when the {@link
+     * StreamGraph} is generated. The method is called with the output {@link TypeInformation} which
+     * is also used for the {@link StreamTask} output serializer.
      *
      * @param type Output type information of the {@link StreamTask}
      * @param executionConfig Execution configuration
@@ -77,8 +78,9 @@ public interface StreamOperatorFactory<OUT> extends Serializable {
     }
 
     /**
-     * Is called by the {@link StreamGraph#addOperator} method when the {@link StreamGraph} is
-     * generated.
+     * Is called by the {@link StreamGraph#addOperator(Integer, String, String,
+     * StreamOperatorFactory, TypeInformation, TypeInformation, String)} method when the {@link
+     * StreamGraph} is generated.
      *
      * @param type The data type of the input.
      * @param executionConfig The execution config for this parallel execution.
