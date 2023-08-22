@@ -156,7 +156,7 @@ function wait_for_number_of_checkpoints {
 
 function get_completed_number_of_checkpoints {
     local job_id=$1
-    local json_res=$(curl -s http://localhost:8081/jobs/${job_id}/checkpoints)
+    local json_res=$(curl http://localhost:8081/jobs/${job_id}/checkpoints)
 
     echo ${json_res}    | # {"counts":{"restored":0,"total":25,"in_progress":1,"completed":24,"failed":0} ...
         cut -d ":" -f 6 | # 24,"failed"

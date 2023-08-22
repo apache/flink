@@ -26,7 +26,7 @@ function upload_to_s3() {
 
 	echo "Installing artifacts deployment script"	
 	export ARTIFACTS_DEST="$HOME/bin/artifacts"	
-	curl -sL https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash	
+	curl --fail --silent --show-error --location --retry 10 https://raw.githubusercontent.com/travis-ci/artifacts/master/install | bash
 	PATH="$(dirname "$ARTIFACTS_DEST"):$PATH"	
 
 	echo "Uploading contents of $FILES_DIR to S3:"	

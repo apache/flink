@@ -36,7 +36,7 @@ function get_artifact {
     local ARTIFACT_URL=$1
     BASENAME="`basename $ARTIFACT_URL`"
     if [ ! -f "$E2E_TARBALL_CACHE/$BASENAME" ]; then
-        curl $ARTIFACT_URL --retry 10 --retry-max-time 120 --output $E2E_TARBALL_CACHE/$BASENAME
+        curl $ARTIFACT_URL --retry-max-time 120 --output $E2E_TARBALL_CACHE/$BASENAME
         local res=$?
         if [ ! 0 -eq $res ]; then
             exit 1

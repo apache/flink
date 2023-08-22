@@ -53,6 +53,20 @@ source "${TEST_INFRA_DIR}/common_utils.sh"
 
 NODENAME=${NODENAME:-"localhost"}
 
+# common cUrl parameters
+cat << EOT >> ${HOME}/.curlrc
+# makes the curl command fail if a HTTP error code is returned
+--fail
+# prints the error
+--show-error
+# but omits other output (e.g. progress bar)
+--silent
+# retries if the server indicates that the requested artifact was moved
+--location
+# retries in case of common errors
+--retry 10
+EOT
+
 # REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
 # they should be used in curl command to query Flink REST API
 REST_PROTOCOL="http"
@@ -339,7 +353,7 @@ function start_and_wait_for_tm {
 
 function query_running_tms {
   local url="${REST_PROTOCOL}://${NODENAME}:8081/taskmanagers"
-  curl ${CURL_SSL_ARGS} -s "${url}"
+  curl ${CURL_SSL_ARGS} "${url}"
 }
 
 function query_number_of_running_tms {
@@ -695,7 +709,7 @@ function get_job_metric {
   local job_id=$1
   local metric_name=$2
 
-  local json=$(curl ${CURL_SSL_ARGS} -s ${REST_PROTOCOL}://${NODENAME}:8081/jobs/${job_id}/metrics?get=${metric_name})
+  local json=$(curl ${CURL_SSL_ARGS} ${REST_PROTOCOL}://${NODENAME}:8081/jobs/${job_id}/metrics?get=${metric_name})
   local metric_value=$(echo ${json} | sed -n 's/.*"value":"\(.*\)".*/\1/p')
 
   echo ${metric_value}

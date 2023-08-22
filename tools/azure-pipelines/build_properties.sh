@@ -27,7 +27,7 @@ function github_num_commits() {
 	fi
 	# check if it is docs only pull request
 	# 1. Get PR details
-	GITHUB_PULL_DETAIL=`curl --silent "https://api.github.com/repos/apache/flink/pulls/$PR_ID"`
+	GITHUB_PULL_DETAIL=`curl --retry 10 --fail --show-error --silent "https://api.github.com/repos/apache/flink/pulls/$PR_ID"`
 
 	# 2. Check if this build is in sync with the PR
 	GITHUB_PULL_HEAD_SHA=`echo $GITHUB_PULL_DETAIL | jq -r ".head.sha"`
