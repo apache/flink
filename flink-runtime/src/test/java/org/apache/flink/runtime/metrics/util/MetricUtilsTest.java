@@ -69,7 +69,7 @@ public class MetricUtilsTest extends TestLogger {
     }
 
     /**
-     * Tests that the {@link MetricUtils#startRemoteMetricsRpcService(Configuration, String,
+     * Tests that the {@link MetricUtils#startRemoteMetricsRpcService(Configuration, String, String,
      * RpcSystem)} respects the given {@link MetricOptions#QUERY_SERVICE_THREAD_PRIORITY}.
      */
     @Test
