@@ -1217,6 +1217,19 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 ROW(INT(), INT(), TIME(), ARRAY(CHAR(1))),
                                 Row.of(10, null, DEFAULT_TIME, new String[] {"a", "b", "c"}),
                                 Row.of(10L, null, "12:34:56", new String[] {"a", "b", "c"}))
+                        .build(),
+                CastTestSpecBuilder.testCastTo(
+                                ARRAY(ROW(BIGINT(), BIGINT(), STRING(), ARRAY(STRING()))))
+                        .fromCase(
+                                ARRAY(ROW(INT(), INT(), TIME(), ARRAY(CHAR(2)))),
+                                new Row[] {
+                                    Row.of(10, 1, DEFAULT_TIME, new String[] {"a1", "b1", "c1"}),
+                                    Row.of(11, 2, DEFAULT_TIME, new String[] {"a2", "b2", "c2"})
+                                },
+                                new Row[] {
+                                    Row.of(10L, 1L, "12:34:56", new String[] {"a1", "b1", "c1"}),
+                                    Row.of(11L, 2L, "12:34:56", new String[] {"a2", "b2", "c2"})
+                                })
                         .build());
     }
 

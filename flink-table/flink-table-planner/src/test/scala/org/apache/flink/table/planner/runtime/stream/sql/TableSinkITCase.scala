@@ -383,4 +383,32 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       List("+I[1, jason, 3, X, 43]", "+I[2, andy, 2, Y, 32]", "+I[3, clark, 1, Z, 29]")
     assertEquals(expected2.sorted, result2.sorted)
   }
+
+  @Test
+  def testNestedTypeInsert(): Unit = {
+    tEnv.executeSql("""
+                      |CREATE TABLE test_sink (
+                      |  a STRING NOT NULL,
+                      |  config ARRAY<ROW<notificationTypeOptInReference STRING NOT NULL,
+                      |                   cso STRING NOT NULL,
+                      |                   autocreate BOOLEAN NOT NULL> NOT NULL> NOT NULL,
+                      |  ingestionTime TIMESTAMP(3)
+                      |) WITH (
+                      |  'connector' = 'values'
+                      |)
+                      |""".stripMargin)
+    tEnv
+      .executeSql("""
+                    |INSERT INTO test_sink VALUES 
+                    | ('Transaction', 
+                    |   ARRAY[ROW('G', 'IT', true),ROW('H', 'FR', true), ROW('I', 'IT', false)], 
+                    |   TIMESTAMP '2023-08-30 14:01:00')
+                    |""".stripMargin)
+      .await()
+
+    val result = TestValuesTableFactory.getResults("test_sink")
+    val expected = List(
+      "+I[Transaction, [+I[G, IT, true], +I[H, FR, true], +I[I, IT, false]], 2023-08-30T14:01]")
+    assertEquals(expected.sorted, result.sorted)
+  }
 }
