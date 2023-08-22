@@ -59,7 +59,7 @@ public class FileRegionWriteReadUtils {
         headerBuffer.clear();
         headerBuffer.putInt(region.getFirstBufferIndex());
         headerBuffer.putInt(region.getNumBuffers());
-        headerBuffer.putLong(region.getRegionFileOffset());
+        headerBuffer.putLong(region.getRegionStartOffset());
         headerBuffer.flip();
 
         // write payload buffer.
@@ -122,7 +122,8 @@ public class FileRegionWriteReadUtils {
         regionBuffer.clear();
         regionBuffer.putInt(region.getFirstBufferIndex());
         regionBuffer.putInt(region.getNumBuffers());
-        regionBuffer.putLong(region.getRegionFileOffset());
+        regionBuffer.putLong(region.getRegionStartOffset());
+        regionBuffer.putLong(region.getRegionEndOffset());
         regionBuffer.flip();
         BufferReaderWriterUtil.writeBuffers(channel, regionBuffer.capacity(), regionBuffer);
     }
@@ -145,6 +146,8 @@ public class FileRegionWriteReadUtils {
         int firstBufferIndex = regionBuffer.getInt();
         int numBuffers = regionBuffer.getInt();
         long firstBufferOffset = regionBuffer.getLong();
-        return new FixedSizeRegion(firstBufferIndex, firstBufferOffset, numBuffers);
+        long lastBufferEndOffset = regionBuffer.getLong();
+        return new FixedSizeRegion(
+                firstBufferIndex, firstBufferOffset, lastBufferEndOffset, numBuffers);
     }
 }

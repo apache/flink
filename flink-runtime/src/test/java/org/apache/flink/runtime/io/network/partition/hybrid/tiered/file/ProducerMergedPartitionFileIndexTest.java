@@ -81,7 +81,7 @@ class ProducerMergedPartitionFileIndexTest {
                 boolean isNextRegionContinuous =
                         (j == 0 || random.nextBoolean()) && j != numBuffersPerSubpartition - 1;
                 flushedBuffers.add(
-                        new ProducerMergedPartitionFileIndex.FlushedBuffer(i, bufferIndex, 0));
+                        new ProducerMergedPartitionFileIndex.FlushedBuffer(i, bufferIndex, 0, 1));
                 bufferIndex++;
 
                 if (!isNextRegionContinuous) {

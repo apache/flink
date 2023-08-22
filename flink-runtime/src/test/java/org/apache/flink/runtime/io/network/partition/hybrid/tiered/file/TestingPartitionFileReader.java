@@ -19,10 +19,12 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.file;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.function.BiFunction;
@@ -31,14 +33,14 @@ import java.util.function.Function;
 /** Testing implementation for {@link PartitionFileReader}. */
 public class TestingPartitionFileReader implements PartitionFileReader {
 
-    private final BiFunction<Integer, Integer, Buffer> readBufferFunction;
+    private final BiFunction<Integer, Integer, ReadBufferResult> readBufferFunction;
 
     private final Function<Integer, Long> getPriorityFunction;
 
     private final Runnable releaseRunnable;
 
     private TestingPartitionFileReader(
-            BiFunction<Integer, Integer, Buffer> readBufferFunction,
+            BiFunction<Integer, Integer, ReadBufferResult> readBufferFunction,
             Function<Integer, Long> getPriorityFunction,
             Runnable releaseRunnable) {
         this.readBufferFunction = readBufferFunction;
@@ -47,13 +49,15 @@ public class TestingPartitionFileReader implements PartitionFileReader {
     }
 
     @Override
-    public Buffer readBuffer(
+    public ReadBufferResult readBuffer(
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
             int bufferIndex,
             MemorySegment memorySegment,
-            BufferRecycler recycler)
+            BufferRecycler recycler,
+            @Nullable ReadProgress readProgress,
+            @Nullable CompositeBuffer partialBuffer)
             throws IOException {
         return readBufferFunction.apply(bufferIndex, segmentId);
     }
@@ -63,7 +67,8 @@ public class TestingPartitionFileReader implements PartitionFileReader {
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
-            int bufferIndex) {
+            int bufferIndex,
+            @Nullable ReadProgress readProgress) {
         return getPriorityFunction.apply(subpartitionId.getSubpartitionId());
     }
 
@@ -74,7 +79,7 @@ public class TestingPartitionFileReader implements PartitionFileReader {
 
     /** Builder for {@link TestingPartitionFileReader}. */
     public static class Builder {
-        private BiFunction<Integer, Integer, Buffer> readBufferSupplier =
+        private BiFunction<Integer, Integer, ReadBufferResult> readBufferSupplier =
                 (bufferIndex, segmentId) -> null;
 
         private Function<Integer, Long> prioritySupplier = bufferIndex -> 0L;
@@ -82,7 +87,7 @@ public class TestingPartitionFileReader implements PartitionFileReader {
         private Runnable releaseNotifier = () -> {};
 
         public Builder setReadBufferSupplier(
-                BiFunction<Integer, Integer, Buffer> readBufferSupplier) {
+                BiFunction<Integer, Integer, ReadBufferResult> readBufferSupplier) {
             this.readBufferSupplier = readBufferSupplier;
             return this;
         }

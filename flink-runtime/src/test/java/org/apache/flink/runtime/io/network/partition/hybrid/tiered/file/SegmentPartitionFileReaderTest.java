@@ -102,12 +102,12 @@ class SegmentPartitionFileReaderTest {
     void testGetPriority() throws IOException {
         assertThat(
                         partitionFileReader.getPriority(
-                                DEFAULT_PARTITION_ID, DEFAULT_SUBPARTITION_ID, 0, 0))
+                                DEFAULT_PARTITION_ID, DEFAULT_SUBPARTITION_ID, 0, 0, null))
                 .isEqualTo(-1);
         assertThat(readBuffer(0, DEFAULT_SUBPARTITION_ID, 0)).isNotNull();
         assertThat(
                         partitionFileReader.getPriority(
-                                DEFAULT_PARTITION_ID, DEFAULT_SUBPARTITION_ID, 0, 1))
+                                DEFAULT_PARTITION_ID, DEFAULT_SUBPARTITION_ID, 0, 1, null))
                 .isEqualTo(-1);
     }
 
@@ -116,12 +116,19 @@ class SegmentPartitionFileReaderTest {
             throws IOException {
         MemorySegment memorySegment =
                 MemorySegmentFactory.allocateUnpooledSegment(DEFAULT_BUFFER_SIZE);
-        return partitionFileReader.readBuffer(
-                DEFAULT_PARTITION_ID,
-                subpartitionId,
-                segmentId,
-                bufferIndex,
-                memorySegment,
-                FreeingBufferRecycler.INSTANCE);
+        PartitionFileReader.ReadBufferResult readBufferResult =
+                partitionFileReader.readBuffer(
+                        DEFAULT_PARTITION_ID,
+                        subpartitionId,
+                        segmentId,
+                        bufferIndex,
+                        memorySegment,
+                        FreeingBufferRecycler.INSTANCE,
+                        null,
+                        null);
+        if (readBufferResult == null) {
+            return null;
+        }
+        return readBufferResult.getReadBuffers().get(0);
     }
 }
