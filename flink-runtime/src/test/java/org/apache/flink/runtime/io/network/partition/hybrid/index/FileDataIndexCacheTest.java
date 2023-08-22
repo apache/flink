@@ -68,7 +68,7 @@ class FileDataIndexCacheTest {
                 .hasValueSatisfying(
                         (region) -> {
                             assertThat(region.getFirstBufferIndex()).isEqualTo(0);
-                            assertThat(region.getRegionFileOffset()).isEqualTo(0);
+                            assertThat(region.getRegionStartOffset()).isEqualTo(0);
                             assertThat(region.getNumBuffers()).isEqualTo(3);
                         });
     }

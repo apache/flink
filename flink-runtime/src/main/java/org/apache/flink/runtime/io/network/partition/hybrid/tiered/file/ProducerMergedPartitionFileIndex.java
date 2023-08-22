@@ -173,6 +173,8 @@ public class ProducerMergedPartitionFileIndex {
                         new FixedSizeRegion(
                                 firstBufferInRegion.getBufferIndex(),
                                 firstBufferInRegion.getFileOffset(),
+                                lastBufferInRegion.getFileOffset()
+                                        + lastBufferInRegion.getBufferSizeBytes(),
                                 lastBufferInRegion.getBufferIndex()
                                         - firstBufferInRegion.getBufferIndex()
                                         + 1));
@@ -193,10 +195,13 @@ public class ProducerMergedPartitionFileIndex {
         /** The file offset that the buffer begin with. */
         private final long fileOffset;
 
-        FlushedBuffer(int subpartitionId, int bufferIndex, long fileOffset) {
+        private final long bufferSizeBytes;
+
+        FlushedBuffer(int subpartitionId, int bufferIndex, long fileOffset, long bufferSizeBytes) {
             this.subpartitionId = subpartitionId;
             this.bufferIndex = bufferIndex;
             this.fileOffset = fileOffset;
+            this.bufferSizeBytes = bufferSizeBytes;
         }
 
         int getSubpartitionId() {
@@ -209,6 +214,10 @@ public class ProducerMergedPartitionFileIndex {
 
         long getFileOffset() {
             return fileOffset;
+        }
+
+        long getBufferSizeBytes() {
+            return bufferSizeBytes;
         }
     }
 
@@ -257,20 +266,28 @@ public class ProducerMergedPartitionFileIndex {
      */
     public static class FixedSizeRegion implements FileDataIndexRegionHelper.Region {
 
-        public static final int REGION_SIZE = Integer.BYTES + Long.BYTES + Integer.BYTES;
+        public static final int REGION_SIZE =
+                Integer.BYTES + Long.BYTES + Integer.BYTES + Long.BYTES;
 
         /** The buffer index of first buffer. */
         private final int firstBufferIndex;
 
         /** The file offset of the region. */
-        private final long regionFileOffset;
+        private final long regionStartOffset;
+
+        private final long regionEndOffset;
 
         /** The number of buffers that the region contains. */
         private final int numBuffers;
 
-        public FixedSizeRegion(int firstBufferIndex, long regionFileOffset, int numBuffers) {
+        public FixedSizeRegion(
+                int firstBufferIndex,
+                long regionStartOffset,
+                long regionEndOffset,
+                int numBuffers) {
             this.firstBufferIndex = firstBufferIndex;
-            this.regionFileOffset = regionFileOffset;
+            this.regionStartOffset = regionStartOffset;
+            this.regionEndOffset = regionEndOffset;
             this.numBuffers = numBuffers;
         }
 
@@ -286,8 +303,13 @@ public class ProducerMergedPartitionFileIndex {
         }
 
         @Override
-        public long getRegionFileOffset() {
-            return regionFileOffset;
+        public long getRegionStartOffset() {
+            return regionStartOffset;
+        }
+
+        @Override
+        public long getRegionEndOffset() {
+            return regionEndOffset;
         }
 
         @Override

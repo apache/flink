@@ -32,8 +32,12 @@ import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** The data client is used to fetch data from remote tier. */
 public class RemoteTierConsumerAgent implements TierConsumerAgent {
@@ -87,21 +91,26 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent {
 
         // Read buffer from the partition file in remote storage.
         MemorySegment memorySegment = MemorySegmentFactory.allocateUnpooledSegment(bufferSizeBytes);
-        Buffer buffer = null;
+        PartitionFileReader.ReadBufferResult readBufferResult = null;
         try {
-            buffer =
+            readBufferResult =
                     partitionFileReader.readBuffer(
                             partitionId,
                             subpartitionId,
                             segmentId,
                             currentBufferIndex,
                             memorySegment,
-                            FreeingBufferRecycler.INSTANCE);
+                            FreeingBufferRecycler.INSTANCE,
+                            null,
+                            null);
         } catch (IOException e) {
             memorySegment.free();
             ExceptionUtils.rethrow(e, "Failed to read buffer from partition file.");
         }
-        if (buffer != null) {
+        List<Buffer> readBuffers = checkNotNull(readBufferResult).getReadBuffers();
+        if (!readBuffers.isEmpty()) {
+            checkState(readBuffers.size() == 1);
+            Buffer buffer = readBuffers.get(0);
             currentBufferIndexAndSegmentIds
                     .get(partitionId)
                     .put(subpartitionId, Tuple2.of(++currentBufferIndex, segmentId));
