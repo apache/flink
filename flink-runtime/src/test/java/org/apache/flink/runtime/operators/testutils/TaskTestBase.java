@@ -53,7 +53,7 @@ public abstract class TaskTestBase {
 
     protected MockEnvironment mockEnv;
 
-    public void initEnvironment(long memorySize, int bufferSize) {
+    protected void initEnvironment(long memorySize, int bufferSize) {
         this.memorySize = memorySize;
         this.inputSplitProvider = new MockInputSplitProvider();
         this.mockEnv =
@@ -65,12 +65,12 @@ public abstract class TaskTestBase {
                         .build();
     }
 
-    public IteratorWrappingTestSingleInputGate<Record> addInput(
+    protected IteratorWrappingTestSingleInputGate<Record> addInput(
             MutableObjectIterator<Record> input, int groupId) {
         return addInput(input, groupId, true);
     }
 
-    public IteratorWrappingTestSingleInputGate<Record> addInput(
+    protected IteratorWrappingTestSingleInputGate<Record> addInput(
             MutableObjectIterator<Record> input, int groupId, boolean read) {
         final IteratorWrappingTestSingleInputGate<Record> reader = this.mockEnv.addInput(input);
         TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
@@ -84,22 +84,22 @@ public abstract class TaskTestBase {
         return reader;
     }
 
-    public void addOutput(List<Record> output) {
+    protected void addOutput(List<Record> output) {
         this.mockEnv.addOutput(output);
         TaskConfig conf = new TaskConfig(this.mockEnv.getTaskConfiguration());
         conf.addOutputShipStrategy(ShipStrategyType.FORWARD);
         conf.setOutputSerializer(RecordSerializerFactory.get());
     }
 
-    public TaskConfig getTaskConfig() {
+    protected TaskConfig getTaskConfig() {
         return new TaskConfig(this.mockEnv.getTaskConfiguration());
     }
 
-    public Configuration getConfiguration() {
+    protected Configuration getConfiguration() {
         return this.mockEnv.getTaskConfiguration();
     }
 
-    public void registerTask(
+    protected void registerTask(
             @SuppressWarnings("rawtypes") Class<? extends Driver> driver,
             Class<? extends RichFunction> stubClass) {
 
@@ -108,7 +108,7 @@ public abstract class TaskTestBase {
         config.setStubWrapper(new UserCodeClassWrapper<>(stubClass));
     }
 
-    public void registerFileOutputTask(
+    protected void registerFileOutputTask(
             Class<? extends FileOutputFormat<Record>> stubClass,
             String outPath,
             Configuration formatParams) {
@@ -119,7 +119,7 @@ public abstract class TaskTestBase {
                 formatParams);
     }
 
-    public void registerFileOutputTask(
+    protected void registerFileOutputTask(
             FileOutputFormat<Record> outputFormat, String outPath, Configuration formatParams) {
 
         outputFormat.setOutputFilePath(new Path(outPath));
@@ -132,7 +132,7 @@ public abstract class TaskTestBase {
                 .write(new TaskConfig(this.mockEnv.getTaskConfiguration()));
     }
 
-    public void registerFileInputTask(
+    protected void registerFileInputTask(
             AbstractInvokable inTask,
             Class<? extends DelimitedInputFormat<Record>> stubClass,
             String inPath,
@@ -156,7 +156,7 @@ public abstract class TaskTestBase {
         this.inputSplitProvider.addInputSplits(inPath, 5);
     }
 
-    public MemoryManager getMemoryManager() {
+    protected MemoryManager getMemoryManager() {
         return this.mockEnv.getMemoryManager();
     }
 

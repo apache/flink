@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
-class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
+public class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
 
     private static final long HASH_MEM = 6 * 1024 * 1024;
 
@@ -99,7 +99,7 @@ class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
     }
 
     @TestTemplate
-    public void testHash2MatchTask() {
+    void testHash2MatchTask() {
         int keyCnt1 = 20;
         int valCnt1 = 1;
 
@@ -131,7 +131,7 @@ class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
     }
 
     @TestTemplate
-    public void testHash3MatchTask() {
+    void testHash3MatchTask() {
         int keyCnt1 = 20;
         int valCnt1 = 1;
 
@@ -163,7 +163,7 @@ class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
     }
 
     @TestTemplate
-    public void testHash4MatchTask() {
+    void testHash4MatchTask() {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -195,7 +195,7 @@ class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
     }
 
     @TestTemplate
-    public void testHash5MatchTask() {
+    void testHash5MatchTask() {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -227,7 +227,7 @@ class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
     }
 
     @TestTemplate
-    public void testFailingHashFirstMatchTask() {
+    void testFailingHashFirstMatchTask() {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -251,7 +251,7 @@ class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
     }
 
     @TestTemplate
-    public void testFailingHashSecondMatchTask() {
+    void testFailingHashSecondMatchTask() {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -494,19 +494,6 @@ class CachedMatchTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             }
 
             out.collect(record1);
-        }
-    }
-
-    public static final class MockDelayingMatchStub
-            extends RichFlatJoinFunction<Record, Record, Record> {
-        private static final long serialVersionUID = 1L;
-
-        @Override
-        public void join(Record record1, Record record2, Collector<Record> out) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-            }
         }
     }
 }

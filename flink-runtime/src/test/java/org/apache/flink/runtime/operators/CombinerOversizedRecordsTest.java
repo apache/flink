@@ -49,7 +49,7 @@ import static org.assertj.core.api.Assertions.fail;
  * Test that checks how the combiner handles very large records that are too large to be written
  * into a fresh sort buffer.
  */
-public class CombinerOversizedRecordsTest
+class CombinerOversizedRecordsTest
         extends UnaryOperatorTestBase<
                 GroupCombineFunction<
                         Tuple3<Integer, Integer, String>, Tuple3<Integer, Double, String>>,
@@ -85,7 +85,7 @@ public class CombinerOversizedRecordsTest
 
     // ------------------------------------------------------------------------
 
-    public CombinerOversizedRecordsTest(ExecutionConfig config) {
+    CombinerOversizedRecordsTest(ExecutionConfig config) {
         super(config, COMBINE_MEM, 0);
         combine_frac = (double) COMBINE_MEM / getMemoryManager().getMemorySize();
     }

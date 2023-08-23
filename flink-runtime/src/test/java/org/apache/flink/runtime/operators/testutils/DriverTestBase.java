@@ -128,7 +128,7 @@ public abstract class DriverTestBase<S extends Function> implements TaskContext<
     }
 
     @Parameters
-    public static Collection<Object[]> getConfigurations() {
+    private static Collection<Object[]> getConfigurations() {
 
         LinkedList<Object[]> configs = new LinkedList<Object[]>();
 
@@ -146,12 +146,12 @@ public abstract class DriverTestBase<S extends Function> implements TaskContext<
         return configs;
     }
 
-    public void addInput(MutableObjectIterator<Record> input) {
+    protected void addInput(MutableObjectIterator<Record> input) {
         this.inputs.add(input);
         this.sorters.add(null);
     }
 
-    public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp)
+    protected void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp)
             throws Exception {
         Sorter<Record> sorter =
                 ExternalSorter.newBuilder(
@@ -169,33 +169,33 @@ public abstract class DriverTestBase<S extends Function> implements TaskContext<
         this.inputs.add(null);
     }
 
-    public void addDriverComparator(RecordComparator comparator) {
+    protected void addDriverComparator(RecordComparator comparator) {
         this.comparators.add(comparator);
     }
 
-    public void setOutput(Collector<Record> output) {
+    protected void setOutput(Collector<Record> output) {
         this.output = output;
     }
 
-    public void setOutput(List<Record> output) {
+    protected void setOutput(List<Record> output) {
         this.output = new ListOutputCollector(output);
     }
 
-    public int getNumFileHandlesForSort() {
+    protected int getNumFileHandlesForSort() {
         return numFileHandles;
     }
 
-    public void setNumFileHandlesForSort(int numFileHandles) {
+    protected void setNumFileHandlesForSort(int numFileHandles) {
         this.numFileHandles = numFileHandles;
     }
 
     @SuppressWarnings("rawtypes")
-    public void testDriver(Driver driver, Class stubClass) throws Exception {
+    protected void testDriver(Driver driver, Class stubClass) throws Exception {
         testDriverInternal(driver, stubClass);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void testDriverInternal(Driver driver, Class stubClass) throws Exception {
+    protected void testDriverInternal(Driver driver, Class stubClass) throws Exception {
 
         this.driver = driver;
         driver.setup(this);
@@ -271,7 +271,7 @@ public abstract class DriverTestBase<S extends Function> implements TaskContext<
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations)
+    protected void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations)
             throws Exception {
 
         driver.setup(this);
@@ -290,7 +290,7 @@ public abstract class DriverTestBase<S extends Function> implements TaskContext<
         driver.teardown();
     }
 
-    public void cancel() throws Exception {
+    protected void cancel() throws Exception {
         this.running = false;
 
         // compensate for races, where cancel is called before the driver is set

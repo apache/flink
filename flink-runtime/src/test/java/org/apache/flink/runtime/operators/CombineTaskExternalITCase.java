@@ -23,7 +23,6 @@ import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.types.IntValue;
@@ -52,7 +51,7 @@ class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<R
             new RecordComparator(
                     new int[] {0}, (Class<? extends Value>[]) new Class<?>[] {IntValue.class});
 
-    public CombineTaskExternalITCase(ExecutionConfig config) {
+    CombineTaskExternalITCase(ExecutionConfig config) {
         super(config, COMBINE_MEM, 0);
 
         combine_frac = (double) COMBINE_MEM / this.getMemoryManager().getMemorySize();
@@ -114,7 +113,7 @@ class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<R
     }
 
     @TestTemplate
-    void testMultiLevelMergeCombineTask() throws Exception {
+    void testMultiLevelMergeCombineTask() {
         final int keyCnt = 100000;
         final int valCnt = 8;
 
@@ -196,55 +195,6 @@ class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<R
         @Override
         public void combine(Iterable<Record> records, Collector<Record> out) throws Exception {
             reduce(records, out);
-        }
-    }
-
-    public static final class MockFailingCombiningReduceStub
-            implements GroupReduceFunction<Record, Record>, GroupCombineFunction<Record, Record> {
-        private static final long serialVersionUID = 1L;
-
-        private int cnt = 0;
-
-        private final IntValue key = new IntValue();
-        private final IntValue value = new IntValue();
-        private final IntValue combineValue = new IntValue();
-
-        @Override
-        public void reduce(Iterable<Record> records, Collector<Record> out) {
-            Record element = null;
-            int sum = 0;
-
-            for (Record next : records) {
-                element = next;
-                element.getField(1, this.value);
-
-                sum += this.value.getValue();
-            }
-            element.getField(0, this.key);
-            this.value.setValue(sum - this.key.getValue());
-            element.setField(1, this.value);
-            out.collect(element);
-        }
-
-        @Override
-        public void combine(Iterable<Record> records, Collector<Record> out) {
-            Record element = null;
-            int sum = 0;
-
-            for (Record next : records) {
-                element = next;
-                element.getField(1, this.combineValue);
-
-                sum += this.combineValue.getValue();
-            }
-
-            if (++this.cnt >= 10) {
-                throw new ExpectedTestException();
-            }
-
-            this.combineValue.setValue(sum);
-            element.setField(1, this.combineValue);
-            out.collect(element);
         }
     }
 }

@@ -73,7 +73,7 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
     }
 
     @TestTemplate
-    public void testFailingMapTask() {
+    void testFailingMapTask() {
         final int keyCnt = 100;
         final int valCnt = 20;
 

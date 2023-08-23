@@ -37,13 +37,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
-public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
+class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 
     private static final long HASH_MEM = 6 * 1024 * 1024;
 
     private final double hash_frac;
 
-    public RightOuterJoinTaskTest(ExecutionConfig config) {
+    RightOuterJoinTaskTest(ExecutionConfig config) {
         super(config);
         hash_frac = (double) HASH_MEM / this.getMemoryManager().getMemorySize();
     }

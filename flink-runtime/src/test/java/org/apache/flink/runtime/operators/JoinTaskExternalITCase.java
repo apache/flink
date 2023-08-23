@@ -58,7 +58,7 @@ class JoinTaskExternalITCase extends DriverTestBase<FlatJoinFunction<Record, Rec
 
     private final CountingOutputCollector output = new CountingOutputCollector();
 
-    public JoinTaskExternalITCase(ExecutionConfig config) {
+    JoinTaskExternalITCase(ExecutionConfig config) {
         super(config, HASH_MEM, 2, SORT_MEM);
         bnljn_frac = (double) BNLJN_MEM / this.getMemoryManager().getMemorySize();
         hash_frac = (double) HASH_MEM / this.getMemoryManager().getMemorySize();

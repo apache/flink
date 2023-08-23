@@ -57,7 +57,7 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
 
     private final CountingOutputCollector output = new CountingOutputCollector();
 
-    public CoGroupTaskTest(ExecutionConfig config) {
+    CoGroupTaskTest(ExecutionConfig config) {
         super(config, 0, 2, SORT_MEM);
     }
 

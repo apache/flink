@@ -341,7 +341,7 @@ class CombiningExternalSorterITCase {
 
     // --------------------------------------------------------------------------------------------
 
-    public static class TestCountCombiner
+    private static class TestCountCombiner
             extends RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
             implements GroupCombineFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
         private static final long serialVersionUID = 1L;
@@ -384,7 +384,7 @@ class CombiningExternalSorterITCase {
         }
     }
 
-    public static class TestCountCombiner2
+    private static class TestCountCombiner2
             extends RichGroupReduceFunction<Tuple2<Integer, String>, Tuple2<Integer, String>>
             implements GroupCombineFunction<Tuple2<Integer, String>, Tuple2<Integer, String>> {
         private static final long serialVersionUID = 1L;
@@ -425,7 +425,7 @@ class CombiningExternalSorterITCase {
 
     // --------------------------------------------------------------------------------------------
 
-    public static class MaterializedCountCombiner
+    private static class MaterializedCountCombiner
             extends RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
             implements GroupCombineFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
         private static final long serialVersionUID = 1L;

@@ -33,13 +33,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(ParameterizedTestExtension.class)
-public class BitSetTest {
+class BitSetTest {
 
     private BitSet bitSet;
     int byteSize;
     MemorySegment memorySegment;
 
-    public BitSetTest(int byteSize) {
+    BitSetTest(int byteSize) {
         this.byteSize = byteSize;
         memorySegment = MemorySegmentFactory.allocateUnpooledSegment(byteSize);
     }
@@ -101,7 +101,7 @@ public class BitSetTest {
     }
 
     @Parameters(name = "byte size = {0}")
-    public static List<Integer> getByteSize() {
+    private static List<Integer> getByteSize() {
         return Arrays.asList(1000, 1024, 2019);
     }
 }

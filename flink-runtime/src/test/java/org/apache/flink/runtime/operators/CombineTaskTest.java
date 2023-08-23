@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
-public class CombineTaskTest
+class CombineTaskTest
         extends UnaryOperatorTestBase<
                 RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>,
                 Tuple2<Integer, Integer>,
@@ -70,7 +70,7 @@ public class CombineTaskTest
                     new TypeComparator<?>[] {new IntComparator(true)},
                     new TypeSerializer<?>[] {IntSerializer.INSTANCE});
 
-    public CombineTaskTest(ExecutionConfig config) {
+    CombineTaskTest(ExecutionConfig config) {
         super(config, COMBINE_MEM, 0);
 
         combine_frac = (double) COMBINE_MEM / this.getMemoryManager().getMemorySize();

@@ -52,7 +52,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-public class ChainTaskTest extends TaskTestBase {
+class ChainTaskTest extends TaskTestBase {
 
     private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
 

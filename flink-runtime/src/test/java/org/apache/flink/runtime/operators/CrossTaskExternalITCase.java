@@ -37,7 +37,7 @@ class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record, Recor
 
     private final CountingOutputCollector output = new CountingOutputCollector();
 
-    public CrossTaskExternalITCase(ExecutionConfig config) {
+    CrossTaskExternalITCase(ExecutionConfig config) {
         super(config, CROSS_MEM, 0);
         cross_frac = (double) CROSS_MEM / this.getMemoryManager().getMemorySize();
     }

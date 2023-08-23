@@ -50,7 +50,7 @@ class CoGroupTaskExternalITCase extends DriverTestBase<CoGroupFunction<Record, R
 
     private final CountingOutputCollector output = new CountingOutputCollector();
 
-    public CoGroupTaskExternalITCase(ExecutionConfig config) {
+    CoGroupTaskExternalITCase(ExecutionConfig config) {
         super(config, 0, 2, SORT_MEM);
     }
 

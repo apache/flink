@@ -70,7 +70,7 @@ class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Recor
 
     private final List<Record> outList = new ArrayList<>();
 
-    public JoinTaskTest(ExecutionConfig config) {
+    JoinTaskTest(ExecutionConfig config) {
         super(config, HASH_MEM, NUM_SORTER, SORT_MEM);
         bnljn_frac = (double) BNLJN_MEM / this.getMemoryManager().getMemorySize();
         hash_frac = (double) HASH_MEM / this.getMemoryManager().getMemorySize();

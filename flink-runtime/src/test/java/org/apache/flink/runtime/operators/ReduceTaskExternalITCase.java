@@ -54,12 +54,12 @@ class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Re
 
     private final List<Record> outList = new ArrayList<>();
 
-    public ReduceTaskExternalITCase(ExecutionConfig config) {
+    ReduceTaskExternalITCase(ExecutionConfig config) {
         super(config, 0, 1, 3 * 1024 * 1024);
     }
 
     @TestTemplate
-    public void testSingleLevelMergeReduceTask() {
+    void testSingleLevelMergeReduceTask() {
         final int keyCnt = 8192;
         final int valCnt = 8;
 
@@ -95,7 +95,7 @@ class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Re
     }
 
     @TestTemplate
-    public void testMultiLevelMergeReduceTask() {
+    void testMultiLevelMergeReduceTask() {
         final int keyCnt = 32768;
         final int valCnt = 8;
 
@@ -131,7 +131,7 @@ class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Re
     }
 
     @TestTemplate
-    public void testSingleLevelMergeCombiningReduceTask() throws IOException {
+    void testSingleLevelMergeCombiningReduceTask() throws IOException {
         final int keyCnt = 8192;
         final int valCnt = 8;
 
@@ -187,7 +187,7 @@ class ReduceTaskExternalITCase extends DriverTestBase<RichGroupReduceFunction<Re
     }
 
     @TestTemplate
-    public void testMultiLevelMergeCombiningReduceTask() throws IOException {
+    void testMultiLevelMergeCombiningReduceTask() throws IOException {
 
         int keyCnt = 32768;
         int valCnt = 8;

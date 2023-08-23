@@ -124,7 +124,7 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT>
     }
 
     @Parameters
-    public static Collection<Object[]> getConfigurations() throws IOException {
+    private static Collection<Object[]> getConfigurations() throws IOException {
         LinkedList<Object[]> configs = new LinkedList<>();
 
         ExecutionConfig withReuse = new ExecutionConfig();
@@ -141,13 +141,13 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT>
         return configs;
     }
 
-    public void addInput(MutableObjectIterator<IN> input, TypeSerializer<IN> serializer) {
+    protected void addInput(MutableObjectIterator<IN> input, TypeSerializer<IN> serializer) {
         this.inputs.add(input);
         this.sorters.add(null);
         this.inputSerializers.add(serializer);
     }
 
-    public void addInputSorted(
+    protected void addInputSorted(
             MutableObjectIterator<IN> input, TypeSerializer<IN> serializer, TypeComparator<IN> comp)
             throws Exception {
         this.inputSerializers.add(serializer);
@@ -163,33 +163,33 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT>
         this.inputs.add(null);
     }
 
-    public void addDriverComparator(TypeComparator<IN> comparator) {
+    protected void addDriverComparator(TypeComparator<IN> comparator) {
         this.comparators.add(comparator);
     }
 
-    public void setOutput(Collector<OUT> output) {
+    protected void setOutput(Collector<OUT> output) {
         this.output = output;
     }
 
-    public void setOutput(List<OUT> output, TypeSerializer<OUT> outSerializer) {
+    protected void setOutput(List<OUT> output, TypeSerializer<OUT> outSerializer) {
         this.output = new ListOutputCollector<>(output, outSerializer);
     }
 
-    public int getNumFileHandlesForSort() {
+    protected int getNumFileHandlesForSort() {
         return numFileHandles;
     }
 
-    public void setNumFileHandlesForSort(int numFileHandles) {
+    protected void setNumFileHandlesForSort(int numFileHandles) {
         this.numFileHandles = numFileHandles;
     }
 
     @SuppressWarnings("rawtypes")
-    public void testDriver(Driver driver, Class stubClass) throws Exception {
+    protected void testDriver(Driver driver, Class stubClass) throws Exception {
         testDriverInternal(driver, stubClass);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void testDriverInternal(Driver driver, Class stubClass) throws Exception {
+    protected void testDriverInternal(Driver driver, Class stubClass) throws Exception {
 
         this.driver = driver;
         driver.setup(this);
@@ -266,7 +266,7 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT>
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations)
+    protected void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations)
             throws Exception {
         driver.setup(this);
 
@@ -284,7 +284,7 @@ public abstract class BinaryOperatorTestBase<S extends Function, IN, OUT>
         driver.teardown();
     }
 
-    public void cancel() throws Exception {
+    protected void cancel() throws Exception {
         this.running = false;
 
         // compensate for races, where cancel is called before the driver is set

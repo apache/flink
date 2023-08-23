@@ -262,7 +262,7 @@ class AllReduceDriverTest {
     //  Test UDFs
     // --------------------------------------------------------------------------------------------
 
-    public static final class ConcatSumFirstReducer
+    private static final class ConcatSumFirstReducer
             extends RichReduceFunction<Tuple2<String, Integer>> {
 
         @Override

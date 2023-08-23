@@ -27,11 +27,11 @@ import org.junit.jupiter.api.TestTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class RightOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExternalITCase {
+class RightOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExternalITCase {
 
     private final double hash_frac;
 
-    public RightOuterJoinTaskExternalITCase(ExecutionConfig config) {
+    RightOuterJoinTaskExternalITCase(ExecutionConfig config) {
         super(config);
         hash_frac = (double) HASH_MEM / this.getMemoryManager().getMemorySize();
     }

@@ -36,7 +36,7 @@ import org.junit.jupiter.api.TestTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public abstract class AbstractOuterJoinTaskExternalITCase
+abstract class AbstractOuterJoinTaskExternalITCase
         extends BinaryOperatorTestBase<
                 FlatJoinFunction<
                         Tuple2<Integer, Integer>,
@@ -76,7 +76,7 @@ public abstract class AbstractOuterJoinTaskExternalITCase
     protected final CountingOutputCollector<Tuple2<Integer, Integer>> output =
             new CountingOutputCollector<>();
 
-    public AbstractOuterJoinTaskExternalITCase(ExecutionConfig config) {
+    AbstractOuterJoinTaskExternalITCase(ExecutionConfig config) {
         super(config, HASH_MEM, 2, SORT_MEM);
         bnljn_frac = (double) BNLJN_MEM / this.getMemoryManager().getMemorySize();
     }

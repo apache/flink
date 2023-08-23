@@ -187,7 +187,7 @@ class AllGroupReduceDriverTest {
     //  Test UDFs
     // --------------------------------------------------------------------------------------------
 
-    public static final class ConcatSumReducer
+    private static final class ConcatSumReducer
             extends RichGroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>> {
 
         @Override
@@ -205,7 +205,7 @@ class AllGroupReduceDriverTest {
         }
     }
 
-    public static final class ConcatSumMutableReducer
+    private static final class ConcatSumMutableReducer
             extends RichGroupReduceFunction<
                     Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> {
 

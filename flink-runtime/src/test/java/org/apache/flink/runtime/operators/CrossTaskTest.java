@@ -43,7 +43,7 @@ class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>
 
     private final CountingOutputCollector output = new CountingOutputCollector();
 
-    public CrossTaskTest(ExecutionConfig config) {
+    CrossTaskTest(ExecutionConfig config) {
         super(config, CROSS_MEM, 0);
 
         cross_frac = (double) CROSS_MEM / this.getMemoryManager().getMemorySize();

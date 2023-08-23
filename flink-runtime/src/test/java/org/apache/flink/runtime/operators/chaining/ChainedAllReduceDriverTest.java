@@ -42,7 +42,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class ChainedAllReduceDriverTest extends TaskTestBase {
+class ChainedAllReduceDriverTest extends TaskTestBase {
 
     private static final int MEMORY_MANAGER_SIZE = 1024 * 1024 * 3;
 

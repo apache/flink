@@ -1230,7 +1230,7 @@ class NonReusingHashJoinIteratorITCase {
     }
 
     /** Private class used for storage of the expected matches in a hash-map. */
-    public static class TupleIntPairMatch {
+    static class TupleIntPairMatch {
         private final int left;
         private final String right;
 

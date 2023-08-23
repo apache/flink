@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
-public abstract class AbstractOuterJoinTaskTest
+abstract class AbstractOuterJoinTaskTest
         extends BinaryOperatorTestBase<
                 FlatJoinFunction<
                         Tuple2<Integer, Integer>,
@@ -89,7 +89,7 @@ public abstract class AbstractOuterJoinTaskTest
                     (Class<Tuple2<Integer, Integer>>) (Class<?>) Tuple2.class,
                     new TypeSerializer<?>[] {IntSerializer.INSTANCE, IntSerializer.INSTANCE});
 
-    public AbstractOuterJoinTaskTest(ExecutionConfig config) {
+    AbstractOuterJoinTaskTest(ExecutionConfig config) {
         super(config, HASH_MEM, NUM_SORTER, SORT_MEM);
         bnljn_frac = (double) BNLJN_MEM / this.getMemoryManager().getMemorySize();
     }
