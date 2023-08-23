@@ -102,6 +102,18 @@ public class ConfigurationUtilsTest extends TestLogger {
 
     @Test
     public void testConvertToString() {
+        {
+            GlobalConfiguration.setFlinkConfFileName(GlobalConfiguration.FLINK_CONF_FILENAME);
+            testConvertToStringInternal();
+        }
+        {
+            GlobalConfiguration.setFlinkConfFileName(
+                    GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
+            testConvertToStringInternal();
+        }
+    }
+
+    private void testConvertToStringInternal() {
         // String
         assertEquals("Simple String", ConfigurationUtils.convertToString("Simple String"));
 
@@ -116,13 +128,23 @@ public class ConfigurationUtilsTest extends TestLogger {
         listElements.add("Test;String");
         listElements.add(Duration.ZERO);
         listElements.add(42);
-        assertEquals("'Test;String';0 ms;42", ConfigurationUtils.convertToString(listElements));
-
+        if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            assertEquals("'Test;String';0 ms;42", ConfigurationUtils.convertToString(listElements));
+        } else {
+            assertEquals(
+                    "[Test;String, 0 ms, 42]", ConfigurationUtils.convertToString(listElements));
+        }
         // Map
         final Map<Object, Object> mapElements = new HashMap<>();
         mapElements.put("A:,B", "C:,D");
         mapElements.put(10, 20);
-        assertEquals("'''A:,B'':''C:,D''',10:20", ConfigurationUtils.convertToString(mapElements));
+        if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            assertEquals(
+                    "'''A:,B'':''C:,D''',10:20", ConfigurationUtils.convertToString(mapElements));
+        } else {
+            assertEquals(
+                    "{'A:,B': 'C:,D', 10: 20}", ConfigurationUtils.convertToString(mapElements));
+        }
     }
 
     @Test

@@ -342,32 +342,75 @@ public class ConfigurationUtils {
     static <T> T convertToList(Object rawValue, Class<?> atomicClass) {
         if (rawValue instanceof List) {
             return (T) rawValue;
+        } else if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            return convertToListForFlinkConf(rawValue, atomicClass);
         } else {
-            return (T)
-                    StructuredOptionsSplitter.splitEscaped(rawValue.toString(), ';').stream()
-                            .map(s -> convertValue(s, atomicClass))
-                            .collect(Collectors.toList());
+            try {
+                List<Object> data =
+                        (List<Object>) YamlParserUtils.convertToObject(rawValue.toString());
+                return (T)
+                        data.stream()
+                                .map(s -> convertValue(s, atomicClass))
+                                .collect(Collectors.toList());
+            } catch (Exception e) {
+                try {
+                    return convertToListForFlinkConf(rawValue, atomicClass);
+                } catch (Exception ex) {
+                    throw e;
+                }
+            }
         }
+    }
+
+    private static <T> T convertToListForFlinkConf(Object rawValue, Class<?> atomicClass) {
+        return (T)
+                StructuredOptionsSplitter.splitEscaped(rawValue.toString(), ';').stream()
+                        .map(s -> convertValue(s, atomicClass))
+                        .collect(Collectors.toList());
     }
 
     @SuppressWarnings("unchecked")
     static Map<String, String> convertToProperties(Object o) {
         if (o instanceof Map) {
             return (Map<String, String>) o;
+        } else if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            return convertToPropertiesForFlinkConf(o);
         } else {
-            List<String> listOfRawProperties =
-                    StructuredOptionsSplitter.splitEscaped(o.toString(), ',');
-            return listOfRawProperties.stream()
-                    .map(s -> StructuredOptionsSplitter.splitEscaped(s, ':'))
-                    .peek(
-                            pair -> {
-                                if (pair.size() != 2) {
-                                    throw new IllegalArgumentException(
-                                            "Map item is not a key-value pair (missing ':'?)");
-                                }
-                            })
-                    .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
+            try {
+                Map<Object, Object> map =
+                        (Map<Object, Object>) YamlParserUtils.convertToObject(o.toString());
+                return convertToStringMap(map);
+            } catch (Exception e) {
+                try {
+                    return convertToPropertiesForFlinkConf(o);
+                } catch (Exception ex) {
+                    throw e;
+                }
+            }
         }
+    }
+
+    private static Map<String, String> convertToPropertiesForFlinkConf(Object o) {
+        List<String> listOfRawProperties =
+                StructuredOptionsSplitter.splitEscaped(o.toString(), ',');
+        return listOfRawProperties.stream()
+                .map(s -> StructuredOptionsSplitter.splitEscaped(s, ':'))
+                .peek(
+                        pair -> {
+                            if (pair.size() != 2) {
+                                throw new IllegalArgumentException(
+                                        "Map item is not a key-value pair (missing ':'?)");
+                            }
+                        })
+                .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
+    }
+
+    private static Map<String, String> convertToStringMap(Map<Object, Object> map) {
+        return map.entrySet().stream()
+                .collect(
+                        Collectors.toMap(
+                                entry -> entry.getKey().toString(),
+                                entry -> entry.getValue().toString()));
     }
 
     @SuppressWarnings("unchecked")
@@ -414,11 +457,17 @@ public class ConfigurationUtils {
             Duration duration = (Duration) o;
             return TimeUtils.formatWithHighestUnit(duration);
         } else if (o instanceof List) {
+            if (!GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+                return YamlParserUtils.convertToString(o);
+            }
             return ((List<?>) o)
                     .stream()
                             .map(e -> escapeWithSingleQuote(convertToString(e), ";"))
                             .collect(Collectors.joining(";"));
         } else if (o instanceof Map) {
+            if (!GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+                return YamlParserUtils.convertToString(o);
+            }
             return ((Map<?, ?>) o)
                     .entrySet().stream()
                             .map(
