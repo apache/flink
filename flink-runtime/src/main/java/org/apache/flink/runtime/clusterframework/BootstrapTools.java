@@ -75,7 +75,7 @@ public class BootstrapTools {
     public static void writeConfiguration(Configuration cfg, File file) throws IOException {
         try (FileWriter fwrt = new FileWriter(file);
                 PrintWriter out = new PrintWriter(fwrt)) {
-            for (Map.Entry<String, String> entry : cfg.toMap().entrySet()) {
+            for (Map.Entry<String, String> entry : cfg.toFileWritableMap().entrySet()) {
                 out.print(entry.getKey());
                 out.print(": ");
                 out.println(entry.getValue());

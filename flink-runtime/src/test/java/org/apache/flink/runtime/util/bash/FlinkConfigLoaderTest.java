@@ -43,7 +43,7 @@ class FlinkConfigLoaderTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        File flinkConfFile = TempDirUtils.newFile(confDir.toAbsolutePath(), "flink-conf.yaml");
+        File flinkConfFile = TempDirUtils.newFile(confDir.toAbsolutePath(), "flink-config.yaml");
         FileWriter fw = new FileWriter(flinkConfFile);
         fw.write(TEST_CONFIG_KEY + ": " + TEST_CONFIG_VALUE + "\n");
         fw.close();

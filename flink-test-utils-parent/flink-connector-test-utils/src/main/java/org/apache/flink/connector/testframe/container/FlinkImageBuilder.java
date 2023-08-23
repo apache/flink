@@ -250,6 +250,10 @@ public class FlinkImageBuilder {
                                                         + getJavaVersionSuffix()
                                                         + "-jre-jammy")
                                         .copy(flinkHome, flinkHome)
+                                        // Make sure the conf directory don't contain the
+                                        // flink-conf.yaml so that the standard YAML parser will be
+                                        // used.
+                                        .run("rm -f " + flinkHome + "/conf/flink-conf.yaml")
                                         .build())
                 .withFileFromPath(flinkHome, flinkDist)
                 .get(timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -288,11 +292,11 @@ public class FlinkImageBuilder {
 
     private Path createTemporaryFlinkConfFile(Configuration finalConfiguration, Path tempDirectory)
             throws IOException {
-        // Create a temporary flink-conf.yaml file and write merged configurations into it
+        // Create a temporary flink-config.yaml file and write merged configurations into it
         Path flinkConfFile = tempDirectory.resolve(GlobalConfiguration.FLINK_CONF_FILENAME);
         Files.write(
                 flinkConfFile,
-                finalConfiguration.toMap().entrySet().stream()
+                finalConfiguration.toFileWritableMap().entrySet().stream()
                         .map(entry -> entry.getKey() + ": " + entry.getValue())
                         .collect(Collectors.toList()));
 

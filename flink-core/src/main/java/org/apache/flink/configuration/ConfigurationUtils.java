@@ -342,9 +342,23 @@ public class ConfigurationUtils {
     static <T> T convertToList(Object rawValue, Class<?> atomicClass) {
         if (rawValue instanceof List) {
             return (T) rawValue;
-        } else {
+        } else if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
             return (T)
                     StructuredOptionsSplitter.splitEscaped(rawValue.toString(), ';').stream()
+                            .map(s -> convertValue(s, atomicClass))
+                            .collect(Collectors.toList());
+        } else {
+            List<Object> data = (List<Object>) YamlParserUtils.convertToObject(rawValue.toString());
+            // we should make sure the map data generics is Map<String, String>
+            if (atomicClass == Map.class) {
+                return (T)
+                        data.stream()
+                                .map(s -> convertToStringMap((Map<Object, Object>) s))
+                                .collect(Collectors.toList());
+            }
+
+            return (T)
+                    data.stream()
                             .map(s -> convertValue(s, atomicClass))
                             .collect(Collectors.toList());
         }
@@ -354,7 +368,7 @@ public class ConfigurationUtils {
     static Map<String, String> convertToProperties(Object o) {
         if (o instanceof Map) {
             return (Map<String, String>) o;
-        } else {
+        } else if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
             List<String> listOfRawProperties =
                     StructuredOptionsSplitter.splitEscaped(o.toString(), ',');
             return listOfRawProperties.stream()
@@ -367,7 +381,19 @@ public class ConfigurationUtils {
                                 }
                             })
                     .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
+        } else {
+            Map<Object, Object> map =
+                    (Map<Object, Object>) YamlParserUtils.convertToObject(o.toString());
+            return convertToStringMap(map);
         }
+    }
+
+    private static Map<String, String> convertToStringMap(Map<Object, Object> map) {
+        return map.entrySet().stream()
+                .collect(
+                        Collectors.toMap(
+                                entry -> entry.getKey().toString(),
+                                entry -> entry.getValue().toString()));
     }
 
     @SuppressWarnings("unchecked")
@@ -414,11 +440,17 @@ public class ConfigurationUtils {
             Duration duration = (Duration) o;
             return TimeUtils.formatWithHighestUnit(duration);
         } else if (o instanceof List) {
+            if (!GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+                return YamlParserUtils.convertToString(o);
+            }
             return ((List<?>) o)
                     .stream()
                             .map(e -> escapeWithSingleQuote(convertToString(e), ";"))
                             .collect(Collectors.joining(";"));
         } else if (o instanceof Map) {
+            if (!GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+                return YamlParserUtils.convertToString(o);
+            }
             return ((Map<?, ?>) o)
                     .entrySet().stream()
                             .map(
