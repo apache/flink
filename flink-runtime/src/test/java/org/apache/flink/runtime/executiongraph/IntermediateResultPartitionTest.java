@@ -102,7 +102,7 @@ public class IntermediateResultPartitionTest {
 
         // Finished partition has produced all data
         partition1.markFinished();
-        assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isEqualTo(1);
+        assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isOne();
         assertThat(partition1.hasDataAllProduced()).isTrue();
         assertThat(partition2.hasDataAllProduced()).isFalse();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isFalse();
@@ -112,14 +112,14 @@ public class IntermediateResultPartitionTest {
         result.resetForNewExecution();
         assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isEqualTo(2);
         partition2.markFinished();
-        assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isEqualTo(1);
+        assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isOne();
         assertThat(partition1.hasDataAllProduced()).isFalse();
         assertThat(partition2.hasDataAllProduced()).isTrue();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isFalse();
 
         // All partition finished.
         partition1.markFinished();
-        assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isEqualTo(0);
+        assertThat(consumedPartitionGroup.getNumberOfUnfinishedPartitions()).isZero();
         assertThat(partition1.hasDataAllProduced()).isTrue();
         assertThat(partition2.hasDataAllProduced()).isTrue();
         assertThat(consumedPartitionGroup.areAllPartitionsFinished()).isTrue();

@@ -22,14 +22,12 @@ package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link PartitionGroupReleaseStrategyFactoryLoader}. */
-public class PartitionGroupReleaseStrategyFactoryLoaderTest {
+class PartitionGroupReleaseStrategyFactoryLoaderTest {
 
     @Test
     public void featureEnabledByDefault() {
@@ -38,7 +36,7 @@ public class PartitionGroupReleaseStrategyFactoryLoaderTest {
                 PartitionGroupReleaseStrategyFactoryLoader.loadPartitionGroupReleaseStrategyFactory(
                         emptyConfiguration);
 
-        assertThat(factory, is(instanceOf(RegionPartitionGroupReleaseStrategy.Factory.class)));
+        assertThat(factory).isInstanceOf(RegionPartitionGroupReleaseStrategy.Factory.class);
     }
 
     @Test
@@ -51,7 +49,6 @@ public class PartitionGroupReleaseStrategyFactoryLoaderTest {
                 PartitionGroupReleaseStrategyFactoryLoader.loadPartitionGroupReleaseStrategyFactory(
                         emptyConfiguration);
 
-        assertThat(
-                factory, is(instanceOf(NotReleasingPartitionGroupReleaseStrategy.Factory.class)));
+        assertThat(factory).isInstanceOf(NotReleasingPartitionGroupReleaseStrategy.Factory.class);
     }
 }

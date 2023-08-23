@@ -24,17 +24,16 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
 import org.apache.flink.runtime.jobgraph.topology.LogicalVertex;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link LogicalPipelinedRegionComputeUtil}. */
-public class LogicalPipelinedRegionComputeUtilTest {
+class LogicalPipelinedRegionComputeUtilTest {
     /**
      * Tests that the computation of the job graph with isolated vertices works correctly.
      *
@@ -47,7 +46,7 @@ public class LogicalPipelinedRegionComputeUtilTest {
      * </pre>
      */
     @Test
-    public void testIsolatedVertices() {
+    void testIsolatedVertices() {
         JobVertex v1 = new JobVertex("v1");
         JobVertex v2 = new JobVertex("v2");
         JobVertex v3 = new JobVertex("v3");
@@ -68,7 +67,7 @@ public class LogicalPipelinedRegionComputeUtilTest {
      * </pre>
      */
     @Test
-    public void testVariousResultPartitionTypesBetweenVertices() {
+    void testVariousResultPartitionTypesBetweenVertices() {
         testThreeVerticesConnectSequentially(
                 ResultPartitionType.BLOCKING, ResultPartitionType.PIPELINED, 2, 1, 2);
         testThreeVerticesConnectSequentially(
@@ -109,7 +108,7 @@ public class LogicalPipelinedRegionComputeUtilTest {
      * </pre>
      */
     @Test
-    public void testTwoInputsMergesIntoOne() {
+    void testTwoInputsMergesIntoOne() {
         JobVertex v1 = new JobVertex("v1");
         JobVertex v2 = new JobVertex("v2");
         JobVertex v3 = new JobVertex("v3");
@@ -142,7 +141,7 @@ public class LogicalPipelinedRegionComputeUtilTest {
      * </pre>
      */
     @Test
-    public void testOneInputSplitsIntoTwo() {
+    void testOneInputSplitsIntoTwo() {
         JobVertex v1 = new JobVertex("v1");
         JobVertex v2 = new JobVertex("v2");
         JobVertex v3 = new JobVertex("v3");
@@ -178,7 +177,7 @@ public class LogicalPipelinedRegionComputeUtilTest {
      * </pre>
      */
     @Test
-    public void testDiamondWithMixedPipelinedAndBlockingEdges() {
+    void testDiamondWithMixedPipelinedAndBlockingEdges() {
         JobVertex v1 = new JobVertex("v1");
         JobVertex v2 = new JobVertex("v2");
         JobVertex v3 = new JobVertex("v3");
@@ -206,7 +205,9 @@ public class LogicalPipelinedRegionComputeUtilTest {
 
     private static void checkRegionSize(
             Set<Set<LogicalVertex>> regions, int numOfRegions, int... sizes) {
-        assertEquals(numOfRegions, regions.size());
-        containsInAnyOrder(regions.stream().map(Set::size).collect(Collectors.toList()), sizes);
+        assertThat(regions).hasSize(numOfRegions);
+        assertThat(regions.stream().map(Set::size).collect(Collectors.toList()))
+                .containsExactlyInAnyOrderElementsOf(
+                        Arrays.stream(sizes).boxed().collect(Collectors.toList()));
     }
 }

@@ -18,10 +18,9 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.clock.ManualClock;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -29,42 +28,38 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link ExponentialDelayRestartBackoffTimeStrategy}. */
-public class ExponentialDelayRestartBackoffTimeStrategyTest extends TestLogger {
+class ExponentialDelayRestartBackoffTimeStrategyTest {
 
     private final Exception failure = new Exception();
 
     @Test
-    public void testAlwaysRestart() throws Exception {
+    void testAlwaysRestart() throws Exception {
         final ExponentialDelayRestartBackoffTimeStrategy restartStrategy =
                 new ExponentialDelayRestartBackoffTimeStrategy(
                         new ManualClock(), 1L, 3L, 2.0, 4L, 0.25);
 
         for (int i = 0; i < 13; i++) {
-            assertTrue(restartStrategy.canRestart());
+            assertThat(restartStrategy.canRestart()).isTrue();
             restartStrategy.notifyFailure(failure);
         }
     }
 
     @Test
-    public void testInitialBackoff() throws Exception {
+    void testInitialBackoff() throws Exception {
         long initialBackoffMS = 42L;
 
         final ExponentialDelayRestartBackoffTimeStrategy restartStrategy =
                 new ExponentialDelayRestartBackoffTimeStrategy(
                         new ManualClock(), initialBackoffMS, 45L, 2.0, 8L, 0);
 
-        assertThat(restartStrategy.getBackoffTime(), is(initialBackoffMS));
+        assertThat(restartStrategy.getBackoffTime()).isEqualTo(initialBackoffMS);
     }
 
     @Test
-    public void testMaxBackoff() throws Exception {
+    void testMaxBackoff() throws Exception {
         final long maxBackoffMS = 6L;
 
         final ExponentialDelayRestartBackoffTimeStrategy restartStrategy =
@@ -73,12 +68,12 @@ public class ExponentialDelayRestartBackoffTimeStrategyTest extends TestLogger {
 
         for (int i = 0; i < 10; i++) {
             restartStrategy.notifyFailure(failure);
-            assertThat(restartStrategy.getBackoffTime(), lessThanOrEqualTo(maxBackoffMS));
+            assertThat(restartStrategy.getBackoffTime()).isLessThanOrEqualTo(maxBackoffMS);
         }
     }
 
     @Test
-    public void testResetBackoff() throws Exception {
+    void testResetBackoff() throws Exception {
         final long initialBackoffMS = 1L;
         final long resetBackoffThresholdMS = 8L;
         final ManualClock clock = new ManualClock();
@@ -91,17 +86,20 @@ public class ExponentialDelayRestartBackoffTimeStrategyTest extends TestLogger {
                 resetBackoffThresholdMS + restartStrategy.getBackoffTime() - 1,
                 TimeUnit.MILLISECONDS);
         restartStrategy.notifyFailure(failure);
-        assertThat("Backoff should be increased", restartStrategy.getBackoffTime(), is(2L));
+        assertThat(restartStrategy.getBackoffTime())
+                .as("Backoff should be increased")
+                .isEqualTo(2L);
 
         clock.advanceTime(
                 resetBackoffThresholdMS + restartStrategy.getBackoffTime(), TimeUnit.MILLISECONDS);
         restartStrategy.notifyFailure(failure);
-        assertThat(
-                "Backoff should be reset", restartStrategy.getBackoffTime(), is(initialBackoffMS));
+        assertThat(restartStrategy.getBackoffTime())
+                .as("Backoff should be reset")
+                .isEqualTo(initialBackoffMS);
     }
 
     @Test
-    public void testBackoffMultiplier() throws Exception {
+    void testBackoffMultiplier() throws Exception {
         long initialBackoffMS = 4L;
         double jitterFactor = 0;
         double backoffMultiplier = 2.3;
@@ -117,14 +115,14 @@ public class ExponentialDelayRestartBackoffTimeStrategyTest extends TestLogger {
                         jitterFactor);
 
         restartStrategy.notifyFailure(failure);
-        assertThat(restartStrategy.getBackoffTime(), is(9L)); // 4 * 2.3
+        assertThat(restartStrategy.getBackoffTime()).isEqualTo(9L); // 4 * 2.3
 
         restartStrategy.notifyFailure(failure);
-        assertThat(restartStrategy.getBackoffTime(), is(20L)); // 9 * 2.3
+        assertThat(restartStrategy.getBackoffTime()).isEqualTo(20L); // 9 * 2.3
     }
 
     @Test
-    public void testJitter() throws Exception {
+    void testJitter() throws Exception {
         final long initialBackoffMS = 2L;
         final long maxBackoffMS = 7L;
 
@@ -143,7 +141,7 @@ public class ExponentialDelayRestartBackoffTimeStrategyTest extends TestLogger {
     }
 
     @Test
-    public void testJitterNoHigherThanMax() throws Exception {
+    void testJitterNoHigherThanMax() throws Exception {
         double jitterFactor = 1;
         long maxBackoffMS = 7L;
 
@@ -161,7 +159,7 @@ public class ExponentialDelayRestartBackoffTimeStrategyTest extends TestLogger {
     }
 
     @Test
-    public void testMultipleSettings() throws Exception {
+    void testMultipleSettings() throws Exception {
         ManualClock clock = new ManualClock();
         final long initialBackoffMS = 1L;
         final long maxBackoffMS = 9L;
@@ -179,41 +177,41 @@ public class ExponentialDelayRestartBackoffTimeStrategyTest extends TestLogger {
                         jitterFactor);
 
         // ensure initial data
-        assertTrue(restartStrategy.canRestart());
-        assertThat(restartStrategy.getBackoffTime(), is(initialBackoffMS));
+        assertThat(restartStrategy.canRestart()).isTrue();
+        assertThat(restartStrategy.getBackoffTime()).isEqualTo(initialBackoffMS);
 
         // ensure backoff time is initial after the first failure
         clock.advanceTime(50, TimeUnit.MILLISECONDS);
         restartStrategy.notifyFailure(failure);
-        assertTrue(restartStrategy.canRestart());
-        assertThat(restartStrategy.getBackoffTime(), is(initialBackoffMS));
+        assertThat(restartStrategy.canRestart()).isTrue();
+        assertThat(restartStrategy.getBackoffTime()).isEqualTo(initialBackoffMS);
 
         // ensure backoff increases until threshold is reached
         clock.advanceTime(4, TimeUnit.MILLISECONDS);
         restartStrategy.notifyFailure(failure);
-        assertTrue(restartStrategy.canRestart());
-        assertThat(restartStrategy.getBackoffTime(), is(2L));
+        assertThat(restartStrategy.canRestart()).isTrue();
+        assertThat(restartStrategy.getBackoffTime()).isEqualTo(2L);
 
         clock.advanceTime(3, TimeUnit.MILLISECONDS);
         restartStrategy.notifyFailure(failure);
-        assertTrue(restartStrategy.canRestart());
+        assertThat(restartStrategy.canRestart()).isTrue();
         assertCorrectRandomRange(restartStrategy::getBackoffTime, 3L, 4L, 5L);
 
         clock.advanceTime(7, TimeUnit.MILLISECONDS);
         restartStrategy.notifyFailure(failure);
-        assertTrue(restartStrategy.canRestart());
+        assertThat(restartStrategy.canRestart()).isTrue();
         assertCorrectRandomRange(restartStrategy::getBackoffTime, 6L, 7L, 8L, 9L);
 
         // ensure backoff is reset after threshold is reached
         clock.advanceTime(resetBackoffThresholdMS + 9 + 1, TimeUnit.MILLISECONDS);
         restartStrategy.notifyFailure(failure);
-        assertTrue(restartStrategy.canRestart());
-        assertThat(restartStrategy.getBackoffTime(), is(1L));
+        assertThat(restartStrategy.canRestart()).isTrue();
+        assertThat(restartStrategy.getBackoffTime()).isOne();
 
         // ensure backoff still increases
         restartStrategy.notifyFailure(failure);
-        assertTrue(restartStrategy.canRestart());
-        assertThat(restartStrategy.getBackoffTime(), is(2L));
+        assertThat(restartStrategy.canRestart()).isTrue();
+        assertThat(restartStrategy.getBackoffTime()).isEqualTo(2L);
     }
 
     private void assertCorrectRandomRange(Callable<Long> numberGenerator, Long... expectedNumbers)
@@ -223,6 +221,6 @@ public class ExponentialDelayRestartBackoffTimeStrategyTest extends TestLogger {
             long generatedNumber = numberGenerator.call();
             generatedNumbers.add(generatedNumber);
         }
-        assertThat(generatedNumbers, is(equalTo(new HashSet<>(Arrays.asList(expectedNumbers)))));
+        assertThat(generatedNumbers).isEqualTo(new HashSet<>(Arrays.asList(expectedNumbers)));
     }
 }

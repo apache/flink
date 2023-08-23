@@ -23,20 +23,18 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link SchedulingPipelinedRegionComputeUtil}. */
-public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
+class SchedulingPipelinedRegionComputeUtilTest {
 
     /**
      * Tests that validates that a graph with single unconnected vertices works correctly.
@@ -50,7 +48,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testIndividualVertices() {
+    void testIndividualVertices() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
@@ -79,7 +77,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testEmbarrassinglyParallelCase() {
+    void testEmbarrassinglyParallelCase() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
@@ -121,7 +119,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testOneComponentViaTwoExchanges() {
+    void testOneComponentViaTwoExchanges() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
@@ -168,7 +166,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testOneComponentViaCascadeOfJoins() {
+    void testOneComponentViaCascadeOfJoins() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
@@ -215,7 +213,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testOneComponentInstanceFromOneSource() {
+    void testOneComponentInstanceFromOneSource() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
@@ -261,7 +259,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testTwoComponentsViaBlockingExchange() {
+    void testTwoComponentsViaBlockingExchange() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
@@ -307,7 +305,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testTwoComponentsViaBlockingExchange2() {
+    void testTwoComponentsViaBlockingExchange2() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex va1 = topology.newExecutionVertex();
@@ -361,7 +359,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
      * <p>Component 1: 1, 2, 5; component 2: 3,4,6; component 3: 7
      */
     @Test
-    public void testMultipleComponentsViaCascadeOfJoins() {
+    void testMultipleComponentsViaCascadeOfJoins() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
@@ -411,7 +409,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testDiamondWithMixedPipelinedAndBlockingExchanges() {
+    void testDiamondWithMixedPipelinedAndBlockingExchanges() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
@@ -450,7 +448,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
      * </pre>
      */
     @Test
-    public void testCyclicDependentRegionsAreMerged() {
+    void testCyclicDependentRegionsAreMerged() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
@@ -475,7 +473,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
     }
 
     @Test
-    public void testPipelinedApproximateDifferentRegions() {
+    void testPipelinedApproximateDifferentRegions() {
         TestingSchedulingTopology topology = new TestingSchedulingTopology();
 
         TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex();
@@ -528,7 +526,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
         checkNotNull(regions);
         for (int i = 0; i < regions.length; i++) {
             for (int j = i + 1; i < regions.length; i++) {
-                assertSame(regions[i], regions[j]);
+                assertThat(regions[j]).isSameAs(regions[i]);
             }
         }
     }
@@ -538,7 +536,7 @@ public class SchedulingPipelinedRegionComputeUtilTest extends TestLogger {
         checkNotNull(regions);
         for (int i = 0; i < regions.length; i++) {
             for (int j = i + 1; j < regions.length; j++) {
-                assertNotSame(regions[i], regions[j]);
+                assertThat(regions[j]).isNotSameAs(regions[i]);
             }
         }
     }

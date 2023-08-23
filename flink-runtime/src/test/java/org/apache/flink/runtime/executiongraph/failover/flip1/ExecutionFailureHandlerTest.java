@@ -109,7 +109,7 @@ class ExecutionFailureHandlerTest {
         assertThat(testingFailureEnricher.getSeenThrowables()).containsExactly(cause);
         assertThat(result.getFailureLabels().get())
                 .isEqualTo(testingFailureEnricher.getFailureLabels());
-        assertThat(executionFailureHandler.getNumberOfRestarts()).isEqualTo(1);
+        assertThat(executionFailureHandler.getNumberOfRestarts()).isOne();
     }
 
     /** Tests the case that task restarting is suppressed. */

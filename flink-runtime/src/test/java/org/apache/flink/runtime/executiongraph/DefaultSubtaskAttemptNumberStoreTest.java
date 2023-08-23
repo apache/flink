@@ -17,44 +17,44 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultSubtaskAttemptNumberStore}. */
-public class DefaultSubtaskAttemptNumberStoreTest extends TestLogger {
+class DefaultSubtaskAttemptNumberStoreTest {
 
     @Test
-    public void testGetAttemptCount() {
+    void testGetAttemptCount() {
         final List<Integer> initialAttemptCounts = Arrays.asList(1, 2, 3);
         final DefaultSubtaskAttemptNumberStore subtaskAttemptNumberStore =
                 new DefaultSubtaskAttemptNumberStore(initialAttemptCounts);
 
-        assertThat(subtaskAttemptNumberStore.getAttemptCount(1), is(initialAttemptCounts.get(1)));
+        assertThat(subtaskAttemptNumberStore.getAttemptCount(1))
+                .isEqualTo(initialAttemptCounts.get(1));
     }
 
     @Test
-    public void testOutOfBoundsSubtaskIndexReturnsZero() {
+    void testOutOfBoundsSubtaskIndexReturnsZero() {
         final List<Integer> initialAttemptCounts = Arrays.asList(1, 2, 3);
         final DefaultSubtaskAttemptNumberStore subtaskAttemptNumberStore =
                 new DefaultSubtaskAttemptNumberStore(initialAttemptCounts);
 
-        assertThat(
-                subtaskAttemptNumberStore.getAttemptCount(initialAttemptCounts.size() * 2), is(0));
+        assertThat(subtaskAttemptNumberStore.getAttemptCount(initialAttemptCounts.size() * 2))
+                .isZero();
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testNegativeSubtaskIndexRejected() {
+    @Test
+    void testNegativeSubtaskIndexRejected() {
         final DefaultSubtaskAttemptNumberStore subtaskAttemptNumberStore =
                 new DefaultSubtaskAttemptNumberStore(Collections.emptyList());
 
-        subtaskAttemptNumberStore.getAttemptCount(-1);
+        assertThatThrownBy(() -> subtaskAttemptNumberStore.getAttemptCount(-1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

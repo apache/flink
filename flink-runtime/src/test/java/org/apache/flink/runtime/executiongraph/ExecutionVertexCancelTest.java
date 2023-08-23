@@ -30,12 +30,11 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -45,38 +44,36 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexResource;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.setVertexState;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for cancelling {@link ExecutionVertex ExecutionVertices}. */
-public class ExecutionVertexCancelTest extends TestLogger {
+class ExecutionVertexCancelTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     // --------------------------------------------------------------------------------------------
     //  Canceling in different states
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testCancelFromCreated() {
+    void testCancelFromCreated() {
         try {
             final ExecutionVertex vertex = getExecutionVertex();
 
-            assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CREATED);
 
             vertex.cancel();
 
-            assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
 
-            assertFalse(vertex.getFailureInfo().isPresent());
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -84,22 +81,22 @@ public class ExecutionVertexCancelTest extends TestLogger {
     }
 
     @Test
-    public void testCancelFromScheduled() {
+    void testCancelFromScheduled() {
         try {
             final ExecutionVertex vertex = getExecutionVertex();
 
             setVertexState(vertex, ExecutionState.SCHEDULED);
-            assertEquals(ExecutionState.SCHEDULED, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.SCHEDULED);
 
             vertex.cancel();
 
-            assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
 
-            assertFalse(vertex.getFailureInfo().isPresent());
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -107,7 +104,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
     }
 
     @Test
-    public void testCancelFromRunning() {
+    void testCancelFromRunning() {
         try {
             final ExecutionVertex vertex = getExecutionVertex();
 
@@ -120,21 +117,21 @@ public class ExecutionVertexCancelTest extends TestLogger {
             setVertexResource(vertex, slot);
             setVertexState(vertex, ExecutionState.RUNNING);
 
-            assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.RUNNING);
 
             vertex.cancel();
             vertex.getCurrentExecutionAttempt()
                     .completeCancelling(); // response by task manager once actually canceled
 
-            assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
 
-            assertFalse(slot.isAlive());
+            assertThat(slot.isAlive()).isFalse();
 
-            assertFalse(vertex.getFailureInfo().isPresent());
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -142,7 +139,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
     }
 
     @Test
-    public void testRepeatedCancelFromRunning() {
+    void testRepeatedCancelFromRunning() {
         try {
             final ExecutionVertex vertex = getExecutionVertex();
 
@@ -155,28 +152,28 @@ public class ExecutionVertexCancelTest extends TestLogger {
             setVertexResource(vertex, slot);
             setVertexState(vertex, ExecutionState.RUNNING);
 
-            assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.RUNNING);
 
             vertex.cancel();
 
-            assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELING);
 
             vertex.cancel();
 
-            assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELING);
 
             // callback by TaskManager after canceling completes
             vertex.getCurrentExecutionAttempt().completeCancelling();
 
-            assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
 
-            assertFalse(slot.isAlive());
+            assertThat(slot.isAlive()).isFalse();
 
-            assertFalse(vertex.getFailureInfo().isPresent());
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELED) > 0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELED)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -184,7 +181,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
     }
 
     @Test
-    public void testCancelFromRunningDidNotFindTask() {
+    void testCancelFromRunningDidNotFindTask() {
         // this may happen when the task finished or failed while the call was in progress
         try {
             final ExecutionVertex vertex = getExecutionVertex();
@@ -198,16 +195,16 @@ public class ExecutionVertexCancelTest extends TestLogger {
             setVertexResource(vertex, slot);
             setVertexState(vertex, ExecutionState.RUNNING);
 
-            assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.RUNNING);
 
             vertex.cancel();
 
-            assertEquals(ExecutionState.CANCELING, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELING);
 
-            assertFalse(vertex.getFailureInfo().isPresent());
+            assertThat(vertex.getFailureInfo()).isNotPresent();
 
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -215,7 +212,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
     }
 
     @Test
-    public void testCancelCallFails() {
+    void testCancelCallFails() {
         try {
             final ExecutionVertex vertex = getExecutionVertex();
 
@@ -228,17 +225,17 @@ public class ExecutionVertexCancelTest extends TestLogger {
             setVertexResource(vertex, slot);
             setVertexState(vertex, ExecutionState.RUNNING);
 
-            assertEquals(ExecutionState.RUNNING, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.RUNNING);
 
             vertex.cancel();
 
             // Callback fails, leading to CANCELED
-            assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
+            assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CANCELED);
 
-            assertFalse(slot.isAlive());
+            assertThat(slot.isAlive()).isFalse();
 
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CREATED) > 0);
-            assertTrue(vertex.getStateTimestamp(ExecutionState.CANCELING) > 0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CREATED)).isGreaterThan(0);
+            assertThat(vertex.getStateTimestamp(ExecutionState.CANCELING)).isGreaterThan(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -246,7 +243,7 @@ public class ExecutionVertexCancelTest extends TestLogger {
     }
 
     @Test
-    public void testSendCancelAndReceiveFail() throws Exception {
+    void testSendCancelAndReceiveFail() throws Exception {
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.createScheduler(
                         JobGraphTestUtils.streamingJobGraph(createNoOpVertex(10)),
@@ -257,23 +254,24 @@ public class ExecutionVertexCancelTest extends TestLogger {
         scheduler.startScheduling();
 
         ExecutionGraphTestUtils.switchAllVerticesToRunning(graph);
-        assertEquals(JobStatus.RUNNING, graph.getState());
+        assertThat(graph.getState()).isEqualTo(JobStatus.RUNNING);
 
         final ExecutionVertex[] vertices =
                 graph.getVerticesTopologically().iterator().next().getTaskVertices();
-        assertEquals(vertices.length, graph.getRegisteredExecutions().size());
+        assertThat(graph.getRegisteredExecutions()).hasSize(vertices.length);
 
         final Execution exec = vertices[3].getCurrentExecutionAttempt();
         exec.cancel();
-        assertEquals(ExecutionState.CANCELING, exec.getState());
+        assertThat(exec.getState()).isEqualTo(ExecutionState.CANCELING);
 
         exec.markFailed(new Exception("test"));
-        assertTrue(
-                exec.getState() == ExecutionState.FAILED
-                        || exec.getState() == ExecutionState.CANCELED);
+        assertThat(
+                        exec.getState() == ExecutionState.FAILED
+                                || exec.getState() == ExecutionState.CANCELED)
+                .isTrue();
 
-        assertFalse(exec.getAssignedResource().isAlive());
-        assertEquals(vertices.length - 1, graph.getRegisteredExecutions().size());
+        assertThat(exec.getAssignedResource().isAlive()).isFalse();
+        assertThat(graph.getRegisteredExecutions()).hasSize(vertices.length - 1);
     }
 
     private static class CancelSequenceSimpleAckingTaskManagerGateway

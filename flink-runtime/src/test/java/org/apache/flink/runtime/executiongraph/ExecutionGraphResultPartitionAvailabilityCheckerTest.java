@@ -22,22 +22,21 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAva
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.TestingJobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ExecutionGraphResultPartitionAvailabilityChecker}. */
-public class ExecutionGraphResultPartitionAvailabilityCheckerTest extends TestLogger {
+class ExecutionGraphResultPartitionAvailabilityCheckerTest {
 
     @Test
-    public void testPartitionAvailabilityCheck() {
+    void testPartitionAvailabilityCheck() {
 
         final IntermediateResultPartitionID irp1ID = new IntermediateResultPartitionID();
         final IntermediateResultPartitionID irp2ID = new IntermediateResultPartitionID();
@@ -71,9 +70,8 @@ public class ExecutionGraphResultPartitionAvailabilityCheckerTest extends TestLo
                         partitionIDMapper, partitionTracker);
 
         for (IntermediateResultPartitionID irpID : expectedAvailability.keySet()) {
-            assertEquals(
-                    expectedAvailability.get(irpID),
-                    resultPartitionAvailabilityChecker.isAvailable(irpID));
+            assertThat(expectedAvailability.get(irpID))
+                    .isEqualTo(resultPartitionAvailabilityChecker.isAvailable(irpID));
         }
     }
 }
