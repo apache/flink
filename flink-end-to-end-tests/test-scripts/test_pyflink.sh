@@ -67,9 +67,12 @@ on_exit test_clean_up
 
 cp -r "${FLINK_DIR}/conf" "${TEST_DATA_DIR}/conf"
 
-echo "taskmanager.memory.task.off-heap.size: 768m" >> "${TEST_DATA_DIR}/conf/flink-conf.yaml"
-echo "taskmanager.memory.process.size: 3172m" >> "${TEST_DATA_DIR}/conf/flink-conf.yaml"
-echo "taskmanager.numberOfTaskSlots: 5" >> "${TEST_DATA_DIR}/conf/flink-conf.yaml"
+sed -i -e "/^taskmanager.memory.task.off-heap.size: /d" "${TEST_DATA_DIR}/conf/config.yaml"
+sed -i -e "/^taskmanager.memory.process.size: /d" "${TEST_DATA_DIR}/conf/config.yaml"
+sed -i -e "/^taskmanager.numberOfTaskSlots: /d" "${TEST_DATA_DIR}/conf/config.yaml"
+echo "taskmanager.memory.task.off-heap.size: 768m" >> "${TEST_DATA_DIR}/conf/config.yaml"
+echo "taskmanager.memory.process.size: 3172m" >> "${TEST_DATA_DIR}/conf/config.yaml"
+echo "taskmanager.numberOfTaskSlots: 5" >> "${TEST_DATA_DIR}/conf/config.yaml"
 export FLINK_CONF_DIR="${TEST_DATA_DIR}/conf"
 
 FLINK_PYTHON_DIR=`cd "${CURRENT_DIR}/../../flink-python" && pwd -P`
@@ -127,7 +130,7 @@ PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     -pyarch "${TEST_DATA_DIR}/venv.zip" \
     -pyexec "venv.zip/.conda/bin/python" \
     -py "${FLINK_PYTHON_TEST_DIR}/python/python_job.py" \
-    pipeline.jars "file://${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
+    pipeline.jars "[file://${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar]"
 
 echo "Test submitting python job with 'pipeline.classpaths':\n"
 PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
@@ -137,7 +140,7 @@ PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \
     -pyarch "${TEST_DATA_DIR}/venv.zip" \
     -pyexec "venv.zip/.conda/bin/python" \
     -py "${FLINK_PYTHON_TEST_DIR}/python/python_job.py" \
-    pipeline.classpaths "file://${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar"
+    pipeline.classpaths "[file://${FLINK_PYTHON_TEST_DIR}/target/PythonUdfSqlJobExample.jar]"
 
 echo "Test stream python udf sql job:\n"
 PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \

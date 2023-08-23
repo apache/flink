@@ -112,13 +112,13 @@ readFromConfig() {
 }
 
 ########################################################################################################################
-# DEFAULT CONFIG VALUES: These values will be used when nothing has been specified in conf/flink-conf.yaml
+# DEFAULT CONFIG VALUES: These values will be used when nothing has been specified in conf/config.yaml
 # -or- the respective environment variables are not set.
 ########################################################################################################################
 
 source "$(dirname "$0")"/bash-java-utils.sh
 # WARNING !!! , these values are only used if there is nothing else is specified in
-# conf/flink-conf.yaml
+# conf/config.yaml
 
 DEFAULT_ENV_PID_DIR="/tmp"                          # Directory to store *.pid files to
 DEFAULT_ENV_LOG_MAX=10                              # Maximum number of old log files to keep
@@ -135,7 +135,7 @@ DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Direc
 DEFAULT_HBASE_CONF_DIR=""                           # HBase Configuration Directory, if necessary
 
 ########################################################################################################################
-# CONFIG KEYS: The default values can be overwritten by the following keys in conf/flink-conf.yaml
+# CONFIG KEYS: The default values can be overwritten by the following keys in conf/config.yaml
 ########################################################################################################################
 
 KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
@@ -210,7 +210,7 @@ export FLINK_LIB_DIR
 # export /opt dir to access it for the SQL client
 export FLINK_OPT_DIR
 
-YAML_CONF=$(getFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}" ${FLINK_LIB_DIR} -flatten)
+YAML_CONF=$(getFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}" "${FLINK_LIB_DIR}" -flatten)
 
 ########################################################################################################################
 # ENVIRONMENT VARIABLES
@@ -225,7 +225,7 @@ if [ -z "${MY_JAVA_HOME}" ]; then
 fi
 # check if we have a valid JAVA_HOME and if java is not available
 if [ -z "${MY_JAVA_HOME}" ] && ! type java > /dev/null 2> /dev/null; then
-    echo "Please specify JAVA_HOME. Either in Flink config ./conf/flink-conf.yaml or as system-wide JAVA_HOME."
+    echo "Please specify JAVA_HOME. Either in Flink config ./conf/config.yaml or as system-wide JAVA_HOME."
     exit 1
 else
     JAVA_HOME="${MY_JAVA_HOME}"
@@ -357,7 +357,7 @@ if [ -z "${HIGH_AVAILABILITY}" ]; then
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.
-# DO NOT USE FOR MEMORY SETTINGS! Use conf/flink-conf.yaml with keys
+# DO NOT USE FOR MEMORY SETTINGS! Use conf/config.yaml with keys
 # JobManagerOptions#TOTAL_PROCESS_MEMORY and TaskManagerOptions#TOTAL_PROCESS_MEMORY for that!
 if [ -z "${JVM_ARGS}" ]; then
     JVM_ARGS=""

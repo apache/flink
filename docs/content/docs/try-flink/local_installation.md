@@ -67,7 +67,7 @@ You should see something like:
 
 For now, you may want to note that:
 - __bin/__ directory contains the `flink` binary as well as several bash scripts that manage various jobs and tasks
-- __conf/__ directory contains configuration files, including `flink-conf.yaml`
+- __conf/__ directory contains configuration files, including `config.yaml`
 - __examples/__ directory contains sample applications that can be used as is with Flink
 
 

@@ -843,7 +843,7 @@ TableEnvironment env = TableEnvironment.create(
 env.executeSql("CREATE TABLE ...").wait();
 ```
 
-For sql-gateway, you can add the option `table.catalog-modification.listeners` in the `flink-conf.yaml` and start
+For sql-gateway, you can add the option `table.catalog-modification.listeners` in the `config.yaml` and start
 the gateway, or you can also start sql-gateway with dynamic parameter, then you can use sql-client to perform ddl directly.
 
 ## Catalog Store

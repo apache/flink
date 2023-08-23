@@ -27,11 +27,11 @@ under the License.
 
 # 配置参数
 
-All configuration is done in `conf/flink-conf.yaml`, which is expected to be a flat collection of [YAML key value pairs](http://www.yaml.org/spec/1.2/spec.html) with format `key: value`.
+All configuration is done in `conf/config.yaml`, which is expected to be a flat collection of [YAML key value pairs](http://www.yaml.org/spec/1.2/spec.html) with format `key: value`.
 
 The configuration is parsed and evaluated when the Flink processes are started. Changes to the configuration file require restarting the relevant processes.
 
-The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/flink-conf.yaml` if you want to manually override the Java runtime to use.
+The out of the box configuration will use your default Java installation. You can manually set the environment variable `JAVA_HOME` or the configuration key `env.java.home` in `conf/config.yaml` if you want to manually override the Java runtime to use.
 
 You can specify a different configuration directory location by defining the `FLINK_CONF_DIR` environment variable. For resource providers which provide non-session deployments, you can specify per-job configurations this way. Make a copy of the `conf` directory from the Flink distribution and modify the settings on a per-job basis. Note that this is not supported in Docker or standalone Kubernetes deployments. On Docker-based deployments, you can use the `FLINK_PROPERTIES` environment variable for passing configuration values.
 
@@ -121,7 +121,7 @@ You do not need to configure any TaskManager hosts and ports, unless the setup r
 ### Fault Tolerance
 
 These configuration options control Flink's restart behaviour in case of failures during the execution. 
-By configuring these options in your `flink-conf.yaml`, you define the cluster's default restart strategy. 
+By configuring these options in your `config.yaml`, you define the cluster's default restart strategy. 
 
 The default restart strategy will only take effect if no job specific restart strategy has been configured via the `ExecutionConfig`.
 
@@ -478,7 +478,7 @@ You can configure environment variables to be set on the JobManager and TaskMana
 
   - `containerized.master.env.`: Prefix for passing custom environment variables to Flink's JobManager process. 
    For example for passing LD_LIBRARY_PATH as an env variable to the JobManager, set containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native"
-    in the flink-conf.yaml.
+    in the config.yaml.
 
   - `containerized.taskmanager.env.`: Similar to the above, this configuration prefix allows setting custom environment variables for the workers (TaskManagers).
 

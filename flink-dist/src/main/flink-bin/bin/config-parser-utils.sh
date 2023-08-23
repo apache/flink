@@ -19,7 +19,7 @@
 
 USAGE="Usage: config-parser-utils.sh FLINK_CONF_DIR FLINK_BIN_DIR FLINK_LIB_DIR [dynamic args...]"
 
-if [ "$#" -ne 3 ]; then
+if [ "$#" -lt 3 ]; then
     echo "$USAGE"
     exit 1
 fi
@@ -27,7 +27,7 @@ fi
 source "$2"/bash-java-utils.sh
 
 ARGS=("${@:1}")
-result=$(parseConfigurationAndExportLogs "${ARGS[@]}")
+result=$(getFlinkConfiguration "${ARGS[@]}")
 
 if [[ $? -ne 0 ]]; then
   echo "[ERROR] Could not get configurations properly, the result is :"

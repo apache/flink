@@ -82,7 +82,7 @@ Cache-Control: no-cache
 EOF)
 ```
 
-By default, the SQL Client will use the truststore configured using the `security.ssl.rest.truststore` and `security.ssl.rest.truststore-password` properties in the `flink-conf.yaml` file on the SQL client side. If these properties aren't explicitly configured, the client will use the default certificate stores provided by the JDK.
+By default, the SQL Client will use the truststore configured using the `security.ssl.rest.truststore` and `security.ssl.rest.truststore-password` properties in the `config.yaml` file on the SQL client side. If these properties aren't explicitly configured, the client will use the default certificate stores provided by the JDK.
 
 
 <span class="label label-danger">Note</span> SQL 客户端目前只支持和 REST API 版本大于 v1 的 [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) 通信。

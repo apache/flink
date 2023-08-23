@@ -61,8 +61,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 		env.getCheckpointConfig().setCheckpointStorage("hdfs://checkpoints");
  * }</pre>
  *
- * <p>If you are configuring your state backend via the {@code flink-conf.yaml} no changes are
- * required.
+ * <p>If you are configuring your state backend via the {@code config.yaml} no changes are required.
  *
  * <p>A State Backend that stores its state in {@code RocksDB}. This state backend can store very
  * large state that exceeds memory and spills to disk.
@@ -399,7 +398,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
      * Sets the predefined options for RocksDB.
      *
      * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through
-     * flink-conf.yaml) or a user-defined options factory is set (via {@link
+     * config.yaml) or a user-defined options factory is set (via {@link
      * #setRocksDBOptions(RocksDBOptionsFactory)}), then the options from the factory are applied on
      * top of the here specified predefined options and customized options.
      *
@@ -415,7 +414,7 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
      * PredefinedOptions#DEFAULT}.
      *
      * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through
-     * flink-conf.yaml) of a user-defined options factory is set (via {@link
+     * config.yaml) of a user-defined options factory is set (via {@link
      * #setRocksDBOptions(RocksDBOptionsFactory)}), then the options from the factory are applied on
      * top of the predefined and customized options.
      *

@@ -64,7 +64,7 @@ import static org.apache.flink.kubernetes.utils.Constants.FLINK_CONF_VOLUME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Mounts the log4j.properties, logback.xml, and flink-conf.yaml configuration on the JobManager or
+ * Mounts the log4j.properties, logback.xml, and config.yaml configuration on the JobManager or
  * TaskManager pod.
  */
 public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {

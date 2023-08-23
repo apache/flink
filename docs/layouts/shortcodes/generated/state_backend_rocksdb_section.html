@@ -18,7 +18,7 @@
             <td><h5>state.backend.rocksdb.memory.fixed-per-tm</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>MemorySize</td>
-            <td>The fixed total amount of memory, shared among all RocksDB instances per Task Manager (cluster-level option). This option only takes effect if neither 'state.backend.rocksdb.memory.managed' nor 'state.backend.rocksdb.memory.fixed-per-slot' are not configured. If none is configured then each RocksDB column family state has its own memory caches (as controlled by the column family options). The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (flink-conf.yaml).Note, that this feature breaks resource isolation between the slots</td>
+            <td>The fixed total amount of memory, shared among all RocksDB instances per Task Manager (cluster-level option). This option only takes effect if neither 'state.backend.rocksdb.memory.managed' nor 'state.backend.rocksdb.memory.fixed-per-slot' are not configured. If none is configured then each RocksDB column family state has its own memory caches (as controlled by the column family options). The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (config.yaml).Note, that this feature breaks resource isolation between the slots</td>
         </tr>
         <tr>
             <td><h5>state.backend.rocksdb.memory.high-prio-pool-ratio</h5></td>

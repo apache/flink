@@ -69,7 +69,7 @@ kubernetes.cluster-id: cluster1337
 
 ### Example configuration
 
-Configure high availability mode in `conf/flink-conf.yaml`:
+Configure high availability mode in `conf/config.yaml`:
 
 ```yaml
 kubernetes.cluster-id: <cluster-id>

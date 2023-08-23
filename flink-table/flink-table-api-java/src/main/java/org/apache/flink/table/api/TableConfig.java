@@ -50,7 +50,7 @@ import static org.apache.flink.table.api.internal.TableConfigValidation.validate
  * configuration can be set in any of the following layers (in the given order):
  *
  * <ol>
- *   <li>{@code flink-conf.yaml},
+ *   <li>{@code config.yaml},
  *   <li>CLI parameters,
  *   <li>{@code StreamExecutionEnvironment} when bridging to DataStream API,
  *   <li>{@link EnvironmentSettings.Builder#withConfiguration(Configuration)} / {@link
@@ -103,7 +103,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
 
     // Note to implementers:
     // TableConfig is a ReadableConfig which is built once the TableEnvironment is created and
-    // contains both the configuration defined in the execution context (flink-conf.yaml + CLI
+    // contains both the configuration defined in the execution context (config.yaml + CLI
     // params), stored in rootConfiguration, but also any extra configuration defined by the user in
     // the application, which has precedence over the execution configuration.
     //

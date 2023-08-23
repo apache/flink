@@ -492,7 +492,7 @@ Every metric is assigned an identifier and a set of key-value pairs under which 
 The identifier is based on 3 components: a user-defined name when registering the metric, an optional user-defined scope and a system-provided scope.
 For example, if `A.B` is the system scope, `C.D` the user scope and `E` the name, then the identifier for the metric will be `A.B.C.D.E`.
 
-You can configure which delimiter to use for the identifier (default: `.`) by setting the `metrics.scope.delimiter` key in `conf/flink-conf.yaml`.
+You can configure which delimiter to use for the identifier (default: `.`) by setting the `metrics.scope.delimiter` key in `conf/config.yaml`.
 
 ### User Scope
 
@@ -551,7 +551,7 @@ counter = runtime_context \
 
 The system scope contains context information about the metric, for example in which task it was registered or what job that task belongs to.
 
-Which context information should be included can be configured by setting the following keys in `conf/flink-conf.yaml`.
+Which context information should be included can be configured by setting the following keys in `conf/config.yaml`.
 Each of these keys expect a format string that may contain constants (e.g. "taskmanager") and variables (e.g. "&lt;task_id&gt;") which will be replaced at runtime.
 
 - `metrics.scope.jm`

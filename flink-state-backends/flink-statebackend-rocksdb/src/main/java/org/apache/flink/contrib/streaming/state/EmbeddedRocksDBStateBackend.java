@@ -698,7 +698,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * Sets the predefined options for RocksDB.
      *
      * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through
-     * flink-conf.yaml) or a user-defined options factory is set (via {@link
+     * config.yaml) or a user-defined options factory is set (via {@link
      * #setRocksDBOptions(RocksDBOptionsFactory)}), then the options from the factory are applied on
      * top of the here specified predefined options and customized options.
      *
@@ -714,7 +714,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * PredefinedOptions#DEFAULT}.
      *
      * <p>If user-configured options within {@link RocksDBConfigurableOptions} is set (through
-     * flink-conf.yaml) of a user-defined options factory is set (via {@link
+     * config.yaml) of a user-defined options factory is set (via {@link
      * #setRocksDBOptions(RocksDBOptionsFactory)}), then the options from the factory are applied on
      * top of the predefined and customized options.
      *

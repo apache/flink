@@ -182,7 +182,7 @@ env.get_checkpoint_config().enable_unaligned_checkpoints()
 
 ### 相关的配置选项
 
-更多的属性与默认值能在 `conf/flink-conf.yaml` 中设置（完整教程请阅读 [配置]({{< ref "docs/deployment/config" >}})）。
+更多的属性与默认值能在 `conf/config.yaml` 中设置（完整教程请阅读 [配置]({{< ref "docs/deployment/config" >}})）。
 
 {{< generated/checkpointing_configuration >}}
 

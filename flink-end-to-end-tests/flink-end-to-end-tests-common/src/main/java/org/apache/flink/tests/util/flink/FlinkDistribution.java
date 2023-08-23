@@ -418,10 +418,8 @@ public final class FlinkDistribution {
         mergedConfig.addAll(defaultConfig);
         mergedConfig.addAll(config);
 
-        // NOTE: Before we change the default conf file in the flink-dist to 'config.yaml', we
-        // need to use the legacy flink conf file 'flink-conf.yaml' here.
         Files.write(
-                conf.resolve(GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME),
+                conf.resolve(GlobalConfiguration.FLINK_CONF_FILENAME),
                 ConfigurationUtils.convertConfigToWritableLines(mergedConfig, true));
     }
 

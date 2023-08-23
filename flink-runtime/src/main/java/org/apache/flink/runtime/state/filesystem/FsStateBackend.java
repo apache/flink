@@ -67,7 +67,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * 		env.getCheckpointConfig().setCheckpointStorage("hdfs:///checkpoints");
  * }</pre>
  *
- * <p>If you are configuring your state backend via the {@code flink-conf.yaml} please make the
+ * <p>If you are configuring your state backend via the {@code config.yaml} please make the
  * following changes set your state backend type to "hashmap" {@code state.backend.type: hashmap}.
  *
  * <p>This state backend holds the working state in the memory (JVM heap) of the TaskManagers. The

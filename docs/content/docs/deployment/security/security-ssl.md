@@ -266,7 +266,7 @@ $ keytool -importcert -keystore rest.signed.keystore -storepass rest_keystore_pa
 $ keytool -importcert -keystore rest.signed.keystore -storepass rest_keystore_password -file rest.cer -alias flink.rest -noprompt
 ```
 
-Now add the following configuration to your `flink-conf.yaml`:
+Now add the following configuration to your `config.yaml`:
 
 ```yaml
 security.ssl.rest.enabled: true

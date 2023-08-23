@@ -86,7 +86,7 @@ getFlinkConfiguration() {
     local FLINK_BIN_DIR="$2"
     local FLINK_LIB_DIR="$3"
     local command_result
-    command_result=$(parseConfigurationAndExportLogs "$FLINK_CONF_DIR" "$FLINK_BIN_DIR" "$FLINK_LIB_DIR" "GET_FLINK_CONFIGURATION" "${@:5}")
+    command_result=$(parseConfigurationAndExportLogs "$FLINK_CONF_DIR" "$FLINK_BIN_DIR" "$FLINK_LIB_DIR" "GET_FLINK_CONFIGURATION" "${@:4}")
     echo "$command_result"
 }
 
@@ -97,7 +97,7 @@ parseConfigurationAndExportLogs() {
     local COMMAND="$4"
     local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
 
-    java_utils_output=$(runBashJavaUtilsCmd "${COMMAND}" "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar ${FLINK_LIB_DIR})" "${@:4}")
+    java_utils_output=$(runBashJavaUtilsCmd "${COMMAND}" "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar ${FLINK_LIB_DIR})" "${@:5}")
     logging_output=$(extractLoggingOutputs "${java_utils_output}")
     execution_results=$(echo "${java_utils_output}" | grep ${EXECUTION_PREFIX})
 

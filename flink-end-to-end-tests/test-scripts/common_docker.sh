@@ -48,7 +48,8 @@ function build_image() {
     local server_pid=$!
 
     echo "Preparing Dockeriles"
-    retry_times_with_exponential_backoff 5 git clone https://github.com/apache/flink-docker.git --branch dev-master --single-branch
+    # TODO only for test
+    retry_times_with_exponential_backoff 5 git clone https://github.com/JunRuiLee/flink-docker.git --branch dev-master --single-branch
 
     local java_version=8
     if [[ ${PROFILE} == *"jdk11"* ]]; then

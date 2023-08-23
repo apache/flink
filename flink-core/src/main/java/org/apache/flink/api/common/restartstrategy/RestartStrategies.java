@@ -502,7 +502,7 @@ public class RestartStrategies {
     /**
      * Restart strategy configuration that could be used by jobs to use cluster level restart
      * strategy. Useful especially when one has a custom implementation of restart strategy set via
-     * flink-conf.yaml.
+     * config.yaml.
      */
     @PublicEvolving
     public static final class FallbackRestartStrategyConfiguration

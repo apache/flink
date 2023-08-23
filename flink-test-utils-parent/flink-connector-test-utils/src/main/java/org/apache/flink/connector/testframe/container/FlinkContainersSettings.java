@@ -283,8 +283,8 @@ public class FlinkContainersSettings {
         }
 
         /**
-         * Sets a single Flink configuration parameter (the options for flink-conf.yaml) and returns
-         * a reference to this Builder enabling method chaining.
+         * Sets a single Flink configuration parameter (the options for config.yaml) and returns a
+         * reference to this Builder enabling method chaining.
          *
          * @param <T> The type parameter.
          * @param option The option.

@@ -842,7 +842,7 @@ class StreamExecutionEnvironment(object):
         method returns a local execution environment.
 
         When executed from the command line the given configuration is stacked on top of the
-        global configuration which comes from the flink-conf.yaml, potentially overriding
+        global configuration which comes from the config.yaml, potentially overriding
         duplicated options.
 
         :param configuration: The configuration to instantiate the environment with.

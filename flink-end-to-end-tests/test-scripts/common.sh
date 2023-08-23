@@ -50,6 +50,14 @@ TEST_INFRA_DIR=`pwd -P`
 cd $TEST_ROOT
 
 source "${TEST_INFRA_DIR}/common_utils.sh"
+source "${FLINK_DIR}/bin/bash-java-utils.sh"
+
+if [[ -z "${FLINK_CONF_DIR:-}" ]]; then
+    FLINK_CONF_DIR="$FLINK_DIR/conf"
+fi
+FLINK_CONF=${FLINK_CONF_DIR}/config.yaml
+output=$(getFlinkConfiguration "${FLINK_CONF_DIR}" "${FLINK_DIR}/bin" "${FLINK_DIR}/lib" -flatten)
+echo "$output" > $FLINK_CONF
 
 NODENAME=${NODENAME:-"localhost"}
 
@@ -143,14 +151,14 @@ function swap_planner_scala_with_planner_loader() {
 
 function delete_config_key() {
     local config_key=$1
-    sed -i -e "/^${config_key}: /d" ${FLINK_DIR}/conf/flink-conf.yaml
+    sed -i -e "/^${config_key}: /d" $FLINK_CONF
 }
 
 function set_config_key() {
     local config_key=$1
     local value=$2
     delete_config_key ${config_key}
-    echo "$config_key: $value" >> $FLINK_DIR/conf/flink-conf.yaml
+    echo "$config_key: $value" >> $FLINK_CONF
 }
 
 function create_ha_config() {
@@ -166,7 +174,7 @@ function create_ha_config() {
     # This must have all the masters to be used in HA.
     echo "localhost:8081" > ${FLINK_DIR}/conf/masters
 
-    # then move on to create the flink-conf.yaml
+    # then move on to create the config.yaml
     #==============================================================================
     # Common
     #==============================================================================
@@ -688,7 +696,7 @@ function setup_flink_slf4j_metric_reporter() {
   METRIC_NAME_PATTERN="${1:-"*"}"
   set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
   set_config_key "metrics.reporter.slf4j.interval" "1 SECONDS"
-  set_config_key "metrics.reporter.slf4j.filter.includes" "*:${METRIC_NAME_PATTERN}"
+  set_config_key "metrics.reporter.slf4j.filter.includes" "'*:${METRIC_NAME_PATTERN}'"
 }
 
 function get_job_exceptions {

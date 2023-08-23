@@ -239,14 +239,14 @@ The SQL Gateway is bundled with the REST Endpoint by default. With the flexible 
 $ ./bin/sql-gateway.sh start -Dsql-gateway.endpoint.type=hiveserver2
 ```
 
-or add the following config in the `conf/flink-conf.yaml`:
+or add the following config in the `conf/config.yaml`:
 
 ```yaml
 sql-gateway.endpoint.type: hiveserver2
 ```
 
 {{< hint info >}}
-Notice: The CLI command has higher priority if flink-conf.yaml also contains the option `sql-gateway.endpoint.type`.
+Notice: The CLI command has higher priority if config.yaml also contains the option `sql-gateway.endpoint.type`.
 {{< /hint >}}
 
 For the specific endpoint, please refer to the corresponding page.

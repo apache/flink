@@ -70,11 +70,11 @@ cp ./opt/flink-oss-fs-hadoop-{{< version >}}.jar ./plugins/oss-fs-hadoop/
 
 在设置好 OSS 文件系统包装器之后，需要添加一些配置以保证 Flink 有权限访问 OSS buckets。
 
-为了简单使用，可直接在 `flink-conf.yaml` 中使用与 Hadoop `core-site.xml` 相同的配置关键字。
+为了简单使用，可直接在 `config.yaml` 中使用与 Hadoop `core-site.xml` 相同的配置关键字。
 
 可在 [Hadoop OSS 文档](http://hadoop.apache.org/docs/current/hadoop-aliyun/tools/hadoop-aliyun/index.html) 中查看配置关键字。
 
-一些配置必须添加至 `flink-conf.yaml` （**在 Hadoop OSS 文档中定义的其它配置为用作性能调优的高级配置**）：
+一些配置必须添加至 `config.yaml` （**在 Hadoop OSS 文档中定义的其它配置为用作性能调优的高级配置**）：
 
 ```yaml
 fs.oss.endpoint: 连接的 Aliyun OSS endpoint
@@ -82,7 +82,7 @@ fs.oss.accessKeyId: Aliyun access key ID
 fs.oss.accessKeySecret: Aliyun access key secret
 ```
 
-备选的 `CredentialsProvider` 也可在 `flink-conf.yaml` 中配置，例如：
+备选的 `CredentialsProvider` 也可在 `config.yaml` 中配置，例如：
 ```yaml
 # 从 OSS_ACCESS_KEY_ID 和 OSS_ACCESS_KEY_SECRET 读取凭据 (Credentials)
 fs.oss.credentials.provider: com.aliyun.oss.common.auth.EnvironmentVariableCredentialsProvider
