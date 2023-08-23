@@ -22,19 +22,18 @@ mvn --version
 java -version
 javadoc -J-version
 
-# setup hugo
-HUGO_REPO=https://github.com/gohugoio/hugo/releases/download/v0.110.0/hugo_extended_0.110.0_Linux-64bit.tar.gz
-HUGO_ARTIFACT=hugo_extended_0.110.0_Linux-64bit.tar.gz
-if ! curl --fail -OL $HUGO_REPO ; then
-	echo "Failed to download Hugo binary"
-	exit 1
-fi
-tar -zxvf $HUGO_ARTIFACT -C /usr/local/bin
 git submodule update --init --recursive
-# Setup the external documentation modules
+
 cd docs
+
+# setup hugo
+source setup_hugo.sh
+
+# Setup the external documentation modules
 source setup_docs.sh
+
 cd ..
+
 # Build the docs
 hugo --source docs
 
