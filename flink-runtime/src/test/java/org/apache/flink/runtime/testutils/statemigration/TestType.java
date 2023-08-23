@@ -26,12 +26,12 @@ import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
 
-import org.junit.Assert;
-
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
 import java.util.Objects;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * A data type used as state in state migration tests.
@@ -129,9 +129,9 @@ public class TestType extends AbstractHeapPriorityQueueElement
         @Override
         public TestType deserialize(DataInputView source) throws IOException {
             String key = source.readUTF();
-            Assert.assertEquals(RANDOM_PAYLOAD, source.readUTF());
+            assertThat(source.readUTF()).isEqualTo(RANDOM_PAYLOAD);
             int value = source.readInt();
-            Assert.assertTrue(source.readBoolean());
+            assertThat(source.readBoolean()).isTrue();
 
             return new TestType(key, value);
         }
