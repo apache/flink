@@ -157,9 +157,18 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     /** True if the descriptor must not shut down the YarnClient. */
     private final boolean sharedYarnClient;
 
-    /** Lazily initialized list of files to ship. */
+    /**
+     * Lazily initialized list of files to ship. The path string for the files which is configured
+     * by {@code YarnConfigOptions#SHIP_FILES} will be converted to {@code Path} with schema and
+     * absolute path.
+     */
     private final List<Path> shipFiles = new LinkedList<>();
 
+    /**
+     * Lazily initialized list of archives to ship. The path string for the archives which is
+     * configured by {@code YarnConfigOptions#SHIP_ARCHIVES} will be converted to {@code Path} with
+     * schema and absolute path.
+     */
     private final List<Path> shipArchives = new LinkedList<>();
 
     private final String yarnQueue;
@@ -209,16 +218,18 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         checkNotNull(configuration);
         checkNotNull(configOption);
 
-        List<Path> files = ConfigUtils.decodeListFromConfig(configuration, configOption, Path::new);
-        files = files.stream().map(this::enrichPathSchemaIfNeeded).collect(Collectors.toList());
+        List<Path> files =
+                ConfigUtils.decodeListFromConfig(
+                        configuration, configOption, this::createPathWithSchema);
         return files.isEmpty() ? Optional.empty() : Optional.of(files);
     }
 
-    private Path enrichPathSchemaIfNeeded(Path path) {
-        if (isWithoutSchema(path)) {
-            return new Path(new File(path.toString()).toURI());
-        }
-        return path;
+    private Path createPathWithSchema(String path) {
+        return isWithoutSchema(new Path(path)) ? getPathFromLocalFilePathStr(path) : new Path(path);
+    }
+
+    private Path getPathFromLocalFilePathStr(String localPathStr) {
+        return new Path(new File(localPathStr).toURI());
     }
 
     private boolean isWithoutSchema(Path path) {
@@ -240,7 +251,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // flink-dist jar
         final String decodedPath = getDecodedJarPath();
         return decodedPath.endsWith(".jar")
-                ? Optional.of(new Path(new File(decodedPath).toURI()))
+                ? Optional.of(getPathFromLocalFilePathStr(decodedPath))
                 : Optional.empty();
     }
 
@@ -863,7 +874,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         final String logConfigFilePath =
                 configuration.getString(YarnConfigOptionsInternal.APPLICATION_LOG_CONFIG_FILE);
         if (logConfigFilePath != null) {
-            systemShipFiles.add(new Path(new File(logConfigFilePath).toURI()));
+            systemShipFiles.add(getPathFromLocalFilePathStr(logConfigFilePath));
         }
 
         // Set-up ApplicationSubmissionContext for the application

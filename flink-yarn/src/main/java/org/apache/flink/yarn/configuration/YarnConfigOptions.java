@@ -286,7 +286,7 @@ public class YarnConfigOptions {
                     .noDefaultValue()
                     .withDescription(
                             "A semicolon-separated list of archives to be shipped to the YARN cluster. "
-                                    + "These archives can come from the local client and/or HDFS. "
+                                    + "These archives can come from the local path of flink client or HDFS. "
                                     + "They will be un-packed when localizing and they can be any of the following "
                                     + "types: \".tar.gz\", \".tar\", \".tgz\", \".dst\", \".jar\", \".zip\". "
                                     + "For example, \"/path/to/local/archive.jar;"
