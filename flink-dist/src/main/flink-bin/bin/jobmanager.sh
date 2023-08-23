@@ -51,7 +51,7 @@ ENTRYPOINT=standalonesession
 if [[ $STARTSTOP == "start" ]] || [[ $STARTSTOP == "start-foreground" ]]; then
     # Add JobManager-specific JVM options
     export FLINK_ENV_JAVA_OPTS="${FLINK_ENV_JAVA_OPTS} ${FLINK_ENV_JAVA_OPTS_JM}"
-    parseJmArgsAndExportLogs "${ARGS[@]}"
+    parseJmArgsAndExportLogs "${args[@]}"
 
     args=("--configDir" "${FLINK_CONF_DIR}" "--executionMode" "cluster" "${args[@]}")
     if [ ! -z $HOST ]; then
