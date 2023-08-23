@@ -141,11 +141,24 @@ The following configuration parameter need to be set:
 
 The behavior of Adaptive Scheduler is configured by [all configuration options containing `adaptive-scheduler`]({{< ref "docs/deployment/config">}}#advanced-scheduling-options) in their name.
 
+### Externalized Declarative Resource Management
+
+{{< hint info >}}
+Externalized Declarative Resource Management is an MVP ("minimum viable product") feature. The Flink community is actively looking for feedback by users through our mailing lists. Please check the limitations listed on this page.
+{{< /hint >}}
+
+[FLIP-291](https://cwiki.apache.org/confluence/display/FLINK/FLIP-291%3A+Externalized+Declarative+Resource+Management) provides a [Rest API](https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-jobid-resource-requirements),
+It allows external tools to declare job resource requirements using a rest api, and lets users define upper and lower parallelism bounds. At the same time it can also be used with
+[Flink Kubernetes Operator Autoscaler](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-release-1.6/docs/custom-resource/autoscaler/#flink-118-and-in-place-scaling-support)
+Use with modules
+
+
 ### Limitations
 
 - **Streaming jobs only**: The Adaptive Scheduler runs with streaming jobs only. When submitting a batch job, Flink will use the default scheduler of batch jobs, i.e. Adaptive Batch Scheduler.
 - **No support for partial failover**: Partial failover means that the scheduler is able to restart parts ("regions" in Flink's internals) of a failed job, instead of the entire job. This limitation impacts only recovery time of embarrassingly parallel jobs: Flink's default scheduler can restart failed parts, while Adaptive Scheduler will restart the entire job.
 - Scaling events trigger job and task restarts, which will increase the number of Task attempts.
+- **Externalized Declarative Resource Management** Only support from Flink **1.18**
 
 ## Adaptive Batch Scheduler
 

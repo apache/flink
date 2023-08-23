@@ -139,11 +139,24 @@ Adaptive 调度器可以通过[所有在名字包含 `adaptive-scheduler` 的配
 
 <a name="limitations-1"></a>
 
+
+### 外部化声明式资源管理
+
+{{< hint info >}}
+外部化声明式资源管理是一个 MVP （minimum viable product，最小可行产品）特性。目前 Flink 社区正在积极地从邮件列表中获取用户的使用反馈。请注意文中列举的一些局限性。
+{{< /hint >}}
+
+[FLIP-291](https://cwiki.apache.org/confluence/display/FLINK/FLIP-291%3A+Externalized+Declarative+Resource+Management)提供了[一组API](https://nightlies.apache.org/flink/flink-docs-master/docs/ops/rest_api/#jobs-jobid-resource-requirements)，
+它允许外部工具使用 REST API 声明作业资源需求，让用户定义每个作业图中的Vertex上下限并行度。于此同时它也可以和
+[Flink Kubernetes Operator Autoscaler](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-release-1.6/docs/custom-resource/autoscaler/#flink-118-and-in-place-scaling-support)
+搭配模块使用
+
 ### 局限性
 
 - **只支持流式 Job**：Adaptive 调度器仅支持流式 Job。当提交的是一个批处理 Job 时，Flink 会自动使用批处理 Job 的默认调度器，即 Adaptive Batch Scheduler。
 - **不支持部分故障恢复**: 部分故障恢复意味着调度器可以只重启失败 Job 其中某一部分（在 Flink 的内部结构中被称之为 Region）而不是重启整个 Job。这个限制只会影响那些独立并行（Embarrassingly Parallel）Job的恢复时长，默认的调度器可以重启失败的部分，然而 Adaptive 将需要重启整个 Job。
 - 扩缩容事件会触发 Job 和 Task 重启，Task 重试的次数也会增加。
+- **外部化声明式资源管理** 仅从Flink1.18开始支持
 
 ## Adaptive Batch Scheduler
 
