@@ -27,6 +27,7 @@ import java.util.Collections;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for {@link SlotSharingGroup}. */
@@ -68,17 +69,21 @@ public class SlotSharingGroupTest {
         assertTrue(slotSharingGroup.getExternalResources().isEmpty());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBuildSlotSharingGroupWithIllegalConfig() {
-        SlotSharingGroup.newBuilder("ssg")
-                .setCpuCores(1)
-                .setTaskHeapMemory(MemorySize.ZERO)
-                .setTaskOffHeapMemoryMB(10)
-                .build();
+        assertThrows(IllegalArgumentException.class, () -> {
+            SlotSharingGroup.newBuilder("ssg")
+                    .setCpuCores(1)
+                    .setTaskHeapMemory(MemorySize.ZERO)
+                    .setTaskOffHeapMemoryMB(10)
+                    .build();
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBuildSlotSharingGroupWithoutAllRequiredConfig() {
-        SlotSharingGroup.newBuilder("ssg").setCpuCores(1).setTaskOffHeapMemoryMB(10).build();
+        assertThrows(IllegalArgumentException.class, () -> {
+            SlotSharingGroup.newBuilder("ssg").setCpuCores(1).setTaskOffHeapMemoryMB(10).build();
+        });
     }
 }
