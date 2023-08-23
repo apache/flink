@@ -36,8 +36,8 @@ set;
 |        execution.shutdown-on-attached-exit |     false |
 |                           execution.target |    remote |
 |                     jobmanager.rpc.address | localhost |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
+|                        pipeline.classpaths |        [] |
+|                              pipeline.jars |        [] |
 |                                  rest.port |     $VAR_REST_PORT |
 +--------------------------------------------+-----------+
 9 rows in set
@@ -60,8 +60,8 @@ set;
 |        execution.shutdown-on-attached-exit |     false |
 |                           execution.target |    remote |
 |                     jobmanager.rpc.address | localhost |
-|                        pipeline.classpaths |           |
-|                              pipeline.jars |           |
+|                        pipeline.classpaths |        [] |
+|                              pipeline.jars |        [] |
 |                                  rest.port |     $VAR_REST_PORT |
 +--------------------------------------------+-----------+
 9 rows in set

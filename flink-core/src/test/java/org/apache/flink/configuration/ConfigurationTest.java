@@ -377,19 +377,46 @@ public class ConfigurationTest extends TestLogger {
 
     @Test
     public void testToMap() {
-        final Configuration configuration = new Configuration();
-        final String listValues = "value1;value2;value3";
-        configuration.set(LIST_STRING_OPTION, Arrays.asList(listValues.split(";")));
+        Map<String, String> map = new HashMap<>();
+        map.put("key1", "value1");
+        map.put("key2", "value2");
+        {
+            GlobalConfiguration.setFlinkConfFileName(GlobalConfiguration.FLINK_CONF_FILENAME);
+            testToMapInternal(Arrays.asList("value1", "value2", "value3"), map);
+        }
+        {
+            GlobalConfiguration.setFlinkConfFileName(
+                    GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
+            testToMapInternal(Arrays.asList("value1", "value2", "value3"), map);
+        }
+    }
 
-        final String mapValues = "key1:value1,key2:value2";
-        configuration.set(
-                MAP_OPTION,
-                Arrays.stream(mapValues.split(","))
-                        .collect(Collectors.toMap(e -> e.split(":")[0], e -> e.split(":")[1])));
+    private static void testToMapInternal(List<String> list, Map<String, String> map) {
+        final Configuration configuration = new Configuration();
+        configuration.set(LIST_STRING_OPTION, list);
+
+        configuration.set(MAP_OPTION, map);
 
         final Duration duration = Duration.ofMillis(3000);
         configuration.set(DURATION_OPTION, duration);
 
+        String listValues;
+        String mapValues;
+        if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            listValues = String.join(";", list);
+            mapValues =
+                    map.entrySet().stream()
+                            .map(entry -> entry.getKey() + ":" + entry.getValue())
+                            .collect(Collectors.joining(","));
+        } else {
+            listValues = "[" + String.join(", ", list) + "]";
+            mapValues =
+                    "{"
+                            + map.entrySet().stream()
+                                    .map(entry -> entry.getKey() + ": " + entry.getValue())
+                                    .collect(Collectors.joining(", "))
+                            + "}";
+        }
         assertEquals(listValues, configuration.toMap().get(LIST_STRING_OPTION.key()));
         assertEquals(mapValues, configuration.toMap().get(MAP_OPTION.key()));
         assertEquals("3 s", configuration.toMap().get(DURATION_OPTION.key()));

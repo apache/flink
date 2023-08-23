@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -758,6 +759,24 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
                 ret.put(entry.getKey(), ConfigurationUtils.convertToString(entry.getValue()));
             }
             return ret;
+        }
+    }
+
+    @Internal
+    public Map<String, String> toFileWritableMap() {
+        if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            return toMap();
+        } else {
+            synchronized (this.confData) {
+                Map<String, String> ret =
+                        CollectionUtil.newHashMapWithExpectedSize(this.confData.size());
+                for (Map.Entry<String, Object> entry : confData.entrySet()) {
+                    // Because some character in standard yaml should be escaped by quotes, such as
+                    // '*', here we should wrap the value by Yaml pattern
+                    ret.put(entry.getKey(), YamlParserUtils.convertToString(entry.getValue()));
+                }
+                return ret;
+            }
         }
     }
 

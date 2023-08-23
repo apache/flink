@@ -30,6 +30,7 @@ import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.util.concurrent.Executors;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +40,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Base test class for Kubernetes. */
@@ -92,10 +94,11 @@ public class KubernetesTestBase {
         writeFlinkConfiguration();
 
         kubeClient = server.createClient().inNamespace(NAMESPACE);
+
         flinkKubeClient =
                 new Fabric8FlinkKubeClient(
                         flinkConfig, kubeClient, Executors.newDirectExecutorService());
-
+        List<ConfigMap> items = kubeClient.configMaps().list().getItems();
         onSetup();
     }
 
@@ -106,7 +109,7 @@ public class KubernetesTestBase {
 
     protected void writeFlinkConfiguration() throws IOException {
         BootstrapTools.writeConfiguration(
-                this.flinkConfig, new File(flinkConfDir, "flink-conf.yaml"));
+                this.flinkConfig, new File(flinkConfDir, "flink-config.yaml"));
     }
 
     protected Map<String, String> getCommonLabels() {

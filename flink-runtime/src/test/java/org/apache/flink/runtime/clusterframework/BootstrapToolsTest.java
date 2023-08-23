@@ -27,6 +27,7 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.YamlParserUtils;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.OperatingSystem;
 
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -654,7 +656,18 @@ class BootstrapToolsTest {
     }
 
     @Test
-    void testWriteConfigurationAndReload() throws IOException {
+    void testWriteConfigurationAndReload() throws Exception {
+        testWriteConfigurationAndReloadInternal(false);
+        testWriteConfigurationAndReloadInternal(true);
+    }
+
+    private void testWriteConfigurationAndReloadInternal(boolean isLegacyFlinkConf)
+            throws IOException {
+        String flinkConfFileName =
+                isLegacyFlinkConf
+                        ? GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME
+                        : FLINK_CONF_FILENAME;
+        GlobalConfiguration.setFlinkConfFileName(flinkConfFileName);
         final File flinkConfDir = TempDirUtils.newFolder(temporaryFolder).getAbsoluteFile();
         final Configuration flinkConfig = new Configuration();
 
@@ -677,6 +690,15 @@ class BootstrapToolsTest {
         assertThat(flinkConfig.get(listDurationConfigOption))
                 .containsExactlyInAnyOrderElementsOf(durationList);
 
+        final ConfigOption<List<MemorySize>> listMemoryConfigOption =
+                ConfigOptions.key("test-list-memory-key").memoryType().asList().noDefaultValue();
+        final List<MemorySize> memorySizeList =
+                Arrays.asList(
+                        MemorySize.ofMebiBytes(10), MemorySize.ofMebiBytes(20), MemorySize.ZERO);
+        flinkConfig.set(listMemoryConfigOption, memorySizeList);
+        assertThat(flinkConfig.get(listMemoryConfigOption))
+                .containsExactlyInAnyOrderElementsOf(memorySizeList);
+
         final ConfigOption<Map<String, String>> mapConfigOption =
                 ConfigOptions.key("test-map-key").mapType().noDefaultValue();
         final Map<String, String> map = new HashMap<>();
@@ -688,13 +710,26 @@ class BootstrapToolsTest {
         flinkConfig.set(mapConfigOption, map);
         assertThat(flinkConfig.get(mapConfigOption)).containsAllEntriesOf(map);
 
+        final ConfigOption<List<Map<String, String>>> listMapConfigOption =
+                ConfigOptions.key("test-list-map-key").mapType().asList().noDefaultValue();
+        List<Map<String, String>> listMap = Collections.singletonList(map);
+        flinkConfig.set(listMapConfigOption, listMap);
+        assertThat(flinkConfig.get(listMapConfigOption))
+                .containsExactlyInAnyOrderElementsOf(listMap);
+
         final ConfigOption<Duration> durationConfigOption =
                 ConfigOptions.key("test-duration-key").durationType().noDefaultValue();
         final Duration duration = Duration.ofMillis(3000);
         flinkConfig.set(durationConfigOption, duration);
         assertThat(flinkConfig.get(durationConfigOption)).isEqualTo(duration);
 
-        BootstrapTools.writeConfiguration(flinkConfig, new File(flinkConfDir, FLINK_CONF_FILENAME));
+        final ConfigOption<MemorySize> memoryConfigOption =
+                ConfigOptions.key("test-memory-key").memoryType().noDefaultValue();
+        MemorySize memorySize = MemorySize.ofMebiBytes(10);
+        flinkConfig.set(memoryConfigOption, memorySize);
+        assertThat(memorySize).isEqualTo(flinkConfig.get(memoryConfigOption));
+
+        BootstrapTools.writeConfiguration(flinkConfig, new File(flinkConfDir, flinkConfFileName));
         final Configuration loadedFlinkConfig =
                 GlobalConfiguration.loadConfiguration(flinkConfDir.getAbsolutePath());
         assertThat(loadedFlinkConfig.get(listStringConfigOption))
@@ -703,5 +738,31 @@ class BootstrapToolsTest {
                 .containsExactlyInAnyOrderElementsOf(durationList);
         assertThat(loadedFlinkConfig.get(mapConfigOption)).containsAllEntriesOf(map);
         assertThat(loadedFlinkConfig.get(durationConfigOption)).isEqualTo(duration);
+    }
+
+    @Test
+    public void tetete() {
+        List<Map<String, String>> list = new ArrayList<>();
+        final Map<String, String> map1 = new HashMap<>();
+        final Map<String, String> map2 = new HashMap<>();
+        map1.put("key1", "A,B,C,D");
+        map1.put("key2", "A;BCD");
+        map1.put("key3", "true");
+        map2.put("key3", "A'B'C'D");
+        map2.put("key4", "AB\"C\"D");
+        map2.put("key5", "AB'\"D:B");
+        map2.put(
+                "description",
+                "This is a very very very very very very very very very very very very very very very long description that may cause the value to be split into multiple lines when printed");
+        list.add(map1);
+        list.add(map2);
+        System.out.println(YamlParserUtils.convertToString(list));
+        System.out.println(YamlParserUtils.convertToString(Arrays.asList("test", "tete", "t11")));
+
+        Object o = YamlParserUtils.convertToObject("{env: MY_FOO, secret: foo, key: key_foo}");
+        Object o2 = YamlParserUtils.convertToObject("env: true");
+        String o3 = YamlParserUtils.convertToString(10);
+        System.out.println(o3);
+        System.out.println("=====");
     }
 }
