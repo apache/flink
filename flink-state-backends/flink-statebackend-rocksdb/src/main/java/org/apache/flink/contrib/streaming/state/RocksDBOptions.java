@@ -145,7 +145,7 @@ public class RocksDBOptions {
                                             + "This option only takes effect if neither '%s' nor '%s' are not configured. If none is configured "
                                             + "then each RocksDB column family state has its own memory caches (as controlled by the column "
                                             + "family options). "
-                                            + "The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (flink-conf.yaml)."
+                                            + "The relevant options for the shared resources (e.g. write-buffer-ratio) can be set on the same level (config.yaml)."
                                             + "Note, that this feature breaks resource isolation between the slots",
                                     USE_MANAGED_MEMORY.key(), FIX_PER_SLOT_MEMORY_SIZE.key()));
 

@@ -276,7 +276,7 @@ public class ResourceManagerOptions {
     /**
      * Prefix for passing custom environment variables to Flink's master process. For example for
      * passing LD_LIBRARY_PATH as an env variable to the AppMaster, set:
-     * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native" in the flink-conf.yaml.
+     * containerized.master.env.LD_LIBRARY_PATH: "/usr/lib/native" in the config.yaml.
      */
     public static final String CONTAINERIZED_MASTER_ENV_PREFIX = "containerized.master.env.";
 

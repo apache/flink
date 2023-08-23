@@ -301,7 +301,7 @@ public class KubernetesConfigOptions {
                     .stringType()
                     .defaultValue("/opt/flink/conf")
                     .withDescription(
-                            "The flink conf directory that will be mounted in pod. The flink-conf.yaml, log4j.properties, "
+                            "The flink conf directory that will be mounted in pod. The config.yaml, log4j.properties, "
                                     + "logback.xml in this path will be overwritten from config map.");
 
     public static final ConfigOption<String> FLINK_LOG_DIR =

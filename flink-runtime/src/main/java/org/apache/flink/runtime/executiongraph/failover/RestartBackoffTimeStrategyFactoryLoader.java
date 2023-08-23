@@ -46,8 +46,8 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
      *   <li>Strategy set within job graph, i.e. {@link
      *       RestartStrategies.RestartStrategyConfiguration}, unless the config is {@link
      *       RestartStrategies.FallbackRestartStrategyConfiguration}.
-     *   <li>Strategy set in the cluster(server-side) config (flink-conf.yaml), unless the strategy
-     *       is not specified
+     *   <li>Strategy set in the cluster(server-side) config (config.yaml), unless the strategy is
+     *       not specified
      *   <li>{@link
      *       FixedDelayRestartBackoffTimeStrategy.FixedDelayRestartBackoffTimeStrategyFactory} if
      *       checkpointing is enabled. Otherwise {@link

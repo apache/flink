@@ -112,7 +112,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         final long splitLength = split.length();
 
         // Using Flink FileSystem instead of Hadoop FileSystem directly, so we can get the hadoop
-        // config that create inputFile needed from flink-conf.yaml
+        // config that create inputFile needed from config.yaml
         final FileSystem fs = filePath.getFileSystem();
         final ParquetInputFile inputFile =
                 new ParquetInputFile(fs.open(filePath), fs.getFileStatus(filePath).getLen());
