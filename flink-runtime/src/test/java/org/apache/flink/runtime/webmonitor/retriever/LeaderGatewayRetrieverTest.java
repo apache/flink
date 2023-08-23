@@ -19,33 +19,31 @@
 package org.apache.flink.runtime.webmonitor.retriever;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.TestingRpcGateway;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test cases for the {@link LeaderGatewayRetriever}. */
-public class LeaderGatewayRetrieverTest extends TestLogger {
+class LeaderGatewayRetrieverTest {
 
     /** Tests that the gateway retrieval is retried in case of a failure. */
     @Test
-    public void testGatewayRetrievalFailures() throws Exception {
+    void testGatewayRetrievalFailures() throws Exception {
         final String address = "localhost";
         final UUID leaderId = UUID.randomUUID();
 
-        RpcGateway rpcGateway = mock(RpcGateway.class);
+        RpcGateway rpcGateway = TestingRpcGateway.newBuilder().build();
 
         TestingLeaderGatewayRetriever leaderGatewayRetriever =
                 new TestingLeaderGatewayRetriever(rpcGateway);
@@ -59,20 +57,15 @@ public class LeaderGatewayRetrieverTest extends TestLogger {
         // this triggers the first gateway retrieval attempt
         settableLeaderRetrievalService.notifyListener(address, leaderId);
 
-        // check that the first future has been failed
-        try {
-            gatewayFuture.get();
-
-            fail("The first future should have been failed.");
-        } catch (ExecutionException ignored) {
-            // that's what we expect
-        }
+        FlinkAssertions.assertThatFuture(gatewayFuture)
+                .as("The first future should have been failed.")
+                .eventuallyFailsWith(ExecutionException.class);
 
         // the second attempt should fail as well
-        assertFalse((leaderGatewayRetriever.getNow().isPresent()));
+        assertThat((leaderGatewayRetriever.getNow())).isNotPresent();
 
         // the third attempt should succeed
-        assertEquals(rpcGateway, leaderGatewayRetriever.getNow().get());
+        assertThat(leaderGatewayRetriever.getNow()).hasValue(rpcGateway);
     }
 
     private static class TestingLeaderGatewayRetriever extends LeaderGatewayRetriever<RpcGateway> {
