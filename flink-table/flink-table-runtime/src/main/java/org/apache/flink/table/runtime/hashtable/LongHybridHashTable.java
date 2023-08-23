@@ -37,7 +37,6 @@ import javax.annotation.Nullable;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -84,32 +83,6 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
             IOManager ioManager,
             int avgRecordLen,
             long buildRowCount) {
-        this(
-                owner,
-                compressionEnabled,
-                compressionBlockSize,
-                buildSideSerializer,
-                probeSideSerializer,
-                memManager,
-                reservedMemorySize,
-                ioManager,
-                avgRecordLen,
-                buildRowCount,
-                true);
-    }
-
-    public LongHybridHashTable(
-            Object owner,
-            boolean compressionEnabled,
-            int compressionBlockSize,
-            BinaryRowDataSerializer buildSideSerializer,
-            BinaryRowDataSerializer probeSideSerializer,
-            MemoryManager memManager,
-            long reservedMemorySize,
-            IOManager ioManager,
-            int avgRecordLen,
-            long buildRowCount,
-            boolean spillEnabled) {
         super(
                 owner,
                 compressionEnabled,
@@ -119,8 +92,7 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
                 ioManager,
                 avgRecordLen,
                 buildRowCount,
-                false,
-                spillEnabled);
+                false);
         this.buildSideSerializer = buildSideSerializer;
         this.probeSideSerializer = probeSideSerializer;
 
@@ -621,11 +593,6 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 
     @Override
     public int spillPartition() throws IOException {
-        if (!spillEnabled) {
-            throw new UnsupportedEncodingException(
-                    "Currently doesn't support spill to disk for grace hash join "
-                            + "when broadcast hash join strategy is chosen and operator fusion codegen is enabled simultaneously.");
-        }
         // find the largest partition
         int largestNumBlocks = 0;
         int largestPartNum = -1;

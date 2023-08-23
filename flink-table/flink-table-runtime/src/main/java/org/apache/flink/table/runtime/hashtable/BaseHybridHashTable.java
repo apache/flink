@@ -100,12 +100,6 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
     public final boolean tryDistinctBuildRow;
 
     /**
-     * In operator fusion codegen case, we don't support spill to disk for broadcast hashjoin, so
-     * this flag is introduced.
-     */
-    protected final boolean spillEnabled;
-
-    /**
      * The recursion depth of the partition that is currently processed. The initial table has a
      * recursion depth of 0. Partitions spilled from a table that is built for a partition with
      * recursion depth <i>n</i> have a recursion depth of <i>n+1</i>.
@@ -147,8 +141,7 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
             IOManager ioManager,
             int avgRecordLen,
             long buildRowCount,
-            boolean tryDistinctBuildRow,
-            boolean spillEnabled) {
+            boolean tryDistinctBuildRow) {
         this.compressionEnabled = compressionEnabled;
         this.compressionCodecFactory =
                 this.compressionEnabled
@@ -174,7 +167,6 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 
         this.segmentSizeBits = MathUtils.log2strict(segmentSize);
         this.segmentSizeMask = segmentSize - 1;
-        this.spillEnabled = spillEnabled;
 
         // open builds the initial table by consuming the build-side input
         this.currentRecursionDepth = 0;

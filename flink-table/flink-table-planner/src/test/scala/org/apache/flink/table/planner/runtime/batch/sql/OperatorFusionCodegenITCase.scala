@@ -157,6 +157,15 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
   }
 
   @TestTemplate
+  def testHashJoinWithOnlyProjection(): Unit = {
+    checkOpFusionCodegenResult("""
+                                 |SELECT * FROM (SELECT a, nx + ny AS nt FROM x
+                                 |  JOIN y ON x.a = y.ny) t
+                                 |JOIN z ON t.a = z.nz WHERE t.nt -10 > z.nz
+                                 |""".stripMargin)
+  }
+
+  @TestTemplate
   def testHashJoinWithDeadlockCausedByExchangeInAncestor(): Unit = {
     checkOpFusionCodegenResult(
       """
