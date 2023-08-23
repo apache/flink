@@ -133,7 +133,6 @@ public class CombineTaskTest
                     testTask = new GroupReduceCombineDriver<>();
 
             assertThatThrownBy(() -> testDriver(testTask, MockFailingCombiningReduceStub.class))
-                    .withFailMessage("Exception not forwarded.")
                     .isInstanceOf(ExpectedTestException.class);
         } catch (Exception e) {
             e.printStackTrace();

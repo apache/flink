@@ -416,7 +416,6 @@ class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Recor
         addInput(new UniformRecordGenerator(keyCnt2, valCnt2, true));
 
         assertThatThrownBy(() -> testDriver(testTask, MockFailingMatchStub.class))
-                .withFailMessage("Driver did not forward Exception.")
                 .isInstanceOf(ExpectedTestException.class);
     }
 

@@ -163,7 +163,6 @@ class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>
         final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 
         assertThatThrownBy(() -> testDriver(testTask, MockFailingCrossStub.class))
-                .withFailMessage("Exception not forwarded.")
                 .isInstanceOf(ExpectedTestException.class);
     }
 
@@ -250,7 +249,6 @@ class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>
         final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 
         assertThatThrownBy(() -> testDriver(testTask, MockFailingCrossStub.class))
-                .withFailMessage("Exception not forwarded.")
                 .isInstanceOf(ExpectedTestException.class);
     }
 
@@ -273,7 +271,6 @@ class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>
         final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 
         assertThatThrownBy(() -> testDriver(testTask, MockFailingCrossStub.class))
-                .withFailMessage("Exception not forwarded.")
                 .isInstanceOf(ExpectedTestException.class);
     }
 

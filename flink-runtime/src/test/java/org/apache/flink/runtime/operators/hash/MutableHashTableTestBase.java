@@ -125,9 +125,7 @@ abstract class MutableHashTableTestBase {
         assertThat(prober1).isNotEqualTo(prober2);
 
         table.close(); // (This also tests calling close without calling open first.)
-        assertThat(table.getFreeMemory().size())
-                .withFailMessage("Memory lost")
-                .isEqualTo(NUM_MEM_PAGES);
+        assertThat(table.getFreeMemory()).withFailMessage("Memory lost").hasSize(NUM_MEM_PAGES);
     }
 
     @Test
