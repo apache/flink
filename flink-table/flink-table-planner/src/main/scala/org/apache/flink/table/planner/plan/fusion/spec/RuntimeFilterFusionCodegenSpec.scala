@@ -53,7 +53,7 @@ class RuntimeFilterFusionCodegenSpec(opCodegenCtx: CodeGeneratorContext, probeIn
     probeType = probeContext.getOutputType
   }
 
-  override def variablePrefix(): String = "rFilter"
+  override def variablePrefix(): String = "runtimeFilter"
 
   override def doProcessProduce(codegenCtx: CodeGeneratorContext): Unit = {
     // call build side first, then call probe side
@@ -100,7 +100,6 @@ class RuntimeFilterFusionCodegenSpec(opCodegenCtx: CodeGeneratorContext, probeIn
         .code
 
       val found = newName("found")
-      val consumeCode = fusionContext.processConsume(null, row.resultTerm)
       s"""
          |${className[Preconditions]}.checkState($buildComplete, "Should build completed.");
          |
@@ -116,7 +115,7 @@ class RuntimeFilterFusionCodegenSpec(opCodegenCtx: CodeGeneratorContext, probeIn
          |// if found, call downstream to consume the row
          |if($found) {
          |  ${row.code}
-         |  $consumeCode
+         |  ${fusionContext.processConsume(null, row.resultTerm)}
          |}
          |""".stripMargin
     }
