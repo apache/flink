@@ -485,7 +485,7 @@ public final class Utils {
      *
      * @param flinkConfig The Flink configuration.
      * @param tmParams Parameters for the task manager.
-     * @param configDirectory The configuration directory for the flink-conf.yaml
+     * @param configDirectory The configuration directory for the config.yaml
      * @param logDirectory The log directory.
      * @param hasLogback Uses logback?
      * @param hasLog4j Uses log4j?

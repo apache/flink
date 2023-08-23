@@ -127,8 +127,8 @@ public class DefaultContext {
     // -------------------------------------------------------------------------------------------
 
     /**
-     * Build the {@link DefaultContext} from flink-conf.yaml, dynamic configuration and users
-     * specified jars.
+     * Build the {@link DefaultContext} from config.yaml, dynamic configuration and users specified
+     * jars.
      *
      * @param dynamicConfig user specified configuration.
      * @param dependencies user specified jars

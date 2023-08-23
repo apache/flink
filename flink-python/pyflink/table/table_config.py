@@ -36,7 +36,7 @@ class TableConfig(object):
     This class is a pure API class that abstracts configuration from various sources. Currently,
     configuration can be set in any of the following layers (in the given order):
 
-    - flink-conf.yaml
+    - config.yaml
     - CLI parameters
     - :class:`~pyflink.datastream.StreamExecutionEnvironment` when bridging to DataStream API
     - :func:`~EnvironmentSettings.Builder.with_configuration`
@@ -106,8 +106,17 @@ class TableConfig(object):
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         if key in [jars_key, classpaths_key]:
-            add_jars_to_context_class_loader(value.split(";"))
-
+            isStandardYaml = jvm.org.apache.flink.configuration. \
+                GlobalConfiguration.isStandardYaml()
+            if isStandardYaml:
+                import yaml
+                jar_urls_list = yaml.safe_load(value)
+                if isinstance(jar_urls_list, list):
+                    add_jars_to_context_class_loader(jar_urls_list)
+                else:
+                    add_jars_to_context_class_loader(value.split(";"))
+            else:
+                add_jars_to_context_class_loader(value.split(";"))
         return self
 
     def get_local_timezone(self) -> str:

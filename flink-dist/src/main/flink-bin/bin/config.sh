@@ -112,12 +112,12 @@ readFromConfig() {
 }
 
 ########################################################################################################################
-# DEFAULT CONFIG VALUES: These values will be used when nothing has been specified in conf/flink-conf.yaml
+# DEFAULT CONFIG VALUES: These values will be used when nothing has been specified in conf/config.yaml
 # -or- the respective environment variables are not set.
 ########################################################################################################################
 
 # WARNING !!! , these values are only used if there is nothing else is specified in
-# conf/flink-conf.yaml
+# conf/config.yaml
 
 DEFAULT_ENV_PID_DIR="/tmp"                          # Directory to store *.pid files to
 DEFAULT_ENV_LOG_MAX=10                              # Maximum number of old log files to keep
@@ -134,7 +134,7 @@ DEFAULT_HADOOP_CONF_DIR=""                          # Hadoop Configuration Direc
 DEFAULT_HBASE_CONF_DIR=""                           # HBase Configuration Directory, if necessary
 
 ########################################################################################################################
-# CONFIG KEYS: The default values can be overwritten by the following keys in conf/flink-conf.yaml
+# CONFIG KEYS: The default values can be overwritten by the following keys in conf/config.yaml
 ########################################################################################################################
 
 KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
@@ -351,7 +351,7 @@ if [ -z "${HIGH_AVAILABILITY}" ]; then
 fi
 
 # Arguments for the JVM. Used for job and task manager JVMs.
-# DO NOT USE FOR MEMORY SETTINGS! Use conf/flink-conf.yaml with keys
+# DO NOT USE FOR MEMORY SETTINGS! Use conf/config.yaml with keys
 # JobManagerOptions#TOTAL_PROCESS_MEMORY and TaskManagerOptions#TOTAL_PROCESS_MEMORY for that!
 if [ -z "${JVM_ARGS}" ]; then
     JVM_ARGS=""

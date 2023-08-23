@@ -821,10 +821,9 @@ public abstract class YarnTestBase {
 
             File flinkConfDirPath =
                     TestUtils.findFile(
-                            // NOTE: Before we change the default conf file in the flink-dist to
-                            // 'config.yaml', we need to use the legacy flink conf file
-                            // 'flink-conf.yaml' here.
-                            flinkDistRootDir, new ContainsName(new String[] {"flink-conf.yaml"}));
+                            flinkDistRootDir,
+                            new ContainsName(
+                                    new String[] {GlobalConfiguration.FLINK_CONF_FILENAME}));
             assertThat(flinkConfDirPath).isNotNull();
 
             final String confDirPath = flinkConfDirPath.getParentFile().getAbsolutePath();
@@ -839,7 +838,8 @@ public abstract class YarnTestBase {
             FileUtils.copyDirectory(new File(confDirPath), tempConfPathForSecureRun);
 
             BootstrapTools.writeConfiguration(
-                    globalConfiguration, new File(tempConfPathForSecureRun, "flink-conf.yaml"));
+                    globalConfiguration,
+                    new File(tempConfPathForSecureRun, GlobalConfiguration.FLINK_CONF_FILENAME));
 
             String configDir = tempConfPathForSecureRun.getAbsolutePath();
 

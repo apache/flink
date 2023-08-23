@@ -247,7 +247,7 @@ public class RocksDBStateBackendConfigTest {
         env.close();
     }
 
-    /** Validates that user custom configuration from code should override the flink-conf.yaml. */
+    /** Validates that user custom configuration from code should override the config.yaml. */
     @Test
     public void testConfigureTimerServiceLoadingFromApplication() throws Exception {
         final MockEnvironment env = new MockEnvironmentBuilder().build();
@@ -522,7 +522,7 @@ public class RocksDBStateBackendConfigTest {
         // verify that we would use PredefinedOptions.DEFAULT by default.
         assertEquals(PredefinedOptions.DEFAULT, rocksDbBackend.getPredefinedOptions());
 
-        // verify that user could configure predefined options via flink-conf.yaml
+        // verify that user could configure predefined options via config.yaml
         Configuration configuration = new Configuration();
         configuration.set(
                 RocksDBOptions.PREDEFINED_OPTIONS, PredefinedOptions.FLASH_SSD_OPTIMIZED.name());
@@ -628,7 +628,7 @@ public class RocksDBStateBackendConfigTest {
         String checkpointPath = tempFolder.newFolder().toURI().toString();
         RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
 
-        // verify that user-defined options factory could be configured via flink-conf.yaml
+        // verify that user-defined options factory could be configured via config.yaml
         Configuration config = new Configuration();
         config.setString(RocksDBOptions.OPTIONS_FACTORY.key(), TestOptionsFactory.class.getName());
         config.setString(TestOptionsFactory.BACKGROUND_JOBS_OPTION.key(), "4");
