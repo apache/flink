@@ -64,6 +64,7 @@ class CalcFusionCodegenSpec(
     } else if (condition.isEmpty) { // only projection
       val projectionExprs = projection.map(getExprCodeGenerator.generateExpression)
       s"""
+         |${opCodegenCtx.reuseLocalVariableCode()}
          |${evaluateRequiredVariables(toScala(inputVars), projectionUsedColumns)}
          |${fusionContext.processConsume(toJava(projectionExprs))}
          |""".stripMargin
