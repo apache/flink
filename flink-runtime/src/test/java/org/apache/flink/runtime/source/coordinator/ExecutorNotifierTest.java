@@ -18,9 +18,9 @@ limitations under the License.
 
 package org.apache.flink.runtime.source.coordinator;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
@@ -31,8 +31,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.shutdownExecutorForcefully;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Unit tests for ExecutorNotifier. */
 public class ExecutorNotifierTest {
@@ -42,7 +42,7 @@ public class ExecutorNotifierTest {
     private Throwable exceptionInHandler;
     private CountDownLatch exceptionInHandlerLatch;
 
-    @Before
+    @BeforeEach
     public void setup() {
         this.exceptionInHandler = null;
         this.exceptionInHandlerLatch = new CountDownLatch(1);
@@ -62,7 +62,7 @@ public class ExecutorNotifierTest {
         this.notifier = new ExecutorNotifier(this.workerExecutor, this.executorToNotify);
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws InterruptedException {
         shutdownExecutorForcefully(workerExecutor, Duration.ofNanos(Long.MAX_VALUE));
         shutdownExecutorForcefully(executorToNotify, Duration.ofNanos(Long.MAX_VALUE));

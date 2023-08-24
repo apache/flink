@@ -21,11 +21,11 @@ package org.apache.flink.runtime.security.modules;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.security.SecurityConfiguration;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,30 +33,29 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.apache.flink.runtime.security.modules.JaasModule.JAVA_SECURITY_AUTH_LOGIN_CONFIG;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.StringStartsWith.startsWith;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link JaasModule}. */
 public class JaasModuleTest {
-    @Rule public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir public java.nio.file.Path folder;
 
-    @Before
+    @BeforeEach
     public void setUp() throws IOException {
         // clear the property
         System.getProperties().remove(JAVA_SECURITY_AUTH_LOGIN_CONFIG);
-        folder.create();
     }
 
     @Test
     public void testJaasModuleFilePathIfWorkingDirPresent() throws IOException {
-        File file = folder.newFolder();
+        File file = TempDirUtils.newFolder(folder);
         testJaasModuleFilePath(file.toPath().toString());
     }
 
     @Test
     public void testJaasModuleFilePathIfWorkingDirNotPresent() throws IOException {
-        File file = folder.newFolder();
+        File file = TempDirUtils.newFolder(folder);
         testJaasModuleFilePath(file.toPath().toString() + "/tmp");
     }
 
@@ -74,7 +73,7 @@ public class JaasModuleTest {
     }
 
     private Path createSymLinkFolderStructure() throws IOException {
-        File baseFolder = folder.newFolder();
+        File baseFolder = TempDirUtils.newFolder(folder);
         File actualFolder = new File(baseFolder, "actual_folder");
         assertTrue(actualFolder.mkdirs());
 

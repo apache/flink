@@ -18,11 +18,11 @@
 
 package org.apache.flink.runtime.security;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.security.auth.login.AppConfigurationEntry;
 
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Tests for the {@link KerberosUtils}. */
 public class KerberosUtilsTest {

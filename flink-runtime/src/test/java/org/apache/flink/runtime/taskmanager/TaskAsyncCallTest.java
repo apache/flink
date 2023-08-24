@@ -59,9 +59,9 @@ import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -69,9 +69,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.isOneOf;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
 
 /** Testing asynchronous call of {@link Task}. */
@@ -91,7 +91,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
     private ShuffleEnvironment<?, ?> shuffleEnvironment;
 
-    @Before
+    @BeforeEach
     public void createQueuesAndActors() {
         numCalls = 1000;
 
@@ -101,7 +101,7 @@ public class TaskAsyncCallTest extends TestLogger {
         shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
     }
 
-    @After
+    @AfterEach
     public void teardown() throws Exception {
         if (shuffleEnvironment != null) {
             shuffleEnvironment.close();
