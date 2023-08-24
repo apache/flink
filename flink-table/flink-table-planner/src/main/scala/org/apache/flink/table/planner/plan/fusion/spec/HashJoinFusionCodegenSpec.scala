@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.codegen.LongHashJoinGenerator.{genGetLongK
 import org.apache.flink.table.planner.plan.fusion.{OpFusionCodegenSpecBase, OpFusionContext}
 import org.apache.flink.table.planner.plan.fusion.FusionCodegenUtil.{constructDoConsumeCode, constructDoConsumeFunction, evaluateRequiredVariables, extractRefInputFields}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.hashtable.LongHybridHashTable
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, HashJoinType}
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
@@ -137,11 +137,7 @@ class HashJoinFusionCodegenSpec(
       inputVars: Seq[GeneratedExpression],
       row: GeneratedExpression): String = {
     // initialize hash table related code
-    if (isBroadcast) {
-      codegenHashTable(false)
-    } else {
-      codegenHashTable(true)
-    }
+    codegenHashTable()
 
     val (nullCheckBuildCode, nullCheckBuildTerm) = {
       genAnyNullsInKeys(buildKeys, inputVars)
@@ -166,7 +162,13 @@ class HashJoinFusionCodegenSpec(
        |// find matches from hash table
        |${classOf[RowIterator[_]].getCanonicalName} $buildIterTerm = $anyNull ?
        |  null : $hashTableTerm.get(${keyEv.resultTerm});
-       |${wrapProbeWithSpilledCode(anyNull, buildIterTerm, row, processCode)}
+       |
+       |if(!$anyNull && $buildIterTerm == null) {
+       |   ${row.code}
+       |   $hashTableTerm.insertIntoProbeBuffer(${row.resultTerm});
+       |} else {
+       |  $processCode
+       |}
            """.stripMargin
   }
 
@@ -179,15 +181,11 @@ class HashJoinFusionCodegenSpec(
          |$hashTableTerm.endBuild();
        """.stripMargin
     } else {
-      if (isBroadcast) {
-        fusionContext.endInputConsume()
-      } else {
-        s"""
-           |// Process the spilled partitions first
-           |$codegenEndInputCode
-           |${fusionContext.endInputConsume()}
-           |""".stripMargin
-      }
+      s"""
+         |// Process the spilled partitions first
+         |$codegenEndInputCode
+         |${fusionContext.endInputConsume()}
+         |""".stripMargin
     }
   }
 
@@ -214,6 +212,10 @@ class HashJoinFusionCodegenSpec(
        |  $processCode
        |}
        |LOG.info("Finish rebuild phase.");
+       |
+       |if(!$hashTableTerm.getPartitionsPendingForSMJ().isEmpty()) {
+       |  throw new UnsupportedOperationException("Currently doesn't support fallback to sort merge join for hash join when 'table.exec.operator-fusion-codegen.enabled' is true.");
+       |}
        |""".stripMargin
   }
 
@@ -511,45 +513,19 @@ class HashJoinFusionCodegenSpec(
     classOf[BinaryRowData]
   }
 
-  private def wrapProbeWithSpilledCode(
-      anyNull: String,
-      buildIterTerm: String,
-      row: GeneratedExpression,
-      processCode: String): String = {
-    // Broadcast HashJoin doesn't support spill to disk.
-    if (isBroadcast) {
-      processCode
-    } else {
-      // If join key is not null and $buildIterTerm is null indicate the build partition
-      // corresponding to the probe row has spilled to disk, so also spill it to disk.
-      s"""
-         |if(!$anyNull && $buildIterTerm == null) {
-         |   ${row.code}
-         |   $hashTableTerm.insertIntoProbeBuffer(${row.resultTerm});
-         |} else {
-         |  $processCode
-         |}
-         |""".stripMargin
-    }
-  }
-
   private def codegenConsumeCode(resultVars: Seq[GeneratedExpression]): String = {
-    if (isBroadcast) {
-      fusionContext.processConsume(toJava(resultVars))
-    } else {
-      // Here need to cache to avoid generating the consume code multiple time
-      if (consumeFunctionName == null) {
-        consumeFunctionName = constructDoConsumeFunction(
-          variablePrefix,
-          opCodegenCtx,
-          fusionContext,
-          fusionContext.getOutputType)
-      }
-      constructDoConsumeCode(consumeFunctionName, resultVars)
+    // Here need to cache to avoid generating the consume code multiple time
+    if (consumeFunctionName == null) {
+      consumeFunctionName = constructDoConsumeFunction(
+        variablePrefix,
+        opCodegenCtx,
+        fusionContext,
+        fusionContext.getOutputType)
     }
+    constructDoConsumeCode(consumeFunctionName, resultVars)
   }
 
-  private def codegenHashTable(spillEnabled: Boolean): Unit = {
+  private def codegenHashTable(): Unit = {
     val buildSer = new BinaryRowDataSerializer(buildType.getFieldCount)
     val buildSerTerm = opCodegenCtx.addReusableObject(buildSer, "buildSer")
     val probeSer = new BinaryRowDataSerializer(probeType.getFieldCount)
@@ -591,8 +567,7 @@ class HashJoinFusionCodegenSpec(
          |      memorySize,
          |      getContainingTask().getEnvironment().getIOManager(),
          |      $buildRowSize,
-         |      ${buildRowCount}L / getRuntimeContext().getNumberOfParallelSubtasks(),
-         |      $spillEnabled);
+         |      ${buildRowCount}L / getRuntimeContext().getNumberOfParallelSubtasks());
          |  }
          |
          |  @Override
