@@ -355,7 +355,7 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                                 + " has already been failed.");
             }
             while (!buffers.isEmpty()
-                    && nettyConnectionWriter.numQueuedBuffers() < maxBufferReadAhead
+                    && nettyConnectionWriter.numQueuedBufferPayloads() < maxBufferReadAhead
                     && nextSegmentId >= 0) {
                 MemorySegment memorySegment = buffers.poll();
                 Buffer buffer;
@@ -404,8 +404,9 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
         }
 
         private void writeToNettyConnectionWriter(NettyPayload nettyPayload) {
-            nettyConnectionWriter.writeBuffer(nettyPayload);
-            if (nettyConnectionWriter.numQueuedBuffers() <= 1) {
+            nettyConnectionWriter.writeNettyPayload(nettyPayload);
+            if (nettyConnectionWriter.numQueuedPayloads() <= 1
+                    || nettyConnectionWriter.numQueuedBufferPayloads() <= 1) {
                 notifyAvailable();
             }
         }
