@@ -23,8 +23,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 
 import java.lang.management.ManagementFactory;
@@ -40,10 +40,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link VertexFlameGraphFactory}. */
-public class VertexFlameGraphFactoryTest extends TestLogger {
+class VertexFlameGraphFactoryTest {
     /** Tests that lambda class names are cleaned up inside the stack traces. */
     @Test
-    public void testLambdaClassNamesCleanUp() {
+    void testLambdaClassNamesCleanUp() {
         Map<ExecutionAttemptID, Collection<ThreadInfoSample>> samplesBySubtask = generateSamples();
 
         VertexThreadInfoStats sample = new VertexThreadInfoStats(0, 0, 0, samplesBySubtask);
@@ -67,7 +67,17 @@ public class VertexFlameGraphFactoryTest extends TestLogger {
             String className =
                     locationWithoutLineNumber.substring(
                             0, locationWithoutLineNumber.lastIndexOf("."));
-            assertThat(className).endsWith("$Lambda$0/0");
+            assertThat(className)
+                    .is(
+                            new Condition<String>() {
+                                @Override
+                                public boolean matches(String value) {
+                                    String javaVersion = System.getProperty("java.version");
+                                    return javaVersion.startsWith("1.8")
+                                                    && value.endsWith("$Lambda$0/0")
+                                            || value.endsWith("$Lambda$0/0x0");
+                                }
+                            });
         }
         return lambdas + node.getChildren().stream().mapToInt(this::verifyRecursively).sum();
     }
