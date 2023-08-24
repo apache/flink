@@ -34,8 +34,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static java.time.Instant.ofEpochMilli;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HadoopFSDelegationTokenProvider}. */
 class HadoopFSDelegationTokenProviderITCase {
@@ -71,25 +70,25 @@ class HadoopFSDelegationTokenProviderITCase {
     }
 
     @Test
-    public void getRenewerShouldReturnNullByDefault() throws Exception {
+    void getRenewerShouldReturnNullByDefault() throws Exception {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
         provider.init(new org.apache.flink.configuration.Configuration());
-        assertNull(provider.getRenewer());
+        assertThat(provider.getRenewer()).isNull();
     }
 
     @Test
-    public void getRenewerShouldReturnConfiguredRenewer() throws Exception {
+    void getRenewerShouldReturnConfiguredRenewer() throws Exception {
         String renewer = "testRenewer";
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
         org.apache.flink.configuration.Configuration configuration =
                 new org.apache.flink.configuration.Configuration();
         configuration.setString("security.kerberos.token.provider.hadoopfs.renewer", renewer);
         provider.init(configuration);
-        assertEquals(renewer, provider.getRenewer());
+        assertThat(provider.getRenewer()).isEqualTo(renewer);
     }
 
     @Test
-    public void getTokenRenewalIntervalShouldReturnNoneWhenNoTokens() throws IOException {
+    void getTokenRenewalIntervalShouldReturnNoneWhenNoTokens() throws IOException {
         HadoopFSDelegationTokenProvider provider =
                 new HadoopFSDelegationTokenProvider() {
                     @Override
@@ -100,13 +99,12 @@ class HadoopFSDelegationTokenProviderITCase {
                 };
         Clock constantClock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
 
-        assertEquals(
-                Optional.empty(),
-                provider.getTokenRenewalInterval(constantClock, Collections.emptySet()));
+        assertThat(provider.getTokenRenewalInterval(constantClock, Collections.emptySet()))
+                .isEmpty();
     }
 
     @Test
-    public void getTokenRenewalIntervalShouldReturnMinWhenMultipleTokens() throws IOException {
+    void getTokenRenewalIntervalShouldReturnMinWhenMultipleTokens() throws IOException {
         Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
         HadoopFSDelegationTokenProvider provider =
                 new HadoopFSDelegationTokenProvider() {
@@ -129,32 +127,30 @@ class HadoopFSDelegationTokenProviderITCase {
                     }
                 };
 
-        assertEquals(
-                Optional.of(1L),
-                provider.getTokenRenewalInterval(constantClock, Collections.emptySet()));
+        assertThat(provider.getTokenRenewalInterval(constantClock, Collections.emptySet()))
+                .isEqualTo(Optional.of(1L));
     }
 
     @Test
-    public void getTokenRenewalDateShouldReturnNoneWhenNegativeRenewalInterval() {
+    void getTokenRenewalDateShouldReturnNoneWhenNegativeRenewalInterval() {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
         Clock constantClock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
         Credentials credentials = new Credentials();
 
-        assertEquals(
-                Optional.empty(), provider.getTokenRenewalDate(constantClock, credentials, -1));
+        assertThat(provider.getTokenRenewalDate(constantClock, credentials, -1)).isEmpty();
     }
 
     @Test
-    public void getTokenRenewalDateShouldReturnNoneWhenNoTokens() {
+    void getTokenRenewalDateShouldReturnNoneWhenNoTokens() {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
         Clock constantClock = Clock.fixed(ofEpochMilli(0), ZoneId.systemDefault());
         Credentials credentials = new Credentials();
 
-        assertEquals(Optional.empty(), provider.getTokenRenewalDate(constantClock, credentials, 1));
+        assertThat(provider.getTokenRenewalDate(constantClock, credentials, 1)).isEmpty();
     }
 
     @Test
-    public void getTokenRenewalDateShouldReturnMinWhenMultipleTokens() {
+    void getTokenRenewalDateShouldReturnMinWhenMultipleTokens() {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
         Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
         Credentials credentials = new Credentials();
@@ -167,12 +163,12 @@ class HadoopFSDelegationTokenProviderITCase {
         credentials.addToken(
                 tokenService2, new TestDelegationToken(tokenService2, tokenIdentifier2));
 
-        assertEquals(
-                Optional.of(NOW + 1), provider.getTokenRenewalDate(constantClock, credentials, 1));
+        assertThat(provider.getTokenRenewalDate(constantClock, credentials, 1))
+                .isEqualTo(Optional.of(NOW + 1));
     }
 
     @Test
-    public void getIssueDateShouldReturnIssueDateWithFutureToken() {
+    void getIssueDateShouldReturnIssueDateWithFutureToken() {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
 
         Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
@@ -180,14 +176,16 @@ class HadoopFSDelegationTokenProviderITCase {
         AbstractDelegationTokenIdentifier tokenIdentifier =
                 new TestHadoopDelegationTokenIdentifier(issueDate);
 
-        assertEquals(
-                issueDate,
-                provider.getIssueDate(
-                        constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
+        assertThat(
+                        provider.getIssueDate(
+                                constantClock,
+                                tokenIdentifier.getKind().toString(),
+                                tokenIdentifier))
+                .isEqualTo(issueDate);
     }
 
     @Test
-    public void getIssueDateShouldReturnIssueDateWithPastToken() {
+    void getIssueDateShouldReturnIssueDateWithPastToken() {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
 
         Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
@@ -195,14 +193,16 @@ class HadoopFSDelegationTokenProviderITCase {
         AbstractDelegationTokenIdentifier tokenIdentifier =
                 new TestHadoopDelegationTokenIdentifier(issueDate);
 
-        assertEquals(
-                issueDate,
-                provider.getIssueDate(
-                        constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
+        assertThat(
+                        provider.getIssueDate(
+                                constantClock,
+                                tokenIdentifier.getKind().toString(),
+                                tokenIdentifier))
+                .isEqualTo(issueDate);
     }
 
     @Test
-    public void getIssueDateShouldReturnNowWithInvalidToken() {
+    void getIssueDateShouldReturnNowWithInvalidToken() {
         HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
 
         Clock constantClock = Clock.fixed(ofEpochMilli(NOW), ZoneId.systemDefault());
@@ -210,9 +210,11 @@ class HadoopFSDelegationTokenProviderITCase {
         AbstractDelegationTokenIdentifier tokenIdentifier =
                 new TestHadoopDelegationTokenIdentifier(issueDate);
 
-        assertEquals(
-                NOW,
-                provider.getIssueDate(
-                        constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
+        assertThat(
+                        provider.getIssueDate(
+                                constantClock,
+                                tokenIdentifier.getKind().toString(),
+                                tokenIdentifier))
+                .isEqualTo(NOW);
     }
 }

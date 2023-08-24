@@ -69,13 +69,11 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.isOneOf;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 /** Testing asynchronous call of {@link Task}. */
-public class TaskAsyncCallTest extends TestLogger {
+class TaskAsyncCallTest extends TestLogger {
 
     /** Number of expected checkpoints. */
     private static int numCalls;
@@ -92,7 +90,7 @@ public class TaskAsyncCallTest extends TestLogger {
     private ShuffleEnvironment<?, ?> shuffleEnvironment;
 
     @BeforeEach
-    public void createQueuesAndActors() {
+    void createQueuesAndActors() {
         numCalls = 1000;
 
         awaitLatch = new OneShotLatch();
@@ -102,7 +100,7 @@ public class TaskAsyncCallTest extends TestLogger {
     }
 
     @AfterEach
-    public void teardown() throws Exception {
+    void teardown() throws Exception {
         if (shuffleEnvironment != null) {
             shuffleEnvironment.close();
         }
@@ -113,7 +111,7 @@ public class TaskAsyncCallTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testCheckpointCallsInOrder() throws Exception {
+    void testCheckpointCallsInOrder() throws Exception {
 
         Task task = createTask(CheckpointsInOrderInvokable.class);
         try (TaskCleaner ignored = new TaskCleaner(task)) {
@@ -128,15 +126,15 @@ public class TaskAsyncCallTest extends TestLogger {
 
             triggerLatch.await();
 
-            assertFalse(task.isCanceledOrFailed());
+            assertThat(task.isCanceledOrFailed()).isFalse();
 
             ExecutionState currentState = task.getExecutionState();
-            assertThat(currentState, isOneOf(ExecutionState.RUNNING, ExecutionState.FINISHED));
+            assertThat(currentState).isIn(ExecutionState.RUNNING, ExecutionState.FINISHED);
         }
     }
 
     @Test
-    public void testMixedAsyncCallsInOrder() throws Exception {
+    void testMixedAsyncCallsInOrder() throws Exception {
 
         Task task = createTask(CheckpointsInOrderInvokable.class);
         try (TaskCleaner ignored = new TaskCleaner(task)) {
@@ -152,10 +150,10 @@ public class TaskAsyncCallTest extends TestLogger {
 
             triggerLatch.await();
 
-            assertFalse(task.isCanceledOrFailed());
+            assertThat(task.isCanceledOrFailed()).isFalse();
 
             ExecutionState currentState = task.getExecutionState();
-            assertThat(currentState, isOneOf(ExecutionState.RUNNING, ExecutionState.FINISHED));
+            assertThat(currentState).isIn(ExecutionState.RUNNING, ExecutionState.FINISHED);
         }
     }
 

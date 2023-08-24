@@ -29,17 +29,17 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Correctness tests for hash/equals and serialization for the {@link
  * org.apache.flink.runtime.taskmanager.TaskExecutionState}.
  */
-public class TaskExecutionStateTest {
+class TaskExecutionStateTest {
 
     @Test
-    public void testEqualsHashCode() {
+    void testEqualsHashCode() {
         try {
             final ExecutionAttemptID executionId = createExecutionAttemptId();
             final ExecutionState state = ExecutionState.RUNNING;
@@ -48,8 +48,8 @@ public class TaskExecutionStateTest {
             TaskExecutionState s1 = new TaskExecutionState(executionId, state, error);
             TaskExecutionState s2 = new TaskExecutionState(executionId, state, error);
 
-            assertEquals(s1.hashCode(), s2.hashCode());
-            assertEquals(s1, s2);
+            assertThat(s2.hashCode()).isEqualTo(s1.hashCode());
+            assertThat(s2).isEqualTo(s1);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -57,7 +57,7 @@ public class TaskExecutionStateTest {
     }
 
     @Test
-    public void testSerialization() {
+    void testSerialization() {
         try {
             final ExecutionAttemptID executionId = createExecutionAttemptId();
             final ExecutionState state = ExecutionState.DEPLOYING;
@@ -70,15 +70,15 @@ public class TaskExecutionStateTest {
             TaskExecutionState javaSerCopy2 = CommonTestUtils.createCopySerializable(original2);
 
             // equalities
-            assertEquals(original1, javaSerCopy1);
-            assertEquals(javaSerCopy1, original1);
+            assertThat(javaSerCopy1).isEqualTo(original1);
+            assertThat(original1).isEqualTo(javaSerCopy1);
 
-            assertEquals(original2, javaSerCopy2);
-            assertEquals(javaSerCopy2, original2);
+            assertThat(javaSerCopy2).isEqualTo(original2);
+            assertThat(original2).isEqualTo(javaSerCopy2);
 
             // hash codes
-            assertEquals(original1.hashCode(), javaSerCopy1.hashCode());
-            assertEquals(original2.hashCode(), javaSerCopy2.hashCode());
+            assertThat(javaSerCopy1.hashCode()).isEqualTo(original1.hashCode());
+            assertThat(javaSerCopy2.hashCode()).isEqualTo(original2.hashCode());
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -86,7 +86,7 @@ public class TaskExecutionStateTest {
     }
 
     @Test
-    public void handleNonSerializableException() {
+    void handleNonSerializableException() {
         try {
             @SuppressWarnings({"ThrowableInstanceNeverThrown", "serial"})
             Exception hostile =

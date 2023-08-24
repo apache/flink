@@ -27,23 +27,23 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /** Test for {@link HadoopDelegationTokenReceiver}. */
-public class HadoopDelegationTokenReceiverITCase {
+class HadoopDelegationTokenReceiverITCase {
 
     @Test
-    public void onNewTokensObtainedShouldThrowExceptionWhenNullCredentials() {
+    void onNewTokensObtainedShouldThrowExceptionWhenNullCredentials() {
         onNewTokensObtainedShouldThrowException(null);
     }
 
     @Test
-    public void onNewTokensObtainedShouldThrowExceptionWhenEmptyCredentials() {
+    void onNewTokensObtainedShouldThrowExceptionWhenEmptyCredentials() {
         onNewTokensObtainedShouldThrowException(new byte[0]);
     }
 
@@ -55,15 +55,13 @@ public class HadoopDelegationTokenReceiverITCase {
                         return "test";
                     }
                 };
-        IllegalArgumentException e =
-                assertThrows(
-                        IllegalArgumentException.class,
-                        () -> receiver.onNewTokensObtained(credentialsBytes));
-        assertTrue(e.getMessage().contains("Illegal tokens"));
+        assertThatThrownBy(() -> receiver.onNewTokensObtained(credentialsBytes))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Illegal tokens");
     }
 
     @Test
-    public void onNewTokensObtainedShouldOverwriteCredentials() throws Exception {
+    void onNewTokensObtainedShouldOverwriteCredentials() throws Exception {
         final Text tokenKind = new Text("TEST_TOKEN_KIND");
         final Text tokenService = new Text("TEST_TOKEN_SERVICE");
         Credentials credentials = new Credentials();
@@ -85,9 +83,11 @@ public class HadoopDelegationTokenReceiverITCase {
             receiver.onNewTokensObtained(credentialsBytes);
             ArgumentCaptor<Credentials> argumentCaptor = ArgumentCaptor.forClass(Credentials.class);
             verify(userGroupInformation, times(1)).addCredentials(argumentCaptor.capture());
-            assertTrue(
-                    CollectionUtils.isEqualCollection(
-                            credentials.getAllTokens(), argumentCaptor.getValue().getAllTokens()));
+            assertThat(
+                            CollectionUtils.isEqualCollection(
+                                    credentials.getAllTokens(),
+                                    argumentCaptor.getValue().getAllTokens()))
+                    .isTrue();
         }
     }
 }

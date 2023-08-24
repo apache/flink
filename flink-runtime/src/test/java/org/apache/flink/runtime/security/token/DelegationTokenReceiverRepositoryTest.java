@@ -25,51 +25,50 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link DelegationTokenReceiverRepository}. */
 class DelegationTokenReceiverRepositoryTest {
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         ExceptionThrowingDelegationTokenReceiver.reset();
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         ExceptionThrowingDelegationTokenReceiver.reset();
     }
 
     @Test
-    public void configurationIsNullMustFailFast() {
-        assertThrows(Exception.class, () -> new DelegationTokenReceiverRepository(null, null));
+    void configurationIsNullMustFailFast() {
+        assertThatThrownBy(() -> new DelegationTokenReceiverRepository(null, null))
+                .isInstanceOf(Exception.class);
     }
 
     @Test
-    public void oneReceiverThrowsExceptionMustFailFast() {
-        assertThrows(
-                Exception.class,
-                () -> {
-                    ExceptionThrowingDelegationTokenReceiver.throwInInit.set(true);
-                    new DelegationTokenReceiverRepository(new Configuration(), null);
-                });
+    void oneReceiverThrowsExceptionMustFailFast() {
+        assertThatThrownBy(
+                        () -> {
+                            ExceptionThrowingDelegationTokenReceiver.throwInInit.set(true);
+                            new DelegationTokenReceiverRepository(new Configuration(), null);
+                        })
+                .isInstanceOf(Exception.class);
     }
 
     @Test
-    public void testAllReceiversLoaded() {
+    void testAllReceiversLoaded() {
         Configuration configuration = new Configuration();
         configuration.setBoolean(CONFIG_PREFIX + ".throw.enabled", false);
         DelegationTokenReceiverRepository delegationTokenReceiverRepository =
                 new DelegationTokenReceiverRepository(configuration, null);
 
-        assertEquals(3, delegationTokenReceiverRepository.delegationTokenReceivers.size());
-        assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("hadoopfs"));
-        assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("hbase"));
-        assertTrue(delegationTokenReceiverRepository.isReceiverLoaded("test"));
-        assertTrue(ExceptionThrowingDelegationTokenReceiver.constructed.get());
-        assertFalse(delegationTokenReceiverRepository.isReceiverLoaded("throw"));
+        assertThat(delegationTokenReceiverRepository.delegationTokenReceivers).hasSize(3);
+        assertThat(delegationTokenReceiverRepository.isReceiverLoaded("hadoopfs")).isTrue();
+        assertThat(delegationTokenReceiverRepository.isReceiverLoaded("hbase")).isTrue();
+        assertThat(delegationTokenReceiverRepository.isReceiverLoaded("test")).isTrue();
+        assertThat(ExceptionThrowingDelegationTokenReceiver.constructed.get()).isTrue();
+        assertThat(delegationTokenReceiverRepository.isReceiverLoaded("throw")).isFalse();
     }
 }

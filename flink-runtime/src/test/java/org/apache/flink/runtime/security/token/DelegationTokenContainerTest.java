@@ -24,11 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DelegationTokenContainer}. */
 class DelegationTokenContainerTest {
@@ -36,7 +32,7 @@ class DelegationTokenContainerTest {
     private static final String TOKEN_VALUE = "TEST_TOKEN_VALUE";
 
     @Test
-    public void testRoundTrip() throws Exception {
+    void testRoundTrip() throws Exception {
         final DelegationTokenContainer container = new DelegationTokenContainer();
         container.addToken(TOKEN_KEY, TOKEN_VALUE.getBytes());
 
@@ -45,29 +41,29 @@ class DelegationTokenContainerTest {
                 InstantiationUtil.deserializeObject(containerBytes, getClass().getClassLoader());
 
         final Map<String, byte[]> genericTokens = deserializedContainer.getTokens();
-        assertEquals(1, genericTokens.size());
-        assertArrayEquals(TOKEN_VALUE.getBytes(), genericTokens.get(TOKEN_KEY));
+        assertThat(genericTokens).hasSize(1);
+        assertThat(genericTokens.get(TOKEN_KEY)).isEqualTo(TOKEN_VALUE.getBytes());
     }
 
     @Test
-    public void getTokenShouldReturnNullWhenNoTokens() {
+    void getTokenShouldReturnNullWhenNoTokens() {
         final DelegationTokenContainer container = new DelegationTokenContainer();
 
-        assertNull(container.getTokens().get(TOKEN_KEY));
+        assertThat(container.getTokens().get(TOKEN_KEY)).isNull();
     }
 
     @Test
-    public void hasTokensShouldReturnFalseWhenNoTokens() {
+    void hasTokensShouldReturnFalseWhenNoTokens() {
         final DelegationTokenContainer container = new DelegationTokenContainer();
 
-        assertFalse(container.hasTokens());
+        assertThat(container.hasTokens()).isFalse();
     }
 
     @Test
-    public void hasTokensShouldReturnTrueWithGenericToken() {
+    void hasTokensShouldReturnTrueWithGenericToken() {
         final DelegationTokenContainer container = new DelegationTokenContainer();
         container.addToken(TOKEN_KEY, TOKEN_VALUE.getBytes());
 
-        assertTrue(container.hasTokens());
+        assertThat(container.hasTokens()).isTrue();
     }
 }

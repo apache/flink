@@ -33,41 +33,38 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.apache.flink.runtime.security.modules.JaasModule.JAVA_SECURITY_AUTH_LOGIN_CONFIG;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.StringStartsWith.startsWith;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link JaasModule}. */
-public class JaasModuleTest {
+class JaasModuleTest {
     @TempDir public java.nio.file.Path folder;
 
     @BeforeEach
-    public void setUp() throws IOException {
+    void setUp() throws IOException {
         // clear the property
         System.getProperties().remove(JAVA_SECURITY_AUTH_LOGIN_CONFIG);
     }
 
     @Test
-    public void testJaasModuleFilePathIfWorkingDirPresent() throws IOException {
+    void testJaasModuleFilePathIfWorkingDirPresent() throws IOException {
         File file = TempDirUtils.newFolder(folder);
         testJaasModuleFilePath(file.toPath().toString());
     }
 
     @Test
-    public void testJaasModuleFilePathIfWorkingDirNotPresent() throws IOException {
+    void testJaasModuleFilePathIfWorkingDirNotPresent() throws IOException {
         File file = TempDirUtils.newFolder(folder);
         testJaasModuleFilePath(file.toPath().toString() + "/tmp");
     }
 
     @Test
-    public void testJaasModuleFilePathIfWorkingDirIsSymLink() throws IOException {
+    void testJaasModuleFilePathIfWorkingDirIsSymLink() throws IOException {
         Path symlink = createSymLinkFolderStructure();
         testJaasModuleFilePath(symlink.toString());
     }
 
     @Test
-    public void testJaasModuleFilePathIfWorkingDirNoPresentAndPathContainsSymLink()
-            throws IOException {
+    void testJaasModuleFilePathIfWorkingDirNoPresentAndPathContainsSymLink() throws IOException {
         Path symlink = createSymLinkFolderStructure();
         testJaasModuleFilePath(symlink.toString() + "/tmp");
     }
@@ -75,7 +72,7 @@ public class JaasModuleTest {
     private Path createSymLinkFolderStructure() throws IOException {
         File baseFolder = TempDirUtils.newFolder(folder);
         File actualFolder = new File(baseFolder, "actual_folder");
-        assertTrue(actualFolder.mkdirs());
+        assertThat(actualFolder.mkdirs()).isTrue();
 
         Path symlink = new File(baseFolder, "symlink").toPath();
         Files.createSymbolicLink(symlink, actualFolder.toPath());
@@ -101,7 +98,7 @@ public class JaasModuleTest {
      * CoreOptions#TMP_DIRS}'s default value if we do not manually specify it.
      */
     @Test
-    public void testCreateJaasModuleFileInTemporary() throws IOException {
+    void testCreateJaasModuleFileInTemporary() throws IOException {
         Configuration configuration = new Configuration();
         SecurityConfiguration sc = new SecurityConfiguration(configuration);
         JaasModule module = new JaasModule(sc);
@@ -118,14 +115,13 @@ public class JaasModuleTest {
                         .toPath()
                         .toRealPath()
                         .toString();
-        assertThat(
-                "The resolved configured directory does not match the expected resolved one.",
-                resolvedActualPathWithFile,
-                startsWith(resolvedExpectedPath));
+        assertThat(resolvedActualPathWithFile)
+                .withFailMessage(
+                        "The resolved configured directory does not match the expected resolved one.")
+                .startsWith(resolvedExpectedPath);
 
-        assertThat(
-                "The configured directory does not match the expected one.",
-                System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG),
-                startsWith(directory));
+        assertThat(System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG))
+                .withFailMessage("The configured directory does not match the expected one.")
+                .startsWith(directory);
     }
 }

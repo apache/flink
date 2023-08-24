@@ -462,7 +462,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     }
 
     @Test
-    public void testSubtaskRestartAndRequestSplitsAgain() throws Exception {
+    void testSubtaskRestartAndRequestSplitsAgain() throws Exception {
         sourceCoordinator.start();
 
         final List<MockSourceSplit> splits = new ArrayList<>();
@@ -519,7 +519,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
     }
 
     @Test
-    public void testListeningEventsFromOtherCoordinators() throws Exception {
+    void testListeningEventsFromOtherCoordinators() throws Exception {
         final String listeningID = "testListeningID";
 
         CoordinatorStore store = new CoordinatorStoreImpl();

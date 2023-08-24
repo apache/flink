@@ -58,12 +58,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.buffer.LocalBufferPoolDestroyTest.isInBlockingBufferRequest;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith({TestLoggerExtension.class})
-public class TaskCancelAsyncProducerConsumerITCase {
+class TaskCancelAsyncProducerConsumerITCase {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -100,8 +98,7 @@ public class TaskCancelAsyncProducerConsumerITCase {
      * the main task Thread.
      */
     @Test
-    public void testCancelAsyncProducerAndConsumer(@InjectMiniCluster MiniCluster flink)
-            throws Exception {
+    void testCancelAsyncProducerAndConsumer(@InjectMiniCluster MiniCluster flink) throws Exception {
         Deadline deadline = Deadline.now().plus(Duration.ofMinutes(2));
 
         // Job with async producer and consumer
@@ -150,10 +147,11 @@ public class TaskCancelAsyncProducerConsumerITCase {
         }
 
         // Verify that async producer is in blocking request
-        assertTrue(
-                producerBlocked,
-                "Producer thread is not blocked: "
-                        + Arrays.toString(ASYNC_PRODUCER_THREAD.getStackTrace()));
+        assertThat(producerBlocked)
+                .withFailMessage(
+                        "Producer thread is not blocked: "
+                                + Arrays.toString(ASYNC_PRODUCER_THREAD.getStackTrace()))
+                .isTrue();
 
         boolean consumerWaiting = false;
         for (int i = 0; i < 50; i++) {
@@ -172,7 +170,7 @@ public class TaskCancelAsyncProducerConsumerITCase {
         }
 
         // Verify that async consumer is in blocking request
-        assertTrue(consumerWaiting, "Consumer thread is not blocked.");
+        assertThat(consumerWaiting).as("Consumer thread is not blocked.").isTrue();
 
         flink.cancelJob(jobGraph.getJobID())
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
@@ -187,11 +185,11 @@ public class TaskCancelAsyncProducerConsumerITCase {
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
         // Verify the expected Exceptions
-        assertNotNull(ASYNC_PRODUCER_EXCEPTION);
-        assertEquals(CancelTaskException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
+        assertThat(ASYNC_PRODUCER_EXCEPTION).isNotNull();
+        assertThat(ASYNC_PRODUCER_EXCEPTION.getClass()).isEqualTo(CancelTaskException.class);
 
-        assertNotNull(ASYNC_CONSUMER_EXCEPTION);
-        assertEquals(IllegalStateException.class, ASYNC_CONSUMER_EXCEPTION.getClass());
+        assertThat(ASYNC_CONSUMER_EXCEPTION).isNotNull();
+        assertThat(ASYNC_CONSUMER_EXCEPTION.getClass()).isEqualTo(IllegalStateException.class);
     }
 
     /** Invokable emitting records in a separate Thread (not the main Task thread). */

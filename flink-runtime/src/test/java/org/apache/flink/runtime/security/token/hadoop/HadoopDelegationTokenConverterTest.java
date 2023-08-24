@@ -25,14 +25,13 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link HadoopDelegationTokenConverter}. */
-public class HadoopDelegationTokenConverterTest {
+class HadoopDelegationTokenConverterTest {
 
     @Test
-    public void testRoundTrip() throws IOException, ClassNotFoundException {
+    void testRoundTrip() throws IOException, ClassNotFoundException {
         final Text tokenKind = new Text("TEST_TOKEN_KIND");
         final Text tokenService = new Text("TEST_TOKEN_SERVICE");
         Credentials credentials = new Credentials();
@@ -43,9 +42,9 @@ public class HadoopDelegationTokenConverterTest {
         Credentials deserializedCredentials =
                 HadoopDelegationTokenConverter.deserialize(credentialsBytes);
 
-        assertEquals(1, credentials.getAllTokens().size());
-        assertEquals(1, deserializedCredentials.getAllTokens().size());
-        assertNotNull(credentials.getToken(tokenService));
-        assertNotNull(deserializedCredentials.getToken(tokenService));
+        assertThat(credentials.getAllTokens()).hasSize(1);
+        assertThat(deserializedCredentials.getAllTokens()).hasSize(1);
+        assertThat(credentials.getToken(tokenService)).isNotNull();
+        assertThat(deserializedCredentials.getToken(tokenService)).isNotNull();
     }
 }

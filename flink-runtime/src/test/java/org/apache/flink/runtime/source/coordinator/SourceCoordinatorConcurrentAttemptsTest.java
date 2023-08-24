@@ -104,7 +104,7 @@ class SourceCoordinatorConcurrentAttemptsTest extends SourceCoordinatorTestBase 
     }
 
     @Test
-    public void testConcurrentAttemptsRequestSplits() throws Exception {
+    void testConcurrentAttemptsRequestSplits() throws Exception {
         sourceCoordinator.start();
 
         final List<MockSourceSplit> splits = new ArrayList<>();
@@ -148,7 +148,7 @@ class SourceCoordinatorConcurrentAttemptsTest extends SourceCoordinatorTestBase 
     }
 
     @Test
-    public void testReaderInfoOfConcurrentAttempts() throws Exception {
+    void testReaderInfoOfConcurrentAttempts() throws Exception {
         sourceCoordinator.start();
         registerReader(0, 3);
         registerReader(0, 5);
@@ -176,7 +176,7 @@ class SourceCoordinatorConcurrentAttemptsTest extends SourceCoordinatorTestBase 
     }
 
     @Test
-    public void testSubtaskReaderInfoOfConcurrentAttempts() throws Exception {
+    void testSubtaskReaderInfoOfConcurrentAttempts() throws Exception {
         sourceCoordinator.start();
         registerReader(0, 3);
         registerReader(0, 5);
@@ -196,7 +196,7 @@ class SourceCoordinatorConcurrentAttemptsTest extends SourceCoordinatorTestBase 
     }
 
     @Test
-    public void testForwardAttemptSourceEvents() throws Exception {
+    void testForwardAttemptSourceEvents() throws Exception {
         sourceCoordinator.start();
 
         final SourceEvent event1 = new TestSourceEvent();

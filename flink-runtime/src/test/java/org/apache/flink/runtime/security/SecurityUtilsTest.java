@@ -38,21 +38,18 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link SecurityUtils}. */
-public class SecurityUtilsTest {
+class SecurityUtilsTest {
 
     @AfterAll
-    public static void afterAll() {
+    static void afterAll() {
         SecurityUtils.uninstall();
     }
 
     @Test
-    public void testModuleInstall() throws Exception {
+    void testModuleInstall() throws Exception {
         SecurityConfiguration sc =
                 new SecurityConfiguration(
                         new Configuration(),
@@ -62,19 +59,19 @@ public class SecurityUtilsTest {
                                 TestSecurityModuleFactory.class.getCanonicalName()));
 
         SecurityUtils.install(sc);
-        assertEquals(1, SecurityUtils.getInstalledModules().size());
+        assertThat(SecurityUtils.getInstalledModules()).hasSize(1);
         TestSecurityModuleFactory.TestSecurityModule testModule =
                 (TestSecurityModuleFactory.TestSecurityModule)
                         SecurityUtils.getInstalledModules().get(0);
-        assertTrue(testModule.installed);
+        assertThat(testModule.installed).isTrue();
 
         SecurityUtils.uninstall();
-        assertNull(SecurityUtils.getInstalledModules());
-        assertFalse(testModule.installed);
+        assertThat(SecurityUtils.getInstalledModules()).isNull();
+        assertThat(testModule.installed).isFalse();
     }
 
     @Test
-    public void testSecurityContext() throws Exception {
+    void testSecurityContext() throws Exception {
         SecurityConfiguration sc =
                 new SecurityConfiguration(
                         new Configuration(),
@@ -84,16 +81,16 @@ public class SecurityUtilsTest {
                                 TestSecurityModuleFactory.class.getCanonicalName()));
 
         SecurityUtils.install(sc);
-        assertEquals(
-                TestSecurityContextFactory.TestSecurityContext.class,
-                SecurityUtils.getInstalledContext().getClass());
+        assertThat(SecurityUtils.getInstalledContext().getClass())
+                .isEqualTo(TestSecurityContextFactory.TestSecurityContext.class);
 
         SecurityUtils.uninstall();
-        assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+        assertThat(SecurityUtils.getInstalledContext().getClass())
+                .isEqualTo(NoOpSecurityContext.class);
     }
 
     @Test
-    public void testLinkageErrorShouldFallbackToSecond() throws Exception {
+    void testLinkageErrorShouldFallbackToSecond() throws Exception {
         Configuration testFlinkConf = new Configuration();
 
         testFlinkConf.set(
@@ -105,17 +102,17 @@ public class SecurityUtilsTest {
         SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
 
         SecurityUtils.install(testSecurityConf);
-        assertEquals(
-                TestSecurityContextFactory.TestSecurityContext.class,
-                SecurityUtils.getInstalledContext().getClass());
+        assertThat(SecurityUtils.getInstalledContext().getClass())
+                .isEqualTo(TestSecurityContextFactory.TestSecurityContext.class);
 
         SecurityUtils.uninstall();
-        assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+        assertThat(SecurityUtils.getInstalledContext().getClass())
+                .isEqualTo(NoOpSecurityContext.class);
     }
 
     /** Verify that we fall back to a second configuration if the first one is incompatible. */
     @Test
-    public void testSecurityContextShouldFallbackToSecond() throws Exception {
+    void testSecurityContextShouldFallbackToSecond() throws Exception {
         Configuration testFlinkConf = new Configuration();
 
         testFlinkConf.set(
@@ -127,17 +124,17 @@ public class SecurityUtilsTest {
         SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
 
         SecurityUtils.install(testSecurityConf);
-        assertEquals(
-                TestSecurityContextFactory.TestSecurityContext.class,
-                SecurityUtils.getInstalledContext().getClass());
+        assertThat(SecurityUtils.getInstalledContext().getClass())
+                .isEqualTo(TestSecurityContextFactory.TestSecurityContext.class);
 
         SecurityUtils.uninstall();
-        assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+        assertThat(SecurityUtils.getInstalledContext().getClass())
+                .isEqualTo(NoOpSecurityContext.class);
     }
 
     /** Verify that we pick the first valid security context. */
     @Test
-    public void testSecurityContextShouldPickFirstIfBothCompatible() throws Exception {
+    void testSecurityContextShouldPickFirstIfBothCompatible() throws Exception {
         Configuration testFlinkConf = new Configuration();
 
         testFlinkConf.set(
@@ -149,12 +146,12 @@ public class SecurityUtilsTest {
         SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
 
         SecurityUtils.install(testSecurityConf);
-        assertEquals(
-                AnotherCompatibleTestSecurityContextFactory.TestSecurityContext.class,
-                SecurityUtils.getInstalledContext().getClass());
+        assertThat(SecurityUtils.getInstalledContext().getClass())
+                .isEqualTo(AnotherCompatibleTestSecurityContextFactory.TestSecurityContext.class);
 
         SecurityUtils.uninstall();
-        assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+        assertThat(SecurityUtils.getInstalledContext().getClass())
+                .isEqualTo(NoOpSecurityContext.class);
 
         testFlinkConf.set(
                 SecurityOptions.SECURITY_CONTEXT_FACTORY_CLASSES,
@@ -165,32 +162,30 @@ public class SecurityUtilsTest {
         testSecurityConf = new SecurityConfiguration(testFlinkConf);
 
         SecurityUtils.install(testSecurityConf);
-        assertEquals(
-                TestSecurityContextFactory.TestSecurityContext.class,
-                SecurityUtils.getInstalledContext().getClass());
+        assertThat(SecurityUtils.getInstalledContext().getClass())
+                .isEqualTo(TestSecurityContextFactory.TestSecurityContext.class);
 
         SecurityUtils.uninstall();
-        assertEquals(NoOpSecurityContext.class, SecurityUtils.getInstalledContext().getClass());
+        assertThat(SecurityUtils.getInstalledContext().getClass())
+                .isEqualTo(NoOpSecurityContext.class);
     }
 
     @Test
-    public void testSecurityFactoriesDefaultConfig() {
+    void testSecurityFactoriesDefaultConfig() {
         Configuration testFlinkConf = new Configuration();
         SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
         // should load the default context security module factories.
-        assertEquals(2, testSecurityConf.getSecurityContextFactories().size());
-        assertEquals(
-                HadoopSecurityContextFactory.class.getCanonicalName(),
-                testSecurityConf.getSecurityContextFactories().get(0));
-        assertEquals(
-                NoOpSecurityContextFactory.class.getCanonicalName(),
-                testSecurityConf.getSecurityContextFactories().get(1));
+        assertThat(testSecurityConf.getSecurityContextFactories()).hasSize(2);
+        assertThat(testSecurityConf.getSecurityContextFactories().get(0))
+                .isEqualTo(HadoopSecurityContextFactory.class.getCanonicalName());
+        assertThat(testSecurityConf.getSecurityContextFactories().get(1))
+                .isEqualTo(NoOpSecurityContextFactory.class.getCanonicalName());
         // should load 3 default security module factories.
-        assertEquals(3, testSecurityConf.getSecurityModuleFactories().size());
+        assertThat(testSecurityConf.getSecurityModuleFactories()).hasSize(3);
     }
 
     @Test
-    public void testSecurityFactoriesUserConfig() {
+    void testSecurityFactoriesUserConfig() {
         Configuration testFlinkConf = new Configuration();
 
         testFlinkConf.set(
@@ -202,18 +197,16 @@ public class SecurityUtilsTest {
         SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
 
         // should pick up the SecurityOptions to override default factories.
-        assertEquals(1, testSecurityConf.getSecurityContextFactories().size());
-        assertEquals(
-                TestSecurityContextFactory.class.getCanonicalName(),
-                testSecurityConf.getSecurityContextFactories().get(0));
-        assertEquals(1, testSecurityConf.getSecurityModuleFactories().size());
-        assertEquals(
-                TestSecurityModuleFactory.class.getCanonicalName(),
-                testSecurityConf.getSecurityModuleFactories().get(0));
+        assertThat(testSecurityConf.getSecurityContextFactories()).hasSize(1);
+        assertThat(testSecurityConf.getSecurityContextFactories().get(0))
+                .isEqualTo(TestSecurityContextFactory.class.getCanonicalName());
+        assertThat(testSecurityConf.getSecurityModuleFactories()).hasSize(1);
+        assertThat(testSecurityConf.getSecurityModuleFactories().get(0))
+                .isEqualTo(TestSecurityModuleFactory.class.getCanonicalName());
     }
 
     @Test
-    public void testKerberosLoginContextParsing() {
+    void testKerberosLoginContextParsing() {
 
         List<String> expectedLoginContexts = Arrays.asList("Foo bar", "Client");
 
@@ -231,7 +224,7 @@ public class SecurityUtilsTest {
                                 TestSecurityContextFactory.class.getCanonicalName()),
                         Collections.singletonList(
                                 TestSecurityModuleFactory.class.getCanonicalName()));
-        assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
+        assertThat(testSecurityConf.getLoginContextNames()).isEqualTo(expectedLoginContexts);
 
         // ------- with whitespaces surrounding comma
 
@@ -244,7 +237,7 @@ public class SecurityUtilsTest {
                                 TestSecurityContextFactory.class.getCanonicalName()),
                         Collections.singletonList(
                                 TestSecurityModuleFactory.class.getCanonicalName()));
-        assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
+        assertThat(testSecurityConf.getLoginContextNames()).isEqualTo(expectedLoginContexts);
 
         // ------- leading / trailing whitespaces at start and end of list
 
@@ -257,7 +250,7 @@ public class SecurityUtilsTest {
                                 TestSecurityContextFactory.class.getCanonicalName()),
                         Collections.singletonList(
                                 TestSecurityModuleFactory.class.getCanonicalName()));
-        assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
+        assertThat(testSecurityConf.getLoginContextNames()).isEqualTo(expectedLoginContexts);
 
         // ------- empty entries
 
@@ -270,7 +263,7 @@ public class SecurityUtilsTest {
                                 TestSecurityContextFactory.class.getCanonicalName()),
                         Collections.singletonList(
                                 TestSecurityModuleFactory.class.getCanonicalName()));
-        assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
+        assertThat(testSecurityConf.getLoginContextNames()).isEqualTo(expectedLoginContexts);
 
         // ------- empty trailing String entries with whitespaces
 
@@ -283,6 +276,6 @@ public class SecurityUtilsTest {
                                 TestSecurityContextFactory.class.getCanonicalName()),
                         Collections.singletonList(
                                 TestSecurityModuleFactory.class.getCanonicalName()));
-        assertEquals(expectedLoginContexts, testSecurityConf.getLoginContextNames());
+        assertThat(testSecurityConf.getLoginContextNames()).isEqualTo(expectedLoginContexts);
     }
 }

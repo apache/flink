@@ -40,117 +40,115 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static java.time.Instant.ofEpochMilli;
 import static org.apache.flink.configuration.SecurityOptions.DELEGATION_TOKENS_RENEWAL_TIME_RATIO;
 import static org.apache.flink.core.security.token.DelegationTokenProvider.CONFIG_PREFIX;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link DelegationTokenManager}. */
-public class DefaultDelegationTokenManagerTest {
+class DefaultDelegationTokenManagerTest {
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         ExceptionThrowingDelegationTokenProvider.reset();
         ExceptionThrowingDelegationTokenReceiver.reset();
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         ExceptionThrowingDelegationTokenProvider.reset();
         ExceptionThrowingDelegationTokenReceiver.reset();
     }
 
     @Test
-    public void isProviderEnabledMustGiveBackTrueByDefault() {
+    void isProviderEnabledMustGiveBackTrueByDefault() {
         Configuration configuration = new Configuration();
 
-        assertTrue(DefaultDelegationTokenManager.isProviderEnabled(configuration, "test"));
+        assertThat(DefaultDelegationTokenManager.isProviderEnabled(configuration, "test")).isTrue();
     }
 
     @Test
-    public void isProviderEnabledMustGiveBackFalseWhenDisabled() {
+    void isProviderEnabledMustGiveBackFalseWhenDisabled() {
         Configuration configuration = new Configuration();
         configuration.setBoolean(CONFIG_PREFIX + ".test.enabled", false);
 
-        assertFalse(DefaultDelegationTokenManager.isProviderEnabled(configuration, "test"));
+        assertThat(DefaultDelegationTokenManager.isProviderEnabled(configuration, "test"))
+                .isFalse();
     }
 
     @Test
-    public void configurationIsNullMustFailFast() {
-        assertThrows(
-                Exception.class, () -> new DefaultDelegationTokenManager(null, null, null, null));
+    void configurationIsNullMustFailFast() {
+        assertThatThrownBy(() -> new DefaultDelegationTokenManager(null, null, null, null))
+                .isInstanceOf(Exception.class);
     }
 
     @Test
-    public void oneProviderThrowsExceptionMustFailFast() {
-        assertThrows(
-                Exception.class,
-                () -> {
-                    ExceptionThrowingDelegationTokenProvider.throwInInit.set(true);
-                    new DefaultDelegationTokenManager(new Configuration(), null, null, null);
-                });
+    void oneProviderThrowsExceptionMustFailFast() {
+        assertThatThrownBy(
+                        () -> {
+                            ExceptionThrowingDelegationTokenProvider.throwInInit.set(true);
+                            new DefaultDelegationTokenManager(
+                                    new Configuration(), null, null, null);
+                        })
+                .isInstanceOf(Exception.class);
     }
 
     @Test
-    public void testAllProvidersLoaded() {
+    void testAllProvidersLoaded() {
         Configuration configuration = new Configuration();
         configuration.setBoolean(CONFIG_PREFIX + ".throw.enabled", false);
         DefaultDelegationTokenManager delegationTokenManager =
                 new DefaultDelegationTokenManager(configuration, null, null, null);
 
-        assertEquals(3, delegationTokenManager.delegationTokenProviders.size());
+        assertThat(delegationTokenManager.delegationTokenProviders).hasSize(3);
 
-        assertTrue(delegationTokenManager.isProviderLoaded("hadoopfs"));
-        assertTrue(delegationTokenManager.isReceiverLoaded("hadoopfs"));
+        assertThat(delegationTokenManager.isProviderLoaded("hadoopfs")).isTrue();
+        assertThat(delegationTokenManager.isReceiverLoaded("hadoopfs")).isTrue();
 
-        assertTrue(delegationTokenManager.isProviderLoaded("hbase"));
-        assertTrue(delegationTokenManager.isReceiverLoaded("hbase"));
+        assertThat(delegationTokenManager.isProviderLoaded("hbase")).isTrue();
+        assertThat(delegationTokenManager.isReceiverLoaded("hbase")).isTrue();
 
-        assertTrue(delegationTokenManager.isProviderLoaded("test"));
-        assertTrue(delegationTokenManager.isReceiverLoaded("test"));
+        assertThat(delegationTokenManager.isProviderLoaded("test")).isTrue();
+        assertThat(delegationTokenManager.isReceiverLoaded("test")).isTrue();
 
-        assertTrue(ExceptionThrowingDelegationTokenProvider.constructed.get());
-        assertTrue(ExceptionThrowingDelegationTokenReceiver.constructed.get());
-        assertFalse(delegationTokenManager.isProviderLoaded("throw"));
-        assertFalse(delegationTokenManager.isReceiverLoaded("throw"));
+        assertThat(ExceptionThrowingDelegationTokenProvider.constructed.get()).isTrue();
+        assertThat(ExceptionThrowingDelegationTokenReceiver.constructed.get()).isTrue();
+        assertThat(delegationTokenManager.isProviderLoaded("throw")).isFalse();
+        assertThat(delegationTokenManager.isReceiverLoaded("throw")).isFalse();
     }
 
     @Test
-    public void checkProviderAndReceiverConsistencyShouldNotThrowWhenNothingLoaded() {
+    void checkProviderAndReceiverConsistencyShouldNotThrowWhenNothingLoaded() {
         DefaultDelegationTokenManager.checkProviderAndReceiverConsistency(
                 Collections.emptyMap(), Collections.emptyMap());
     }
 
     @Test
-    public void checkProviderAndReceiverConsistencyShouldThrowWhenMissingReceiver() {
+    void checkProviderAndReceiverConsistencyShouldThrowWhenMissingReceiver() {
         Map<String, DelegationTokenProvider> providers = new HashMap<>();
         providers.put("test", new TestDelegationTokenProvider());
 
-        IllegalStateException e =
-                assertThrows(
-                        IllegalStateException.class,
+        assertThatThrownBy(
                         () ->
                                 DefaultDelegationTokenManager.checkProviderAndReceiverConsistency(
-                                        providers, Collections.emptyMap()));
-        assertTrue(e.getMessage().contains("Missing receivers: test"));
+                                        providers, Collections.emptyMap()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Missing receivers: test");
     }
 
     @Test
-    public void checkProviderAndReceiverConsistencyShouldThrowWhenMissingProvider() {
+    void checkProviderAndReceiverConsistencyShouldThrowWhenMissingProvider() {
         Map<String, DelegationTokenReceiver> receivers = new HashMap<>();
         receivers.put("test", new TestDelegationTokenReceiver());
 
-        IllegalStateException e =
-                assertThrows(
-                        IllegalStateException.class,
+        assertThatThrownBy(
                         () ->
                                 DefaultDelegationTokenManager.checkProviderAndReceiverConsistency(
-                                        Collections.emptyMap(), receivers));
-        assertTrue(e.getMessage().contains("Missing providers: test"));
+                                        Collections.emptyMap(), receivers))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Missing providers: test");
     }
 
     @Test
-    public void checkProviderAndReceiverConsistencyShouldNotThrowWhenBothLoaded() {
+    void checkProviderAndReceiverConsistencyShouldNotThrowWhenBothLoaded() {
         Map<String, DelegationTokenProvider> providers = new HashMap<>();
         providers.put("test", new TestDelegationTokenProvider());
         Map<String, DelegationTokenReceiver> receivers = new HashMap<>();
@@ -158,36 +156,36 @@ public class DefaultDelegationTokenManagerTest {
 
         DefaultDelegationTokenManager.checkProviderAndReceiverConsistency(providers, receivers);
 
-        assertEquals(1, providers.size());
-        assertTrue(providers.containsKey("test"));
-        assertEquals(1, receivers.size());
-        assertTrue(receivers.containsKey("test"));
+        assertThat(providers).hasSize(1);
+        assertThat(providers.containsKey("test")).isTrue();
+        assertThat(receivers).hasSize(1);
+        assertThat(receivers.containsKey("test")).isTrue();
     }
 
     @Test
-    public void checkSamePrefixedProvidersShouldNotGiveErrorsWhenNoSamePrefix() {
+    void checkSamePrefixedProvidersShouldNotGiveErrorsWhenNoSamePrefix() {
         Map<String, DelegationTokenProvider> providers = new HashMap<>();
         providers.put("s3-hadoop", new TestDelegationTokenProvider());
         Set<String> warnings = new HashSet<>();
         DefaultDelegationTokenManager.checkSamePrefixedProviders(providers, warnings);
-        assertTrue(warnings.isEmpty());
+        assertThat(warnings.isEmpty()).isTrue();
     }
 
     @Test
-    public void checkSamePrefixedProvidersShouldGiveErrorsWhenSamePrefix() {
+    void checkSamePrefixedProvidersShouldGiveErrorsWhenSamePrefix() {
         Map<String, DelegationTokenProvider> providers = new HashMap<>();
         providers.put("s3-hadoop", new TestDelegationTokenProvider());
         providers.put("s3-presto", new TestDelegationTokenProvider());
         Set<String> warnings = new HashSet<>();
         DefaultDelegationTokenManager.checkSamePrefixedProviders(providers, warnings);
-        assertEquals(1, warnings.size());
-        assertEquals(
-                "Multiple providers loaded with the same prefix: s3. This might lead to unintended consequences, please consider using only one of them.",
-                warnings.iterator().next());
+        assertThat(warnings).hasSize(1);
+        assertThat(warnings.iterator().next())
+                .isEqualTo(
+                        "Multiple providers loaded with the same prefix: s3. This might lead to unintended consequences, please consider using only one of them.");
     }
 
     @Test
-    public void startTokensUpdateShouldScheduleRenewal() {
+    void startTokensUpdateShouldScheduleRenewal() {
         final ManuallyTriggeredScheduledExecutor scheduledExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final ManuallyTriggeredScheduledExecutorService scheduler =
@@ -216,11 +214,11 @@ public class DefaultDelegationTokenManagerTest {
         scheduler.triggerAll();
         delegationTokenManager.stopTokensUpdate();
 
-        assertEquals(3, startTokensUpdateCallCount.get());
+        assertThat(startTokensUpdateCallCount.get()).isEqualTo(3);
     }
 
     @Test
-    public void calculateRenewalDelayShouldConsiderRenewalRatio() {
+    void calculateRenewalDelayShouldConsiderRenewalRatio() {
         Configuration configuration = new Configuration();
         configuration.setBoolean(CONFIG_PREFIX + ".throw.enabled", false);
         configuration.set(DELEGATION_TOKENS_RENEWAL_TIME_RATIO, 0.5);
@@ -228,6 +226,6 @@ public class DefaultDelegationTokenManagerTest {
                 new DefaultDelegationTokenManager(configuration, null, null, null);
 
         Clock constantClock = Clock.fixed(ofEpochMilli(100), ZoneId.systemDefault());
-        assertEquals(50, delegationTokenManager.calculateRenewalDelay(constantClock, 200));
+        assertThat(delegationTokenManager.calculateRenewalDelay(constantClock, 200)).isEqualTo(50);
     }
 }

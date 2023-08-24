@@ -25,51 +25,42 @@ import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.configuration.SecurityOptions.KERBEROS_LOGIN_KEYTAB;
 import static org.apache.flink.configuration.SecurityOptions.KERBEROS_LOGIN_PRINCIPAL;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link SecurityConfiguration}. */
 class SecurityConfigurationTest {
 
     @Test
-    public void keytabWithoutPrincipalShouldThrowException() {
+    void keytabWithoutPrincipalShouldThrowException() {
         Configuration configuration = new Configuration();
         configuration.set(KERBEROS_LOGIN_KEYTAB, "keytab.file");
 
-        IllegalConfigurationException e =
-                assertThrows(
-                        IllegalConfigurationException.class,
-                        () -> new SecurityConfiguration(configuration));
-        assertTrue(
-                e.getMessage()
-                        .contains("either both keytab and principal must be defined, or neither"));
+        assertThatThrownBy(() -> new SecurityConfiguration(configuration))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining(
+                        "either both keytab and principal must be defined, or neither");
     }
 
     @Test
-    public void principalWithoutKeytabShouldThrowException() {
+    void principalWithoutKeytabShouldThrowException() {
         Configuration configuration = new Configuration();
         configuration.set(KERBEROS_LOGIN_PRINCIPAL, "principal");
 
-        IllegalConfigurationException e =
-                assertThrows(
-                        IllegalConfigurationException.class,
-                        () -> new SecurityConfiguration(configuration));
-        assertTrue(
-                e.getMessage()
-                        .contains("either both keytab and principal must be defined, or neither"));
+        assertThatThrownBy(() -> new SecurityConfiguration(configuration))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining(
+                        "either both keytab and principal must be defined, or neither");
     }
 
     @Test
-    public void notExistingKeytabShouldThrowException() {
+    void notExistingKeytabShouldThrowException() {
         Configuration configuration = new Configuration();
         configuration.set(KERBEROS_LOGIN_KEYTAB, "nonexistingkeytab.file");
         configuration.set(KERBEROS_LOGIN_PRINCIPAL, "principal");
 
-        IllegalConfigurationException e =
-                assertThrows(
-                        IllegalConfigurationException.class,
-                        () -> new SecurityConfiguration(configuration));
-        assertTrue(e.getMessage().contains("nonexistingkeytab.file"));
-        assertTrue(e.getMessage().contains("doesn't exist"));
+        assertThatThrownBy(() -> new SecurityConfiguration(configuration))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("nonexistingkeytab.file")
+                .hasMessageContaining("doesn't exist");
     }
 }

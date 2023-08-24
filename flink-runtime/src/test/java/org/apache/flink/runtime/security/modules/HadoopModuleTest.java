@@ -29,8 +29,7 @@ import org.mockito.MockedStatic;
 
 import java.io.IOException;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
@@ -40,7 +39,7 @@ import static org.mockito.Mockito.when;
 /** Test for {@link HadoopModule}. */
 class HadoopModuleTest {
     @Test
-    public void startTGTRenewalShouldScheduleRenewalWithKeytab() throws IOException {
+    void startTGTRenewalShouldScheduleRenewalWithKeytab() throws IOException {
         final ManuallyTriggeredScheduledExecutorService executorService =
                 new ManuallyTriggeredScheduledExecutorService();
         UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
@@ -59,7 +58,7 @@ class HadoopModuleTest {
     }
 
     @Test
-    public void hadoopProxyUserSetWithDelegationTokensEnabledShouldThrow() {
+    void hadoopProxyUserSetWithDelegationTokensEnabledShouldThrow() {
         try (MockedStatic<UserGroupInformation> ugi = mockStatic(UserGroupInformation.class)) {
             UserGroupInformation userGroupInformation = mock(UserGroupInformation.class);
             ugi.when(UserGroupInformation::isSecurityEnabled).thenReturn(true);
@@ -73,10 +72,9 @@ class HadoopModuleTest {
             org.apache.hadoop.conf.Configuration hadoopConf =
                     new org.apache.hadoop.conf.Configuration();
             HadoopModule hadoopModule = new HadoopModule(securityConf, hadoopConf);
-            Exception exception =
-                    assertThrows(
-                            SecurityModule.SecurityInstallException.class, hadoopModule::install);
-            assertTrue(exception.getCause() instanceof UnsupportedOperationException);
+            assertThatThrownBy(hadoopModule::install)
+                    .isInstanceOf(SecurityModule.SecurityInstallException.class)
+                    .hasCauseInstanceOf(UnsupportedOperationException.class);
         }
     }
 }

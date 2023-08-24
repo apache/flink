@@ -31,11 +31,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.shutdownExecutorForcefully;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for ExecutorNotifier. */
-public class ExecutorNotifierTest {
+class ExecutorNotifierTest {
     private ScheduledExecutorService workerExecutor;
     private ExecutorService executorToNotify;
     private ExecutorNotifier notifier;
@@ -43,7 +42,7 @@ public class ExecutorNotifierTest {
     private CountDownLatch exceptionInHandlerLatch;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         this.exceptionInHandler = null;
         this.exceptionInHandlerLatch = new CountDownLatch(1);
         this.workerExecutor =
@@ -63,13 +62,13 @@ public class ExecutorNotifierTest {
     }
 
     @AfterEach
-    public void tearDown() throws InterruptedException {
+    void tearDown() throws InterruptedException {
         shutdownExecutorForcefully(workerExecutor, Duration.ofNanos(Long.MAX_VALUE));
         shutdownExecutorForcefully(executorToNotify, Duration.ofNanos(Long.MAX_VALUE));
     }
 
     @Test
-    public void testBasic() throws InterruptedException {
+    void testBasic() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicInteger result = new AtomicInteger(0);
         notifier.notifyReadyAsync(
@@ -79,24 +78,24 @@ public class ExecutorNotifierTest {
                     latch.countDown();
                 });
         latch.await();
-        assertEquals(1234, result.get());
+        assertThat(result.get()).isEqualTo(1234);
     }
 
     @Test
-    public void testExceptionInCallable() {
+    void testExceptionInCallable() {
         Exception exception = new Exception("Expected exception.");
         notifier.notifyReadyAsync(
                 () -> {
                     throw exception;
                 },
                 (v, e) -> {
-                    assertEquals(exception, e);
-                    assertNull(v);
+                    assertThat(e).isEqualTo(exception);
+                    assertThat(v).isNull();
                 });
     }
 
     @Test
-    public void testExceptionInHandlerWhenHandlingException() throws InterruptedException {
+    void testExceptionInHandlerWhenHandlingException() throws InterruptedException {
         Exception exception1 = new Exception("Expected exception.");
         RuntimeException exception2 = new RuntimeException("Expected exception.");
         CountDownLatch latch = new CountDownLatch(1);
@@ -105,8 +104,8 @@ public class ExecutorNotifierTest {
                     throw exception1;
                 },
                 (v, e) -> {
-                    assertEquals(exception1, e);
-                    assertNull(v);
+                    assertThat(e).isEqualTo(exception1);
+                    assertThat(v).isNull();
                     latch.countDown();
                     throw exception2;
                 });
@@ -114,11 +113,11 @@ public class ExecutorNotifierTest {
         // The uncaught exception handler may fire after the executor has shutdown.
         // We need to wait on the countdown latch here.
         exceptionInHandlerLatch.await(10000L, TimeUnit.MILLISECONDS);
-        assertEquals(exception2, exceptionInHandler);
+        assertThat(exceptionInHandler).isEqualTo(exception2);
     }
 
     @Test
-    public void testExceptionInHandlerWhenHandlingResult() throws InterruptedException {
+    void testExceptionInHandlerWhenHandlingResult() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         RuntimeException exception = new RuntimeException("Expected exception.");
         notifier.notifyReadyAsync(
@@ -131,6 +130,6 @@ public class ExecutorNotifierTest {
         // The uncaught exception handler may fire after the executor has shutdown.
         // We need to wait on the countdown latch here.
         exceptionInHandlerLatch.await(10000L, TimeUnit.MILLISECONDS);
-        assertEquals(exception, exceptionInHandler);
+        assertThat(exceptionInHandler).isEqualTo(exception);
     }
 }
