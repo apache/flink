@@ -18,74 +18,74 @@
 
 package org.apache.flink.runtime.throughput;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /** Test for {@link BufferSizeEMA}. */
-public class BufferSizeEMATest extends TestLogger {
+class BufferSizeEMATest {
 
     @Test
-    public void testCalculationBufferSize() {
+    void testCalculationBufferSize() {
         BufferSizeEMA calculator = new BufferSizeEMA(200, 10, 3);
 
         // The result value seeks to the bottom limit but it will take a while until it reaches it.
-        assertThat(calculator.calculateBufferSize(111, 13), is(104));
-        assertThat(calculator.calculateBufferSize(107, 7), is(59));
-        assertThat(calculator.calculateBufferSize(107, 7), is(37));
-        assertThat(calculator.calculateBufferSize(107, 7), is(26));
-        assertThat(calculator.calculateBufferSize(107, 7), is(20));
-        assertThat(calculator.calculateBufferSize(107, 7), is(17));
-        assertThat(calculator.calculateBufferSize(107, 13), is(12));
-        assertThat(calculator.calculateBufferSize(107, 13), is(10));
+        assertThat(calculator.calculateBufferSize(111, 13)).isEqualTo(104);
+        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(59);
+        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(37);
+        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(26);
+        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(20);
+        assertThat(calculator.calculateBufferSize(107, 7)).isEqualTo(17);
+        assertThat(calculator.calculateBufferSize(107, 13)).isEqualTo(12);
+        assertThat(calculator.calculateBufferSize(107, 13)).isEqualTo(10);
 
         // Upgrade
-        assertThat(calculator.calculateBufferSize(333, 1), is(15));
-        assertThat(calculator.calculateBufferSize(333, 1), is(22));
-        assertThat(calculator.calculateBufferSize(333, 1), is(33));
-        assertThat(calculator.calculateBufferSize(333, 1), is(49));
-        assertThat(calculator.calculateBufferSize(333, 1), is(73));
-        assertThat(calculator.calculateBufferSize(333, 1), is(109));
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(15);
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(22);
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(33);
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(49);
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(73);
+        assertThat(calculator.calculateBufferSize(333, 1)).isEqualTo(109);
     }
 
     @Test
-    public void testSizeGreaterThanMaxSize() {
+    void testSizeGreaterThanMaxSize() {
         BufferSizeEMA calculator = new BufferSizeEMA(200, 10, 3);
 
         // Decrease value to less than max.
-        assertThat(calculator.calculateBufferSize(0, 1), is(100));
+        assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(100);
 
         // Impossible to exceed maximum.
-        assertThat(calculator.calculateBufferSize(1000, 1), is(150));
-        assertThat(calculator.calculateBufferSize(1000, 1), is(200));
-        assertThat(calculator.calculateBufferSize(1000, 1), is(200));
+        assertThat(calculator.calculateBufferSize(1000, 1)).isEqualTo(150);
+        assertThat(calculator.calculateBufferSize(1000, 1)).isEqualTo(200);
+        assertThat(calculator.calculateBufferSize(1000, 1)).isEqualTo(200);
     }
 
     @Test
-    public void testSizeLessThanMinSize() {
+    void testSizeLessThanMinSize() {
         BufferSizeEMA calculator = new BufferSizeEMA(200, 10, 3);
 
         // Impossible to less than min.
-        assertThat(calculator.calculateBufferSize(0, 1), is(100));
-        assertThat(calculator.calculateBufferSize(0, 1), is(50));
-        assertThat(calculator.calculateBufferSize(0, 1), is(25));
-        assertThat(calculator.calculateBufferSize(0, 1), is(12));
-        assertThat(calculator.calculateBufferSize(0, 1), is(10));
-        assertThat(calculator.calculateBufferSize(0, 1), is(10));
+        assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(100);
+        assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(50);
+        assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(25);
+        assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(12);
+        assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(10);
+        assertThat(calculator.calculateBufferSize(0, 1)).isEqualTo(10);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testNegativeTotalSize() {
+    @Test
+    void testNegativeTotalSize() {
         BufferSizeEMA calculator = new BufferSizeEMA(100, 200, 2);
-        calculator.calculateBufferSize(-1, 1);
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> calculator.calculateBufferSize(-1, 1));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testZeroBuffers() {
+    @Test
+    void testZeroBuffers() {
         BufferSizeEMA calculator = new BufferSizeEMA(100, 200, 2);
-        calculator.calculateBufferSize(1, 0);
+        assertThatExceptionOfType(IllegalArgumentException.class)
+                .isThrownBy(() -> calculator.calculateBufferSize(1, 0));
     }
 }

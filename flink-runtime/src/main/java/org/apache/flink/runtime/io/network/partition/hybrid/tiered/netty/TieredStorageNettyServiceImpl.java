@@ -35,10 +35,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -122,19 +120,19 @@ public class TieredStorageNettyServiceImpl implements TieredStorageNettyService 
             return new TieredStorageResultSubpartitionView(
                     availabilityListener, new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
         }
-        List<Queue<NettyPayload>> queues = new ArrayList<>();
+        List<NettyPayloadManager> nettyPayloadManagers = new ArrayList<>();
         List<NettyConnectionId> nettyConnectionIds = new ArrayList<>();
         for (NettyServiceProducer serviceProducer : serviceProducers) {
-            LinkedBlockingQueue<NettyPayload> queue = new LinkedBlockingQueue<>();
+            NettyPayloadManager nettyPayloadManager = new NettyPayloadManager();
             NettyConnectionWriterImpl writer =
-                    new NettyConnectionWriterImpl(queue, availabilityListener);
+                    new NettyConnectionWriterImpl(nettyPayloadManager, availabilityListener);
             serviceProducer.connectionEstablished(subpartitionId, writer);
             nettyConnectionIds.add(writer.getNettyConnectionId());
-            queues.add(queue);
+            nettyPayloadManagers.add(nettyPayloadManager);
         }
         return new TieredStorageResultSubpartitionView(
                 availabilityListener,
-                queues,
+                nettyPayloadManagers,
                 nettyConnectionIds,
                 registeredServiceProducers.get(partitionId));
     }

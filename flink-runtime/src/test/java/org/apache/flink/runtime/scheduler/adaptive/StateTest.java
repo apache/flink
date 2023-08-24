@@ -18,85 +18,71 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests for the default methods on the {@link State} interface, based on the {@link Created} state,
  * as it is a simple state.
  */
-public class StateTest extends TestLogger {
+class StateTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(StateTest.class);
+
+    @RegisterExtension CreatedTest.MockCreatedContext ctx = new CreatedTest.MockCreatedContext();
+
     @Test
-    public void testEmptyAs() throws Exception {
-        try (CreatedTest.MockCreatedContext ctx = new CreatedTest.MockCreatedContext()) {
-            State state = new Created(ctx, log);
-            assertThat(state.as(WaitingForResources.class), is(Optional.empty()));
-        }
+    void testEmptyAs() {
+        State state = new Created(ctx, LOG);
+        assertThat(state.as(WaitingForResources.class)).isEmpty();
     }
 
     @Test
-    public void testCast() throws Exception {
-        try (CreatedTest.MockCreatedContext ctx = new CreatedTest.MockCreatedContext()) {
-            State state = new Created(ctx, log);
-            assertThat(state.as(Created.class), is(Optional.of(state)));
-        }
+    void testCast() {
+        Created state = new Created(ctx, LOG);
+        assertThat(state.as(Created.class)).hasValue(state);
     }
 
     @Test
-    public void testTryRunStateMismatch() throws Exception {
-        try (CreatedTest.MockCreatedContext ctx = new CreatedTest.MockCreatedContext()) {
-            State state = new Created(ctx, log);
-            state.tryRun(
-                    WaitingForResources.class, (waiting -> fail("Unexpected execution")), "test");
-        }
+    void testTryRunStateMismatch() {
+        State state = new Created(ctx, LOG);
+        state.tryRun(WaitingForResources.class, waiting -> fail("Unexpected execution"), "test");
     }
 
     @Test
-    public void testTryRun() throws Exception {
-        try (CreatedTest.MockCreatedContext ctx = new CreatedTest.MockCreatedContext()) {
-            State state = new Created(ctx, log);
-            AtomicBoolean called = new AtomicBoolean(false);
-            state.tryRun(Created.class, created -> called.set(true), "test");
-            assertThat(called.get(), is(true));
-        }
+    void testTryRun() {
+        State state = new Created(ctx, LOG);
+        AtomicBoolean called = new AtomicBoolean(false);
+        state.tryRun(Created.class, created -> called.set(true), "test");
+        assertThat(called).isTrue();
     }
 
     @Test
-    public void testTryCallStateMismatch() throws Exception {
-        try (CreatedTest.MockCreatedContext ctx = new CreatedTest.MockCreatedContext()) {
-            State state = new Created(ctx, log);
-            Optional<String> result =
-                    state.tryCall(
-                            WaitingForResources.class,
-                            Waiting -> {
-                                fail("Unexpected execution");
-                                return "nope";
-                            },
-                            "test");
-            assertThat(result, is(Optional.empty()));
-        }
+    void testTryCallStateMismatch() {
+        State state = new Created(ctx, LOG);
+        Optional<String> result =
+                state.tryCall(
+                        WaitingForResources.class,
+                        Waiting -> {
+                            fail("Unexpected execution");
+                            return "nope";
+                        },
+                        "test");
+        assertThat(result).isEmpty();
     }
 
     @Test
-    public void testTryCall() throws Exception {
-        try (CreatedTest.MockCreatedContext ctx = new CreatedTest.MockCreatedContext()) {
-            State state = new Created(ctx, log);
-            Optional<String> result =
-                    state.tryCall(
-                            Created.class,
-                            created -> {
-                                return "yes";
-                            },
-                            "test");
-            assertThat(result, is(Optional.of("yes")));
-        }
+    void testTryCall() {
+        State state = new Created(ctx, LOG);
+        Optional<String> result = state.tryCall(Created.class, created -> "yes", "test");
+        assertThat(result).hasValue("yes");
     }
 }

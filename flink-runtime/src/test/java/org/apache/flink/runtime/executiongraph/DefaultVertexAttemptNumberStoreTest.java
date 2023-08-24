@@ -18,17 +18,16 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultVertexAttemptNumberStore}. */
-public class DefaultVertexAttemptNumberStoreTest extends TestLogger {
+class DefaultVertexAttemptNumberStoreTest {
     @Test
-    public void testSetAttemptCount() {
+    void testSetAttemptCount() {
         final DefaultVertexAttemptNumberStore vertexAttemptNumberStore =
                 new DefaultVertexAttemptNumberStore();
 
@@ -38,25 +37,27 @@ public class DefaultVertexAttemptNumberStoreTest extends TestLogger {
 
         vertexAttemptNumberStore.setAttemptCount(jobVertexId, subtaskIndex, attemptCount);
         assertThat(
-                vertexAttemptNumberStore
-                        .getAttemptCounts(jobVertexId)
-                        .getAttemptCount(subtaskIndex),
-                is(attemptCount));
+                        vertexAttemptNumberStore
+                                .getAttemptCounts(jobVertexId)
+                                .getAttemptCount(subtaskIndex))
+                .isEqualTo(attemptCount);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testSetAttemptCountRejectsNegativeSubtaskIndex() {
+    @Test
+    void testSetAttemptCountRejectsNegativeSubtaskIndex() {
         final DefaultVertexAttemptNumberStore vertexAttemptNumberStore =
                 new DefaultVertexAttemptNumberStore();
 
-        vertexAttemptNumberStore.setAttemptCount(new JobVertexID(), -1, 0);
+        assertThatThrownBy(() -> vertexAttemptNumberStore.setAttemptCount(new JobVertexID(), -1, 0))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testSetAttemptCountRejectsNegativeAttemptCount() {
+    @Test
+    void testSetAttemptCountRejectsNegativeAttemptCount() {
         final DefaultVertexAttemptNumberStore vertexAttemptNumberStore =
                 new DefaultVertexAttemptNumberStore();
 
-        vertexAttemptNumberStore.setAttemptCount(new JobVertexID(), 0, -1);
+        assertThatThrownBy(() -> vertexAttemptNumberStore.setAttemptCount(new JobVertexID(), 0, -1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

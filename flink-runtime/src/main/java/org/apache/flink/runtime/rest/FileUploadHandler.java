@@ -148,7 +148,7 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
                 currentHttpPostRequestDecoder.offer(httpContent);
 
                 while (httpContent != LastHttpContent.EMPTY_LAST_CONTENT
-                        && currentHttpPostRequestDecoder.hasNext()) {
+                        && hasNext(currentHttpPostRequestDecoder)) {
                     final InterfaceHttpData data = currentHttpPostRequestDecoder.next();
                     if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
                         final DiskFileUpload fileUpload = (DiskFileUpload) data;
@@ -209,6 +209,16 @@ public class FileUploadHandler extends SimpleChannelInboundHandler<HttpObject> {
             }
         } catch (Exception e) {
             handleError(ctx, "File upload failed.", HttpResponseStatus.INTERNAL_SERVER_ERROR, e);
+        }
+    }
+
+    private static boolean hasNext(HttpPostRequestDecoder decoder) {
+        try {
+            return decoder.hasNext();
+        } catch (HttpPostRequestDecoder.EndOfDataDecoderException e) {
+            // this can occur if the final chuck wasn't empty, but didn't contain any attribute data
+            // unfortunately the Netty APIs don't give us any way to check this
+            return false;
         }
     }
 

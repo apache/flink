@@ -26,7 +26,7 @@
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.18-SNAPSHOT</version>
+		<version>1.19-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-jdbc-driver</artifactId>

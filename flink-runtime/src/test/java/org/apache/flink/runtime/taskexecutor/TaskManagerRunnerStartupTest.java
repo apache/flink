@@ -86,7 +86,7 @@ class TaskManagerRunnerStartupTest {
     @TempDir public static File workingDirectoryFolder;
 
     @RegisterExtension
-    public static final AllCallbackWrapper<WorkingDirectoryExtension>
+    private static final AllCallbackWrapper<WorkingDirectoryExtension>
             WORKING_DIRECTORY_EXTENSION_WRAPPER =
                     new AllCallbackWrapper<>(
                             new WorkingDirectoryExtension(() -> workingDirectoryFolder));

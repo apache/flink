@@ -266,7 +266,7 @@ class EdgeManagerBuildUtilTest {
                         downstream, upstream, pattern);
         int actualMaxForDownstream = -1;
         for (ExecutionVertex ev : downstreamEJV.getTaskVertices()) {
-            assertThat(ev.getNumberOfInputs()).isEqualTo(1);
+            assertThat(ev.getNumberOfInputs()).isOne();
 
             int actual = ev.getConsumedPartitionGroup(0).size();
             if (actual > actualMaxForDownstream) {

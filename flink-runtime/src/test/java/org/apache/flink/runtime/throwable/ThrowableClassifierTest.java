@@ -19,104 +19,100 @@
 package org.apache.flink.runtime.throwable;
 
 import org.apache.flink.runtime.execution.SuppressRestartsException;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link ThrowableClassifier}. */
-public class ThrowableClassifierTest extends TestLogger {
+class ThrowableClassifierTest {
 
     @Test
-    public void testThrowableType_NonRecoverable() {
-        assertEquals(
-                ThrowableType.NonRecoverableError,
-                ThrowableClassifier.getThrowableType(
-                        new SuppressRestartsException(new Exception(""))));
+    void testThrowableType_NonRecoverable() {
+        assertThat(
+                        ThrowableClassifier.getThrowableType(
+                                new SuppressRestartsException(new Exception(""))))
+                .isEqualTo(ThrowableType.NonRecoverableError);
     }
 
     @Test
-    public void testThrowableType_Recoverable() {
-        assertEquals(
-                ThrowableType.RecoverableError,
-                ThrowableClassifier.getThrowableType(new Exception("")));
-        assertEquals(
-                ThrowableType.RecoverableError,
-                ThrowableClassifier.getThrowableType(new TestRecoverableErrorException()));
+    void testThrowableType_Recoverable() {
+        assertThat(ThrowableClassifier.getThrowableType(new Exception("")))
+                .isEqualTo(ThrowableType.RecoverableError);
+        assertThat(ThrowableClassifier.getThrowableType(new TestRecoverableErrorException()))
+                .isEqualTo(ThrowableType.RecoverableError);
     }
 
     @Test
-    public void testThrowableType_EnvironmentError() {
-        assertEquals(
-                ThrowableType.EnvironmentError,
-                ThrowableClassifier.getThrowableType(new TestEnvironmentErrorException()));
+    void testThrowableType_EnvironmentError() {
+        assertThat(ThrowableClassifier.getThrowableType(new TestEnvironmentErrorException()))
+                .isEqualTo(ThrowableType.EnvironmentError);
     }
 
     @Test
-    public void testThrowableType_PartitionDataMissingError() {
-        assertEquals(
-                ThrowableType.PartitionDataMissingError,
-                ThrowableClassifier.getThrowableType(new TestPartitionDataMissingErrorException()));
+    void testThrowableType_PartitionDataMissingError() {
+        assertThat(
+                        ThrowableClassifier.getThrowableType(
+                                new TestPartitionDataMissingErrorException()))
+                .isEqualTo(ThrowableType.PartitionDataMissingError);
     }
 
     @Test
-    public void testThrowableType_InheritError() {
-        assertEquals(
-                ThrowableType.PartitionDataMissingError,
-                ThrowableClassifier.getThrowableType(
-                        new TestPartitionDataMissingErrorSubException()));
+    void testThrowableType_InheritError() {
+        assertThat(
+                        ThrowableClassifier.getThrowableType(
+                                new TestPartitionDataMissingErrorSubException()))
+                .isEqualTo(ThrowableType.PartitionDataMissingError);
     }
 
     @Test
-    public void testFindThrowableOfThrowableType() {
+    void testFindThrowableOfThrowableType() {
         // no throwable type
-        assertFalse(
-                ThrowableClassifier.findThrowableOfThrowableType(
-                                new Exception(), ThrowableType.RecoverableError)
-                        .isPresent());
+        assertThat(
+                        ThrowableClassifier.findThrowableOfThrowableType(
+                                new Exception(), ThrowableType.RecoverableError))
+                .isNotPresent();
 
         // no recoverable throwable type
-        assertFalse(
-                ThrowableClassifier.findThrowableOfThrowableType(
+        assertThat(
+                        ThrowableClassifier.findThrowableOfThrowableType(
                                 new TestPartitionDataMissingErrorException(),
-                                ThrowableType.RecoverableError)
-                        .isPresent());
+                                ThrowableType.RecoverableError))
+                .isNotPresent();
 
         // direct recoverable throwable
-        assertTrue(
-                ThrowableClassifier.findThrowableOfThrowableType(
-                                new TestRecoverableErrorException(), ThrowableType.RecoverableError)
-                        .isPresent());
+        assertThat(
+                        ThrowableClassifier.findThrowableOfThrowableType(
+                                new TestRecoverableErrorException(),
+                                ThrowableType.RecoverableError))
+                .isPresent();
 
         // nested recoverable throwable
-        assertTrue(
-                ThrowableClassifier.findThrowableOfThrowableType(
+        assertThat(
+                        ThrowableClassifier.findThrowableOfThrowableType(
                                 new Exception(new TestRecoverableErrorException()),
-                                ThrowableType.RecoverableError)
-                        .isPresent());
+                                ThrowableType.RecoverableError))
+                .isPresent();
 
         // inherit recoverable throwable
-        assertTrue(
-                ThrowableClassifier.findThrowableOfThrowableType(
+        assertThat(
+                        ThrowableClassifier.findThrowableOfThrowableType(
                                 new TestRecoverableFailureSubException(),
-                                ThrowableType.RecoverableError)
-                        .isPresent());
+                                ThrowableType.RecoverableError))
+                .isPresent();
     }
 
     @ThrowableAnnotation(ThrowableType.PartitionDataMissingError)
-    private class TestPartitionDataMissingErrorException extends Exception {}
+    private static class TestPartitionDataMissingErrorException extends Exception {}
 
     @ThrowableAnnotation(ThrowableType.EnvironmentError)
-    private class TestEnvironmentErrorException extends Exception {}
+    private static class TestEnvironmentErrorException extends Exception {}
 
     @ThrowableAnnotation(ThrowableType.RecoverableError)
-    private class TestRecoverableErrorException extends Exception {}
+    private static class TestRecoverableErrorException extends Exception {}
 
-    private class TestPartitionDataMissingErrorSubException
+    private static class TestPartitionDataMissingErrorSubException
             extends TestPartitionDataMissingErrorException {}
 
-    private class TestRecoverableFailureSubException extends TestRecoverableErrorException {}
+    private static class TestRecoverableFailureSubException extends TestRecoverableErrorException {}
 }

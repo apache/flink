@@ -39,6 +39,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil.positionToNextBuffer;
@@ -71,6 +72,8 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
     private final Deque<BufferIndexOrError> loadedBuffers = new LinkedBlockingDeque<>();
 
     private final Consumer<HsSubpartitionFileReader> fileReaderReleaser;
+
+    private final AtomicInteger backlog = new AtomicInteger(0);
 
     private final Object lock = new Object();
 
@@ -172,7 +175,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
                     buffers.add(segment);
                     throw throwable;
                 }
-
+                tryIncreaseBacklog(buffer);
                 loadedBuffers.add(BufferIndexOrError.newBuffer(buffer, indexToLoad));
                 bufferIndexManager.updateLastLoaded(indexToLoad);
                 cachedRegionManager.advance(
@@ -198,7 +201,8 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
             // order
             while ((bufferIndexOrError = loadedBuffers.pollLast()) != null) {
                 if (bufferIndexOrError.getBuffer().isPresent()) {
-                    checkNotNull(bufferIndexOrError.buffer).recycleBuffer();
+                    bufferIndexOrError.getBuffer().get().recycleBuffer();
+                    tryDecreaseBacklog(bufferIndexOrError.getBuffer().get());
                 }
             }
 
@@ -243,7 +247,6 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
         BufferIndexOrError next = loadedBuffers.peek();
 
         Buffer.DataType nextDataType = next == null ? Buffer.DataType.NONE : next.getDataType();
-        int backlog = loadedBuffers.size();
         int bufferIndex = current.getIndex();
         Buffer buffer =
                 current.getBuffer()
@@ -251,9 +254,10 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
                                 () ->
                                         new NullPointerException(
                                                 "Get a non-throwable and non-buffer bufferIndexOrError, which is not allowed"));
+        tryDecreaseBacklog(buffer);
         return Optional.of(
                 ResultSubpartition.BufferAndBacklog.fromBufferAndLookahead(
-                        buffer, nextDataType, backlog, bufferIndex));
+                        buffer, nextDataType, backlog.get(), bufferIndex));
     }
 
     @Override
@@ -280,6 +284,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
             while (!loadedBuffers.isEmpty()) {
                 BufferIndexOrError bufferIndexOrError = loadedBuffers.poll();
                 if (bufferIndexOrError.getBuffer().isPresent()) {
+                    tryDecreaseBacklog(bufferIndexOrError.getBuffer().get());
                     bufferToRecycle.add(bufferIndexOrError.getBuffer().get());
                 }
             }
@@ -291,7 +296,7 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
 
     @Override
     public int getBacklog() {
-        return loadedBuffers.size();
+        return backlog.get();
     }
 
     // ------------------------------------------------------------------------
@@ -312,12 +317,26 @@ public class HsSubpartitionFileReaderImpl implements HsSubpartitionFileReader {
                 // Because the update of consumption progress may be delayed, there is a
                 // very small probability to load the buffer that has been consumed from memory.
                 // Skip these buffers directly to avoid repeated consumption.
-                buffersToRecycle.add(checkNotNull(loadedBuffers.poll()).buffer);
+                Buffer buffer = checkNotNull(loadedBuffers.poll()).buffer;
+                tryDecreaseBacklog(checkNotNull(buffer));
+                buffersToRecycle.add(buffer);
                 peek = loadedBuffers.peek();
             }
         }
 
         return Optional.ofNullable(peek);
+    }
+
+    private void tryIncreaseBacklog(Buffer buffer) {
+        if (buffer.isBuffer()) {
+            backlog.getAndIncrement();
+        }
+    }
+
+    private void tryDecreaseBacklog(Buffer buffer) {
+        if (buffer.isBuffer()) {
+            backlog.getAndDecrement();
+        }
     }
 
     private void moveFileOffsetToBuffer(int bufferIndex) throws IOException {

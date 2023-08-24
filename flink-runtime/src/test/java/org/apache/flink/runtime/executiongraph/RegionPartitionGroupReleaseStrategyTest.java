@@ -27,32 +27,28 @@ import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVer
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingResultPartition;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.util.IterableUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.is;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RegionPartitionGroupReleaseStrategy}. */
-public class RegionPartitionGroupReleaseStrategyTest extends TestLogger {
+class RegionPartitionGroupReleaseStrategyTest {
 
     private TestingSchedulingTopology testingSchedulingTopology;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         testingSchedulingTopology = new TestingSchedulingTopology();
     }
 
     @Test
-    public void releasePartitionsIfDownstreamRegionIsFinished() {
+    void releasePartitionsIfDownstreamRegionIsFinished() {
         final List<TestingSchedulingExecutionVertex> producers =
                 testingSchedulingTopology.addExecutionVertices().finish();
         final List<TestingSchedulingExecutionVertex> consumers =
@@ -68,11 +64,11 @@ public class RegionPartitionGroupReleaseStrategyTest extends TestLogger {
 
         final List<IntermediateResultPartitionID> partitionsToRelease =
                 getReleasablePartitions(regionPartitionGroupReleaseStrategy, onlyConsumerVertexId);
-        assertThat(partitionsToRelease, contains(onlyResultPartitionId));
+        assertThat(partitionsToRelease).contains(onlyResultPartitionId);
     }
 
     @Test
-    public void releasePartitionsIfDownstreamRegionWithMultipleOperatorsIsFinished() {
+    void releasePartitionsIfDownstreamRegionWithMultipleOperatorsIsFinished() {
         final List<TestingSchedulingExecutionVertex> sourceVertices =
                 testingSchedulingTopology.addExecutionVertices().finish();
         final List<TestingSchedulingExecutionVertex> intermediateVertices =
@@ -99,11 +95,11 @@ public class RegionPartitionGroupReleaseStrategyTest extends TestLogger {
         regionPartitionGroupReleaseStrategy.vertexFinished(onlyIntermediateVertexId);
         final List<IntermediateResultPartitionID> partitionsToRelease =
                 getReleasablePartitions(regionPartitionGroupReleaseStrategy, onlySinkVertexId);
-        assertThat(partitionsToRelease, contains(onlySourceResultPartitionId));
+        assertThat(partitionsToRelease).contains(onlySourceResultPartitionId);
     }
 
     @Test
-    public void notReleasePartitionsIfDownstreamRegionIsNotFinished() {
+    void notReleasePartitionsIfDownstreamRegionIsNotFinished() {
         final List<TestingSchedulingExecutionVertex> producers =
                 testingSchedulingTopology.addExecutionVertices().finish();
         final List<TestingSchedulingExecutionVertex> consumers =
@@ -117,11 +113,11 @@ public class RegionPartitionGroupReleaseStrategyTest extends TestLogger {
 
         final List<IntermediateResultPartitionID> partitionsToRelease =
                 getReleasablePartitions(regionPartitionGroupReleaseStrategy, consumerVertex1);
-        assertThat(partitionsToRelease, is(empty()));
+        assertThat(partitionsToRelease).isEmpty();
     }
 
     @Test
-    public void toggleVertexFinishedUnfinished() {
+    void toggleVertexFinishedUnfinished() {
         final List<TestingSchedulingExecutionVertex> producers =
                 testingSchedulingTopology.addExecutionVertices().finish();
         final List<TestingSchedulingExecutionVertex> consumers =
@@ -140,7 +136,7 @@ public class RegionPartitionGroupReleaseStrategyTest extends TestLogger {
 
         final List<IntermediateResultPartitionID> partitionsToRelease =
                 getReleasablePartitions(regionPartitionGroupReleaseStrategy, consumerVertex1);
-        assertThat(partitionsToRelease, is(empty()));
+        assertThat(partitionsToRelease).isEmpty();
     }
 
     private static List<IntermediateResultPartitionID> getReleasablePartitions(
@@ -153,7 +149,7 @@ public class RegionPartitionGroupReleaseStrategyTest extends TestLogger {
     }
 
     @Test
-    public void updateStrategyOnTopologyUpdate() {
+    void updateStrategyOnTopologyUpdate() {
         final TestingSchedulingExecutionVertex ev1 = testingSchedulingTopology.newExecutionVertex();
 
         final RegionPartitionGroupReleaseStrategy regionPartitionReleaseStrategy =
@@ -168,14 +164,14 @@ public class RegionPartitionGroupReleaseStrategyTest extends TestLogger {
                 testingSchedulingTopology, Collections.singletonList(ev2.getId()));
 
         // this check ensures that existing region views are not affected
-        assertThat(regionPartitionReleaseStrategy.isRegionOfVertexFinished(ev1.getId()), is(true));
+        assertThat(regionPartitionReleaseStrategy.isRegionOfVertexFinished(ev1.getId())).isTrue();
 
-        assertThat(regionPartitionReleaseStrategy.isRegionOfVertexFinished(ev2.getId()), is(false));
+        assertThat(regionPartitionReleaseStrategy.isRegionOfVertexFinished(ev2.getId())).isFalse();
 
         List<IntermediateResultPartitionID> releasablePartitions =
                 getReleasablePartitions(regionPartitionReleaseStrategy, ev2.getId());
-        assertThat(regionPartitionReleaseStrategy.isRegionOfVertexFinished(ev2.getId()), is(true));
-        assertThat(
-                releasablePartitions, contains(ev1.getProducedResults().iterator().next().getId()));
+        assertThat(regionPartitionReleaseStrategy.isRegionOfVertexFinished(ev2.getId())).isTrue();
+        assertThat(releasablePartitions)
+                .contains(ev1.getProducedResults().iterator().next().getId());
     }
 }

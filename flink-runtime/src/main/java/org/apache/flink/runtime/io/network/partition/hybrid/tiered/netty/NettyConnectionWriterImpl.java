@@ -23,20 +23,19 @@ import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 
 import javax.annotation.Nullable;
 
-import java.util.Queue;
-
 /** The default implementation of {@link NettyConnectionWriter}. */
 public class NettyConnectionWriterImpl implements NettyConnectionWriter {
 
-    private final Queue<NettyPayload> bufferQueue;
+    private final NettyPayloadManager nettyPayloadManager;
 
     private final NettyConnectionId connectionId;
 
     private final BufferAvailabilityListener availabilityListener;
 
     public NettyConnectionWriterImpl(
-            Queue<NettyPayload> bufferQueue, BufferAvailabilityListener availabilityListener) {
-        this.bufferQueue = bufferQueue;
+            NettyPayloadManager nettyPayloadManager,
+            BufferAvailabilityListener availabilityListener) {
+        this.nettyPayloadManager = nettyPayloadManager;
         this.connectionId = NettyConnectionId.newId();
         this.availabilityListener = availabilityListener;
     }
@@ -53,18 +52,18 @@ public class NettyConnectionWriterImpl implements NettyConnectionWriter {
 
     @Override
     public int numQueuedBuffers() {
-        return bufferQueue.size();
+        return nettyPayloadManager.getSize();
     }
 
     @Override
     public void writeBuffer(NettyPayload nettyPayload) {
-        bufferQueue.add(nettyPayload);
+        nettyPayloadManager.add(nettyPayload);
     }
 
     @Override
     public void close(@Nullable Throwable error) {
         NettyPayload nettyPayload;
-        while ((nettyPayload = bufferQueue.poll()) != null) {
+        while ((nettyPayload = nettyPayloadManager.poll()) != null) {
             nettyPayload.getBuffer().ifPresent(Buffer::recycleBuffer);
         }
         if (error != null) {

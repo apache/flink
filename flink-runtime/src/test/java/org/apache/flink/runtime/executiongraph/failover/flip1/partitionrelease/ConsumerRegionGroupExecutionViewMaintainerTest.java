@@ -20,21 +20,19 @@ package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingPipelinedRegion;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link ConsumerRegionGroupExecutionView} and {@link
  * ConsumerRegionGroupExecutionViewMaintainer}.
  */
-public class ConsumerRegionGroupExecutionViewMaintainerTest extends TestLogger {
+class ConsumerRegionGroupExecutionViewMaintainerTest {
 
     private TestingSchedulingPipelinedRegion producerRegion;
     private TestingSchedulingPipelinedRegion consumerRegion;
@@ -42,55 +40,55 @@ public class ConsumerRegionGroupExecutionViewMaintainerTest extends TestLogger {
     private ConsumerRegionGroupExecutionView consumerRegionGroupExecutionView;
     private ConsumerRegionGroupExecutionViewMaintainer consumerRegionGroupExecutionViewMaintainer;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         createProducerAndConsumer();
         createConsumerRegionGroupExecutionViewMaintainer();
     }
 
     @Test
-    public void testRegionFinished() throws Exception {
+    void testRegionFinished() throws Exception {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
-        assertTrue(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isTrue();
     }
 
     @Test
-    public void testRegionUnfinished() throws Exception {
+    void testRegionUnfinished() throws Exception {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(consumerRegion);
 
-        assertFalse(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isFalse();
     }
 
     @Test
-    public void testRegionFinishedMultipleTimes() throws Exception {
+    void testRegionFinishedMultipleTimes() throws Exception {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
 
-        assertTrue(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isTrue();
     }
 
     @Test
-    public void testRegionUnfinishedMultipleTimes() throws Exception {
+    void testRegionUnfinishedMultipleTimes() throws Exception {
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(consumerRegion);
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(consumerRegion);
 
-        assertFalse(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isFalse();
 
         consumerRegionGroupExecutionViewMaintainer.regionFinished(consumerRegion);
-        assertTrue(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isTrue();
     }
 
     @Test
-    public void testFinishWrongRegion() {
+    void testFinishWrongRegion() {
         consumerRegionGroupExecutionViewMaintainer.regionFinished(producerRegion);
-        assertFalse(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isFalse();
     }
 
     @Test
-    public void testUnfinishedWrongRegion() {
+    void testUnfinishedWrongRegion() {
         consumerRegionGroupExecutionViewMaintainer.regionUnfinished(producerRegion);
-        assertFalse(consumerRegionGroupExecutionView.isFinished());
+        assertThat(consumerRegionGroupExecutionView.isFinished()).isFalse();
     }
 
     private void createProducerAndConsumer() {

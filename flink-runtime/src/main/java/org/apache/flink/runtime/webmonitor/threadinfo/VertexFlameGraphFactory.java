@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Factory class for creating Flame Graph representations. */
 public class VertexFlameGraphFactory {
@@ -79,7 +81,7 @@ public class VertexFlameGraphFactory {
                 sample.getSamplesBySubtask().values()) {
             for (ThreadInfoSample threadInfo : threadInfoSubSamples) {
                 if (threadStates.contains(threadInfo.getThreadState())) {
-                    StackTraceElement[] traces = threadInfo.getStackTrace();
+                    StackTraceElement[] traces = cleanLambdaNames(threadInfo.getStackTrace());
                     root.incrementHitCount();
                     NodeBuilder parent = root;
                     for (int i = traces.length - 1; i >= 0; i--) {
@@ -95,6 +97,46 @@ public class VertexFlameGraphFactory {
             }
         }
         return new VertexFlameGraph(sample.getEndTime(), root.toNode());
+    }
+
+    // Matches class names like
+    //   org.apache.flink.streaming.runtime.io.RecordProcessorUtils$$Lambda$773/0x00000001007f84a0
+    //   org.apache.flink.runtime.taskexecutor.IdleTestTask$$Lambda$351/605293351
+    private static final Pattern LAMBDA_CLASS_NAME =
+            Pattern.compile("(\\$Lambda\\$)\\d+/(0x)?\\p{XDigit}+$");
+
+    // Drops stack trace elements with class names matching the above regular expression.
+    // These elements are useless, because they don't provide any additional information
+    // except the fact that a lambda is used (they don't have source information, for example),
+    // and also the lambda "class names" can be different across different JVMs, which pollutes
+    // flame graphs.
+    // Note that Thread.getStackTrace() performs a similar logic - the stack trace returned
+    // by this method will not contain lambda references with it. But ThreadMXBean does collect
+    // lambdas, so we have to clean them up explicitly.
+    private static StackTraceElement[] cleanLambdaNames(StackTraceElement[] stackTrace) {
+        StackTraceElement[] result = new StackTraceElement[stackTrace.length];
+        for (int i = 0; i < stackTrace.length; i++) {
+            StackTraceElement element = stackTrace[i];
+            Matcher matcher = LAMBDA_CLASS_NAME.matcher(element.getClassName());
+            if (matcher.find()) {
+                // org.apache.flink.streaming.runtime.io.RecordProcessorUtils$$Lambda$773/0x00000001007f84a0
+                //  -->
+                // org.apache.flink.streaming.runtime.io.RecordProcessorUtils$$Lambda$0/0x0
+                // This ensures that the name is stable across JVMs, but at the same time
+                // keeps the stack frame in the call since it has the method name, which
+                // may be useful for analysis.
+                String newClassName = matcher.replaceFirst("$10/$20");
+                result[i] =
+                        new StackTraceElement(
+                                newClassName,
+                                element.getMethodName(),
+                                element.getFileName(),
+                                element.getLineNumber());
+            } else {
+                result[i] = element;
+            }
+        }
+        return result;
     }
 
     private static class NodeBuilder {

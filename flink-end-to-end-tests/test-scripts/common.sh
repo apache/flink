@@ -935,8 +935,12 @@ function extract_job_id_from_job_submission_return() {
 
 kill_test_watchdog() {
     local watchdog_pid=$(cat $TEST_DATA_DIR/job_watchdog.pid)
-    echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
-    kill $watchdog_pid
+    if kill -0 $watchdog_pid > /dev/null 2>&1; then
+        echo "Stopping job timeout watchdog (with pid=$watchdog_pid)"
+        kill $watchdog_pid
+    else
+        echo "No watchdog process with pid=$watchdog_pid present, anymore. No action required to clean the watchdog process up."
+    fi
 }
 
 #

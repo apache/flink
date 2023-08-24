@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -137,11 +138,11 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
     }
 
     @Override
-    public ResourceReleaseResult tryReleaseUnusedResources(
+    public ResourceReconcileResult tryReconcileClusterResources(
             TaskManagerResourceInfoProvider taskManagerResourceInfoProvider) {
         ResourceProfile requiredRedundantResources =
                 totalResourceProfile.multiply(redundantTaskManagerNum);
-        ResourceReleaseResult.Builder builder = ResourceReleaseResult.builder();
+        ResourceReconcileResult.Builder builder = ResourceReconcileResult.builder();
 
         List<TaskManagerInfo> taskManagersIdleTimeout = new ArrayList<>();
         List<TaskManagerInfo> taskManagersNonTimeout = new ArrayList<>();
@@ -210,6 +211,14 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
             } else {
                 resourcesToKeep = resourcesToKeep.merge(pendingTaskManager.getUnusedResource());
             }
+        }
+
+        if (!redundantFulfilled) {
+            // fulfill redundant resources
+            tryFulFillRedundantResourcesWithAction(
+                    requiredRedundantResources,
+                    resourcesToKeep,
+                    builder::addPendingTaskManagerToAllocate);
         }
 
         return builder.build();
@@ -350,10 +359,20 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                         .map(internalResourceInfo -> internalResourceInfo.availableProfile)
                         .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
 
+        tryFulFillRedundantResourcesWithAction(
+                requiredRedundantResource,
+                totalAvailableResources,
+                resultBuilder::addPendingTaskManagerAllocate);
+    }
+
+    private void tryFulFillRedundantResourcesWithAction(
+            ResourceProfile requiredRedundantResource,
+            ResourceProfile totalAvailableResources,
+            Consumer<? super PendingTaskManager> fulfillAction) {
         while (!canFulfillRequirement(requiredRedundantResource, totalAvailableResources)) {
             PendingTaskManager pendingTaskManager =
                     new PendingTaskManager(totalResourceProfile, numSlotsPerWorker);
-            resultBuilder.addPendingTaskManagerAllocate(pendingTaskManager);
+            fulfillAction.accept(pendingTaskManager);
             totalAvailableResources = totalAvailableResources.merge(totalResourceProfile);
         }
     }

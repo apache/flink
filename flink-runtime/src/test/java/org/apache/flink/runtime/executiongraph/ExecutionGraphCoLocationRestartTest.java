@@ -36,32 +36,30 @@ import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkException;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Predicate;
 
 import static org.apache.flink.api.common.JobStatus.FINISHED;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that co-location constraints work as expected in the case of task restarts. */
-public class ExecutionGraphCoLocationRestartTest {
+class ExecutionGraphCoLocationRestartTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     private static final int NUM_TASKS = 31;
 
     @Test
-    public void testConstraintsAfterRestart() throws Exception {
+    void testConstraintsAfterRestart() throws Exception {
 
         final long timeout = 5000L;
 
@@ -102,7 +100,7 @@ public class ExecutionGraphCoLocationRestartTest {
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
         // enable the queued scheduling for the slot pool
-        assertEquals(JobStatus.CREATED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.CREATED);
 
         scheduler.startScheduling();
 
@@ -110,14 +108,14 @@ public class ExecutionGraphCoLocationRestartTest {
                 ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
         ExecutionGraphTestUtils.waitForAllExecutionsPredicate(eg, isDeploying, timeout);
 
-        assertEquals(JobStatus.RUNNING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
         // sanity checks
         validateConstraints(eg);
 
         eg.getAllExecutionVertices().iterator().next().fail(new FlinkException("Test exception"));
 
-        assertEquals(JobStatus.RESTARTING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.RESTARTING);
 
         // trigger registration of restartTasks(...) callback to cancelFuture before completing the
         // cancellation. This ensures the restarting actions to be performed in main thread.
@@ -139,7 +137,7 @@ public class ExecutionGraphCoLocationRestartTest {
 
         ExecutionGraphTestUtils.finishAllVertices(eg);
 
-        assertThat(eg.getState(), is(FINISHED));
+        assertThat(eg.getState()).isEqualTo(FINISHED);
     }
 
     private void validateConstraints(ExecutionGraph eg) {
@@ -153,7 +151,7 @@ public class ExecutionGraphCoLocationRestartTest {
             TaskManagerLocation taskManagerLocation1 =
                     tasks[1].getTaskVertices()[i].getCurrentAssignedResourceLocation();
 
-            assertThat(taskManagerLocation0, is(taskManagerLocation1));
+            assertThat(taskManagerLocation0).isEqualTo(taskManagerLocation1);
         }
     }
 }

@@ -26,31 +26,27 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link NettyShuffleEnvironmentConfiguration}. */
-public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
+class NettyShuffleEnvironmentConfigurationTest {
 
     private static final MemorySize MEM_SIZE_PARAM = new MemorySize(128L * 1024 * 1024);
 
     @Test
-    public void testNetworkBufferNumberCalculation() {
+    void testNetworkBufferNumberCalculation() {
         final Configuration config = new Configuration();
         config.set(TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.parse("1m"));
         final int numNetworkBuffers =
                 NettyShuffleEnvironmentConfiguration.fromConfiguration(
                                 config, MEM_SIZE_PARAM, false, InetAddress.getLoopbackAddress())
                         .numNetworkBuffers();
-        assertThat(numNetworkBuffers, is(128));
+        assertThat(numNetworkBuffers).isEqualTo(128);
     }
 
     /**
@@ -62,7 +58,7 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
      * NettyShuffleEnvironmentOptions#NETWORK_EXTRA_BUFFERS_PER_GATE}
      */
     @Test
-    public void testNetworkRequestBackoffAndBuffers() {
+    void testNetworkRequestBackoffAndBuffers() {
 
         // set some non-default values
         final Configuration config = new Configuration();
@@ -75,15 +71,15 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
                 NettyShuffleEnvironmentConfiguration.fromConfiguration(
                         config, MEM_SIZE_PARAM, true, InetAddress.getLoopbackAddress());
 
-        assertEquals(networkConfig.partitionRequestInitialBackoff(), 100);
-        assertEquals(networkConfig.partitionRequestMaxBackoff(), 200);
-        assertEquals(networkConfig.networkBuffersPerChannel(), 10);
-        assertEquals(networkConfig.floatingNetworkBuffersPerGate(), 100);
+        assertThat(networkConfig.partitionRequestInitialBackoff()).isEqualTo(100);
+        assertThat(networkConfig.partitionRequestMaxBackoff()).isEqualTo(200);
+        assertThat(networkConfig.networkBuffersPerChannel()).isEqualTo(10);
+        assertThat(networkConfig.floatingNetworkBuffersPerGate()).isEqualTo(100);
     }
 
     /** Verifies the correlation of sort-merge blocking shuffle config options. */
     @Test
-    public void testSortMergeShuffleConfigOptionsCorrelation() {
+    void testSortMergeShuffleConfigOptionsCorrelation() {
         Formatter formatter = new HtmlFormatter();
         ConfigOption<Integer> configOption =
                 NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_PARALLELISM;
@@ -91,11 +87,12 @@ public class NettyShuffleEnvironmentConfigurationTest extends TestLogger {
 
         String configKey =
                 getConfigKey(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS);
-        assertTrue(description.contains(configKey));
+        assertThat(description).contains(configKey);
         configKey = getConfigKey(TaskManagerOptions.NETWORK_BATCH_SHUFFLE_READ_MEMORY);
-        assertTrue(description.contains(configKey));
+        assertThat(description).contains(configKey);
 
-        assertTrue(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED.defaultValue());
+        assertThat(NettyShuffleEnvironmentOptions.BATCH_SHUFFLE_COMPRESSION_ENABLED.defaultValue())
+                .isTrue();
     }
 
     private static String getConfigKey(ConfigOption<?> configOption) {

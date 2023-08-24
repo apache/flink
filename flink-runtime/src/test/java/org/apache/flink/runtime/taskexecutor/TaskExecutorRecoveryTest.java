@@ -37,10 +37,8 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceExtension;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -57,7 +55,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
 /** Recovery tests for {@link TaskExecutor}. */
-@ExtendWith(TestLoggerExtension.class)
 class TaskExecutorRecoveryTest {
     private final TestingRpcServiceExtension rpcServiceExtension = new TestingRpcServiceExtension();
 
@@ -66,7 +63,7 @@ class TaskExecutorRecoveryTest {
             new EachCallbackWrapper<>(rpcServiceExtension);
 
     @Test
-    public void testRecoveredTaskExecutorWillRestoreAllocationState(@TempDir File tempDir)
+    void testRecoveredTaskExecutorWillRestoreAllocationState(@TempDir File tempDir)
             throws Exception {
         final ResourceID resourceId = ResourceID.generate();
 

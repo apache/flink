@@ -70,12 +70,12 @@ class ThreadInfoRequestCoordinatorTest {
     private ThreadInfoRequestCoordinator coordinator;
 
     @BeforeAll
-    static void setUp() throws Exception {
+    static void setUp() {
         executorService = new ScheduledThreadPoolExecutor(1);
     }
 
     @AfterAll
-    static void tearDown() throws Exception {
+    static void tearDown() {
         if (executorService != null) {
             executorService.shutdown();
         }

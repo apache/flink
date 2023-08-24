@@ -18,21 +18,17 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.util.TestLogger;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link FixedDelayRestartBackoffTimeStrategy}. */
-public class FixedDelayRestartBackoffTimeStrategyTest extends TestLogger {
+class FixedDelayRestartBackoffTimeStrategyTest {
 
     private final Exception failure = new Exception();
 
     @Test
-    public void testNumberOfRestarts() {
+    void testNumberOfRestarts() {
         final int numberOfRestarts = 3;
 
         final FixedDelayRestartBackoffTimeStrategy strategy =
@@ -41,21 +37,21 @@ public class FixedDelayRestartBackoffTimeStrategyTest extends TestLogger {
         for (int restartsLeft = numberOfRestarts; restartsLeft > 0; --restartsLeft) {
             strategy.notifyFailure(failure);
             // two calls to 'canRestart()' to make sure this is not used to maintain the counter
-            assertTrue(strategy.canRestart());
-            assertTrue(strategy.canRestart());
+            assertThat(strategy.canRestart()).isTrue();
+            assertThat(strategy.canRestart()).isTrue();
         }
 
         strategy.notifyFailure(failure);
-        assertFalse(strategy.canRestart());
+        assertThat(strategy.canRestart()).isFalse();
     }
 
     @Test
-    public void testBackoffTime() {
+    void testBackoffTime() {
         final long backoffTimeMS = 10_000L;
 
         final FixedDelayRestartBackoffTimeStrategy restartStrategy =
                 new FixedDelayRestartBackoffTimeStrategy(1, backoffTimeMS);
 
-        assertEquals(backoffTimeMS, restartStrategy.getBackoffTime());
+        assertThat(restartStrategy.getBackoffTime()).isEqualTo(backoffTimeMS);
     }
 }

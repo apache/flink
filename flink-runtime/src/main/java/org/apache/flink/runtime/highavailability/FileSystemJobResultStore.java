@@ -48,6 +48,7 @@ import java.io.OutputStream;
 import java.util.HashSet;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
@@ -83,14 +84,16 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
     private final boolean deleteOnCommit;
 
     @VisibleForTesting
-    FileSystemJobResultStore(FileSystem fileSystem, Path basePath, boolean deleteOnCommit) {
+    FileSystemJobResultStore(
+            FileSystem fileSystem, Path basePath, boolean deleteOnCommit, Executor ioExecutor) {
+        super(ioExecutor);
         this.fileSystem = fileSystem;
         this.basePath = basePath;
         this.deleteOnCommit = deleteOnCommit;
     }
 
-    public static FileSystemJobResultStore fromConfiguration(Configuration config)
-            throws IOException {
+    public static FileSystemJobResultStore fromConfiguration(
+            Configuration config, Executor ioExecutor) throws IOException {
         Preconditions.checkNotNull(config);
         final String jrsStoragePath = config.get(JobResultStoreOptions.STORAGE_PATH);
         final Path basePath;
@@ -105,7 +108,8 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
         boolean deleteOnCommit = config.get(JobResultStoreOptions.DELETE_ON_COMMIT);
 
-        return new FileSystemJobResultStore(basePath.getFileSystem(), basePath, deleteOnCommit);
+        return new FileSystemJobResultStore(
+                basePath.getFileSystem(), basePath, deleteOnCommit, ioExecutor);
     }
 
     private void createBasePathIfNeeded() throws IOException {

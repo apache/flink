@@ -107,7 +107,7 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
                         configuration),
                 ioExecutor,
                 blobStoreService,
-                FileSystemJobResultStore.fromConfiguration(configuration));
+                FileSystemJobResultStore.fromConfiguration(configuration, ioExecutor));
 
         this.kubeClient = checkNotNull(kubeClient);
         this.clusterId = checkNotNull(clusterId);
@@ -229,7 +229,7 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
 
     @Override
     protected String getLeaderPathForJobManager(JobID jobID) {
-        return jobID.toString();
+        return "job-" + jobID.toString();
     }
 
     @Override

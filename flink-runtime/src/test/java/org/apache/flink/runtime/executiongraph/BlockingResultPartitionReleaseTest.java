@@ -127,7 +127,7 @@ class BlockingResultPartitionReleaseTest {
                 .join();
         ioExecutor.triggerAll();
 
-        assertThat(partitionTracker.releasedPartitions.size()).isEqualTo(parallelism);
+        assertThat(partitionTracker.releasedPartitions).hasSize((parallelism));
         for (int i = 0; i < parallelism; ++i) {
             ExecutionJobVertex ejv = checkNotNull(executionGraph.getJobVertex(producer.getID()));
             assertThat(

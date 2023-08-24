@@ -25,16 +25,14 @@ import org.apache.flink.configuration.ExternalResourceOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test suite for {@link TaskExecutorResourceUtils}. */
-public class TaskExecutorResourceUtilsTest extends TestLogger {
+class TaskExecutorResourceUtilsTest {
     private static final double CPU_CORES = 1.0;
     private static final MemorySize TASK_HEAP = MemorySize.ofMebiBytes(1);
     private static final MemorySize TASK_OFF_HEAP = MemorySize.ofMebiBytes(2);
@@ -44,64 +42,59 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
     private static final long EXTERNAL_RESOURCE_AMOUNT = 1;
 
     @Test
-    public void testResourceSpecFromConfig() {
+    void testResourceSpecFromConfig() {
         TaskExecutorResourceSpec resourceSpec =
                 TaskExecutorResourceUtils.resourceSpecFromConfig(createValidConfig());
-        assertThat(resourceSpec.getCpuCores(), is(new CPUResource(CPU_CORES)));
-        assertThat(resourceSpec.getTaskHeapSize(), is(TASK_HEAP));
-        assertThat(resourceSpec.getTaskOffHeapSize(), is(TASK_OFF_HEAP));
-        assertThat(resourceSpec.getNetworkMemSize(), is(NETWORK));
-        assertThat(resourceSpec.getManagedMemorySize(), is(MANAGED));
+        assertThat(resourceSpec.getCpuCores()).isEqualTo(new CPUResource(CPU_CORES));
+        assertThat(resourceSpec.getTaskHeapSize()).isEqualTo(TASK_HEAP);
+        assertThat(resourceSpec.getTaskOffHeapSize()).isEqualTo(TASK_OFF_HEAP);
+        assertThat(resourceSpec.getNetworkMemSize()).isEqualTo(NETWORK);
+        assertThat(resourceSpec.getManagedMemorySize()).isEqualTo(MANAGED);
         assertThat(
-                resourceSpec
-                        .getExtendedResources()
-                        .get(EXTERNAL_RESOURCE_NAME)
-                        .getValue()
-                        .longValue(),
-                is(EXTERNAL_RESOURCE_AMOUNT));
-    }
-
-    @Test(expected = IllegalConfigurationException.class)
-    public void testResourceSpecFromConfigFailsIfNetworkSizeIsNotFixed() {
-        Configuration configuration = createValidConfig();
-        configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(1));
-        configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(2));
-        TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+                        resourceSpec
+                                .getExtendedResources()
+                                .get(EXTERNAL_RESOURCE_NAME)
+                                .getValue()
+                                .longValue())
+                .isEqualTo(EXTERNAL_RESOURCE_AMOUNT);
     }
 
     @Test
-    public void testResourceSpecFromConfigFailsIfRequiredOptionIsNotSet() {
+    void testResourceSpecFromConfigFailsIfNetworkSizeIsNotFixed() {
+        Configuration configuration = createValidConfig();
+        configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(1));
+        configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(2));
+        assertThatThrownBy(() -> TaskExecutorResourceUtils.resourceSpecFromConfig(configuration))
+                .isInstanceOf(IllegalConfigurationException.class);
+    }
+
+    @Test
+    void testResourceSpecFromConfigFailsIfRequiredOptionIsNotSet() {
         TaskExecutorResourceUtils.CONFIG_OPTIONS.stream()
                 .filter(option -> !option.hasDefaultValue())
                 .forEach(
                         option -> {
-                            try {
-                                TaskExecutorResourceUtils.resourceSpecFromConfig(
-                                        setAllRequiredOptionsExceptOne(option));
-                                fail(
-                                        "should fail with "
-                                                + IllegalConfigurationException.class
-                                                        .getSimpleName());
-                            } catch (IllegalConfigurationException e) {
-                                // expected
-                            }
+                            assertThatThrownBy(
+                                            () ->
+                                                    TaskExecutorResourceUtils
+                                                            .resourceSpecFromConfig(
+                                                                    setAllRequiredOptionsExceptOne(
+                                                                            option)))
+                                    .isInstanceOf(IllegalConfigurationException.class);
                         });
     }
 
     @Test
-    public void testAdjustForLocalExecution() {
+    void testAdjustForLocalExecution() {
         Configuration configuration =
                 TaskExecutorResourceUtils.adjustForLocalExecution(new Configuration());
 
-        assertThat(
-                configuration.get(TaskManagerOptions.NETWORK_MEMORY_MIN),
-                is(TaskExecutorResourceUtils.DEFAULT_SHUFFLE_MEMORY_SIZE));
-        assertThat(
-                configuration.get(TaskManagerOptions.NETWORK_MEMORY_MAX),
-                is(TaskExecutorResourceUtils.DEFAULT_SHUFFLE_MEMORY_SIZE));
-        assertThat(
-                configuration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE),
-                is(TaskExecutorResourceUtils.DEFAULT_MANAGED_MEMORY_SIZE));
+        assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MIN))
+                .isEqualTo(TaskExecutorResourceUtils.DEFAULT_SHUFFLE_MEMORY_SIZE);
+        assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MAX))
+                .isEqualTo(TaskExecutorResourceUtils.DEFAULT_SHUFFLE_MEMORY_SIZE);
+        assertThat(configuration.get(TaskManagerOptions.MANAGED_MEMORY_SIZE))
+                .isEqualTo(TaskExecutorResourceUtils.DEFAULT_MANAGED_MEMORY_SIZE);
     }
 
     @Test
@@ -111,8 +104,10 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, networkMemorySize);
         TaskExecutorResourceUtils.adjustForLocalExecution(configuration);
 
-        assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MIN), is(networkMemorySize));
-        assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MAX), is(networkMemorySize));
+        assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MIN))
+                .isEqualTo(networkMemorySize);
+        assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MAX))
+                .isEqualTo(networkMemorySize);
     }
 
     @Test
@@ -122,12 +117,14 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, networkMemorySize);
         TaskExecutorResourceUtils.adjustForLocalExecution(configuration);
 
-        assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MIN), is(networkMemorySize));
-        assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MAX), is(networkMemorySize));
+        assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MIN))
+                .isEqualTo(networkMemorySize);
+        assertThat(configuration.get(TaskManagerOptions.NETWORK_MEMORY_MAX))
+                .isEqualTo(networkMemorySize);
     }
 
     @Test
-    public void testCalculateTotalFlinkMemoryWithAllFactorsBeingSet() {
+    void testCalculateTotalFlinkMemoryWithAllFactorsBeingSet() {
         Configuration config = new Configuration();
 
         config.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, new MemorySize(1));
@@ -138,12 +135,12 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, new MemorySize(6));
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, new MemorySize(7));
 
-        assertThat(
-                TaskExecutorResourceUtils.calculateTotalFlinkMemoryFromComponents(config), is(23L));
+        assertThat(TaskExecutorResourceUtils.calculateTotalFlinkMemoryFromComponents(config))
+                .isEqualTo(23L);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testCalculateTotalFlinkMemoryWithMissingFactors() {
+    @Test
+    void testCalculateTotalFlinkMemoryWithMissingFactors() {
         Configuration config = new Configuration();
 
         config.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, new MemorySize(1));
@@ -151,11 +148,15 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         config.set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, new MemorySize(4));
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, new MemorySize(7));
 
-        TaskExecutorResourceUtils.calculateTotalFlinkMemoryFromComponents(config);
+        assertThatThrownBy(
+                        () ->
+                                TaskExecutorResourceUtils.calculateTotalFlinkMemoryFromComponents(
+                                        config))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testCalculateTotalProcessMemoryWithAllFactorsBeingSet() {
+    void testCalculateTotalProcessMemoryWithAllFactorsBeingSet() {
         Configuration config = new Configuration();
 
         config.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, new MemorySize(1));
@@ -169,13 +170,12 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         config.set(TaskManagerOptions.JVM_OVERHEAD_MAX, new MemorySize(10));
         config.set(TaskManagerOptions.JVM_OVERHEAD_MIN, new MemorySize(10));
 
-        assertThat(
-                TaskExecutorResourceUtils.calculateTotalProcessMemoryFromComponents(config),
-                is(41L));
+        assertThat(TaskExecutorResourceUtils.calculateTotalProcessMemoryFromComponents(config))
+                .isEqualTo(41L);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testCalculateTotalProcessMemoryWithMissingFactors() {
+    @Test
+    void testCalculateTotalProcessMemoryWithMissingFactors() {
         Configuration config = new Configuration();
 
         config.set(TaskManagerOptions.FRAMEWORK_HEAP_MEMORY, new MemorySize(1));
@@ -185,7 +185,11 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, new MemorySize(7));
         config.set(TaskManagerOptions.JVM_METASPACE, new MemorySize(8));
 
-        TaskExecutorResourceUtils.calculateTotalProcessMemoryFromComponents(config);
+        assertThatThrownBy(
+                        () ->
+                                TaskExecutorResourceUtils.calculateTotalProcessMemoryFromComponents(
+                                        config))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private static Configuration createValidConfig() {

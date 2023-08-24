@@ -37,7 +37,6 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
@@ -79,7 +78,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Tests for the {@link VertexThreadInfoTracker}. */
-public class VertexThreadInfoTrackerTest extends TestLogger {
+class VertexThreadInfoTrackerTest {
 
     private static final int REQUEST_ID = 0;
     private static final int PARALLELISM = 10;
@@ -108,7 +107,7 @@ public class VertexThreadInfoTrackerTest extends TestLogger {
     private static ScheduledExecutorService executor;
 
     @BeforeAll
-    public static void setUp() {
+    static void setUp() {
         // Time gap determines endTime of stats, which controls if the "refresh" is triggered:
         // now >= stats.getEndTime() + statsRefreshInterval
         // Using a small gap to be able to test cache updates without much delay.
@@ -117,7 +116,7 @@ public class VertexThreadInfoTrackerTest extends TestLogger {
     }
 
     @AfterAll
-    public static void tearDown() {
+    static void tearDown() {
         if (executor != null) {
             executor.shutdownNow();
         }
@@ -125,7 +124,7 @@ public class VertexThreadInfoTrackerTest extends TestLogger {
 
     /** Tests successful thread info stats request. */
     @Test
-    public void testGetThreadInfoStats() throws Exception {
+    void testGetThreadInfoStats() throws Exception {
         doInitialJobVertexRequestAndVerifyResult(createThreadInfoTracker());
         for (int subtaskIndex = 0; subtaskIndex < PARALLELISM; subtaskIndex++) {
             doInitialExecutionVertexRequestAndVerifyResult(createThreadInfoTracker(), subtaskIndex);
@@ -134,7 +133,7 @@ public class VertexThreadInfoTrackerTest extends TestLogger {
 
     /** Tests that cached result is reused within refresh interval. */
     @Test
-    public void testCachedStatsNotUpdatedWithinRefreshInterval() throws Exception {
+    void testCachedStatsNotUpdatedWithinRefreshInterval() throws Exception {
         final VertexThreadInfoStats unusedThreadInfoStats = createThreadInfoStats(1, TIME_GAP);
 
         // Test for trigger request at job vertex level
@@ -175,7 +174,7 @@ public class VertexThreadInfoTrackerTest extends TestLogger {
 
     /** Tests that cached job vertex result is NOT reused after refresh interval. */
     @Test
-    public void testJobVertexCachedStatsUpdatedAfterRefreshInterval() throws Exception {
+    void testJobVertexCachedStatsUpdatedAfterRefreshInterval() throws Exception {
         final Duration shortRefreshInterval = Duration.ofMillis(1000);
 
         // first entry is in the past, so refresh is triggered immediately upon fetching it
@@ -220,7 +219,7 @@ public class VertexThreadInfoTrackerTest extends TestLogger {
 
     /** Tests that cached execution vertex result is NOT reused after refresh interval. */
     @Test
-    public void testExecutionVertexCachedStatsUpdatedAfterRefreshInterval() throws Exception {
+    void testExecutionVertexCachedStatsUpdatedAfterRefreshInterval() throws Exception {
         final Duration shortRefreshInterval = Duration.ofMillis(1000);
 
         // first entry is in the past, so refresh is triggered immediately upon fetching it
@@ -278,7 +277,7 @@ public class VertexThreadInfoTrackerTest extends TestLogger {
      * request is pending.
      */
     @Test
-    public void testExecutionVertexShouldBeIgnoredWhenJobVertexIsPending() throws Exception {
+    void testExecutionVertexShouldBeIgnoredWhenJobVertexIsPending() throws Exception {
         CompletableFuture<VertexThreadInfoStats> statsFuture = new CompletableFuture<>();
         TestingBlockingAndCountableCoordinator coordinator =
                 new TestingBlockingAndCountableCoordinator(statsFuture);
@@ -314,7 +313,7 @@ public class VertexThreadInfoTrackerTest extends TestLogger {
 
     /** Tests that cached results are removed within the cleanup interval. */
     @Test
-    public void testCachedStatsCleanedAfterCleanupInterval() throws Exception {
+    void testCachedStatsCleanedAfterCleanupInterval() throws Exception {
         final Duration shortCleanUpInterval = Duration.ofMillis(1);
 
         // register a CountDownLatch with the cache so we can await expiry of the entry
@@ -371,7 +370,7 @@ public class VertexThreadInfoTrackerTest extends TestLogger {
 
     /** Tests that cached results are NOT removed within the cleanup interval. */
     @Test
-    public void testCachedStatsNotCleanedWithinCleanupInterval() throws Exception {
+    void testCachedStatsNotCleanedWithinCleanupInterval() throws Exception {
         final VertexThreadInfoTracker tracker = createThreadInfoTracker();
 
         doInitialJobVertexRequestAndVerifyResult(tracker);
@@ -391,7 +390,7 @@ public class VertexThreadInfoTrackerTest extends TestLogger {
 
     /** Tests that cached results are not served after the shutdown. */
     @Test
-    public void testShutDown() throws Exception {
+    void testShutDown() throws Exception {
         final VertexThreadInfoTracker tracker = createThreadInfoTracker();
         doInitialJobVertexRequestAndVerifyResult(tracker);
 

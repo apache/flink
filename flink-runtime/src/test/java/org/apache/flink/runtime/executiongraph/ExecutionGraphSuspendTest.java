@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
@@ -31,45 +32,42 @@ import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Validates that suspending out of various states works correctly. */
-public class ExecutionGraphSuspendTest extends TestLogger {
+class ExecutionGraphSuspendTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     /**
      * Going into SUSPENDED out of CREATED should immediately cancel everything and not send out RPC
      * calls.
      */
     @Test
-    public void testSuspendedOutOfCreated() throws Exception {
+    void testSuspendedOutOfCreated() throws Exception {
         final InteractionsCountingTaskManagerGateway gateway =
                 new InteractionsCountingTaskManagerGateway();
         final int parallelism = 10;
         final SchedulerBase scheduler = createScheduler(gateway, parallelism);
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-        assertEquals(JobStatus.CREATED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.CREATED);
 
         // suspend
 
         scheduler.closeAsync();
 
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
         validateAllVerticesInState(eg, ExecutionState.CANCELED);
         validateCancelRpcCalls(gateway, 0);
 
@@ -81,7 +79,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
      * calls.
      */
     @Test
-    public void testSuspendedOutOfDeploying() throws Exception {
+    void testSuspendedOutOfDeploying() throws Exception {
         final int parallelism = 10;
         final InteractionsCountingTaskManagerGateway gateway =
                 new InteractionsCountingTaskManagerGateway(parallelism);
@@ -89,13 +87,13 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
         scheduler.startScheduling();
-        assertEquals(JobStatus.RUNNING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
         validateAllVerticesInState(eg, ExecutionState.DEPLOYING);
 
         // suspend
         scheduler.closeAsync();
 
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
         validateCancelRpcCalls(gateway, parallelism);
 
         ensureCannotLeaveSuspendedState(scheduler, gateway);
@@ -105,7 +103,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
      * Going into SUSPENDED out of RUNNING vertices should cancel all vertices once with RPC calls.
      */
     @Test
-    public void testSuspendedOutOfRunning() throws Exception {
+    void testSuspendedOutOfRunning() throws Exception {
         final int parallelism = 10;
         final InteractionsCountingTaskManagerGateway gateway =
                 new InteractionsCountingTaskManagerGateway(parallelism);
@@ -115,13 +113,13 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         scheduler.startScheduling();
         ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-        assertEquals(JobStatus.RUNNING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
         validateAllVerticesInState(eg, ExecutionState.RUNNING);
 
         // suspend
         scheduler.closeAsync();
 
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
         validateCancelRpcCalls(gateway, parallelism);
 
         ensureCannotLeaveSuspendedState(scheduler, gateway);
@@ -129,7 +127,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
     /** Suspending from FAILING goes to SUSPENDED and sends no additional RPC calls. */
     @Test
-    public void testSuspendedOutOfFailing() throws Exception {
+    void testSuspendedOutOfFailing() throws Exception {
         final int parallelism = 10;
         final InteractionsCountingTaskManagerGateway gateway =
                 new InteractionsCountingTaskManagerGateway(parallelism);
@@ -141,19 +139,19 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
         scheduler.handleGlobalFailure(new Exception("fail global"));
 
-        assertEquals(JobStatus.FAILING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.FAILING);
         validateCancelRpcCalls(gateway, parallelism);
 
         // suspend
         scheduler.closeAsync();
 
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
         ensureCannotLeaveSuspendedState(scheduler, gateway);
     }
 
     /** Suspending from FAILED should do nothing. */
     @Test
-    public void testSuspendedOutOfFailed() throws Exception {
+    void testSuspendedOutOfFailed() throws Exception {
         final InteractionsCountingTaskManagerGateway gateway =
                 new InteractionsCountingTaskManagerGateway();
         final int parallelism = 10;
@@ -165,23 +163,23 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
         scheduler.handleGlobalFailure(new Exception("fail global"));
 
-        assertEquals(JobStatus.FAILING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.FAILING);
         validateCancelRpcCalls(gateway, parallelism);
 
         ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-        assertEquals(JobStatus.FAILED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.FAILED);
 
         // suspend
         scheduler.closeAsync();
 
         // still in failed state
-        assertEquals(JobStatus.FAILED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.FAILED);
         validateCancelRpcCalls(gateway, parallelism);
     }
 
     /** Suspending from CANCELING goes to SUSPENDED and sends no additional RPC calls. */
     @Test
-    public void testSuspendedOutOfCanceling() throws Exception {
+    void testSuspendedOutOfCanceling() throws Exception {
         final int parallelism = 10;
         final InteractionsCountingTaskManagerGateway gateway =
                 new InteractionsCountingTaskManagerGateway(parallelism);
@@ -193,20 +191,20 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
         scheduler.cancel();
 
-        assertEquals(JobStatus.CANCELLING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.CANCELLING);
         validateCancelRpcCalls(gateway, parallelism);
 
         // suspend
         scheduler.closeAsync();
 
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
 
         ensureCannotLeaveSuspendedState(scheduler, gateway);
     }
 
     /** Suspending from CANCELLED should do nothing. */
     @Test
-    public void testSuspendedOutOfCanceled() throws Exception {
+    void testSuspendedOutOfCanceled() throws Exception {
         final InteractionsCountingTaskManagerGateway gateway =
                 new InteractionsCountingTaskManagerGateway();
         final int parallelism = 10;
@@ -218,23 +216,26 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
         scheduler.cancel();
 
-        assertEquals(JobStatus.CANCELLING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.CANCELLING);
         validateCancelRpcCalls(gateway, parallelism);
 
         ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-        assertEquals(JobStatus.CANCELED, eg.getTerminationFuture().get());
+
+        FlinkAssertions.assertThatFuture(eg.getTerminationFuture())
+                .eventuallySucceeds()
+                .isEqualTo(JobStatus.CANCELED);
 
         // suspend
         scheduler.closeAsync();
 
         // still in failed state
-        assertEquals(JobStatus.CANCELED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.CANCELED);
         validateCancelRpcCalls(gateway, parallelism);
     }
 
     /** Tests that we can suspend a job when in state RESTARTING. */
     @Test
-    public void testSuspendWhileRestarting() throws Exception {
+    void testSuspendWhileRestarting() throws Exception {
         final ManuallyTriggeredScheduledExecutor taskRestartExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final SchedulerBase scheduler =
@@ -251,21 +252,21 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-        assertEquals(JobStatus.RUNNING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
         ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
         scheduler.handleGlobalFailure(new Exception("test"));
-        assertEquals(JobStatus.RESTARTING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.RESTARTING);
 
         ExecutionGraphTestUtils.completeCancellingForAllVertices(eg);
-        assertEquals(JobStatus.RESTARTING, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.RESTARTING);
 
         scheduler.closeAsync();
 
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
 
         taskRestartExecutor.triggerScheduledTasks();
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
     }
 
     // ------------------------------------------------------------------------
@@ -277,39 +278,39 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
         gateway.waitUntilAllTasksAreSubmitted();
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
         gateway.resetCounts();
 
         scheduler.handleGlobalFailure(new Exception("fail"));
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
         validateNoInteractions(gateway);
 
         scheduler.cancel();
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
         validateNoInteractions(gateway);
 
         scheduler.closeAsync();
-        assertEquals(JobStatus.SUSPENDED, eg.getState());
+        assertThat(eg.getState()).isEqualTo(JobStatus.SUSPENDED);
         validateNoInteractions(gateway);
 
         for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
-            assertEquals(0, ev.getCurrentExecutionAttempt().getAttemptNumber());
+            assertThat(ev.getCurrentExecutionAttempt().getAttemptNumber()).isZero();
         }
     }
 
     private static void validateNoInteractions(InteractionsCountingTaskManagerGateway gateway) {
-        assertThat(gateway.getInteractionsCount(), is(0));
+        assertThat(gateway.getInteractionsCount()).isZero();
     }
 
     private static void validateAllVerticesInState(ExecutionGraph eg, ExecutionState expected) {
         for (ExecutionVertex ev : eg.getAllExecutionVertices()) {
-            assertEquals(expected, ev.getCurrentExecutionAttempt().getState());
+            assertThat(ev.getCurrentExecutionAttempt().getState()).isEqualTo(expected);
         }
     }
 
     private static void validateCancelRpcCalls(
             InteractionsCountingTaskManagerGateway gateway, int num) {
-        assertThat(gateway.getCancelTaskCount(), is(num));
+        assertThat(gateway.getCancelTaskCount()).isEqualTo(num);
     }
 
     private static SchedulerBase createScheduler(TaskManagerGateway gateway, int parallelism)

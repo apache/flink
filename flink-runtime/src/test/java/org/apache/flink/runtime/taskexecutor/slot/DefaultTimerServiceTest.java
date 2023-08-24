@@ -20,24 +20,21 @@ package org.apache.flink.runtime.taskexecutor.slot;
 
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultTimerService}. */
-public class DefaultTimerServiceTest extends TestLogger {
+class DefaultTimerServiceTest {
     /** Tests that all registered timeouts can be unregistered. */
     @Test
-    public void testUnregisterAllTimeouts() throws Exception {
+    void testUnregisterAllTimeouts() {
         final ManuallyTriggeredScheduledExecutorService scheduledExecutorService =
                 new ManuallyTriggeredScheduledExecutorService();
         DefaultTimerService<AllocationID> timerService =
@@ -50,22 +47,22 @@ public class DefaultTimerServiceTest extends TestLogger {
         timerService.unregisterAllTimeouts();
 
         Map<?, ?> timeouts = timerService.getTimeouts();
-        assertTrue(timeouts.isEmpty());
+        assertThat(timeouts).isEmpty();
 
         for (ScheduledFuture<?> scheduledTask : scheduledExecutorService.getAllScheduledTasks()) {
-            assertThat(scheduledTask.isCancelled(), is(true));
+            assertThat(scheduledTask.isCancelled()).isTrue();
         }
     }
 
     @Test
-    public void testIsValidInitiallyReturnsFalse() {
+    void testIsValidInitiallyReturnsFalse() {
         final DefaultTimerService<AllocationID> timerService = createAndStartTimerService();
 
-        assertThat(timerService.isValid(new AllocationID(), UUID.randomUUID()), is(false));
+        assertThat(timerService.isValid(new AllocationID(), UUID.randomUUID())).isFalse();
     }
 
     @Test
-    public void testIsValidReturnsTrueForActiveTimeout() throws Exception {
+    void testIsValidReturnsTrueForActiveTimeout() throws Exception {
         final DefaultTimerService<AllocationID> timerService = createAndStartTimerService();
 
         final AllocationID allocationId = new AllocationID();
@@ -75,11 +72,11 @@ public class DefaultTimerServiceTest extends TestLogger {
                 timerService.getTimeouts().get(allocationId);
         final UUID ticket = timeout.getTicket();
 
-        assertThat(timerService.isValid(allocationId, ticket), is(true));
+        assertThat(timerService.isValid(allocationId, ticket)).isTrue();
     }
 
     @Test
-    public void testIsValidReturnsFalseIfEitherKeyOrTicketDoesNotMatch() {
+    void testIsValidReturnsFalseIfEitherKeyOrTicketDoesNotMatch() {
         final DefaultTimerService<AllocationID> timerService = createAndStartTimerService();
 
         final AllocationID allocationId = new AllocationID();
@@ -89,8 +86,8 @@ public class DefaultTimerServiceTest extends TestLogger {
                 timerService.getTimeouts().get(allocationId);
         final UUID ticket = timeout.getTicket();
 
-        assertThat(timerService.isValid(new AllocationID(), ticket), is(false));
-        assertThat(timerService.isValid(allocationId, UUID.randomUUID()), is(false));
+        assertThat(timerService.isValid(new AllocationID(), ticket)).isFalse();
+        assertThat(timerService.isValid(allocationId, UUID.randomUUID())).isFalse();
     }
 
     private static DefaultTimerService<AllocationID> createAndStartTimerService() {

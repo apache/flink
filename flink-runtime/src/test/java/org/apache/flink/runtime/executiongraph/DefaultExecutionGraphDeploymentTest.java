@@ -220,8 +220,8 @@ class DefaultExecutionGraphDeploymentTest {
                 descr.getProducedPartitions();
         Collection<InputGateDeploymentDescriptor> consumedPartitions = descr.getInputGates();
 
-        assertThat(producedPartitions.size()).isEqualTo(2);
-        assertThat(consumedPartitions.size()).isEqualTo(1);
+        assertThat(producedPartitions).hasSize((2));
+        assertThat(consumedPartitions).hasSize(1);
 
         Iterator<ResultPartitionDeploymentDescriptor> iteratorProducedPartitions =
                 producedPartitions.iterator();
@@ -528,7 +528,7 @@ class DefaultExecutionGraphDeploymentTest {
         scheduler.startScheduling();
 
         Map<ExecutionAttemptID, Execution> executions = eg.getRegisteredExecutions();
-        assertThat(executions.size()).isEqualTo(dop1 + dop2);
+        assertThat(executions).hasSize(dop1 + dop2);
 
         return scheduler;
     }

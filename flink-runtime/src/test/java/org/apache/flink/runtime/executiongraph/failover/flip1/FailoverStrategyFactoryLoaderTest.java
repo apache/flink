@@ -21,50 +21,47 @@ package org.apache.flink.runtime.executiongraph.failover.flip1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FailoverStrategyFactoryLoader}. */
-public class FailoverStrategyFactoryLoaderTest extends TestLogger {
+class FailoverStrategyFactoryLoaderTest {
 
     @Test
-    public void testLoadRestartAllStrategyFactory() {
+    void testLoadRestartAllStrategyFactory() {
         final Configuration config = new Configuration();
         config.setString(
                 JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
                 FailoverStrategyFactoryLoader.FULL_RESTART_STRATEGY_NAME);
-        assertThat(
-                FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config),
-                instanceOf(RestartAllFailoverStrategy.Factory.class));
+        assertThat(FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config))
+                .isInstanceOf(RestartAllFailoverStrategy.Factory.class);
     }
 
     @Test
-    public void testLoadRestartPipelinedRegionStrategyFactory() {
+    void testLoadRestartPipelinedRegionStrategyFactory() {
         final Configuration config = new Configuration();
         config.setString(
                 JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
                 FailoverStrategyFactoryLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
-        assertThat(
-                FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config),
-                instanceOf(RestartPipelinedRegionFailoverStrategy.Factory.class));
+        assertThat(FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config))
+                .isInstanceOf(RestartPipelinedRegionFailoverStrategy.Factory.class);
     }
 
     @Test
-    public void testDefaultFailoverStrategyIsRegion() {
+    void testDefaultFailoverStrategyIsRegion() {
         final Configuration config = new Configuration();
-        assertThat(
-                FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config),
-                instanceOf(RestartPipelinedRegionFailoverStrategy.Factory.class));
+        assertThat(FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config))
+                .isInstanceOf(RestartPipelinedRegionFailoverStrategy.Factory.class);
     }
 
-    @Test(expected = IllegalConfigurationException.class)
-    public void testLoadFromInvalidConfiguration() {
+    @Test
+    void testLoadFromInvalidConfiguration() {
         final Configuration config = new Configuration();
         config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "invalidStrategy");
-        FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config);
+        assertThatThrownBy(() -> FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config))
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 }
