@@ -51,12 +51,17 @@ public class NettyConnectionWriterImpl implements NettyConnectionWriter {
     }
 
     @Override
-    public int numQueuedBuffers() {
+    public int numQueuedPayloads() {
         return nettyPayloadManager.getSize();
     }
 
     @Override
-    public void writeBuffer(NettyPayload nettyPayload) {
+    public int numQueuedBufferPayloads() {
+        return nettyPayloadManager.getBacklog();
+    }
+
+    @Override
+    public void writeNettyPayload(NettyPayload nettyPayload) {
         nettyPayloadManager.add(nettyPayload);
     }
 
@@ -67,7 +72,7 @@ public class NettyConnectionWriterImpl implements NettyConnectionWriter {
             nettyPayload.getBuffer().ifPresent(Buffer::recycleBuffer);
         }
         if (error != null) {
-            writeBuffer(NettyPayload.newError(error));
+            writeNettyPayload(NettyPayload.newError(error));
         }
     }
 }
