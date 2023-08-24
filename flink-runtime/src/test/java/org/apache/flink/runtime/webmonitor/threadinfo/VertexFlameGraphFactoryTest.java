@@ -25,6 +25,7 @@ import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 
 import java.lang.management.ManagementFactory;
@@ -67,7 +68,17 @@ public class VertexFlameGraphFactoryTest extends TestLogger {
             String className =
                     locationWithoutLineNumber.substring(
                             0, locationWithoutLineNumber.lastIndexOf("."));
-            assertThat(className).endsWith("$Lambda$0/0");
+            assertThat(className)
+                    .is(
+                            new Condition<String>() {
+                                @Override
+                                public boolean matches(String value) {
+                                    String javaVersion = System.getProperty("java.version");
+                                    return javaVersion.startsWith("1.8")
+                                                    && value.endsWith("$Lambda$0/0")
+                                            || value.endsWith("$Lambda$0/0x0");
+                                }
+                            });
         }
         return lambdas + node.getChildren().stream().mapToInt(this::verifyRecursively).sum();
     }
