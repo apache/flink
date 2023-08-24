@@ -21,12 +21,14 @@ package org.apache.flink.formats.hadoop.bulk.committer;
 import org.apache.flink.formats.hadoop.bulk.AbstractFileCommitterTest;
 import org.apache.flink.formats.hadoop.bulk.HadoopFileCommitter;
 import org.apache.flink.formats.hadoop.bulk.committer.cluster.HDFSCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -35,6 +37,7 @@ import java.io.IOException;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /** Tests the behaviors of {@link HadoopRenameFileCommitter} with HDFS file system. */
+@ExtendWith(MiniClusterExtension.class)
 class HadoopRenameCommitterHDFSITCase extends AbstractFileCommitterTest {
 
     private static HDFSCluster hdfsCluster;

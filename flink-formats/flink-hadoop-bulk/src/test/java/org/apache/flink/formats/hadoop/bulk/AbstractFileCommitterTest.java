@@ -18,7 +18,6 @@
 
 package org.apache.flink.formats.hadoop.bulk;
 
-import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.IOUtils;
 
 import org.apache.hadoop.conf.Configuration;
@@ -28,7 +27,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -44,7 +42,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests the behaviors of {@link HadoopFileCommitter}. */
-@ExtendWith(MiniClusterExtension.class)
 public abstract class AbstractFileCommitterTest {
 
     private static final List<String> CONTENTS =
