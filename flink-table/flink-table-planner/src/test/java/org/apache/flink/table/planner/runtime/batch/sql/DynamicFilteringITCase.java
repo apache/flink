@@ -74,6 +74,7 @@ public class DynamicFilteringITCase extends BatchTestBase {
                                 + "  z BIGINT\n"
                                 + ")  WITH (\n"
                                 + " 'connector' = 'values',\n"
+                                + "  'runtime-source' = 'NewSource',\n"
                                 + " 'disable-lookup' = 'true',\n"
                                 + " 'data-id' = '%s',\n"
                                 + " 'bounded' = 'true'\n"

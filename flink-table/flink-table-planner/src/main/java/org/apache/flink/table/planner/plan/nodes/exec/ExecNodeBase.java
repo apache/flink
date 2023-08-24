@@ -280,10 +280,6 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return detailName;
     }
 
-    public void resetTransformation() {
-        this.transformation = null;
-    }
-
     @VisibleForTesting
     @JsonIgnore
     public Transformation<T> getTransformation() {
