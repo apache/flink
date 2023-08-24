@@ -23,7 +23,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.util.TestLogger;
 
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
@@ -41,10 +40,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link VertexFlameGraphFactory}. */
-public class VertexFlameGraphFactoryTest extends TestLogger {
+class VertexFlameGraphFactoryTest {
     /** Tests that lambda class names are cleaned up inside the stack traces. */
     @Test
-    public void testLambdaClassNamesCleanUp() {
+    void testLambdaClassNamesCleanUp() {
         Map<ExecutionAttemptID, Collection<ThreadInfoSample>> samplesBySubtask = generateSamples();
 
         VertexThreadInfoStats sample = new VertexThreadInfoStats(0, 0, 0, samplesBySubtask);
