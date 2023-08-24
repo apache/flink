@@ -41,7 +41,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.runtime.operators.fusion.OperatorFusionCodegenFactory;
 import org.apache.flink.table.runtime.operators.multipleinput.BatchMultipleInputStreamOperatorFactory;
 import org.apache.flink.table.runtime.operators.multipleinput.TableOperatorWrapperGenerator;
@@ -248,23 +247,6 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
 
         return multipleInputTransform;
-    }
-
-    @Override
-    public void resetTransformation() {
-        super.resetTransformation();
-        // For BatchExecMultipleInput, we also need to reset transformation for
-        // rootNode in BatchExecMultipleInput.
-        AbstractExecNodeExactlyOnceVisitor visitor =
-                new AbstractExecNodeExactlyOnceVisitor() {
-
-                    @Override
-                    protected void visitNode(ExecNode<?> node) {
-                        ((ExecNodeBase<?>) node).resetTransformation();
-                        visitInputs(node);
-                    }
-                };
-        rootNode.accept(visitor);
     }
 
     public List<ExecEdge> getOriginalEdges() {

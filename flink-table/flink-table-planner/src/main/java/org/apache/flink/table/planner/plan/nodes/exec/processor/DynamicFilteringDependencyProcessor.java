@@ -28,19 +28,22 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecDynamicFilteringDataCollector;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
-import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExecutionOrderEnforcer;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecTableSourceScan.getDynamicFilteringDataCollector;
 
 /**
  * This processor future checks each dynamic filter source to see if it is chained with a multiple
@@ -52,50 +55,88 @@ public class DynamicFilteringDependencyProcessor implements ExecNodeGraphProcess
 
     @Override
     public ExecNodeGraph process(ExecNodeGraph execGraph, ProcessorContext context) {
-        ExecNodeGraph factSideProcessedGraph = checkIfFactSourceNeedEnforceDependency(execGraph);
+        ExecNodeGraph factSideProcessedGraph = addOrderEnforcer(execGraph, context);
         return enforceDimSideBlockingExchange(factSideProcessedGraph, context);
     }
 
-    private ExecNodeGraph checkIfFactSourceNeedEnforceDependency(ExecNodeGraph execGraph) {
-        Map<BatchExecTableSourceScan, List<ExecNode<?>>> dynamicFilteringScanDescendants =
+    private ExecNodeGraph addOrderEnforcer(ExecNodeGraph execGraph, ProcessorContext context) {
+        Map<BatchExecTableSourceScan, List<DescendantInfo>> dynamicFilteringScanDescendants =
                 new HashMap<>();
 
         AbstractExecNodeExactlyOnceVisitor dynamicFilteringScanCollector =
                 new AbstractExecNodeExactlyOnceVisitor() {
                     @Override
                     protected void visitNode(ExecNode<?> node) {
-                        node.getInputEdges().stream()
-                                .map(ExecEdge::getSource)
-                                .forEach(
-                                        input -> {
-                                            // The character of the dynamic filter scan is that it
-                                            // has an input.
-                                            if (input instanceof BatchExecTableSourceScan
-                                                    && input.getInputEdges().size() > 0) {
-                                                dynamicFilteringScanDescendants
-                                                        .computeIfAbsent(
-                                                                (BatchExecTableSourceScan) input,
-                                                                ignored -> new ArrayList<>())
-                                                        .add(node);
-                                            }
-                                        });
+                        for (int i = 0; i < node.getInputEdges().size(); ++i) {
+                            ExecEdge edge = node.getInputEdges().get(i);
+                            ExecNode<?> input = edge.getSource();
+
+                            // The character of the dynamic filter scan is that it
+                            // has an input.
+                            if (input instanceof BatchExecTableSourceScan
+                                    && input.getInputEdges().size() > 0) {
+                                dynamicFilteringScanDescendants
+                                        .computeIfAbsent(
+                                                (BatchExecTableSourceScan) input,
+                                                ignored -> new ArrayList<>())
+                                        .add(new DescendantInfo(node, i));
+                            }
+                        }
 
                         visitInputs(node);
                     }
                 };
         execGraph.getRootNodes().forEach(node -> node.accept(dynamicFilteringScanCollector));
 
-        for (Map.Entry<BatchExecTableSourceScan, List<ExecNode<?>>> entry :
+        for (Map.Entry<BatchExecTableSourceScan, List<DescendantInfo>> entry :
                 dynamicFilteringScanDescendants.entrySet()) {
-            if (entry.getValue().size() == 1) {
-                ExecNode<?> next = entry.getValue().get(0);
-                if (next instanceof BatchExecMultipleInput) {
-                    // the source can be chained with BatchExecMultipleInput
-                    continue;
-                }
-            }
-            // otherwise we need dependencies
-            entry.getKey().setNeedDynamicFilteringDependency(true);
+            BatchExecTableSourceScan oldTableSourceScan = entry.getKey();
+            BatchExecDynamicFilteringDataCollector dynamicFilteringDataCollector =
+                    getDynamicFilteringDataCollector(oldTableSourceScan);
+
+            // we clear the input of tableSourceScan to avoid cycle in exec plan
+            BatchExecTableSourceScan newTableSourceScan = oldTableSourceScan.copyAndRemoveInputs();
+
+            // Add exchange between collector and enforcer
+            BatchExecExchange exchange =
+                    new BatchExecExchange(
+                            context.getPlanner().getTableConfig(),
+                            InputProperty.builder()
+                                    .requiredDistribution(InputProperty.ANY_DISTRIBUTION)
+                                    .damBehavior(InputProperty.DamBehavior.BLOCKING)
+                                    .build(),
+                            (RowType) dynamicFilteringDataCollector.getOutputType(),
+                            "Exchange");
+            exchange.setRequiredExchangeMode(StreamExchangeMode.BATCH);
+            exchange.setInputEdges(
+                    Collections.singletonList(
+                            ExecEdge.builder()
+                                    .source(dynamicFilteringDataCollector)
+                                    .target(exchange)
+                                    .build()));
+
+            // set enforcer inputs
+            BatchExecExecutionOrderEnforcer enforcer =
+                    new BatchExecExecutionOrderEnforcer(
+                            context.getPlanner().getTableConfig(),
+                            Arrays.asList(
+                                    exchange.getInputProperties().get(0), InputProperty.DEFAULT),
+                            newTableSourceScan.getOutputType(),
+                            "OrderEnforcer");
+            ExecEdge edge1 = ExecEdge.builder().source(exchange).target(enforcer).build();
+            ExecEdge edge2 = ExecEdge.builder().source(newTableSourceScan).target(enforcer).build();
+            enforcer.setInputEdges(Arrays.asList(edge1, edge2));
+
+            // set enforcer's output
+            entry.getValue()
+                    .forEach(
+                            descendantInfo ->
+                                    descendantInfo.descendant.replaceInputEdge(
+                                            descendantInfo.inputId,
+                                            ExecEdge.builder()
+                                                    .source(enforcer)
+                                                    .target(descendantInfo.descendant)
+                                                    .build()));
         }
 
         return execGraph;
@@ -203,5 +244,17 @@ public class DynamicFilteringDependencyProcessor implements ExecNodeGraphProcess
         exchange.setInputEdges(Collections.singletonList(execEdge));
 
         return exchange;
+    }
+
+    private static class DescendantInfo {
+        /** The DynamicFilteringScan is the {@code inputId}th input of current descendant . */
+        final int inputId;
+
+        final ExecNode<?> descendant;
+
+        DescendantInfo(ExecNode<?> descendant, int inputId) {
+            this.descendant = descendant;
+            this.inputId = inputId;
+        }
     }
 }
