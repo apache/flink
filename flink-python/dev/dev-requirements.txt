@@ -16,7 +16,7 @@ pip>=20.3
 setuptools>=18.0
 wheel
 apache-beam>=2.43.0,<2.49.0
-cython>=0.29.24,3
+cython>=0.29.24,<3
 py4j==0.10.9.7
 python-dateutil>=2.8.0,<3
 cloudpickle~=2.2.0
