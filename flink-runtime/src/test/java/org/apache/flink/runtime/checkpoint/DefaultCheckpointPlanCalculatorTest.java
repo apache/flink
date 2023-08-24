@@ -53,8 +53,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.EnumSet.complementOf;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Declarative tests for {@link DefaultCheckpointPlanCalculator}.
@@ -186,18 +186,19 @@ class DefaultCheckpointPlanCalculatorTest {
             DefaultCheckpointPlanCalculator checkpointPlanCalculator =
                     createCheckpointPlanCalculator(graph);
 
-            try {
-                checkpointPlanCalculator.calculateCheckpointPlan().get();
-                fail(
-                        "The computation should fail since some tasks to trigger are in "
-                                + notRunningState
-                                + " state");
-            } catch (ExecutionException e) {
-                Throwable cause = e.getCause();
-                assertThat(cause).isInstanceOf(CheckpointException.class);
-                assertThat(((CheckpointException) cause).getCheckpointFailureReason())
-                        .isEqualTo(CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING);
-            }
+            assertThatFuture(checkpointPlanCalculator.calculateCheckpointPlan())
+                    .withFailMessage(
+                            "The computation should fail since some tasks to trigger are in %s state",
+                            notRunningState)
+                    .eventuallyFailsWith(ExecutionException.class)
+                    .havingCause()
+                    .isInstanceOfSatisfying(
+                            CheckpointException.class,
+                            e ->
+                                    assertThat(e.getCheckpointFailureReason())
+                                            .isEqualTo(
+                                                    CheckpointFailureReason
+                                                            .NOT_ALL_REQUIRED_TASKS_RUNNING));
         }
     }
 

@@ -92,12 +92,12 @@ class CheckpointStatsHistoryTest {
         // Check in progress stats.
         Iterator<AbstractCheckpointStats> it = snapshot.getCheckpoints().iterator();
         for (int i = 3; i > 0; i--) {
-            assertThat(it.hasNext()).isTrue();
+            assertThat(it).hasNext();
             AbstractCheckpointStats stats = it.next();
             assertThat(stats.getCheckpointId()).isEqualTo(i);
             assertThat(stats.getStatus().isInProgress()).isTrue();
         }
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
 
         // Update checkpoints
         history.replacePendingCheckpointById(createFailedCheckpointStats(1));
@@ -107,28 +107,28 @@ class CheckpointStatsHistoryTest {
         snapshot = history.createSnapshot();
         it = snapshot.getCheckpoints().iterator();
 
-        assertThat(it.hasNext()).isTrue();
+        assertThat(it).hasNext();
         AbstractCheckpointStats stats = it.next();
         assertThat(stats.getCheckpointId()).isEqualTo(3);
         assertThat(snapshot.getCheckpointById(3)).isNotNull();
         assertThat(stats.getStatus().isCompleted()).isTrue();
         assertThat(snapshot.getCheckpointById(3).getStatus().isCompleted()).isTrue();
 
-        assertThat(it.hasNext()).isTrue();
+        assertThat(it).hasNext();
         stats = it.next();
         assertThat(stats.getCheckpointId()).isEqualTo(2);
         assertThat(snapshot.getCheckpointById(2)).isNotNull();
         assertThat(stats.getStatus().isFailed()).isTrue();
         assertThat(snapshot.getCheckpointById(2).getStatus().isFailed()).isTrue();
 
-        assertThat(it.hasNext()).isTrue();
+        assertThat(it).hasNext();
         stats = it.next();
         assertThat(stats.getCheckpointId()).isOne();
         assertThat(snapshot.getCheckpointById(1)).isNotNull();
         assertThat(stats.getStatus().isFailed()).isTrue();
         assertThat(snapshot.getCheckpointById(1).getStatus().isFailed()).isTrue();
 
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
     }
 
     /** Tests that a snapshot cannot be modified or copied. */

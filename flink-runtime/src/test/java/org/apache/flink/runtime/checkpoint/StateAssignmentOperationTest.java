@@ -419,7 +419,7 @@ class StateAssignmentOperationTest {
         verifyAndCollectStateInfo(
                 operatorState, operatorID, oldParallelism, newParallelism, stateInfoCounts);
 
-        assertThat(stateInfoCounts.size()).isEqualTo(2);
+        assertThat(stateInfoCounts).hasSize(2);
 
         // t-1 and t-2 are SPLIT_DISTRIBUTE state, when rescale up, they will be split to
         // re-distribute.

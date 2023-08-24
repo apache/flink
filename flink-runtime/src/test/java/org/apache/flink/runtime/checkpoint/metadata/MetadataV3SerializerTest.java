@@ -304,12 +304,11 @@ class MetadataV3SerializerTest {
                         MetadataV2V3SerializerBase.deserializeKeyedStateHandle(
                                 new DataInputStream(in), null);
                 assertThat(deserialized)
-                        .isNotNull()
-                        .isInstanceOf(ChangelogStateBackendHandleImpl.class);
-                assertThat(handle.getMaterializedStateHandles())
-                        .isEqualTo(
-                                ((ChangelogStateBackendHandleImpl) deserialized)
-                                        .getMaterializedStateHandles());
+                        .isInstanceOfSatisfying(
+                                ChangelogStateBackendHandleImpl.class,
+                                o ->
+                                        assertThat(o.getMaterializedStateHandles())
+                                                .isEqualTo(handle.getMaterializedStateHandles()));
             }
         }
     }

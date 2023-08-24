@@ -245,11 +245,11 @@ class CheckpointRequestDeciderTest {
                             assertThat(checkpoint).isNull();
                             assertThat(throwable)
                                     .isNotNull()
-                                    .isInstanceOf(CheckpointException.class);
-                            assertThat(
-                                            ((CheckpointException) throwable)
-                                                    .getCheckpointFailureReason())
-                                    .isEqualTo(reason);
+                                    .isInstanceOfSatisfying(
+                                            CheckpointException.class,
+                                            e ->
+                                                    assertThat(e.getCheckpointFailureReason())
+                                                            .isEqualTo(reason));
                             return null;
                         })
                 .join();

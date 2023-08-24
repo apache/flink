@@ -70,14 +70,14 @@ class DefaultCompletedCheckpointStoreTest {
     private ExecutorService executorService;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         builder = TestingStateHandleStore.newBuilder();
         checkpointStorageHelper = new TestingRetrievableStateStorageHelper<>();
         executorService = Executors.newFixedThreadPool(2, new ExecutorThreadFactory("IO-Executor"));
     }
 
     @AfterEach
-    public void after() {
+    void after() {
         executorService.shutdownNow();
     }
 

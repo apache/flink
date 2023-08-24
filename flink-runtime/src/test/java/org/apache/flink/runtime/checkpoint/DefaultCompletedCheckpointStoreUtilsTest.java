@@ -40,7 +40,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -116,10 +115,8 @@ class DefaultCompletedCheckpointStoreUtilsTest {
                 DefaultCompletedCheckpointStoreUtils.retrieveCompletedCheckpoints(
                         stateHandleStore, new SimpleCheckpointStoreUtil());
         // Make sure checkpoints are ordered from earliest to latest.
-        assertThat(
-                        completedCheckpoints.stream()
-                                .map(CompletedCheckpoint::getCheckpointID)
-                                .collect(Collectors.toList()))
+        assertThat(completedCheckpoints)
+                .extracting(CompletedCheckpoint::getCheckpointID)
                 .containsExactly(0L, 1L, 2L);
     }
 

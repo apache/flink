@@ -77,7 +77,7 @@ class CheckpointStatsTrackerTest {
 
         CheckpointStatsSnapshot snapshot = tracker.createSnapshot();
         // History should be empty
-        assertThat(snapshot.getHistory().getCheckpoints().iterator().hasNext()).isFalse();
+        assertThat(snapshot.getHistory().getCheckpoints().iterator()).isExhausted();
 
         // Counts should be available
         CheckpointStatsCounts counts = snapshot.getCounts();
@@ -194,27 +194,27 @@ class CheckpointStatsTrackerTest {
         CheckpointStatsHistory history = snapshot.getHistory();
         Iterator<AbstractCheckpointStats> it = history.getCheckpoints().iterator();
 
-        assertThat(it.hasNext()).isTrue();
+        assertThat(it).hasNext();
         AbstractCheckpointStats stats = it.next();
         assertThat(stats.getCheckpointId()).isEqualTo(3);
         assertThat(stats.getStatus().isInProgress()).isTrue();
 
-        assertThat(it.hasNext()).isTrue();
+        assertThat(it).hasNext();
         stats = it.next();
         assertThat(stats.getCheckpointId()).isEqualTo(2);
         assertThat(stats.getStatus().isCompleted()).isTrue();
 
-        assertThat(it.hasNext()).isTrue();
+        assertThat(it).hasNext();
         stats = it.next();
         assertThat(stats.getCheckpointId()).isOne();
         assertThat(stats.getStatus().isFailed()).isTrue();
 
-        assertThat(it.hasNext()).isTrue();
+        assertThat(it).hasNext();
         stats = it.next();
         assertThat(stats.getCheckpointId()).isZero();
         assertThat(stats.getStatus().isCompleted()).isTrue();
 
-        assertThat(it.hasNext()).isFalse();
+        assertThat(it).isExhausted();
 
         // Latest checkpoints
         assertThat(snapshot.getHistory().getLatestCompletedCheckpoint().getCheckpointId())
