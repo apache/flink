@@ -99,11 +99,7 @@ public class DriverTestData {
     // --------------------------------------------------------------------------------------------
 
     public static final void compareTupleArrays(Object[] expected, Object[] found) {
-        if (expected.length != found.length) {
-            assertThat(found.length)
-                    .withFailMessage("Length of result is wrong")
-                    .isEqualTo(expected.length);
-        }
+        assertThat(found).withFailMessage("Length of result is wrong").hasSameSizeAs(expected);
 
         for (int i = 0; i < expected.length; i++) {
             Tuple v1 = (Tuple) expected[i];

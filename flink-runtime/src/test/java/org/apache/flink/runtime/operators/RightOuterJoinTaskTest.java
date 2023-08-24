@@ -35,7 +35,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 
 class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 
@@ -235,9 +234,11 @@ class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
                 .isFalse();
 
         final Throwable taskError = error.get();
-        if (taskError != null) {
-            fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
-        }
+        assertThat(taskError)
+                .withFailMessage(
+                        "Error in task while canceling:\n%s",
+                        Throwables.getStackTraceAsString(taskError))
+                .isNull();
     }
 
     @TestTemplate
@@ -283,8 +284,10 @@ class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
                 .isFalse();
 
         final Throwable taskError = error.get();
-        if (taskError != null) {
-            fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
-        }
+        assertThat(taskError)
+                .withFailMessage(
+                        "Error in task while canceling:\n%s",
+                        Throwables.getStackTraceAsString(taskError))
+                .isNull();
     }
 }

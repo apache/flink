@@ -118,9 +118,8 @@ class CompactingHashTableTest extends MutableHashTableTestBase {
                 MutableObjectIterator<Tuple2<Long, String>> iter = table.getEntryIterator();
                 Tuple2<Long, String> next;
                 while ((next = iter.next()) != null) {
-                    assertThat(next.f0).isNotNull();
                     assertThat(next.f1).isNotNull();
-                    assertThat(next.f0).isEqualTo(Long.parseLong(next.f1));
+                    assertThat(next.f0).isNotNull().isEqualTo(Long.parseLong(next.f1));
 
                     bitSet.set(next.f0.intValue());
                 }
@@ -177,9 +176,8 @@ class CompactingHashTableTest extends MutableHashTableTestBase {
                 MutableObjectIterator<Tuple2<Long, String>> iter = table.getEntryIterator();
                 Tuple2<Long, String> next;
                 while ((next = iter.next()) != null) {
-                    assertThat(next.f0).isNotNull();
                     assertThat(next.f1).isNotNull();
-                    assertThat(next.f0).isEqualTo(Long.parseLong(next.f1));
+                    assertThat(next.f0).isNotNull().isEqualTo(Long.parseLong(next.f1));
 
                     bitSet.set(next.f0.intValue());
                 }

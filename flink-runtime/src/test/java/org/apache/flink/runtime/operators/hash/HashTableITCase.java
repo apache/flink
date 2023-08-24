@@ -103,9 +103,10 @@ class HashTableITCase {
     void tearDown() throws Exception {
         // shut down I/O manager and Memory Manager and verify the correct shutdown
         this.ioManager.close();
-        if (!this.memManager.verifyEmpty()) {
-            fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-        }
+        assertThat(this.memManager.verifyEmpty())
+                .withFailMessage(
+                        "Not all memory was properly released to the memory manager --> Memory Leak.")
+                .isTrue();
     }
 
     @Test
@@ -687,7 +688,7 @@ class HashTableITCase {
      * few probe records are used that some partitions remain empty.
      */
     @Test
-    void testSparseProbeSpilling() throws IOException, MemoryAllocationException {
+    void testSparseProbeSpilling() throws IOException {
         final int NUM_BUILD_KEYS = 1000000;
         final int NUM_BUILD_VALS = 1;
         final int NUM_PROBE_KEYS = 20;
@@ -742,8 +743,7 @@ class HashTableITCase {
      * that requires spilled build-side records to be returned and counted.
      */
     @Test
-    public void testSparseProbeSpillingWithOuterJoin()
-            throws IOException, MemoryAllocationException {
+    void testSparseProbeSpillingWithOuterJoin() throws IOException {
         final int NUM_BUILD_KEYS = 1000000;
         final int NUM_BUILD_VALS = 1;
         final int NUM_PROBE_KEYS = 20;
@@ -799,7 +799,7 @@ class HashTableITCase {
      * during an insert into the same.
      */
     @Test
-    void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException {
+    void validateSpillingDuringInsertion() throws IOException {
         final int NUM_BUILD_KEYS = 500000;
         final int NUM_BUILD_VALS = 1;
         final int NUM_PROBE_KEYS = 10;
@@ -1411,7 +1411,7 @@ class HashTableITCase {
      * few probe records are used that some partitions remain empty.
      */
     @Test
-    void testSparseProbeSpillingIntPair() throws IOException, MemoryAllocationException {
+    void testSparseProbeSpillingIntPair() throws IOException {
         final int NUM_BUILD_KEYS = 1000000;
         final int NUM_BUILD_VALS = 1;
         final int NUM_PROBE_KEYS = 20;
@@ -1466,7 +1466,7 @@ class HashTableITCase {
      * during an insert into the same.
      */
     @Test
-    void validateSpillingDuringInsertionIntPair() throws IOException, MemoryAllocationException {
+    void validateSpillingDuringInsertionIntPair() throws IOException {
         final int NUM_BUILD_KEYS = 500000;
         final int NUM_BUILD_VALS = 1;
         final int NUM_PROBE_KEYS = 10;

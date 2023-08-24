@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
@@ -148,9 +149,8 @@ class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
                 MutableObjectIterator<Tuple2<Long, String>> iter = table.getEntryIterator();
                 Tuple2<Long, String> next;
                 while ((next = iter.next()) != null) {
-                    assertThat(next.f0).isNotNull();
                     assertThat(next.f1).isNotNull();
-                    assertThat(next.f0).isEqualTo(Long.parseLong(next.f1));
+                    assertThat(next.f0).isNotNull().isEqualTo(Long.parseLong(next.f1));
 
                     bitSet.set(next.f0.intValue());
                 }
@@ -206,9 +206,8 @@ class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
                 MutableObjectIterator<Tuple2<Long, String>> iter = table.getEntryIterator();
                 Tuple2<Long, String> next;
                 while ((next = iter.next()) != null) {
-                    assertThat(next.f0).isNotNull();
                     assertThat(next.f1).isNotNull();
-                    assertThat(next.f0).isEqualTo(Long.parseLong(next.f1));
+                    assertThat(next.f0).isNotNull().isEqualTo(Long.parseLong(next.f1));
 
                     bitSet.set(next.f0.intValue());
                 }
@@ -349,7 +348,7 @@ class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
 
         // Check results
 
-        assertThat(actualOutput.size()).isEqualTo(expectedOutput.size());
+        assertThat(actualOutput).hasSameSizeAs(expectedOutput);
 
         Integer[] expectedValues = new Integer[expectedOutput.size()];
         for (int i = 0; i < expectedOutput.size(); i++) {
@@ -463,7 +462,7 @@ class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
 
             // Check results
 
-            assertThat(actualOutput.size()).isEqualTo(expectedOutput.size());
+            assertThat(actualOutput).hasSameSizeAs(expectedOutput);
 
             String[] expectedValues = new String[expectedOutput.size()];
             for (int i = 0; i < expectedOutput.size(); i++) {
@@ -558,30 +557,24 @@ class InPlaceMutableHashTableTest extends MutableHashTableTestBase {
 
     @Test
     void testOutOfMemory() {
-        try {
-            List<MemorySegment> memory = getMemory(100, 1024);
+        List<MemorySegment> memory = getMemory(100, 1024);
 
-            InPlaceMutableHashTable<Tuple2<Long, String>> table =
-                    new InPlaceMutableHashTable<>(serializer, comparator, memory);
+        InPlaceMutableHashTable<Tuple2<Long, String>> table =
+                new InPlaceMutableHashTable<>(serializer, comparator, memory);
 
-            try {
-                final int numElements = 100000;
+        final int numElements = 100000;
 
-                table.open();
+        table.open();
 
-                // Insert too many elements
-                for (long i = 0; i < numElements; i++) {
-                    table.insertOrReplaceRecord(Tuple2.of(i, "alma"));
-                }
+        // Insert too many elements
+        assertThatThrownBy(
+                        () -> {
+                            for (long i = 0; i < numElements; i++) {
+                                table.insertOrReplaceRecord(Tuple2.of(i, "alma"));
+                            }
+                        })
+                .isInstanceOf(EOFException.class);
 
-                fail("We should have got out of memory (EOFException)");
-            } catch (EOFException e) {
-                // OK
-                table.close();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        table.close();
     }
 }

@@ -46,7 +46,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 
 abstract class AbstractOuterJoinTaskTest
         extends BinaryOperatorTestBase<
@@ -308,7 +307,7 @@ abstract class AbstractOuterJoinTaskTest
     }
 
     @TestTemplate
-    void testFailingOuterJoinTask() throws Exception {
+    void testFailingOuterJoinTask() {
         int keyCnt1 = 20;
         int valCnt1 = 20;
 
@@ -385,9 +384,11 @@ abstract class AbstractOuterJoinTaskTest
                 .isFalse();
 
         final Throwable taskError = error.get();
-        if (taskError != null) {
-            fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
-        }
+        assertThat(taskError)
+                .withFailMessage(
+                        "Error in task while canceling:\n%s",
+                        Throwables.getStackTraceAsString(taskError))
+                .isNull();
     }
 
     @TestTemplate
@@ -439,9 +440,11 @@ abstract class AbstractOuterJoinTaskTest
                 .isFalse();
 
         final Throwable taskError = error.get();
-        if (taskError != null) {
-            fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
-        }
+        assertThat(taskError)
+                .withFailMessage(
+                        "Error in task while canceling:\n%s",
+                        Throwables.getStackTraceAsString(taskError))
+                .isNull();
     }
 
     @TestTemplate
@@ -490,9 +493,11 @@ abstract class AbstractOuterJoinTaskTest
                 .isFalse();
 
         final Throwable taskError = error.get();
-        if (taskError != null) {
-            fail("Error in task while canceling:\n" + Throwables.getStackTraceAsString(taskError));
-        }
+        assertThat(taskError)
+                .withFailMessage(
+                        "Error in task while canceling:\n%s",
+                        Throwables.getStackTraceAsString(taskError))
+                .isNull();
     }
 
     protected abstract AbstractOuterJoinDriver<

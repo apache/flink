@@ -471,10 +471,9 @@ class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Recor
                     .isFalse();
 
             Throwable taskError = error.get();
-            if (taskError != null) {
-                taskError.printStackTrace();
-                fail("Error in task while canceling: " + taskError.getMessage());
-            }
+            assertThat(taskError)
+                    .withFailMessage("Error in task while canceling: %s", taskError)
+                    .isNull();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -533,10 +532,9 @@ class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Recor
                     .isFalse();
 
             Throwable taskError = error.get();
-            if (taskError != null) {
-                taskError.printStackTrace();
-                fail("Error in task while canceling: " + taskError.getMessage());
-            }
+            assertThat(taskError)
+                    .withFailMessage("Error in task while canceling: %s", taskError)
+                    .isNull();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -589,10 +587,9 @@ class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Recor
                     .isFalse();
 
             Throwable taskError = error.get();
-            if (taskError != null) {
-                taskError.printStackTrace();
-                fail("Error in task while canceling: " + taskError.getMessage());
-            }
+            assertThat(taskError)
+                    .withFailMessage("Error in task while canceling:\n%s", taskError)
+                    .isNull();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

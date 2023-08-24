@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.fail;
 public class ReduceCombineDriverTest {
 
     @Test
-    public void testImmutableEmpty() {
+    void testImmutableEmpty() {
         try {
             TestTaskContext<ReduceFunction<Tuple2<String, Integer>>, Tuple2<String, Integer>>
                     context =
@@ -187,7 +187,7 @@ public class ReduceCombineDriverTest {
     }
 
     @Test
-    public void testReduceDriverMutable() {
+    void testReduceDriverMutable() {
         try {
             {
                 TestTaskContext<

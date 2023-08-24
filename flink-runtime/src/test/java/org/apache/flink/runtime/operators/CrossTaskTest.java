@@ -132,15 +132,8 @@ class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, Record>
 
         final CrossDriver<Record, Record, Record> testTask = new CrossDriver<>();
 
-        try {
-            testDriver(testTask, MockFailingCrossStub.class);
-            fail("Exception not forwarded.");
-        } catch (ExpectedTestException etex) {
-            // good!
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail("Test failed due to an exception.");
-        }
+        assertThatThrownBy(() -> testDriver(testTask, MockFailingCrossStub.class))
+                .isInstanceOf(ExpectedTestException.class);
     }
 
     @TestTemplate
