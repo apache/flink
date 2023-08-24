@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.transformations.{LegacySinkTransformation,
 import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentInternal}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
+import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -52,14 +53,102 @@ class JoinITCase extends BatchTestBase {
   @BeforeEach
   override def before(): Unit = {
     super.before()
-    registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
-    registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
-    registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
-    registerCollection("NullTable3", nullData3, type3, "a, b, c", nullablesOfNullData3)
-    registerCollection("NullTable5", nullData5, type5, "d, e, f, g, h", nullablesOfNullData5)
-    registerCollection("l", data2_1, INT_DOUBLE, "a, b")
-    registerCollection("r", data2_2, INT_DOUBLE, "c, d")
-    registerCollection("t", data2_3, INT_DOUBLE, "c, d", nullablesOfData2_3)
+    val smallData3Id = TestValuesTableFactory.registerData(smallData3)
+    val data3Id = TestValuesTableFactory.registerData(data3)
+    val nullData3Id = TestValuesTableFactory.registerData(nullData3)
+    val data5Id = TestValuesTableFactory.registerData(data5)
+    val nullData5Id = TestValuesTableFactory.registerData(nullData5)
+    val data21Id = TestValuesTableFactory.registerData(data2_1)
+    val data22Id = TestValuesTableFactory.registerData(data2_2)
+    val data23Id = TestValuesTableFactory.registerData(data2_3)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE SmallTable3 (
+                       | a int,
+                       | b bigint,
+                       | c string
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$smallData3Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE Table3 (
+                       | a int,
+                       | b bigint,
+                       | c string
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data3Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE NullTable3 (
+                       | a int,
+                       | b bigint,
+                       | c string
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$nullData3Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE Table5(
+                       | d int,
+                       | e bigint,
+                       | f int,
+                       | g string,
+                       | h bigint
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data5Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE NullTable5(
+                       | d int,
+                       | e bigint,
+                       | f int,
+                       | g string,
+                       | h bigint
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$nullData5Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE l(
+                       | a int,
+                       | b double
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data21Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE r(
+                       | c int,
+                       | d double
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data22Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE t(
+                       | c int,
+                       | d double
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data23Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
     JoinITCaseHelper.disableOtherJoinOpForJoin(tEnv, expectedJoinType)
   }
 
@@ -76,18 +165,31 @@ class JoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testLongJoinWithBigRange(): Unit = {
-    registerCollection(
-      "inputT1",
-      Seq(row(Long.box(Long.MaxValue), Double.box(1)), row(Long.box(Long.MinValue), Double.box(1))),
-      new RowTypeInfo(LONG_TYPE_INFO, DOUBLE_TYPE_INFO),
-      "a, b"
-    )
-    registerCollection(
-      "inputT2",
-      Seq(row(Long.box(Long.MaxValue), Double.box(1)), row(Long.box(Long.MinValue), Double.box(1))),
-      new RowTypeInfo(LONG_TYPE_INFO, DOUBLE_TYPE_INFO),
-      "c, d"
-    )
+    val data1 =
+      Seq(row(Long.box(Long.MaxValue), Double.box(1)), row(Long.box(Long.MinValue), Double.box(1)))
+    val data2 =
+      Seq(row(Long.box(Long.MaxValue), Double.box(1)), row(Long.box(Long.MinValue), Double.box(1)))
+    val inputDataId1 = TestValuesTableFactory.registerData(data1)
+    val inputDataId2 = TestValuesTableFactory.registerData(data2)
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE inputT1(
+                       | a bigint,
+                       | b double
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$inputDataId1',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE inputT2(
+                       | c bigint,
+                       | d double
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$inputDataId2',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
 
     checkResult(
       "SELECT a, b, c, d FROM inputT1, inputT2 WHERE a = c",
@@ -139,28 +241,31 @@ class JoinITCase extends BatchTestBase {
   @TestTemplate
   def testOneSideSmjFieldError(): Unit = {
     if (expectedJoinType == SortMergeJoin) {
-      registerCollection(
-        "PojoSmallTable3",
-        smallData3,
-        new RowTypeInfo(
-          INT_TYPE_INFO,
-          LONG_TYPE_INFO,
-          new GenericTypeInfoWithoutComparator[String](classOf[String])),
-        "a, b, c",
-        nullablesOfSmallData3
-      )
-      registerCollection(
-        "PojoTable5",
-        data5,
-        new RowTypeInfo(
-          INT_TYPE_INFO,
-          LONG_TYPE_INFO,
-          INT_TYPE_INFO,
-          new GenericTypeInfoWithoutComparator[String](classOf[String]),
-          LONG_TYPE_INFO),
-        "d, e, f, g, h",
-        nullablesOfData5
-      )
+      val smallData3Id = TestValuesTableFactory.registerData(smallData3)
+      tEnv.executeSql(s"""CREATE TEMPORARY TABLE PojoSmallTable3(
+                         | a int,
+                         | b bigint,
+                         | c string
+                         |)WITH(
+                         |  'connector' = 'values',
+                         |  'data-id' = '$smallData3Id',
+                         |  'bounded' = 'true'
+                         |)
+                         |""".stripMargin)
+
+      val data5Id = TestValuesTableFactory.registerData(data5)
+      tEnv.executeSql(s"""CREATE TEMPORARY TABLE PojoTable5(
+                         | d int,
+                         | e bigint,
+                         | f int,
+                         | g string,
+                         | h bigint
+                         |)WITH(
+                         |  'connector' = 'values',
+                         |  'data-id' = '$data5Id',
+                         |  'bounded' = 'true'
+                         |)
+                         |""".stripMargin)
 
       checkResult(
         "SELECT c, g FROM (SELECT h, g, f, e, d FROM PojoSmallTable3, PojoTable5 WHERE b = e)," +
@@ -238,9 +343,31 @@ class JoinITCase extends BatchTestBase {
   def testInnerJoinWithBooleanFilterCondition(): Unit = {
     val data1: Seq[Row] =
       Seq(row(1, 1L, "Hi", true), row(2, 2L, "Hello", false), row(3, 2L, "Hello world", true))
-    val type3 = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, BOOLEAN_TYPE_INFO)
-    registerCollection("table5", data1, type3, "a1, b1, c1, d1")
-    registerCollection("table6", data1, type3, "a2, b2, c2, d2")
+
+    val data1Id = TestValuesTableFactory.registerData(data1)
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE table5(
+                       | a1 int,
+                       | b1 bigint,
+                       | c1 string,
+                       | d1 boolean
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data1Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE table6(
+                       | a2 int,
+                       | b2 bigint,
+                       | c2 string,
+                       | d2 boolean
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data1Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
 
     checkResult(
       "SELECT a1, a1, c2 FROM table5 INNER JOIN table6 ON d1 = d2 where d1 is true",
@@ -281,7 +408,20 @@ class JoinITCase extends BatchTestBase {
 
   @TestTemplate
   def testJoinWithAlias(): Unit = {
-    registerCollection("AliasTable5", data5, type5, "d, e, f, g, c")
+    val data1Id = TestValuesTableFactory.registerData(data5)
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE AliasTable5(
+                       | d int,
+                       | e bigint,
+                       | f int,
+                       | g string,
+                       | c bigint
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$data1Id',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
     checkResult(
       "SELECT AliasTable5.c, T.`1-_./Ü` FROM " +
         "(SELECT a, b, c AS `1-_./Ü` FROM Table3) AS T, AliasTable5 WHERE a = d AND a < 4",
@@ -832,7 +972,15 @@ class JoinITCase extends BatchTestBase {
   def testCorrelatedExist2(): Unit = {
     val data: Seq[Row] =
       Seq(row(0L), row(123456L), row(-123456L), row(2147483647L), row(-2147483647L))
-    registerCollection("t1", data, new RowTypeInfo(LONG_TYPE_INFO), "f1")
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""CREATE TEMPORARY TABLE t1(
+                       | f1 bigint
+                       |)WITH(
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
 
     checkResult(
       "select * from t1 o where exists (select 1 from t1 i where i.f1=o.f1 limit 0)",
@@ -911,12 +1059,18 @@ class JoinITCase extends BatchTestBase {
         )
       )
 
-      registerCollection(
-        "NullT",
-        Seq(row(null, null, "c")),
-        type3,
-        "a, b, c",
-        allNullablesOfNullData3)
+      val dataId = TestValuesTableFactory.registerData(Seq(row(null, null, "c")))
+      tEnv.executeSql(s"""CREATE TEMPORARY TABLE NullT(
+                         | a int,
+                         | b bigint,
+                         | c string
+                         |)WITH(
+                         |  'connector' = 'values',
+                         |  'data-id' = '$dataId',
+                         |  'bounded' = 'true'
+                         |)
+                         |""".stripMargin)
+
       checkResult(
         "SELECT T1.a, T1.b, T1.c FROM NullT T1, NullT T2 WHERE " +
           "(T1.a = T2.a OR (T1.a IS NULL AND T2.a IS NULL)) " +
