@@ -26,6 +26,9 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.dynamicfiltering.ExecutionOrderEnforcerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.fusion.OpFusionCodegenSpecGenerator;
+import org.apache.flink.table.planner.plan.fusion.generator.TwoInputOpFusionCodegenSpecGenerator;
+import org.apache.flink.table.planner.plan.fusion.spec.ExecutionOrderEnforcerFusionCodegenSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
@@ -68,6 +71,32 @@ public class BatchExecExecutionOrderEnforcer extends ExecNodeBase<RowData>
                 inputProperties,
                 outputType,
                 description);
+    }
+
+    @Override
+    public boolean supportFusionCodegen() {
+        return true;
+    }
+
+    @Override
+    protected OpFusionCodegenSpecGenerator translateToFusionCodegenSpecInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        OpFusionCodegenSpecGenerator leftInput =
+                getInputEdges().get(0).translateToFusionCodegenSpec(planner);
+        OpFusionCodegenSpecGenerator rightInput =
+                getInputEdges().get(1).translateToFusionCodegenSpec(planner);
+        OpFusionCodegenSpecGenerator runtimeFilterGenerator =
+                new TwoInputOpFusionCodegenSpecGenerator(
+                        leftInput,
+                        rightInput,
+                        0L,
+                        (RowType) getOutputType(),
+                        new ExecutionOrderEnforcerFusionCodegenSpec(
+                                new CodeGeneratorContext(
+                                        config, planner.getFlinkContext().getClassLoader())));
+        leftInput.addOutput(1, runtimeFilterGenerator);
+        rightInput.addOutput(2, runtimeFilterGenerator);
+        return runtimeFilterGenerator;
     }
 
     @Override
