@@ -33,7 +33,7 @@ public interface NettyConnectionWriter {
      *
      * @param nettyPayload the payload send to netty connection.
      */
-    void writeBuffer(NettyPayload nettyPayload);
+    void writeNettyPayload(NettyPayload nettyPayload);
 
     /**
      * Get the id of connection in the writer.
@@ -46,11 +46,18 @@ public interface NettyConnectionWriter {
     void notifyAvailable();
 
     /**
-     * Get the number of written but unsent buffers.
+     * Get the number of written but unsent netty payloads.
      *
      * @return the buffer number.
      */
-    int numQueuedBuffers();
+    int numQueuedPayloads();
+
+    /**
+     * Get the number of written but unsent buffer netty payloads.
+     *
+     * @return the buffer number.
+     */
+    int numQueuedBufferPayloads();
 
     /**
      * If error is null, remove and recycle all buffers in the writer. If error is not null, the
