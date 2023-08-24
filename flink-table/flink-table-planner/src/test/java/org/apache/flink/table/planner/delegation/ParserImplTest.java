@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.delegation;
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.functions.SqlLikeUtils;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.utils.PlannerMocks;
@@ -113,18 +112,6 @@ public class ParserImplTest {
         verifySqlCompletion("SE", 1, new String[] {"SET"});
         verifySqlCompletion("", 0, new String[] {"CLEAR", "HELP", "EXIT", "QUIT", "RESET", "SET"});
         verifySqlCompletion("SELECT a fram b", 10, new String[] {"FETCH", "FROM"});
-    }
-
-    @Test
-    public void testSqlLike() {
-        assertThat(SqlLikeUtils.like("abc", "a.c", "\\")).isEqualTo(false);
-        assertThat(SqlLikeUtils.like("a.c", "a.c", "\\")).isEqualTo(true);
-        assertThat(SqlLikeUtils.like("abcd", "a.*d", "\\")).isEqualTo(false);
-        assertThat(SqlLikeUtils.like("abcde", "%c.e", "\\")).isEqualTo(false);
-
-        assertThat(SqlLikeUtils.similar("abc", "a.c", "\\")).isEqualTo(true);
-        assertThat(SqlLikeUtils.similar("a.c", "a.c", "\\")).isEqualTo(true);
-        assertThat(SqlLikeUtils.similar("abcd", "a.*d", "\\")).isEqualTo(true);
     }
 
     // ~ Tool Methods ----------------------------------------------------------

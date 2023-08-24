@@ -440,6 +440,17 @@ class CalcITCase extends BatchTestBase {
          |""".stripMargin,
       Seq(row("H.llo"))
     )
+    checkResult(
+      s"""
+         |SELECT c FROM MyTable
+         |  WHERE c SIMILAR TO 'H.llo'
+         |""".stripMargin,
+      Seq(row("H.llo"), row("Hello"))
+    )
+    checkEmptyResult(s"""
+                        |SELECT c FROM MyTable
+                        |  WHERE c NOT SIMILAR TO 'H.llo'
+                        |""".stripMargin)
   }
 
   @Test
