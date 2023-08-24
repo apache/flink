@@ -123,6 +123,7 @@ public class WindowAggregateQueryOperation implements QueryOperation {
         private final ValueLiteralExpression gap;
 
         /** The type of window. */
+        @Internal
         public enum WindowType {
             SLIDE,
             SESSION,

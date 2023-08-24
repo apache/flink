@@ -45,6 +45,7 @@ public interface PlannerFactory extends Factory {
     Planner create(Context context);
 
     /** Context used when creating a planner. */
+    @Internal
     interface Context {
         /** The executor required by the planner. */
         Executor getExecutor();
@@ -70,6 +71,7 @@ public interface PlannerFactory extends Factory {
     }
 
     /** Default implementation of {@link Context}. */
+    @Internal
     class DefaultPlannerContext implements Context {
         private final Executor executor;
         private final TableConfig tableConfig;

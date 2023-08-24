@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.util.Preconditions;
 
 /** Operation to describe an {@code COMPILE PLAN} statement. */
+@Internal
 public class CompilePlanOperation implements Operation {
 
     private final String filePath;

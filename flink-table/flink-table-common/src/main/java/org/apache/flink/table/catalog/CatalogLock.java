@@ -42,6 +42,7 @@ public interface CatalogLock extends Closeable {
      * @deprecated This interface will be removed soon. Please see FLIP-346 for more details.
      */
     @Deprecated
+    @Internal
     interface Factory extends Serializable {
         CatalogLock create();
     }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
@@ -34,6 +35,7 @@ import java.util.Map;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Operation to describe a CREATE CATALOG statement. */
+@Internal
 public class CreateCatalogOperation implements CreateOperation {
     private final String catalogName;
     private final Map<String, String> properties;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.utils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -35,6 +36,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 /** Utils for the executable operation. */
+@Internal
 public class ExecutableOperationUtils {
 
     /**

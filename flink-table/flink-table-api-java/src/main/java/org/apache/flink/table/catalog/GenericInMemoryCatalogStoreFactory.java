@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 
@@ -25,6 +26,7 @@ import java.util.Collections;
 import java.util.Set;
 
 /** Catalog store factory for {@link GenericInMemoryCatalogStore}. */
+@Internal
 public class GenericInMemoryCatalogStoreFactory implements CatalogStoreFactory {
     @Override
     public CatalogStore createCatalogStore() {

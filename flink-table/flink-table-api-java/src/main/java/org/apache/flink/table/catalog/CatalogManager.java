@@ -141,6 +141,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /** Builder for a fluent definition of a {@link CatalogManager}. */
+    @Internal
     public static final class Builder {
 
         private @Nullable ClassLoader classLoader;

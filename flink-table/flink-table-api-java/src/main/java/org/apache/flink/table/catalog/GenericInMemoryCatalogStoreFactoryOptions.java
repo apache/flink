@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 
 /** {@link ConfigOption}s for {@link GenericInMemoryCatalogStore}. */
+@Internal
 public class GenericInMemoryCatalogStoreFactoryOptions {
     public static final String IDENTIFIER = "generic_in_memory";
 

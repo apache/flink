@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.SqlLikeUtils;
@@ -31,6 +32,7 @@ import static org.apache.flink.table.api.internal.TableResultUtils.buildStringAr
  * Operation to describe a SHOW FUNCTIONS [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT]
  * (LIKE | ILIKE) &lt;sql_like_pattern&gt; ] statement.
  */
+@Internal
 public class ShowFunctionsOperation implements ShowOperation {
 
     /**
@@ -41,6 +43,7 @@ public class ShowFunctionsOperation implements ShowOperation {
      *   <li><b>ALL</b> return all user-defined and built-in functions
      * </ul>
      */
+    @Internal
     public enum FunctionScope {
         USER,
         ALL

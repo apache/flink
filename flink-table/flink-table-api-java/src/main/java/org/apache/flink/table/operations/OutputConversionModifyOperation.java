@@ -39,6 +39,7 @@ public class OutputConversionModifyOperation implements ModifyOperation {
      * Should the output type contain the change flag, and what should the flag represent
      * (retraction or deletion).
      */
+    @Internal
     public enum UpdateMode {
         APPEND,
         RETRACT,

@@ -613,6 +613,7 @@ public final class ExtractionUtils {
     // --------------------------------------------------------------------------------------------
 
     /** Result of the extraction in {@link #extractAssigningConstructor(Class, List)}. */
+    @Internal
     public static class AssigningConstructor {
         public final Constructor<?> constructor;
         public final List<String> parameterNames;

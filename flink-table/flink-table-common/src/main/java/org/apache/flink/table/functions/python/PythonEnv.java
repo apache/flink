@@ -41,6 +41,7 @@ public final class PythonEnv implements Serializable {
     }
 
     /** The Execution type specifies how to execute the Python function. */
+    @Internal
     public enum ExecType {
         // python function is executed in a separate process
         PROCESS

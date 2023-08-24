@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.StringUtils;
@@ -31,6 +32,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A catalog function implementation. */
+@Internal
 public class CatalogFunctionImpl implements CatalogFunction {
     private final String className; // Fully qualified class name of the function
     private final FunctionLanguage functionLanguage;

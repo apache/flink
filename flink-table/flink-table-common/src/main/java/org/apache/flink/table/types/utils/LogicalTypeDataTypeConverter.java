@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.utils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
@@ -60,6 +61,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** A converter between {@link LogicalType} and {@link DataType}. */
+@Internal
 public final class LogicalTypeDataTypeConverter {
 
     private static final DefaultDataTypeCreator dataTypeCreator = new DefaultDataTypeCreator();

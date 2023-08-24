@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import java.util.HashMap;
@@ -28,6 +29,7 @@ import java.util.Set;
 import static java.lang.String.format;
 
 /** A generic catalog store implementation that store all catalog configuration in memory. */
+@Internal
 public class GenericInMemoryCatalogStore extends AbstractCatalogStore {
 
     private final Map<String, CatalogDescriptor> descriptors;

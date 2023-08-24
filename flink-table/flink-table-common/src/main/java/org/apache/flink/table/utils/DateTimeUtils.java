@@ -1713,6 +1713,7 @@ public class DateTimeUtils {
      * use internally, when converting to and from UNIX timestamps. And also may be arguments to the
      * {@code EXTRACT}, {@code TIMESTAMPADD} and {@code TIMESTAMPDIFF} functions.
      */
+    @Internal
     public enum TimeUnit {
         YEAR(true, ' ', BigDecimal.valueOf(12) /* months */, null),
         MONTH(true, '-', BigDecimal.ONE /* months */, BigDecimal.valueOf(12)),
@@ -1774,6 +1775,7 @@ public class DateTimeUtils {
      * A range of time units. The first is more significant than the other (e.g. year-to-day) or the
      * same as the other (e.g. month).
      */
+    @Internal
     public enum TimeUnitRange {
         YEAR(TimeUnit.YEAR, null),
         YEAR_TO_MONTH(TimeUnit.YEAR, TimeUnit.MONTH),

@@ -158,6 +158,7 @@ public class TableResultImpl implements TableResultInternal {
     }
 
     /** Builder for creating a {@link TableResultImpl}. */
+    @Internal
     public static class Builder {
         private JobClient jobClient = null;
         private ResolvedSchema resolvedSchema = null;

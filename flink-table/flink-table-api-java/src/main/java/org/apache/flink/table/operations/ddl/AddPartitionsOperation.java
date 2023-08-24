@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Operation to describe ALTER TABLE ADD PARTITION statement. */
+@Internal
 public class AddPartitionsOperation extends AlterTableOperation {
 
     private final boolean ignoreIfPartitionExists;

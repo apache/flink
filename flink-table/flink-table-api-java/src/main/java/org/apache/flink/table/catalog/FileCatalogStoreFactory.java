@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.factories.CatalogStoreFactory;
@@ -32,6 +33,7 @@ import static org.apache.flink.table.catalog.FileCatalogStoreFactoryOptions.PATH
 import static org.apache.flink.table.factories.FactoryUtil.createCatalogStoreFactoryHelper;
 
 /** Catalog store factory for {@link FileCatalogStore}. */
+@Internal
 public class FileCatalogStoreFactory implements CatalogStoreFactory {
 
     private String path;

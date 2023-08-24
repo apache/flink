@@ -262,6 +262,7 @@ public class CsvTableSource
     }
 
     /** A builder for creating CsvTableSource instances. */
+    @Internal
     public static class Builder {
         private LinkedHashMap<String, DataType> schema = new LinkedHashMap<>();
         private Character quoteCharacter;
@@ -424,6 +425,7 @@ public class CsvTableSource
     // ------------------------------------------------------------------------------------
 
     /** LookupFunction to support lookup in CsvTableSource. */
+    @Internal
     public static class CsvLookupFunction extends TableFunction<Row> {
         private static final long serialVersionUID = 1L;
 

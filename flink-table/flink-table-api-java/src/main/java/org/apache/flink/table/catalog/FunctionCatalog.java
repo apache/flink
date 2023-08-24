@@ -783,6 +783,7 @@ public final class FunctionCatalog {
     }
 
     /** The CatalogFunction which holds an instantiated UDF. */
+    @Internal
     public static class InlineCatalogFunction implements CatalogFunction {
 
         private final FunctionDefinition definition;

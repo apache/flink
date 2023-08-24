@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
@@ -45,6 +46,7 @@ import java.util.stream.Collectors;
  * every catalog will be saved into a single file. The file name will be {catalogName}.yaml by
  * default.
  */
+@Internal
 public class FileCatalogStore extends AbstractCatalogStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileCatalogStore.class);

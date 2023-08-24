@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
@@ -29,6 +30,7 @@ import java.util.Map;
  * Operation to describe a DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier
  * statement.
  */
+@Internal
 public class DescribeTableOperation implements Operation, ExecutableOperation {
 
     private final ObjectIdentifier sqlIdentifier;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -30,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Operation to describe a DROP CATALOG statement. */
+@Internal
 public class DropCatalogOperation implements DropOperation {
     private final String catalogName;
     private final boolean ifExists;

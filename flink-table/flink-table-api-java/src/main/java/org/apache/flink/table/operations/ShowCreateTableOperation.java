@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.ShowCreateUtil;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -27,6 +28,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import static org.apache.flink.table.api.internal.TableResultUtils.buildStringArrayResult;
 
 /** Operation to describe a SHOW CREATE TABLE statement. */
+@Internal
 public class ShowCreateTableOperation implements ShowOperation {
 
     private final ObjectIdentifier tableIdentifier;

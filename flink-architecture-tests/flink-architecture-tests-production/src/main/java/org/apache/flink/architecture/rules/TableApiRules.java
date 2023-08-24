@@ -18,14 +18,23 @@
 
 package org.apache.flink.architecture.rules;
 
+import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.Source;
+import com.tngtech.archunit.core.importer.Location;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+
+import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields;
@@ -39,6 +48,10 @@ import static org.apache.flink.architecture.common.SourcePredicates.areJavaClass
 
 /** Rules for Table API. */
 public class TableApiRules {
+
+    private static final Pattern TABLE_API_MODULES =
+            Pattern.compile(".*/flink-table-(api-(bridge-base|java(|-bridge))|common)/.*");
+
     @ArchTest
     public static final ArchRule CONFIG_OPTIONS_IN_OPTIONS_CLASSES =
             fields().that(arePublicStaticOfType(ConfigOption.class))
@@ -79,4 +92,38 @@ public class TableApiRules {
                                                     PublicEvolving.class, Public.class)))
                             .as(
                                     "Options for connectors and formats should reside in a consistent package and be public API."));
+
+    @ArchTest
+    public static final ArchRule ALL_CLASSES_IN_TABLE_API_SHOULD_HAVE_VISIBILITY_ANNOTATIONS =
+            javaClassesThat(resideInPublicTableApiModules())
+                    .and()
+                    .resideInAPackage("org.apache.flink.table..")
+                    .and()
+                    .arePublic()
+                    .should(
+                            fulfill(
+                                    areDirectlyAnnotatedWithAtLeastOneOf(
+                                            Internal.class,
+                                            Experimental.class,
+                                            PublicEvolving.class,
+                                            Public.class,
+                                            Deprecated.class)))
+                    .as(
+                            "All public classes residing in the flink-table-api-java, "
+                                    + "flink-table-api-java-bridge, flink-table-common or flink-table-api-bridge-base "
+                                    + "modules should be explicitly marked with a visibility annotation");
+
+    private static DescribedPredicate<JavaClass> resideInPublicTableApiModules() {
+        return new DescribedPredicate<JavaClass>("Reside in public TableApi modules") {
+            @Override
+            public boolean test(JavaClass input) {
+                Optional<Source> sourceOptional = input.getSource();
+                if (sourceOptional.isPresent()) {
+                    Source source = sourceOptional.get();
+                    return Location.of(source.getUri()).matches(TABLE_API_MODULES);
+                }
+                return false;
+            }
+        };
+    }
 }

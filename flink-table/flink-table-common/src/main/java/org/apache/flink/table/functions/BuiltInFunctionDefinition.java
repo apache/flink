@@ -209,6 +209,7 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
     // --------------------------------------------------------------------------------------------
 
     /** Builder for fluent definition of built-in functions. */
+    @Internal
     public static final class Builder {
 
         private String name;

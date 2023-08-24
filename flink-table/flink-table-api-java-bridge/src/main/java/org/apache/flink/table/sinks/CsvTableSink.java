@@ -162,6 +162,7 @@ public class CsvTableSink implements AppendStreamTableSink<Row> {
     }
 
     /** Formats a Row into a String with fields separated by the field delimiter. */
+    @Internal
     public static class CsvFormatter implements MapFunction<Row, String> {
         private static final long serialVersionUID = 1L;
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableResultImpl;
@@ -28,6 +29,7 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 
 /** Operation to describe a ALTER VIEW .. RENAME to .. statement. */
+@Internal
 public class AlterViewRenameOperation extends AlterViewOperation {
 
     private final ObjectIdentifier newViewIdentifier;

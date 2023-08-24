@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations.ddl;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Operation to describe a CREATE FUNCTION statement for temporary system function. */
+@Internal
 public class CreateTempSystemFunctionOperation implements CreateOperation {
     private final String functionName;
     private final boolean ignoreIfExists;
