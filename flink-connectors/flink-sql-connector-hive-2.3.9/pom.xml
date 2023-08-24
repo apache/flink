@@ -111,7 +111,11 @@ under the License.
 							<relocations>
 								<relocation>
 									<pattern>org.apache.parquet</pattern>
-									<shadedPattern>org.apache.flink.hive.shaded.parquet</shadedPattern>
+									<shadedPattern>org.apache.hive.shaded.parquet</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>shaded.parquet</pattern>
+									<shadedPattern>org.apache.hive.reshaded.parquet</shadedPattern>
 								</relocation>
 								<!-- Guava dependencies that still end up in the shaded JAR are relocated to avoid clashes. -->
 								<relocation>
