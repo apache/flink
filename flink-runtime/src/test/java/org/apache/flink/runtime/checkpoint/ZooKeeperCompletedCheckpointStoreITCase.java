@@ -351,7 +351,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
         CheckpointRequestDecider checkpointRequestDecider =
                 new CheckpointRequestDecider(
                         maxCleaningCheckpoints,
-                        unused -> {},
+                        (currentTimeMillis, tillNextMillis) -> {},
                         clock,
                         1,
                         new AtomicInteger(0)::get,

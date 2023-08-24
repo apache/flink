@@ -2011,6 +2011,8 @@ public class StreamingJobGraphGenerator {
                 new JobCheckpointingSettings(
                         CheckpointCoordinatorConfiguration.builder()
                                 .setCheckpointInterval(interval)
+                                .setCheckpointIntervalDuringBacklog(
+                                        cfg.getCheckpointIntervalDuringBacklog())
                                 .setCheckpointTimeout(cfg.getCheckpointTimeout())
                                 .setMinPauseBetweenCheckpoints(cfg.getMinPauseBetweenCheckpoints())
                                 .setMaxConcurrentCheckpoints(cfg.getMaxConcurrentCheckpoints())

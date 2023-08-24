@@ -29,6 +29,8 @@ import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.apache.flink.api.connector.source.SupportsIntermediateNoMoreSplits;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.InternalSplitEnumeratorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
@@ -358,6 +360,16 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     @VisibleForTesting
     boolean isClosed() {
         return closed;
+    }
+
+    @Override
+    public void setIsProcessingBacklog(boolean isProcessingBacklog) {
+        CheckpointCoordinator checkpointCoordinator =
+                getCoordinatorContext().getCheckpointCoordinator();
+        OperatorID operatorID = getCoordinatorContext().getOperatorId();
+        if (checkpointCoordinator != null) {
+            checkpointCoordinator.setIsProcessingBacklog(operatorID, isProcessingBacklog);
+        }
     }
 
     // --------- Package private additional methods for the SourceCoordinator ------------

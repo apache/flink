@@ -73,7 +73,10 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
     @Override
     public void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor) {
         for (OperatorCoordinatorHolder coordinatorHolder : coordinatorMap.values()) {
-            coordinatorHolder.lazyInitialize(globalFailureHandler, mainThreadExecutor);
+            coordinatorHolder.lazyInitialize(
+                    globalFailureHandler,
+                    mainThreadExecutor,
+                    executionGraph.getCheckpointCoordinator());
         }
     }
 
@@ -154,7 +157,10 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
 
         for (OperatorCoordinatorHolder coordinator : coordinators) {
             coordinatorMap.put(coordinator.operatorId(), coordinator);
-            coordinator.lazyInitialize(globalFailureHandler, mainThreadExecutor);
+            coordinator.lazyInitialize(
+                    globalFailureHandler,
+                    mainThreadExecutor,
+                    executionGraph.getCheckpointCoordinator());
         }
         startOperatorCoordinators(coordinators);
     }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorCoordinatorMetricGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.OperatorCoordinatorCheckpointContext;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -143,12 +144,14 @@ public class OperatorCoordinatorHolder
 
     public void lazyInitialize(
             GlobalFailureHandler globalFailureHandler,
-            ComponentMainThreadExecutor mainThreadExecutor) {
+            ComponentMainThreadExecutor mainThreadExecutor,
+            @Nullable CheckpointCoordinator checkpointCoordinator) {
 
         this.globalFailureHandler = globalFailureHandler;
         this.mainThreadExecutor = mainThreadExecutor;
+        context.lazyInitialize(globalFailureHandler, mainThreadExecutor, checkpointCoordinator);
 
-        context.lazyInitialize(globalFailureHandler, mainThreadExecutor);
+        context.lazyInitialize(globalFailureHandler, mainThreadExecutor, checkpointCoordinator);
         setupAllSubtaskGateways();
     }
 
@@ -565,6 +568,7 @@ public class OperatorCoordinatorHolder
 
         private GlobalFailureHandler globalFailureHandler;
         private Executor schedulerExecutor;
+        @Nullable private CheckpointCoordinator checkpointCoordinator;
 
         private volatile boolean failed;
 
@@ -585,14 +589,19 @@ public class OperatorCoordinatorHolder
             this.metricGroup = checkNotNull(metricGroup);
         }
 
-        void lazyInitialize(GlobalFailureHandler globalFailureHandler, Executor schedulerExecutor) {
+        void lazyInitialize(
+                GlobalFailureHandler globalFailureHandler,
+                Executor schedulerExecutor,
+                @Nullable CheckpointCoordinator checkpointCoordinator) {
             this.globalFailureHandler = checkNotNull(globalFailureHandler);
             this.schedulerExecutor = checkNotNull(schedulerExecutor);
+            this.checkpointCoordinator = checkpointCoordinator;
         }
 
         void unInitialize() {
             this.globalFailureHandler = null;
             this.schedulerExecutor = null;
+            this.checkpointCoordinator = null;
         }
 
         boolean isInitialized() {
@@ -660,6 +669,12 @@ public class OperatorCoordinatorHolder
         @Override
         public boolean isConcurrentExecutionAttemptsSupported() {
             return supportsConcurrentExecutionAttempts;
+        }
+
+        @Override
+        @Nullable
+        public CheckpointCoordinator getCheckpointCoordinator() {
+            return checkpointCoordinator;
         }
     }
 }

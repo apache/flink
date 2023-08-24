@@ -302,6 +302,7 @@ public class HybridSourceSplitEnumerator
                     "Failed to create enumerator for sourceIndex=" + currentSourceIndex, e);
         }
         LOG.info("Starting enumerator for sourceIndex={}", currentSourceIndex);
+        context.setIsProcessingBacklog(currentSourceIndex < sources.size() - 1);
         currentEnumerator.start();
     }
 
@@ -421,6 +422,11 @@ public class HybridSourceSplitEnumerator
         @Override
         public void runInCoordinatorThread(Runnable runnable) {
             realContext.runInCoordinatorThread(runnable);
+        }
+
+        @Override
+        public void setIsProcessingBacklog(boolean isProcessingBacklog) {
+            realContext.setIsProcessingBacklog(isProcessingBacklog);
         }
     }
 
