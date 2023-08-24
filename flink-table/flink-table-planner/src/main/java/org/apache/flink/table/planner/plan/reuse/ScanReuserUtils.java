@@ -170,24 +170,18 @@ public class ScanReuserUtils {
 
     /** Watermark push down must be after projection push down, so we need to adjust its index. */
     public static Optional<WatermarkPushDownSpec> getAdjustedWatermarkSpec(
-            TableSourceTable table, RowType newSourceType) {
-        RowType producedType =
-                (RowType)
-                        table.contextResolvedTable()
-                                .getResolvedSchema()
-                                .toSourceRowDataType()
-                                .getLogicalType();
+            TableSourceTable table, RowType oldSourceType, RowType newSourceType) {
         for (SourceAbilitySpec spec : table.abilitySpecs()) {
             if (spec instanceof WatermarkPushDownSpec) {
                 return Optional.of(
                         adjustWatermarkIndex(
                                 table.contextResolvedTable().getResolvedSchema(),
-                                producedType,
+                                oldSourceType,
                                 newSourceType,
                                 (WatermarkPushDownSpec) spec));
             }
             if (spec.getProducedType().isPresent()) {
-                producedType = spec.getProducedType().get();
+                oldSourceType = spec.getProducedType().get();
             }
         }
         return Optional.empty();

@@ -30,6 +30,8 @@ import org.junit.runners.Parameterized;
 import java.util.Arrays;
 import java.util.Collection;
 
+import static org.junit.Assume.assumeTrue;
+
 /** Test push project into source with sub plan reuse. */
 @RunWith(Parameterized.class)
 public class ScanReuseTest extends TableTestBase {
@@ -323,5 +325,69 @@ public class ScanReuseTest extends TableTestBase {
                             + " WHERE T1.a = T2.a";
             util.verifyExecPlan(sqlQuery);
         }
+    }
+
+    @Test
+    public void testReuseWithReadMetadataAndWatermarkPushDown1() {
+        assumeTrue(isStreaming);
+        String ddl =
+                "CREATE TABLE MyTable1 (\n"
+                        + "  metadata_0 int METADATA VIRTUAL,\n"
+                        + "  a0 int,\n"
+                        + "  a1 int,\n"
+                        + "  ts STRING,\n "
+                        + "  rowtime as TO_TIMESTAMP(`ts`),\n"
+                        + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'readable-metadata' = 'metadata_0:int',\n"
+                        + " 'enable-watermark-push-down' = 'true',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        // join left side value source without projection spec.
+        String sqlQuery =
+                "SELECT T1.a0, T1.a1 FROM"
+                        + " (SELECT MIN(a0) as a0, MIN(a1) as a1, MIN(metadata_0) as metadata_0 "
+                        + " FROM MyTable1 GROUP BY"
+                        + " TUMBLE(rowtime, INTERVAL '1' SECOND)) T1,"
+                        + " (SELECT MIN(a0) as a0 FROM MyTable1 GROUP BY"
+                        + " TUMBLE(rowtime, INTERVAL '1' SECOND)) T2"
+                        + " WHERE T1.a0 = T2.a0";
+        util.verifyExecPlan(sqlQuery);
+    }
+
+    @Test
+    public void testReuseWithReadMetadataAndWatermarkPushDown2() {
+        assumeTrue(isStreaming);
+        String ddl =
+                "CREATE TABLE MyTable1 (\n"
+                        + "  metadata_0 int METADATA VIRTUAL,\n"
+                        + "  a0 int,\n"
+                        + "  a1 int,\n"
+                        + "  ts STRING,\n "
+                        + "  rowtime as TO_TIMESTAMP(`ts`),\n"
+                        + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'readable-metadata' = 'metadata_0:int',\n"
+                        + " 'enable-watermark-push-down' = 'true',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        // join right side value source without projection spec.
+        String sqlQuery =
+                "SELECT T1.a0, T2.a1 FROM"
+                        + " (SELECT MIN(a0) as a0 FROM MyTable1 GROUP BY"
+                        + " TUMBLE(rowtime, INTERVAL '1' SECOND)) T1,"
+                        + " (SELECT MIN(a0) as a0, MIN(a1) as a1, MIN(metadata_0) as metadata_0"
+                        + " FROM MyTable1 GROUP BY"
+                        + " TUMBLE(rowtime, INTERVAL '1' SECOND)) T2"
+                        + " WHERE T1.a0 = T2.a0";
+        util.verifyExecPlan(sqlQuery);
     }
 }
