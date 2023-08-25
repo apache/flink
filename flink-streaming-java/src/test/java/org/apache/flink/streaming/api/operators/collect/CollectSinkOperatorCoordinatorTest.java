@@ -29,8 +29,7 @@ import org.apache.flink.streaming.api.operators.collect.utils.CollectTestUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.NetUtils;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -43,8 +42,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link CollectSinkOperatorCoordinator}. */
-public class CollectSinkOperatorCoordinatorTest {
+class CollectSinkOperatorCoordinatorTest {
 
     private static final int SOCKET_TIMEOUT_MILLIS = 1000;
 
@@ -53,7 +54,7 @@ public class CollectSinkOperatorCoordinatorTest {
                     .createSerializer(new ExecutionConfig());
 
     @Test
-    public void testNoAddress() throws Exception {
+    void testNoAddress() throws Exception {
         CollectSinkOperatorCoordinator coordinator =
                 new CollectSinkOperatorCoordinator(SOCKET_TIMEOUT_MILLIS);
         coordinator.start();
@@ -68,7 +69,7 @@ public class CollectSinkOperatorCoordinatorTest {
     }
 
     @Test
-    public void testServerFailure() throws Exception {
+    void testServerFailure() throws Exception {
         CollectSinkOperatorCoordinator coordinator =
                 new CollectSinkOperatorCoordinator(SOCKET_TIMEOUT_MILLIS);
         coordinator.start();
@@ -157,16 +158,17 @@ public class CollectSinkOperatorCoordinatorTest {
         final CollectCoordinationResponse response =
                 (CollectCoordinationResponse) responseFuture.get();
 
-        Assert.assertEquals(expectedVersion, response.getVersion());
-        Assert.assertEquals(expectedOffset, response.getLastCheckpointedOffset());
-        List<Row> results = response.getResults(serializer);
-        Assert.assertEquals(expectedResults.size(), results.size());
-        for (int i = 0; i < results.size(); i++) {
-            Row expectedRow = expectedResults.get(i);
-            Row actualRow = results.get(i);
-            Assert.assertEquals(expectedRow.getArity(), actualRow.getArity());
-            for (int j = 0; j < actualRow.getArity(); j++) {
-                Assert.assertEquals(expectedRow.getField(j), actualRow.getField(j));
+        assertThat(response.getVersion()).isEqualTo(expectedVersion);
+        assertThat(response.getLastCheckpointedOffset()).isEqualTo(expectedOffset);
+
+        final List<Row> actualResult = response.getResults(serializer);
+        assertThat(actualResult).hasSize(expectedResults.size());
+        for (int rowId = 0; rowId < actualResult.size(); rowId++) {
+            final Row expectedRow = expectedResults.get(rowId);
+            final Row actualRow = actualResult.get(rowId);
+            assertThat(actualRow.getArity()).isEqualTo(expectedRow.getArity());
+            for (int columnId = 0; columnId < actualRow.getArity(); columnId++) {
+                assertThat(actualRow.getField(columnId)).isEqualTo(expectedRow.getField(columnId));
             }
         }
     }
