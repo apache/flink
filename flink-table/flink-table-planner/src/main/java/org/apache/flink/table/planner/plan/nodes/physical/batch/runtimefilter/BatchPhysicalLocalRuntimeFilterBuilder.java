@@ -69,8 +69,8 @@ public class BatchPhysicalLocalRuntimeFilterBuilder extends SingleRel implements
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
         return new BatchPhysicalLocalRuntimeFilterBuilder(
                 getCluster(),
-                getTraitSet(),
-                getInput(),
+                traitSet,
+                inputs.get(0),
                 buildIndices,
                 buildFieldNames,
                 estimatedRowCount,
