@@ -27,8 +27,6 @@ import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.operators.testutils.InfiniteIntTupleIterator;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 
-import org.apache.flink.shaded.guava31.com.google.common.base.Throwables;
-
 import org.junit.jupiter.api.TestTemplate;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -233,12 +231,7 @@ class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
                 .withFailMessage("Task thread did not finish within 60 seconds")
                 .isFalse();
 
-        final Throwable taskError = error.get();
-        assertThat(taskError)
-                .withFailMessage(
-                        "Error in task while canceling:\n%s",
-                        Throwables.getStackTraceAsString(taskError))
-                .isNull();
+        assertThat(error.get()).isNull();
     }
 
     @TestTemplate
@@ -283,11 +276,6 @@ class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
                 .withFailMessage("Task thread did not finish within 60 seconds")
                 .isFalse();
 
-        final Throwable taskError = error.get();
-        assertThat(taskError)
-                .withFailMessage(
-                        "Error in task while canceling:\n%s",
-                        Throwables.getStackTraceAsString(taskError))
-                .isNull();
+        assertThat(error.get()).isNull();
     }
 }
