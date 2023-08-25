@@ -52,7 +52,6 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -118,8 +117,8 @@ class MiniClusterITCase {
 
         assertThatThrownBy(() -> runHandleJobsWhenNotEnoughSlots(jobGraph))
                 .isInstanceOf(JobExecutionException.class)
-                .satisfies(anyCauseMatches(NoResourceAvailableException.class))
-                .satisfies(anyCauseMatches("Job execution failed"));
+                .hasRootCauseInstanceOf(NoResourceAvailableException.class)
+                .hasMessageContaining("Job execution failed");
     }
 
     private void runHandleJobsWhenNotEnoughSlots(final JobGraph jobGraph) throws Exception {
@@ -242,8 +241,9 @@ class MiniClusterITCase {
 
             assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
                     .isInstanceOf(JobExecutionException.class)
-                    .satisfies(anyCauseMatches(ArrayIndexOutOfBoundsException.class))
-                    .satisfies(anyCauseMatches("2"));
+                    .hasRootCauseInstanceOf(ArrayIndexOutOfBoundsException.class)
+                    .rootCause()
+                    .hasMessageContaining("2");
         }
     }
 
@@ -357,8 +357,9 @@ class MiniClusterITCase {
 
             assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
                     .isInstanceOf(JobExecutionException.class)
-                    .hasCauseInstanceOf(Exception.class)
-                    .satisfies(anyCauseMatches("Test exception"));
+                    .hasRootCauseInstanceOf(Exception.class)
+                    .rootCause()
+                    .hasMessageContaining("Test exception");
         }
     }
 
@@ -401,8 +402,9 @@ class MiniClusterITCase {
 
             assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
                     .isInstanceOf(JobExecutionException.class)
-                    .hasCauseInstanceOf(Exception.class)
-                    .satisfies(anyCauseMatches("Test exception"));
+                    .hasRootCauseInstanceOf(Exception.class)
+                    .rootCause()
+                    .hasMessageContaining("Test exception");
         }
     }
 
@@ -435,8 +437,9 @@ class MiniClusterITCase {
 
             assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
                     .isInstanceOf(JobExecutionException.class)
-                    .hasCauseInstanceOf(Exception.class)
-                    .satisfies(anyCauseMatches("Test exception"));
+                    .hasRootCauseInstanceOf(Exception.class)
+                    .rootCause()
+                    .hasMessageContaining("Test exception");
         }
     }
 
@@ -469,8 +472,9 @@ class MiniClusterITCase {
 
             assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
                     .isInstanceOf(JobExecutionException.class)
-                    .hasCauseInstanceOf(Exception.class)
-                    .satisfies(anyCauseMatches("Test exception in constructor"));
+                    .hasRootCauseInstanceOf(Exception.class)
+                    .rootCause()
+                    .hasMessageContaining("Test exception in constructor");
         }
     }
 
@@ -514,7 +518,8 @@ class MiniClusterITCase {
             assertThatThrownBy(() -> miniCluster.executeJobBlocking(jobGraph))
                     .isInstanceOf(JobExecutionException.class)
                     .hasCauseInstanceOf(Exception.class)
-                    .satisfies(anyCauseMatches("Test exception in constructor"));
+                    .rootCause()
+                    .hasMessageContaining("Test exception in constructor");
         }
     }
 
@@ -595,10 +600,10 @@ class MiniClusterITCase {
                                             .get()
                                             .toJobExecutionResult(getClass().getClassLoader()))
                     .isInstanceOf(JobExecutionException.class)
-                    .satisfies(anyCauseMatches(OutOfMemoryError.class))
-                    .satisfies(
-                            anyCauseMatches(
-                                    "Java heap space. A heap space-related out-of-memory error has occurred."));
+                    .hasRootCauseInstanceOf(OutOfMemoryError.class)
+                    .rootCause()
+                    .hasMessageContaining(
+                            "Java heap space. A heap space-related out-of-memory error has occurred.");
         }
     }
 
@@ -636,8 +641,9 @@ class MiniClusterITCase {
                                             .get()
                                             .toJobExecutionResult(getClass().getClassLoader()))
                     .isInstanceOf(JobExecutionException.class)
-                    .satisfies(anyCauseMatches(OutOfMemoryError.class))
-                    .satisfies(anyCauseMatches("Java heap space"));
+                    .hasRootCauseInstanceOf(OutOfMemoryError.class)
+                    .rootCause()
+                    .hasMessageContaining("Java heap space");
         }
     }
 
