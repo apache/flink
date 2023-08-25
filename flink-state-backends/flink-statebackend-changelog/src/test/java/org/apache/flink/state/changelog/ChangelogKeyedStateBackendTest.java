@@ -88,7 +88,7 @@ public class ChangelogKeyedStateBackendTest {
         }
     }
 
-    @Test
+    @TestTemplate
     public void testInitMaterialization() throws Exception {
         MockKeyedStateBackend<Integer> delegatedBackend = createMock();
         ChangelogKeyedStateBackend<Integer> backend = createChangelog(delegatedBackend);
@@ -100,12 +100,12 @@ public class ChangelogKeyedStateBackendTest {
 
             runnable = backend.initMaterialization();
             // 1. should trigger first materialization
-            assertTrue("first materialization should be trigger.", runnable.isPresent());
+            assertThat(runnable).withFailMessage("first materialization should be trigger.").isNotEmpty();
 
             appendMockStateChange(backend); // ensure there is non-materialized changelog
 
             // 2. should not trigger new one until the previous one has been confirmed or failed
-            assertFalse(backend.initMaterialization().isPresent());
+            assertThat(backend.initMaterialization()).isEmpty();
 
             backend.handleMaterializationFailureOrCancellation(
                     runnable.get().getMaterializationID(),
@@ -113,12 +113,12 @@ public class ChangelogKeyedStateBackendTest {
                     null);
             runnable = backend.initMaterialization();
             // 3. should trigger new one after previous one failed
-            assertTrue(runnable.isPresent());
+            assertThat(runnable).isNotEmpty();
 
             appendMockStateChange(backend); // ensure there is non-materialized changelog
 
             // 4. should not trigger new one until the previous one has been confirmed or failed
-            assertFalse(backend.initMaterialization().isPresent());
+            assertThat(backend.initMaterialization()).isEmpty();
 
             backend.handleMaterializationResult(
                     SnapshotResult.empty(),
@@ -127,7 +127,7 @@ public class ChangelogKeyedStateBackendTest {
             checkpoint(backend, checkpointId).get().discardState();
             backend.notifyCheckpointComplete(checkpointId);
             // 5. should trigger new one after previous one has been confirmed
-            assertTrue(backend.initMaterialization().isPresent());
+            assertThat(backend.initMaterialization()).isNotEmpty();
         } finally {
             backend.close();
             backend.dispose();
