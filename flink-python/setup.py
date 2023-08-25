@@ -20,6 +20,7 @@ from __future__ import print_function
 import io
 import os
 import platform
+import re
 import sys
 from distutils.command.build_ext import build_ext
 from shutil import copytree, copy, rmtree
@@ -206,7 +207,7 @@ try:
             print("Temp path for symlink to parent already exists {0}".format(TEMP_PATH),
                   file=sys.stderr)
             sys.exit(-1)
-        flink_version = VERSION.replace(".dev0", "-SNAPSHOT")
+        flink_version = re.sub("[.]dev.*", "-SNAPSHOT", VERSION)
         FLINK_HOME = os.path.abspath(
             "../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
         FLINK_ROOT = os.path.abspath("..")
@@ -252,7 +253,7 @@ try:
                   "is complete, or do this in the flink-python directory of the flink source "
                   "directory.")
             sys.exit(-1)
-    if VERSION.find('dev0') != -1:
+    if re.search('dev.*$', VERSION) is not None:
         apache_flink_libraries_dependency = 'apache-flink-libraries==%s' % VERSION
     else:
         split_versions = VERSION.split('.')

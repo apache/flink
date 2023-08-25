@@ -43,8 +43,8 @@ flink-python/dev/.conda/
 flink-python/dev/log/
 flink-python/dev/.stage.txt
 flink-python/.eggs/
-flink-python/apache-flink-*.dev0/
-flink-python/apache-flink-libraries/apache_flink_libraries-*.dev0/
+flink-python/apache-flink-*.dev*/
+flink-python/apache-flink-libraries/apache_flink_libraries-*.dev*/
 flink-python/**/*.c
 flink-python/.idea/
 flink-python/**/*.so
