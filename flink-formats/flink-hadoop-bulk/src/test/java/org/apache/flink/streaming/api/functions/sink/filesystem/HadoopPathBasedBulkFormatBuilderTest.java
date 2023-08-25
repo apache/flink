@@ -33,7 +33,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests the behaviors of {@link HadoopPathBasedBulkFormatBuilder}. */
 class HadoopPathBasedBulkFormatBuilderTest {
@@ -47,7 +47,7 @@ class HadoopPathBasedBulkFormatBuilderTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void testCreatingBuildWithinUserClassLoader() throws Exception {
         ClassLoader appClassLoader = getClass().getClassLoader();
-        assumeTrue(appClassLoader instanceof URLClassLoader);
+        assumeThat(appClassLoader).isInstanceOf(URLClassLoader.class);
 
         ClassLoader userClassLoader =
                 new SpecifiedChildFirstUserClassLoader(
