@@ -64,8 +64,8 @@ public class BatchPhysicalGlobalRuntimeFilterBuilder extends SingleRel implement
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
         return new BatchPhysicalGlobalRuntimeFilterBuilder(
                 getCluster(),
-                getTraitSet(),
-                getInput(),
+                traitSet,
+                inputs.get(0),
                 buildFieldNames,
                 estimatedRowCount,
                 maxRowCount);
