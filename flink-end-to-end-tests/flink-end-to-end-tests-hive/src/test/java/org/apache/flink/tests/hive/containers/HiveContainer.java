@@ -70,6 +70,7 @@ public class HiveContainer extends GenericContainer<HiveContainer> {
                 DockerImageName.parse(
                         HIVE_310_OR_LATER ? DockerImageVersions.HIVE3 : DockerImageVersions.HIVE2));
         withExtraHost(HOST_NAME, "127.0.0.1");
+        withStartupAttempts(3);
         addExposedPort(HIVE_METASTORE_PORT);
         addExposedPort(NAME_NODE_WEB_PORT);
         mountHiveWarehouseDirToContainer(initTableNames);
