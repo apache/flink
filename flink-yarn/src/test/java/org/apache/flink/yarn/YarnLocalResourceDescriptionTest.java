@@ -31,8 +31,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for the {@link YarnLocalResourceDescriptor}. */
 class YarnLocalResourceDescriptionTest {
 
-    private final String key = "flink.jar";
-    private final Path path = new Path("hdfs://nn/tmp/flink.jar");
+    private final String key = "fli'nk 2.jar";
+    private final Path path = new Path("hdfs://nn/tmp/fli'nk 2.jar");
     private final long size = 100 * 1024 * 1024;
     private final long ts = System.currentTimeMillis();
 
@@ -62,8 +62,14 @@ class YarnLocalResourceDescriptionTest {
     void testFromStringMalformed() {
         final String desc =
                 String.format(
-                        "YarnLocalResourceDescriptor{key=%s path=%s size=%d modTime=%d visibility=%s}",
+                        "{'resourceKey':'%s','path':'%s','size':%s,'modificationTime':%s,'visibility':'%s'}",
                         key, path, size, ts, LocalResourceVisibility.PUBLIC);
+        assertThrows(desc);
+        assertThrows("{}");
+        assertThrows("{");
+    }
+
+    private void assertThrows(final String desc) {
         assertThatThrownBy(() -> YarnLocalResourceDescriptor.fromString(desc))
                 .isInstanceOf(FlinkException.class)
                 .hasMessageContaining("Error to parse YarnLocalResourceDescriptor from " + desc);
