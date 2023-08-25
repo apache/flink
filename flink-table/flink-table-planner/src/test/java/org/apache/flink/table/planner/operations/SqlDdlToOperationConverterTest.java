@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
@@ -617,6 +618,85 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                                 + " at line 3, column 20\n"
                                 + "Nested field 't' was not found in a composite type:"
                                 + " ROW<`tmstmp` TIMESTAMP(3)>.");
+    }
+
+    @Test
+    public void testBasicCreateTableLikeView() {
+        CatalogView catalogView =
+                CatalogView.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.TIMESTAMP(3))
+                                .build(),
+                        null,
+                        "",
+                        "",
+                        Collections.emptyMap());
+
+        catalogManager.createTable(
+                catalogView, ObjectIdentifier.of("builtin", "default", "source_view"), false);
+
+        final String sql =
+                "create table derivedTable(\n"
+                        + "  a int,\n"
+                        + "  watermark for f1 as `f1` - interval '5' second\n"
+                        + ")\n"
+                        + "PARTITIONED BY (a, f0)\n"
+                        + "with (\n"
+                        + "  'connector' = 'kafka',"
+                        + "  'format.type' = 'json'"
+                        + ")\n"
+                        + "like source_view";
+        Operation operation = parseAndConvert(sql);
+
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .column("a", DataTypes.INT())
+                                                        .watermark(
+                                                                "f1", "`f1` - INTERVAL '5' SECOND")
+                                                        .build()),
+                                        withOptions(
+                                                entry("connector", "kafka"),
+                                                entry("format.type", "json")),
+                                        partitionedBy("a", "f0"))));
+    }
+
+    @Test
+    public void testMergingCreateTableLikeView() {
+        CatalogView catalogView =
+                CatalogView.of(
+                        Schema.newBuilder()
+                                .column("f0", DataTypes.INT().notNull())
+                                .column("f1", DataTypes.TIMESTAMP(3))
+                                .build(),
+                        null,
+                        "",
+                        "",
+                        Collections.emptyMap());
+
+        catalogManager.createTable(
+                catalogView, ObjectIdentifier.of("builtin", "default", "source_view"), false);
+
+        final String sql =
+                "create table sink with ('connector' = 'print') like source_view (EXCLUDING ALL)";
+        Operation operation = parseAndConvert(sql);
+
+        assertThat(operation)
+                .is(
+                        new HamcrestCondition<>(
+                                isCreateTableOperation(
+                                        withSchema(
+                                                Schema.newBuilder()
+                                                        .column("f0", DataTypes.INT().notNull())
+                                                        .column("f1", DataTypes.TIMESTAMP(3))
+                                                        .build()),
+                                        withOptions(entry("connector", "print")))));
     }
 
     @Test // TODO: tweak the tests when FLINK-13604 is fixed.

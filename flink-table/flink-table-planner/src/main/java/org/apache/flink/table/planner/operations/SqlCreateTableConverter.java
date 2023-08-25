@@ -29,6 +29,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -194,11 +195,13 @@ class SqlCreateTableConverter {
                                                         sqlTableLike
                                                                 .getSourceTable()
                                                                 .getParserPosition())));
-        if (!(lookupResult.getResolvedTable() instanceof CatalogTable)) {
-            throw new ValidationException(
-                    String.format(
-                            "Source table '%s' of the LIKE clause can not be a VIEW, at %s",
-                            identifier, sqlTableLike.getSourceTable().getParserPosition()));
+        if (lookupResult.getResolvedTable() instanceof CatalogView) {
+            CatalogView view = lookupResult.getResolvedTable();
+            return CatalogTable.of(
+                    view.getUnresolvedSchema(),
+                    view.getComment(),
+                    Collections.emptyList(),
+                    Collections.emptyMap());
         }
         return lookupResult.getResolvedTable();
     }
