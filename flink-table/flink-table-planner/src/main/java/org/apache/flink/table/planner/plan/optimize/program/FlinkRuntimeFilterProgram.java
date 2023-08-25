@@ -622,7 +622,7 @@ public class FlinkRuntimeFilterProgram implements FlinkOptimizeProgram<BatchOpti
         Optional<Double> probeSize = getEstimatedDataSize(probeSide);
 
         long maxBuildDataSize = getMaxBuildDataSize(buildSide);
-        long minProbeDataSize = getMinProbeDataSize(buildSide);
+        long minProbeDataSize = getMinProbeDataSize(probeSide);
         double minFilterRatio = getMinFilterRatio(buildSide);
 
         if (!buildSize.isPresent() || !probeSize.isPresent()) {
