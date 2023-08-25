@@ -102,6 +102,9 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     public void testSemiJoin() throws Exception {
         // runtime filter will succeed
         setupSuitableTableStatistics();
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1L);
         String query =
                 "select * from fact where fact.fact_date_sk in (select dim_date_sk from dim where dim.price < 500)";
         util.verifyPlan(query);
@@ -202,6 +205,64 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
         String query =
                 "select * from dim, fact, fact2 where fact.amount = fact2.amount and"
                         + " fact.amount = dim.amount and dim.price < 500";
+        util.verifyPlan(query);
+    }
+
+    @Test
+    public void testBuildSideIsJoinWithTwoAggInputs() throws Exception {
+        // runtime filter will succeed
+        setupSuitableTableStatistics();
+        util.tableEnv()
+                .executeSql(
+                        "create table fact2 (\n"
+                                + "  id BIGINT,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT\n"
+                                + ") with (\n"
+                                + " 'connector' = 'values',\n"
+                                + "  'runtime-source' = 'NewSource',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+        setupTableRowCount("fact2", SUITABLE_FACT_ROW_COUNT);
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1L);
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+
+        String query =
+                "select * from fact join (select * from "
+                        + "(select dim_date_sk, sum(dim.price) from dim group by dim_date_sk) agg1 join "
+                        + "(select dim_date_sk, sum(dim.amount) from dim group by dim_date_sk) agg2 "
+                        + "on agg1.dim_date_sk = agg2.dim_date_sk) as dimSide "
+                        + "on fact.fact_date_sk = dimSide.dim_date_sk";
+        util.verifyPlan(query);
+    }
+
+    @Test
+    public void testBuildSideIsLeftJoinWithoutExchange() throws Exception {
+        // runtime filter will not succeed, because the original build side is left join(without
+        // exchange), so we can only push builder to it's left input, but the left input is too
+        // large to as builder.
+        setupSuitableTableStatistics();
+        util.tableEnv()
+                .executeSql(
+                        "create table fact2 (\n"
+                                + "  id BIGINT,\n"
+                                + "  amount BIGINT,\n"
+                                + "  price BIGINT,\n"
+                                + "  fact_date_sk BIGINT\n"
+                                + ") with (\n"
+                                + " 'connector' = 'values',\n"
+                                + "  'runtime-source' = 'NewSource',\n"
+                                + " 'bounded' = 'true'\n"
+                                + ")");
+        setupTableRowCount("fact2", SUITABLE_FACT_ROW_COUNT);
+
+        String query =
+                "select * from fact2 join (select * from fact left join dim on dim.amount = fact.amount"
+                        + " and dim.price < 500) as dimSide on fact2.amount = dimSide.amount";
         util.verifyPlan(query);
     }
 
@@ -398,6 +459,14 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
         createPartitionedFactTable(SUITABLE_FACT_ROW_COUNT);
         String query =
                 "select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk and dim.price < 500";
+        util.verifyPlan(query);
+    }
+
+    @Test
+    public void testProbeSideIsTableSourceWithoutExchange() throws Exception {
+        // runtime filter will not succeed, because probe side is a direct table source
+        setupSuitableTableStatistics();
+        String query = "select * from fact, dim where fact.amount = dim.amount and dim.price = 500";
         util.verifyPlan(query);
     }
 
