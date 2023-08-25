@@ -58,12 +58,6 @@ public class PythonEnvironmentManagerUtils {
                     + "import sysconfig;"
                     + "print(sysconfig.get_path('platlib', vars={'base': sys.argv[1], 'platbase': sys.argv[1]}))";
 
-    private static final String CHECK_PIP_VERSION_SCRIPT =
-            "import sys;"
-                    + "from pkg_resources import get_distribution, parse_version;"
-                    + "pip_version = get_distribution('pip').version;"
-                    + "print(parse_version(pip_version) >= parse_version(sys.argv[1]))";
-
     private static final String GET_RUNNER_DIR_SCRIPT =
             "import pyflink;"
                     + "import os;"
@@ -105,13 +99,9 @@ public class PythonEnvironmentManagerUtils {
                                 "install",
                                 "--ignore-installed",
                                 "-r",
-                                requirementsFilePath));
-        if (isPipVersionGreaterEqual("8.0.0", pythonExecutable, environmentVariables)) {
-            commands.addAll(Arrays.asList("--prefix", requirementsInstallDir));
-        } else {
-            commands.addAll(
-                    Arrays.asList("--install-option", "--prefix=" + requirementsInstallDir));
-        }
+                                requirementsFilePath,
+                                "--prefix",
+                                requirementsInstallDir));
         if (requirementsCacheDir != null) {
             commands.addAll(Arrays.asList("--no-index", "--find-links", requirementsCacheDir));
         }
@@ -171,15 +161,6 @@ public class PythonEnvironmentManagerUtils {
                 new String[] {pythonExecutable, "-c", GET_SITE_PACKAGES_PATH_SCRIPT, prefix};
         String out = execute(commands, environmentVariables, false);
         return String.join(File.pathSeparator, out.trim().split("\n"));
-    }
-
-    private static boolean isPipVersionGreaterEqual(
-            String pipVersion, String pythonExecutable, Map<String, String> environmentVariables)
-            throws IOException {
-        String[] commands =
-                new String[] {pythonExecutable, "-c", CHECK_PIP_VERSION_SCRIPT, pipVersion};
-        String out = execute(commands, environmentVariables, false);
-        return Boolean.parseBoolean(out.trim());
     }
 
     private static String execute(
