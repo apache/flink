@@ -28,11 +28,11 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,20 +42,17 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static java.util.Collections.singletonList;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** This tests verifies the checking logic of {@link VertexFinishedStateChecker}. */
-public class VertexFinishedStateCheckerTest {
+class VertexFinishedStateCheckerTest {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     @Test
-    public void testRestoringPartiallyFinishedChainsFailsWithoutUidHash() throws Exception {
+    void testRestoringPartiallyFinishedChainsFailsWithoutUidHash() throws Exception {
         // If useUidHash is set to false, the operator states would still be keyed with the
         // generated ID, which simulates the case of restoring a checkpoint taken after jobs
         // started. The checker should still be able to access the stored state correctly, otherwise
@@ -64,7 +61,7 @@ public class VertexFinishedStateCheckerTest {
     }
 
     @Test
-    public void testRestoringPartiallyFinishedChainsFailsWithUidHash() throws Exception {
+    void testRestoringPartiallyFinishedChainsFailsWithUidHash() throws Exception {
         testRestoringPartiallyFinishedChainsFails(true);
     }
 
@@ -80,7 +77,7 @@ public class VertexFinishedStateCheckerTest {
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(jobVertexID2, 1, 1, singletonList(op3), true)
                         .addJobVertex(jobVertexID1, 1, 1, Arrays.asList(op1, op2), true)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                        .build(EXECUTOR_EXTENSION.getExecutor());
 
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         operatorStates.put(
@@ -95,23 +92,18 @@ public class VertexFinishedStateCheckerTest {
         VertexFinishedStateChecker finishedStateChecker =
                 new VertexFinishedStateChecker(vertices, operatorStates);
 
-        FlinkRuntimeException exception =
-                assertThrows(
-                        FlinkRuntimeException.class,
-                        finishedStateChecker::validateOperatorsFinishedState);
-        assertThat(
-                exception.getMessage(),
-                is(
-                        equalTo(
-                                "Can not restore vertex "
-                                        + "anon("
-                                        + jobVertexID1
-                                        + ")"
-                                        + " which contain mixed operator finished state: [ALL_RUNNING, FULLY_FINISHED]")));
+        assertThatThrownBy(finishedStateChecker::validateOperatorsFinishedState)
+                .hasMessage(
+                        "Can not restore vertex "
+                                + "anon("
+                                + jobVertexID1
+                                + ")"
+                                + " which contain mixed operator finished state: [ALL_RUNNING, FULLY_FINISHED]")
+                .isInstanceOf(FlinkRuntimeException.class);
     }
 
     @Test
-    public void testAddingRunningOperatorBeforeFinishedOneFails() throws Exception {
+    void testAddingRunningOperatorBeforeFinishedOneFails() throws Exception {
         JobVertexID jobVertexID2 = new JobVertexID();
 
         testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
@@ -132,7 +124,7 @@ public class VertexFinishedStateCheckerTest {
     }
 
     @Test
-    public void testAddingPartiallyFinishedOperatorBeforeFinishedOneFails() throws Exception {
+    void testAddingPartiallyFinishedOperatorBeforeFinishedOneFails() throws Exception {
         JobVertexID jobVertexID2 = new JobVertexID();
 
         testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
@@ -153,7 +145,7 @@ public class VertexFinishedStateCheckerTest {
     }
 
     @Test
-    public void testAddingAllRunningOperatorBeforePartiallyFinishedOneWithAllToAllFails()
+    void testAddingAllRunningOperatorBeforePartiallyFinishedOneWithAllToAllFails()
             throws Exception {
         JobVertexID jobVertexID2 = new JobVertexID();
 
@@ -176,7 +168,7 @@ public class VertexFinishedStateCheckerTest {
     }
 
     @Test
-    public void testAddingPartiallyFinishedOperatorBeforePartiallyFinishedOneWithAllToAllFails()
+    void testAddingPartiallyFinishedOperatorBeforePartiallyFinishedOneWithAllToAllFails()
             throws Exception {
         JobVertexID jobVertexID2 = new JobVertexID();
 
@@ -199,7 +191,7 @@ public class VertexFinishedStateCheckerTest {
     }
 
     @Test
-    public void
+    void
             testAddingPartiallyFinishedOperatorBeforePartiallyFinishedOneWithPointwiseAndAllToAllFails()
                     throws Exception {
         JobVertexID jobVertexID2 = new JobVertexID();
@@ -225,7 +217,7 @@ public class VertexFinishedStateCheckerTest {
     }
 
     @Test
-    public void testAddingAllRunningOperatorBeforePartiallyFinishedOneFails() throws Exception {
+    void testAddingAllRunningOperatorBeforePartiallyFinishedOneFails() throws Exception {
         JobVertexID jobVertexID2 = new JobVertexID();
 
         testAddingOperatorsBeforePartiallyOrFullyFinishedOne(
@@ -269,7 +261,7 @@ public class VertexFinishedStateCheckerTest {
                         .addJobVertex(vertex1, true)
                         .addJobVertex(vertex2, false)
                         .setDistributionPattern(distributionPatterns[0])
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                        .build(EXECUTOR_EXTENSION.getExecutor());
 
         // Adds the additional edges
         for (int i = 1; i < distributionPatterns.length; ++i) {
@@ -291,11 +283,9 @@ public class VertexFinishedStateCheckerTest {
         VertexFinishedStateChecker finishedStateChecker =
                 new VertexFinishedStateChecker(vertices, operatorStates);
 
-        Throwable exception =
-                assertThrows(
-                        expectedExceptionalClass,
-                        finishedStateChecker::validateOperatorsFinishedState);
-        assertThat(exception.getMessage(), is(equalTo(expectedMessage)));
+        assertThatThrownBy(finishedStateChecker::validateOperatorsFinishedState)
+                .hasMessage(expectedMessage)
+                .isInstanceOf(expectedExceptionalClass);
     }
 
     private OperatorState createOperatorState(

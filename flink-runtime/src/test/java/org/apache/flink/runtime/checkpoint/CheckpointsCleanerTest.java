@@ -22,19 +22,18 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
 import static org.apache.flink.runtime.checkpoint.CompletedCheckpointStoreTest.createCheckpoint;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link CheckpointsCleaner} test. */
-public class CheckpointsCleanerTest {
+class CheckpointsCleanerTest {
 
     @Test
-    public void testNotCleanCheckpointInUse() {
+    void testNotCleanCheckpointInUse() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
         TestCompletedCheckpoint cp1 = createCheckpoint(1, sharedStateRegistry);
@@ -46,12 +45,12 @@ public class CheckpointsCleanerTest {
         checkpointsCleaner.cleanSubsumedCheckpoints(
                 3, Collections.singleton(1L), () -> {}, Executors.directExecutor());
         // cp 1 is in use, shouldn't discard.
-        assertFalse(cp1.isDiscarded());
-        assertTrue(cp2.isDiscarded());
+        assertThat(cp1.isDiscarded()).isFalse();
+        assertThat(cp2.isDiscarded()).isTrue();
     }
 
     @Test
-    public void testNotCleanHigherCheckpoint() {
+    void testNotCleanHigherCheckpoint() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         CheckpointsCleaner checkpointsCleaner = new CheckpointsCleaner();
         TestCompletedCheckpoint cp1 = createCheckpoint(1, sharedStateRegistry);
@@ -62,10 +61,10 @@ public class CheckpointsCleanerTest {
         checkpointsCleaner.addSubsumedCheckpoint(cp3);
         checkpointsCleaner.cleanSubsumedCheckpoints(
                 2, Collections.emptySet(), () -> {}, Executors.directExecutor());
-        assertTrue(cp1.isDiscarded());
+        assertThat(cp1.isDiscarded()).isTrue();
         // cp2 is the lowest checkpoint that is still valid, shouldn't discard.
-        assertFalse(cp2.isDiscarded());
+        assertThat(cp2.isDiscarded()).isFalse();
         // cp3 is higher than cp2, shouldn't discard.
-        assertFalse(cp3.isDiscarded());
+        assertThat(cp3.isDiscarded()).isFalse();
     }
 }

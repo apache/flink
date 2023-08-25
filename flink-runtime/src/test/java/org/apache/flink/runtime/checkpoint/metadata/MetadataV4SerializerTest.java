@@ -20,7 +20,7 @@ package org.apache.flink.runtime.checkpoint.metadata;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointProperties;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -29,13 +29,13 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 
 import static java.util.Collections.emptyList;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link MetadataV4Serializer} test. */
-public class MetadataV4SerializerTest {
+class MetadataV4SerializerTest {
 
     @Test
-    public void testSerializeProperties() throws IOException {
+    void testSerializeProperties() throws IOException {
         CheckpointMetadata metadata =
                 new CheckpointMetadata(
                         1L,
@@ -51,10 +51,10 @@ public class MetadataV4SerializerTest {
 
             try (DataInputStream dis =
                     new DataInputStream(new ByteArrayInputStream(out.toByteArray()))) {
-                assertEquals(
-                        metadata.getCheckpointProperties(),
-                        instance.deserialize(dis, metadata.getClass().getClassLoader(), "")
-                                .getCheckpointProperties());
+                assertThat(
+                                instance.deserialize(dis, metadata.getClass().getClassLoader(), "")
+                                        .getCheckpointProperties())
+                        .isEqualTo(metadata.getCheckpointProperties());
             }
         }
     }

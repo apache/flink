@@ -35,10 +35,10 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
@@ -53,17 +53,15 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Various tests for the version 3 format serializer of a checkpoint. */
-public class MetadataV3SerializerTest {
+class MetadataV3SerializerTest {
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path temporaryFolder;
 
     @Test
-    public void testCheckpointWithNoState() throws Exception {
+    void testCheckpointWithNoState() throws Exception {
         final Random rnd = new Random();
 
         for (int i = 0; i < 100; ++i) {
@@ -76,7 +74,7 @@ public class MetadataV3SerializerTest {
     }
 
     @Test
-    public void testCheckpointWithOnlyMasterState() throws Exception {
+    void testCheckpointWithOnlyMasterState() throws Exception {
         final Random rnd = new Random();
         final int maxNumMasterStates = 5;
 
@@ -94,13 +92,13 @@ public class MetadataV3SerializerTest {
     }
 
     @Test
-    public void testCheckpointWithOnlyTaskStateForCheckpoint() throws Exception {
+    void testCheckpointWithOnlyTaskStateForCheckpoint() throws Exception {
         testCheckpointWithOnlyTaskState(null);
     }
 
     @Test
-    public void testCheckpointWithOnlyTaskStateForSavepoint() throws Exception {
-        testCheckpointWithOnlyTaskState(temporaryFolder.newFolder().toURI().toString());
+    void testCheckpointWithOnlyTaskStateForSavepoint() throws Exception {
+        testCheckpointWithOnlyTaskState(TempDirUtils.newFolder(temporaryFolder).toURI().toString());
     }
 
     private void testCheckpointWithOnlyTaskState(String basePath) throws Exception {
@@ -124,13 +122,14 @@ public class MetadataV3SerializerTest {
     }
 
     @Test
-    public void testCheckpointWithMasterAndTaskStateForCheckpoint() throws Exception {
+    void testCheckpointWithMasterAndTaskStateForCheckpoint() throws Exception {
         testCheckpointWithMasterAndTaskState(null);
     }
 
     @Test
-    public void testCheckpointWithMasterAndTaskStateForSavepoint() throws Exception {
-        testCheckpointWithMasterAndTaskState(temporaryFolder.newFolder().toURI().toString());
+    void testCheckpointWithMasterAndTaskStateForSavepoint() throws Exception {
+        testCheckpointWithMasterAndTaskState(
+                TempDirUtils.newFolder(temporaryFolder).toURI().toString());
     }
 
     private void testCheckpointWithMasterAndTaskState(String basePath) throws Exception {
@@ -158,13 +157,13 @@ public class MetadataV3SerializerTest {
     }
 
     @Test
-    public void testCheckpointWithFinishedTasksForCheckpoint() throws Exception {
+    void testCheckpointWithFinishedTasksForCheckpoint() throws Exception {
         testCheckpointWithFinishedTasks(null);
     }
 
     @Test
-    public void testCheckpointWithFinishedTasksForSavepoint() throws Exception {
-        testCheckpointWithFinishedTasks(temporaryFolder.newFolder().toURI().toString());
+    void testCheckpointWithFinishedTasksForSavepoint() throws Exception {
+        testCheckpointWithFinishedTasks(TempDirUtils.newFolder(temporaryFolder).toURI().toString());
     }
 
     private void testCheckpointWithFinishedTasks(String basePath) throws Exception {
@@ -243,17 +242,18 @@ public class MetadataV3SerializerTest {
         DataInputStream in = new DataInputViewStreamWrapper(new ByteArrayInputStreamWithPos(bytes));
         CheckpointMetadata deserialized =
                 serializer.deserialize(in, getClass().getClassLoader(), basePath);
-        assertEquals(checkpointId, deserialized.getCheckpointId());
-        assertEquals(operatorStates, deserialized.getOperatorStates());
-        assertEquals(
-                operatorStates.stream()
-                        .map(OperatorState::isFullyFinished)
-                        .collect(Collectors.toList()),
-                deserialized.getOperatorStates().stream()
-                        .map(OperatorState::isFullyFinished)
-                        .collect(Collectors.toList()));
+        assertThat(deserialized.getCheckpointId()).isEqualTo(checkpointId);
+        assertThat(deserialized.getOperatorStates()).isEqualTo(operatorStates);
+        assertThat(
+                        deserialized.getOperatorStates().stream()
+                                .map(OperatorState::isFullyFinished)
+                                .collect(Collectors.toList()))
+                .isEqualTo(
+                        operatorStates.stream()
+                                .map(OperatorState::isFullyFinished)
+                                .collect(Collectors.toList()));
 
-        assertEquals(masterStates.size(), deserialized.getMasterStates().size());
+        assertThat(deserialized.getMasterStates()).hasSameSizeAs(masterStates);
         for (Iterator<MasterState> a = masterStates.iterator(),
                         b = deserialized.getMasterStates().iterator();
                 a.hasNext(); ) {
@@ -262,7 +262,7 @@ public class MetadataV3SerializerTest {
     }
 
     @Test
-    public void testSerializeKeyGroupsStateHandle() throws IOException {
+    void testSerializeKeyGroupsStateHandle() throws IOException {
         KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(0, 123);
         byte[] data = {1, 2, 3, 4};
         try (ByteArrayOutputStreamWithPos out = new ByteArrayOutputStreamWithPos()) {
@@ -273,24 +273,25 @@ public class MetadataV3SerializerTest {
                 StreamStateHandle handle =
                         MetadataV2V3SerializerBase.deserializeStreamStateHandle(
                                 new DataInputStream(in), null);
-                assertTrue(handle instanceof KeyGroupsStateHandle);
-                assertEquals(offsets, ((KeyGroupsStateHandle) handle).getGroupRangeOffsets());
+                assertThat(handle).isNotNull().isInstanceOf(KeyGroupsStateHandle.class);
+                assertThat(((KeyGroupsStateHandle) handle).getGroupRangeOffsets())
+                        .isEqualTo(offsets);
                 byte[] deserialized = new byte[data.length];
                 try (FSDataInputStream dataStream = handle.openInputStream()) {
                     dataStream.read(deserialized);
-                    assertArrayEquals(data, deserialized);
+                    assertThat(deserialized).isEqualTo(data);
                 }
             }
         }
     }
 
     @Test
-    public void testSerializeIncrementalChangelogStateBackendHandle() throws IOException {
+    void testSerializeIncrementalChangelogStateBackendHandle() throws IOException {
         testSerializeChangelogStateBackendHandle(false);
     }
 
     @Test
-    public void testSerializeFullChangelogStateBackendHandle() throws IOException {
+    void testSerializeFullChangelogStateBackendHandle() throws IOException {
         testSerializeChangelogStateBackendHandle(true);
     }
 
@@ -302,11 +303,12 @@ public class MetadataV3SerializerTest {
                 KeyedStateHandle deserialized =
                         MetadataV2V3SerializerBase.deserializeKeyedStateHandle(
                                 new DataInputStream(in), null);
-                assertTrue(deserialized instanceof ChangelogStateBackendHandleImpl);
-                assertEquals(
-                        ((ChangelogStateBackendHandleImpl) deserialized)
-                                .getMaterializedStateHandles(),
-                        handle.getMaterializedStateHandles());
+                assertThat(deserialized)
+                        .isInstanceOfSatisfying(
+                                ChangelogStateBackendHandleImpl.class,
+                                o ->
+                                        assertThat(o.getMaterializedStateHandles())
+                                                .isEqualTo(handle.getMaterializedStateHandles()));
             }
         }
     }

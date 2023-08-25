@@ -18,29 +18,28 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class CheckpointStatsStatusTest {
+class CheckpointStatsStatusTest {
 
     /** Tests the getters of each status. */
     @Test
-    public void testStatusValues() throws Exception {
+    void testStatusValues() {
         CheckpointStatsStatus inProgress = CheckpointStatsStatus.IN_PROGRESS;
-        assertTrue(inProgress.isInProgress());
-        assertFalse(inProgress.isCompleted());
-        assertFalse(inProgress.isFailed());
+        assertThat(inProgress.isInProgress()).isTrue();
+        assertThat(inProgress.isCompleted()).isFalse();
+        assertThat(inProgress.isFailed()).isFalse();
 
         CheckpointStatsStatus completed = CheckpointStatsStatus.COMPLETED;
-        assertFalse(completed.isInProgress());
-        assertTrue(completed.isCompleted());
-        assertFalse(completed.isFailed());
+        assertThat(completed.isInProgress()).isFalse();
+        assertThat(completed.isCompleted()).isTrue();
+        assertThat(completed.isFailed()).isFalse();
 
         CheckpointStatsStatus failed = CheckpointStatsStatus.FAILED;
-        assertFalse(failed.isInProgress());
-        assertFalse(failed.isCompleted());
-        assertTrue(failed.isFailed());
+        assertThat(failed.isInProgress()).isFalse();
+        assertThat(failed.isCompleted()).isFalse();
+        assertThat(failed.isFailed()).isTrue();
     }
 }

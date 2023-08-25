@@ -17,15 +17,15 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.mappings;
-import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.set;
 import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.to;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests {@link RescaleMappings}. */
-public class RescaleMappingsTest {
+class RescaleMappingsTest {
+
     /**
      * Tests inversion of {@link RescaleMappings}.
      *
@@ -38,29 +38,29 @@ public class RescaleMappingsTest {
      * </pre>
      */
     @Test
-    public void testInvert() {
+    void testInvert() {
         RescaleMappings mapping = mappings(to(0), to(0), to(), to(2, 3), to(0, 5));
         RescaleMappings inverted = mapping.invert();
         RescaleMappings expected = mappings(to(0, 1, 4), to(), to(3), to(3), to(), to(4));
 
-        assertEquals(expected, inverted);
+        assertThat(inverted).isEqualTo(expected);
 
-        assertEquals(mapping, inverted.invert());
+        assertThat(inverted.invert()).isEqualTo(mapping);
     }
 
     @Test
-    public void testNormalization() {
+    void testNormalization() {
         RescaleMappings mapping = mappings(to(0), to(0), to(), to(2, 3), to(0, 5), to(), to());
 
-        assertEquals(7, mapping.getNumberOfSources());
-        assertEquals(6, mapping.getNumberOfTargets());
-        assertEquals(5, mapping.getMappings().length);
+        assertThat(mapping.getNumberOfSources()).isEqualTo(7);
+        assertThat(mapping.getNumberOfTargets()).isEqualTo(6);
+        assertThat(mapping.getMappings()).hasNumberOfRows(5);
     }
 
     @Test
-    public void testAmbiguousTargets() {
+    void testAmbiguousTargets() {
         RescaleMappings mapping = mappings(to(0), to(1, 2), to(), to(2, 3, 4), to(4, 5), to());
 
-        assertEquals(set(2, 4), mapping.getAmbiguousTargets());
+        assertThat(mapping.getAmbiguousTargets()).containsExactly(2, 4);
     }
 }
