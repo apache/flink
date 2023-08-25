@@ -100,7 +100,9 @@ public class ChangelogKeyedStateBackendTest {
 
             runnable = backend.initMaterialization();
             // 1. should trigger first materialization
-            assertThat(runnable).withFailMessage("first materialization should be trigger.").isNotEmpty();
+            assertThat(runnable)
+                    .withFailMessage("first materialization should be trigger.")
+                    .isNotEmpty();
 
             appendMockStateChange(backend); // ensure there is non-materialized changelog
 
