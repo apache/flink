@@ -20,17 +20,20 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.util.OperatingSystem;
 
 import org.assertj.core.api.ThrowableAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.nio.file.Path;
 import java.util.Set;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for {@link FileCatalogStore}. */
 class FileCatalogStoreTest {
@@ -51,7 +54,7 @@ class FileCatalogStoreTest {
 
     @Test
     void testNotOpened() {
-        CatalogStore catalogStore = initCatalogStore(false);
+        CatalogStore catalogStore = initCatalogStore();
 
         assertCatalogStoreNotOpened(catalogStore::listCatalogs);
         assertCatalogStoreNotOpened(() -> catalogStore.contains(DUMMY));
@@ -61,21 +64,34 @@ class FileCatalogStoreTest {
     }
 
     @Test
-    void testStoreDirNotExists() {
-        CatalogStore catalogStore = initCatalogStore(false);
-        Path catalogStorePath = tempDir.resolve(CATALOG_STORE_DIR_NAME);
+    void testCannotMakeStorePath() {
+        assumeThat(OperatingSystem.isWindows())
+                .as("setWritable doesn't work on Windows.")
+                .isFalse();
 
-        assertThatThrownBy(catalogStore::open)
-                .isInstanceOf(CatalogException.class)
-                .hasMessageContaining(
-                        "Failed to open catalog store. The catalog store directory "
-                                + catalogStorePath
-                                + " does not exist.");
+        Path storeParentPath = tempDir.resolve("parent");
+        assertThat(storeParentPath.toFile().mkdir()).isTrue();
+
+        Path storePath = storeParentPath.resolve(CATALOG_STORE_DIR_NAME);
+        FileCatalogStore catalogStore = new FileCatalogStore(storePath.toString());
+
+        File storeParentFile = storeParentPath.toFile();
+        try {
+            assertThat(storeParentFile.setWritable(false, false)).isTrue();
+
+            assertThatThrownBy(catalogStore::open)
+                    .isInstanceOf(CatalogException.class)
+                    .hasMessageContaining(
+                            "Failed to open file catalog store directory " + storePath + ".")
+                    .hasRootCauseInstanceOf(FileNotFoundException.class);
+        } finally {
+            storeParentFile.setWritable(true, false);
+        }
     }
 
     @Test
     void testStore() {
-        CatalogStore catalogStore = initCatalogStore(true);
+        CatalogStore catalogStore = initCatalogStore();
         catalogStore.open();
 
         catalogStore.storeCatalog(DUMMY, DUMMY_CATALOG);
@@ -92,7 +108,7 @@ class FileCatalogStoreTest {
 
     @Test
     void testRemoveExisting() {
-        CatalogStore catalogStore = initCatalogStore(true);
+        CatalogStore catalogStore = initCatalogStore();
         catalogStore.open();
 
         catalogStore.storeCatalog(DUMMY, DUMMY_CATALOG);
@@ -108,7 +124,7 @@ class FileCatalogStoreTest {
 
     @Test
     void testRemoveNonExisting() {
-        CatalogStore catalogStore = initCatalogStore(true);
+        CatalogStore catalogStore = initCatalogStore();
         catalogStore.open();
 
         catalogStore.removeCatalog(DUMMY, true);
@@ -122,7 +138,7 @@ class FileCatalogStoreTest {
 
     @Test
     void testClose() {
-        CatalogStore catalogStore = initCatalogStore(true);
+        CatalogStore catalogStore = initCatalogStore();
         catalogStore.open();
 
         catalogStore.storeCatalog(DUMMY, DUMMY_CATALOG);
@@ -144,11 +160,8 @@ class FileCatalogStoreTest {
                 .hasMessageContaining("CatalogStore is not opened yet.");
     }
 
-    private CatalogStore initCatalogStore(boolean createDir) {
+    private CatalogStore initCatalogStore() {
         Path catalogStorePath = tempDir.resolve(CATALOG_STORE_DIR_NAME);
-        if (createDir) {
-            catalogStorePath.toFile().mkdir();
-        }
 
         return new FileCatalogStore(catalogStorePath.toString());
     }

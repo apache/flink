@@ -78,10 +78,7 @@ public class FileCatalogStore extends AbstractCatalogStore {
         try {
             FileSystem fs = catalogStorePath.getFileSystem();
             if (!fs.exists(catalogStorePath)) {
-                throw new CatalogException(
-                        String.format(
-                                "Failed to open catalog store. The catalog store directory %s does not exist.",
-                                catalogStorePath));
+                fs.mkdirs(catalogStorePath);
             }
 
             if (!fs.getFileStatus(catalogStorePath).isDir()) {
