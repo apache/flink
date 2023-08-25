@@ -233,7 +233,7 @@ class KerberosLoginProviderITCase {
             ugi.when(UserGroupInformation::getCurrentUser).thenReturn(userGroupInformation);
 
             assertThatCode(() -> kerberosLoginProvider.doLogin(true))
-                    .withFailMessage("Proxy user is not supported")
+                    .as("Proxy user is not supported")
                     .doesNotThrowAnyException();
         }
     }

@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 import java.net.InetAddress;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -38,7 +38,7 @@ class TaskManagerLocationTest {
 
     @Test
     void testEqualsHashAndCompareTo() {
-        try {
+        assertThatCode(() -> {
             ResourceID resourceID1 = new ResourceID("a");
             ResourceID resourceID2 = new ResourceID("b");
             ResourceID resourceID3 = new ResourceID("c");
@@ -85,10 +85,7 @@ class TaskManagerLocationTest {
                 int val = one.compareTo(two);
                 assertThat(two.compareTo(one)).isEqualTo(-val);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        }).doesNotThrowAnyException();
     }
 
     @Test
@@ -126,7 +123,7 @@ class TaskManagerLocationTest {
 
     @Test
     void testSerialization() {
-        try {
+        assertThatCode(() -> {
             // without resolved hostname
             {
                 TaskManagerLocation original =
@@ -147,15 +144,12 @@ class TaskManagerLocationTest {
                 TaskManagerLocation serCopy = InstantiationUtil.clone(original);
                 assertThat(original).isEqualTo(serCopy);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        }).doesNotThrowAnyException();
     }
 
     @Test
     void testGetFQDNHostname() {
-        try {
+        assertThatCode(() -> {
             TaskManagerLocation info1 =
                     new TaskManagerLocation(
                             ResourceID.generate(), InetAddress.getByName("127.0.0.1"), 19871);
@@ -165,15 +159,12 @@ class TaskManagerLocationTest {
                     new TaskManagerLocation(
                             ResourceID.generate(), InetAddress.getByName("1.2.3.4"), 8888);
             assertThat(info2.getFQDNHostname()).isNotNull();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        }).doesNotThrowAnyException();
     }
 
     @Test
     void testGetHostname0() {
-        try {
+        assertThatCode(() -> {
             InetAddress address = mock(InetAddress.class);
             when(address.getCanonicalHostName()).thenReturn("worker2.cluster.mycompany.com");
             when(address.getHostName()).thenReturn("worker2.cluster.mycompany.com");
@@ -182,15 +173,12 @@ class TaskManagerLocationTest {
             final TaskManagerLocation info =
                     new TaskManagerLocation(ResourceID.generate(), address, 19871);
             assertThat("worker2").isEqualTo(info.getHostname());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        }).doesNotThrowAnyException();
     }
 
     @Test
     void testGetHostname1() {
-        try {
+        assertThatCode(() -> {
             InetAddress address = mock(InetAddress.class);
             when(address.getCanonicalHostName()).thenReturn("worker10");
             when(address.getHostName()).thenReturn("worker10");
@@ -199,15 +187,12 @@ class TaskManagerLocationTest {
             TaskManagerLocation info =
                     new TaskManagerLocation(ResourceID.generate(), address, 19871);
             assertThat("worker10").isEqualTo(info.getHostname());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        }).doesNotThrowAnyException();
     }
 
     @Test
     void testGetHostname2() {
-        try {
+        assertThatCode(() -> {
             final String addressString = "192.168.254.254";
 
             // we mock the addresses to save the times of the reverse name lookups
@@ -226,10 +211,7 @@ class TaskManagerLocationTest {
 
             assertThat(info.getHostname()).isNotNull();
             assertThat(info.getHostname()).isEqualTo(addressString);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        }).doesNotThrowAnyException();
     }
 
     @Test

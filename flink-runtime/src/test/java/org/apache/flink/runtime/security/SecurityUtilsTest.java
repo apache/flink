@@ -81,12 +81,11 @@ class SecurityUtilsTest {
                                 TestSecurityModuleFactory.class.getCanonicalName()));
 
         SecurityUtils.install(sc);
-        assertThat(SecurityUtils.getInstalledContext().getClass())
-                .isEqualTo(TestSecurityContextFactory.TestSecurityContext.class);
+        assertThat(SecurityUtils.getInstalledContext())
+                .isInstanceOf(TestSecurityContextFactory.TestSecurityContext.class);
 
         SecurityUtils.uninstall();
-        assertThat(SecurityUtils.getInstalledContext().getClass())
-                .isEqualTo(NoOpSecurityContext.class);
+        assertThat(SecurityUtils.getInstalledContext()).isInstanceOf(NoOpSecurityContext.class);
     }
 
     @Test
@@ -102,12 +101,11 @@ class SecurityUtilsTest {
         SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
 
         SecurityUtils.install(testSecurityConf);
-        assertThat(SecurityUtils.getInstalledContext().getClass())
-                .isEqualTo(TestSecurityContextFactory.TestSecurityContext.class);
+        assertThat(SecurityUtils.getInstalledContext())
+                .isInstanceOf(TestSecurityContextFactory.TestSecurityContext.class);
 
         SecurityUtils.uninstall();
-        assertThat(SecurityUtils.getInstalledContext().getClass())
-                .isEqualTo(NoOpSecurityContext.class);
+        assertThat(SecurityUtils.getInstalledContext()).isInstanceOf(NoOpSecurityContext.class);
     }
 
     /** Verify that we fall back to a second configuration if the first one is incompatible. */
@@ -124,12 +122,11 @@ class SecurityUtilsTest {
         SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
 
         SecurityUtils.install(testSecurityConf);
-        assertThat(SecurityUtils.getInstalledContext().getClass())
-                .isEqualTo(TestSecurityContextFactory.TestSecurityContext.class);
+        assertThat(SecurityUtils.getInstalledContext())
+                .isInstanceOf(TestSecurityContextFactory.TestSecurityContext.class);
 
         SecurityUtils.uninstall();
-        assertThat(SecurityUtils.getInstalledContext().getClass())
-                .isEqualTo(NoOpSecurityContext.class);
+        assertThat(SecurityUtils.getInstalledContext()).isInstanceOf(NoOpSecurityContext.class);
     }
 
     /** Verify that we pick the first valid security context. */
@@ -146,12 +143,12 @@ class SecurityUtilsTest {
         SecurityConfiguration testSecurityConf = new SecurityConfiguration(testFlinkConf);
 
         SecurityUtils.install(testSecurityConf);
-        assertThat(SecurityUtils.getInstalledContext().getClass())
-                .isEqualTo(AnotherCompatibleTestSecurityContextFactory.TestSecurityContext.class);
+        assertThat(SecurityUtils.getInstalledContext())
+                .isInstanceOf(
+                        AnotherCompatibleTestSecurityContextFactory.TestSecurityContext.class);
 
         SecurityUtils.uninstall();
-        assertThat(SecurityUtils.getInstalledContext().getClass())
-                .isEqualTo(NoOpSecurityContext.class);
+        assertThat(SecurityUtils.getInstalledContext()).isInstanceOf(NoOpSecurityContext.class);
 
         testFlinkConf.set(
                 SecurityOptions.SECURITY_CONTEXT_FACTORY_CLASSES,
@@ -162,12 +159,11 @@ class SecurityUtilsTest {
         testSecurityConf = new SecurityConfiguration(testFlinkConf);
 
         SecurityUtils.install(testSecurityConf);
-        assertThat(SecurityUtils.getInstalledContext().getClass())
-                .isEqualTo(TestSecurityContextFactory.TestSecurityContext.class);
+        assertThat(SecurityUtils.getInstalledContext())
+                .isInstanceOf(TestSecurityContextFactory.TestSecurityContext.class);
 
         SecurityUtils.uninstall();
-        assertThat(SecurityUtils.getInstalledContext().getClass())
-                .isEqualTo(NoOpSecurityContext.class);
+        assertThat(SecurityUtils.getInstalledContext()).isInstanceOf(NoOpSecurityContext.class);
     }
 
     @Test

@@ -157,9 +157,9 @@ class DefaultDelegationTokenManagerTest {
         DefaultDelegationTokenManager.checkProviderAndReceiverConsistency(providers, receivers);
 
         assertThat(providers).hasSize(1);
-        assertThat(providers.containsKey("test")).isTrue();
+        assertThat(providers).containsKey("test");
         assertThat(receivers).hasSize(1);
-        assertThat(receivers.containsKey("test")).isTrue();
+        assertThat(receivers).containsKey("test");
     }
 
     @Test

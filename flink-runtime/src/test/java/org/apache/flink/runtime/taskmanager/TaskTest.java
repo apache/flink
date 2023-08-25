@@ -323,7 +323,7 @@ class TaskTest extends TestLogger {
         // verify final state
         assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         assertThat(task.isCanceledOrFailed()).isTrue();
-        assertThat(task.getFailureCause().getMessage().contains(errorMessage)).isTrue();
+        assertThat(task.getFailureCause().getMessage()).contains(errorMessage);
 
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED, task, new IllegalStateException(errorMessage));
@@ -344,7 +344,7 @@ class TaskTest extends TestLogger {
         // verify final state
         assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         assertThat(task.isCanceledOrFailed()).isTrue();
-        assertThat(task.getFailureCause().getMessage().contains("instantiate")).isTrue();
+        assertThat(task.getFailureCause().getMessage()).contains("instantiate");
 
         taskManagerActions.validateListenerMessage(
                 ExecutionState.FAILED,
@@ -389,7 +389,7 @@ class TaskTest extends TestLogger {
         assertThat(task.isCanceledOrFailed()).isTrue();
         assertThat(task.getFailureCause()).isNotNull();
         assertThat(task.getFailureCause().getMessage()).isNotNull();
-        assertThat(task.getFailureCause().getMessage().contains("test")).isTrue();
+        assertThat(task.getFailureCause().getMessage()).contains("test");
 
         taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
@@ -412,7 +412,7 @@ class TaskTest extends TestLogger {
         assertThat(task.isCanceledOrFailed()).isTrue();
 
         final Throwable cause = task.getFailureCause();
-        assertThat(cause instanceof IOException).isTrue();
+        assertThat(cause).isInstanceOf(IOException.class);
 
         taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
@@ -529,7 +529,7 @@ class TaskTest extends TestLogger {
 
         assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         assertThat(task.isCanceledOrFailed()).isTrue();
-        assertThat(task.getFailureCause().getMessage().contains("test")).isTrue();
+        assertThat(task.getFailureCause().getMessage()).contains("test");
 
         taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
@@ -553,7 +553,7 @@ class TaskTest extends TestLogger {
 
         assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         assertThat(task.isCanceledOrFailed()).isTrue();
-        assertThat(task.getFailureCause().getMessage().contains("test")).isTrue();
+        assertThat(task.getFailureCause().getMessage()).contains("test");
 
         taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
@@ -619,7 +619,7 @@ class TaskTest extends TestLogger {
 
         assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         assertThat(task.isCanceledOrFailed()).isTrue();
-        assertThat(task.getFailureCause().getMessage().contains("external")).isTrue();
+        assertThat(task.getFailureCause().getMessage()).contains("external");
 
         taskManagerActions.validateListenerMessage(ExecutionState.INITIALIZING, task, null);
         taskManagerActions.validateListenerMessage(ExecutionState.RUNNING, task, null);
@@ -666,7 +666,7 @@ class TaskTest extends TestLogger {
 
         assertThat(task.getExecutionState()).isEqualTo(ExecutionState.FAILED);
         assertThat(task.isCanceledOrFailed()).isTrue();
-        assertThat(task.getFailureCause().getMessage().contains("external")).isTrue();
+        assertThat(task.getFailureCause().getMessage()).contains("external");
     }
 
     @Test
@@ -843,7 +843,7 @@ class TaskTest extends TestLogger {
 
                 assertThat(task.getExecutionState()).isEqualTo(ExecutionState.RUNNING);
 
-                assertThat(callCount.get()).isEqualTo(1);
+                assertThat(callCount.get()).isOne();
             } finally {
                 task.getExecutingThread().interrupt();
                 task.getExecutingThread().join();
@@ -886,7 +886,7 @@ class TaskTest extends TestLogger {
 
                 assertThat(task.getExecutionState()).isEqualTo(ExecutionState.RUNNING);
 
-                assertThat(callCount.get()).isEqualTo(1);
+                assertThat(callCount.get()).isOne();
             } finally {
                 task.getExecutingThread().interrupt();
                 task.getExecutingThread().join();

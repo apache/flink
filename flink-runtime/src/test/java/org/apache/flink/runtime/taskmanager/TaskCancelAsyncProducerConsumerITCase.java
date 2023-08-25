@@ -148,7 +148,7 @@ class TaskCancelAsyncProducerConsumerITCase {
 
         // Verify that async producer is in blocking request
         assertThat(producerBlocked)
-                .withFailMessage(
+                .as(
                         "Producer thread is not blocked: "
                                 + Arrays.toString(ASYNC_PRODUCER_THREAD.getStackTrace()))
                 .isTrue();
@@ -186,10 +186,10 @@ class TaskCancelAsyncProducerConsumerITCase {
 
         // Verify the expected Exceptions
         assertThat(ASYNC_PRODUCER_EXCEPTION).isNotNull();
-        assertThat(ASYNC_PRODUCER_EXCEPTION.getClass()).isEqualTo(CancelTaskException.class);
+        assertThat(ASYNC_PRODUCER_EXCEPTION).isInstanceOf(CancelTaskException.class);
 
         assertThat(ASYNC_CONSUMER_EXCEPTION).isNotNull();
-        assertThat(ASYNC_CONSUMER_EXCEPTION.getClass()).isEqualTo(IllegalStateException.class);
+        assertThat(ASYNC_CONSUMER_EXCEPTION).isInstanceOf(IllegalStateException.class);
     }
 
     /** Invokable emitting records in a separate Thread (not the main Task thread). */

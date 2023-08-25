@@ -128,7 +128,7 @@ class HadoopFSDelegationTokenProviderITCase {
                 };
 
         assertThat(provider.getTokenRenewalInterval(constantClock, Collections.emptySet()))
-                .isEqualTo(Optional.of(1L));
+                .hasValue(1L);
     }
 
     @Test
