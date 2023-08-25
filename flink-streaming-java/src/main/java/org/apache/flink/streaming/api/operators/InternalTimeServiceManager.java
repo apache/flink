@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
@@ -78,7 +79,8 @@ public interface InternalTimeServiceManager<K> {
                 KeyContext keyContext,
                 ProcessingTimeService processingTimeService,
                 Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
-                StreamTaskCancellationContext cancellationContext)
+                StreamTaskCancellationContext cancellationContext,
+                MetricGroup metricGroup)
                 throws Exception;
     }
 }

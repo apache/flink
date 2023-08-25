@@ -31,6 +31,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
@@ -238,7 +239,8 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                             KeyContext keyContext,
                             ProcessingTimeService processingTimeService,
                             Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
-                            StreamTaskCancellationContext cancellationContext)
+                            StreamTaskCancellationContext cancellationContext,
+                            MetricGroup metricGroup)
                             throws IOException {
                         return null;
                     }

@@ -722,6 +722,37 @@ public class InternalTimerServiceImplTest {
     }
 
     @Test
+    public void testPeekNumTimer() throws Exception {
+        @SuppressWarnings("unchecked")
+        Triggerable<Integer, String> mockTriggerable = mock(Triggerable.class);
+        TestKeyContext keyContext = new TestKeyContext();
+        TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+
+        InternalTimerServiceImpl<Integer, String> timeService =
+                createAndStartInternalTimerService(
+                        mockTriggerable,
+                        keyContext,
+                        processingTimeService,
+                        testKeyGroupRange,
+                        createQueueFactory());
+
+        int key1 = getKeyInKeyGroupRange(testKeyGroupRange, maxParallelism);
+        keyContext.setCurrentKey(key1);
+
+        assertEquals(0, timeService.peekNumTimers().orElse(-1).intValue());
+        timeService.registerEventTimeTimer("ciao", 10);
+        timeService.registerProcessingTimeTimer(
+                "hello", processingTimeService.getCurrentProcessingTime() + 1);
+        assertEquals(2, timeService.peekNumTimers().orElse(-1).intValue());
+
+        timeService.advanceWatermark(10);
+        assertEquals(1, timeService.peekNumTimers().orElse(-1).intValue());
+
+        processingTimeService.advance(processingTimeService.getCurrentProcessingTime() + 2);
+        assertEquals(0, timeService.peekNumTimers().orElse(-1).intValue());
+    }
+
+    @Test
     public void testSnapshotAndRestore() throws Exception {
         testSnapshotAndRestore(InternalTimerServiceSerializationProxy.VERSION);
     }

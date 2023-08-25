@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
@@ -74,12 +75,16 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
 
     private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
+    @VisibleForTesting static final String NUMBER_OF_TIMERS_METRIC = "numberOfTimers";
+    private final MetricGroup numOfTimersMetricGroup;
+
     private InternalTimeServiceManagerImpl(
             KeyGroupRange localKeyGroupRange,
             KeyContext keyContext,
             PriorityQueueSetFactory priorityQueueSetFactory,
             ProcessingTimeService processingTimeService,
-            StreamTaskCancellationContext cancellationContext) {
+            StreamTaskCancellationContext cancellationContext,
+            MetricGroup metricGroup) {
 
         this.localKeyGroupRange = Preconditions.checkNotNull(localKeyGroupRange);
         this.priorityQueueSetFactory = Preconditions.checkNotNull(priorityQueueSetFactory);
@@ -88,6 +93,7 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
         this.cancellationContext = cancellationContext;
 
         this.timerServices = new HashMap<>();
+        this.numOfTimersMetricGroup = metricGroup.addGroup(NUMBER_OF_TIMERS_METRIC);
     }
 
     /**
@@ -101,7 +107,8 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
             KeyContext keyContext,
             ProcessingTimeService processingTimeService,
             Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
-            StreamTaskCancellationContext cancellationContext)
+            StreamTaskCancellationContext cancellationContext,
+            MetricGroup metricGroup)
             throws Exception {
         final KeyGroupRange keyGroupRange = keyedStateBackend.getKeyGroupRange();
 
@@ -111,7 +118,8 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
                         keyContext,
                         keyedStateBackend,
                         processingTimeService,
-                        cancellationContext);
+                        cancellationContext,
+                        metricGroup);
 
         // and then initialize the timer services
         for (KeyGroupStatePartitionStreamProvider streamProvider : rawKeyedStates) {
@@ -154,10 +162,10 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     @SuppressWarnings("unchecked")
     <N> InternalTimerServiceImpl<K, N> registerOrGetTimerService(
             String name, TimerSerializer<K, N> timerSerializer) {
-        InternalTimerServiceImpl<K, N> timerService =
-                (InternalTimerServiceImpl<K, N>) timerServices.get(name);
-        if (timerService == null) {
-
+        final InternalTimerServiceImpl<K, N> timerService;
+        if (timerServices.containsKey(name)) {
+            timerService = (InternalTimerServiceImpl<K, N>) timerServices.get(name);
+        } else {
             timerService =
                     new InternalTimerServiceImpl<>(
                             localKeyGroupRange,
@@ -169,6 +177,15 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
                             cancellationContext);
 
             timerServices.put(name, timerService);
+        }
+
+        if (timerService.peekNumTimers().isPresent()) {
+            numOfTimersMetricGroup.gauge(
+                    name,
+                    () -> {
+                        Preconditions.checkState(timerService.peekNumTimers().isPresent());
+                        return timerService.peekNumTimers().get();
+                    });
         }
         return timerService;
     }

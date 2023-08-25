@@ -28,6 +28,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -193,7 +194,8 @@ public class StateInitializationContextImplTest {
                                     KeyContext keyContext,
                                     ProcessingTimeService processingTimeService,
                                     Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
-                                    StreamTaskCancellationContext cancellationContext)
+                                    StreamTaskCancellationContext cancellationContext,
+                                    MetricGroup metricGroup)
                                     throws Exception {
                                 // We do not initialize a timer service manager here, because it
                                 // would already consume the raw keyed

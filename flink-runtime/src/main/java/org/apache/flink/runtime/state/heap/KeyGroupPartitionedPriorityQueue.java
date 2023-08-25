@@ -34,6 +34,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -153,6 +154,18 @@ public class KeyGroupPartitionedPriorityQueue<
             sizeSum += list.size();
         }
         return sizeSum;
+    }
+
+    @Override
+    public Optional<Integer> peekSize() {
+        int sizeSum = 0;
+        for (PQ list : keyGroupedHeaps) {
+            sizeSum += list.peekSize().orElse(-sizeSum - 1);
+            if (sizeSum < 0) {
+                break;
+            }
+        }
+        return sizeSum < 0 ? Optional.empty() : Optional.of(sizeSum);
     }
 
     @Override

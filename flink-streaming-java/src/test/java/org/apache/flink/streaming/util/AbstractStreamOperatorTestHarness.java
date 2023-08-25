@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
@@ -151,7 +152,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                         KeyContext keyContext,
                         ProcessingTimeService processingTimeService,
                         Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates,
-                        StreamTaskCancellationContext cancellationContext)
+                        StreamTaskCancellationContext cancellationContext,
+                        MetricGroup metricGroup)
                         throws Exception {
                     InternalTimeServiceManagerImpl<K> typedTimeServiceManager =
                             InternalTimeServiceManagerImpl.create(
@@ -160,7 +162,8 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                                     keyContext,
                                     processingTimeService,
                                     rawKeyedStates,
-                                    cancellationContext);
+                                    cancellationContext,
+                                    metricGroup);
                     timeServiceManager = typedTimeServiceManager;
                     return typedTimeServiceManager;
                 }

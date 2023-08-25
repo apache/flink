@@ -215,7 +215,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                                 keyContext,
                                 processingTimeService,
                                 restoredRawKeyedStateTimers,
-                                cancellationContext);
+                                cancellationContext,
+                                environment.getMetricGroup());
             } else {
                 timeServiceManager = null;
             }

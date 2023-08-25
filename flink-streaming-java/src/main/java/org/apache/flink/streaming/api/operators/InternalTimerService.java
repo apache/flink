@@ -21,6 +21,8 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.function.BiConsumerWithException;
 
+import java.util.Optional;
+
 /**
  * Interface for working with time and timers.
  *
@@ -69,4 +71,9 @@ public interface InternalTimerService<N> {
      */
     void forEachProcessingTimeTimer(BiConsumerWithException<N, Long, Exception> consumer)
             throws Exception;
+
+    /** Perform a lightweight peek at the summation of event-time and processing-time timers. */
+    default Optional<Integer> peekNumTimers() {
+        return Optional.empty();
+    }
 }

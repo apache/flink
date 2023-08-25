@@ -26,6 +26,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Interface for collection that gives in order access to elements w.r.t their priority.
@@ -94,6 +95,16 @@ public interface InternalPriorityQueue<T> {
      */
     @Nonnegative
     int size();
+
+    /**
+     * Lightweight peek the number of elements in this set. Only heap priority queue support
+     * lightweight peek right now.
+     *
+     * @return the number of elements in this set if lightweight size peek is supported.
+     */
+    default Optional<Integer> peekSize() {
+        return Optional.empty();
+    }
 
     /** Adds all the given elements to the set. */
     void addAll(@Nullable Collection<? extends T> toAdd);

@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import static org.apache.flink.util.CollectionUtil.MAX_ARRAY_SIZE;
 
@@ -87,6 +88,11 @@ public abstract class AbstractHeapPriorityQueue<T extends HeapPriorityQueueEleme
     @Override
     public int size() {
         return size;
+    }
+
+    @Override
+    public Optional<Integer> peekSize() {
+        return Optional.of(size);
     }
 
     @Override

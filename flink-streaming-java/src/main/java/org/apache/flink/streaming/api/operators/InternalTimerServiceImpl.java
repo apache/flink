@@ -34,6 +34,7 @@ import org.apache.flink.util.function.BiConsumerWithException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 
@@ -262,6 +263,17 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
     public void forEachProcessingTimeTimer(BiConsumerWithException<N, Long, Exception> consumer)
             throws Exception {
         foreachTimer(consumer, processingTimeTimersQueue);
+    }
+
+    @Override
+    public Optional<Integer> peekNumTimers() {
+        int numEventTimeTimers = eventTimeTimersQueue.peekSize().orElse(-1);
+        int numProcessingTimeTimers = processingTimeTimersQueue.peekSize().orElse(-1);
+        if (numEventTimeTimers != -1 && numProcessingTimeTimers != -1) {
+            return Optional.of(numEventTimeTimers + numProcessingTimeTimers);
+        } else {
+            return Optional.empty();
+        }
     }
 
     private void foreachTimer(
