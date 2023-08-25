@@ -25,11 +25,9 @@ import org.apache.flink.core.failure.FailureEnricherFactory;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.TestingPluginManager;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.collections.IteratorUtils;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -47,7 +45,6 @@ import static org.apache.flink.runtime.failure.FailureEnricherUtils.MERGE_EXCEPT
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link FailureEnricherUtils} class. */
-@ExtendWith(TestLoggerExtension.class)
 class FailureEnricherUtilsTest {
 
     @Test

@@ -51,11 +51,9 @@ import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.test.recovery.utils.TaskExecutorProcessEntryPoint;
 import org.apache.flink.test.util.TestProcessBuilder;
 import org.apache.flink.util.ConfigurationException;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +69,6 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandP
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** This test ensures the TaskManager disconnects from the ResourceManager on shutdown. */
-@ExtendWith(TestLoggerExtension.class)
 public class TaskManagerDisconnectOnShutdownITCase {
 
     private static final Logger LOG =

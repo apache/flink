@@ -20,11 +20,9 @@ package org.apache.flink.runtime.io.network.partition.hybrid;
 
 import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndex.ReadableRegion;
 import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndex.SpilledBuffer;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
@@ -37,7 +35,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link HsFileDataIndexImpl}. */
-@ExtendWith(TestLoggerExtension.class)
 class HsFileDataIndexImplTest {
     private static final int NUM_SUBPARTITIONS = 2;
 

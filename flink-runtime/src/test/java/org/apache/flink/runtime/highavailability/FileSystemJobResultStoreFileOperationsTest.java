@@ -23,7 +23,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -31,7 +30,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -46,7 +44,6 @@ import static org.apache.flink.runtime.highavailability.JobResultStoreContractTe
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the internal {@link FileSystemJobResultStore} mechanisms. */
-@ExtendWith(TestLoggerExtension.class)
 public class FileSystemJobResultStoreFileOperationsTest {
 
     private static final ObjectMapper MAPPER = JacksonMapperFactory.createObjectMapper();

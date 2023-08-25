@@ -19,10 +19,8 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,7 +35,6 @@ import java.util.concurrent.Future;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test base class with common tests for the {@link CheckpointIDCounter} implementations. */
-@ExtendWith(TestLoggerExtension.class)
 abstract class CheckpointIDCounterTestBase {
 
     protected abstract CheckpointIDCounter createCheckpointIdCounter() throws Exception;

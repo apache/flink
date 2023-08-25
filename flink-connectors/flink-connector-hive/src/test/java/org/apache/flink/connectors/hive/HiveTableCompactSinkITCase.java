@@ -27,13 +27,11 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.nio.file.Files;
@@ -45,7 +43,6 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for Hive table compaction in batch mode. */
-@ExtendWith(TestLoggerExtension.class)
 class HiveTableCompactSinkITCase {
 
     @RegisterExtension

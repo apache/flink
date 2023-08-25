@@ -23,10 +23,8 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -35,7 +33,6 @@ import java.io.File;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT Tests for {@link UpsertTestDynamicTableSink}. */
-@ExtendWith(TestLoggerExtension.class)
 class UpsertTestDynamicTableSinkITCase {
 
     @RegisterExtension

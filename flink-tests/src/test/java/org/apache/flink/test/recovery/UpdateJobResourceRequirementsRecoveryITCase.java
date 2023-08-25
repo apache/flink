@@ -35,10 +35,8 @@ import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.test.scheduling.UpdateJobResourceRequirementsITCase;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -50,7 +48,6 @@ import java.time.Duration;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 
 /** Tests for recovering of rescaled jobs. */
-@ExtendWith(TestLoggerExtension.class)
 class UpdateJobResourceRequirementsRecoveryITCase {
 
     private static final Logger LOG =

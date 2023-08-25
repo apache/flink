@@ -18,10 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import org.apache.flink.util.TestLoggerExtension;
-
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -32,7 +29,6 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link org.apache.flink.runtime.jobgraph.JobResourceRequirements}. */
-@ExtendWith(TestLoggerExtension.class)
 class JobResourceRequirementsTest {
 
     private final JobVertexID firstVertexId = new JobVertexID();

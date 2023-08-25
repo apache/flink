@@ -25,7 +25,6 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
@@ -55,7 +54,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for the {@link FileUtils}. */
-@ExtendWith(TestLoggerExtension.class)
 public class FileUtilsTest {
 
     @TempDir private java.nio.file.Path temporaryFolder;

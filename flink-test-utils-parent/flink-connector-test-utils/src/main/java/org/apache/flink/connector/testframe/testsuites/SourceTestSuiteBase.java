@@ -52,7 +52,6 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
 import org.apache.flink.util.CloseableIterator;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.commons.math3.util.Precision;
 import org.junit.jupiter.api.DisplayName;
@@ -93,11 +92,7 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondit
  *   <li>Requirement of running this case
  * </ul>
  */
-@ExtendWith({
-    ConnectorTestingExtension.class,
-    TestLoggerExtension.class,
-    TestCaseInvocationContextProvider.class
-})
+@ExtendWith({ConnectorTestingExtension.class, TestCaseInvocationContextProvider.class})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Experimental
 public abstract class SourceTestSuiteBase<T> {

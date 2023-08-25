@@ -19,10 +19,8 @@
 package org.apache.flink.connector.upserttest.sink;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -31,7 +29,6 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link UpsertTestSinkBuilder}. */
-@ExtendWith(TestLoggerExtension.class)
 class UpsertTestSinkBuilderTest {
 
     @TempDir static File tempFile;

@@ -23,10 +23,8 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -35,7 +33,6 @@ import java.time.Duration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RestHandlerConfiguration}. */
-@ExtendWith(TestLoggerExtension.class)
 class RestHandlerConfigurationTest {
 
     @Test

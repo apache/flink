@@ -18,10 +18,7 @@
 
 package org.apache.flink.runtime.entrypoint;
 
-import org.apache.flink.util.TestLoggerExtension;
-
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -31,7 +28,6 @@ import java.nio.file.Files;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link WorkingDirectory}. */
-@ExtendWith(TestLoggerExtension.class)
 public class WorkingDirectoryTest {
 
     @Test

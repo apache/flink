@@ -23,13 +23,10 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 /** Test base for {@link GenericWriteAheadSink}. */
-@ExtendWith(TestLoggerExtension.class)
 public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>> {
 
     protected abstract S createSink() throws Exception;

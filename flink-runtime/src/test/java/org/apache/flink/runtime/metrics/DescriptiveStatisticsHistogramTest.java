@@ -20,11 +20,9 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.metrics.AbstractHistogramTest;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.testcontainers.utility.ThrowingFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,7 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for {@link DescriptiveStatisticsHistogram} and {@link
  * DescriptiveStatisticsHistogramStatistics}.
  */
-@ExtendWith(TestLoggerExtension.class)
 class DescriptiveStatisticsHistogramTest extends AbstractHistogramTest {
 
     private static final double[] DATA = {1, 2, 3, 4, 5, 6, 7, 8, 9};

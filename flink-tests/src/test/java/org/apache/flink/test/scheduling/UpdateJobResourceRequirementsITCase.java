@@ -36,15 +36,12 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 /** Tests for the manual rescaling of Flink jobs using the REST API. */
-@ExtendWith(TestLoggerExtension.class)
 public class UpdateJobResourceRequirementsITCase {
 
     private static final int NUMBER_OF_SLOTS = 4;

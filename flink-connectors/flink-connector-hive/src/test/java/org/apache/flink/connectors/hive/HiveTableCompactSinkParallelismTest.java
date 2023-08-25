@@ -28,12 +28,10 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collections;
 import java.util.List;
@@ -43,7 +41,6 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.S
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests to verify operator's parallelism of {@link HiveTableSink} enabled auto-compaction. */
-@ExtendWith(TestLoggerExtension.class)
 class HiveTableCompactSinkParallelismTest {
     /**
      * Represents the parallelism doesn't need to be checked, it should follow the setting of planer

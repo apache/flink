@@ -23,10 +23,8 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -42,7 +40,6 @@ import static org.assertj.core.api.Assertions.fail;
  *
  * @param <T>
  */
-@ExtendWith(TestLoggerExtension.class)
 public abstract class ComparatorTestBase<T> {
 
     // Same as in the NormalizedKeySorter

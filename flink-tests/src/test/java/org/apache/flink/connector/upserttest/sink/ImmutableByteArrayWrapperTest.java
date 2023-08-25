@@ -18,17 +18,13 @@
 
 package org.apache.flink.connector.upserttest.sink;
 
-import org.apache.flink.util.TestLoggerExtension;
-
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test for {@link ImmutableByteArrayWrapper}. */
-@ExtendWith(TestLoggerExtension.class)
 class ImmutableByteArrayWrapperTest {
 
     @Test

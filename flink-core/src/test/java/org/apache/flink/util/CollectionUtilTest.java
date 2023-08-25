@@ -20,7 +20,6 @@ package org.apache.flink.util;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,7 +29,6 @@ import static org.apache.flink.util.CollectionUtil.HASH_MAP_DEFAULT_LOAD_FACTOR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for java collection utilities. */
-@ExtendWith(TestLoggerExtension.class)
 public class CollectionUtilTest {
 
     @Test
