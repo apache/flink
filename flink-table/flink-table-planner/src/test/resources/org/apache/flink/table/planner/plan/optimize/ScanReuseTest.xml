@@ -1261,81 +1261,93 @@ Calc(select=[a, c, c0])
   </TestCase>
   <TestCase name="testReuseWithReadMetadataAndWatermarkPushDown1[isStreaming: true]">
     <Resource name="sql">
-      <![CDATA[SELECT T1.a0, T1.a1 FROM (SELECT MIN(a0) as a0, MIN(a1) as a1, MIN(metadata_0) as metadata_0  FROM MyTable1 GROUP BY TUMBLE(rowtime, INTERVAL '1' SECOND)) T1, (SELECT MIN(a0) as a0 FROM MyTable1 GROUP BY TUMBLE(rowtime, INTERVAL '1' SECOND)) T2 WHERE T1.a0 = T2.a0]]>
+      <![CDATA[SELECT T1.a1, T1.a2 FROM (SELECT a0, window_start, window_end, MIN(a1) as a1, MIN(a2) as a2, MIN(metadata_0) as metadata_0 FROM TABLE(   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND))  GROUP BY a0, window_start, window_end) T1, (SELECT a0, window_start, window_end, MIN(a1) as a1  FROM TABLE(   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND))  GROUP BY a0, window_start, window_end) T2 WHERE T1.a1 = T2.a1]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a0=[$0], a1=[$1])
-+- LogicalFilter(condition=[=($0, $3)])
+LogicalProject(a1=[$3], a2=[$4])
++- LogicalFilter(condition=[=($3, $9)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a0=[$1], a1=[$2], metadata_0=[$3])
-      :  +- LogicalAggregate(group=[{0}], a0=[MIN($1)], a1=[MIN($2)], metadata_0=[MIN($3)])
-      :     +- LogicalProject($f0=[$TUMBLE($4, 1000:INTERVAL SECOND)], a0=[$1], a1=[$2], metadata_0=[$0])
-      :        +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-      :           +- LogicalProject(metadata_0=[$3], a0=[$0], a1=[$1], ts=[$2], rowtime=[TO_TIMESTAMP($2)])
-      :              +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-      +- LogicalProject(a0=[$1])
-         +- LogicalAggregate(group=[{0}], a0=[MIN($1)])
-            +- LogicalProject($f0=[$TUMBLE($4, 1000:INTERVAL SECOND)], a0=[$1])
-               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-                  +- LogicalProject(metadata_0=[$3], a0=[$0], a1=[$1], ts=[$2], rowtime=[TO_TIMESTAMP($2)])
-                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      :- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)], a2=[MIN($4)], metadata_0=[MIN($5)])
+      :  +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2], a2=[$3], metadata_0=[$0])
+      :     +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($5), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      :        +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+      :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+      :              +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+      :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)])
+         +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2])
+            +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($5), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+               +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+                     +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a0, a1])
-+- Join(joinType=[InnerJoin], where=[(a0 = a00)], select=[a0, a1, a00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a0]])
-   :  +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 1000)], select=[MIN(a0) AS a0, MIN(a1) AS a1])
-   :     +- Exchange(distribution=[single])
-   :        +- Calc(select=[Reinterpret(TO_TIMESTAMP(ts)) AS rowtime, a0, a1, metadata_0])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, project=[a0, a1, ts, metadata_0], metadata=[metadata_0], watermark=[-(TO_TIMESTAMP(ts), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a0, a1, ts, metadata_0])(reuse_id=[1])
-   +- Exchange(distribution=[hash[a0]])
-      +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 1000)], select=[MIN(a0) AS a0])
-         +- Exchange(distribution=[single])
-            +- Calc(select=[Reinterpret(TO_TIMESTAMP(ts)) AS rowtime, a0])
-               +- Reused(reference_id=[1])
+Calc(select=[a1, a2])
++- Join(joinType=[InnerJoin], where=[(a1 = a10)], select=[a1, a2, a10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Calc(select=[a1, a2])
+   :     +- GlobalWindowAggregate(groupBy=[a0], window=[TUMBLE(slice_end=[$slice_end], size=[1 s])], select=[a0, MIN(min$0) AS a1, MIN(min$1) AS a2, start('w$) AS window_start, end('w$) AS window_end])
+   :        +- Exchange(distribution=[hash[a0]])
+   :           +- LocalWindowAggregate(groupBy=[a0], window=[TUMBLE(time_col=[rowtime], size=[1 s])], select=[a0, MIN(a1) AS min$0, MIN(a2) AS min$1, slice_end('w$) AS $slice_end])
+   :              +- Calc(select=[a0, a1, a2, metadata_0, Reinterpret(TO_TIMESTAMP(ts)) AS rowtime])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, project=[a0, a1, a2, ts, metadata_0], metadata=[metadata_0], watermark=[-(TO_TIMESTAMP(ts), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a0, a1, a2, ts, metadata_0])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1])
+         +- GlobalWindowAggregate(groupBy=[a0], window=[TUMBLE(slice_end=[$slice_end], size=[1 s])], select=[a0, MIN(min$0) AS a1, start('w$) AS window_start, end('w$) AS window_end])
+            +- Exchange(distribution=[hash[a0]])
+               +- LocalWindowAggregate(groupBy=[a0], window=[TUMBLE(time_col=[rowtime], size=[1 s])], select=[a0, MIN(a1) AS min$0, slice_end('w$) AS $slice_end])
+                  +- Calc(select=[a0, a1, Reinterpret(TO_TIMESTAMP(ts)) AS rowtime])
+                     +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testReuseWithReadMetadataAndWatermarkPushDown2[isStreaming: true]">
     <Resource name="sql">
-      <![CDATA[SELECT T1.a0, T2.a1 FROM (SELECT MIN(a0) as a0 FROM MyTable1 GROUP BY TUMBLE(rowtime, INTERVAL '1' SECOND)) T1, (SELECT MIN(a0) as a0, MIN(a1) as a1, MIN(metadata_0) as metadata_0 FROM MyTable1 GROUP BY TUMBLE(rowtime, INTERVAL '1' SECOND)) T2 WHERE T1.a0 = T2.a0]]>
+      <![CDATA[SELECT T1.a1, T2.a2 FROM (SELECT a0, window_start, window_end, MIN(a1) as a1  FROM TABLE(   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND))  GROUP BY a0, window_start, window_end) T1, (SELECT a0, window_start, window_end, MIN(a1) as a1, MIN(a2) as a2, MIN(metadata_0) as metadata_0 FROM TABLE(   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND))  GROUP BY a0, window_start, window_end) T2 WHERE T1.a1 = T2.a1]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a0=[$0], a1=[$2])
-+- LogicalFilter(condition=[=($0, $1)])
+LogicalProject(a1=[$3], a2=[$8])
++- LogicalFilter(condition=[=($3, $7)])
    +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a0=[$1])
-      :  +- LogicalAggregate(group=[{0}], a0=[MIN($1)])
-      :     +- LogicalProject($f0=[$TUMBLE($4, 1000:INTERVAL SECOND)], a0=[$1])
-      :        +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-      :           +- LogicalProject(metadata_0=[$3], a0=[$0], a1=[$1], ts=[$2], rowtime=[TO_TIMESTAMP($2)])
-      :              +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-      +- LogicalProject(a0=[$1], a1=[$2], metadata_0=[$3])
-         +- LogicalAggregate(group=[{0}], a0=[MIN($1)], a1=[MIN($2)], metadata_0=[MIN($3)])
-            +- LogicalProject($f0=[$TUMBLE($4, 1000:INTERVAL SECOND)], a0=[$1], a1=[$2], metadata_0=[$0])
-               +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-                  +- LogicalProject(metadata_0=[$3], a0=[$0], a1=[$1], ts=[$2], rowtime=[TO_TIMESTAMP($2)])
-                     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      :- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)])
+      :  +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2])
+      :     +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($5), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+      :        +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+      :           +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+      :              +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+      :                 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalAggregate(group=[{0, 1, 2}], a1=[MIN($3)], a2=[MIN($4)], metadata_0=[MIN($5)])
+         +- LogicalProject(a0=[$1], window_start=[$6], window_end=[$7], a1=[$2], a2=[$3], metadata_0=[$0])
+            +- LogicalTableFunctionScan(invocation=[TUMBLE(DESCRIPTOR($5), 1000:INTERVAL SECOND)], rowType=[RecordType(INTEGER metadata_0, INTEGER a0, INTEGER a1, INTEGER a2, VARCHAR(2147483647) ts, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
+               +- LogicalProject(metadata_0=[$0], a0=[$1], a1=[$2], a2=[$3], ts=[$4], rowtime=[$5])
+                  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($5, 1000:INTERVAL SECOND)])
+                     +- LogicalProject(metadata_0=[$4], a0=[$0], a1=[$1], a2=[$2], ts=[$3], rowtime=[TO_TIMESTAMP($3)])
+                        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a0, a1])
-+- Join(joinType=[InnerJoin], where=[(a0 = a00)], select=[a0, a00, a1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a0]])
-   :  +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 1000)], select=[MIN(a0) AS a0])
-   :     +- Exchange(distribution=[single])
-   :        +- Calc(select=[Reinterpret(TO_TIMESTAMP(ts)) AS rowtime, a0])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, project=[a0, a1, ts, metadata_0], metadata=[metadata_0], watermark=[-(TO_TIMESTAMP(ts), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a0, a1, ts, metadata_0])(reuse_id=[1])
-   +- Exchange(distribution=[hash[a0]])
-      +- GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 1000)], select=[MIN(a0) AS a0, MIN(a1) AS a1])
-         +- Exchange(distribution=[single])
-            +- Calc(select=[Reinterpret(TO_TIMESTAMP(ts)) AS rowtime, a0, a1, metadata_0])
-               +- Reused(reference_id=[1])
+Calc(select=[a1, a2])
++- Join(joinType=[InnerJoin], where=[(a1 = a10)], select=[a1, a10, a2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Calc(select=[a1])
+   :     +- GlobalWindowAggregate(groupBy=[a0], window=[TUMBLE(slice_end=[$slice_end], size=[1 s])], select=[a0, MIN(min$0) AS a1, start('w$) AS window_start, end('w$) AS window_end])
+   :        +- Exchange(distribution=[hash[a0]])
+   :           +- LocalWindowAggregate(groupBy=[a0], window=[TUMBLE(time_col=[rowtime], size=[1 s])], select=[a0, MIN(a1) AS min$0, slice_end('w$) AS $slice_end])
+   :              +- Calc(select=[a0, a1, Reinterpret(TO_TIMESTAMP(ts)) AS rowtime])
+   :                 +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, project=[a0, a1, a2, ts, metadata_0], metadata=[metadata_0], watermark=[-(TO_TIMESTAMP(ts), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic]]], fields=[a0, a1, a2, ts, metadata_0])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a1]])
+      +- Calc(select=[a1, a2])
+         +- GlobalWindowAggregate(groupBy=[a0], window=[TUMBLE(slice_end=[$slice_end], size=[1 s])], select=[a0, MIN(min$0) AS a1, MIN(min$1) AS a2, start('w$) AS window_start, end('w$) AS window_end])
+            +- Exchange(distribution=[hash[a0]])
+               +- LocalWindowAggregate(groupBy=[a0], window=[TUMBLE(time_col=[rowtime], size=[1 s])], select=[a0, MIN(a1) AS min$0, MIN(a2) AS min$1, slice_end('w$) AS $slice_end])
+                  +- Calc(select=[a0, a1, a2, metadata_0, Reinterpret(TO_TIMESTAMP(ts)) AS rowtime])
+                     +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

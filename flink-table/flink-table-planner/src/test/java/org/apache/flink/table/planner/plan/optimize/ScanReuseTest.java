@@ -335,6 +335,7 @@ public class ScanReuseTest extends TableTestBase {
                         + "  metadata_0 int METADATA VIRTUAL,\n"
                         + "  a0 int,\n"
                         + "  a1 int,\n"
+                        + "  a2 int,\n"
                         + "  ts STRING,\n "
                         + "  rowtime as TO_TIMESTAMP(`ts`),\n"
                         + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
@@ -349,13 +350,17 @@ public class ScanReuseTest extends TableTestBase {
 
         // join left side value source without projection spec.
         String sqlQuery =
-                "SELECT T1.a0, T1.a1 FROM"
-                        + " (SELECT MIN(a0) as a0, MIN(a1) as a1, MIN(metadata_0) as metadata_0 "
-                        + " FROM MyTable1 GROUP BY"
-                        + " TUMBLE(rowtime, INTERVAL '1' SECOND)) T1,"
-                        + " (SELECT MIN(a0) as a0 FROM MyTable1 GROUP BY"
-                        + " TUMBLE(rowtime, INTERVAL '1' SECOND)) T2"
-                        + " WHERE T1.a0 = T2.a0";
+                "SELECT T1.a1, T1.a2 FROM"
+                        + " (SELECT a0, window_start, window_end,"
+                        + " MIN(a1) as a1, MIN(a2) as a2, MIN(metadata_0) as metadata_0"
+                        + " FROM TABLE("
+                        + "   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND)) "
+                        + " GROUP BY a0, window_start, window_end) T1,"
+                        + " (SELECT a0, window_start, window_end, MIN(a1) as a1"
+                        + "  FROM TABLE("
+                        + "   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND)) "
+                        + " GROUP BY a0, window_start, window_end) T2"
+                        + " WHERE T1.a1 = T2.a1";
         util.verifyExecPlan(sqlQuery);
     }
 
@@ -367,6 +372,7 @@ public class ScanReuseTest extends TableTestBase {
                         + "  metadata_0 int METADATA VIRTUAL,\n"
                         + "  a0 int,\n"
                         + "  a1 int,\n"
+                        + "  a2 int,\n"
                         + "  ts STRING,\n "
                         + "  rowtime as TO_TIMESTAMP(`ts`),\n"
                         + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
@@ -381,13 +387,17 @@ public class ScanReuseTest extends TableTestBase {
 
         // join right side value source without projection spec.
         String sqlQuery =
-                "SELECT T1.a0, T2.a1 FROM"
-                        + " (SELECT MIN(a0) as a0 FROM MyTable1 GROUP BY"
-                        + " TUMBLE(rowtime, INTERVAL '1' SECOND)) T1,"
-                        + " (SELECT MIN(a0) as a0, MIN(a1) as a1, MIN(metadata_0) as metadata_0"
-                        + " FROM MyTable1 GROUP BY"
-                        + " TUMBLE(rowtime, INTERVAL '1' SECOND)) T2"
-                        + " WHERE T1.a0 = T2.a0";
+                "SELECT T1.a1, T2.a2 FROM"
+                        + " (SELECT a0, window_start, window_end, MIN(a1) as a1"
+                        + "  FROM TABLE("
+                        + "   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND)) "
+                        + " GROUP BY a0, window_start, window_end) T1,"
+                        + " (SELECT a0, window_start, window_end,"
+                        + " MIN(a1) as a1, MIN(a2) as a2, MIN(metadata_0) as metadata_0"
+                        + " FROM TABLE("
+                        + "   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND)) "
+                        + " GROUP BY a0, window_start, window_end) T2"
+                        + " WHERE T1.a1 = T2.a1";
         util.verifyExecPlan(sqlQuery);
     }
 }
