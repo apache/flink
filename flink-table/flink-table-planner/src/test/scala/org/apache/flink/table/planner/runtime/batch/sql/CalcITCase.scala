@@ -416,6 +416,41 @@ class CalcITCase extends BatchTestBase {
         row(3, 2L, "Hello world"),
         row(4, 3L, "Hello world, how are you?")
       ))
+
+    val rows = Seq(row(3, "H.llo"), row(3, "Hello"))
+    val dataId = TestValuesTableFactory.registerData(rows)
+
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a int,
+         |  c string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+
+    checkResult(
+      s"""
+         |SELECT c FROM MyTable
+         |  WHERE c LIKE 'H.llo'
+         |""".stripMargin,
+      Seq(row("H.llo"))
+    )
+    checkResult(
+      s"""
+         |SELECT c FROM MyTable
+         |  WHERE c SIMILAR TO 'H.llo'
+         |""".stripMargin,
+      Seq(row("H.llo"), row("Hello"))
+    )
+    checkEmptyResult(s"""
+                        |SELECT c FROM MyTable
+                        |  WHERE c NOT SIMILAR TO 'H.llo'
+                        |""".stripMargin)
   }
 
   @Test
