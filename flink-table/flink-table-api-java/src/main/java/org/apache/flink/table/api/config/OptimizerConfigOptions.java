@@ -186,7 +186,7 @@ public class OptimizerConfigOptions {
             TABLE_OPTIMIZER_RUNTIME_FILTER_MAX_BUILD_DATA_SIZE =
                     key("table.optimizer.runtime-filter.max-build-data-size")
                             .memoryType()
-                            .defaultValue(MemorySize.parse("100m"))
+                            .defaultValue(MemorySize.parse("150m"))
                             .withDescription(
                                     "Max data volume threshold of the runtime filter build side. "
                                             + "Estimated data volume needs to be under this value to try to inject runtime filter.");
