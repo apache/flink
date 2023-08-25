@@ -41,6 +41,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Arrays;
 import java.util.stream.Stream;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** IT case for runtime filter. */
 class RuntimeFilterITCase extends BatchTestBase {
 
@@ -121,8 +123,11 @@ class RuntimeFilterITCase extends BatchTestBase {
         tEnv.getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, ofcg);
         configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
+        String sql = "select * from fact, dim where x = a and z >= 3";
+        // Check runtime filter is working
+        assertThat(tEnv().explainSql(sql)).contains("RuntimeFilter");
         checkResult(
-                "select * from fact, dim where x = a and z = 3",
+                sql,
                 JavaScalaConversionUtil.toScala(
                         Arrays.asList(
                                 Row.of(3, 4, 3, "Hallo Welt wie gehts?", 2, 3, 4, 3),
@@ -148,8 +153,12 @@ class RuntimeFilterITCase extends BatchTestBase {
         tEnv.getConfig()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
 
+        String sql =
+                "select * from fact join (select x, sum(z) from dim where z = 2 group by x) dimSide on x = a";
+        // Check runtime filter is working
+        assertThat(tEnv().explainSql(sql)).contains("RuntimeFilter");
         checkResult(
-                "select * from fact join (select x, sum(z) from dim where z = 2 group by x) dimSide on x = a",
+                sql,
                 JavaScalaConversionUtil.toScala(
                         Arrays.asList(
                                 Row.of(2, 2, 1, "Hallo Welt", 2, 2, 2),
@@ -198,8 +207,12 @@ class RuntimeFilterITCase extends BatchTestBase {
                         FlinkRuntimeFilterProgramTest.SUITABLE_FACT_ROW_COUNT, 1, 1, 1),
                 false);
 
+        String sql =
+                "select * from fact, fact2, dim where fact.a = fact2.a and fact.a = dim.x and z = 2";
+        // Check runtime filter is working
+        assertThat(tEnv().explainSql(sql)).contains("RuntimeFilter");
         checkResult(
-                "select * from fact, fact2, dim where fact.a = fact2.a and fact.a = dim.x and z = 2",
+                sql,
                 JavaScalaConversionUtil.toScala(
                         Arrays.asList(
                                 Row.of(2, 2, 1, "Hallo Welt", 2, 2, 2, 2, 2, 2),
