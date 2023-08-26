@@ -237,7 +237,12 @@ class GroupReduceDriverTest {
             Object[] res = result.getList().toArray();
             Object[] expected = DriverTestData.createReduceMutableDataGroupedResult().toArray();
 
-            DriverTestData.compareTupleArrays(expected, res);
+            try {
+                DriverTestData.compareTupleArrays(expected, res);
+                fail("Accumulationg mutable objects is expected to result in incorrect values.");
+            } catch (AssertionError e) {
+                // expected
+            }
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
