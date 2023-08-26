@@ -47,6 +47,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 
 class HashTableTest {
@@ -137,19 +138,19 @@ class HashTableTest {
 
             table.open(new TupleBytesIterator(payload, numRecords), new LongIterator(10000));
 
-            try {
-                while (table.nextRecord()) {
-                    MutableObjectIterator<Tuple2<Long, byte[]>> matches =
-                            table.getBuildSideIterator();
-                    while (matches.next() != null) ;
-                }
-            } catch (RuntimeException e) {
-                assertThat(e)
-                        .withFailMessage("Test failed with unexpected exception")
-                        .hasMessageContaining("exceeded maximum number of recursions");
-            } finally {
-                table.close();
-            }
+            assertThatThrownBy(
+                            () -> {
+                                while (table.nextRecord()) {
+                                    MutableObjectIterator<Tuple2<Long, byte[]>> matches =
+                                            table.getBuildSideIterator();
+                                    while (matches.next() != null) ;
+                                }
+                            })
+                    .withFailMessage("Test failed with unexpected exception")
+                    .hasMessageContaining("exceeded maximum number of recursions")
+                    .isInstanceOf(RuntimeException.class);
+
+            table.close();
 
             checkNoTempFilesRemain(ioMan);
         } catch (Exception e) {

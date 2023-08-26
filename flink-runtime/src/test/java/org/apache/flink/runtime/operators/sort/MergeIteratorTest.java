@@ -106,7 +106,7 @@ class MergeIteratorTest {
         int pos = 1;
 
         assertThat(rec1 = iterator.next(rec1)).isNotNull();
-        assertThat(rec1.f0.intValue()).isEqualTo(expected[0]);
+        assertThat(rec1.f0).isEqualTo(expected[0]);
 
         while ((rec2 = iterator.next(rec2)) != null) {
             k1 = rec1.f0;
