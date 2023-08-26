@@ -23,21 +23,21 @@ import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link KvStateLocation}. */
-public class KvStateLocationTest {
+class KvStateLocationTest {
 
     /** Simple test registering/unregistering state and looking it up again. */
     @Test
-    public void testRegisterAndLookup() throws Exception {
+    void testRegisterAndLookup() throws Exception {
         JobID jobId = new JobID();
         JobVertexID jobVertexId = new JobVertexID();
         int numKeyGroups = 123;
@@ -77,7 +77,7 @@ public class KvStateLocationTest {
             location.registerKvState(
                     keyGroupRange, kvStateIds[rangeIdx], serverAddresses[rangeIdx]);
             registeredCount += keyGroupRange.getNumberOfKeyGroups();
-            assertEquals(registeredCount, location.getNumRegisteredKeyGroups());
+            assertThat(location.getNumRegisteredKeyGroups()).isEqualTo(registeredCount);
         }
 
         // Lookup
@@ -86,8 +86,9 @@ public class KvStateLocationTest {
             for (int keyGroup = keyGroupRange.getStartKeyGroup();
                     keyGroup <= keyGroupRange.getEndKeyGroup();
                     ++keyGroup) {
-                assertEquals(kvStateIds[rangeIdx], location.getKvStateID(keyGroup));
-                assertEquals(serverAddresses[rangeIdx], location.getKvStateServerAddress(keyGroup));
+                assertThat(location.getKvStateID(keyGroup)).isEqualTo(kvStateIds[rangeIdx]);
+                assertThat(location.getKvStateServerAddress(keyGroup))
+                        .isEqualTo(serverAddresses[rangeIdx]);
             }
         }
 
@@ -98,7 +99,7 @@ public class KvStateLocationTest {
 
             location.registerKvState(
                     keyGroupRanges.get(rangeIdx), kvStateIds[rangeIdx], serverAddresses[rangeIdx]);
-            assertEquals(registeredCount, location.getNumRegisteredKeyGroups());
+            assertThat(location.getNumRegisteredKeyGroups()).isEqualTo(registeredCount);
         }
 
         // Lookup
@@ -107,8 +108,9 @@ public class KvStateLocationTest {
             for (int keyGroup = keyGroupRange.getStartKeyGroup();
                     keyGroup <= keyGroupRange.getEndKeyGroup();
                     ++keyGroup) {
-                assertEquals(kvStateIds[rangeIdx], location.getKvStateID(keyGroup));
-                assertEquals(serverAddresses[rangeIdx], location.getKvStateServerAddress(keyGroup));
+                assertThat(location.getKvStateID(keyGroup)).isEqualTo(kvStateIds[rangeIdx]);
+                assertThat(location.getKvStateServerAddress(keyGroup))
+                        .isEqualTo(serverAddresses[rangeIdx]);
             }
         }
 
@@ -117,7 +119,7 @@ public class KvStateLocationTest {
             KeyGroupRange keyGroupRange = keyGroupRanges.get(rangeIdx);
             location.unregisterKvState(keyGroupRange);
             registeredCount -= keyGroupRange.getNumberOfKeyGroups();
-            assertEquals(registeredCount, location.getNumRegisteredKeyGroups());
+            assertThat(location.getNumRegisteredKeyGroups()).isEqualTo(registeredCount);
         }
 
         // Lookup
@@ -126,11 +128,11 @@ public class KvStateLocationTest {
             for (int keyGroup = keyGroupRange.getStartKeyGroup();
                     keyGroup <= keyGroupRange.getEndKeyGroup();
                     ++keyGroup) {
-                assertEquals(null, location.getKvStateID(keyGroup));
-                assertEquals(null, location.getKvStateServerAddress(keyGroup));
+                assertThat(location.getKvStateID(keyGroup)).isNull();
+                assertThat(location.getKvStateServerAddress(keyGroup)).isNull();
             }
         }
 
-        assertEquals(0, location.getNumRegisteredKeyGroups());
+        assertThat(location.getNumRegisteredKeyGroups()).isZero();
     }
 }

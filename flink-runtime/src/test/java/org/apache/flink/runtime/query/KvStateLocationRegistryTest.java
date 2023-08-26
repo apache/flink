@@ -24,26 +24,24 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link KvStateLocationRegistry}. */
-public class KvStateLocationRegistryTest {
+class KvStateLocationRegistryTest {
 
     /** Simple test registering/unregistering state and looking it up again. */
     @Test
-    public void testRegisterAndLookup() throws Exception {
+    void testRegisterAndLookup() throws Exception {
         String[] registrationNames = new String[] {"TAsIrGnc7MULwVupNKZ0", "086133IrGn0Ii2853237"};
 
         ExecutionJobVertex[] vertices =
@@ -81,12 +79,12 @@ public class KvStateLocationRegistryTest {
         // Verify all registrations
         for (int i = 0; i < vertices.length; i++) {
             KvStateLocation location = registry.getKvStateLocation(registrationNames[i]);
-            assertNotNull(location);
+            assertThat(location).isNotNull();
 
             int maxParallelism = vertices[i].getMaxParallelism();
             for (int keyGroupIndex = 0; keyGroupIndex < maxParallelism; keyGroupIndex++) {
-                assertEquals(ids[i][keyGroupIndex], location.getKvStateID(keyGroupIndex));
-                assertEquals(server, location.getKvStateServerAddress(keyGroupIndex));
+                assertThat(location.getKvStateID(keyGroupIndex)).isEqualTo(ids[i][keyGroupIndex]);
+                assertThat(location.getKvStateServerAddress(keyGroupIndex)).isEqualTo(server);
             }
         }
 
@@ -103,13 +101,13 @@ public class KvStateLocationRegistryTest {
         }
 
         for (int i = 0; i < registrationNames.length; i++) {
-            assertNull(registry.getKvStateLocation(registrationNames[i]));
+            assertThat(registry.getKvStateLocation(registrationNames[i])).isNull();
         }
     }
 
     /** Tests that registrations with duplicate names throw an Exception. */
     @Test
-    public void testRegisterDuplicateName() throws Exception {
+    void testRegisterDuplicateName() throws Exception {
         ExecutionJobVertex[] vertices =
                 new ExecutionJobVertex[] {createJobVertex(32), createJobVertex(13)};
 
@@ -126,40 +124,40 @@ public class KvStateLocationRegistryTest {
                 new KvStateID(),
                 new InetSocketAddress(InetAddress.getLocalHost(), 12328));
 
-        try {
-            // Second operator registers same name
-            registry.notifyKvStateRegistered(
-                    vertices[1].getJobVertexId(),
-                    new KeyGroupRange(0, 0),
-                    registrationName,
-                    new KvStateID(),
-                    new InetSocketAddress(InetAddress.getLocalHost(), 12032));
-
-            fail("Did not throw expected Exception after duplicated name");
-        } catch (IllegalStateException ignored) {
-            // Expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                // Second operator registers same name
+                                registry.notifyKvStateRegistered(
+                                        vertices[1].getJobVertexId(),
+                                        new KeyGroupRange(0, 0),
+                                        registrationName,
+                                        new KvStateID(),
+                                        new InetSocketAddress(InetAddress.getLocalHost(), 12032)))
+                .withFailMessage("Did not throw expected Exception after duplicated name")
+                .isInstanceOf(IllegalStateException.class);
     }
 
     /** Tests exception on unregistration before registration. */
     @Test
-    public void testUnregisterBeforeRegister() throws Exception {
+    void testUnregisterBeforeRegister() throws Exception {
         ExecutionJobVertex vertex = createJobVertex(4);
         Map<JobVertexID, ExecutionJobVertex> vertexMap = createVertexMap(vertex);
 
         KvStateLocationRegistry registry = new KvStateLocationRegistry(new JobID(), vertexMap);
-        try {
-            registry.notifyKvStateUnregistered(
-                    vertex.getJobVertexId(), new KeyGroupRange(0, 0), "any-name");
-            fail("Did not throw expected Exception, because of missing registration");
-        } catch (IllegalArgumentException ignored) {
-            // Expected
-        }
+        assertThatThrownBy(
+                        () ->
+                                registry.notifyKvStateUnregistered(
+                                        vertex.getJobVertexId(),
+                                        new KeyGroupRange(0, 0),
+                                        "any-name"))
+                .withFailMessage(
+                        "Did not throw expected Exception, because of missing registration")
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** Tests failures during unregistration. */
     @Test
-    public void testUnregisterFailures() throws Exception {
+    void testUnregisterFailures() throws Exception {
         String name = "IrGnc73237TAs";
 
         ExecutionJobVertex[] vertices =
@@ -180,27 +178,28 @@ public class KvStateLocationRegistryTest {
                 new KvStateID(),
                 mock(InetSocketAddress.class));
 
-        try {
-            // Unregister not registered keyGroupIndex
-            int notRegisteredKeyGroupIndex = 2;
+        // Unregister not registered keyGroupIndex
+        int notRegisteredKeyGroupIndex = 2;
+        assertThatThrownBy(
+                        () ->
+                                registry.notifyKvStateUnregistered(
+                                        vertices[0].getJobVertexId(),
+                                        new KeyGroupRange(
+                                                notRegisteredKeyGroupIndex,
+                                                notRegisteredKeyGroupIndex),
+                                        name))
+                .withFailMessage("Did not throw expected Exception")
+                .isInstanceOf(IllegalArgumentException.class);
 
-            registry.notifyKvStateUnregistered(
-                    vertices[0].getJobVertexId(),
-                    new KeyGroupRange(notRegisteredKeyGroupIndex, notRegisteredKeyGroupIndex),
-                    name);
-
-            fail("Did not throw expected Exception");
-        } catch (IllegalArgumentException expected) {
-        }
-
-        try {
-            // Wrong operator tries to unregister
-            registry.notifyKvStateUnregistered(
-                    vertices[1].getJobVertexId(), new KeyGroupRange(0, 0), name);
-
-            fail("Did not throw expected Exception");
-        } catch (IllegalArgumentException expected) {
-        }
+        // Wrong operator tries to unregister
+        assertThatThrownBy(
+                        () ->
+                                registry.notifyKvStateUnregistered(
+                                        vertices[1].getJobVertexId(),
+                                        new KeyGroupRange(0, 0),
+                                        name))
+                .withFailMessage("Did not throw expected Exception")
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     // ------------------------------------------------------------------------
