@@ -74,8 +74,6 @@ public class TaskConfig implements Serializable {
 
     private static final String DRIVER_PAIR_COMPARATOR_FACTORY = "driver.paircomp";
 
-    private static final String DRIVER_MUTABLE_OBJECT_MODE = "diver.mutableobjects";
-
     // -------------------------------------- Inputs ----------------------------------------------
 
     private static final String NUM_INPUTS = "in.num";
@@ -364,14 +362,6 @@ public class TaskConfig implements Serializable {
         } else {
             return DriverStrategy.values()[ls];
         }
-    }
-
-    public void setMutableObjectMode(boolean mode) {
-        this.config.setBoolean(DRIVER_MUTABLE_OBJECT_MODE, mode);
-    }
-
-    public boolean getMutableObjectMode() {
-        return this.config.getBoolean(DRIVER_MUTABLE_OBJECT_MODE, false);
     }
 
     public void setDriverComparator(TypeComparatorFactory<?> factory, int inputNum) {
