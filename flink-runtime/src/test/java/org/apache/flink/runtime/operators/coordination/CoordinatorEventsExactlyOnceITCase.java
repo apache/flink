@@ -43,18 +43,17 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nullable;
 
@@ -123,7 +122,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * different delays in which they complete their checkpoints. Both coordinators inject failures at
  * different points.
  */
-public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
+public class CoordinatorEventsExactlyOnceITCase {
 
     private static final ConfigOption<String> ACC_NAME =
             ConfigOptions.key("acc").stringType().noDefaultValue();
@@ -131,9 +130,9 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
     private static final String OPERATOR_1_NAME = "operator-1";
     private static final String OPERATOR_2_NAME = "operator-2";
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER =
-            new MiniClusterResource(
+    @RegisterExtension
+    protected static final InternalMiniClusterExtension MINI_CLUSTER =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(2)
                             .setNumberSlotsPerTaskManager(1)
@@ -142,7 +141,7 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void test() throws Exception {
+    void test() throws Exception {
         // this captures variables communicated across instances, recoveries, etc.
         TestScript.reset();
 

@@ -44,12 +44,10 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyM
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -58,8 +56,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
 @SuppressWarnings("deprecation")
-public class NonReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
+class NonReusingSortMergeInnerJoinIteratorITCase {
 
     // total memory
     private static final int MEMORY_SIZE = 1024 * 1024 * 16;
@@ -88,8 +89,8 @@ public class NonReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
     private TypePairComparator<Tuple2<Integer, String>, Tuple2<Integer, String>> pairComparator;
 
     @SuppressWarnings("unchecked")
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         serializer1 =
                 new TupleSerializer<Tuple2<Integer, String>>(
                         (Class<Tuple2<Integer, String>>) (Class<?>) Tuple2.class,
@@ -120,24 +121,25 @@ public class NonReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
         this.ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         if (this.ioManager != null) {
             this.ioManager.close();
             this.ioManager = null;
         }
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .withFailMessage(
+                            "Memory Leak: Not all memory has been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
     }
 
     @Test
-    public void testMerge() {
+    void testMerge() {
         try {
 
             final TupleGenerator generator1 =
@@ -199,18 +201,18 @@ public class NonReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-                Assert.assertTrue(
-                        "Collection for key " + entry.getKey() + " is not empty",
-                        entry.getValue().isEmpty());
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
     @Test
-    public void testMergeWithHighNumberOfCommonKeys() {
+    void testMergeWithHighNumberOfCommonKeys() {
         // the size of the left and right inputs
         final int INPUT_1_SIZE = 200;
         final int INPUT_2_SIZE = 100;
@@ -318,13 +320,13 @@ public class NonReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 

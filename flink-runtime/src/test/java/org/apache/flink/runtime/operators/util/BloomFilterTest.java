@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class BloomFilterTest {
+class BloomFilterTest {
 
     private static BloomFilter bloomFilter;
     private static BloomFilter bloomFilter2;
@@ -35,7 +35,7 @@ public class BloomFilterTest {
     private static final double FALSE_POSITIVE_PROBABILITY = 0.05;
 
     @BeforeAll
-    public static void init() {
+    static void init() {
         int bitsSize = BloomFilter.optimalNumOfBits(INPUT_SIZE, FALSE_POSITIVE_PROBABILITY);
         bitsSize = bitsSize + (Long.SIZE - (bitsSize % Long.SIZE));
         int byteSize = bitsSize >>> 3;
@@ -49,35 +49,35 @@ public class BloomFilterTest {
     }
 
     @Test
-    public void testBloomFilterArguments1() {
+    void testBloomFilterArguments1() {
         assertThatThrownBy(() -> new BloomFilter(-1, 128))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test()
-    public void testBloomFilterArguments2() {
+    @Test
+    void testBloomFilterArguments2() {
         assertThatThrownBy(() -> new BloomFilter(0, 128))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test()
-    public void testBloomFilterArguments3() {
+    @Test
+    void testBloomFilterArguments3() {
         assertThatThrownBy(() -> new BloomFilter(1024, -1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test()
-    public void testBloomFilterArguments4() {
+    @Test
+    void testBloomFilterArguments4() {
         assertThatThrownBy(() -> new BloomFilter(1024, 0))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testBloomNumBits() {
-        assertThat(BloomFilter.optimalNumOfBits(0, 0)).isEqualTo(0);
-        assertThat(BloomFilter.optimalNumOfBits(0, 0)).isEqualTo(0);
-        assertThat(BloomFilter.optimalNumOfBits(0, 1)).isEqualTo(0);
-        assertThat(BloomFilter.optimalNumOfBits(1, 1)).isEqualTo(0);
+    void testBloomNumBits() {
+        assertThat(BloomFilter.optimalNumOfBits(0, 0)).isZero();
+        assertThat(BloomFilter.optimalNumOfBits(0, 0)).isZero();
+        assertThat(BloomFilter.optimalNumOfBits(0, 1)).isZero();
+        assertThat(BloomFilter.optimalNumOfBits(1, 1)).isZero();
         assertThat(BloomFilter.optimalNumOfBits(1, 0.03)).isEqualTo(7);
         assertThat(BloomFilter.optimalNumOfBits(10, 0.03)).isEqualTo(72);
         assertThat(BloomFilter.optimalNumOfBits(100, 0.03)).isEqualTo(729);
@@ -89,21 +89,21 @@ public class BloomFilterTest {
     }
 
     @Test
-    public void testBloomFilterNumHashFunctions() {
-        assertThat(BloomFilter.optimalNumOfHashFunctions(-1, -1)).isEqualTo(1);
-        assertThat(BloomFilter.optimalNumOfHashFunctions(0, 0)).isEqualTo(1);
-        assertThat(BloomFilter.optimalNumOfHashFunctions(10, 0)).isEqualTo(1);
-        assertThat(BloomFilter.optimalNumOfHashFunctions(10, 10)).isEqualTo(1);
+    void testBloomFilterNumHashFunctions() {
+        assertThat(BloomFilter.optimalNumOfHashFunctions(-1, -1)).isOne();
+        assertThat(BloomFilter.optimalNumOfHashFunctions(0, 0)).isOne();
+        assertThat(BloomFilter.optimalNumOfHashFunctions(10, 0)).isOne();
+        assertThat(BloomFilter.optimalNumOfHashFunctions(10, 10)).isOne();
         assertThat(BloomFilter.optimalNumOfHashFunctions(10, 100)).isEqualTo(7);
-        assertThat(BloomFilter.optimalNumOfHashFunctions(100, 100)).isEqualTo(1);
-        assertThat(BloomFilter.optimalNumOfHashFunctions(1000, 100)).isEqualTo(1);
-        assertThat(BloomFilter.optimalNumOfHashFunctions(10000, 100)).isEqualTo(1);
-        assertThat(BloomFilter.optimalNumOfHashFunctions(100000, 100)).isEqualTo(1);
-        assertThat(BloomFilter.optimalNumOfHashFunctions(1000000, 100)).isEqualTo(1);
+        assertThat(BloomFilter.optimalNumOfHashFunctions(100, 100)).isOne();
+        assertThat(BloomFilter.optimalNumOfHashFunctions(1000, 100)).isOne();
+        assertThat(BloomFilter.optimalNumOfHashFunctions(10000, 100)).isOne();
+        assertThat(BloomFilter.optimalNumOfHashFunctions(100000, 100)).isOne();
+        assertThat(BloomFilter.optimalNumOfHashFunctions(1000000, 100)).isOne();
     }
 
     @Test
-    public void testBloomFilterFalsePositiveProbability() {
+    void testBloomFilterFalsePositiveProbability() {
         assertThat(BloomFilter.optimalNumOfBits(1000000, 0.03)).isEqualTo(7298440);
         assertThat(BloomFilter.optimalNumOfBits(1000000, 0.05)).isEqualTo(6235224);
         assertThat(BloomFilter.optimalNumOfBits(1000000, 0.1)).isEqualTo(4792529);
@@ -157,7 +157,7 @@ public class BloomFilterTest {
     }
 
     @Test
-    public void testHashcodeInput() {
+    void testHashcodeInput() {
         bloomFilter.reset();
         int val1 = "val1".hashCode();
         int val2 = "val2".hashCode();
@@ -203,7 +203,7 @@ public class BloomFilterTest {
     }
 
     @Test
-    public void testBloomFilterSerDe() {
+    void testBloomFilterSerDe() {
         bloomFilter.reset();
         int val1 = "val1".hashCode();
         int val2 = "val2".hashCode();
@@ -245,7 +245,7 @@ public class BloomFilterTest {
     }
 
     @Test
-    public void testSerializedBloomFilterMerge() {
+    void testSerializedBloomFilterMerge() {
         bloomFilter.reset();
         bloomFilter2.reset();
 

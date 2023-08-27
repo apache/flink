@@ -46,13 +46,13 @@ import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Metrics related tests for batch task chains. */
 public class ChainedOperatorsMetricTest extends TaskTestBase {
@@ -69,7 +69,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
     private static final String CHAINED_OPERATOR_NAME = "chainedoperator";
 
     @Test
-    public void testOperatorIOMetricReuse() throws Exception {
+    void testOperatorIOMetricReuse() throws Exception {
         // environment
         initEnvironment(MEMORY_MANAGER_SIZE, NETWORK_BUFFER_SIZE);
 
@@ -104,7 +104,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
 
         testTask.invoke();
 
-        Assert.assertEquals(numRecords * 2 * 2, this.outList.size());
+        assertThat(this.outList).hasSize(numRecords * 2 * 2);
 
         final TaskMetricGroup taskMetricGroup = mockEnv.getMetricGroup();
 
@@ -114,8 +114,8 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
             final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
             final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
 
-            Assert.assertEquals(numRecords, numRecordsInCounter.getCount());
-            Assert.assertEquals(numRecords * 2 * 2, numRecordsOutCounter.getCount());
+            assertThat(numRecordsInCounter.getCount()).isEqualTo(numRecords);
+            assertThat(numRecordsOutCounter.getCount()).isEqualTo(numRecords * 2 * 2);
         }
 
         // verify head operator metrics
@@ -127,8 +127,8 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
             final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
             final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
 
-            Assert.assertEquals(numRecords, numRecordsInCounter.getCount());
-            Assert.assertEquals(numRecords * 2, numRecordsOutCounter.getCount());
+            assertThat(numRecordsInCounter.getCount()).isEqualTo(numRecords);
+            assertThat(numRecordsOutCounter.getCount()).isEqualTo(numRecords * 2);
         }
 
         // verify chained operator metrics
@@ -141,8 +141,8 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
             final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
             final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
 
-            Assert.assertEquals(numRecords * 2, numRecordsInCounter.getCount());
-            Assert.assertEquals(numRecords * 2 * 2, numRecordsOutCounter.getCount());
+            assertThat(numRecordsInCounter.getCount()).isEqualTo(numRecords * 2);
+            assertThat(numRecordsOutCounter.getCount()).isEqualTo(numRecords * 2 * 2);
         }
     }
 

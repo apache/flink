@@ -30,12 +30,15 @@ import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Record>> {
 
@@ -47,8 +50,8 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
         super(config, 0, 0);
     }
 
-    @Test
-    public void testMapTask() {
+    @TestTemplate
+    void testMapTask() {
         final int keyCnt = 100;
         final int valCnt = 20;
 
@@ -61,15 +64,16 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
             testDriver(testDriver, MockMapStub.class);
         } catch (Exception e) {
             LOG.debug("Exception while running the test driver.", e);
-            Assert.fail("Invoke method caused exception.");
+            fail("Invoke method caused exception.");
         }
 
-        Assert.assertEquals(
-                "Wrong result set size.", keyCnt * valCnt, this.output.getNumberOfRecords());
+        assertThat(this.output.getNumberOfRecords())
+                .withFailMessage("Wrong result set size.")
+                .isEqualTo(keyCnt * valCnt);
     }
 
-    @Test
-    public void testFailingMapTask() {
+    @TestTemplate
+    void testFailingMapTask() {
         final int keyCnt = 100;
         final int valCnt = 20;
 
@@ -77,19 +81,12 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
         setOutput(new DiscardingOutputCollector<Record>());
 
         final FlatMapDriver<Record, Record> testTask = new FlatMapDriver<>();
-        try {
-            testDriver(testTask, MockFailingMapStub.class);
-            Assert.fail("Function exception was not forwarded.");
-        } catch (ExpectedTestException e) {
-            // good!
-        } catch (Exception e) {
-            e.printStackTrace();
-            Assert.fail("Exception in test.");
-        }
+        assertThatThrownBy(() -> testDriver(testTask, MockFailingMapStub.class))
+                .isInstanceOf(ExpectedTestException.class);
     }
 
-    @Test
-    public void testCancelMapTask() {
+    @TestTemplate
+    void testCancelMapTask() {
         addInput(new InfiniteInputIterator());
         setOutput(new DiscardingOutputCollector<Record>());
 
@@ -118,11 +115,12 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            fail("Joining threads failed");
         }
 
-        Assert.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+        assertThat(success)
+                .withFailMessage("Test threw an exception even though it was properly canceled.")
+                .isTrue();
     }
 
     public static class MockMapStub extends RichFlatMapFunction<Record, Record> {

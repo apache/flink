@@ -33,17 +33,19 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class ReduceCombineDriverTest {
 
     @Test
-    public void testImmutableEmpty() {
+    void testImmutableEmpty() {
         try {
             TestTaskContext<ReduceFunction<Tuple2<String, Integer>>, Tuple2<String, Integer>>
                     context =
@@ -79,16 +81,16 @@ public class ReduceCombineDriverTest {
             driver.prepare();
             driver.run();
 
-            Assert.assertEquals(0, result.getList().size());
+            assertThat(result.getList()).isEmpty();
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testReduceDriverImmutable() {
+    void testReduceDriverImmutable() {
         try {
             {
                 TestTaskContext<ReduceFunction<Tuple2<String, Integer>>, Tuple2<String, Integer>>
@@ -180,12 +182,12 @@ public class ReduceCombineDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testReduceDriverMutable() {
+    void testReduceDriverMutable() {
         try {
             {
                 TestTaskContext<
@@ -274,7 +276,7 @@ public class ReduceCombineDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 

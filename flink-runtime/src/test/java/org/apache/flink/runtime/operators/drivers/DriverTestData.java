@@ -23,10 +23,10 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Assert;
-
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DriverTestData {
 
@@ -99,9 +99,7 @@ public class DriverTestData {
     // --------------------------------------------------------------------------------------------
 
     public static final void compareTupleArrays(Object[] expected, Object[] found) {
-        if (expected.length != found.length) {
-            Assert.assertEquals("Length of result is wrong", expected.length, found.length);
-        }
+        assertThat(found).withFailMessage("Length of result is wrong").hasSameSizeAs(expected);
 
         for (int i = 0; i < expected.length; i++) {
             Tuple v1 = (Tuple) expected[i];
@@ -110,7 +108,7 @@ public class DriverTestData {
             for (int k = 0; k < v1.getArity(); k++) {
                 Object o1 = v1.getField(k);
                 Object o2 = v2.getField(k);
-                Assert.assertEquals(o1, o2);
+                assertThat(o2).isEqualTo(o1);
             }
         }
     }

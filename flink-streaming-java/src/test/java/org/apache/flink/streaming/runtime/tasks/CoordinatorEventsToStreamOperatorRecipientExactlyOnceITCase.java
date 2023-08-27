@@ -48,8 +48,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -108,8 +108,8 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
 
     private StreamExecutionEnvironment env;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(100);
@@ -120,20 +120,20 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
     }
 
     @Test
-    public void testCheckpoint() throws Exception {
+    void testCheckpoint() throws Exception {
         executeAndVerifyResults(
                 env, new EventReceivingOperatorFactory<>("eventReceiving", NUM_EVENTS, DELAY));
     }
 
     @Test
-    public void testUnalignedCheckpoint() throws Exception {
+    void testUnalignedCheckpoint() throws Exception {
         env.getCheckpointConfig().enableUnalignedCheckpoints();
         executeAndVerifyResults(
                 env, new EventReceivingOperatorFactory<>("eventReceiving", NUM_EVENTS, DELAY));
     }
 
     @Test
-    public void testCheckpointWithSubtaskFailure() throws Exception {
+    void testCheckpointWithSubtaskFailure() throws Exception {
         executeAndVerifyResults(
                 env,
                 new EventReceivingOperatorWithFailureFactory<>(
@@ -145,7 +145,7 @@ public class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
     }
 
     @Test
-    public void testUnalignedCheckpointWithSubtaskFailure() throws Exception {
+    void testUnalignedCheckpointWithSubtaskFailure() throws Exception {
         env.getCheckpointConfig().enableUnalignedCheckpoints();
         executeAndVerifyResults(
                 env,

@@ -53,22 +53,22 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGeneratorItera
 import org.apache.flink.runtime.util.ResettableMutableObjectIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogger {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
+abstract class AbstractSortMergeOuterJoinIteratorITCase {
 
     // total memory
     private static final int MEMORY_SIZE = 1024 * 1024 * 16;
@@ -91,8 +91,8 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
     private TypeComparator<Tuple2<String, Integer>> comparator2;
     private TypePairComparator<Tuple2<String, String>, Tuple2<String, Integer>> pairComp;
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         ExecutionConfig config = new ExecutionConfig();
         config.disableObjectReuse();
 
@@ -110,17 +110,18 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
         this.ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         if (this.ioManager != null) {
             this.ioManager.close();
             this.ioManager = null;
         }
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .withFailMessage(
+                            "Memory Leak: Not all memory has been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -153,7 +154,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 150),
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 250));
 
-        Assert.assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @SuppressWarnings("unchecked")
@@ -181,7 +182,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 150),
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 250));
 
-        Assert.assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @SuppressWarnings("unchecked")
@@ -209,7 +210,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 150),
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 250));
 
-        Assert.assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @SuppressWarnings("unchecked")
@@ -235,10 +236,9 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
                         new Tuple4<String, String, String, Object>("Tim", "Sales", null, null),
                         new Tuple4<String, String, String, Object>("Zed", "HR", null, null));
 
-        Assert.assertEquals(expected, actualLeft);
-        Assert.assertEquals(expected, actualFull);
-        Assert.assertEquals(
-                Collections.<Tuple4<String, String, String, Object>>emptyList(), actualRight);
+        assertThat(actualLeft).isEqualTo(expected);
+        assertThat(actualFull).isEqualTo(expected);
+        assertThat(actualRight).isEmpty();
     }
 
     @SuppressWarnings("unchecked")
@@ -265,10 +265,9 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
                         new Tuple4<String, String, String, Object>(null, null, "Zed", 150),
                         new Tuple4<String, String, String, Object>(null, null, "Zed", 250));
 
-        Assert.assertEquals(
-                Collections.<Tuple4<String, String, String, Object>>emptyList(), actualLeft);
-        Assert.assertEquals(expected, actualRight);
-        Assert.assertEquals(expected, actualFull);
+        assertThat(actualLeft).isEmpty();
+        assertThat(actualRight).isEqualTo(expected);
+        assertThat(actualFull).isEqualTo(expected);
     }
 
     @SuppressWarnings("unchecked, rawtypes")
@@ -450,13 +449,13 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-                if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
-                }
+                assertThat(entry.getValue())
+                        .withFailMessage("Collection for key %d is not empty", entry.getKey())
+                        .isEmpty();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 

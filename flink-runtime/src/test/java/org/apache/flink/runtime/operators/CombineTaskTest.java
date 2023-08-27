@@ -38,13 +38,15 @@ import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.util.ArrayList;
 
-import static org.junit.Assert.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
-public class CombineTaskTest
+class CombineTaskTest
         extends UnaryOperatorTestBase<
                 RichGroupReduceFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>,
                 Tuple2<Integer, Integer>,
@@ -68,14 +70,14 @@ public class CombineTaskTest
                     new TypeComparator<?>[] {new IntComparator(true)},
                     new TypeSerializer<?>[] {IntSerializer.INSTANCE});
 
-    public CombineTaskTest(ExecutionConfig config) {
+    CombineTaskTest(ExecutionConfig config) {
         super(config, COMBINE_MEM, 0);
 
         combine_frac = (double) COMBINE_MEM / this.getMemoryManager().getMemorySize();
     }
 
-    @Test
-    public void testCombineTask() {
+    @TestTemplate
+    void testCombineTask() {
         try {
             int keyCnt = 100;
             int valCnt = 20;
@@ -99,10 +101,10 @@ public class CombineTaskTest
                 expSum += i;
             }
 
-            assertTrue(this.outList.size() == keyCnt);
+            assertThat(this.outList).hasSize(keyCnt);
 
             for (Tuple2<Integer, Integer> record : this.outList) {
-                assertTrue(record.f1 == expSum);
+                assertThat(record.f1).isEqualTo(expSum);
             }
 
             this.outList.clear();
@@ -112,8 +114,8 @@ public class CombineTaskTest
         }
     }
 
-    @Test
-    public void testFailingCombineTask() {
+    @TestTemplate
+    void testFailingCombineTask() {
         try {
             int keyCnt = 100;
             int valCnt = 20;
@@ -130,20 +132,16 @@ public class CombineTaskTest
             final GroupReduceCombineDriver<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>>
                     testTask = new GroupReduceCombineDriver<>();
 
-            try {
-                testDriver(testTask, MockFailingCombiningReduceStub.class);
-                fail("Exception not forwarded.");
-            } catch (ExpectedTestException etex) {
-                // good!
-            }
+            assertThatThrownBy(() -> testDriver(testTask, MockFailingCombiningReduceStub.class))
+                    .isInstanceOf(ExpectedTestException.class);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
         }
     }
 
-    @Test
-    public void testCancelCombineTaskSorting() {
+    @TestTemplate
+    void testCancelCombineTaskSorting() {
         try {
             MutableObjectIterator<Tuple2<Integer, Integer>> slowInfiniteInput =
                     new DelayingIterator<>(new InfiniteIntTupleIterator(), 1);
@@ -186,7 +184,9 @@ public class CombineTaskTest
                 taskRunner.join(5000);
             } while (taskRunner.isAlive() && System.currentTimeMillis() < deadline);
 
-            assertFalse("Task did not cancel properly within in 10 seconds.", taskRunner.isAlive());
+            assertThat(taskRunner.isAlive())
+                    .withFailMessage("Task did not cancel properly within in 10 seconds.")
+                    .isFalse();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

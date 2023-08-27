@@ -34,17 +34,19 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
 @SuppressWarnings("serial")
-public class GroupReduceDriverTest {
+class GroupReduceDriverTest {
 
     @Test
-    public void testAllReduceDriverImmutableEmpty() {
+    void testAllReduceDriverImmutableEmpty() {
         try {
             TestTaskContext<
                             GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>,
@@ -79,16 +81,16 @@ public class GroupReduceDriverTest {
             driver.prepare();
             driver.run();
 
-            Assert.assertTrue(result.getList().isEmpty());
+            assertThat(result.getList()).isEmpty();
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverImmutable() {
+    void testAllReduceDriverImmutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<Tuple2<String, Integer>, Tuple2<String, Integer>>,
@@ -133,12 +135,12 @@ public class GroupReduceDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverMutable() {
+    void testAllReduceDriverMutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<
@@ -186,12 +188,12 @@ public class GroupReduceDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverIncorrectlyAccumulatingMutable() {
+    void testAllReduceDriverIncorrectlyAccumulatingMutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<
@@ -237,20 +239,19 @@ public class GroupReduceDriverTest {
 
             try {
                 DriverTestData.compareTupleArrays(expected, res);
-                Assert.fail(
-                        "Accumulationg mutable objects is expected to result in incorrect values.");
+                fail("Accumulationg mutable objects is expected to result in incorrect values.");
             } catch (AssertionError e) {
                 // expected
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testAllReduceDriverAccumulatingImmutable() {
+    void testAllReduceDriverAccumulatingImmutable() {
         try {
             TestTaskContext<
                             GroupReduceFunction<
@@ -299,7 +300,7 @@ public class GroupReduceDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
