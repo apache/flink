@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.fail;
 
 @SuppressWarnings("serial")
@@ -226,6 +227,7 @@ class GroupReduceDriverTest {
             context.setComparator1(comparator);
             context.setCollector(result);
             context.setUdf(new ConcatSumMutableAccumulatingReducer());
+            context.getExecutionConfig().enableObjectReuse();
 
             GroupReduceDriver<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> driver =
                     new GroupReduceDriver<
@@ -237,12 +239,9 @@ class GroupReduceDriverTest {
             Object[] res = result.getList().toArray();
             Object[] expected = DriverTestData.createReduceMutableDataGroupedResult().toArray();
 
-            try {
-                DriverTestData.compareTupleArrays(expected, res);
-                fail("Accumulationg mutable objects is expected to result in incorrect values.");
-            } catch (AssertionError e) {
-                // expected
-            }
+            assertThatExceptionOfType(AssertionError.class)
+                    .as("Accumulationg mutable objects is expected to result in incorrect values.")
+                    .isThrownBy(() -> DriverTestData.compareTupleArrays(expected, res));
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -284,7 +283,7 @@ class GroupReduceDriverTest {
             context.setComparator1(comparator);
             context.setCollector(result);
             context.setUdf(new ConcatSumMutableAccumulatingReducer());
-            context.setMutableObjectMode(false);
+            context.getExecutionConfig().disableObjectReuse();
 
             GroupReduceDriver<Tuple2<StringValue, IntValue>, Tuple2<StringValue, IntValue>> driver =
                     new GroupReduceDriver<
