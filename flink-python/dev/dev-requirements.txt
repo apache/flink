@@ -32,3 +32,4 @@ pemja==0.3.0; platform_system != 'Windows'
 httplib2>=0.19.0
 protobuf>=3.19.0
 pytest~=7.0
+pyyaml==6.0.1

@@ -131,10 +131,10 @@ security.kerberos.login.principal: hadoop-user
 slot.request.timeout: 120000
 END
 )
-    docker exec master bash -c "echo \"${FLINK_CONFIG}\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/flink-conf.yaml"
+    docker exec master bash -c "echo \"${FLINK_CONFIG}\" > /home/hadoop-user/${FLINK_DIRNAME}/conf/flink-config.yaml"
 
     echo "Flink config:"
-    docker exec master bash -c "cat /home/hadoop-user/${FLINK_DIRNAME}/conf/flink-conf.yaml"
+    docker exec master bash -c "cat /home/hadoop-user/${FLINK_DIRNAME}/conf/flink-config.yaml"
 }
 
 function debug_copy_and_show_logs {

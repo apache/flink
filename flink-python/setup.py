@@ -104,6 +104,7 @@ if platform.system() == 'Windows':
 else:
     try:
         from Cython.Build import cythonize
+
         extensions = cythonize([
             Extension(
                 name="pyflink.fn_execution.coder_impl_fast",
@@ -168,7 +169,6 @@ else:
             ])
         else:
             extensions = ([])
-
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 version_file = os.path.join(this_directory, 'pyflink/version.py')
@@ -325,7 +325,9 @@ try:
                         'pandas>=1.3.0',
                         'pyarrow>=5.0.0',
                         'pemja==0.3.0;platform_system != "Windows"',
-                        'httplib2>=0.19.0', apache_flink_libraries_dependency]
+                        'httplib2>=0.19.0',
+                        'pyyaml==6.0.1',
+                        apache_flink_libraries_dependency]
 
     setup(
         name='apache-flink',

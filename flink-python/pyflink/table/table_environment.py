@@ -1542,20 +1542,61 @@ class TableEnvironment(object):
     def _add_jars_to_j_env_config(self, config_key):
         jvm = get_gateway().jvm
         jar_urls = self.get_config().get(config_key, None)
+        isloadlegacy = jvm.org.apache.flink.configuration. \
+            GlobalConfiguration.isLoadLegacyFlinkConfFile()
         if jar_urls is not None:
-            # normalize
             jar_urls_list = []
-            for url in jar_urls.split(";"):
+            # normalize
+            if isloadlegacy:
+                self._parse_url_by_legacy_parser(jar_urls, jar_urls_list, jvm)
+                j_configuration = get_j_env_configuration(self._get_j_env())
+                self._parse_j_env_url_by_legacy_parser(config_key, j_configuration, jar_urls_list)
+                j_configuration.setString(config_key, ";".join(jar_urls_list))
+            else:
+                import yaml
+                try:
+                    parsed_jar_urls = yaml.safe_load(jar_urls)
+                    if isinstance(parsed_jar_urls, list):
+                        for url in parsed_jar_urls:
+                            url = url.strip()
+                            if url != "":
+                                jar_urls_list.append(jvm.java.net.URL(url).toString())
+                    else:
+                        self._parse_url_by_legacy_parser(jar_urls, jar_urls_list, jvm)
+                except Exception:
+                    self._parse_url_by_legacy_parser(jar_urls, jar_urls_list, jvm)
+
+                j_configuration = get_j_env_configuration(self._get_j_env())
+                if j_configuration.containsKey(config_key):
+                    try:
+                        jar_urls_from_j_env = yaml. \
+                            safe_load(j_configuration.getString(config_key, ""))
+                        if isinstance(jar_urls_from_j_env, list):
+                            for url in jar_urls_from_j_env:
+                                url = url.strip()
+                                if url != "" and url not in jar_urls_list:
+                                    jar_urls_list.append(url)
+                        else:
+                            self._parse_j_env_url_by_legacy_parser(
+                                config_key, j_configuration, jar_urls_list)
+                    except Exception:
+                        self._parse_j_env_url_by_legacy_parser(
+                            config_key, j_configuration, jar_urls_list)
+
+                j_configuration.setString(config_key, "[" + ", ".join(jar_urls_list) + "]")
+
+    def _parse_j_env_url_by_legacy_parser(self, config_key, j_configuration, jar_urls_list):
+        if j_configuration.containsKey(config_key):
+            for url in j_configuration.getString(config_key, "").split(";"):
                 url = url.strip()
-                if url != "":
-                    jar_urls_list.append(jvm.java.net.URL(url).toString())
-            j_configuration = get_j_env_configuration(self._get_j_env())
-            if j_configuration.containsKey(config_key):
-                for url in j_configuration.getString(config_key, "").split(";"):
-                    url = url.strip()
-                    if url != "" and url not in jar_urls_list:
-                        jar_urls_list.append(url)
-            j_configuration.setString(config_key, ";".join(jar_urls_list))
+                if url != "" and url not in jar_urls_list:
+                    jar_urls_list.append(url)
+
+    def _parse_url_by_legacy_parser(self, jar_urls, jar_urls_list, jvm):
+        for url in jar_urls.split(";"):
+            url = url.strip()
+            if url != "":
+                jar_urls_list.append(jvm.java.net.URL(url).toString())
 
     def _get_j_env(self):
         return self._j_tenv.getPlanner().getExecEnv()

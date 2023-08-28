@@ -70,7 +70,7 @@ public class BashJavaUtils {
                 return getJmResourceParams(configuration);
             case GET_FLINK_CONFIGURATION:
                 return configuration.toFileWritableMap().entrySet().stream()
-                        .map(entry -> entry.getKey() + ":" + entry.getValue())
+                        .map(entry -> entry.getKey() + ": " + entry.getValue())
                         .collect(Collectors.toList());
             default:
                 // unexpected, Command#valueOf should fail if a unknown command is passed in

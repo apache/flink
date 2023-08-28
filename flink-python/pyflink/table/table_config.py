@@ -106,7 +106,20 @@ class TableConfig(object):
         jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
         classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
         if key in [jars_key, classpaths_key]:
-            add_jars_to_context_class_loader(value.split(";"))
+            isloadlegacy = jvm.org.apache.flink.configuration. \
+                GlobalConfiguration.isLoadLegacyFlinkConfFile()
+            if isloadlegacy:
+                add_jars_to_context_class_loader(value.split(";"))
+            else:
+                import yaml
+                try:
+                    jar_urls_list = yaml.safe_load(value)
+                    if isinstance(jar_urls_list, list):
+                        add_jars_to_context_class_loader(jar_urls_list)
+                    else:
+                        add_jars_to_context_class_loader(value.split(";"))
+                except Exception:
+                    add_jars_to_context_class_loader(value.split(";"))
 
         return self
 
