@@ -107,7 +107,7 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
 
     @Disabled
     @TestTemplate
-    protected void testConcurrentMapIfQueryable() throws Exception {
+    void testConcurrentMapIfQueryable() throws Exception {
         super.testConcurrentMapIfQueryable();
     }
 }

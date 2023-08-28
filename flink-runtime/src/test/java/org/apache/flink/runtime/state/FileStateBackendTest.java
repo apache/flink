@@ -85,7 +85,7 @@ public class FileStateBackendTest extends StateBackendTestBase<FsStateBackend> {
 
     @Disabled
     @TestTemplate
-    protected void testConcurrentMapIfQueryable() throws Exception {
+    void testConcurrentMapIfQueryable() throws Exception {
         super.testConcurrentMapIfQueryable();
     }
 }

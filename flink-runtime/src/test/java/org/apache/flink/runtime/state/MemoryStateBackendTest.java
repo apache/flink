@@ -75,7 +75,7 @@ public class MemoryStateBackendTest extends StateBackendTestBase<MemoryStateBack
 
     @Disabled
     @TestTemplate
-    protected void testConcurrentMapIfQueryable() throws Exception {
+    void testConcurrentMapIfQueryable() throws Exception {
         super.testConcurrentMapIfQueryable();
     }
 }

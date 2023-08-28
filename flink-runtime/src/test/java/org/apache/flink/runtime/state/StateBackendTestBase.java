@@ -4329,7 +4329,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
      * concurrent variants for internal state structures.
      */
     @SuppressWarnings("unchecked")
-    protected void testConcurrentMapIfQueryable() throws Exception {
+    void testConcurrentMapIfQueryable() throws Exception {
         final int numberOfKeyGroups = 1;
         final CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(

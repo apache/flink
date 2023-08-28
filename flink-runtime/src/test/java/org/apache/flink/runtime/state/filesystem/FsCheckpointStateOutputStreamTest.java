@@ -31,7 +31,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
@@ -73,7 +73,7 @@ public class FsCheckpointStateOutputStreamTest {
 
     @TempDir private java.nio.file.Path tempDir;
 
-    @Test
+    @TestTemplate
     void testWrongParameters() throws Exception {
         // this should fail
         assertThatThrownBy(
@@ -87,7 +87,7 @@ public class FsCheckpointStateOutputStreamTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
+    @TestTemplate
     void testEmptyState() throws Exception {
         CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
@@ -101,27 +101,27 @@ public class FsCheckpointStateOutputStreamTest {
         assertThat(handle).isNull();
     }
 
-    @Test
+    @TestTemplate
     void testStateBelowMemThreshold() throws Exception {
         runTest(999, 1024, 1000, false);
     }
 
-    @Test
+    @TestTemplate
     void testStateOneBufferAboveThreshold() throws Exception {
         runTest(896, 1024, 15, true);
     }
 
-    @Test
+    @TestTemplate
     void testStateAboveMemThreshold() throws Exception {
         runTest(576446, 259, 17, true);
     }
 
-    @Test
+    @TestTemplate
     void testZeroThreshold() throws Exception {
         runTest(16678, 4096, 0, true);
     }
 
-    @Test
+    @TestTemplate
     void testGetPos() throws Exception {
         CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
@@ -160,7 +160,7 @@ public class FsCheckpointStateOutputStreamTest {
     }
 
     /** Tests that the underlying stream file is deleted upon calling close. */
-    @Test
+    @TestTemplate
     void testCleanupWhenClosingStream() throws IOException {
 
         final FileSystem fs = mock(FileSystem.class);
@@ -190,7 +190,7 @@ public class FsCheckpointStateOutputStreamTest {
     }
 
     /** Tests that the underlying stream file is deleted if the closeAndGetHandle method fails. */
-    @Test
+    @TestTemplate
     void testCleanupWhenFailingCloseAndGetHandle() throws IOException {
         final FileSystem fs = mock(FileSystem.class);
         final FSDataOutputStream outputStream = mock(FSDataOutputStream.class);
@@ -272,7 +272,7 @@ public class FsCheckpointStateOutputStreamTest {
         handle.discardState();
     }
 
-    @Test
+    @TestTemplate
     void testWriteFailsFastWhenClosed() throws Exception {
         FsCheckpointStateOutputStream stream =
                 new FsCheckpointStateOutputStream(
@@ -292,7 +292,7 @@ public class FsCheckpointStateOutputStreamTest {
         assertThatThrownBy(() -> stream.write(new byte[4], 1, 2)).isInstanceOf(IOException.class);
     }
 
-    @Test
+    @TestTemplate
     void testMixedBelowAndAboveThreshold() throws Exception {
         final byte[] state1 = new byte[1274673];
         final byte[] state2 = new byte[1];
@@ -364,7 +364,7 @@ public class FsCheckpointStateOutputStreamTest {
      * This test checks that the stream does not check and clean the parent directory when
      * encountering a write error.
      */
-    @Test
+    @TestTemplate
     void testStreamDoesNotTryToCleanUpParentOnError() throws Exception {
         final File directory = TempDirUtils.newFolder(tempDir);
 
