@@ -36,9 +36,6 @@ statement you execute. There's no need to restart a session to use a different d
 **Note:**
 
 - To use Hive dialect, you have to add dependencies related to Hive. Please refer to [Hive dependencies]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies) for how to add the dependencies.
-- Since Flink 1.15, if you want to use Hive dialect in Flink SQL Client or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}), you have to put the jar `flink-table-planner{{< scala_version >}}-{{< version >}}.jar` located in `FLINK_HOME/opt`
-  to `FLINK_HOME/lib` and then move out the jar `flink-table-planner-loader-{{< version >}}.jar` from `FLINK_HOME/lib`.
-  Otherwise, it'll throw ValidationException. Please refer to [FLINK-25128](https://issues.apache.org/jira/browse/FLINK-25128) for more details.
 - Please make sure the current catalog is [HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}}). Otherwise, it will fall back to Flink's `default` dialect.
   When using SQL Gateway configured with [HiveServer2 Endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}), the current catalog will be a HiveCatalog by default.
 - In order to have better syntax and semantic compatibility, it’s highly recommended to load [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule) and

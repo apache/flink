@@ -34,10 +34,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.internal.TableResultInternal;
@@ -92,7 +90,6 @@ import org.apache.flink.table.operations.ddl.DropOperation;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -389,27 +386,16 @@ public class OperationExecutor {
                         catalogManager,
                         functionCatalog);
 
-        try {
-            return new StreamTableEnvironmentImpl(
-                    catalogManager,
-                    moduleManager,
-                    resourceManager,
-                    functionCatalog,
-                    tableConfig,
-                    env,
-                    planner,
-                    executor,
-                    settings.isStreamingMode());
-        } catch (ValidationException e) {
-            if (tableConfig.getSqlDialect() == SqlDialect.HIVE) {
-                String additionErrorMsg =
-                        "Note: if you want to use Hive dialect, "
-                                + "please first move the jar `flink-table-planner_2.12` located in `FLINK_HOME/opt` "
-                                + "to `FLINK_HOME/lib` and then move out the jar `flink-table-planner-loader` from `FLINK_HOME/lib`.";
-                ExceptionUtils.updateDetailMessage(e, t -> t.getMessage() + additionErrorMsg);
-            }
-            throw e;
-        }
+        return new StreamTableEnvironmentImpl(
+                catalogManager,
+                moduleManager,
+                resourceManager,
+                functionCatalog,
+                tableConfig,
+                env,
+                planner,
+                executor,
+                settings.isStreamingMode());
     }
 
     private ResultFetcher executeOperationInStatementSetState(
