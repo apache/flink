@@ -35,6 +35,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Delegated partitioned {@link MapState} that forwards changes to {@link StateChange} upon {@link
@@ -82,6 +83,16 @@ class ChangelogMapState<K, N, UK, UV>
                     ExceptionUtils.rethrow(e);
                 }
                 return oldValue;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (!(o instanceof Map.Entry)) {
+                    return false;
+                }
+                Map.Entry<?, ?> e = (Map.Entry<?, ?>) o;
+                return Objects.equals(entry.getKey(), e.getKey())
+                        && Objects.equals(entry.getValue(), e.getValue());
             }
         };
     }
