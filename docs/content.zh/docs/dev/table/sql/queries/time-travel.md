@@ -30,12 +30,16 @@ under the License.
 <span class="label label-danger">注意</span> 目前, `时间旅行`语法需要查询 table 所属的 catalog 实现了 {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/catalog/Catalog.java" name="getTable(ObjectPath tablePath, long timestamp)" >}} 接口。
 
 ```sql
-SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00'
+SELECT select_list FROM table_name FOR SYSTEM_TIME AS OF timestamp_expression
 ```
 
-## 表达式说明
+**参数说明：**
 
-<span class="label label-danger">注意</span> `时间旅行`当前只能够支持部分常量表达式， 不支持使用函数或自定义函数。
+- `FOR SYSTEM_TIME AS OF timestamp_expression`：用于特定的时间表达式，用于查询该时间点之前的数据，该表达式只能作用于物理表，不能是 view 或者是子查询
+
+## 限制
+
+<span class="label label-danger">注意</span> `时间旅行` 中使用的时间表达式只支持 `TIMESTAMP` 常量表达式， `TIMESTAMP` 加减运算， 以及部分`内置函数`和 `UDF`
 
 ### 常量表达式
 
@@ -49,15 +53,21 @@ SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00
 SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00' - INTERVAL '1' DAY
 ```
 
-### 时间函数或UDF （不支持）
+### 时间函数或UDF （部分支持）
 
-当使用 UDF 或者函数时， 由于当前框架的限制，无法生成一个合法的时间戳，当执行下面的 query 时，会抛异常。
+当时间表达式中使用 `UDF` 或者`函数`时， 由于当前框架的限制，部分表达式无法在 sql 解析时直接换为一个 `TIMESTAMP` 常量，会直接抛出异常。
 
 ```sql
 SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TO_TIMESTAMP_LTZ(0, 3)
 ```
 
+对应的异常如下: 
+
+```bash
+Unsupported time travel expression: TO_TIMESTAMP_LTZ(0, 3) for the expression can not be reduced to a constant by Flink.
+```
+
 ## 时区的处理
 
-默认情况下， TIMESTAMP 表达式生成的数据类型应该是 TIMESTAMP， 而 Catalog 提供的接口是 `getTable(ObjectPath tablePath, long timestamp)`,
-在执行`时间旅行`语句时，框架会基于本地时区将 TIMESTAMP 类型时间转换为 LONG 值，因此同一个`时间旅行`查询语句在不同时区下查询到的结果是不一样的。
+`TIMESTAMP` 表达式生成的数据类型是 `TIMESTAMP` 类型，但在时间旅行语句中有一个特殊情况。执行时间旅行语句时，框架会根据`本地时区`将 `TIMESTAMP` 类型转换为 `LONG` 类型。
+因此，在不同的时区查询相同的时间旅行查询语句可能会得到不同的结果。

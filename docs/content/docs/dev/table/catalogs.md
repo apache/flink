@@ -73,7 +73,7 @@ User-defined catalogs should replace `Thread.currentThread().getContextClassLoad
 
 ### Catalog supports time travel
 
-Starting from version 1.18, the Flink framework supports [time travel]({{< ref "docs/dev/table/sql/queries/time-travel" >}}). You can use time travel by implementing `getTable(ObjectPath tablePath, long timestamp)` as shown below.
+Starting from version 1.18, the Flink framework supports [time travel]({{< ref "docs/dev/table/sql/queries/time-travel" >}}). To use time travel, you should make sure the catalog implement `getTable(ObjectPath tablePath, long timestamp)` method.
 
 ```java
 public class MyCatalogSupportTimeTravel implements Catalog {
@@ -90,7 +90,22 @@ public class MyCatalogSupportTimeTravel implements Catalog {
                 CatalogTable.of(schema, "", Collections.emptyList(), options, timestamp);
         return catalogTable;
     }
+}
 
+public class MyDynamicTableFactory implements DynamicTableSourceFactory {
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        final ReadableConfig configuration =
+                Configuration.fromMap(context.getCatalogTable().getOptions());
+
+        // Get snapshot from CatalogTable
+        final Optional<Long> snapshot = context.getCatalogTable().getSnapshot();
+
+        // Build DynamicTableSource using snapshot options.
+        final DynamicTableSource dynamicTableSource = buildDynamicSource(configuration, snapshot);
+
+        return dynamicTableSource;
+    }
 }
 ```
 
