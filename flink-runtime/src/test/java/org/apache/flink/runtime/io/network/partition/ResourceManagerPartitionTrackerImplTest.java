@@ -123,7 +123,7 @@ class ResourceManagerPartitionTrackerImplTest {
     private static void checkListedDataSets(
             ResourceManagerPartitionTracker tracker, int expectedRegistered, int expectedTotal) {
         final Map<IntermediateDataSetID, DataSetMetaInfo> listing = tracker.listDataSets();
-        assertThat(listing.containsKey(DATA_SET_ID)).isTrue();
+        assertThat(listing).containsKey(DATA_SET_ID);
         DataSetMetaInfo metaInfo = listing.get(DATA_SET_ID);
         assertThat(metaInfo.getNumRegisteredPartitions().orElse(-1)).isEqualTo(expectedRegistered);
         assertThat(metaInfo.getNumTotalPartitions()).isEqualTo(expectedTotal);

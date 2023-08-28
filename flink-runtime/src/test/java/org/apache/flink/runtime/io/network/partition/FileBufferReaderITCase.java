@@ -68,7 +68,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * assumption.
  */
 @ExtendWith(ParameterizedTestExtension.class)
-public class FileBufferReaderITCase {
+class FileBufferReaderITCase {
 
     private static final int parallelism = 8;
 
@@ -83,11 +83,11 @@ public class FileBufferReaderITCase {
     private static final byte[] dataSource = new byte[recordSize];
 
     @Parameters(name = "SSL Enabled = {0}")
-    public static List<Boolean> paras() {
+    private static List<Boolean> paras() {
         return Arrays.asList(true, false);
     }
 
-    @Parameter public boolean sslEnabled;
+    @Parameter private boolean sslEnabled;
 
     @BeforeAll
     static void setup() {

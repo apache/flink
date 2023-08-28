@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DiskTierProducerAgent}. */
-public class DiskTierProducerAgentTest {
+class DiskTierProducerAgentTest {
 
     @TempDir private Path tempFolder;
 

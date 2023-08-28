@@ -48,6 +48,7 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
@@ -298,7 +299,7 @@ class HsFileDataManagerTest {
 
     /** Test file data manager release when reader is reading buffers. */
     @Test
-    @Timeout(10)
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testReleasedWhenReading() throws Exception {
         TestingHsSubpartitionFileReader reader = new TestingHsSubpartitionFileReader();
 

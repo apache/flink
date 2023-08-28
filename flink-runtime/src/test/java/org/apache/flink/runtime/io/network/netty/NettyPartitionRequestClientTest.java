@@ -50,11 +50,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link NettyPartitionRequestClient}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class NettyPartitionRequestClientTest {
-    @Parameter public boolean connectionReuseEnabled;
+class NettyPartitionRequestClientTest {
+    @Parameter private boolean connectionReuseEnabled;
 
     @Parameters(name = "connection reuse enabled = {0}")
-    public static Object[] parameters() {
+    private static Object[] parameters() {
         return new Object[][] {new Object[] {true}, new Object[] {false}};
     }
 

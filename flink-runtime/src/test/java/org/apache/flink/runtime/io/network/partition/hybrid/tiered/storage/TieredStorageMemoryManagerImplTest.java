@@ -36,13 +36,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** Tests for {@link TieredStorageMemoryManagerImpl}. */
-public class TieredStorageMemoryManagerImplTest {
+class TieredStorageMemoryManagerImplTest {
 
     private static final int NETWORK_BUFFER_SIZE = 1024;
 
@@ -183,7 +184,7 @@ public class TieredStorageMemoryManagerImplTest {
     }
 
     @Test
-    @Timeout(60)
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
     void testTriggerReclaimBuffers() throws IOException {
         int numBuffers = 5;
 

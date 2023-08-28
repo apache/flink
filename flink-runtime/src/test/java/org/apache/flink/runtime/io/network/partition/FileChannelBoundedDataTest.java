@@ -26,7 +26,7 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -64,12 +64,11 @@ class FileChannelBoundedDataTest extends BoundedDataTestBase {
     }
 
     @Override
-    protected BoundedData createBoundedDataWithRegion(Path tempFilePath, int regionSize)
-            throws IOException {
+    protected BoundedData createBoundedDataWithRegion(Path tempFilePath, int regionSize) {
         throw new UnsupportedOperationException();
     }
 
-    @Test
+    @TestTemplate
     void testReadNextBuffer() throws Exception {
         final int numberOfBuffers = 3;
         try (final BoundedData data = createBoundedData()) {
@@ -90,7 +89,7 @@ class FileChannelBoundedDataTest extends BoundedDataTestBase {
         }
     }
 
-    @Test
+    @TestTemplate
     void testRecycleBufferForNotifyingSubpartitionView() throws Exception {
         final int numberOfBuffers = 2;
         try (final BoundedData data = createBoundedData()) {
@@ -121,7 +120,7 @@ class FileChannelBoundedDataTest extends BoundedDataTestBase {
         }
     }
 
-    @Test
+    @TestTemplate
     void testRecycleBufferForNotifyingBufferAvailabilityListener() throws Exception {
         final ResultSubpartition subpartition = createFileBoundedBlockingSubpartition();
         final int numberOfBuffers = 2;

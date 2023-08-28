@@ -46,6 +46,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -129,7 +130,7 @@ class LocalBufferPoolTest {
     }
 
     @Test
-    @Timeout(10) // timeout can indicate a potential deadlock
+    @Timeout(value = 10, unit = TimeUnit.SECONDS) // timeout can indicate a potential deadlock
     void testReserveSegmentsAndCancel() throws Exception {
         int totalSegments = 4;
         int segmentsToReserve = 2;
@@ -415,13 +416,13 @@ class LocalBufferPoolTest {
     }
 
     @Test
-    @Timeout(30)
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void testRequestBufferOnRecycleWithOverdraft() throws Exception {
         testRequestBuffersOnRecycle(true);
     }
 
     @Test
-    @Timeout(30)
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void testRequestBufferOnRecycleWithoutOverdraft() throws Exception {
         testRequestBuffersOnRecycle(false);
     }

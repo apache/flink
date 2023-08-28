@@ -106,7 +106,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SingleInputGate}. */
-public class SingleInputGateTest extends InputGateTestBase {
+class SingleInputGateTest extends InputGateTestBase {
 
     @Test
     void testCheckpointsDeclinedUnlessAllChannelsAreKnown() throws CheckpointException {

@@ -46,12 +46,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SortBasedDataBuffer} and {@link HashBasedDataBuffer}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class DataBufferTest {
+class DataBufferTest {
 
     private final boolean useHashBuffer;
 
     @Parameters(name = "UseHashBuffer = {0}")
-    public static List<Boolean> parameters() {
+    private static List<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 

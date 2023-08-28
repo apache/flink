@@ -52,7 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that read the BoundedBlockingSubpartition with multiple threads in parallel. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class BoundedBlockingSubpartitionWriteReadTest {
+class BoundedBlockingSubpartitionWriteReadTest {
 
     private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
 
@@ -78,7 +78,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
     private final boolean sslEnabled;
 
     @Parameters(name = "type = {0}, compressionEnabled = {1}")
-    public static Collection<Object[]> parameters() {
+    private static Collection<Object[]> parameters() {
         return Arrays.stream(BoundedBlockingSubpartitionType.values())
                 .map((type) -> new Object[][] {{type, true}, {type, false}})
                 .flatMap(Arrays::stream)

@@ -64,6 +64,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestQueueTest.blockChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
@@ -94,7 +95,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
      * @see <a href="https://issues.apache.org/jira/browse/FLINK-1627">FLINK-1627</a>
      */
     @Test
-    @Timeout(60)
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
     @SuppressWarnings("unchecked")
     void testReleaseInputChannelDuringDecode() throws Exception {
         // Mocks an input channel in a state as it was released during a decode.

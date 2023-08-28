@@ -43,6 +43,7 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionedFileWriteReadTest.createAndConfigIndexEntryBuffer;
@@ -116,7 +117,7 @@ class SortMergeResultPartitionReadSchedulerTest {
     }
 
     @Test
-    @Timeout(60)
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
     void testCreateSubpartitionReader() throws Exception {
         ManuallyTriggeredScheduledExecutorService ioExecutor =
                 new ManuallyTriggeredScheduledExecutorService();

@@ -59,13 +59,13 @@ import static org.mockito.Mockito.mock;
 
 /** {@link PartitionRequestClientFactory} test. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class PartitionRequestClientFactoryTest {
+class PartitionRequestClientFactoryTest {
     private static final ResourceID RESOURCE_ID = ResourceID.generate();
 
-    @Parameter public boolean connectionReuseEnabled;
+    @Parameter private boolean connectionReuseEnabled;
 
     @Parameters(name = "connectionReuseEnabled={0}")
-    public static Collection<Boolean> parameters() {
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(false, true);
     }
 

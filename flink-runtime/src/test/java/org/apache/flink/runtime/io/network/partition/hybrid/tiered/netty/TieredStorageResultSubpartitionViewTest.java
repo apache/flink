@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TieredStorageResultSubpartitionView}. */
-public class TieredStorageResultSubpartitionViewTest {
+class TieredStorageResultSubpartitionViewTest {
 
     private static final int TIER_NUMBER = 2;
 

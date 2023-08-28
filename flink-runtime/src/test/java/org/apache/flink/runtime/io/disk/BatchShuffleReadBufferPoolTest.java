@@ -26,13 +26,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link BatchShuffleReadBufferPool}. */
-@Timeout(60)
+@Timeout(value = 60, unit = TimeUnit.SECONDS)
 class BatchShuffleReadBufferPoolTest {
 
     @Test

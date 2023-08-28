@@ -55,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * BoundedBlockingSubpartitionWriteReadTest}.
  */
 @ExtendWith(ParameterizedTestExtension.class)
-public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
+class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 
     private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
 
@@ -66,7 +66,7 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
     private final boolean sslEnabled;
 
     @Parameters(name = "type = {0}, sslEnabled = {1}")
-    public static List<Object[]> parameters() {
+    private static List<Object[]> parameters() {
         return Arrays.stream(BoundedBlockingSubpartitionType.values())
                 .map((type) -> new Object[][] {{type, true}, {type, false}})
                 .flatMap(Arrays::stream)

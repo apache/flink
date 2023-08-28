@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 /** Tests that read the BoundedBlockingSubpartition with multiple threads in parallel. */
-public class FileChannelMemoryMappedBoundedDataTest extends BoundedDataTestBase {
+class FileChannelMemoryMappedBoundedDataTest extends BoundedDataTestBase {
 
     @Override
     protected boolean isRegionBased() {

@@ -62,7 +62,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SortMergeResultPartition}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class SortMergeResultPartitionTest {
+class SortMergeResultPartitionTest {
 
     private static final int bufferSize = 1024;
 
@@ -72,7 +72,7 @@ public class SortMergeResultPartitionTest {
 
     private static final int numThreads = 4;
 
-    @Parameter public boolean useHashDataBuffer;
+    @Parameter private boolean useHashDataBuffer;
 
     private final TestBufferAvailabilityListener listener = new TestBufferAvailabilityListener();
 
@@ -105,7 +105,7 @@ public class SortMergeResultPartitionTest {
     }
 
     @Parameters(name = "useHashDataBuffer={0}")
-    public static Collection<Boolean> parameters() {
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(false, true);
     }
 

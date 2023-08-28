@@ -64,17 +64,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * @see PipelinedSubpartitionTest
  */
 @ExtendWith(ParameterizedTestExtension.class)
-public class PipelinedSubpartitionWithReadViewTest {
+class PipelinedSubpartitionWithReadViewTest {
 
     ResultPartition resultPartition;
     PipelinedSubpartition subpartition;
     AwaitableBufferAvailablityListener availablityListener;
     PipelinedSubpartitionView readView;
 
-    @Parameter public boolean compressionEnabled;
+    @Parameter private boolean compressionEnabled;
 
     @Parameters(name = "compressionEnabled = {0}")
-    public static List<Boolean> parameters() {
+    private static List<Boolean> parameters() {
         return Arrays.asList(false, true);
     }
 

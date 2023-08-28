@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that read the BoundedBlockingSubpartition with multiple threads in parallel. */
 @ExtendWith(ParameterizedTestExtension.class)
-public abstract class BoundedDataTestBase {
+abstract class BoundedDataTestBase {
 
     private Path subpartitionDataPath;
 
@@ -58,10 +58,10 @@ public abstract class BoundedDataTestBase {
     private static final BufferDecompressor DECOMPRESSOR =
             new BufferDecompressor(BUFFER_SIZE, COMPRESSION_CODEC);
 
-    @Parameter public static boolean compressionEnabled;
+    @Parameter private static boolean compressionEnabled;
 
     @Parameters(name = "compressionEnabled = {0}")
-    public static List<Boolean> compressionEnabled() {
+    private static List<Boolean> compressionEnabled() {
         return Arrays.asList(false, true);
     }
 
@@ -94,14 +94,14 @@ public abstract class BoundedDataTestBase {
     // ------------------------------------------------------------------------
 
     @TestTemplate
-    public void testWriteAndReadData() throws Exception {
+    void testWriteAndReadData() throws Exception {
         try (BoundedData bd = createBoundedData()) {
             testWriteAndReadData(bd);
         }
     }
 
     @TestTemplate
-    public void testWriteAndReadDataAcrossRegions() throws Exception {
+    void testWriteAndReadDataAcrossRegions() throws Exception {
         if (!isRegionBased()) {
             return;
         }
@@ -120,7 +120,7 @@ public abstract class BoundedDataTestBase {
     }
 
     @TestTemplate
-    public void returnNullAfterEmpty() throws Exception {
+    void returnNullAfterEmpty() throws Exception {
         try (BoundedData bd = createBoundedData()) {
             bd.finishWrite();
 
@@ -134,7 +134,7 @@ public abstract class BoundedDataTestBase {
     }
 
     @TestTemplate
-    public void testDeleteFileOnClose() throws Exception {
+    void testDeleteFileOnClose() throws Exception {
         final BoundedData bd = createBoundedData(subpartitionDataPath);
         assertThat(subpartitionDataPath).exists();
 
@@ -144,14 +144,14 @@ public abstract class BoundedDataTestBase {
     }
 
     @TestTemplate
-    public void testGetSizeSingleRegion() throws Exception {
+    void testGetSizeSingleRegion() throws Exception {
         try (BoundedData bd = createBoundedData()) {
             testGetSize(bd, 60_787, 76_687);
         }
     }
 
     @TestTemplate
-    public void testGetSizeMultipleRegions() throws Exception {
+    void testGetSizeMultipleRegions() throws Exception {
         if (!isRegionBased()) {
             return;
         }

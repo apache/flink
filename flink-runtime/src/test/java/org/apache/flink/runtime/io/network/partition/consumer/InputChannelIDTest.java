@@ -31,7 +31,7 @@ class InputChannelIDTest {
     private static final NettyBufferPool ALLOCATOR = new NettyBufferPool(1);
 
     @Test
-    public void testByteBufWriteAndRead() {
+    void testByteBufWriteAndRead() {
         final InputChannelID inputChannelID = new InputChannelID();
         final int byteBufLen = InputChannelID.getByteBufLength();
         final ByteBuf byteBuf = ALLOCATOR.directBuffer(byteBufLen, byteBufLen);

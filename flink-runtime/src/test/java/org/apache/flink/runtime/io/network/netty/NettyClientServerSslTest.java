@@ -53,9 +53,9 @@ import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the SSL connection between Netty Server and Client used for the data plane. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class NettyClientServerSslTest {
+class NettyClientServerSslTest {
 
-    @Parameter public String sslProvider;
+    @Parameter private String sslProvider;
 
     @Parameters(name = "SSL provider = {0}")
     public static List<String> parameters() {

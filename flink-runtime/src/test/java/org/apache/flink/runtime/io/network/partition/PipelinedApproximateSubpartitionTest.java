@@ -145,7 +145,7 @@ class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionTest {
     }
 
     @TestTemplate
-    public void testSkipPartialDataLongRecordOccupyEntireBufferWithMoreData() throws Exception {
+    void testSkipPartialDataLongRecordOccupyEntireBufferWithMoreData() throws Exception {
         final BufferWritingResultPartition writer = createResultPartition();
         final PipelinedApproximateSubpartition subpartition =
                 getPipelinedApproximateSubpartition(writer);
@@ -169,7 +169,7 @@ class PipelinedApproximateSubpartitionTest extends PipelinedSubpartitionTest {
     }
 
     @TestTemplate
-    public void testSkipPartialDataLongRecordEndWithBuffer() throws Exception {
+    void testSkipPartialDataLongRecordEndWithBuffer() throws Exception {
         final BufferWritingResultPartition writer = createResultPartition();
         final PipelinedApproximateSubpartition subpartition =
                 getPipelinedApproximateSubpartition(writer);

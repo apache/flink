@@ -2112,7 +2112,7 @@ abstract class AbstractByteBufTest {
     }
 
     @Test
-    @Timeout(10)
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testToStringMultipleThreads() throws Throwable {
         buffer.clear();
         buffer.writeBytes("Hello, World!".getBytes(CharsetUtil.ISO_8859_1));
@@ -2241,10 +2241,10 @@ abstract class AbstractByteBufTest {
 
         assertThat(set).hasSize(2);
         ByteBuf elemACopy = elemA.copy();
-        assertThat(set.contains(elemACopy)).isTrue();
+        assertThat(set).contains(elemACopy);
 
         ByteBuf elemBCopy = elemB.copy();
-        assertThat(set.contains(elemBCopy)).isTrue();
+        assertThat(set).contains(elemBCopy);
 
         buffer.clear();
         buffer.writeBytes(elemA.duplicate());

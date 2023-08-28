@@ -36,6 +36,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.io.network.partition.hybrid.HybridShuffleTestUtils.createTestingOutputMetrics;
@@ -72,7 +73,7 @@ class HsSubpartitionViewTest {
     }
 
     @Test
-    @Timeout(60)
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
     void testDeadLock(@TempDir Path dataFilePath) throws Exception {
         final int bufferSize = 16;
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);

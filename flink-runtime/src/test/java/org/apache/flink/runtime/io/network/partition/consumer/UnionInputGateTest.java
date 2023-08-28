@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
@@ -46,7 +47,7 @@ class UnionInputGateTest extends InputGateTestBase {
      * the correct logical index.
      */
     @Test
-    @Timeout(120)
+    @Timeout(value = 120, unit = TimeUnit.SECONDS)
     void testBasicGetNextLogic() throws Exception {
         // Setup
         final SingleInputGate ig1 = createInputGate(3);

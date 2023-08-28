@@ -523,7 +523,7 @@ class ResultPartitionTest {
     }
 
     @Test
-    public void testWaitForAllRecordProcessed() throws IOException {
+    void testWaitForAllRecordProcessed() throws IOException {
         // Creates a result partition with 2 channels.
         BufferWritingResultPartition bufferWritingResultPartition =
                 createResultPartition(ResultPartitionType.PIPELINED_BOUNDED);

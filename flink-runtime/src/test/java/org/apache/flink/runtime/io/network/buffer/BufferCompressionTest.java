@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link BufferCompressor} and {@link BufferDecompressor}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class BufferCompressionTest {
+class BufferCompressionTest {
 
     private static final int BUFFER_SIZE = 4 * 1024 * 1024;
 
