@@ -24,6 +24,7 @@ import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
@@ -78,7 +79,7 @@ public class InputFormatSourceFunctionTest {
             Assert.assertTrue(!format.isInputFormatOpen);
             Assert.assertTrue(!format.isSplitOpen);
 
-            reader.open(new Configuration());
+            reader.open(new OpenContext() {});
             Assert.assertTrue(format.isConfigured);
 
             TestSourceContext ctx = new TestSourceContext(reader, format, midCancel, cancelAt);

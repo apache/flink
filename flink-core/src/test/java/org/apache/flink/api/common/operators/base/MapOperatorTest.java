@@ -27,7 +27,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
@@ -92,7 +92,7 @@ public class MapOperatorTest implements java.io.Serializable {
                     new RichMapFunction<String, Integer>() {
 
                         @Override
-                        public void open(Configuration parameters) throws Exception {
+                        public void open(OpenContext openContext) throws Exception {
                             opened.set(true);
                             RuntimeContext ctx = getRuntimeContext();
                             assertEquals(0, ctx.getIndexOfThisSubtask());

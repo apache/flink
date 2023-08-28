@@ -26,7 +26,7 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend
@@ -365,8 +365,8 @@ private class AccumulatorCountingSink[T] extends RichSinkFunction[T] {
   private var count: Int = 0
 
   @throws[Exception]
-  override def open(parameters: Configuration) {
-    super.open(parameters)
+  override def open(openContext: OpenContext) {
+    super.open(openContext)
     getRuntimeContext.addAccumulator(
       AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
       new IntCounter)
@@ -393,7 +393,7 @@ class StatefulFlatMapper extends RichFlatMapFunction[(Long, Long), (Long, Long)]
   private var enumOneState: ValueState[CustomEnum] = _
   private var enumThreeState: ValueState[CustomEnum] = _
 
-  override def open(parameters: Configuration): Unit = {
+  override def open(openContext: OpenContext): Unit = {
     caseClassState = getRuntimeContext.getState(
       new ValueStateDescriptor[CustomCaseClass](
         "caseClassState",

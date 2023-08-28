@@ -22,7 +22,7 @@ import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.{CustomType, MutableTuple3}
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.optimizer.Optimizer
 import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -216,7 +216,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .reduceGroup(new RichGroupReduceFunction[(Int, Long, String), (Int, Long, String)] {
         private var f2Replace = ""
 
-        override def open(config: Configuration) {
+        override def open(openContext: OpenContext) {
           val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
           f2Replace = ints.sum + ""
         }

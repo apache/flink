@@ -40,6 +40,7 @@ import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.util.Collector;
 
 import java.io.IOException;
@@ -295,7 +296,7 @@ public class CoGroupOperatorBase<IN1, IN2, OUT, FT extends CoGroupFunction<IN1, 
         CoGroupFunction<IN1, IN2, OUT> function = userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, parameters);
+        FunctionUtils.openFunction(function, new OpenContext() {});
 
         List<OUT> result = new ArrayList<OUT>();
         Collector<OUT> resultCollector =

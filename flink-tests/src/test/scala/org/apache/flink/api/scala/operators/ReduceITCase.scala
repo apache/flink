@@ -22,7 +22,7 @@ import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.MutableTuple3
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -168,7 +168,7 @@ class ReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
       .reduce(new RichReduceFunction[(Int, Long, String)] {
         private var f2Replace = ""
 
-        override def open(config: Configuration) {
+        override def open(openContext: OpenContext) {
           val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
           f2Replace = ints.sum + ""
         }

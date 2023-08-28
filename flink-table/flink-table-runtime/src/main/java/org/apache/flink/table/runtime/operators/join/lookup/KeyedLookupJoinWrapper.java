@@ -23,7 +23,7 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
@@ -80,10 +80,10 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         lookupJoinRunner.setRuntimeContext(getRuntimeContext());
-        lookupJoinRunner.open(parameters);
+        lookupJoinRunner.open(new OpenContext() {});
 
         if (lookupKeyContainsPrimaryKey) {
             ValueStateDescriptor<RowData> valueStateDescriptor =

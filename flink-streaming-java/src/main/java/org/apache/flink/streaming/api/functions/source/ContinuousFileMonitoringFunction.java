@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
@@ -199,9 +200,9 @@ public class ContinuousFileMonitoringFunction<OUT>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
-        format.configure(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
+        format.configure(new Configuration());
 
         if (LOG.isDebugEnabled()) {
             LOG.debug(

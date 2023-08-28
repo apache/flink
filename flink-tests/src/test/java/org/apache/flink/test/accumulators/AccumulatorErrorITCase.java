@@ -27,6 +27,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -111,7 +112,7 @@ public class AccumulatorErrorITCase extends TestLogger {
         private static final long serialVersionUID = 42;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext()
                     .addAccumulator(FAULTY_CLONE_ACCUMULATOR, new FaultyCloneAccumulator());
         }
@@ -137,7 +138,7 @@ public class AccumulatorErrorITCase extends TestLogger {
         private static final long serialVersionUID = 42;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext().addAccumulator(INCOMPATIBLE_ACCUMULATORS_NAME, new LongCounter());
         }
 
@@ -151,7 +152,7 @@ public class AccumulatorErrorITCase extends TestLogger {
         private static final long serialVersionUID = 42;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext().addAccumulator(INCOMPATIBLE_ACCUMULATORS_NAME, new DoubleCounter());
         }
 
@@ -166,7 +167,7 @@ public class AccumulatorErrorITCase extends TestLogger {
         private static final long serialVersionUID = 42;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext()
                     .addAccumulator(FAULTY_MERGE_ACCUMULATOR, new FaultyMergeAccumulator());
         }

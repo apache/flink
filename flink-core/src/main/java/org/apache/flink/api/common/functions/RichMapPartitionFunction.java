@@ -19,13 +19,13 @@
 package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.util.Collector;
 
 /**
  * Rich variant of the {@link MapPartitionFunction}. As a {@link RichFunction}, it gives access to
  * the {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
- * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
- * RichFunction#close()}.
+ * methods: {@link RichFunction#open(OpenContext)} and {@link RichFunction#close()}.
  *
  * @param <I> Type of the input elements.
  * @param <O> Type of the returned elements.

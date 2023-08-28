@@ -36,6 +36,7 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.RichIterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
@@ -867,7 +868,7 @@ public class CEPITCase extends AbstractTestBase {
                                 new RichPatternFlatSelectFunction<Event, String>() {
 
                                     @Override
-                                    public void open(Configuration config) {
+                                    public void open(OpenContext openContext) {
                                         try {
                                             getRuntimeContext()
                                                     .getMapState(
@@ -963,7 +964,7 @@ public class CEPITCase extends AbstractTestBase {
                         .select(
                                 new RichPatternSelectFunction<Event, String>() {
                                     @Override
-                                    public void open(Configuration config) {
+                                    public void open(OpenContext openContext) {
                                         try {
                                             getRuntimeContext()
                                                     .getMapState(

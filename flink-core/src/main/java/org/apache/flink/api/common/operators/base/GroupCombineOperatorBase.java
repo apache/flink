@@ -35,6 +35,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.OpenContext;
 
 import org.apache.commons.lang3.ArrayUtils;
 
@@ -140,7 +141,7 @@ public class GroupCombineOperatorBase<IN, OUT, FT extends GroupCombineFunction<I
         }
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, new OpenContext() {});
 
         ArrayList<OUT> result = new ArrayList<OUT>();
 

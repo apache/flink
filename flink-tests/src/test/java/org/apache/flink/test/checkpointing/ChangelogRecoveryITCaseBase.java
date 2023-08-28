@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
@@ -412,7 +413,7 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
         private ValueState<Integer> countState;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             this.countState =
                     getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("countState", Integer.class));

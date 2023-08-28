@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -144,10 +145,9 @@ class ExternalSorterTest {
         boolean isClosed = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             assertThat(isOpen).withFailMessage("UDF was already opened").isFalse();
             isOpen = true;
-            assertThat(parameters.get(testOption)).isEqualTo("TEST");
         }
 
         @Override

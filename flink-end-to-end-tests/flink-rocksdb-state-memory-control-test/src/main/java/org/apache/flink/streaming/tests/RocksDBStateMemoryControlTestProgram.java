@@ -28,7 +28,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -113,7 +113,7 @@ public class RocksDBStateMemoryControlTestProgram {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             int index = getRuntimeContext().getIndexOfThisSubtask();
             if (useValueState) {
                 valueState =
@@ -151,7 +151,7 @@ public class RocksDBStateMemoryControlTestProgram {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             int index = getRuntimeContext().getIndexOfThisSubtask();
             if (useListState) {
                 listState =
@@ -184,7 +184,7 @@ public class RocksDBStateMemoryControlTestProgram {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             int index = getRuntimeContext().getIndexOfThisSubtask();
             if (useMapState) {
                 mapState =

@@ -26,7 +26,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -105,9 +105,9 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         joinFunction.setRuntimeContext(getRuntimeContext());
-        joinFunction.open(parameters);
+        joinFunction.open(new OpenContext() {});
         joinCollector = new EmitAwareCollector();
 
         // Initialize the data caches.

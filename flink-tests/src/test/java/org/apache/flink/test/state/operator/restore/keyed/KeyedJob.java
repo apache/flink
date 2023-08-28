@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
@@ -173,7 +174,7 @@ public class KeyedJob {
         }
 
         @Override
-        public void open(Configuration config) {
+        public void open(OpenContext openContext) {
             this.state =
                     getRuntimeContext()
                             .getListState(new ListStateDescriptor<>("values", Integer.class));

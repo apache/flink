@@ -161,7 +161,7 @@ public class StatefulFunctionWithTime extends KeyedProcessFunction<Integer, Inte
    ListState<Long> updateTimes;
 
    @Override
-   public void open(Configuration parameters) {
+   public void open(OpenContext openContext) {
       ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
       state = getRuntimeContext().getState(stateDescriptor);
 
@@ -197,7 +197,7 @@ public class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState
   ListState<Long> updateTimes;
 
   @Override
-  public void open(Configuration parameters) {
+  public void open(OpenContext openContext) {
     ValueStateDescriptor<Integer> stateDescriptor = new ValueStateDescriptor<>("state", Types.INT);
     state = getRuntimeContext().getState(stateDescriptor);
 
@@ -430,7 +430,7 @@ public class AccountBootstrapper extends KeyedStateBootstrapFunction<Integer, Ac
     ValueState<Double> state;
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
         ValueStateDescriptor<Double> descriptor = new ValueStateDescriptor<>("total",Types.DOUBLE);
         state = getRuntimeContext().getState(descriptor);
     }

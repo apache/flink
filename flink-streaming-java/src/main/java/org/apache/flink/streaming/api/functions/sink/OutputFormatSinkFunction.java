@@ -27,6 +27,7 @@ import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,9 +59,9 @@ public class OutputFormatSinkFunction<IN> extends RichSinkFunction<IN>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         RuntimeContext context = getRuntimeContext();
-        format.configure(parameters);
+        format.configure(new Configuration());
         int indexInSubtaskGroup = context.getIndexOfThisSubtask();
         int currentNumberOfSubtasks = context.getNumberOfParallelSubtasks();
         format.open(
