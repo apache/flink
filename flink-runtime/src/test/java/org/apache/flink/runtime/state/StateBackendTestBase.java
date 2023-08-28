@@ -97,6 +97,7 @@ import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -3585,6 +3586,40 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                 iteratorCount++;
             }
             assertEquals(stateSize, iteratorCount);
+        } finally {
+            IOUtils.closeQuietly(backend);
+            backend.dispose();
+        }
+    }
+
+    /** Verify that iterator of {@link MapState} compares on the content. */
+    @Test
+    public void testMapStateEntryCompare() throws Exception {
+        MapStateDescriptor<Integer, Long> stateDesc1 =
+                new MapStateDescriptor<>("map-state-1", Integer.class, Long.class);
+        MapStateDescriptor<Integer, Long> stateDesc2 =
+                new MapStateDescriptor<>("map-state-2", Integer.class, Long.class);
+
+        CheckpointableKeyedStateBackend<Integer> backend =
+                createKeyedBackend(IntSerializer.INSTANCE);
+
+        try {
+            MapState<Integer, Long> state1 =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDesc1);
+            MapState<Integer, Long> state2 =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDesc2);
+
+            Map.Entry<Integer, Long> expectedEntry = new AbstractMap.SimpleEntry<>(0, 10L);
+            backend.setCurrentKey(1);
+            state1.put(expectedEntry.getKey(), expectedEntry.getValue());
+            state2.put(expectedEntry.getKey(), expectedEntry.getValue());
+
+            assertEquals(state1.entries().iterator().next(), expectedEntry);
+            assertEquals(state2.entries().iterator().next(), expectedEntry);
+
+            assertEquals(state1.entries().iterator().next(), state2.entries().iterator().next());
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
