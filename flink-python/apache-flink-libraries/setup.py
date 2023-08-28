@@ -21,6 +21,7 @@ import glob
 import io
 import os
 import platform
+import re
 import subprocess
 import sys
 from shutil import copytree, copy, rmtree
@@ -97,7 +98,7 @@ try:
             print("Temp path for symlink to parent already exists {0}".format(TEMP_PATH),
                   file=sys.stderr)
             sys.exit(-1)
-        flink_version = VERSION.replace(".dev0", "-SNAPSHOT")
+        flink_version = re.sub("[.]dev.*", "-SNAPSHOT", VERSION)
         FLINK_HOME = os.path.abspath(
             "../../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
 
