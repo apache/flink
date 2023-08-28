@@ -42,8 +42,6 @@ import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -60,6 +58,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.UUID;
 
+import static org.apache.flink.yarn.Utils.getPathFromLocalFile;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -566,7 +565,7 @@ class FlinkYarnSessionCliTest {
                 (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
         assertThat(flinkYarnDescriptor.getShipFiles())
-                .isEqualTo(Lists.newArrayList(new org.apache.hadoop.fs.Path(tmpFile.toURI())));
+                .containsExactly(getPathFromLocalFile(tmpFile));
     }
 
     @Test

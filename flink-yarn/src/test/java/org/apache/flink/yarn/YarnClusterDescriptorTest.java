@@ -68,6 +68,7 @@ import java.util.UUID;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
+import static org.apache.flink.yarn.Utils.getPathFromLocalFile;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -546,20 +547,16 @@ class YarnClusterDescriptorTest {
                             .toFile();
 
             assertThat(descriptor.getShipFiles())
-                    .doesNotContain(
-                            new Path(libFile.getAbsolutePath()),
-                            new Path(libFolder.getAbsolutePath()));
+                    .doesNotContain(getPathFromLocalFile(libFile), getPathFromLocalFile(libFolder));
 
             List<Path> shipFiles = new ArrayList<>();
-            shipFiles.add(new Path(libFile.getAbsolutePath()));
-            shipFiles.add(new Path(libFolder.getAbsolutePath()));
+            shipFiles.add(getPathFromLocalFile(libFile));
+            shipFiles.add(getPathFromLocalFile(libFolder));
 
             descriptor.addShipFiles(shipFiles);
 
             assertThat(descriptor.getShipFiles())
-                    .contains(
-                            new Path(libFile.getAbsolutePath()),
-                            new Path(libFolder.getAbsolutePath()));
+                    .contains(getPathFromLocalFile(libFile), getPathFromLocalFile(libFolder));
 
             // only execute part of the deployment to test for shipped files
             Set<Path> effectiveShipFiles = new HashSet<>();
@@ -568,36 +565,43 @@ class YarnClusterDescriptorTest {
             assertThat(effectiveShipFiles).isEmpty();
             assertThat(descriptor.getShipFiles())
                     .hasSize(2)
-                    .contains(
-                            new Path(libFile.getAbsolutePath()),
-                            new Path(libFolder.getAbsolutePath()));
+                    .contains(getPathFromLocalFile(libFile), getPathFromLocalFile(libFolder));
+        }
 
-            String hdfsDir = "hdfs:///flink/hdfs_dir";
-            String hdfsFile = "hdfs:///flink/hdfs_file";
-            final org.apache.hadoop.conf.Configuration hdConf =
-                    new org.apache.hadoop.conf.Configuration();
-            hdConf.set(
-                    MiniDFSCluster.HDFS_MINIDFS_BASEDIR,
-                    temporaryFolder.toAbsolutePath().toString());
-            try (final MiniDFSCluster hdfsCluster = new MiniDFSCluster.Builder(hdConf).build()) {
-                final org.apache.hadoop.fs.Path hdfsRootPath =
-                        new org.apache.hadoop.fs.Path(hdfsCluster.getURI());
-                hdfsCluster.getFileSystem().mkdirs(new org.apache.hadoop.fs.Path(hdfsDir));
-                hdfsCluster.getFileSystem().createNewFile(new org.apache.hadoop.fs.Path(hdfsFile));
+        String hdfsDir = "hdfs:///flink/hdfs_dir";
+        String hdfsFile = "hdfs:///flink/hdfs_file";
+        File libFile = Files.createTempFile(temporaryFolder, "libFile", ".jar").toFile();
+        File libFolder =
+                Files.createTempDirectory(temporaryFolder, UUID.randomUUID().toString()).toFile();
+        final org.apache.hadoop.conf.Configuration hdConf =
+                new org.apache.hadoop.conf.Configuration();
+        hdConf.set(
+                MiniDFSCluster.HDFS_MINIDFS_BASEDIR, temporaryFolder.toAbsolutePath().toString());
+        try (final MiniDFSCluster hdfsCluster = new MiniDFSCluster.Builder(hdConf).build()) {
+            final org.apache.hadoop.fs.Path hdfsRootPath =
+                    new org.apache.hadoop.fs.Path(hdfsCluster.getURI());
+            hdfsCluster.getFileSystem().mkdirs(new org.apache.hadoop.fs.Path(hdfsDir));
+            hdfsCluster.getFileSystem().createNewFile(new org.apache.hadoop.fs.Path(hdfsFile));
 
-                Configuration flinkConfiguration = new Configuration();
-                flinkConfiguration.set(
-                        YarnConfigOptions.SHIP_FILES,
-                        Arrays.asList(
-                                libFile.getAbsolutePath(),
-                                libFolder.getAbsolutePath(),
-                                hdfsDir,
-                                hdfsFile));
-                final YarnConfiguration yarnConfig = new YarnConfiguration();
-                yarnConfig.set(
-                        CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
-                createYarnClusterDescriptor(flinkConfiguration, yarnConfig);
-            }
+            Configuration flinkConfiguration = new Configuration();
+            flinkConfiguration.set(
+                    YarnConfigOptions.SHIP_FILES,
+                    Arrays.asList(
+                            libFile.getAbsolutePath(),
+                            libFolder.getAbsolutePath(),
+                            hdfsDir,
+                            hdfsFile));
+            final YarnConfiguration yarnConfig = new YarnConfiguration();
+            yarnConfig.set(
+                    CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
+            YarnClusterDescriptor descriptor =
+                    createYarnClusterDescriptor(flinkConfiguration, yarnConfig);
+            assertThat(descriptor.getShipFiles())
+                    .containsExactly(
+                            getPathFromLocalFile(libFile),
+                            getPathFromLocalFile(libFolder),
+                            new Path(hdfsDir),
+                            new Path(hdfsFile));
         }
     }
 
@@ -639,12 +643,10 @@ class YarnClusterDescriptorTest {
 
             // only add the ship the folder, not the contents
             assertThat(effectiveShipFiles)
-                    .doesNotContain(new Path(libFile.getAbsolutePath()))
-                    .contains(new Path(libFolder.toURI()));
+                    .doesNotContain(getPathFromLocalFile(libFile))
+                    .contains(getPathFromLocalFile(libFolder));
             assertThat(descriptor.getShipFiles())
-                    .doesNotContain(
-                            new Path(libFile.getAbsolutePath()),
-                            new Path(libFolder.getAbsolutePath()));
+                    .doesNotContain(getPathFromLocalFile(libFile), getPathFromLocalFile(libFolder));
         }
     }
 
@@ -768,7 +770,11 @@ class YarnClusterDescriptorTest {
             final YarnConfiguration yarnConfig = new YarnConfiguration();
             yarnConfig.set(
                     CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
-            createYarnClusterDescriptor(flinkConfiguration, yarnConfig);
+
+            YarnClusterDescriptor descriptor =
+                    createYarnClusterDescriptor(flinkConfiguration, yarnConfig);
+            assertThat(descriptor.getShipArchives())
+                    .containsExactly(getPathFromLocalFile(archive1), new Path(archive3));
         }
     }
 

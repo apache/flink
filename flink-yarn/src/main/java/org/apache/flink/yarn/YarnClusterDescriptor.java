@@ -138,6 +138,8 @@ import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_OPT_DIR;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.yarn.Utils.getPathFromLocalFile;
+import static org.apache.flink.yarn.Utils.getPathFromLocalFilePathStr;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_FLINK_CLASSPATH;
 import static org.apache.flink.yarn.YarnConfigKeys.LOCAL_RESOURCE_DESCRIPTOR_SEPARATOR;
 
@@ -159,14 +161,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
     /**
      * Lazily initialized list of files to ship. The path string for the files which is configured
-     * by {@code YarnConfigOptions#SHIP_FILES} will be converted to {@code Path} with schema and
+     * by {@link YarnConfigOptions#SHIP_FILES} will be converted to {@link Path} with schema and
      * absolute path.
      */
     private final List<Path> shipFiles = new LinkedList<>();
 
     /**
      * Lazily initialized list of archives to ship. The path string for the archives which is
-     * configured by {@code YarnConfigOptions#SHIP_ARCHIVES} will be converted to {@code Path} with
+     * configured by {@link YarnConfigOptions#SHIP_ARCHIVES} will be converted to {@link Path} with
      * schema and absolute path.
      */
     private final List<Path> shipArchives = new LinkedList<>();
@@ -228,10 +230,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         return isWithoutSchema(new Path(path)) ? getPathFromLocalFilePathStr(path) : new Path(path);
     }
 
-    private Path getPathFromLocalFilePathStr(String localPathStr) {
-        return new Path(new File(localPathStr).toURI());
-    }
-
     private boolean isWithoutSchema(Path path) {
         return StringUtils.isNullOrWhitespaceOnly(path.toUri().getScheme());
     }
@@ -271,6 +269,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     @VisibleForTesting
     List<Path> getShipFiles() {
         return shipFiles;
+    }
+
+    @VisibleForTesting
+    List<Path> getShipArchives() {
+        return shipArchives;
     }
 
     public YarnClient getYarnClient() {
@@ -1787,7 +1790,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         if (libDir != null) {
             File directoryFile = new File(libDir);
             if (directoryFile.isDirectory()) {
-                effectiveShipFiles.add(new Path(directoryFile.toURI()));
+                effectiveShipFiles.add(getPathFromLocalFile(directoryFile));
             } else {
                 throw new YarnDeploymentException(
                         "The environment variable '"
@@ -1822,7 +1825,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     @VisibleForTesting
     void addPluginsFoldersToShipFiles(Collection<Path> effectiveShipFiles) {
         final Optional<File> pluginsDir = PluginConfig.getPluginsDir();
-        pluginsDir.ifPresent(dir -> effectiveShipFiles.add(new Path(dir.toURI())));
+        pluginsDir.ifPresent(dir -> effectiveShipFiles.add(getPathFromLocalFile(dir)));
     }
 
     ContainerLaunchContext setupApplicationMasterContainer(
