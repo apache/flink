@@ -91,7 +91,7 @@ class SqlGatewayTest {
         String id = UUID.randomUUID().toString();
         String[] args =
                 new String[] {
-                    "-Dsql-gateway.endpoint.type=mocked",
+                    "-Dsql-gateway.endpoint.type=[mocked]",
                     "-Dsql-gateway.endpoint.mocked.id=" + id,
                     "-Dsql-gateway.endpoint.mocked.host=localhost",
                     "-Dsql-gateway.endpoint.mocked.port=9999"

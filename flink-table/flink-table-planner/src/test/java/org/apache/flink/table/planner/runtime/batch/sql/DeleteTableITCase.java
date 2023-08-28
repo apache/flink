@@ -124,7 +124,7 @@ public class DeleteTableITCase extends BatchTestBase {
                                         + " ('connector' = 'test-update-delete',"
                                         + " 'data-id' = '%s',"
                                         + " 'delete-mode' = '%s',"
-                                        + " 'required-columns-for-delete' = 'a;c',"
+                                        + " 'required-columns-for-delete' = '[a, c]',"
                                         + " 'support-delete-push-down' = 'false'"
                                         + ")",
                                 dataId, deleteMode));
@@ -144,7 +144,7 @@ public class DeleteTableITCase extends BatchTestBase {
                                         + " ('connector' = 'test-update-delete',"
                                         + " 'data-id' = '%s',"
                                         + " 'delete-mode' = '%s',"
-                                        + " 'required-columns-for-delete' = 'a;b',"
+                                        + " 'required-columns-for-delete' = '[a, b]',"
                                         + " 'support-delete-push-down' = 'false'"
                                         + ")",
                                 dataId, deleteMode));

@@ -422,7 +422,7 @@ public final class FlinkDistribution {
                         .map(entry -> entry.getKey() + ": " + entry.getValue())
                         .collect(Collectors.toList());
 
-        Files.write(conf.resolve("flink-conf.yaml"), configurationLines);
+        Files.write(conf.resolve("flink-config.yaml"), configurationLines);
     }
 
     public void setTaskExecutorHosts(Collection<String> taskExecutorHosts) throws IOException {

@@ -61,7 +61,7 @@ public class TableSinkJsonPlanITCase extends JsonPlanTestBase {
                 new String[] {"a bigint", "b int", "c varchar METADATA"},
                 new HashMap<String, String>() {
                     {
-                        put("writable-metadata", "c:STRING");
+                        put("writable-metadata", "{c: STRING}");
                     }
                 });
 

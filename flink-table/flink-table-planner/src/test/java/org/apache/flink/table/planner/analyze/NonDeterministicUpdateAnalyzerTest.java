@@ -66,7 +66,7 @@ public class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                                 + ") with (\n"
                                 + "  'connector' = 'values',\n"
                                 + "  'changelog-mode' = 'I,UA,UB,D',\n"
-                                + "  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'\n"
+                                + "  'readable-metadata' = '{metadata_1: INT, metadata_2: STRING, metadata_3: BIGINT}'\n"
                                 + ")");
         util.getTableEnv()
                 .executeSql(
@@ -119,7 +119,7 @@ public class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                                 + ") with (\n"
                                 + "  'connector' = 'values',\n"
                                 + "  'changelog-mode' = 'I,UA,UB,D',\n"
-                                + "  'readable-metadata' = 'metadata_3:BIGINT'\n"
+                                + "  'readable-metadata' = '{metadata_3: BIGINT}'\n"
                                 + ")");
         util.getTableEnv()
                 .executeSql(

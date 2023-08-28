@@ -39,7 +39,7 @@ class FilterableSourceTest extends TableTestBase {
         | ) WITH (
         |   'connector' = 'values',
         |   'enable-watermark-push-down' = 'true',
-        |   'filterable-fields' = 'a;d',
+        |   'filterable-fields' = '[a, d]',
         |   'bounded' = 'false',
         |   'disable-lookup' = 'true'
         | )
@@ -71,7 +71,7 @@ class FilterableSourceTest extends TableTestBase {
         |  event_time TIMESTAMP(3)
         |) WITH (
         |  'connector' = 'values',
-        |  'filterable-fields' = 'name',
+        |  'filterable-fields' = '[name]',
         |  'bounded' = 'false',
         |  'disable-lookup' = 'true'
         |)
@@ -92,7 +92,7 @@ class FilterableSourceTest extends TableTestBase {
         |  event_time TIMESTAMP(3)
         |) WITH (
         |  'connector' = 'values',
-        |  'filterable-fields' = 'name',
+        |  'filterable-fields' = '[name]',
         |  'bounded' = 'false',
         |  'disable-lookup' = 'true'
         |)
@@ -115,7 +115,7 @@ class FilterableSourceTest extends TableTestBase {
         |  'connector' = 'values',
         |  'bounded' = 'false',
         |  'enable-watermark-push-down' = 'true',
-        |  'filterable-fields' = 'name',
+        |  'filterable-fields' = '[name]',
         |  'disable-lookup' = 'true'
         |)
         |""".stripMargin
@@ -141,7 +141,7 @@ class FilterableSourceTest extends TableTestBase {
         | ) with (
         |   'connector' = 'values',
         |   'bounded' = 'false',
-        |   'filterable-fields' = 'f',
+        |   'filterable-fields' = '[f]',
         |   'enable-watermark-push-down' = 'true',
         |   'disable-lookup' = 'true'
         | )

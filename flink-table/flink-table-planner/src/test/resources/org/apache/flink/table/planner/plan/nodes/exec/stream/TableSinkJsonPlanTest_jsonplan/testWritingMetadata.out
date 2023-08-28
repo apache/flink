@@ -63,7 +63,7 @@
           "partitionKeys" : [ ],
           "options" : {
             "connector" : "values",
-            "writable-metadata" : "m:STRING"
+            "writable-metadata" : "{m: STRING}"
           }
         }
       },

@@ -104,7 +104,7 @@ public class AnalyzeTableITCase extends BatchTestBase {
                                 + ") partitioned by (e, a)\n"
                                 + " WITH (\n"
                                 + "  'connector' = 'values',\n"
-                                + "  'partition-list' = 'e:1,a:1;e:1,a:2;e:1,a:4;e:1,a:5;e:2,a:2;e:2,a:3;e:2,a:4;e:2,a:5;e:3,a:3;e:3,a:5;',\n"
+                                + "  'partition-list' = '[\"e:1,a:1\", \"e:1,a:2\", \"e:1,a:4\", \"e:1,a:5\", \"e:2,a:2\", \"e:2,a:3\", \"e:2,a:4\", \"e:2,a:5\", \"e:3,a:3\", \"e:3,a:5\"]',\n"
                                 + "  'data-id' = '%s',\n"
                                 + "  'disable-lookup' = 'true',\n"
                                 + "  'bounded' = 'true'\n"
@@ -135,7 +135,7 @@ public class AnalyzeTableITCase extends BatchTestBase {
                                 + "  'connector' = 'values',\n"
                                 + "  'data-id' = '%s',\n"
                                 + "  'disable-lookup' = 'true',\n"
-                                + "  'readable-metadata'='d:varchar,e:bigint',\n"
+                                + "  'readable-metadata'='{d: varchar, e: bigint}',\n"
                                 + "  'bounded' = 'true'\n"
                                 + ")",
                         dataId3));
@@ -153,10 +153,10 @@ public class AnalyzeTableITCase extends BatchTestBase {
                                 + ") partitioned by (a)\n"
                                 + " WITH (\n"
                                 + "  'connector' = 'values',\n"
-                                + "  'partition-list' = 'a:1;a:2;',\n"
+                                + "  'partition-list' = '[a:1, a:2]',\n"
                                 + "  'data-id' = '%s',\n"
                                 + "  'disable-lookup' = 'true',\n"
-                                + "  'readable-metadata'='d:varchar,e:bigint',\n"
+                                + "  'readable-metadata'='{d: varchar, e: bigint}',\n"
                                 + "  'bounded' = 'true'\n"
                                 + ")",
                         dataId4));

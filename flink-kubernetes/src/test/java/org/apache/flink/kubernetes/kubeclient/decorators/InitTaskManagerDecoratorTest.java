@@ -60,8 +60,8 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
                 }
             };
     private static final String TOLERATION_STRING =
-            "key:key1,operator:Equal,value:value1,effect:NoSchedule;"
-                    + "KEY:key2,operator:Exists,Effect:NoExecute,tolerationSeconds:6000";
+            "[{key: key1, operator: Equal, value: value1, effect: NoSchedule},"
+                    + "{KEY: key2, operator: Exists, Effect: NoExecute, tolerationSeconds: 6000}]";
     private static final List<Toleration> TOLERATION =
             Arrays.asList(
                     new Toleration("NoSchedule", "key1", "Equal", null, "value1"),
@@ -89,7 +89,8 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
                 KubernetesConfigOptions.TASK_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
 
         // Set up external resource configs
-        flinkConfig.setString(ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), RESOURCE_NAME);
+        flinkConfig.setString(
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), "[" + RESOURCE_NAME + "]");
         flinkConfig.setLong(
                 ExternalResourceOptions.getSystemConfigKeyConfigOptionForResource(
                         RESOURCE_NAME, ExternalResourceOptions.EXTERNAL_RESOURCE_AMOUNT_SUFFIX),

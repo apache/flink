@@ -346,8 +346,8 @@ class TableSinkTest extends TableTestBase {
          |  `metadata_1` STRING METADATA
          |) WITH (
          |  'connector' = 'values',
-         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT, metadata_3:BIGINT',
-         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT'
+         |  'readable-metadata' = '{metadata_1: STRING, metadata_2: BIGINT, metadata_3: BIGINT}',
+         |  'writable-metadata' = '{metadata_1: STRING, metadata_2: BIGINT}'
          |)
        """.stripMargin)
 
@@ -377,7 +377,7 @@ class TableSinkTest extends TableTestBase {
                      |  `metadata_1` TIMESTAMP(3) METADATA
                      |) WITH (
                      |  'connector' = 'values',
-                     |  'writable-metadata' = 'metadata_1:BOOLEAN'
+                     |  'writable-metadata' = '{metadata_1: BOOLEAN}'
                      |)
        """.stripMargin)
 
@@ -412,8 +412,8 @@ class TableSinkTest extends TableTestBase {
          |  `metadata_1` STRING METADATA
          |) WITH (
          |  'connector' = 'values',
-         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT, metadata_3:BIGINT',
-         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT'
+         |  'readable-metadata' = '{metadata_1: STRING, metadata_2: BIGINT, metadata_3: BIGINT}',
+         |  'writable-metadata' = '{metadata_1: STRING, metadata_2: BIGINT}'
          |)
        """.stripMargin)
 
@@ -440,8 +440,8 @@ class TableSinkTest extends TableTestBase {
                      |  `other` STRING
                      |) WITH (
                      |  'connector' = 'values',
-                     |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT',
-                     |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BIGINT'
+                     |  'readable-metadata' = '{metadata_1: STRING, metadata_2: BIGINT}',
+                     |  'writable-metadata' = '{metadata_1: STRING, metadata_2: BIGINT}'
                      |)
        """.stripMargin)
 

@@ -53,7 +53,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
                 new String[] {"a int", "b bigint", "m varchar metadata"},
                 new HashMap<String, String>() {
                     {
-                        put("readable-metadata", "m:STRING");
+                        put("readable-metadata", "{m: STRING}");
                     }
                 });
 
@@ -84,7 +84,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
                 "p",
                 new HashMap<String, String>() {
                     {
-                        put("partition-list", "p:1;p:2");
+                        put("partition-list", "[p:1, p:2]");
                     }
                 });
         File sinkPath = createTestCsvSinkTable("MySink", "a int", "p bigint", "c varchar");
@@ -140,10 +140,10 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
                 "b",
                 new HashMap<String, String>() {
                     {
-                        put("readable-metadata", "a:INT");
-                        put("filterable-fields", "a");
+                        put("readable-metadata", "{a: INT}");
+                        put("filterable-fields", "[a]");
                         put("enable-watermark-push-down", "true");
-                        put("partition-list", "b:1;b:2;b:3;b:4;b:5;b:6");
+                        put("partition-list", "[b:1, b:2, b:3, b:4, b:5, b:6]");
                     }
                 });
 

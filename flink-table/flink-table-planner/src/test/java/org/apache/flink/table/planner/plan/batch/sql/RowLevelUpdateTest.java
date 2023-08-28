@@ -133,7 +133,7 @@ public class RowLevelUpdateTest extends TableTestBase {
                                 "CREATE TABLE t (a int, b string, c double) WITH"
                                         + " ("
                                         + "'connector' = 'test-update-delete', "
-                                        + "'required-columns-for-update' = 'b;c', "
+                                        + "'required-columns-for-update' = '[b, c]', "
                                         + "'update-mode' = '%s'"
                                         + ") ",
                                 updateMode));
@@ -148,7 +148,7 @@ public class RowLevelUpdateTest extends TableTestBase {
                                 "CREATE TABLE t (a int, b string, c double) WITH"
                                         + " ("
                                         + "'connector' = 'test-update-delete', "
-                                        + "'required-columns-for-update' = 'meta_f1;meta_k2;a;b', "
+                                        + "'required-columns-for-update' = '[meta_f1, meta_k2, a, b]', "
                                         + "'update-mode' = '%s'"
                                         + ") ",
                                 updateMode));

@@ -524,7 +524,7 @@ class SubplanReuseTest extends TableTestBase {
          | ) WITH (
          |  'connector' = 'values',
          |  'bounded' = 'true',
-         |  'readable-metadata' = 'ts1:TIMESTAMP(3), ts2:TIMESTAMP(3)'
+         |  'readable-metadata' = '{ts1: TIMESTAMP(3), ts2: TIMESTAMP(3)}'
          | )
          |""".stripMargin
     util.tableEnv.executeSql(ddl1)
@@ -592,7 +592,7 @@ class SubplanReuseTest extends TableTestBase {
          | ) WITH (
          |  'connector' = 'values',
          |  'bounded' = 'true',
-         |  'readable-metadata' = 'ts1:TIMESTAMP(3), ts2:TIMESTAMP(3)'
+         |  'readable-metadata' = '{ts1: TIMESTAMP(3), ts2: TIMESTAMP(3)}'
          | )
          |""".stripMargin
     util.tableEnv.executeSql(ddl1)

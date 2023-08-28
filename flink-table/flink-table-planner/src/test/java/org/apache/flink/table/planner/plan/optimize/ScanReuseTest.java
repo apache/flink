@@ -68,7 +68,7 @@ public class ScanReuseTest extends TableTestBase {
                                 + " 'connector' = 'values',\n"
                                 + " 'bounded' = 'false',\n"
                                 + " 'nested-projection-supported' = 'true',\n"
-                                + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING',\n"
+                                + " 'readable-metadata' = '{metadata_1: INT, metadata_2: STRING}',\n"
                                 + " 'enable-watermark-push-down' = 'true',\n"
                                 + " 'disable-lookup' = 'true'"
                                 + ")"
@@ -84,7 +84,7 @@ public class ScanReuseTest extends TableTestBase {
                                 + " 'connector' = 'values',\n"
                                 + " 'bounded' = 'true',\n"
                                 + " 'nested-projection-supported' = 'true',\n"
-                                + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING'\n"
+                                + " 'readable-metadata' = '{metadata_1: INT, metadata_2: STRING}'\n"
                                 + ")";
         util.tableEnv().executeSql(table);
     }
@@ -224,9 +224,9 @@ public class ScanReuseTest extends TableTestBase {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " (SELECT * FROM"
-                        + " MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 2) T1,"
+                        + " MyTable /*+ OPTIONS('filterable-fields'='[b]') */ WHERE b = 2) T1,"
                         + " (SELECT * FROM"
-                        + " MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 1) T2"
+                        + " MyTable /*+ OPTIONS('filterable-fields'='[b]') */ WHERE b = 1) T2"
                         + " WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
@@ -236,9 +236,9 @@ public class ScanReuseTest extends TableTestBase {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " (SELECT * FROM"
-                        + " MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 1) T1,"
+                        + " MyTable /*+ OPTIONS('filterable-fields'='[b]') */ WHERE b = 1) T1,"
                         + " (SELECT * FROM"
-                        + " MyTable /*+ OPTIONS('filterable-fields'='b') */ WHERE b = 1) T2"
+                        + " MyTable /*+ OPTIONS('filterable-fields'='[b]') */ WHERE b = 1) T2"
                         + " WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
@@ -301,10 +301,10 @@ public class ScanReuseTest extends TableTestBase {
             String sqlQuery =
                     "SELECT T1.a, T1.c, T2.c FROM"
                             + " (SELECT * FROM"
-                            + " MyTable /*+ OPTIONS('partition-list'='c:1;c:2') */"
+                            + " MyTable /*+ OPTIONS('partition-list'='[c:1, c:2]') */"
                             + " WHERE c = '1') T1,"
                             + " (SELECT * FROM"
-                            + " MyTable /*+ OPTIONS('partition-list'='c:1;c:2') */"
+                            + " MyTable /*+ OPTIONS('partition-list'='[c:1, c:2]') */"
                             + " WHERE c = '2') T2"
                             + " WHERE T1.a = T2.a";
             util.verifyExecPlan(sqlQuery);
@@ -317,10 +317,10 @@ public class ScanReuseTest extends TableTestBase {
             String sqlQuery =
                     "SELECT T1.a, T1.c, T2.c FROM"
                             + " (SELECT * FROM"
-                            + " MyTable /*+ OPTIONS('partition-list'='c:1;c:2') */"
+                            + " MyTable /*+ OPTIONS('partition-list'='[c:1, c:2]') */"
                             + " WHERE c = '1') T1,"
                             + " (SELECT * FROM"
-                            + " MyTable /*+ OPTIONS('partition-list'='c:1;c:2') */"
+                            + " MyTable /*+ OPTIONS('partition-list'='[c:1, c:2]') */"
                             + " WHERE c = '1') T2"
                             + " WHERE T1.a = T2.a";
             util.verifyExecPlan(sqlQuery);
@@ -342,7 +342,7 @@ public class ScanReuseTest extends TableTestBase {
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'false',\n"
-                        + " 'readable-metadata' = 'metadata_0:int',\n"
+                        + " 'readable-metadata' = '{metadata_0: int}',\n"
                         + " 'enable-watermark-push-down' = 'true',\n"
                         + " 'disable-lookup' = 'true'"
                         + ")";
@@ -379,7 +379,7 @@ public class ScanReuseTest extends TableTestBase {
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'false',\n"
-                        + " 'readable-metadata' = 'metadata_0:int',\n"
+                        + " 'readable-metadata' = '{metadata_0: int}',\n"
                         + " 'enable-watermark-push-down' = 'true',\n"
                         + " 'disable-lookup' = 'true'"
                         + ")";
