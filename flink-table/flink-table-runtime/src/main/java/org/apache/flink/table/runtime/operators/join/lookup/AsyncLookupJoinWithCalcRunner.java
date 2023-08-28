@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.lookup;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
@@ -61,7 +62,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
         // try to compile the generated ResultFuture, fail fast if the code is corrupt.
         generatedCalc.compile(getRuntimeContext().getUserCodeClassLoader());
     }

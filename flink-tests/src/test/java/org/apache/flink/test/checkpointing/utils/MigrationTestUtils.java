@@ -19,6 +19,7 @@
 package org.apache.flink.test.checkpointing.utils;
 
 import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -325,7 +326,7 @@ public class MigrationTestUtils {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
 
             getRuntimeContext().addAccumulator(NUM_ELEMENTS_ACCUMULATOR, new IntCounter());
         }

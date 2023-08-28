@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.async
 
-import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.functions.{OpenContext, RuntimeContext}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.async.{ResultFuture => JResultFuture, RichAsyncFunction => JRichAsyncFunction}
 
@@ -47,7 +47,7 @@ final class ScalaRichAsyncFunctionWrapper[IN, OUT](func: RichAsyncFunction[IN, O
   }
 
   override def open(parameters: Configuration): Unit = {
-    func.open(parameters)
+    func.open(new OpenContext() {})
   }
 
   override def close(): Unit = {

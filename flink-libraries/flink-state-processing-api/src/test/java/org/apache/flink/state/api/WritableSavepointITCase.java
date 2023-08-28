@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
@@ -292,7 +293,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
 
             ValueStateDescriptor<Double> descriptor =
                     new ValueStateDescriptor<>("total", Types.DOUBLE);

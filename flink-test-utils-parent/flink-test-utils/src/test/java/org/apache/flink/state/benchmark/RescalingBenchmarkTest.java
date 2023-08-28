@@ -19,6 +19,7 @@
 package org.apache.flink.state.benchmark;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -122,7 +123,7 @@ public class RescalingBenchmarkTest extends TestLogger {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             randomState =
                     this.getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("RandomState", Integer.class));

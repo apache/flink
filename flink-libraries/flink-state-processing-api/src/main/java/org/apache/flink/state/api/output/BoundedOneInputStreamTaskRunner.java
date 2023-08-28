@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.output;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -68,7 +69,7 @@ public class BoundedOneInputStreamTaskRunner<IN>
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
 
         env =
                 new SavepointEnvironment.Builder(getRuntimeContext(), maxParallelism)

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -86,7 +87,7 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
         // instantiate function
         StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
         function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());

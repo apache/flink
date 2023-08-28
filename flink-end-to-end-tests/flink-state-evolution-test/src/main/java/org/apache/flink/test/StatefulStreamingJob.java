@@ -18,6 +18,7 @@
 
 package org.apache.flink.test;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
@@ -107,7 +108,7 @@ public class StatefulStreamingJob {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             this.avroState = getRuntimeContext().getState(AVRO_DESCRIPTOR);
             this.tupleState = getRuntimeContext().getState(TUPLE_DESCRIPTOR);
             this.eitherState = getRuntimeContext().getState(EITHER_DESCRIPTOR);

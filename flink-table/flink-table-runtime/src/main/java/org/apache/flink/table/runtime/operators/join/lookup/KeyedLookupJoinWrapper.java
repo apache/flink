@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -81,9 +82,9 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
         lookupJoinRunner.setRuntimeContext(getRuntimeContext());
-        lookupJoinRunner.open(parameters);
+        lookupJoinRunner.open(new OpenContext() {});
 
         if (lookupKeyContainsPrimaryKey) {
             ValueStateDescriptor<RowData> valueStateDescriptor =

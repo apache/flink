@@ -21,6 +21,7 @@ package org.apache.flink.queryablestate.itcases;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.AggregatingState;
@@ -834,7 +835,7 @@ public abstract class AbstractQueryableStateTestBase {
 
                             @Override
                             public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
+                                super.open(new OpenContext() {});
                                 mapState = getRuntimeContext().getMapState(mapStateDescriptor);
                             }
 
@@ -937,7 +938,7 @@ public abstract class AbstractQueryableStateTestBase {
 
                             @Override
                             public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
+                                super.open(new OpenContext() {});
                                 listState = getRuntimeContext().getListState(listStateDescriptor);
                             }
 
@@ -1101,7 +1102,7 @@ public abstract class AbstractQueryableStateTestBase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
         }
 
         @Override
@@ -1156,7 +1157,7 @@ public abstract class AbstractQueryableStateTestBase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
                 LATEST_CHECKPOINT_ID.set(0L);
             }

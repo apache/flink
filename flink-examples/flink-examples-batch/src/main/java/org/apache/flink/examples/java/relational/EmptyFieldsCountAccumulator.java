@@ -20,6 +20,7 @@ package org.apache.flink.examples.java.relational;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -150,7 +151,7 @@ public class EmptyFieldsCountAccumulator {
 
         @Override
         public void open(final Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
 
             // register the accumulator instance
             getRuntimeContext().addAccumulator(EMPTY_FIELD_ACCUMULATOR, this.emptyFieldCounter);

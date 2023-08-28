@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{MapFunction, OpenContext, RichMapFunction}
 import org.apache.flink.configuration.{Configuration, PipelineOptions, ReadableConfig}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.{DecimalData, GenericRowData, TimestampData}
@@ -32,7 +32,6 @@ import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.planner.utils.TimestampStringUtils.fromLocalDateTime
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
-
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
@@ -106,7 +105,7 @@ class ExpressionReducer(
       .getOrElse(new Configuration)
     val reduced =
       try {
-        richMapFunction.open(parameters)
+        richMapFunction.open(new OpenContext() {})
         // execute
         richMapFunction.map(EMPTY_ROW)
       } catch {

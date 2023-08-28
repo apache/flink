@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.tests.queryablestate;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.MapState;
@@ -111,7 +112,7 @@ public class QsStateProducer {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             this.random = new Random();
             this.isRunning = true;
         }

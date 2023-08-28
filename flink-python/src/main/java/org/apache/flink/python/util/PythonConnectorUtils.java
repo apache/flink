@@ -17,6 +17,7 @@
 
 package org.apache.flink.python.util;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
@@ -114,7 +115,7 @@ public class PythonConnectorUtils {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             converter = RowRowConverter.create(dataType);
             converter.open(getRuntimeContext().getUserCodeClassLoader());
         }

@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.migration
 
 import org.apache.flink.FlinkVersion
 import org.apache.flink.api.common.accumulators.IntCounter
-import org.apache.flink.api.common.functions.RichFlatMapFunction
+import org.apache.flink.api.common.functions.{OpenContext, RichFlatMapFunction}
 import org.apache.flink.api.common.state.{ListState, ListStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.Tuple2
@@ -291,7 +291,7 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
 
     @throws[Exception]
     override def open(parameters: Configuration) {
-      super.open(parameters)
+      super.open(new OpenContext() {})
       getRuntimeContext.addAccumulator(
         AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
         new IntCounter)

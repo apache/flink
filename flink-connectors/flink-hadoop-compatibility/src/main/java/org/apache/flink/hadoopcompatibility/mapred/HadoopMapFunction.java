@@ -19,6 +19,7 @@
 package org.apache.flink.hadoopcompatibility.mapred;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
@@ -85,7 +86,7 @@ public final class HadoopMapFunction<KEYIN, VALUEIN, KEYOUT, VALUEOUT>
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
         this.mapper.configure(jobConf);
 
         this.reporter = new HadoopDummyReporter();

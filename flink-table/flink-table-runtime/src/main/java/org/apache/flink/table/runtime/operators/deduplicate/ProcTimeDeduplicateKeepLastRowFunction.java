@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
@@ -60,7 +61,7 @@ public class ProcTimeDeduplicateKeepLastRowFunction
 
     @Override
     public void open(Configuration configure) throws Exception {
-        super.open(configure);
+        super.open(new OpenContext() {});
         equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
     }
 

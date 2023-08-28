@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.interval;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -107,7 +108,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     @Override
     public void open(Configuration parameters) throws Exception {
         joinFunction.setRuntimeContext(getRuntimeContext());
-        joinFunction.open(parameters);
+        joinFunction.open(new OpenContext() {});
         joinCollector = new EmitAwareCollector();
 
         // Initialize the data caches.

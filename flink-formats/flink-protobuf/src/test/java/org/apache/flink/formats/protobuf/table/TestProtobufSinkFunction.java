@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.protobuf.table;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -33,7 +34,7 @@ public class TestProtobufSinkFunction extends RichSinkFunction<RowData> {
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
         this.serializer.open(null);
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.factories;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
@@ -156,7 +157,7 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             File parentDir = new File(dataDir);
             if (parentDir.exists()) {
                 parentDir.delete();

@@ -17,6 +17,7 @@
 
 package org.apache.flink.test.checkpointing.utils;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -97,7 +98,7 @@ public class CancellingIntegerSource extends RichSourceFunction<Integer>
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
     }
 
     @Override

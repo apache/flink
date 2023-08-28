@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
@@ -236,7 +237,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
         @Override
         public void open(Configuration parameters) throws Exception {
             ACTUAL_ORDER_TRACKING.add("UDF::open");
-            super.open(parameters);
+            super.open(new OpenContext() {});
         }
 
         @Override

@@ -19,6 +19,7 @@
 package org.apache.flink.test.streaming.api;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
@@ -71,7 +72,7 @@ public class StreamingOperatorsITCase extends AbstractTestBase {
 
                     @Override
                     public void open(Configuration parameters) throws Exception {
-                        super.open(parameters);
+                        super.open(new OpenContext() {});
                         executorService = Executors.newFixedThreadPool(numElements);
                     }
 

@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.expressions.utils
 
 import org.apache.flink.api.common.TaskInfo
-import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMapFunction}
+import org.apache.flink.api.common.functions.{MapFunction, OpenContext, RichFunction, RichMapFunction}
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
@@ -45,7 +45,6 @@ import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
-
 import org.apache.calcite.plan.hep.{HepPlanner, HepProgramBuilder}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.LogicalCalc
@@ -58,7 +57,6 @@ import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.rules.ExpectedException
 
 import java.util.Collections
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -246,7 +244,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
         Collections.emptyMap(),
         null)
       richMapper.setRuntimeContext(t)
-      richMapper.open(new Configuration())
+      richMapper.open(new OpenContext() {})
     }
 
     val testRow = if (containsLegacyTypes) {

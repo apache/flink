@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.windowing.functions;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.operators.translation.WrappingFunction;
 import org.apache.flink.configuration.Configuration;
@@ -58,7 +59,7 @@ public final class InternalAggregateProcessAllWindowFunction<T, ACC, V, R, W ext
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
         ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
         this.ctx = new InternalProcessAllWindowContext<>(wrappedFunction);
     }

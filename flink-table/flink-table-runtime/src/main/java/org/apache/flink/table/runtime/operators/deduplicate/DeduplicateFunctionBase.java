@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -56,7 +57,7 @@ abstract class DeduplicateFunctionBase<T, K, IN, OUT> extends KeyedProcessFuncti
 
     @Override
     public void open(Configuration configure) throws Exception {
-        super.open(configure);
+        super.open(new OpenContext() {});
         ValueStateDescriptor<T> stateDesc =
                 new ValueStateDescriptor<>("deduplicate-state", typeInfo);
         StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);

@@ -19,6 +19,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -363,7 +364,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
 
             firstStateDesc =
                     new MapStateDescriptor<>(
@@ -408,7 +409,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
 
             stateDesc =
                     new MapStateDescriptor<>(
@@ -457,7 +458,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
 
             firstStateDesc =
                     new MapStateDescriptor<>(
@@ -522,7 +523,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
 
             stateDesc =
                     new MapStateDescriptor<>(

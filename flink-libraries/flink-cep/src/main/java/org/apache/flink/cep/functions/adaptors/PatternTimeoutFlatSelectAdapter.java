@@ -19,6 +19,7 @@
 package org.apache.flink.cep.functions.adaptors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.cep.PatternFlatSelectFunction;
 import org.apache.flink.cep.PatternFlatTimeoutFunction;
@@ -57,7 +58,7 @@ public class PatternTimeoutFlatSelectAdapter<IN, OUT, T> extends PatternFlatSele
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
         FunctionUtils.setFunctionRuntimeContext(flatTimeoutFunction, getRuntimeContext());
         FunctionUtils.openFunction(flatTimeoutFunction, parameters);
 

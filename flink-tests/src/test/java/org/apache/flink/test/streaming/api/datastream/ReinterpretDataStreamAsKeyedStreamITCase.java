@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
@@ -167,7 +168,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
             dos =
                     new DataOutputStream(
@@ -211,7 +212,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
             File partitionFile = allPartitions.get(subtaskIdx);
             fileLength = partitionFile.length();
@@ -314,7 +315,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             Preconditions.checkState(getRuntimeContext().getNumberOfParallelSubtasks() == 1);
         }
 

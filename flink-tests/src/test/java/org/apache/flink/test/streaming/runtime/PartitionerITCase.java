@@ -18,6 +18,7 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -239,7 +240,7 @@ public class PartitionerITCase extends AbstractTestBase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             RuntimeContext runtimeContext = getRuntimeContext();
             indexOfSubtask = runtimeContext.getIndexOfThisSubtask();
         }

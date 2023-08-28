@@ -19,6 +19,7 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -76,7 +77,7 @@ public class StateBackendITCase extends AbstractTestBase {
 
                             @Override
                             public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
+                                super.open(new OpenContext() {});
                                 getRuntimeContext()
                                         .getState(
                                                 new ValueStateDescriptor<>("Test", Integer.class));

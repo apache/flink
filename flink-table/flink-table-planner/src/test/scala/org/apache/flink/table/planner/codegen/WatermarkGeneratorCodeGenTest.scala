@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
+import org.apache.flink.api.common.functions.OpenContext
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext
@@ -29,7 +30,6 @@ import org.apache.flink.table.planner.utils.PlannerMocks
 import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
 import org.apache.flink.table.utils.CatalogManagerMocks
-
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -120,7 +120,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
       // mock open and close invoking
       generator.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 1))
     }
-    generator.open(new Configuration())
+    generator.open(new OpenContext() {})
     val results = data.map(d => generator.currentWatermark(d))
     generator.close()
     val expected = List(

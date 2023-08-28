@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -260,7 +261,7 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             if (closeCalled) {
                 fail("Close called before open.");
             }

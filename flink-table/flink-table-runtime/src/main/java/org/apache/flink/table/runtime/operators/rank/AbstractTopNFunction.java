@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -139,7 +140,7 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
         outputRow = new JoinedRowData();
 
         if (!isConstantRankEnd) {

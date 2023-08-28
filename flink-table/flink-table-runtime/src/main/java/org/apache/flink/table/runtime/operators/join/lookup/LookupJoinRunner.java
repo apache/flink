@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.lookup;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
@@ -57,7 +58,7 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
         this.fetcher = generatedFetcher.newInstance(getRuntimeContext().getUserCodeClassLoader());
         this.collector =
                 generatedCollector.newInstance(getRuntimeContext().getUserCodeClassLoader());

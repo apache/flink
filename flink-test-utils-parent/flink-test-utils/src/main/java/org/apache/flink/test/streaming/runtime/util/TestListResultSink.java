@@ -17,6 +17,7 @@
 
 package org.apache.flink.test.streaming.runtime.util;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
@@ -40,7 +41,7 @@ public class TestListResultSink<T> extends RichSinkFunction<T> {
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
     }
 
     @Override

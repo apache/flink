@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -140,7 +141,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
 
             synchronized (MyAbstractAsyncFunction.class) {
                 if (counter == 0) {
@@ -1413,7 +1414,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             tryCounts = new HashMap<>();
         }
 

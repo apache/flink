@@ -19,6 +19,7 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -80,7 +81,7 @@ public class GlobalAggregateITCase extends AbstractTestBase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+            super.open(new OpenContext() {});
             StreamingRuntimeContext runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
             aggregateManager = runtimeContext.getGlobalAggregateManager();
         }

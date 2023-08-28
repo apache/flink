@@ -19,7 +19,7 @@ package org.apache.flink.api.scala.migration
 
 import org.apache.flink.FlinkVersion
 import org.apache.flink.api.common.accumulators.IntCounter
-import org.apache.flink.api.common.functions.RichFlatMapFunction
+import org.apache.flink.api.common.functions.{OpenContext, RichFlatMapFunction}
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.functions.KeySelector
@@ -43,17 +43,14 @@ import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase.{Exec
 import org.apache.flink.test.util.MigrationTest
 import org.apache.flink.test.util.MigrationTest.ParameterizedSnapshotsGenerator
 import org.apache.flink.util.Collector
-
 import org.junit.{Assert, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import javax.annotation.Nullable
-
 import java.util
 import java.util.function.BiFunction
 import java.util.stream.Collectors
-
 import scala.util.{Failure, Try}
 
 object StatefulJobWBroadcastStateMigrationITCase {
@@ -366,7 +363,7 @@ private class AccumulatorCountingSink[T] extends RichSinkFunction[T] {
 
   @throws[Exception]
   override def open(parameters: Configuration) {
-    super.open(parameters)
+    super.open(new OpenContext() {})
     getRuntimeContext.addAccumulator(
       AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
       new IntCounter)

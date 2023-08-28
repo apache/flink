@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.join.interval;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -65,7 +66,7 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
                 joinConditionCode.newInstance(getRuntimeContext().getUserCodeClassLoader());
         this.joinConditionCode = null;
         this.joinCondition.setRuntimeContext(getRuntimeContext());
-        this.joinCondition.open(config);
+        this.joinCondition.open(new OpenContext() {});
         this.reusedJoinRowData = new JoinedRowData();
     }
 

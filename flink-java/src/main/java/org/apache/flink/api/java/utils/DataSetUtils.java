@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.operators.Keys;
@@ -108,7 +109,7 @@ public final class DataSetUtils {
 
                             @Override
                             public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
+                                super.open(new OpenContext() {});
 
                                 List<Tuple2<Integer, Long>> offsets =
                                         getRuntimeContext()
@@ -207,7 +208,7 @@ public final class DataSetUtils {
 
                     @Override
                     public void open(Configuration parameters) throws Exception {
-                        super.open(parameters);
+                        super.open(new OpenContext() {});
                         shifter = getBitSize(getRuntimeContext().getNumberOfParallelSubtasks() - 1);
                         taskId = getRuntimeContext().getIndexOfThisSubtask();
                     }

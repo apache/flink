@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -94,7 +95,7 @@ public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, Sessi
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+        super.open(new OpenContext() {});
         sessionIds = new ArrayList<>(64);
         sessionIdsPerSnapshot = new ArrayDeque<>();
     }

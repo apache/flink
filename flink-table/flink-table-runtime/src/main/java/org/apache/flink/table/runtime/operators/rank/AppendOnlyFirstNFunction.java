@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.rank;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -65,7 +66,7 @@ public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
 
     @Override
     public void open(Configuration configure) throws Exception {
-        super.open(configure);
+        super.open(new OpenContext() {});
         ValueStateDescriptor<Integer> stateDesc =
                 new ValueStateDescriptor<>("counterState", Types.INT);
         if (ttlConfig.isEnabled()) {
