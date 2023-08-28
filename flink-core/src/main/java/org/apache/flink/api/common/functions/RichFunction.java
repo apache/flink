@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 
 /**
@@ -61,8 +62,33 @@ public interface RichFunction extends Function {
      *     When the runtime catches an exception, it aborts the task and lets the fail-over logic
      *     decide whether to retry the task execution.
      * @see org.apache.flink.configuration.Configuration
+     * @deprecated This method is deprecated since Flink 1.19. The users are recommended to use
+     *     {@code open(OpenContext openContext)} instead. This method should be implemented by an
+     *     empty body as a placeholder because it still exists in the interface.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=263425231">
+     *     FLIP-344: Remove parameter in RichFunction#open </a>
      */
+    @Deprecated
     void open(Configuration parameters) throws Exception;
+
+    /**
+     * Initialization method for the function. It is called before the actual working methods (like
+     * <i>map</i> or <i>join</i>) and thus suitable for one time setup work. For functions that are
+     * part of an iteration, this method will be invoked at the beginning of each iteration
+     * superstep.
+     *
+     * <p>By default, this method does nothing.
+     *
+     * @param openContext The context containing information about the context in which the function
+     *     is opened.
+     * @throws Exception Implementations may forward exceptions, which are caught by the runtime.
+     *     When the runtime catches an exception, it aborts the task and lets the fail-over logic
+     *     decide whether to retry the task execution.
+     */
+    @PublicEvolving
+    default void open(OpenContext openContext) throws Exception {
+        open(new Configuration());
+    }
 
     /**
      * Tear-down method for the user code. It is called after the last call to the main working
