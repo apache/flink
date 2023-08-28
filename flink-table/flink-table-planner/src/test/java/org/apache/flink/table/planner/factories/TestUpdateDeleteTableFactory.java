@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.factories;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -618,7 +618,7 @@ public class TestUpdateDeleteTableFactory
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             data = registeredRowData.get(dataId);
             newData = new ArrayList<>();
         }
@@ -888,7 +888,7 @@ public class TestUpdateDeleteTableFactory
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             oldRows = registeredRowData.get(dataId).toArray(new RowData[0]);
             updatedRows = new ArrayList<>();
             allNewRows = new ArrayList<>();

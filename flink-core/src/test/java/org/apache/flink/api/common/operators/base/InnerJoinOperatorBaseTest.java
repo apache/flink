@@ -22,11 +22,11 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
@@ -104,7 +104,7 @@ public class InnerJoinOperatorBaseTest implements Serializable {
         final RichFlatJoinFunction<String, String, Integer> joiner =
                 new RichFlatJoinFunction<String, String, Integer>() {
                     @Override
-                    public void open(Configuration parameters) throws Exception {
+                    public void open(OpenContext openContext) throws Exception {
                         opened.compareAndSet(false, true);
                         assertEquals(0, getRuntimeContext().getIndexOfThisSubtask());
                         assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());

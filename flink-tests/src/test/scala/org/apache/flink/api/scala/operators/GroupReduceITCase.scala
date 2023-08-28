@@ -216,7 +216,7 @@ class GroupReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBas
       .reduceGroup(new RichGroupReduceFunction[(Int, Long, String), (Int, Long, String)] {
         private var f2Replace = ""
 
-        override def open(config: Configuration) {
+        override def open(openContext: OpenContext) {
           val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
           f2Replace = ints.sum + ""
         }

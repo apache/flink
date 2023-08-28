@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -62,13 +63,13 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
 
     @Override
     @SuppressWarnings("unchecked")
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
 
         if (format instanceof RichInputFormat) {
             ((RichInputFormat) format).setRuntimeContext(context);
         }
-        format.configure(parameters);
+        format.configure(new Configuration());
 
         provider = context.getInputSplitProvider();
         serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());

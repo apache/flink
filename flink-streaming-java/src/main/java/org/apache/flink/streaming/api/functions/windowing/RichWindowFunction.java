@@ -20,14 +20,14 @@ package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
  * Rich variant of the {@link WindowFunction}. As a {@link RichFunction}, it gives access to the
  * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and tear-down
- * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
- * RichFunction#close()}.
+ * methods: {@link RichFunction#open(OpenContext)} and {@link RichFunction#close()}.
  *
  * @param <IN> The type of the input value.
  * @param <OUT> The type of the output value.

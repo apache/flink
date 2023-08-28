@@ -377,7 +377,7 @@ public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert
     private transient ValueState<Boolean> flagState;
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
         ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
                 "flag",
                 Types.BOOLEAN);
@@ -463,7 +463,7 @@ private transient ValueState<Boolean> flagState;
 private transient ValueState<Long> timerState;
 
 @Override
-public void open(Configuration parameters) {
+public void open(OpenContext openContext) {
     ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
             "flag",
             Types.BOOLEAN);
@@ -567,7 +567,7 @@ public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert
     private transient ValueState<Long> timerState;
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
         ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
                 "flag",
                 Types.BOOLEAN);

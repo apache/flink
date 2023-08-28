@@ -19,6 +19,7 @@
 package org.apache.flink.state.api;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
@@ -27,7 +28,6 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -277,7 +277,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
         ValueState<Double> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             ValueStateDescriptor<Double> descriptor =
                     new ValueStateDescriptor<>("total", Types.DOUBLE);
             state = getRuntimeContext().getState(descriptor);
@@ -294,8 +294,8 @@ public class SavepointWriterITCase extends AbstractTestBase {
         ValueState<Double> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             ValueStateDescriptor<Double> descriptor =
                     new ValueStateDescriptor<>("total", Types.DOUBLE);
@@ -321,7 +321,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
         ListState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             numbers = new ArrayList<>();
         }
 
@@ -352,7 +352,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
         ListState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             numbers = new ArrayList<>();
         }
 

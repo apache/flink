@@ -27,7 +27,7 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
  * <p>The data source has access to context information (such as the number of parallel instances of
  * the source, and which parallel instance the current instance is) via {@link
  * #getRuntimeContext()}. It also provides additional life-cycle methods ({@link
- * #open(org.apache.flink.configuration.Configuration)} and {@link #close()}.
+ * #open(org.apache.flink.api.common.functions.OpenContext)} and {@link #close()}.
  *
  * @param <OUT> The type of the records produced by this source.
  * @deprecated This class is based on the {@link

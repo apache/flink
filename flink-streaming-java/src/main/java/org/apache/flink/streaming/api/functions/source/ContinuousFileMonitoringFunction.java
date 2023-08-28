@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.state.ListState;
@@ -199,9 +200,9 @@ public class ContinuousFileMonitoringFunction<OUT>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
-        format.configure(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
+        format.configure(new Configuration());
 
         if (LOG.isDebugEnabled()) {
             LOG.debug(

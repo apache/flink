@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.tests.queryablestate;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.MapState;
@@ -25,7 +26,6 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -110,8 +110,8 @@ public class QsStateProducer {
         private transient Random random;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             this.random = new Random();
             this.isRunning = true;
         }
@@ -158,7 +158,7 @@ public class QsStateProducer {
         private transient long lastCompletedCheckpoint;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             MapStateDescriptor<EmailId, EmailInformation> stateDescriptor =
                     new MapStateDescriptor<>(
                             QsConstants.STATE_NAME,

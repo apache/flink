@@ -20,6 +20,7 @@ package org.apache.flink.test.iterative.aggregators;
 
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -29,7 +30,6 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
@@ -93,7 +93,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
                                 .filter(
                                         new RichFilterFunction<Long>() {
                                             @Override
-                                            public void open(Configuration parameters)
+                                            public void open(OpenContext openContext)
                                                     throws Exception {
                                                 File file =
                                                         getRuntimeContext()
@@ -356,7 +356,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
         private LongSumAggregator aggr;
 
         @Override
-        public void open(Configuration conf) {
+        public void open(OpenContext openContext) {
 
             aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
         }
@@ -378,7 +378,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
         private LongSumAggregatorWithParameter aggr;
 
         @Override
-        public void open(Configuration conf) {
+        public void open(OpenContext openContext) {
             aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
         }
 
@@ -414,7 +414,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
         private Random rnd;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             rnd = new Random(0xC0FFEBADBEEFDEADL + getRuntimeContext().getIndexOfThisSubtask());
         }
 
@@ -434,7 +434,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
         private int superstep;
 
         @Override
-        public void open(Configuration conf) {
+        public void open(OpenContext openContext) {
             aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
             superstep = getIterationRuntimeContext().getSuperstepNumber();
 
@@ -466,7 +466,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
         private int superstep;
 
         @Override
-        public void open(Configuration conf) {
+        public void open(OpenContext openContext) {
             superstep = getIterationRuntimeContext().getSuperstepNumber();
         }
 
@@ -500,7 +500,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
         private int superstep;
 
         @Override
-        public void open(Configuration conf) {
+        public void open(OpenContext openContext) {
             aggr = getIterationRuntimeContext().getIterationAggregator(NEGATIVE_ELEMENTS_AGGR);
             superstep = getIterationRuntimeContext().getSuperstepNumber();
 

@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.operators;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichCrossFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
-import org.apache.flink.configuration.Configuration;
 
 import org.junit.jupiter.api.Test;
 
@@ -100,7 +100,7 @@ class CollectionExecutionWithBroadcastVariableTest {
         private String suffix;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             suffix = getRuntimeContext().<String>getBroadcastVariable(BC_VAR_NAME).get(0);
         }
 
@@ -115,7 +115,7 @@ class CollectionExecutionWithBroadcastVariableTest {
         private String suffix;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             suffix = getRuntimeContext().<String>getBroadcastVariable(BC_VAR_NAME).get(0);
         }
 

@@ -44,7 +44,7 @@ public interface RichFunction extends Function {
      *
      *     private String searchString;
      *
-     *     public void open(Configuration parameters) {
+     *     public void open(OpenContext openContext) {
      *         this.searchString = parameters.getString("foo");
      *     }
      *

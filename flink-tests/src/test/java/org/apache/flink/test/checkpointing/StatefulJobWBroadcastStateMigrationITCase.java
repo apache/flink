@@ -19,12 +19,12 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
@@ -362,8 +362,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         private MapStateDescriptor<String, Long> secondStateDesc;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             firstStateDesc =
                     new MapStateDescriptor<>(
@@ -407,8 +407,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         private MapStateDescriptor<Long, String> stateDesc;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             stateDesc =
                     new MapStateDescriptor<>(
@@ -456,8 +456,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             firstStateDesc =
                     new MapStateDescriptor<>(
@@ -521,8 +521,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             stateDesc =
                     new MapStateDescriptor<>(

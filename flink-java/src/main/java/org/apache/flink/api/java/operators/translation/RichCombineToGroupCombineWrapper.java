@@ -21,9 +21,9 @@ package org.apache.flink.api.java.operators.translation;
 import org.apache.flink.api.common.functions.CombineFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupCombineFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -43,9 +43,9 @@ public class RichCombineToGroupCombineWrapper<
     }
 
     @Override
-    public void open(Configuration config) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         wrappedFunction.setRuntimeContext(getRuntimeContext());
-        wrappedFunction.open(config);
+        wrappedFunction.open(openContext);
     }
 
     @Override
