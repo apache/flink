@@ -23,7 +23,7 @@ requires = [
     "wheel",
     "apache-beam>=2.43.0,<2.52.0",
     "cython==0.29.36",
-    "fastavro>=1.1.0"
+    "fastavro>=1.1.0,!=1.8.0"
 ]
 
 [tool.cibuildwheel]
