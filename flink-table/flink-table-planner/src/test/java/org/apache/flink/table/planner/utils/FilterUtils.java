@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.NestedFieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -96,6 +97,12 @@ public class FilterUtils {
             }
         }
 
+        if (expr instanceof NestedFieldReferenceExpression) {
+            if (filterableFields.contains(((NestedFieldReferenceExpression) expr).getName())) {
+                return true;
+            }
+        }
+
         if (expr instanceof ValueLiteralExpression) {
             return true;
         }
@@ -154,6 +161,10 @@ public class FilterUtils {
 
         if (expr instanceof FieldReferenceExpression) {
             return getter.apply(((FieldReferenceExpression) expr).getName());
+        }
+
+        if (expr instanceof NestedFieldReferenceExpression) {
+            return getter.apply(((NestedFieldReferenceExpression) expr).getName());
         }
 
         if (expr instanceof CallExpression && expr.getChildren().size() == 1) {

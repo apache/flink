@@ -44,11 +44,11 @@ import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{TimestampString, Util}
 
 import java.util
-import java.util.{List => JList, TimeZone}
+import java.util.{Collections, List => JList, TimeZone}
 
+import scala.collection.{mutable, JavaConverters}
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 object RexNodeExtractor extends Logging {
@@ -551,62 +551,8 @@ class RexNodeToExpressionConverter(
   override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[ResolvedExpression] = {
     relDataType match {
       case Some(dataType) =>
-        val schema = new NestedSchema(dataType)
-        def internalVisit(fieldAccess: RexFieldAccess): (Boolean, Int, List[String]) = {
-          fieldAccess.getReferenceExpr match {
-            case ref: RexInputRef =>
-              (true, ref.getIndex, List(ref.getName, fieldAccess.getField.getName))
-            case fac: RexFieldAccess =>
-              val (success, i, n) = internalVisit(fac)
-              (success, i, if (success) n :+ fieldAccess.getField.getName else null)
-            case expr =>
-              // only extract operands of the expression
-              expr.accept(this)
-              (false, -1, null)
-          }
-        }
-
-        // extract the info
-        val (success, index, names) = internalVisit(fieldAccess)
-        if (!success) {
-          throw new TableException(
-            "Nested fields access is only supported on top of input references.")
-        }
-
-        val topLevelNodeName = schema.inputRowType.getFieldNames.get(index)
-        val topLevelNode = if (!schema.columns.contains(topLevelNodeName)) {
-          val fieldType = schema.inputRowType.getFieldList.get(index).getType
-          val node = new NestedColumn(topLevelNodeName, index, fieldType)
-          schema.columns.put(topLevelNodeName, node)
-          node
-        } else {
-          schema.columns.get(topLevelNodeName)
-        }
-
-        val leaf = names.slice(1, names.size).foldLeft(topLevelNode) {
-          case (parent, name) =>
-            if (parent.isLeaf) {
-              Some(
-                new FieldReferenceExpression(
-                  schema.columns.get(0).name,
-                  fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(parent.originFieldType)),
-                  index,
-                  fieldAccess.getField.getIndex))
-            }
-            if (!parent.children.containsKey(name)) {
-              val rowtype = parent.originFieldType
-              val index = rowtype.getFieldNames.indexOf(name)
-              if (index < 0) {
-                throw new TableException(
-                  String
-                    .format("Could not find field %s in field %s.", name, parent.originFieldType))
-              }
-              parent.addChild(
-                new NestedColumn(name, index, rowtype.getFieldList.get(index).getType))
-            }
-            parent.children.get(name)
-        }
-        leaf.markLeaf()
+        val schema = NestedProjectionUtil.build(Collections.singletonList(fieldAccess), dataType)
+        val fieldIndexArray = NestedProjectionUtil.convertToIndexArray(schema)
 
         var (topLevelColumnName, nestedColumn) = schema.columns.head
         val nestedFieldName = new StringBuilder()
@@ -619,11 +565,11 @@ class RexNodeToExpressionConverter(
         nestedFieldName.append(topLevelColumnName)
 
         Some(
-          new FieldReferenceExpression(
+          new NestedFieldReferenceExpression(
             nestedFieldName.toString(),
-            fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(leaf.originFieldType)),
-            index,
-            fieldAccess.getField.getIndex))
+            fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(fieldAccess.getType)),
+            fieldAccess.getField.getIndex,
+            fieldIndexArray(0)))
     }
   }
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): Option[ResolvedExpression] =

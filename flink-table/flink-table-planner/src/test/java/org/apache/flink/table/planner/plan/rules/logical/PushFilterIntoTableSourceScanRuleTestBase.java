@@ -147,9 +147,4 @@ public abstract class PushFilterIntoTableSourceScanRuleTestBase extends TableTes
                         + "  FROM MyTable)\n"
                         + "SELECT a FROM MyView WHERE a IS NOT NULL\n");
     }
-
-    @Test
-    public void testFilterWithNestedFields() {
-        util.verifyRelPlan("SELECT * FROM MTable WHERE b.`b1`.`b11` > 2");
-    }
 }

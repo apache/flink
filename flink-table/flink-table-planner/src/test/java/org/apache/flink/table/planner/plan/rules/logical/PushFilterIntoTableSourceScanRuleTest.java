@@ -132,6 +132,6 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + ")";
 
         util.tableEnv().executeSql(ddl);
-        super.testFilterWithNestedFields();
+        util.verifyRelPlan("SELECT * FROM MTable WHERE b.`b1`.`b11` > 2");
     }
 }

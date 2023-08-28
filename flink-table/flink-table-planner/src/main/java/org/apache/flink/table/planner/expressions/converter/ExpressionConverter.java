@@ -26,6 +26,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.NestedFieldReferenceExpression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
@@ -199,19 +200,17 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
         // Calcite will shuffle the output order of groupings.
         // So the output fields order will be changed too.
         // See RelBuilder.aggregate, it use ImmutableBitSet to store groupings,
-        String[] nestedFields = fieldReference.getName().split("\\.");
-        if (nestedFields.length > 0) {
-            RexNode fieldAccess = relBuilder.field(nestedFields[0]);
-            for (int i = 1; i < nestedFields.length; i++) {
-                fieldAccess =
-                        relBuilder
-                                .getRexBuilder()
-                                .makeFieldAccess(fieldAccess, nestedFields[i], true);
-            }
-            return fieldAccess;
-        } else {
-            return relBuilder.field(fieldReference.getName());
+        return relBuilder.field(fieldReference.getName());
+    }
+
+    @Override
+    public RexNode visit(NestedFieldReferenceExpression nestedFieldReference) {
+        int[] fieldIndices = nestedFieldReference.getFieldIndices();
+        RexNode fieldAccess = relBuilder.field(fieldIndices[0]);
+        for (int i = 1; i < fieldIndices.length; i++) {
+            fieldAccess = relBuilder.getRexBuilder().makeFieldAccess(fieldAccess, fieldIndices[i]);
         }
+        return fieldAccess;
     }
 
     @Override
