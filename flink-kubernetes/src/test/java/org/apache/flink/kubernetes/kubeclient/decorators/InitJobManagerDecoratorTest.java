@@ -55,8 +55,8 @@ class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                 }
             };
     private static final String TOLERATION_STRING =
-            "key:key1,operator:Equal,value:value1,effect:NoSchedule;"
-                    + "KEY:key2,operator:Exists,Effect:NoExecute,tolerationSeconds:6000";
+            "[{key: key1, operator: Equal, value: value1, effect: NoSchedule},"
+                    + "{KEY: key2 , operator: Exists, Effect: NoExecute, tolerationSeconds: 6000}]";
     private static final List<Toleration> TOLERATION =
             Arrays.asList(
                     new Toleration("NoSchedule", "key1", "Equal", null, "value1"),

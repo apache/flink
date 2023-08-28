@@ -69,7 +69,7 @@ class TableSourceTest extends TableTestBase {
          |  'nested-projection-supported' = 'true',
          |  'bounded' = 'true',
          |  'readable-metadata' =
-         |    'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
+         |    '{metadata_1: INT, metadata_2: STRING, metadata_3: BIGINT}'
          |)
          |""".stripMargin
     util.tableEnv.executeSql(ddl3)

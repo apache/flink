@@ -121,7 +121,7 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + " 'connector' = 'values',"
                         + " 'nested-projection-supported' = 'true',"
                         + " 'bounded' = 'true',\n"
-                        + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'"
+                        + " 'readable-metadata' = '{metadata_1: INT, metadata_2: STRING, metadata_3: BIGINT}'"
                         + ")";
         util().tableEnv().executeSql(ddl4);
 
@@ -137,7 +137,7 @@ public class PushProjectIntoTableSourceScanRuleTest
                         + "  'nested-projection-supported' = 'true',"
                         + "  'bounded' = 'false',\n"
                         + "  'changelod-mode' = 'I,UB,D',"
-                        + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'"
+                        + " 'readable-metadata' = '{metadata_1: INT, metadata_2: STRING, metadata_3: BIGINT}'"
                         + ")";
         util().tableEnv().executeSql(ddl5);
 

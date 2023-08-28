@@ -40,7 +40,7 @@ class UserDefinedFunctionTests(object):
     def test_scalar_function(self):
         # test metric disabled.
         self.t_env.get_config().set('python.metric.enabled', 'false')
-        self.t_env.get_config().set('pipeline.global-job-parameters', 'subtract_value:2')
+        self.t_env.get_config().set('pipeline.global-job-parameters', '{subtract_value: 2}')
         # test lambda function
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
 

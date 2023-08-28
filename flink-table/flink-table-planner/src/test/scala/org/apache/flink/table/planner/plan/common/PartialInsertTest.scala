@@ -100,7 +100,7 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
                               |) with (
                               |  'connector' = 'values',
                               |  'sink-insert-only' = 'false',
-                              |  'writable-metadata' = 'f:BIGINT, g:INT'
+                              |  'writable-metadata' = '{f: BIGINT, g: INT}'
                               |)""".stripMargin)
 
   @Test

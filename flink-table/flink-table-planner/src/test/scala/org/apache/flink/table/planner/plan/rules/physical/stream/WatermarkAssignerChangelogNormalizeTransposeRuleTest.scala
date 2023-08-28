@@ -177,7 +177,7 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
                     |  WATERMARK FOR ingestion_time AS ingestion_time
                     |) WITH (
                     | 'connector' = 'values',
-                    | 'readable-metadata' = 'ts:TIMESTAMP(3)'
+                    | 'readable-metadata' = '{ts: TIMESTAMP(3)}'
                     |)
       """.stripMargin)
     util.addTable("""
@@ -190,7 +190,7 @@ class WatermarkAssignerChangelogNormalizeTransposeRuleTest extends TableTestBase
                     |  PRIMARY KEY (`a`) NOT ENFORCED
                     |) WITH (
                     | 'connector' = 'values',
-                    | 'readable-metadata' = 'ts:TIMESTAMP(3)',
+                    | 'readable-metadata' = '{ts: TIMESTAMP(3)}',
                     | 'changelog-mode' = 'I,UA,D'
                     |)
       """.stripMargin)

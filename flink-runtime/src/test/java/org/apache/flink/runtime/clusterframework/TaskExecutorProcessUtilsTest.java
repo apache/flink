@@ -634,7 +634,8 @@ class TaskExecutorProcessUtilsTest extends ProcessMemoryUtilsTestBase<TaskExecut
     void testProcessSpecFromConfigWithExternalResource() {
         final Configuration config = new Configuration();
         config.setString(
-                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), EXTERNAL_RESOURCE_NAME_1);
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(),
+                "[" + EXTERNAL_RESOURCE_NAME_1 + "]");
         config.setLong(
                 ExternalResourceOptions.getAmountConfigOptionForResource(EXTERNAL_RESOURCE_NAME_1),
                 1);

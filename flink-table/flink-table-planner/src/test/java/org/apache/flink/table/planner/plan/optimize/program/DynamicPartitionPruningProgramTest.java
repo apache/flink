@@ -60,8 +60,8 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                                 + "WITH (\n"
                                 + " 'connector' = 'values',\n"
                                 + " 'runtime-source' = 'NewSource',\n"
-                                + " 'partition-list' = 'fact_date_sk:1990;fact_date_sk:1991;fact_date_sk:1992',\n"
-                                + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                                + " 'partition-list' = '[fact_date_sk:1990, fact_date_sk:1991, fact_date_sk:1992]',\n"
+                                + " 'dynamic-filtering-fields' = '[fact_date_sk, amount]',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
 
@@ -123,7 +123,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                                 + ") WITH (\n"
                                 + " 'connector' = 'values',\n"
                                 + " 'runtime-source' = 'NewSource',\n"
-                                + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                                + " 'dynamic-filtering-fields' = '[fact_date_sk, amount]',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
 
@@ -147,8 +147,8 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                                 + "WITH (\n"
                                 + " 'connector' = 'values',\n"
                                 + " 'runtime-source' = 'SourceFunction',\n"
-                                + " 'partition-list' = 'fact_date_sk:1990;fact_date_sk:1991;fact_date_sk:1992',\n"
-                                + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                                + " 'partition-list' = '[fact_date_sk:1990, fact_date_sk:1991, fact_date_sk:1992]',\n"
+                                + " 'dynamic-filtering-fields' = '[fact_date_sk, amount]',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
         String query =
@@ -684,8 +684,8 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
                                 + "WITH (\n"
                                 + " 'connector' = 'values',\n"
                                 + " 'runtime-source' = 'NewSource',\n"
-                                + " 'partition-list' = 'fact_date_sk:1990;fact_date_sk:1991;fact_date_sk:1992',\n"
-                                + " 'dynamic-filtering-fields' = 'fact_date_sk;amount',\n"
+                                + " 'partition-list' = '[fact_date_sk:1990, fact_date_sk:1991, fact_date_sk:1992]',\n"
+                                + " 'dynamic-filtering-fields' = '[fact_date_sk, amount]',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
 

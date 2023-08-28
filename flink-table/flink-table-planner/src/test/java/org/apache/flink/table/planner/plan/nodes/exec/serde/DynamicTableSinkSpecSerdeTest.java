@@ -145,7 +145,7 @@ class DynamicTableSinkSpecSerdeTest {
 
         Map<String, String> options3 = new HashMap<>();
         options3.put("connector", TestValuesTableFactory.IDENTIFIER);
-        options3.put("writable-metadata", "m:STRING");
+        options3.put("writable-metadata", "{m: STRING}");
 
         final ResolvedSchema resolvedSchema3 =
                 new ResolvedSchema(

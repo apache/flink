@@ -227,7 +227,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
                         + "  WATERMARK for `c` as c - CAST(`metadata` + `computed` AS INTERVAL SECOND)\n"
                         + ") WITH (\n"
                         + "  'connector' = 'values',\n"
-                        + "  'readable-metadata' = 'metadata_1:STRING,metadata_2:INT',\n"
+                        + "  'readable-metadata' = '{metadata_1: STRING, metadata_2: INT}',\n"
                         + "  'enable-watermark-push-down' = 'true',\n"
                         + "  'bounded' = 'false',\n"
                         + "  'disable-lookup' = 'true'"

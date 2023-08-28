@@ -69,6 +69,19 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
     }
 
     @Test
+    public void testGetConfiguration() throws Exception {
+        int expectedResultLines = 13;
+        String[] commands = {
+            RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
+            BashJavaUtils.Command.GET_FLINK_CONFIGURATION.toString(),
+            String.valueOf(expectedResultLines)
+        };
+        List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
+
+        assertThat(lines.size(), is(expectedResultLines));
+    }
+
+    @Test
     public void testGetTmResourceParamsConfigsWithDynamicProperties() throws Exception {
         int expectedResultLines = 2;
         double cpuCores = 39.0;

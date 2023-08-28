@@ -68,12 +68,13 @@ class PartitionableSourceTest(val sourceFetchPartitions: Boolean, val useCatalog
         |    'connector' = 'values',
         |    'bounded' = 'true',
         |    'partition-list' = '%s',
-        |    'filterable-fields' = 'id;part1;part2'
+        |    'filterable-fields' = '[id, part1, part2]'
         |)
         |""".stripMargin
 
     if (sourceFetchPartitions) {
-      val partitions = "part1:A,part2:1;part1:A,part2:2;part1:B,part2:3;part1:C,part2:1"
+      val partitions =
+        "[\"part1:A,part2:1\", \"part1:A,part2:2\", \"part1:B,part2:3\", \"part1:C,part2:1\"]"
       util.tableEnv.executeSql(String.format(partitionableTable, partitions))
       util.tableEnv.executeSql(String.format(partitionableAndFilterableTable, partitions))
     } else {
@@ -82,8 +83,8 @@ class PartitionableSourceTest(val sourceFetchPartitions: Boolean, val useCatalog
       util.tableEnv.registerCatalog("test_catalog", catalog)
       util.tableEnv.useCatalog("test_catalog")
       // register table without partitions
-      util.tableEnv.executeSql(String.format(partitionableTable, ""))
-      util.tableEnv.executeSql(String.format(partitionableAndFilterableTable, ""))
+      util.tableEnv.executeSql(String.format(partitionableTable, "[]"))
+      util.tableEnv.executeSql(String.format(partitionableAndFilterableTable, "[]"))
       val partitionableTablePath = ObjectPath.fromString("test_database.PartitionableTable")
       val partitionableAndFilterableTablePath =
         ObjectPath.fromString("test_database.PartitionableAndFilterableTable")

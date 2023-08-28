@@ -51,7 +51,7 @@ public class ScanReuseITCase extends StreamingTestBase {
                         + " 'bounded' = 'true',\n"
                         + String.format(" 'data-id' = '%s',\n", myTableDataId)
                         + " 'nested-projection-supported' = 'true',\n"
-                        + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING'\n"
+                        + " 'readable-metadata' = '{metadata_1: INT, metadata_2: STRING}'\n"
                         + ")";
         tEnv().executeSql(table);
     }

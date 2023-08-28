@@ -94,7 +94,7 @@ public class ExecutionConfigFromConfigurationTest {
                         .nonDefaultValue(false),
                 TestSpec.testValue(getTestGlobalJobParameters())
                         .whenSetFromFile(
-                                "pipeline.global-job-parameters", "key1:value1,key2:value2")
+                                "pipeline.global-job-parameters", "{key1: value1, key2: value2}")
                         .viaSetter(ExecutionConfig::setGlobalJobParameters)
                         .getterVia(ExecutionConfig::getGlobalJobParameters)
                         .nonDefaultValue(getOtherTestGlobalJobParameters()),

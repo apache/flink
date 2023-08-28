@@ -41,7 +41,7 @@ class MountSecretsDecoratorTest extends KubernetesJobManagerTestBase {
 
         this.flinkConfig.setString(
                 KubernetesConfigOptions.KUBERNETES_SECRETS.key(),
-                SECRET_NAME + ":" + SECRET_MOUNT_PATH);
+                "{" + SECRET_NAME + ": " + SECRET_MOUNT_PATH + "}");
     }
 
     @Override

@@ -418,7 +418,7 @@ class AggregateTest extends TableTestBase {
                                | cnt BIGINT
                                |) WITH (
                                | 'connector' = 'values',
-                               | 'readable-metadata' = 'sys_col:STRING'
+                               | 'readable-metadata' = '{sys_col: STRING}'
                                |)
                                |""".stripMargin)
     util.verifyExecPlan("SELECT COUNT(*) FROM src")
@@ -433,7 +433,7 @@ class AggregateTest extends TableTestBase {
                                | cnt BIGINT METADATA
                                |) WITH (
                                | 'connector' = 'values',
-                               | 'readable-metadata' = 'sys_col:STRING,id:STRING,cnt:BIGINT'
+                               | 'readable-metadata' = '{sys_col: STRING, id: STRING, cnt: BIGINT}'
                                |)
                                |""".stripMargin)
     util.verifyExecPlan("SELECT COUNT(*) FROM src")
@@ -449,7 +449,7 @@ class AggregateTest extends TableTestBase {
                                | cnt BIGINT
                                |) WITH (
                                | 'connector' = 'values',
-                               | 'readable-metadata' = 'sys_col:STRING'
+                               | 'readable-metadata' = '{sys_col: STRING}'
                                |)
                                |""".stripMargin)
     util.verifyExecPlan("SELECT COUNT(*) FROM src")

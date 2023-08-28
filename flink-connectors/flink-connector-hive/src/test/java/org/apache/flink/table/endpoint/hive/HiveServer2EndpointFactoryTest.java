@@ -170,7 +170,7 @@ class HiveServer2EndpointFactoryTest {
     private Map<String, String> getDefaultConfig() {
         Map<String, String> config = new HashMap<>();
 
-        config.put(SQL_GATEWAY_ENDPOINT_TYPE.key(), IDENTIFIER);
+        config.put(SQL_GATEWAY_ENDPOINT_TYPE.key(), "[" + IDENTIFIER + "]");
 
         setEndpointOption(config, THRIFT_HOST, "localhost");
         setEndpointOption(config, THRIFT_PORT, port);

@@ -124,7 +124,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
         |) with (
         | 'connector' = 'values',
         | 'changelog-mode' = 'I,UA,UB,D',
-        | 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
+        | 'readable-metadata' = '{metadata_1: INT, metadata_2: STRING, metadata_3: BIGINT}'
         |)""".stripMargin)
 
     util.tableEnv.executeSql("""
@@ -139,7 +139,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                |) with (
                                | 'connector' = 'values',
                                | 'changelog-mode' = 'I,UA,UB,D',
-                               | 'readable-metadata' = 'op_ts:timestamp_ltz(3)'
+                               | 'readable-metadata' = '{op_ts: timestamp_ltz(3)}'
                                |)""".stripMargin)
 
     util.tableEnv.executeSql("""
@@ -154,7 +154,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                |) with (
                                | 'connector' = 'values',
                                | 'changelog-mode' = 'I,UA,UB,D',
-                               | 'readable-metadata' = 'op_ts:timestamp_ltz(3)'
+                               | 'readable-metadata' = '{op_ts: timestamp_ltz(3)}'
                                |)""".stripMargin)
 
     util.tableEnv.executeSql("""
@@ -337,7 +337,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                |) with (
                                | 'connector' = 'values',
                                | 'changelog-mode' = 'I,UA,UB,D',
-                               | 'readable-metadata' = 'metadata_3:BIGINT'
+                               | 'readable-metadata' = '{metadata_3: BIGINT}'
                                |)""".stripMargin)
 
     util.verifyExecPlanInsert(s"""
@@ -1459,7 +1459,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
          |  'connector' = 'values',
          |  'nested-projection-supported' = 'true',
          |  'changelog-mode' = 'I,UA,UB,D',
-         |  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
+         |  'readable-metadata' = '{metadata_1: INT, metadata_2: STRING, metadata_3: BIGINT}'
          |)
          |""".stripMargin
     util.tableEnv.executeSql(ddl)

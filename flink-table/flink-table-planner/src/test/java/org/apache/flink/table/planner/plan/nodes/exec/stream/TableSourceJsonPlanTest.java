@@ -82,7 +82,7 @@ public class TableSourceJsonPlanTest extends TableTestBase {
                         + "  m varchar metadata\n"
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
-                        + "  'readable-metadata' = 'm:STRING',\n"
+                        + "  'readable-metadata' = '{m: STRING}',\n"
                         + "  'bounded' = 'false')";
         tEnv.executeSql(srcTableDdl);
         String sinkTableDdl =
@@ -107,7 +107,7 @@ public class TableSourceJsonPlanTest extends TableTestBase {
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'bounded' = 'false',"
-                        + "  'filterable-fields' = 'a')";
+                        + "  'filterable-fields' = '[a]')";
         tEnv.executeSql(srcTableDdl);
         util.verifyJsonPlan("insert into MySink select * from src where a > 0");
     }
@@ -128,7 +128,7 @@ public class TableSourceJsonPlanTest extends TableTestBase {
                         + "with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'bounded' = 'false',"
-                        + "  'partition-list' = 'p:A')";
+                        + "  'partition-list' = '[p:A]')";
         tEnv.executeSql(srcTableDdl);
         util.verifyJsonPlan("insert into MySink select * from PartitionTable where p = 'A'");
     }
@@ -169,7 +169,7 @@ public class TableSourceJsonPlanTest extends TableTestBase {
                         + "    ts timestamp(3) METADATA VIRTUAL\n"
                         + ") with (\n"
                         + "    'connector' = 'values',\n"
-                        + "     'readable-metadata' = 'tags:varchar,ts:timestamp(3)',\n"
+                        + "     'readable-metadata' = '{tags: varchar, ts: timestamp(3)}',\n"
                         + "    'enable-projection-push-down' = 'false'\n"
                         + ");\n");
 

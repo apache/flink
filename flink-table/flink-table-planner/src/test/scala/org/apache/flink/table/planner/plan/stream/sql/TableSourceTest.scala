@@ -254,7 +254,7 @@ class TableSourceTest extends TableTestBase {
          |  'connector' = 'values',
          |  'nested-projection-supported' = '$supportsNestedProjectionPushDown',
          |  'bounded' = 'true',
-         |  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
+         |  'readable-metadata' = '{metadata_1: INT, metadata_2: STRING, metadata_3: BIGINT}'
          |)
          |""".stripMargin
     util.tableEnv.executeSql(ddl)
@@ -313,7 +313,8 @@ class TableSourceTest extends TableTestBase {
          |  ts1 as ts + interval '10' second
          |) WITH (
          |  'connector' = 'values',
-         |  ${if (readsMeta) "'readable-metadata'='tags:varchar,op:varchar,ts:timestamp(3)'," else ""}
+         |  ${if (readsMeta) "'readable-metadata'='{tags: varchar, op: varchar, ts: timestamp(3)}',"
+        else ""}
          |  'enable-projection-push-down' = '$projectionPushDown'
          |)""".stripMargin
 

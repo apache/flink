@@ -67,7 +67,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "  price double\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'amount',\n"
+                        + " 'filterable-fields' = '[amount]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl1);
@@ -81,7 +81,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "  price double\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'amount',\n"
+                        + " 'filterable-fields' = '[amount]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
 
@@ -96,7 +96,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "  b STRING\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'a;b',\n"
+                        + " 'filterable-fields' = '[a, b]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl);
@@ -112,7 +112,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'true',\n"
-                        + " 'filterable-fields' = 'a;b',\n"
+                        + " 'filterable-fields' = '[a, b]',\n"
                         + " 'disable-lookup' = 'true'"
                         + ")";
         util.tableEnv().executeSql(ddl);

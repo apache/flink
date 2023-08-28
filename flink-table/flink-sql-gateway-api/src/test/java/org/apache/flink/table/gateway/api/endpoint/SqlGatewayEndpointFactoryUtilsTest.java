@@ -44,7 +44,7 @@ public class SqlGatewayEndpointFactoryUtilsTest {
     public void testCreateEndpoints() {
         String id = UUID.randomUUID().toString();
         Map<String, String> config = getDefaultConfig(id);
-        config.put("sql-gateway.endpoint.type", "mocked;fake");
+        config.put("sql-gateway.endpoint.type", "[mocked, fake]");
         List<SqlGatewayEndpoint> actual =
                 createSqlGatewayEndpoint(
                         new MockedSqlGatewayService(), Configuration.fromMap(config));
@@ -57,7 +57,7 @@ public class SqlGatewayEndpointFactoryUtilsTest {
     @Test
     public void testCreateEndpointWithDuplicateIdentifier() {
         Map<String, String> config = getDefaultConfig();
-        config.put("sql-gateway.endpoint.type", "mocked;mocked");
+        config.put("sql-gateway.endpoint.type", "[mocked, mocked]");
         validateException(
                 config,
                 "Get the duplicate endpoint identifier 'mocked' for the option 'sql-gateway.endpoint.type'. "
@@ -76,7 +76,7 @@ public class SqlGatewayEndpointFactoryUtilsTest {
     @Test
     public void testCreateUnknownEndpoint() {
         Map<String, String> config = getDefaultConfig();
-        config.put("sql-gateway.endpoint.type", "mocked;unknown");
+        config.put("sql-gateway.endpoint.type", "[mocked, unknown]");
         validateException(
                 config,
                 String.format(
@@ -132,7 +132,7 @@ public class SqlGatewayEndpointFactoryUtilsTest {
     private Map<String, String> getDefaultConfig(String id) {
         Map<String, String> config = new HashMap<>();
         config.put("sql-gateway.endpoint.mocked.id", id);
-        config.put("sql-gateway.endpoint.type", "mocked");
+        config.put("sql-gateway.endpoint.type", "[mocked]");
         config.put("sql-gateway.endpoint.mocked.host", "localhost");
         config.put("sql-gateway.endpoint.mocked.port", "9999");
         return config;

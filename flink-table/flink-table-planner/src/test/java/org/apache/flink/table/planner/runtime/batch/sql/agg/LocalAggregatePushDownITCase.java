@@ -58,8 +58,8 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  'data-id' = '"
                         + testDataId
                         + "',\n"
-                        + "  'filterable-fields' = 'id;age',\n"
-                        + "  'readable-metadata' = 'metadata_1:BIGINT, metadata_2:STRING',\n"
+                        + "  'filterable-fields' = '[id, age]',\n"
+                        + "  'readable-metadata' = '{metadata_1: BIGINT, metadata_2: STRING}',\n"
                         + "  'bounded' = 'true'\n"
                         + ")";
         tEnv().executeSql(ddl);
@@ -82,8 +82,8 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  'data-id' = '"
                         + testDataId
                         + "',\n"
-                        + "  'filterable-fields' = 'id;age',\n"
-                        + "  'partition-list' = 'type:A;type:B;type:C;type:D',\n"
+                        + "  'filterable-fields' = '[id, age]',\n"
+                        + "  'partition-list' = '[type:A, type:B, type:C, type:D]',\n"
                         + "  'bounded' = 'true'\n"
                         + ")";
         tEnv().executeSql(ddl2);
@@ -106,7 +106,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
                         + "  'data-id' = '"
                         + testDataId
                         + "',\n"
-                        + "  'filterable-fields' = 'id;age',\n"
+                        + "  'filterable-fields' = '[id, age]',\n"
                         + "  'enable-projection-push-down' = 'false',\n"
                         + "  'bounded' = 'true'\n"
                         + ")";
