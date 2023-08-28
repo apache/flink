@@ -43,7 +43,7 @@ class KeyGroupsStateHandleTest {
     }
 
     @Test
-    public void testEmptyIntersection() {
+    void testEmptyIntersection() {
         KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(0, 7);
         byte[] dummy = new byte[10];
         StreamStateHandle streamHandle = new ByteStreamStateHandle("test", dummy);

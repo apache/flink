@@ -76,7 +76,7 @@ class OperatorStateOutputCheckpointStreamTest {
     }
 
     @Test
-    public void testWriteReadRoundtrip() throws Exception {
+    void testWriteReadRoundtrip() throws Exception {
         int numPartitions = 3;
         OperatorStateCheckpointOutputStream stream = createStream();
         OperatorStateHandle fullHandle = writeAllTestKeyGroups(stream, numPartitions);

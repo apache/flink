@@ -156,8 +156,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                                 stateName,
                                                 new TestType.IncompatibleTestTypeSerializer())))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(StateMigrationException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     private void testKeyedValueStateUpgrade(
@@ -273,8 +273,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                                 stateName,
                                                 new TestType.IncompatibleTestTypeSerializer())))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(StateMigrationException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     private void testKeyedListStateUpgrade(
@@ -424,8 +424,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                                 // schema
                                                 new TestType.IncompatibleTestTypeSerializer())))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(StateMigrationException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     private Iterator<Map.Entry<Integer, TestType>> sortedIterator(
@@ -701,8 +701,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                         new TestType.V1TestTypeSerializer(),
                                         new TestType.V2TestTypeSerializer()))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(StateMigrationException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     @TestTemplate
@@ -721,8 +721,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                         new TestType.V1TestTypeSerializer(),
                                         new TestType.IncompatibleTestTypeSerializer()))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(StateMigrationException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     private void testNamespaceSerializerUpgrade(
@@ -833,8 +833,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                                 // restore with a new incompatible serializer
                                                 new TestType.IncompatibleTestTypeSerializer())))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(StateMigrationException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     private void testOperatorPartitionableListStateUpgrade(
@@ -928,8 +928,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                                 // restore with a new incompatible serializer
                                                 new TestType.IncompatibleTestTypeSerializer())))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(StateMigrationException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     private void testOperatorUnionListStateUpgrade(
@@ -1061,8 +1061,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                                 // new value serializer is incompatible
                                                 new TestType.IncompatibleTestTypeSerializer())))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(StateMigrationException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     @TestTemplate
@@ -1082,8 +1082,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                                 new TestType.IncompatibleTestTypeSerializer(),
                                                 IntSerializer.INSTANCE)))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(StateMigrationException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     private void testBroadcastStateValueUpgrade(
@@ -1223,8 +1223,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                 testKeyedValueStateUpgrade(
                                         initialAccessDescriptor, newAccessDescriptorAfterRestore))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(StateMigrationException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(StateMigrationException.class));
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     @TestTemplate
@@ -1244,8 +1244,8 @@ public abstract class StateBackendMigrationTestBase<B extends StateBackend> {
                                 testKeyedValueStateUpgrade(
                                         initialAccessDescriptor, newAccessDescriptorAfterRestore))
                 .satisfiesAnyOf(
-                        x -> assertThat(x).isInstanceOf(IllegalStateException.class),
-                        x -> assertThat(x).hasCauseInstanceOf(IllegalStateException.class));
+                        e -> assertThat(e).isInstanceOf(IllegalStateException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(IllegalStateException.class));
     }
 
     // -------------------------------------------------------------------------------

@@ -115,7 +115,7 @@ class StateBackendLoadingTest {
      * configuration.
      */
     @Test
-    public void testLoadMemoryStateWithParameters() throws Exception {
+    void testLoadMemoryStateWithParameters() throws Exception {
         final String checkpointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
         final String savepointDir = new Path(TempDirUtils.newFolder(tmp).toURI()).toString();
         final Path expectedCheckpointPath = new Path(checkpointDir);

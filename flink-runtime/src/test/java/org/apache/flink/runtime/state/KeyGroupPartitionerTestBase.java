@@ -102,7 +102,7 @@ public abstract class KeyGroupPartitionerTestBase<T> {
     }
 
     @Test
-    public void testPartitionByKeyGroupWithIterator() throws IOException {
+    void testPartitionByKeyGroupWithIterator() throws IOException {
 
         final Random random = new Random(0x42);
         testPartitionByKeyGroupForSizeWithIterator(0, random);

@@ -77,7 +77,7 @@ class TaskExecutorStateChangelogStoragesManagerTest {
     }
 
     @Test
-    public void testReleaseForJob() throws IOException {
+    void testReleaseForJob() throws IOException {
         StateChangelogStorageLoader.initialize(TestStateChangelogStorageFactory.pluginManager);
         TaskExecutorStateChangelogStoragesManager manager =
                 new TaskExecutorStateChangelogStoragesManager();

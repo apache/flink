@@ -49,7 +49,6 @@ import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
@@ -442,15 +441,15 @@ public class FsCheckpointStateOutputStreamTest {
     }
 
     private static void checkDirectoryNotWritable(File directory) {
-        try {
-            try (FileOutputStream fos = new FileOutputStream(new File(directory, "temp"))) {
-                fos.write(42);
-                fos.flush();
-            }
-
-            fail("this should fail when writing is properly prevented");
-        } catch (IOException ignored) {
-            // expected, works
-        }
+        assertThatThrownBy(
+                        () -> {
+                            try (FileOutputStream fos =
+                                    new FileOutputStream(new File(directory, "temp"))) {
+                                fos.write(42);
+                                fos.flush();
+                            }
+                        })
+                .withFailMessage("this should fail when writing is properly prevented")
+                .isInstanceOf(IOException.class);
     }
 }

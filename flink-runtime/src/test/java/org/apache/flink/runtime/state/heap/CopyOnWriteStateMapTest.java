@@ -257,7 +257,7 @@ class CopyOnWriteStateMapTest {
                     }
             }
 
-            assertThat(stateMap.size()).isEqualTo(referenceMap.size());
+            assertThat(stateMap).hasSize(referenceMap.size());
 
             if (state != null) {
                 assertThat(referenceState).isNotNull();
@@ -555,7 +555,7 @@ class CopyOnWriteStateMapTest {
             return;
         }
 
-        assertThat(a.length).isEqualTo(b.length);
+        assertThat(a).hasSameSizeAs(b);
 
         Comparator<Tuple3<Integer, Integer, ArrayList<Integer>>> comparator =
                 (o1, o2) -> {

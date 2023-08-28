@@ -109,7 +109,7 @@ class CopyOnWriteStateTableTest {
 
     /** This tests that resource can be released for a successful snapshot. */
     @Test
-    public void testReleaseForSuccessfulSnapshot() throws IOException {
+    void testReleaseForSuccessfulSnapshot() throws IOException {
         int numberOfKeyGroups = 10;
         CopyOnWriteStateTable<Integer, Integer, Float> table =
                 createStateTableForSnapshotRelease(numberOfKeyGroups);

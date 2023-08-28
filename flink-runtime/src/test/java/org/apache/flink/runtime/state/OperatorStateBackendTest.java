@@ -837,7 +837,7 @@ class OperatorStateBackendTest {
             Iterator<Map.Entry<MutableType, MutableType>> bIt = broadcastState1.iterator();
             assertThat(bIt).hasNext();
             Map.Entry<MutableType, MutableType> entry = bIt.next();
-            assertThat(entry.getKey().value).isEqualTo(1);
+            assertThat(entry.getKey().value).isOne();
             assertThat(entry.getValue().value).isEqualTo(2);
             assertThat(bIt).hasNext();
             entry = bIt.next();

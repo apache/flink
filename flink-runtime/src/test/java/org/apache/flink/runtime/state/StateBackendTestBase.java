@@ -1770,7 +1770,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // verify default value
             assertThat(state.value()).isEqualTo(42L);
             state.update(1L);
-            assertThat(state.value()).isEqualTo(1L);
+            assertThat(state.value()).isOne();
 
             backend.setCurrentKey(2);
             assertThat(state.value()).isEqualTo(42L);
@@ -3314,7 +3314,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                 keys.add(key);
             }
             List<Integer> expectedKeys = Arrays.asList(103, 1031, 1032);
-            assertThat(keys.size()).isEqualTo(expectedKeys.size());
+            assertThat(keys).hasSameSizeAs(expectedKeys);
             keys.removeAll(expectedKeys);
 
             List<String> values = new ArrayList<>();
@@ -3322,7 +3322,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                 values.add(value);
             }
             List<String> expectedValues = Arrays.asList("103", "1031", "1032");
-            assertThat(values.size()).isEqualTo(expectedValues.size());
+            assertThat(values).hasSameSizeAs(expectedValues);
             values.removeAll(expectedValues);
 
             // make some more modifications
@@ -3348,7 +3348,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             assertThat(state.contains(102)).isFalse();
             backend.setCurrentKey("3");
             for (Map.Entry<Integer, String> entry : state.entries()) {
-                assertThat(entry.getValue().length()).isEqualTo(4 + updateSuffix.length());
+                assertThat(entry.getValue()).hasSize(4 + updateSuffix.length());
                 assertThat(entry.getValue().endsWith(updateSuffix)).isTrue();
             }
 
@@ -4004,7 +4004,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
         ValueStateDescriptor<String> kvId = new ValueStateDescriptor<>("id", String.class);
 
-        KeyedStateHandle snapshot = null;
+        KeyedStateHandle snapshot;
         // use an IntSerializer at first
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
@@ -4034,15 +4034,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         }
 
         // restore with the wrong key serializer
-        try {
-            restoreKeyedBackend(DoubleSerializer.INSTANCE, snapshot);
-
-            fail("should recognize wrong key serializer");
-        } catch (StateMigrationException ignored) {
-            // expected
-        } catch (BackendBuildingException ignored) {
-            assertThat(ignored).hasCauseInstanceOf(StateMigrationException.class);
-        }
+        assertThatThrownBy(() -> restoreKeyedBackend(DoubleSerializer.INSTANCE, snapshot))
+                .withFailMessage("should recognize wrong key serializer")
+                .satisfiesAnyOf(
+                        e -> assertThat(e).isInstanceOf(StateMigrationException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(StateMigrationException.class));
     }
 
     @TestTemplate
@@ -4085,19 +4081,15 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeSerializer<String> fakeStringSerializer =
                     (TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
-            try {
-                kvId = new ValueStateDescriptor<>("id", fakeStringSerializer);
+            ValueStateDescriptor<String> kvId1 =
+                    new ValueStateDescriptor<>("id", fakeStringSerializer);
+            ValueState<String> state1 =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId1);
 
-                state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
-
-                state.value();
-
-                fail("should recognize wrong serializers");
-            } catch (StateMigrationException ignored) {
-                // expected
-            }
+            assertThatThrownBy(state1::value)
+                    .withFailMessage("should recognize wrong serializers")
+                    .isInstanceOf(StateMigrationException.class);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -4143,19 +4135,16 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeSerializer<String> fakeStringSerializer =
                     (TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
-            try {
-                kvId = new ListStateDescriptor<>("id", fakeStringSerializer);
+            ListStateDescriptor<String> kvId1 =
+                    new ListStateDescriptor<>("id", fakeStringSerializer);
 
-                state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+            ListState<String> state1 =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId1);
 
-                state.get();
-
-                fail("should recognize wrong serializers");
-            } catch (StateMigrationException ignored) {
-                // expected
-            }
+            assertThatThrownBy(state1::get)
+                    .withFailMessage("should recognize wrong serializers")
+                    .isInstanceOf(StateMigrationException.class);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -4203,21 +4192,17 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeSerializer<String> fakeStringSerializer =
                     (TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
-            try {
-                kvId =
-                        new ReducingStateDescriptor<>(
-                                "id", new AppendingReduce(), fakeStringSerializer);
+            ReducingStateDescriptor<String> kvId1 =
+                    new ReducingStateDescriptor<>(
+                            "id", new AppendingReduce(), fakeStringSerializer);
 
-                state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+            ReducingState<String> state1 =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId1);
 
-                state.get();
-
-                fail("should recognize wrong serializers");
-            } catch (StateMigrationException ignored) {
-                // expected
-            }
+            assertThatThrownBy(state1::get)
+                    .withFailMessage("should recognize wrong serializers")
+                    .isInstanceOf(StateMigrationException.class);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -4265,21 +4250,16 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeSerializer<String> fakeStringSerializer =
                     (TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
-            try {
-                kvId =
-                        new MapStateDescriptor<>(
-                                "id", fakeStringSerializer, StringSerializer.INSTANCE);
+            MapStateDescriptor<String, String> kvId1 =
+                    new MapStateDescriptor<>("id", fakeStringSerializer, StringSerializer.INSTANCE);
 
-                state =
-                        backend.getPartitionedState(
-                                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
+            MapState<String, String> state1 =
+                    backend.getPartitionedState(
+                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId1);
 
-                state.entries();
-
-                fail("should recognize wrong serializers");
-            } catch (StateMigrationException ignored) {
-                // expected
-            }
+            assertThatThrownBy(state1::entries)
+                    .withFailMessage("should recognize wrong serializers")
+                    .isInstanceOf(StateMigrationException.class);
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
@@ -4547,8 +4527,6 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         try {
             CheckpointStreamFactory streamFactory = createStreamFactory();
             SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
-
-            ListStateDescriptor<String> kvId = new ListStateDescriptor<>("id", String.class);
 
             // draw a snapshot
             KeyedStateHandle snapshot =
@@ -4894,8 +4872,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                         public void process(Integer key, ListState<String> state) throws Exception {
                             final Iterator<String> it = state.get().iterator();
                             assertThat(it.next()).isEqualTo("Hello_" + key);
-                            assertThat(it.hasNext())
-                                    .isFalse(); // finally verify we have no more elements
+                            assertThat(it).isExhausted(); // finally verify we have no more elements
                         }
                     });
         } finally {
@@ -5191,10 +5168,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
                             }
                         })
                 .satisfiesAnyOf(
-                        actual -> assertThat(actual).isInstanceOf(ExpectedKryoTestException.class),
-                        actual ->
-                                assertThat(actual)
-                                        .hasCauseInstanceOf(ExpectedKryoTestException.class));
+                        e -> assertThat(e).isInstanceOf(ExpectedKryoTestException.class),
+                        e -> assertThat(e).hasCauseInstanceOf(ExpectedKryoTestException.class));
     }
 
     protected Future<SnapshotResult<KeyedStateHandle>> runSnapshotAsync(

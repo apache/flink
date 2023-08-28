@@ -131,7 +131,7 @@ class FileStateHandleTest {
     }
 
     @Test
-    public void testDiscardStateWithDeletionFailureThroughException() throws Exception {
+    void testDiscardStateWithDeletionFailureThroughException() throws Exception {
         testDiscardStateFailed(
                 MockedLocalFileSystem.newBuilder()
                         .setDeleteFunction(
