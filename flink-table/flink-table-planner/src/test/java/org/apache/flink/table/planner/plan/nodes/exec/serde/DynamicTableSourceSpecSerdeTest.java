@@ -127,9 +127,9 @@ public class DynamicTableSourceSpecSerdeTest {
         options2.put("connector", TestValuesTableFactory.IDENTIFIER);
         options2.put("disable-lookup", "true");
         options2.put("enable-watermark-push-down", "true");
-        options2.put("filterable-fields", "b");
+        options2.put("filterable-fields", "[b]");
         options2.put("bounded", "false");
-        options2.put("readable-metadata", "m1:INT, m2:STRING");
+        options2.put("readable-metadata", "{m1: INT, m2: STRING}");
 
         final ResolvedSchema resolvedSchema2 =
                 new ResolvedSchema(

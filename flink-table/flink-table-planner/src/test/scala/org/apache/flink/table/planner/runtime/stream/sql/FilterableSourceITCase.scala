@@ -54,7 +54,7 @@ class FilterableSourceITCase extends StreamingTestBase {
          | ) WITH (
          |   'connector' = 'values',
          |   'enable-watermark-push-down' = 'true',
-         |   'filterable-fields' = 'a;c;d',
+         |   'filterable-fields' = '[a, c, d]',
          |   'bounded' = 'false',
          |   'disable-lookup' = 'true',
          |   'data-id' = '$dataId'
@@ -94,7 +94,7 @@ class FilterableSourceITCase extends StreamingTestBase {
          | ) WITH (
          |   'connector' = 'values',
          |   'enable-watermark-push-down' = 'true',
-         |   'filterable-fields' = 'c;d',
+         |   'filterable-fields' = '[c, d]',
          |   'bounded' = 'false',
          |   'disable-lookup' = 'true',
          |   'data-id' = '$dataId'
@@ -132,7 +132,7 @@ class FilterableSourceITCase extends StreamingTestBase {
          |  WATERMARK FOR d as d
          |) WITH (
          |  'connector' = 'values',
-         |  'filterable-fields' = 'c',
+         |  'filterable-fields' = '[c]',
          |  'enable-watermark-push-down' = 'true',
          |  'data-id' = '$dataId',
          |  'bounded' = 'false',

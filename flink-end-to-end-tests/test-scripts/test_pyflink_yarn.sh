@@ -74,7 +74,7 @@ docker exec master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     -pyarch /tmp/venv.zip \
     -pyexec venv.zip/.conda/bin/python \
     -py /tmp/python_job.py \
-    pipeline.jars file:/tmp/PythonUdfSqlJobExample.jar"
+    pipeline.jars [file:/tmp/PythonUdfSqlJobExample.jar]"
 
 # clean up python env
 "${FLINK_PYTHON_DIR}/dev/lint-python.sh" -r

@@ -168,7 +168,7 @@ class SessionContextTest {
                                         Collections.singletonMap(
                                                 TABLE_CATALOG_MODIFICATION_LISTENERS.key(),
                                                 String.format(
-                                                        "%s;%s",
+                                                        "[%s, %s]",
                                                         CatalogFactory1.IDENTIFIER,
                                                         CatalogFactory2.IDENTIFIER)))
                                 .setSessionEndpointVersion(MockedEndpointVersion.V1)

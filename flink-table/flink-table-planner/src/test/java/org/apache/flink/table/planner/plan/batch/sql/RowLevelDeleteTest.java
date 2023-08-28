@@ -95,7 +95,7 @@ public class RowLevelDeleteTest extends TableTestBase {
                                 "CREATE TABLE t (a int, b string, c double) WITH"
                                         + " ("
                                         + "'connector' = 'test-update-delete', "
-                                        + "'required-columns-for-delete' = 'b;c', "
+                                        + "'required-columns-for-delete' = '[b, c]', "
                                         + "'delete-mode' = '%s', 'support-delete-push-down' = 'false'"
                                         + ") ",
                                 deleteMode));
@@ -110,7 +110,7 @@ public class RowLevelDeleteTest extends TableTestBase {
                                 "CREATE TABLE t (a int, b string, c double) WITH"
                                         + " ("
                                         + "'connector' = 'test-update-delete', "
-                                        + "'required-columns-for-delete' = 'meta_f1;meta_k2;b', "
+                                        + "'required-columns-for-delete' = '[meta_f1, meta_k2, b]', "
                                         + "'delete-mode' = '%s', 'support-delete-push-down' = 'false'"
                                         + ") ",
                                 deleteMode));

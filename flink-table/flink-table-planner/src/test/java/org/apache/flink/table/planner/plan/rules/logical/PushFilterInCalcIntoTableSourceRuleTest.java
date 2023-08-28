@@ -76,7 +76,7 @@ public class PushFilterInCalcIntoTableSourceRuleTest
                         + "  price double\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'amount',\n"
+                        + " 'filterable-fields' = '[amount]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl1);
@@ -90,7 +90,7 @@ public class PushFilterInCalcIntoTableSourceRuleTest
                         + "  price double\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'amount',\n"
+                        + " 'filterable-fields' = '[amount]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
 
@@ -104,7 +104,7 @@ public class PushFilterInCalcIntoTableSourceRuleTest
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'false',\n"
-                        + " 'filterable-fields' = 'name',\n"
+                        + " 'filterable-fields' = '[name]',\n"
                         + " 'disable-lookup' = 'true'"
                         + ")";
 
@@ -124,7 +124,7 @@ public class PushFilterInCalcIntoTableSourceRuleTest
                         + "  b STRING\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'a;b',\n"
+                        + " 'filterable-fields' = '[a, b]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl);
@@ -140,7 +140,7 @@ public class PushFilterInCalcIntoTableSourceRuleTest
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'false',\n"
-                        + " 'filterable-fields' = 'a;b',\n"
+                        + " 'filterable-fields' = '[a, b]',\n"
                         + " 'disable-lookup' = 'true'"
                         + ")";
 

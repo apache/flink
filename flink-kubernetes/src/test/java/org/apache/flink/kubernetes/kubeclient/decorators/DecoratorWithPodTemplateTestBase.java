@@ -65,7 +65,7 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
                 }
             };
     protected static final String TOLERATION_STRING =
-            "key:key1,operator:Equal,value:value1,effect:NoSchedule";
+            "[{key: key1, operator: Equal, value: value1, effect: NoSchedule}]";
     private static final String TESTING_SERVICE_ACCOUNT = "testing-service-account";
 
     protected static final double RESOURCE_CPU = 1.5;

@@ -277,7 +277,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
          |   'enable-watermark-push-down' = 'true',
          |   'bounded' = 'false',
          |   'disable-lookup' = 'true',
-         |   'readable-metadata' = 'originTime:BIGINT',
+         |   'readable-metadata' = '{originTime: BIGINT}',
          |   'data-id' = '$dataId'
          | )
          |""".stripMargin

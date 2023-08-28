@@ -77,14 +77,14 @@ public class ReadableWritableConfigurationTest {
                                         .intType()
                                         .asList()
                                         .defaultValues(-1, 2, 3))
-                        .valueEquals(Arrays.asList(1, 2, 3, 4, 5), "1;2;3;4;5")
+                        .valueEquals(Arrays.asList(1, 2, 3, 4, 5), "[1,2,3,4,5]")
                         .checkDefaultOverride(Arrays.asList(1, 2)),
                 new TestSpec<>(
                                 ConfigOptions.key("list<string>")
                                         .stringType()
                                         .asList()
                                         .defaultValues("A", "B", "C"))
-                        .valueEquals(Arrays.asList("A;B", "C"), "'A;B';C")
+                        .valueEquals(Arrays.asList("A;B", "C"), "[A;B, C]")
                         .checkDefaultOverride(Collections.singletonList("C")),
                 new TestSpec<>(
                                 ConfigOptions.key("interval")
@@ -110,7 +110,7 @@ public class ReadableWritableConfigurationTest {
                                         Arrays.asList(
                                                 Tuple2.of("key1", "value1"),
                                                 Tuple2.of("key2", "value2"))),
-                                "key1:value1,key2:value2")
+                                "{key1: value1, key2: value2}")
                         .checkDefaultOverride(Collections.emptyMap()),
                 new TestSpec<>(
                                 ConfigOptions.key("list<properties>")
@@ -127,7 +127,7 @@ public class ReadableWritableConfigurationTest {
                                                         Tuple2.of("key1", "value1"),
                                                         Tuple2.of("key2", "value2"))),
                                         asMap(Arrays.asList(Tuple2.of("key3", "value3")))),
-                                "key1:value1,key2:value2;key3:value3")
+                                "[{key1: value1, key2: value2}, {key3: value3}]")
                         .checkDefaultOverride(Collections.emptyList()));
     }
 

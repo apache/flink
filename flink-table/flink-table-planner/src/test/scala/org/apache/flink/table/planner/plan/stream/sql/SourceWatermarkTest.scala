@@ -92,7 +92,7 @@ class SourceWatermarkTest extends TableTestBase {
          |   'enable-watermark-push-down' = 'true',
          |   'bounded' = 'false',
          |   'disable-lookup' = 'true',
-         |   'readable-metadata' = 'originTime:BIGINT'
+         |   'readable-metadata' = '{originTime: BIGINT}'
          | )
          """.stripMargin)
 
@@ -109,7 +109,7 @@ class SourceWatermarkTest extends TableTestBase {
                                 |   'enable-watermark-push-down' = 'true',
                                 |   'bounded' = 'false',
                                 |   'disable-lookup' = 'true',
-                                |   'readable-metadata' = 'originTime:BIGINT'
+                                |   'readable-metadata' = '{originTime: BIGINT}'
                                 | )
          """.stripMargin)
 

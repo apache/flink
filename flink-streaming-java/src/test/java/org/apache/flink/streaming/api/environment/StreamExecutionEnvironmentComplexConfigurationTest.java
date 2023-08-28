@@ -84,9 +84,9 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
         Configuration configuration = new Configuration();
         configuration.setString(
                 "pipeline.cached-files",
-                "name:file1,path:/tmp1,executable:true;"
-                        + "name:file2,path:/tmp2;"
-                        + "name:file3,path:'oss://bucket/file1'");
+                "[{name: file1, path: /tmp1, executable: true},"
+                        + "{name: file2, path: /tmp2},"
+                        + "{name: file3, path: 'oss://bucket/file1'}]");
 
         // mutate config according to configuration
         envFromConfiguration.configure(
@@ -113,8 +113,8 @@ public class StreamExecutionEnvironmentComplexConfigurationTest {
         Configuration configuration = new Configuration();
         configuration.setString(
                 "pipeline.default-kryo-serializers",
-                "class:'org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojo'"
-                        + ",serializer:'org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojoSerializer'");
+                "[{class: org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojo"
+                        + ",serializer: org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentComplexConfigurationTest$CustomPojoSerializer}]");
 
         // mutate config according to configuration
         StreamExecutionEnvironment envFromConfiguration =

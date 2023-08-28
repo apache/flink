@@ -197,8 +197,8 @@ public class ExecutionConfigTest {
         Configuration configuration = new Configuration();
         configuration.setString(
                 "pipeline.registered-kryo-types",
-                "org.apache.flink.api.common.ExecutionConfigTest;"
-                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1");
+                "[org.apache.flink.api.common.ExecutionConfigTest,"
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1]");
 
         // mutate config according to configuration
         configFromConfiguration.configure(
@@ -218,8 +218,8 @@ public class ExecutionConfigTest {
         Configuration configuration = new Configuration();
         configuration.setString(
                 "pipeline.registered-pojo-types",
-                "org.apache.flink.api.common.ExecutionConfigTest;"
-                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1");
+                "[org.apache.flink.api.common.ExecutionConfigTest,"
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1]");
 
         // mutate config according to configuration
         configFromConfiguration.configure(
@@ -260,10 +260,10 @@ public class ExecutionConfigTest {
         Configuration configuration = new Configuration();
         configuration.setString(
                 "pipeline.default-kryo-serializers",
-                "class:org.apache.flink.api.common.ExecutionConfigTest,"
-                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1;"
-                        + "class:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1,"
-                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer2");
+                "[{class: org.apache.flink.api.common.ExecutionConfigTest,"
+                        + "serializer: org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1},"
+                        + "{class: org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1,"
+                        + "serializer: org.apache.flink.api.common.ExecutionConfigTest$TestSerializer2}]");
 
         // mutate config according to configuration
         configFromConfiguration.configure(

@@ -58,7 +58,7 @@ class TableSourceITCase extends BatchTestBase {
                        |) WITH (
                        |  'connector' = 'values',
                        |  'data-id' = '$filterableTableDataId',
-                       |  'filterable-fields' = 'amount',
+                       |  'filterable-fields' = '[amount]',
                        |  'bounded' = 'true'
                        |)
                        |""".stripMargin)
