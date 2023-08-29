@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.collector.ListenableCollector;
+import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedCollector;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.util.Collector;
@@ -40,9 +41,15 @@ public class LookupJoinWithCalcRunner extends LookupJoinRunner {
             GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedFetcher,
             GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc,
             GeneratedCollector<ListenableCollector<RowData>> generatedCollector,
+            GeneratedFunction<FilterCondition> generatedFilterCondition,
             boolean isLeftOuterJoin,
             int tableFieldsCount) {
-        super(generatedFetcher, generatedCollector, isLeftOuterJoin, tableFieldsCount);
+        super(
+                generatedFetcher,
+                generatedCollector,
+                generatedFilterCondition,
+                isLeftOuterJoin,
+                tableFieldsCount);
         this.generatedCalc = generatedCalc;
     }
 

@@ -91,4 +91,21 @@ public class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
                 Arrays.asList("+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
+
+    @Test
+    public void testLeftJoinLookupTableWithPreFilter() throws Exception {
+        compileSqlAndExecutePlan(
+                        "insert into MySink "
+                                + "SELECT T.id, T.len, T.content, D.name FROM src AS T LEFT JOIN user_table \n"
+                                + "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20 AND T.id <> 3\n")
+                .await();
+        List<String> expected =
+                Arrays.asList(
+                        "+I[1, 12, Julian, null]",
+                        "+I[2, 15, Hello, Jark]",
+                        "+I[3, 15, Fabian, null]",
+                        "+I[8, 11, Hello world, null]",
+                        "+I[9, 12, Hello world!, null]");
+        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+    }
 }

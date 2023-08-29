@@ -732,6 +732,39 @@ Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, 
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCdcLeftJoinDimWithNonDeterministicPreFilter[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_with_pk
+select t1.a, t2.b as version, t2.c
+from (
+  select *, proctime() proctime from cdc
+) t1 left join dim_with_pk for system_time as of t1.proctime as t2
+on t1.a = t2.a
+  and t1.b > UNIX_TIMESTAMP() - 300
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c])
++- LogicalProject(a=[$0], version=[$6], c=[$7])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 1, 4}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
+      +- LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.b, -(UNIX_TIMESTAMP(), 300)))])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, dim_with_pk]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c], upsertMaterialize=[true])
++- Calc(select=[a, b0 AS version, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[LeftOuterJoin], lookup=[a=a], joinCondition=[(b > (UNIX_TIMESTAMP() - 300))], select=[a, b, a0, b0, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCdcJoinDimWithPkNonDeterministicLocalCondition[nonDeterministicUpdateStrategy=IGNORE]">
     <Resource name="sql">
       <![CDATA[

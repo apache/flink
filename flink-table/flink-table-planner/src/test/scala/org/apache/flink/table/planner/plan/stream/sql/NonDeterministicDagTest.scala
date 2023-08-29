@@ -670,6 +670,25 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
   }
 
   @Test
+  def testCdcLeftJoinDimWithNonDeterministicPreFilter(): Unit = {
+    // use builtin temporal function
+    if (tryResolve) {
+      thrown.expectMessage(
+        "exists non deterministic function: 'UNIX_TIMESTAMP' in condition: '>($1, -(UNIX_TIMESTAMP(), 300))' which may cause wrong result")
+      thrown.expect(classOf[TableException])
+    }
+    util.verifyExecPlanInsert(s"""
+                                 |insert into sink_with_pk
+                                 |select t1.a, t2.b as version, t2.c
+                                 |from (
+                                 |  select *, proctime() proctime from cdc
+                                 |) t1 left join dim_with_pk for system_time as of t1.proctime as t2
+                                 |on t1.a = t2.a
+                                 |  and t1.b > UNIX_TIMESTAMP() - 300
+                                 |""".stripMargin)
+  }
+
+  @Test
   def testGroupByNonDeterministicFuncWithCdcSource(): Unit = {
     if (tryResolve) {
       thrown.expectMessage(

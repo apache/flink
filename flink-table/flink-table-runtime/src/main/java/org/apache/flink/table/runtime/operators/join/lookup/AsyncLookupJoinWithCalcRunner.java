@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
+import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
@@ -46,6 +47,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
             DataStructureConverter<RowData, Object> fetcherConverter,
             GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedCalc,
             GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture,
+            GeneratedFunction<FilterCondition> generatedPreFilterCondition,
             RowDataSerializer rightRowSerializer,
             boolean isLeftOuterJoin,
             int asyncBufferCapacity) {
@@ -53,6 +55,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
                 generatedFetcher,
                 fetcherConverter,
                 generatedResultFuture,
+                generatedPreFilterCondition,
                 rightRowSerializer,
                 isLeftOuterJoin,
                 asyncBufferCapacity);
