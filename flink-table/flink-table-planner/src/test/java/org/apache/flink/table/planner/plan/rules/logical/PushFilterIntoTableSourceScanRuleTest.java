@@ -159,8 +159,8 @@ public class PushFilterIntoTableSourceScanRuleTest
 
     @Test
     public void testNestedFilterWithDotInTheName() {
-        util.verifyRelPlan("SELECT id FROM NestedTable WHERE"
-                + " `deepNestedWith.`.nested.`.value` > 5");
+        util.verifyRelPlan(
+                "SELECT id FROM NestedTable WHERE" + " `deepNestedWith.`.nested.`.value` > 5");
     }
 
     @Test

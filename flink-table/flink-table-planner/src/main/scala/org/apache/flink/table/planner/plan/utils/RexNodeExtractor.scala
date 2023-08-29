@@ -550,7 +550,7 @@ class RexNodeToExpressionConverter(
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[ResolvedExpression] = {
     fieldAccess.getReferenceExpr match {
-      // push down on nested field inside a map or array is not supported
+      // push down on nested field inside a composite type like map or array is not supported
       case _: RexCall => return None
       case _ => // do nothing
     }

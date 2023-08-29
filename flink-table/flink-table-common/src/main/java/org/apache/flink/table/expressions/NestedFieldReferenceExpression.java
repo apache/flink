@@ -34,7 +34,7 @@ import java.util.Objects;
  *   <li>index of a field within the corresponding input
  * </ul>
  */
-public class NestedFieldReferenceExpression extends BaseReferenceExpression {
+public class NestedFieldReferenceExpression implements ResolvedExpression {
 
     private final String name;
 
