@@ -4081,13 +4081,17 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeSerializer<String> fakeStringSerializer =
                     (TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
-            ValueStateDescriptor<String> kvId1 =
-                    new ValueStateDescriptor<>("id", fakeStringSerializer);
-            ValueState<String> state1 =
-                    backend.getPartitionedState(
-                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId1);
+            CheckpointableKeyedStateBackend<Integer> restoredBackend = backend;
 
-            assertThatThrownBy(state1::value)
+            assertThatThrownBy(
+                            () ->
+                                    restoredBackend
+                                            .getPartitionedState(
+                                                    VoidNamespace.INSTANCE,
+                                                    VoidNamespaceSerializer.INSTANCE,
+                                                    new ValueStateDescriptor<>(
+                                                            "id", fakeStringSerializer))
+                                            .value())
                     .withFailMessage("should recognize wrong serializers")
                     .isInstanceOf(StateMigrationException.class);
         } finally {
@@ -4135,14 +4139,17 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeSerializer<String> fakeStringSerializer =
                     (TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
-            ListStateDescriptor<String> kvId1 =
-                    new ListStateDescriptor<>("id", fakeStringSerializer);
+            CheckpointableKeyedStateBackend<Integer> restoredBackend = backend;
 
-            ListState<String> state1 =
-                    backend.getPartitionedState(
-                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId1);
-
-            assertThatThrownBy(state1::get)
+            assertThatThrownBy(
+                            () ->
+                                    restoredBackend
+                                            .getPartitionedState(
+                                                    VoidNamespace.INSTANCE,
+                                                    VoidNamespaceSerializer.INSTANCE,
+                                                    new ListStateDescriptor<>(
+                                                            "id", fakeStringSerializer))
+                                            .get())
                     .withFailMessage("should recognize wrong serializers")
                     .isInstanceOf(StateMigrationException.class);
         } finally {
@@ -4192,15 +4199,19 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeSerializer<String> fakeStringSerializer =
                     (TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
-            ReducingStateDescriptor<String> kvId1 =
-                    new ReducingStateDescriptor<>(
-                            "id", new AppendingReduce(), fakeStringSerializer);
+            CheckpointableKeyedStateBackend<Integer> restoredBackend = backend;
 
-            ReducingState<String> state1 =
-                    backend.getPartitionedState(
-                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId1);
-
-            assertThatThrownBy(state1::get)
+            assertThatThrownBy(
+                            () ->
+                                    restoredBackend
+                                            .getPartitionedState(
+                                                    VoidNamespace.INSTANCE,
+                                                    VoidNamespaceSerializer.INSTANCE,
+                                                    new ReducingStateDescriptor<>(
+                                                            "id",
+                                                            new AppendingReduce(),
+                                                            fakeStringSerializer))
+                                            .get())
                     .withFailMessage("should recognize wrong serializers")
                     .isInstanceOf(StateMigrationException.class);
         } finally {
@@ -4250,14 +4261,18 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             TypeSerializer<String> fakeStringSerializer =
                     (TypeSerializer<String>) (TypeSerializer<?>) FloatSerializer.INSTANCE;
 
-            MapStateDescriptor<String, String> kvId1 =
-                    new MapStateDescriptor<>("id", fakeStringSerializer, StringSerializer.INSTANCE);
-
-            MapState<String, String> state1 =
-                    backend.getPartitionedState(
-                            VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId1);
-
-            assertThatThrownBy(state1::entries)
+            CheckpointableKeyedStateBackend<Integer> restoredBackend = backend;
+            assertThatThrownBy(
+                            () ->
+                                    restoredBackend
+                                            .getPartitionedState(
+                                                    VoidNamespace.INSTANCE,
+                                                    VoidNamespaceSerializer.INSTANCE,
+                                                    new MapStateDescriptor<>(
+                                                            "id",
+                                                            fakeStringSerializer,
+                                                            StringSerializer.INSTANCE))
+                                            .entries())
                     .withFailMessage("should recognize wrong serializers")
                     .isInstanceOf(StateMigrationException.class);
         } finally {
