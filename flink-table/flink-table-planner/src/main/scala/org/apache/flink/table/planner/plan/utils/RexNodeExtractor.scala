@@ -549,6 +549,12 @@ class RexNodeToExpressionConverter(
   }
 
   override def visitFieldAccess(fieldAccess: RexFieldAccess): Option[ResolvedExpression] = {
+    fieldAccess.getReferenceExpr match {
+      // push down on nested field inside a map or array is not supported
+      case _: RexCall => return None
+      case _ => // do nothing
+    }
+
     relDataType match {
       case Some(dataType) =>
         val schema = NestedProjectionUtil.build(Collections.singletonList(fieldAccess), dataType)
