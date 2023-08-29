@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.expressions;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Arrays;
@@ -34,41 +35,25 @@ import java.util.Objects;
  *   <li>index of a field within the corresponding input
  * </ul>
  */
+@PublicEvolving
 public class NestedFieldReferenceExpression implements ResolvedExpression {
 
-    private final String name;
+    /** Nested field names to traverse from the top level column to the nested leaf column. */
+    private final String[] fieldNames;
 
     private final DataType dataType;
 
-    /**
-     * index of an input the field belongs to. e.g. for a join, `inputIndex` of left input is 0 and
-     * `inputIndex` of right input is 1.
-     */
-    private final int inputIndex;
-
-    /**
-     * Nested field reference index to traverse from the top level column to the nested leaf column.
-     */
-    private final int[] fieldIndices;
-
-    public NestedFieldReferenceExpression(
-            String name, DataType dataType, int inputIndex, int[] fieldIndices) {
-        this.name = name;
+    public NestedFieldReferenceExpression(String[] fieldNames, DataType dataType) {
+        this.fieldNames = fieldNames;
         this.dataType = dataType;
-        this.inputIndex = inputIndex;
-        this.fieldIndices = fieldIndices;
+    }
+
+    public String[] getFieldNames() {
+        return fieldNames;
     }
 
     public String getName() {
-        return name;
-    }
-
-    public int getInputIndex() {
-        return inputIndex;
-    }
-
-    public int[] getFieldIndices() {
-        return fieldIndices;
+        return String.join("_", fieldNames);
     }
 
     @Override
@@ -83,7 +68,7 @@ public class NestedFieldReferenceExpression implements ResolvedExpression {
 
     @Override
     public String asSummaryString() {
-        return name;
+        return getName();
     }
 
     @Override
@@ -105,15 +90,12 @@ public class NestedFieldReferenceExpression implements ResolvedExpression {
             return false;
         }
         NestedFieldReferenceExpression that = (NestedFieldReferenceExpression) o;
-        return name.equals(that.name)
-                && dataType.equals(that.dataType)
-                && inputIndex == that.inputIndex
-                && Arrays.equals(fieldIndices, that.fieldIndices);
+        return Arrays.equals(fieldNames, that.fieldNames) && dataType.equals(that.dataType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, dataType, inputIndex, fieldIndices);
+        return Objects.hash(fieldNames, dataType);
     }
 
     @Override

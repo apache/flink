@@ -49,6 +49,7 @@ import java.util.{Collections, List => JList, TimeZone}
 import scala.collection.{mutable, JavaConverters}
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 
 object RexNodeExtractor extends Logging {
@@ -558,24 +559,21 @@ class RexNodeToExpressionConverter(
     relDataType match {
       case Some(dataType) =>
         val schema = NestedProjectionUtil.build(Collections.singletonList(fieldAccess), dataType)
-        val fieldIndexArray = NestedProjectionUtil.convertToIndexArray(schema)
 
         var (topLevelColumnName, nestedColumn) = schema.columns.head
-        val nestedFieldName = new StringBuilder()
+        val fieldNames = new ArrayBuffer[String]()
 
         while (!nestedColumn.isLeaf) {
-          nestedFieldName.append(topLevelColumnName).append(".")
+          fieldNames.add(topLevelColumnName)
           topLevelColumnName = nestedColumn.children.head._1
           nestedColumn = nestedColumn.children.head._2
         }
-        nestedFieldName.append(topLevelColumnName)
+        fieldNames.add(topLevelColumnName)
 
         Some(
           new NestedFieldReferenceExpression(
-            nestedFieldName.toString(),
-            fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(fieldAccess.getType)),
-            fieldAccess.getField.getIndex,
-            fieldIndexArray(0)))
+            fieldNames.toArray,
+            fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(fieldAccess.getType))))
     }
   }
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): Option[ResolvedExpression] =

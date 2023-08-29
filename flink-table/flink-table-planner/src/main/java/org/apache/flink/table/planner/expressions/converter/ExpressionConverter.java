@@ -205,10 +205,11 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 
     @Override
     public RexNode visit(NestedFieldReferenceExpression nestedFieldReference) {
-        int[] fieldIndices = nestedFieldReference.getFieldIndices();
-        RexNode fieldAccess = relBuilder.field(fieldIndices[0]);
-        for (int i = 1; i < fieldIndices.length; i++) {
-            fieldAccess = relBuilder.getRexBuilder().makeFieldAccess(fieldAccess, fieldIndices[i]);
+        String[] fieldNames = nestedFieldReference.getFieldNames();
+        RexNode fieldAccess = relBuilder.field(fieldNames[0]);
+        for (int i = 1; i < fieldNames.length; i++) {
+            fieldAccess =
+                    relBuilder.getRexBuilder().makeFieldAccess(fieldAccess, fieldNames[i], true);
         }
         return fieldAccess;
     }

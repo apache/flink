@@ -97,7 +97,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "  testMap Map<string, string>\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'deepNested.nested1.value;deepNestedWith..nested..value;',"
+                        + " 'filterable-fields' = 'deepNested_nested1_value;deepNestedWith._nested_.value;',"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl3);
