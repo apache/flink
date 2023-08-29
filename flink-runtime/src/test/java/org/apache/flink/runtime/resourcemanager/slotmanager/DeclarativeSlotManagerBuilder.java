@@ -44,6 +44,7 @@ public class DeclarativeSlotManagerBuilder {
     private WorkerResourceSpec defaultWorkerResourceSpec;
     private int numSlotsPerWorker;
     private SlotManagerMetricGroup slotManagerMetricGroup;
+    private int minSlotNum;
     private int maxSlotNum;
     private int redundantTaskManagerNum;
     private ResourceTracker resourceTracker;
@@ -61,6 +62,7 @@ public class DeclarativeSlotManagerBuilder {
         this.numSlotsPerWorker = 1;
         this.slotManagerMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
+        this.minSlotNum = ResourceManagerOptions.MIN_SLOT_NUM.defaultValue();
         this.maxSlotNum = ResourceManagerOptions.MAX_SLOT_NUM.defaultValue();
         this.redundantTaskManagerNum =
                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
@@ -113,6 +115,11 @@ public class DeclarativeSlotManagerBuilder {
         return this;
     }
 
+    public DeclarativeSlotManagerBuilder setMinSlotNum(int minSlotNum) {
+        this.minSlotNum = minSlotNum;
+        return this;
+    }
+
     public DeclarativeSlotManagerBuilder setMaxSlotNum(int maxSlotNum) {
         this.maxSlotNum = maxSlotNum;
         return this;
@@ -158,8 +165,11 @@ public class DeclarativeSlotManagerBuilder {
                         evenlySpreadOutSlots,
                         defaultWorkerResourceSpec,
                         numSlotsPerWorker,
+                        minSlotNum,
                         maxSlotNum,
+                        new CPUResource(Double.MIN_VALUE),
                         new CPUResource(Double.MAX_VALUE),
+                        MemorySize.ZERO,
                         MemorySize.MAX_VALUE,
                         redundantTaskManagerNum);
 
