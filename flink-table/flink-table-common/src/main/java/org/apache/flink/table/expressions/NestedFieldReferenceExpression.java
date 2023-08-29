@@ -30,9 +30,8 @@ import java.util.Objects;
  * A reference to a nested field in an input. The reference contains.
  *
  * <ul>
+ *   <li>nested field names to traverse from the top level column to the nested leaf column.
  *   <li>type
- *   <li>index of an input the field belongs to
- *   <li>index of a field within the corresponding input
  * </ul>
  */
 @PublicEvolving

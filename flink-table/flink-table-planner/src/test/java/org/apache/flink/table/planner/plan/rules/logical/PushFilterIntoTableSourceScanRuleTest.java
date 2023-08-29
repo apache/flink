@@ -115,7 +115,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "   WATERMARK FOR `Timestamp` AS `Timestamp`\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'Result.Mid.data_map;',"
+                        + " 'filterable-fields' = 'Result_Mid_data_map;',"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl4);
@@ -160,7 +160,7 @@ public class PushFilterIntoTableSourceScanRuleTest
     @Test
     public void testNestedFilterWithDotInTheName() {
         util.verifyRelPlan(
-                "SELECT id FROM NestedTable WHERE" + " `deepNestedWith.`.nested.`.value` > 5");
+                "SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.`.value` > 5");
     }
 
     @Test
