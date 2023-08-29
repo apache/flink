@@ -83,7 +83,7 @@ public class WindowedStream<T, K, W extends Window> {
         this.builder =
                 new WindowOperatorBuilder<>(
                         windowAssigner,
-                        windowAssigner.getDefaultTrigger(input.getExecutionEnvironment()),
+                        windowAssigner.getDefaultTrigger(),
                         input.getExecutionConfig(),
                         input.getType(),
                         input.getKeySelector(),

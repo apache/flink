@@ -50,6 +50,12 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 
     @Override
     public Trigger<Object, GlobalWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException(
+                "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
+    }
+
+    @Override
+    public Trigger<Object, GlobalWindow> getDefaultTrigger() {
         return new NeverTrigger();
     }
 
