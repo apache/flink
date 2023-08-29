@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  * <p>Note: THIS IS COPIED FROM CALCITE to EXPOSE SOME PRIVATE METHOD
  */
 public class SqlLikeUtils {
-    private static final String JAVA_REGEX_SPECIALS = "[]()|^-+*?{}$\\";
+    private static final String JAVA_REGEX_SPECIALS = "[]()|^-+*?{}$\\.";
     private static final String SQL_SIMILAR_SPECIALS = "[]()|^-+*_%?{}";
     private static final String[] REG_CHAR_CLASSES = {
         "[:ALPHA:]", "\\p{Alpha}",
