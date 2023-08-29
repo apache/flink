@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.planner.utils.TimestampStringUtils.fromLocalDateTime
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
+
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName

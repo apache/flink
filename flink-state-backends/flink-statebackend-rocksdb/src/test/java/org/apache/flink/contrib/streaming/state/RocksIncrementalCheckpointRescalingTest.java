@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -427,11 +426,6 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
     private class TestKeyedFunction extends KeyedProcessFunction<String, String, Integer> {
 
         private ValueState<Integer> counterState;
-
-        @Override
-        public void open(Configuration parameters) throws Exception {
-            throw new UnsupportedOperationException();
-        }
 
         @Override
         public void open(OpenContext openContext) throws Exception {

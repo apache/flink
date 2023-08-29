@@ -1481,9 +1481,9 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
 
     /**
      * Opens the given stub using its {@link
-     * org.apache.flink.api.common.functions.RichFunction#open(org.apache.flink.api.common.functions.OpenContext)} method. If the open
-     * call produces an exception, a new exception with a standard error message is created, using
-     * the encountered exception as its cause.
+     * org.apache.flink.api.common.functions.RichFunction#open(org.apache.flink.api.common.functions.OpenContext)}
+     * method. If the open call produces an exception, a new exception with a standard error message
+     * is created, using the encountered exception as its cause.
      *
      * @param stub The user code instance to be opened.
      * @param parameters The parameters supplied to the user code.

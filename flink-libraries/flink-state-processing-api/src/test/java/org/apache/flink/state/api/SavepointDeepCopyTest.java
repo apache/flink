@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -107,6 +108,11 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
             ValueStateDescriptor<Tuple2<String, String>> stateDescriptor =
                     new ValueStateDescriptor<>("state", Types.TUPLE(Types.STRING, Types.STRING));
             state = getRuntimeContext().getState(stateDescriptor);
+        }
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            throw new UnsupportedOperationException();
         }
 
         @Override

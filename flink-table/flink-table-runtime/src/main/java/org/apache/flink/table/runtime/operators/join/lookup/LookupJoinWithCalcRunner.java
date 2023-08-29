@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.join.lookup;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.collector.ListenableCollector;
 import org.apache.flink.table.runtime.generated.GeneratedCollector;
@@ -52,7 +51,7 @@ public class LookupJoinWithCalcRunner extends LookupJoinRunner {
         super.open(openContext);
         this.calc = generatedCalc.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(calc, getRuntimeContext());
-        FunctionUtils.openFunction(calc, parameters);
+        FunctionUtils.openFunction(calc, openContext);
         this.calcCollector = new CalcCollector(collector);
     }
 

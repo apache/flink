@@ -49,8 +49,8 @@ public interface UdfOperator<O extends UdfOperator<O>> {
 
     /**
      * Gets the configuration parameters that will be passed to the UDF's open method {@link
-     * org.apache.flink.api.common.functions.AbstractRichFunction#open(org.apache.flink.api.common.functions.OpenContext)}. The
-     * configuration is set via the {@link #withParameters(Configuration)} method.
+     * org.apache.flink.api.common.functions.AbstractRichFunction#open(org.apache.flink.api.common.functions.OpenContext)}.
+     * The configuration is set via the {@link #withParameters(Configuration)} method.
      *
      * @return The configuration parameters for the UDF.
      */
@@ -80,7 +80,8 @@ public interface UdfOperator<O extends UdfOperator<O>> {
     /**
      * Sets the configuration parameters for the UDF. These are optional parameters that are passed
      * to the UDF in the {@link
-     * org.apache.flink.api.common.functions.AbstractRichFunction#open(org.apache.flink.api.common.functions.OpenContext)} method.
+     * org.apache.flink.api.common.functions.AbstractRichFunction#open(org.apache.flink.api.common.functions.OpenContext)}
+     * method.
      *
      * @param parameters The configuration parameters for the UDF.
      * @return The operator itself, to allow chaining function calls.

@@ -18,7 +18,6 @@
 package org.apache.flink.test.streaming.runtime.util;
 
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
 import java.util.ArrayList;

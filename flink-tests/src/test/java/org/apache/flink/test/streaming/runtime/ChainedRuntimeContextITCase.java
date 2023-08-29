@@ -17,9 +17,9 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -55,7 +55,7 @@ public class ChainedRuntimeContextITCase extends AbstractTestBase {
         public void cancel() {}
 
         @Override
-        public void open(Configuration c) {
+        public void open(OpenContext openContext) {
             srcContext = getRuntimeContext();
         }
     }
@@ -68,7 +68,7 @@ public class ChainedRuntimeContextITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration c) {
+        public void open(OpenContext openContext) {
             mapContext = getRuntimeContext();
         }
     }

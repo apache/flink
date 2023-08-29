@@ -27,7 +27,6 @@ import org.apache.flink.api.common.io.OutputFormat.InitializationContext;
 import org.apache.flink.api.common.io.RichOutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
-
 import org.apache.flink.configuration.Configuration;
 
 import org.slf4j.Logger;

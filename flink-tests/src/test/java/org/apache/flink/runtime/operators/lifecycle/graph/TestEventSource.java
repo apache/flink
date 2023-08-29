@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.operators.lifecycle.graph;
 
 import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommand;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher.CommandExecutor;

@@ -31,7 +31,7 @@ class CheckingIdentityRichWindowFunction[T, K, W <: Window] extends RichWindowFu
     }
   }
 
-  override def open(conf: Configuration): Unit = {
+  override def open(openContext: OpenContext): Unit = {
     super.open(openContext)
     CheckingIdentityRichWindowFunction.openCalled = true
   }

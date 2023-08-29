@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.common.functions.RichReduceFunction
+import org.apache.flink.api.common.functions.{OpenContext, RichReduceFunction}
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
@@ -168,7 +168,7 @@ class ReduceITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mod
       .reduce(new RichReduceFunction[(Int, Long, String)] {
         private var f2Replace = ""
 
-        override def open(config: Configuration) {
+        override def open(openContext: OpenContext) {
           val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
           f2Replace = ints.sum + ""
         }

@@ -19,9 +19,9 @@
 
 package org.apache.flink.batch.tests;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.batch.tests.util.FileBasedOneShotLatch;
-import org.apache.flink.configuration.Configuration;
 
 import java.nio.file.Paths;
 
@@ -43,7 +43,7 @@ public class BlockingIncrementingMapFunction extends RichMapFunction<Long, Long>
     }
 
     @Override
-    public void open(final Configuration parameters) {
+    public void open(final OpenContext openContext) {
         latch = new FileBasedOneShotLatch(Paths.get(latchFilePath));
     }
 

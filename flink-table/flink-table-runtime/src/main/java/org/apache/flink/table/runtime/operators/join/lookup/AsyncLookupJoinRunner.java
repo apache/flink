@@ -87,7 +87,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
         super.open(openContext);
         this.fetcher = generatedFetcher.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(fetcher, getRuntimeContext());
-        FunctionUtils.openFunction(fetcher, parameters);
+        FunctionUtils.openFunction(fetcher, openContext);
 
         // try to compile the generated ResultFuture, fail fast if the code is corrupt.
         generatedResultFuture.compile(getRuntimeContext().getUserCodeClassLoader());
@@ -102,7 +102,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             JoinedRowResultFuture rf =
                     new JoinedRowResultFuture(
                             resultFutureBuffer,
-                            createFetcherResultFuture(parameters),
+                            createFetcherResultFuture(new Configuration()),
                             fetcherConverter,
                             isLeftOuterJoin,
                             rightRowSerializer.getArity());

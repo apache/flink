@@ -21,6 +21,7 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
@@ -1716,7 +1717,7 @@ public class SavepointITCase extends TestLogger {
         private ValueState<Boolean> operatorState;
 
         @Override
-        public void open(Configuration configuration) {
+        public void open(OpenContext openContext) {
             operatorState = this.getRuntimeContext().getState(DESCRIPTOR);
         }
 

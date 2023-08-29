@@ -46,8 +46,8 @@ final class ScalaRichAsyncFunctionWrapper[IN, OUT](func: RichAsyncFunction[IN, O
     func.timeout(input, new JavaResultFutureWrapper[OUT](resultFuture))
   }
 
-  override def open(parameters: Configuration): Unit = {
-    func.open(new OpenContext() {})
+  override def open(openContext: OpenContext): Unit = {
+    func.open(openContext)
   }
 
   override def close(): Unit = {

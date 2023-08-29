@@ -290,7 +290,7 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
     private var count: Int = 0
 
     @throws[Exception]
-    override def open(parameters: Configuration) {
+    override def open(openContext: OpenContext) {
       super.open(openContext)
       getRuntimeContext.addAccumulator(
         AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
@@ -318,7 +318,7 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
     private var enumOneState: ValueState[CustomEnum] = _
     private var enumThreeState: ValueState[CustomEnum] = _
 
-    override def open(parameters: Configuration): Unit = {
+    override def open(openContext: OpenContext): Unit = {
       caseClassState = getRuntimeContext.getState(
         new ValueStateDescriptor[CustomCaseClass](
           "caseClassState",

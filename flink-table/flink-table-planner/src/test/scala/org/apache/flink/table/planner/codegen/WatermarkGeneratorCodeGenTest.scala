@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.utils.PlannerMocks
 import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
 import org.apache.flink.table.utils.CatalogManagerMocks
+
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 import org.junit.runner.RunWith

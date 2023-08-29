@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;
@@ -56,7 +55,7 @@ abstract class DeduplicateFunctionBase<T, K, IN, OUT> extends KeyedProcessFuncti
     }
 
     @Override
-    public void open(Configuration configure) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
         ValueStateDescriptor<T> stateDesc =
                 new ValueStateDescriptor<>("deduplicate-state", typeInfo);

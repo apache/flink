@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.join.lookup;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -65,8 +64,8 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
 
         FunctionUtils.setFunctionRuntimeContext(fetcher, getRuntimeContext());
         FunctionUtils.setFunctionRuntimeContext(collector, getRuntimeContext());
-        FunctionUtils.openFunction(fetcher, parameters);
-        FunctionUtils.openFunction(collector, parameters);
+        FunctionUtils.openFunction(fetcher, openContext);
+        FunctionUtils.openFunction(collector, openContext);
 
         this.nullRow = new GenericRowData(tableFieldsCount);
         this.outRow = new JoinedRowData();

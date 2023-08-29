@@ -22,7 +22,6 @@ import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.NullAwareGetters;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -61,12 +60,12 @@ public class IntervalJoinFunction extends RichFlatJoinFunction<RowData, RowData,
     }
 
     @Override
-    public void open(Configuration config) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         this.joinCondition =
                 joinConditionCode.newInstance(getRuntimeContext().getUserCodeClassLoader());
         this.joinConditionCode = null;
         this.joinCondition.setRuntimeContext(getRuntimeContext());
-        this.joinCondition.open(new OpenContext() {});
+        this.joinCondition.open(openContext);
         this.reusedJoinRowData = new JoinedRowData();
     }
 

@@ -32,8 +32,8 @@ class CheckingIdentityRichProcessWindowFunction[T, K, W <: Window]
     }
   }
 
-  override def open(conf: Configuration): Unit = {
-    super.open(new OpenContext {})
+  override def open(openContext: OpenContext): Unit = {
+    super.open(openContext)
     CheckingIdentityRichProcessWindowFunction.openCalled = true
   }
 

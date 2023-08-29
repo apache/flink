@@ -21,7 +21,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.PrintSinkOutputWriter;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
 /**

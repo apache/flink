@@ -43,14 +43,17 @@ import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase.{Exec
 import org.apache.flink.test.util.MigrationTest
 import org.apache.flink.test.util.MigrationTest.ParameterizedSnapshotsGenerator
 import org.apache.flink.util.Collector
+
 import org.junit.{Assert, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import javax.annotation.Nullable
+
 import java.util
 import java.util.function.BiFunction
 import java.util.stream.Collectors
+
 import scala.util.{Failure, Try}
 
 object StatefulJobWBroadcastStateMigrationITCase {
@@ -362,7 +365,7 @@ private class AccumulatorCountingSink[T] extends RichSinkFunction[T] {
   private var count: Int = 0
 
   @throws[Exception]
-  override def open(parameters: Configuration) {
+  override def open(openContext: OpenContext) {
     super.open(openContext)
     getRuntimeContext.addAccumulator(
       AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
@@ -390,7 +393,7 @@ class StatefulFlatMapper extends RichFlatMapFunction[(Long, Long), (Long, Long)]
   private var enumOneState: ValueState[CustomEnum] = _
   private var enumThreeState: ValueState[CustomEnum] = _
 
-  override def open(parameters: Configuration): Unit = {
+  override def open(openContext: OpenContext): Unit = {
     caseClassState = getRuntimeContext.getState(
       new ValueStateDescriptor[CustomCaseClass](
         "caseClassState",

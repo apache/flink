@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -106,6 +107,11 @@ public abstract class DataSetSavepointReaderKeyedStateITCase<B extends StateBack
         @Override
         public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(valueState);
+        }
+
+        @Override
+        public void open(Configuration parameters) {
+            throw new UnsupportedOperationException();
         }
 
         @Override

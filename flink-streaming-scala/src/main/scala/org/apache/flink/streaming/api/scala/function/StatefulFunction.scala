@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.scala.function
 
 import org.apache.flink.annotation.Public
-import org.apache.flink.api.common.functions.RichFunction
+import org.apache.flink.api.common.functions.{OpenContext, RichFunction}
 import org.apache.flink.api.common.state.{ValueState, ValueStateDescriptor}
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.configuration.Configuration
@@ -52,7 +52,7 @@ trait StatefulFunction[I, O, S] extends RichFunction {
     o
   }
 
-  override def open(c: Configuration) = {
+  override def open(openContext: OpenContext) = {
     val info = new ValueStateDescriptor[S]("state", stateSerializer)
     state = getRuntimeContext().getState(info)
   }
