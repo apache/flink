@@ -91,6 +91,11 @@ public class CollectSinkOperatorCoordinator
     public void close() throws Exception {
         LOG.info("Closing the CollectSinkOperatorCoordinator.");
         this.executorService.shutdownNow();
+
+        // cancelling all ongoing requests explicitly
+        ongoingRequests.forEach(ft -> ft.cancel(true));
+        ongoingRequests.clear();
+
         closeConnection();
     }
 
