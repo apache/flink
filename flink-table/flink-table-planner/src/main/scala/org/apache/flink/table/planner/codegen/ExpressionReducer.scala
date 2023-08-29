@@ -106,7 +106,7 @@ class ExpressionReducer(
       .getOrElse(new Configuration)
     val reduced =
       try {
-        richMapFunction.open(new OpenContext() {})
+        richMapFunction.open(parameters)
         // execute
         richMapFunction.map(EMPTY_ROW)
       } catch {
