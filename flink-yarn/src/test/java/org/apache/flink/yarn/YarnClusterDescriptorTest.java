@@ -567,7 +567,11 @@ class YarnClusterDescriptorTest {
                     .hasSize(2)
                     .contains(getPathFromLocalFile(libFile), getPathFromLocalFile(libFolder));
         }
+    }
 
+    /** Tests to ship files through the {@link YarnConfigOptions#SHIP_FILES}. */
+    @Test
+    void testShipFiles() throws IOException {
         String hdfsDir = "hdfs:///flink/hdfs_dir";
         String hdfsFile = "hdfs:///flink/hdfs_file";
         File libFile = Files.createTempFile(temporaryFolder, "libFile", ".jar").toFile();
