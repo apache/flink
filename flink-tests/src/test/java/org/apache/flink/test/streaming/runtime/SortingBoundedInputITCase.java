@@ -252,7 +252,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                                     private ValueState<Long> previousTimestampState;
 
                                     @Override
-                                    public void open(Configuration parameters) {
+                                    public void open(OpenContext openContext) {
                                         countState =
                                                 getRuntimeContext()
                                                         .getMapState(
@@ -403,7 +403,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                                     private ValueState<Long> previousTimestampState;
 
                                     @Override
-                                    public void open(Configuration parameters) {
+                                    public void open(OpenContext openContext) {
                                         countState =
                                                 getRuntimeContext()
                                                         .getMapState(

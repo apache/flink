@@ -77,7 +77,7 @@ public class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
     }
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
         // non-parallel source
         assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
     }

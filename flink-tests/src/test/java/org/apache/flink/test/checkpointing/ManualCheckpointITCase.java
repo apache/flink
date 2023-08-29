@@ -158,7 +158,7 @@ public class ManualCheckpointITCase extends AbstractTestBase {
         private ValueState<Long> count;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             count =
                     getRuntimeContext()
                             .getState(

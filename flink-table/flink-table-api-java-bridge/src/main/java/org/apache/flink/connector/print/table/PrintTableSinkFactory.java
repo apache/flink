@@ -175,8 +175,8 @@ public class PrintTableSinkFactory implements DynamicTableSinkFactory {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
             writer.open(context.getIndexOfThisSubtask(), context.getNumberOfParallelSubtasks());
         }

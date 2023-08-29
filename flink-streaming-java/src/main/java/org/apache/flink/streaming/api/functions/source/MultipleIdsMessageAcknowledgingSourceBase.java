@@ -94,8 +94,8 @@ public abstract class MultipleIdsMessageAcknowledgingSourceBase<Type, UId, Sessi
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         sessionIds = new ArrayList<>(64);
         sessionIdsPerSnapshot = new ArrayDeque<>();
     }

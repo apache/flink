@@ -129,7 +129,7 @@ public class CheckpointingCustomKvStateProgram {
         private boolean restored = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             ReducingStateDescriptor<Integer> stateDescriptor =
                     new ReducingStateDescriptor<>(
                             "reducing-state", new ReduceSum(), CustomIntSerializer.INSTANCE);

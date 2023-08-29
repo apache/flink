@@ -83,8 +83,8 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         this.fetcher = generatedFetcher.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(fetcher, getRuntimeContext());
         FunctionUtils.openFunction(fetcher, parameters);

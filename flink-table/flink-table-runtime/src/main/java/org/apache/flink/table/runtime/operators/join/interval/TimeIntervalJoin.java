@@ -106,7 +106,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         joinFunction.setRuntimeContext(getRuntimeContext());
         joinFunction.open(new OpenContext() {});
         joinCollector = new EmitAwareCollector();

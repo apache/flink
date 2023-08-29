@@ -55,7 +55,7 @@ public class WaitingSource<T> extends RichSourceFunction<T> implements ResultTyp
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         if (source instanceof RichSourceFunction) {
             ((RichSourceFunction<T>) source).open(new OpenContext() {});
         }

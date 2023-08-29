@@ -249,7 +249,7 @@ public class KeyedStateInputFormatTest {
         ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(stateDescriptor);
         }
 
@@ -265,7 +265,7 @@ public class KeyedStateInputFormatTest {
         ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(stateDescriptor);
         }
 
@@ -281,7 +281,7 @@ public class KeyedStateInputFormatTest {
     static class InvalidReaderFunction extends KeyedStateReaderFunction<Integer, Integer> {
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             getRuntimeContext().getState(stateDescriptor);
         }
 
@@ -298,7 +298,7 @@ public class KeyedStateInputFormatTest {
         ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(stateDescriptor);
         }
 
@@ -312,7 +312,7 @@ public class KeyedStateInputFormatTest {
         ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(stateDescriptor);
         }
 
@@ -329,7 +329,7 @@ public class KeyedStateInputFormatTest {
         ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(stateDescriptor);
         }
 

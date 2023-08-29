@@ -28,7 +28,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.avro.generated.Address;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -107,8 +106,8 @@ public class StatefulStreamingJob {
         private transient ValueState<Either<String, Boolean>> eitherState;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             this.avroState = getRuntimeContext().getState(AVRO_DESCRIPTOR);
             this.tupleState = getRuntimeContext().getState(TUPLE_DESCRIPTOR);
             this.eitherState = getRuntimeContext().getState(EITHER_DESCRIPTOR);

@@ -294,7 +294,7 @@ public class CoStreamCheckpointingITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             long failurePosMin =
                     (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
             long failurePosMax =

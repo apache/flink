@@ -121,7 +121,7 @@ public class NettyShuffleMemoryControlTestProgram {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             isRunning = true;
             stopTime = System.nanoTime() + runningTimeInSeconds * 1_000_000_000L;
         }

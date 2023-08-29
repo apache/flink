@@ -122,7 +122,7 @@ public class MiscellaneousIssuesITCase extends TestLogger {
                                 private LongCounter counter;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     counter = getRuntimeContext().getLongCounter(accName);
                                 }
 

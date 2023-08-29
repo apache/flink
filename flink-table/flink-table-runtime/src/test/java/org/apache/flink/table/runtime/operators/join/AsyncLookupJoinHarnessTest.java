@@ -356,8 +356,8 @@ public class AsyncLookupJoinHarnessTest {
         private transient ExecutorService executor;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             // generate unordered result for async lookup
             this.executor = Executors.newFixedThreadPool(2);
         }

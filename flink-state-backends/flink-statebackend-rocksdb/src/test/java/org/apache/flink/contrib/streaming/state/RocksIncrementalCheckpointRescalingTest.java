@@ -430,7 +430,12 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             counterState =
                     this.getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("counter", Integer.class));

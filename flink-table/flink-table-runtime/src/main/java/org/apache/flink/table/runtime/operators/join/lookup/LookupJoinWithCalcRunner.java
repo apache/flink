@@ -48,8 +48,8 @@ public class LookupJoinWithCalcRunner extends LookupJoinRunner {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         this.calc = generatedCalc.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(calc, getRuntimeContext());
         FunctionUtils.openFunction(calc, parameters);

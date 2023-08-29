@@ -136,8 +136,8 @@ public class TaskManagerWideRocksDbMemorySharingITCase extends TestLogger {
                             private int payloadSize;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(new OpenContext() {});
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
                                 this.state =
                                         getRuntimeContext()
                                                 .getListState(

@@ -146,7 +146,7 @@ public class MatrixVectorMul {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             // When multiple instances of this class and JCuda exist in different class loaders,
             // then we will get UnsatisfiedLinkError.
             // To avoid that, we need to temporarily override the java.io.tmpdir, where the JCuda

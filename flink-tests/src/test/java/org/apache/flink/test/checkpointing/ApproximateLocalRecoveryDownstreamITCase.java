@@ -239,7 +239,7 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             failer = getRuntimeContext().getIndexOfThisSubtask() == 0;
         }
 

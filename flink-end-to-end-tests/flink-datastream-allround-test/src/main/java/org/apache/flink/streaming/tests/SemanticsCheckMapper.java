@@ -62,7 +62,7 @@ public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> {
     }
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
         ValueStateDescriptor<Long> sequenceStateDescriptor =
                 new ValueStateDescriptor<>("sequenceState", Long.class);
 

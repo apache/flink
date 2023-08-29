@@ -61,7 +61,7 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
         private Integer bcValue;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             List<Integer> bc = getRuntimeContext().getBroadcastVariable("bc");
             this.bcValue = bc.isEmpty() ? null : bc.get(0);
         }

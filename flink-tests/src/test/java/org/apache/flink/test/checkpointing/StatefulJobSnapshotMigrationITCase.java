@@ -321,8 +321,8 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
                 new ValueStateDescriptor<>("state-name", LongSerializer.INSTANCE);
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             getRuntimeContext()
                     .addAccumulator(SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR, new IntCounter());

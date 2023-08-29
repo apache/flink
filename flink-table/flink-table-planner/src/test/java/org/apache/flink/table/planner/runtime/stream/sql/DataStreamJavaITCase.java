@@ -900,7 +900,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                                     ValueState<Long> count;
 
                                     @Override
-                                    public void open(Configuration parameters) {
+                                    public void open(OpenContext openContext) {
                                         count =
                                                 getRuntimeContext()
                                                         .getState(

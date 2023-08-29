@@ -359,8 +359,8 @@ public class RegionFailoverITCase extends TestLogger {
         private ValueState<Integer> valueState;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             valueState =
                     getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("value", Integer.class));

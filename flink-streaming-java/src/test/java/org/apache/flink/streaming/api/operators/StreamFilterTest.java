@@ -112,8 +112,8 @@ public class StreamFilterTest {
         public static boolean closeCalled = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             if (closeCalled) {
                 Assert.fail("Close called before open.");
             }

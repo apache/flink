@@ -214,7 +214,7 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
         private transient Comparator<String> comparator;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             // this sink can only work with DOP 1
             assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
 

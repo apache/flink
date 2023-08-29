@@ -43,7 +43,7 @@ public class AsyncIOExample {
         private transient AsyncClient client;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             client = new AsyncClient();
         }
 

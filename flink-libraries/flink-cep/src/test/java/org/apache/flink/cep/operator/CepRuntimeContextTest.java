@@ -286,8 +286,8 @@ public class CepRuntimeContextTest extends TestLogger {
         boolean processMatchCalled = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             verifyContext();
             openCalled = true;
         }

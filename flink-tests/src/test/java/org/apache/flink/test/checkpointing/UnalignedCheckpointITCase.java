@@ -425,8 +425,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
         ValueState<Long> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             state =
                     getRuntimeContext()
                             .getState(

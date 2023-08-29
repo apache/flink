@@ -54,7 +54,7 @@ public class FastFailuresITCase extends AbstractTestBase {
                         new RichSourceFunction<Tuple2<Integer, Integer>>() {
 
                             @Override
-                            public void open(Configuration parameters) {
+                            public void open(OpenContext openContext) {
                                 if (FAILURES_SO_FAR.incrementAndGet() <= NUM_FAILURES) {
                                     throw new RuntimeException("fail");
                                 }

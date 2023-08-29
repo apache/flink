@@ -40,8 +40,8 @@ public class TestListResultSink<T> extends RichSinkFunction<T> {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
     }
 
     @Override

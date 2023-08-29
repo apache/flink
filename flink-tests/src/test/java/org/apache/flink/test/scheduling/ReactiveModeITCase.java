@@ -249,7 +249,7 @@ public class ReactiveModeITCase extends TestLogger {
         private volatile boolean running = true;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             if (getRuntimeContext().getNumberOfParallelSubtasks() > 1) {
                 throw new IllegalStateException(
                         "This is not supposed to be executed in parallel, despite extending the right base class.");

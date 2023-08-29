@@ -23,7 +23,7 @@ import org.apache.flink.annotation.PublicEvolving;
 /**
  * Rich variant of the {@link AggregateFunction}. As a {@link RichFunction}, it gives access to the
  * {@link RuntimeContext} and provides setup and teardown methods: {@link
- * RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#open(OpenContext)} and {@link
  * RichFunction#close()}.
  *
  * @see AggregateFunction

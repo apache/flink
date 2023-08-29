@@ -200,9 +200,9 @@ public class ContinuousFileMonitoringFunction<OUT>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
-        format.configure(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
+        format.configure(new Configuration());
 
         if (LOG.isDebugEnabled()) {
             LOG.debug(

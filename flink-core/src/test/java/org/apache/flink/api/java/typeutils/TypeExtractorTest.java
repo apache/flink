@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.functions.RichCrossFunction;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
@@ -1821,7 +1822,7 @@ public class TypeExtractorTest {
                     public void setRuntimeContext(RuntimeContext t) {}
 
                     @Override
-                    public void open(Configuration parameters) throws Exception {}
+                    public void open(OpenContext openContext) throws Exception {}
 
                     @Override
                     public RuntimeContext getRuntimeContext() {

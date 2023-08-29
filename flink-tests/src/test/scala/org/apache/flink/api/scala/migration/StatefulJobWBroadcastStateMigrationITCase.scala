@@ -363,7 +363,7 @@ private class AccumulatorCountingSink[T] extends RichSinkFunction[T] {
 
   @throws[Exception]
   override def open(parameters: Configuration) {
-    super.open(new OpenContext() {})
+    super.open(openContext)
     getRuntimeContext.addAccumulator(
       AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
       new IntCounter)

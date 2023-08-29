@@ -94,8 +94,8 @@ public class AppendOnlyTopNFunction extends AbstractTopNFunction {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         int lruCacheSize = Math.max(1, (int) (cacheSize / getDefaultTopNSize()));
         CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder();
         if (ttlConfig.isEnabled()) {

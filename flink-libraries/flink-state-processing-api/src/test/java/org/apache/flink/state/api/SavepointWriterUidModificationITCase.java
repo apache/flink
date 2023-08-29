@@ -224,7 +224,7 @@ public class SavepointWriterUidModificationITCase {
         private transient ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(STATE_DESCRIPTOR);
         }
 
@@ -239,7 +239,7 @@ public class SavepointWriterUidModificationITCase {
         private transient ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(STATE_DESCRIPTOR);
         }
 

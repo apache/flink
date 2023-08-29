@@ -258,7 +258,7 @@ public class KMeans {
 
         /** Reads the centroid values from a broadcast variable into a collection. */
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             this.centroids = getRuntimeContext().getBroadcastVariable("centroids");
         }
 

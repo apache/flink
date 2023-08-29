@@ -179,8 +179,8 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
                             ValueState<Integer> state;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(new OpenContext() {});
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
 
                                 ValueStateDescriptor<Integer> descriptor =
                                         new ValueStateDescriptor<>("total", Types.INT);

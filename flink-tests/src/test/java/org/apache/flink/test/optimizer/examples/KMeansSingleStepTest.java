@@ -242,7 +242,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
         private Collection<Centroid> centroids;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             this.centroids = getRuntimeContext().getBroadcastVariable("centroids");
         }
 

@@ -276,7 +276,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             elements = new ArrayList<>();
         }
 

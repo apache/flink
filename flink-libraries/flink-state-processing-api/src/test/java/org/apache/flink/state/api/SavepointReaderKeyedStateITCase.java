@@ -86,7 +86,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
         private transient ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(valueState);
         }
 
@@ -105,7 +105,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
         private transient ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(valueState);
         }
 

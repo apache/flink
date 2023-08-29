@@ -156,8 +156,8 @@ public class TestSupportsStagingTableFactory implements DynamicTableSinkFactory 
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             File parentDir = new File(dataDir);
             if (parentDir.exists()) {
                 parentDir.delete();

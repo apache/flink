@@ -145,7 +145,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             step = getRuntimeContext().getNumberOfParallelSubtasks();
             if (index == 0) {
                 index = getRuntimeContext().getIndexOfThisSubtask();
@@ -256,7 +256,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             long failurePosMin =
                     (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
             long failurePosMax =

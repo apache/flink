@@ -61,8 +61,8 @@ public class TestEventSource extends RichSourceFunction<TestDataElement>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         this.isRunning = true;
         this.scheduledCommands = new LinkedBlockingQueue<>();
         this.commandExecutor = cmd -> scheduledCommands.add(cmd);

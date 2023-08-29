@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupCombineFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
@@ -43,7 +44,6 @@ import java.util.Collection;
 import java.util.List;
 
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
@@ -151,10 +151,9 @@ public class ExternalSorterTest extends TestLogger {
         boolean isClosed = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             assertFalse("UDF was already opened", isOpen);
             isOpen = true;
-            assertThat(parameters.get(testOption), equalTo("TEST"));
         }
 
         @Override

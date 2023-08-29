@@ -85,7 +85,7 @@ public abstract class DataSetSavepointReaderKeyedStateITCase<B extends StateBack
         private transient ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(valueState);
         }
 
@@ -104,7 +104,7 @@ public abstract class DataSetSavepointReaderKeyedStateITCase<B extends StateBack
         private transient ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(valueState);
         }
 

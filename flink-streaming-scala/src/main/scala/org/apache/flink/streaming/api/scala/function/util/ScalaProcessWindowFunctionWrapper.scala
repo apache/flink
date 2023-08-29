@@ -95,7 +95,7 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
   }
 
   override def open(parameters: Configuration): Unit = {
-    super.open(new OpenContext() {})
+    super.open(openContext)
     func match {
       case rfunc: ScalaProcessWindowFunction[IN, OUT, KEY, W] => rfunc.open(new OpenContext() {})
       case _ =>
@@ -161,7 +161,7 @@ final class ScalaProcessAllWindowFunctionWrapper[IN, OUT, W <: Window](
   }
 
   override def open(parameters: Configuration): Unit = {
-    super.open(new OpenContext() {})
+    super.open(openContext)
     func match {
       case rfunc: ScalaProcessAllWindowFunction[IN, OUT, W] => rfunc.open(new OpenContext() {})
       case _ =>

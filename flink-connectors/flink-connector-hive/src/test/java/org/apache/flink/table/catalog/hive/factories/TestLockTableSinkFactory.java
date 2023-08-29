@@ -127,7 +127,7 @@ public class TestLockTableSinkFactory implements DynamicTableSinkFactory {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             this.lock = lockFactory.create();
         }
 

@@ -61,8 +61,8 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         // try to compile the generated ResultFuture, fail fast if the code is corrupt.
         generatedCalc.compile(getRuntimeContext().getUserCodeClassLoader());
     }

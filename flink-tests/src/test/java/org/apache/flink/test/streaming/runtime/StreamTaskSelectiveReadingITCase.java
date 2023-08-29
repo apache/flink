@@ -113,7 +113,7 @@ public class StreamTaskSelectiveReadingITCase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             this.context = getRuntimeContext();
         }
 

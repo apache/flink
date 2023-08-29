@@ -280,7 +280,7 @@ public class ScalaAggregateOperator<IN>
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             for (AggregationFunction<Object> aggFunction : aggFunctions) {
                 aggFunction.initializeAggregate();
             }

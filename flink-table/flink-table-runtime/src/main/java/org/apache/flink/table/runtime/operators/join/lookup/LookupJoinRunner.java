@@ -57,8 +57,8 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         this.fetcher = generatedFetcher.newInstance(getRuntimeContext().getUserCodeClassLoader());
         this.collector =
                 generatedCollector.newInstance(getRuntimeContext().getUserCodeClassLoader());

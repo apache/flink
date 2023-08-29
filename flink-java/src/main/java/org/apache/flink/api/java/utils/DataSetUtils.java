@@ -108,8 +108,8 @@ public final class DataSetUtils {
                             long start = 0;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(new OpenContext() {});
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
 
                                 List<Tuple2<Integer, Long>> offsets =
                                         getRuntimeContext()
@@ -207,8 +207,8 @@ public final class DataSetUtils {
                     long label = 0;
 
                     @Override
-                    public void open(Configuration parameters) throws Exception {
-                        super.open(new OpenContext() {});
+                    public void open(OpenContext openContext) throws Exception {
+                        super.open(openContext);
                         shifter = getBitSize(getRuntimeContext().getNumberOfParallelSubtasks() - 1);
                         taskId = getRuntimeContext().getIndexOfThisSubtask();
                     }

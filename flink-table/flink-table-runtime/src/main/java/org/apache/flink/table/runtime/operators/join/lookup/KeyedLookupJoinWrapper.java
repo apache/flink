@@ -81,8 +81,8 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         lookupJoinRunner.setRuntimeContext(getRuntimeContext());
         lookupJoinRunner.open(new OpenContext() {});
 

@@ -58,8 +58,8 @@ public final class InternalAggregateProcessAllWindowFunction<T, ACC, V, R, W ext
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         ProcessAllWindowFunction<V, R, W> wrappedFunction = this.wrappedFunction;
         this.ctx = new InternalProcessAllWindowContext<>(wrappedFunction);
     }

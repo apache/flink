@@ -275,7 +275,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
         ValueState<Double> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             ValueStateDescriptor<Double> descriptor =
                     new ValueStateDescriptor<>("total", Types.DOUBLE);
             state = getRuntimeContext().getState(descriptor);
@@ -292,8 +292,8 @@ public class WritableSavepointITCase extends AbstractTestBase {
         ValueState<Double> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             ValueStateDescriptor<Double> descriptor =
                     new ValueStateDescriptor<>("total", Types.DOUBLE);
@@ -319,7 +319,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
         ListState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             numbers = new ArrayList<>();
         }
 
@@ -350,7 +350,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
         ListState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             numbers = new ArrayList<>();
         }
 

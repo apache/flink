@@ -93,7 +93,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
                                 .filter(
                                         new RichFilterFunction<Long>() {
                                             @Override
-                                            public void open(Configuration parameters)
+                                            public void open(OpenContext openContext)
                                                     throws Exception {
                                                 File file =
                                                         getRuntimeContext()
@@ -414,7 +414,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
         private Random rnd;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             rnd = new Random(0xC0FFEBADBEEFDEADL + getRuntimeContext().getIndexOfThisSubtask());
         }
 

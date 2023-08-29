@@ -26,7 +26,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -150,8 +149,8 @@ public class EmptyFieldsCountAccumulator {
         private final VectorAccumulator emptyFieldCounter = new VectorAccumulator();
 
         @Override
-        public void open(final Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(final OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             // register the accumulator instance
             getRuntimeContext().addAccumulator(EMPTY_FIELD_ACCUMULATOR, this.emptyFieldCounter);

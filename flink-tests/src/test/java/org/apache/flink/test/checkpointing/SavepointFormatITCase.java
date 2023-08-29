@@ -349,7 +349,7 @@ public class SavepointFormatITCase extends TestLogger {
         private ValueState<Long> counter;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             counter =
                     getRuntimeContext()
                             .getState(

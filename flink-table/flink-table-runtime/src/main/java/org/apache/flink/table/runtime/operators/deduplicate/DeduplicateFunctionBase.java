@@ -57,7 +57,7 @@ abstract class DeduplicateFunctionBase<T, K, IN, OUT> extends KeyedProcessFuncti
 
     @Override
     public void open(Configuration configure) throws Exception {
-        super.open(new OpenContext() {});
+        super.open(openContext);
         ValueStateDescriptor<T> stateDesc =
                 new ValueStateDescriptor<>("deduplicate-state", typeInfo);
         StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);

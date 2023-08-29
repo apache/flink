@@ -222,7 +222,7 @@ public class JoinCancelingITCase extends CancelingTestBase {
         private static final long serialVersionUID = 1L;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             synchronized (this) {
                 wait();
             }

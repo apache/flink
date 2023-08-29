@@ -111,8 +111,8 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
 
         // compile equaliser
         equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());

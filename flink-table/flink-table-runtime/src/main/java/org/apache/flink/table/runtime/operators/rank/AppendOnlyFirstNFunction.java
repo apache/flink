@@ -66,7 +66,7 @@ public class AppendOnlyFirstNFunction extends AbstractTopNFunction {
 
     @Override
     public void open(Configuration configure) throws Exception {
-        super.open(new OpenContext() {});
+        super.open(openContext);
         ValueStateDescriptor<Integer> stateDesc =
                 new ValueStateDescriptor<>("counterState", Types.INT);
         if (ttlConfig.isEnabled()) {

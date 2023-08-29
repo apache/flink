@@ -158,7 +158,7 @@ public class DanglingPageRankITCase extends MultipleProgramsTestBase {
                                         private double danglingRankFactor;
 
                                         @Override
-                                        public void open(Configuration parameters)
+                                        public void open(OpenContext openContext)
                                                 throws Exception {
                                             int currentIteration =
                                                     getIterationRuntimeContext()

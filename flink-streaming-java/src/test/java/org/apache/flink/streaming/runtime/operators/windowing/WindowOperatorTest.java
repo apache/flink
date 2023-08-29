@@ -3110,8 +3110,8 @@ public class WindowOperatorTest extends TestLogger {
         private boolean openCalled = false;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             openCalled = true;
         }
 

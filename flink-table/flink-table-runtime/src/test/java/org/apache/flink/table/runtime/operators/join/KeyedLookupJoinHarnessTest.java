@@ -446,7 +446,7 @@ public class KeyedLookupJoinHarnessTest {
         private transient Map<Integer, Integer> accessCounter;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             baseData.clear();
             baseData.put(1, Collections.singletonList(GenericRowData.of(1, fromString("Julian"))));
             baseData.put(

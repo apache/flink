@@ -64,7 +64,7 @@ public class BroadcastVarInitializationITCase extends JavaProgramTestBase {
         private Integer bcValue;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             this.bcValue =
                     getRuntimeContext()
                             .getBroadcastVariableWithInitializer("bc", new PickFirstInitializer());

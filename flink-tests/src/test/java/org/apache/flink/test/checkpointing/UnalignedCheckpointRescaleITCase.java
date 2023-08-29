@@ -643,7 +643,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         ValueState<Long> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             state = getRuntimeContext().getState(DESC);
         }
 
@@ -668,8 +668,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         private ListState<Long> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             getRuntimeContext().addAccumulator(NUM_INPUTS, numInputCounter);
         }
 

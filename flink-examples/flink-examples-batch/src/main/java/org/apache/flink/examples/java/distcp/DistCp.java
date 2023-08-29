@@ -119,7 +119,7 @@ public class DistCp {
                             private LongCounter bytesCounter;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
+                            public void open(OpenContext openContext) throws Exception {
                                 bytesCounter =
                                         getRuntimeContext().getLongCounter(BYTES_COPIED_CNT_NAME);
                                 fileCounter =

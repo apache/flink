@@ -139,8 +139,8 @@ public abstract class AbstractTopNFunction extends KeyedProcessFunction<RowData,
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         outputRow = new JoinedRowData();
 
         if (!isConstantRankEnd) {

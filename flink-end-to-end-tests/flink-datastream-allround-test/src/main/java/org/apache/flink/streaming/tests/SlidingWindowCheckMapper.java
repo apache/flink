@@ -59,7 +59,7 @@ public class SlidingWindowCheckMapper
     }
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
         ValueStateDescriptor<List<Tuple2<Event, Integer>>> previousWindowDescriptor =
                 new ValueStateDescriptor<>(
                         "eventsSeenSoFar",

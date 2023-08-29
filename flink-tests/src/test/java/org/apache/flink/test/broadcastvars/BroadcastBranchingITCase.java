@@ -159,7 +159,7 @@ public class BroadcastBranchingITCase extends JavaProgramTestBase {
         private Collection<Tuple2<String, Integer>> zs;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             this.zs = getRuntimeContext().getBroadcastVariable("z");
         }
 

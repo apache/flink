@@ -90,7 +90,7 @@ public class CustomKvStateProgram {
         private transient ReducingState<Integer> kvState;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             ReducingStateDescriptor<Integer> stateDescriptor =
                     new ReducingStateDescriptor<>("reducing-state", new ReduceSum(), Integer.class);
 

@@ -124,7 +124,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
         private SetAccumulator<StringValue> distinctWords;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
 
             // Add counters using convenience functions
             this.cntNumLines = getRuntimeContext().getIntCounter("num-lines");
@@ -193,7 +193,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
         private IntCounter combineCalls;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             this.reduceCalls = getRuntimeContext().getIntCounter("reduce-calls");
             this.combineCalls = getRuntimeContext().getIntCounter("combine-calls");
         }

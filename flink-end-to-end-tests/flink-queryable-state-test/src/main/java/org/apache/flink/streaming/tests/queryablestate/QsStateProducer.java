@@ -111,8 +111,8 @@ public class QsStateProducer {
         private transient Random random;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             this.random = new Random();
             this.isRunning = true;
         }
@@ -159,7 +159,7 @@ public class QsStateProducer {
         private transient long lastCompletedCheckpoint;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             MapStateDescriptor<EmailId, EmailInformation> stateDescriptor =
                     new MapStateDescriptor<>(
                             QsConstants.STATE_NAME,

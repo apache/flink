@@ -108,7 +108,7 @@ public class ArrowSourceFunction extends RichParallelSourceFunction<RowData>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         allocator =
                 ArrowUtils.getRootAllocator()
                         .newChildAllocator("ArrowSourceFunction", 0, Long.MAX_VALUE);

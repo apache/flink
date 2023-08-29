@@ -618,7 +618,7 @@ public class TestUpdateDeleteTableFactory
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             data = registeredRowData.get(dataId);
             newData = new ArrayList<>();
         }
@@ -888,7 +888,7 @@ public class TestUpdateDeleteTableFactory
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             oldRows = registeredRowData.get(dataId).toArray(new RowData[0]);
             updatedRows = new ArrayList<>();
             allNewRows = new ArrayList<>();

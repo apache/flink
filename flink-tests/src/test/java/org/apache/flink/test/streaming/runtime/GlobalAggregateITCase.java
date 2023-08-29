@@ -80,8 +80,8 @@ public class GlobalAggregateITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             StreamingRuntimeContext runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
             aggregateManager = runtimeContext.getGlobalAggregateManager();
         }

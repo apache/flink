@@ -185,7 +185,7 @@ public class KeyedStateBootstrapOperatorTest {
         private ValueState<Long> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             state = getRuntimeContext().getState(descriptor);
         }
 
@@ -200,7 +200,7 @@ public class KeyedStateBootstrapOperatorTest {
         private ValueState<Long> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             state = getRuntimeContext().getState(descriptor);
         }
 

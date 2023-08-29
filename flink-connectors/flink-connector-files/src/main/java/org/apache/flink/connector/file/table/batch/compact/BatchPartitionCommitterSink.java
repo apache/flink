@@ -81,7 +81,7 @@ public class BatchPartitionCommitterSink extends RichSinkFunction<CompactOutput>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         partitionsFiles = new HashMap<>();
     }
 

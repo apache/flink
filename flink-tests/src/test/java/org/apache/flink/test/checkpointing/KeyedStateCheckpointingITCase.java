@@ -295,7 +295,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             sum = getRuntimeContext().getState(new ValueStateDescriptor<>("my_state", Long.class));
         }
 
@@ -342,7 +342,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
         private transient ValueState<Long> bCounts;
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             aCounts =
                     getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("a", NonSerializableLong.class));

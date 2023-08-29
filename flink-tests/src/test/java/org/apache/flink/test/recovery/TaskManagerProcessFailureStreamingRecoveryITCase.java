@@ -198,7 +198,7 @@ class TaskManagerProcessFailureStreamingRecoveryITCase
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
             congruence = getRuntimeContext().getIndexOfThisSubtask();
             toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);

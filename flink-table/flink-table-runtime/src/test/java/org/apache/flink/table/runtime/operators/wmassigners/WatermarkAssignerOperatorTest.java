@@ -260,8 +260,8 @@ public class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTest
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             if (closeCalled) {
                 fail("Close called before open.");
             }

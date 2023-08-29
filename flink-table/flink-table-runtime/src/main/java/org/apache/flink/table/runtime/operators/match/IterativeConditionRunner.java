@@ -40,7 +40,7 @@ public class IterativeConditionRunner extends RichIterativeCondition<RowData> {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         this.function = generatedFunction.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext());
         FunctionUtils.openFunction(function, parameters);

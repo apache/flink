@@ -105,7 +105,7 @@ public class HBaseSinkFunction<T> extends RichSinkFunction<T>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         LOG.info("start open ...");
         org.apache.hadoop.conf.Configuration config = prepareRuntimeConfiguration();
         try {

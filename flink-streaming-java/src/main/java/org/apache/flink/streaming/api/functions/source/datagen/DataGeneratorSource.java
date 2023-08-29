@@ -82,8 +82,8 @@ public class DataGeneratorSource<T> extends RichParallelSourceFunction<T>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
 
         if (numberOfRows != null) {
             final int stepSize = getRuntimeContext().getNumberOfParallelSubtasks();

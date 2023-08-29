@@ -234,8 +234,8 @@ public class BroadcastStateITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             descriptor =
                     new MapStateDescriptor<>(
@@ -289,8 +289,8 @@ public class BroadcastStateITCase extends AbstractTestBase {
         private transient MapStateDescriptor<Long, String> descriptor;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             descriptor =
                     new MapStateDescriptor<>(

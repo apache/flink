@@ -76,8 +76,8 @@ public class StateBackendITCase extends AbstractTestBase {
                             private static final long serialVersionUID = 1L;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(new OpenContext() {});
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
                                 getRuntimeContext()
                                         .getState(
                                                 new ValueStateDescriptor<>("Test", Integer.class));

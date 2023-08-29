@@ -196,7 +196,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             step = getRuntimeContext().getNumberOfParallelSubtasks();
 
             // if index has been restored, it is not 0 any more

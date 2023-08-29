@@ -412,7 +412,7 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
         private ValueState<Integer> countState;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             this.countState =
                     getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("countState", Integer.class));

@@ -83,7 +83,7 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         private ValueState<Tuple2<String, String>> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             ValueStateDescriptor<Tuple2<String, String>> descriptor =
                     new ValueStateDescriptor<>("state", Types.TUPLE(Types.STRING, Types.STRING));
             state = getRuntimeContext().getState(descriptor);
@@ -103,7 +103,7 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         private ValueState<Tuple2<String, String>> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             ValueStateDescriptor<Tuple2<String, String>> stateDescriptor =
                     new ValueStateDescriptor<>("state", Types.TUPLE(Types.STRING, Types.STRING));
             state = getRuntimeContext().getState(stateDescriptor);

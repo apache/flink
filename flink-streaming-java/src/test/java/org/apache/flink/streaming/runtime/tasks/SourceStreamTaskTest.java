@@ -719,7 +719,7 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
         }
 
@@ -892,8 +892,8 @@ class SourceStreamTaskTest extends SourceStreamTaskTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             if (closeCalled) {
                 fail("Close called before open.");
             }

@@ -235,9 +235,9 @@ public class AbstractUdfStreamOperatorLifecycleTest {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             ACTUAL_ORDER_TRACKING.add("UDF::open");
-            super.open(new OpenContext() {});
+            super.open(openContext);
         }
 
         @Override

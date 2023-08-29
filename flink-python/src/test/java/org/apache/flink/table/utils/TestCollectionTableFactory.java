@@ -309,7 +309,7 @@ public class TestCollectionTableFactory
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             serializer = outputType.createSerializer(new ExecutionConfig());
         }
 

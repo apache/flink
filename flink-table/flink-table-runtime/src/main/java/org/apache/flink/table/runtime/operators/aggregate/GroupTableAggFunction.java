@@ -86,8 +86,8 @@ public class GroupTableAggFunction extends KeyedProcessFunction<RowData, RowData
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         // instantiate function
         StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
         function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());

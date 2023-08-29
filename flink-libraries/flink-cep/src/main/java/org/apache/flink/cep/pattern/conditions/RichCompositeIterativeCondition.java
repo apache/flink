@@ -21,7 +21,6 @@ package org.apache.flink.cep.pattern.conditions;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
 /**
@@ -59,10 +58,10 @@ public abstract class RichCompositeIterativeCondition<T> extends RichIterativeCo
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         for (IterativeCondition<T> nestedCondition : nestedConditions) {
-            FunctionUtils.openFunction(nestedCondition, parameters);
+            FunctionUtils.openFunction(nestedCondition, openContext);
         }
     }
 

@@ -175,7 +175,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             long failurePosMin =
                     (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
             long failurePosMax =

@@ -363,8 +363,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         private MapStateDescriptor<String, Long> secondStateDesc;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             firstStateDesc =
                     new MapStateDescriptor<>(
@@ -408,8 +408,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         private MapStateDescriptor<Long, String> stateDesc;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             stateDesc =
                     new MapStateDescriptor<>(
@@ -457,8 +457,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             firstStateDesc =
                     new MapStateDescriptor<>(
@@ -522,8 +522,8 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             stateDesc =
                     new MapStateDescriptor<>(

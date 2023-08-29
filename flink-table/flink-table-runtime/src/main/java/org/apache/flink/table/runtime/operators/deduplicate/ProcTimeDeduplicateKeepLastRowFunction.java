@@ -61,7 +61,7 @@ public class ProcTimeDeduplicateKeepLastRowFunction
 
     @Override
     public void open(Configuration configure) throws Exception {
-        super.open(new OpenContext() {});
+        super.open(openContext);
         equaliser = genRecordEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
     }
 

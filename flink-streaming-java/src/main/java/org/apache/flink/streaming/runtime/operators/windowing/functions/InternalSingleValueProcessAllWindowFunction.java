@@ -47,8 +47,8 @@ public final class InternalSingleValueProcessAllWindowFunction<IN, OUT, W extend
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         ProcessAllWindowFunction<IN, OUT, W> wrappedFunction = this.wrappedFunction;
         this.ctx = new InternalProcessAllWindowContext<>(wrappedFunction);
     }

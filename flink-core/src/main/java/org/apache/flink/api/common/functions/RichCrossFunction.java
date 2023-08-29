@@ -23,7 +23,7 @@ import org.apache.flink.annotation.Public;
 /**
  * Rich variant of the {@link CrossFunction}. As a {@link RichFunction}, it gives access to the
  * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
- * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * methods: {@link RichFunction#open(OpenContext)} and {@link
  * RichFunction#close()}.
  *
  * @param <IN1> The type of the elements in the first input.

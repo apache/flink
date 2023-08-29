@@ -89,7 +89,7 @@ public class ProcTimeRowsBoundedPrecedingFunction<K>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
         function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 

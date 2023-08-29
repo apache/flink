@@ -140,8 +140,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
         static int counter = 0;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             synchronized (MyAbstractAsyncFunction.class) {
                 if (counter == 0) {
@@ -573,7 +573,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
                             private Integer initialValue = null;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
+                            public void open(OpenContext openContext) throws Exception {
                                 initialValue = 1;
                             }
 
@@ -1413,8 +1413,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(new OpenContext() {});
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             tryCounts = new HashMap<>();
         }
 

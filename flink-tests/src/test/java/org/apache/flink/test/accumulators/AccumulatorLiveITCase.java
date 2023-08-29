@@ -219,7 +219,7 @@ public class AccumulatorLiveITCase extends TestLogger {
         private final IntCounter counter = new IntCounter();
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, counter);
         }
 

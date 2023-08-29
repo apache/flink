@@ -104,7 +104,7 @@ public class CoordinatedSourceITCase extends AbstractTestBase {
         stream.addSink(
                 new RichSinkFunction<Integer>() {
                     @Override
-                    public void open(Configuration parameters) throws Exception {
+                    public void open(OpenContext openContext) throws Exception {
                         getRuntimeContext()
                                 .addAccumulator("result", new ListAccumulator<Integer>());
                     }

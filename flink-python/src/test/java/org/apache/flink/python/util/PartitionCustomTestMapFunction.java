@@ -31,7 +31,7 @@ public class PartitionCustomTestMapFunction extends RichMapFunction<Row, Row> {
     private int currentTaskIndex;
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
         this.currentTaskIndex = getRuntimeContext().getIndexOfThisSubtask();
     }
 

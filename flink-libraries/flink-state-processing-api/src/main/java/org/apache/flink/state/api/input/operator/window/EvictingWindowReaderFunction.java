@@ -49,7 +49,7 @@ public abstract class EvictingWindowReaderFunction<IN, R, OUT, KEY, W extends Wi
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         FunctionUtils.openFunction(wrappedFunction, parameters);
     }
 

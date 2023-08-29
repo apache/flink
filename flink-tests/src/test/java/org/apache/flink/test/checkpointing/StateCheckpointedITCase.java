@@ -330,7 +330,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             count = 0;
         }
 

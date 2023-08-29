@@ -111,7 +111,7 @@ public class AccumulatorErrorITCase extends TestLogger {
         private static final long serialVersionUID = 42;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext()
                     .addAccumulator(FAULTY_CLONE_ACCUMULATOR, new FaultyCloneAccumulator());
         }
@@ -137,7 +137,7 @@ public class AccumulatorErrorITCase extends TestLogger {
         private static final long serialVersionUID = 42;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext().addAccumulator(INCOMPATIBLE_ACCUMULATORS_NAME, new LongCounter());
         }
 
@@ -151,7 +151,7 @@ public class AccumulatorErrorITCase extends TestLogger {
         private static final long serialVersionUID = 42;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext().addAccumulator(INCOMPATIBLE_ACCUMULATORS_NAME, new DoubleCounter());
         }
 
@@ -166,7 +166,7 @@ public class AccumulatorErrorITCase extends TestLogger {
         private static final long serialVersionUID = 42;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext()
                     .addAccumulator(FAULTY_MERGE_ACCUMULATOR, new FaultyMergeAccumulator());
         }

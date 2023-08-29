@@ -49,8 +49,8 @@ public class AccumulatingIntegerSink extends RichSinkFunction<Integer>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(new OpenContext() {});
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, accumulator);
     }
 

@@ -106,7 +106,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             1, getRuntimeContext().getNumberOfParallelSubtasks());
                                     open = true;
@@ -182,7 +182,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             1, getRuntimeContext().getNumberOfParallelSubtasks());
                                     open = true;
@@ -264,7 +264,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             1, getRuntimeContext().getNumberOfParallelSubtasks());
                                     open = true;
@@ -344,7 +344,7 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             1, getRuntimeContext().getNumberOfParallelSubtasks());
                                     open = true;
