@@ -194,6 +194,20 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+
+			<plugin>
+				<groupId>io.github.zentol.japicmp</groupId>
+				<artifactId>japicmp-maven-plugin</artifactId>
+				<configuration>
+					<parameter>
+						<excludes combine.children="append">
+							<exclude>
+								org.apache.flink.api.common.functions.RichFunction#open(org.apache.flink.api.common.functions.OpenContext)
+							</exclude>
+						</excludes>
+					</parameter>
+				</configuration>
+			</plugin>
 		</plugins>
 
 	</build>
