@@ -15,10 +15,12 @@
 # limitations under the License.
 set -e
 # download miniconda.sh
-if [[ `uname -s` == "Darwin" ]]; then
-    wget "https://repo.continuum.io/miniconda/Miniconda3-4.7.10-MacOSX-x86_64.sh" -O "miniconda.sh"
+if [[ `uname -s` == "Darwin" && `uname -m` == "arm64" ]]; then
+    wget "https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh" -O "miniconda.sh"
+elif [[ `uname -s` == "Darwin" ]]; then
+    wget "https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh" -O "miniconda.sh"
 else
-    wget "https://repo.continuum.io/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh" -O "miniconda.sh"
+    wget "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh" -O "miniconda.sh"
 fi
 
 # add the execution permission
@@ -31,12 +33,7 @@ chmod +x miniconda.sh
 source venv/bin/activate ""
 
 # install PyFlink dependency
-if [[ $1 =~ ^1.10 ]]; then
-    conda install -y -c conda-forge apache-beam=2.15.0
-    if [[ $1 = "1.10.0" ]]; then
-        pip install protobuf==3.10.0
-    fi
-elif [[ $1 = "" ]]; then
+if [[ $1 = "" ]]; then
     # install the latest version of pyflink
     pip install apache-flink
 else
