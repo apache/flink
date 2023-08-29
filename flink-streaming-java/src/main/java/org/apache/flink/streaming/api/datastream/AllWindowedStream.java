@@ -111,7 +111,7 @@ public class AllWindowedStream<T, W extends Window> {
     public AllWindowedStream(DataStream<T> input, WindowAssigner<? super T, W> windowAssigner) {
         this.input = input.keyBy(new NullByteKeySelector<T>());
         this.windowAssigner = windowAssigner;
-        this.trigger = windowAssigner.getDefaultTrigger(input.getExecutionEnvironment());
+        this.trigger = windowAssigner.getDefaultTrigger();
     }
 
     /** Sets the {@code Trigger} that should be used to trigger window emission. */
