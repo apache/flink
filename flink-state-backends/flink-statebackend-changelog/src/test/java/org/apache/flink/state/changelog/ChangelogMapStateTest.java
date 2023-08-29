@@ -29,6 +29,7 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.Test;
 
+import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -110,6 +111,25 @@ public class ChangelogMapStateTest {
                 singletonMap("x", "y"),
                 ChangelogMapState::clear,
                 logger -> assertTrue(logger.stateCleared));
+    }
+
+    @Test
+    public void testMapEntryEqual() throws Exception {
+        Map.Entry<String, String> expectedEntry = new AbstractMap.SimpleEntry<>("key", "value");
+        Map<String, String> data =
+                new HashMap<String, String>() {
+                    {
+                        put(expectedEntry.getKey(), expectedEntry.getValue());
+                    }
+                };
+        TestChangeLoggerKv logger = TestChangeLoggerKv.forMap(data);
+        ChangelogMapState state1 = createState(data, logger);
+        ChangelogMapState state2 = createState(data, logger);
+
+        assertEquals(expectedEntry, state1.entries().iterator().next());
+        assertEquals(expectedEntry, state2.entries().iterator().next());
+
+        assertEquals(state1.entries().iterator().next(), state2.entries().iterator().next());
     }
 
     private <T> void testIterator(
