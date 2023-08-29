@@ -54,7 +54,34 @@ public abstract class WindowAssigner<T, W extends Window> implements Serializabl
     public abstract Collection<W> assignWindows(
             T element, long timestamp, WindowAssignerContext context);
 
-    /** Returns the default trigger associated with this {@code WindowAssigner}. */
+    /**
+     * Returns the default trigger associated with this {@code WindowAssigner}.
+     *
+     * <p>1. If you override {@code getDefaultTrigger()}, the {@code getDefaultTrigger()} will be
+     * invoked and the {@code getDefaultTrigger(StreamExecutionEnvironment env)} won't be invoked.
+     * 2. If you don't override {@code getDefaultTrigger()}, the {@code
+     * getDefaultTrigger(StreamExecutionEnvironment env)} will be invoked in the default
+     * implementation of the {@code getDefaultTrigger()}.
+     */
+    public Trigger<T, W> getDefaultTrigger() {
+        return getDefaultTrigger(new StreamExecutionEnvironment());
+    }
+
+    /**
+     * Returns the default trigger associated with this {@code WindowAssigner}.
+     *
+     * @deprecated the method is deprecated since Flink 1.19 because {@code
+     *     StreamExecutionEnvironment} is unused. Please use {@code getDefaultTrigger} and override
+     *     this method with an empty body instead. 1. If you override {@code getDefaultTrigger()},
+     *     the {@code getDefaultTrigger()} will be invoked and the {@code
+     *     getDefaultTrigger(StreamExecutionEnvironment env)} won't be invoked. 2. If you don't
+     *     override {@code getDefaultTrigger()}, the {@code
+     *     getDefaultTrigger(StreamExecutionEnvironment env)} will be invoked in the default
+     *     implementation of the {@code getDefaultTrigger()}.
+     * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=263425229">
+     *     FLIP-343: Remove parameter in WindowAssigner#getDefaultTrigger() </a>
+     */
+    @Deprecated
     public abstract Trigger<T, W> getDefaultTrigger(StreamExecutionEnvironment env);
 
     /**
