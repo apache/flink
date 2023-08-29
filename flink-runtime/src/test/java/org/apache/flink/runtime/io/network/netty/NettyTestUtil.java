@@ -25,6 +25,7 @@ import org.apache.flink.util.NetUtils;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
+import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import java.net.BindException;
@@ -136,7 +137,7 @@ public class NettyTestUtil {
         final NettyConfig config = server.getConfig();
 
         return client.connect(
-                        new InetSocketAddress(config.getServerAddress(), config.getServerPort()))
+                        new InetSocketAddress(config.getServerAddress(), server.getListeningPort()))
                 .sync()
                 .channel();
     }
@@ -247,9 +248,25 @@ public class NettyTestUtil {
             return new ConnectionID(
                     resourceID,
                     new InetSocketAddress(
-                            server.getConfig().getServerAddress(),
-                            server.getConfig().getServerPort()),
+                            server.getConfig().getServerAddress(), server.getListeningPort()),
                     connectionIndex);
+        }
+    }
+
+    static final class NoOpProtocol extends NettyProtocol {
+
+        NoOpProtocol() {
+            super(null, null);
+        }
+
+        @Override
+        public ChannelHandler[] getServerChannelHandlers() {
+            return new ChannelHandler[0];
+        }
+
+        @Override
+        public ChannelHandler[] getClientChannelHandlers() {
+            return new ChannelHandler[0];
         }
     }
 }

@@ -315,6 +315,10 @@ public class TaskManagerServices {
                         ioExecutor);
         final int listeningDataPort = shuffleEnvironment.start();
 
+        LOG.info(
+                "TaskManager data connection initialized successfully; listening internally on port: {}",
+                listeningDataPort);
+
         final KvStateService kvStateService =
                 KvStateService.fromConfiguration(taskManagerServicesConfiguration);
         kvStateService.start();
