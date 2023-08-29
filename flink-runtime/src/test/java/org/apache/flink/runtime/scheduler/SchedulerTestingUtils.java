@@ -108,18 +108,35 @@ public class SchedulerTestingUtils {
             final JobGraph jobGraph,
             @Nullable StateBackend stateBackend,
             @Nullable CheckpointStorage checkpointStorage) {
+        enableCheckpointing(
+                jobGraph,
+                stateBackend,
+                checkpointStorage,
+                Long.MAX_VALUE, // disable periodical checkpointing
+                false);
+    }
+
+    public static void enableCheckpointing(
+            final JobGraph jobGraph,
+            @Nullable StateBackend stateBackend,
+            @Nullable CheckpointStorage checkpointStorage,
+            long checkpointInterval,
+            boolean enableCheckpointsAfterTasksFinish) {
 
         final CheckpointCoordinatorConfiguration config =
-                new CheckpointCoordinatorConfiguration(
-                        Long.MAX_VALUE, // disable periodical checkpointing
-                        DEFAULT_CHECKPOINT_TIMEOUT_MS,
-                        0,
-                        1,
-                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-                        false,
-                        false,
-                        0,
-                        0);
+                new CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder()
+                        .setCheckpointInterval(checkpointInterval)
+                        .setCheckpointTimeout(DEFAULT_CHECKPOINT_TIMEOUT_MS)
+                        .setMinPauseBetweenCheckpoints(0)
+                        .setMaxConcurrentCheckpoints(1)
+                        .setCheckpointRetentionPolicy(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION)
+                        .setExactlyOnce(false)
+                        .setUnalignedCheckpointsEnabled(false)
+                        .setTolerableCheckpointFailureNumber(0)
+                        .setCheckpointIdOfIgnoredInFlightData(0)
+                        .setEnableCheckpointsAfterTasksFinish(enableCheckpointsAfterTasksFinish)
+                        .build();
 
         SerializedValue<StateBackend> serializedStateBackend = null;
         if (stateBackend != null) {
