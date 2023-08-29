@@ -85,6 +85,11 @@ public class TumblingProcessingTimeWindows extends WindowAssigner<Object, TimeWi
 
     @Override
     public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Trigger<Object, TimeWindow> getDefaultTrigger() {
         return ProcessingTimeTrigger.create();
     }
 

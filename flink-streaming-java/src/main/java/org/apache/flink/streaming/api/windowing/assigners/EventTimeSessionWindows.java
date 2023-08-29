@@ -65,6 +65,11 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 
     @Override
     public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Trigger<Object, TimeWindow> getDefaultTrigger() {
         return EventTimeTrigger.create();
     }
 

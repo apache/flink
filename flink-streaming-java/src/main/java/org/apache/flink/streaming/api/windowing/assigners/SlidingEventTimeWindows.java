@@ -94,6 +94,11 @@ public class SlidingEventTimeWindows extends WindowAssigner<Object, TimeWindow> 
 
     @Override
     public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Trigger<Object, TimeWindow> getDefaultTrigger() {
         return EventTimeTrigger.create();
     }
 

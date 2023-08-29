@@ -84,7 +84,7 @@ public class WindowedOperatorTransformation<T, K, W extends Window> {
         this.builder =
                 new WindowOperatorBuilder<>(
                         windowAssigner,
-                        windowAssigner.getDefaultTrigger(null),
+                        windowAssigner.getDefaultTrigger(),
                         input.getExecutionEnvironment().getConfig(),
                         input.getType(),
                         keySelector,

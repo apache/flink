@@ -86,6 +86,11 @@ public class SlidingProcessingTimeWindows extends WindowAssigner<Object, TimeWin
 
     @Override
     public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Trigger<Object, TimeWindow> getDefaultTrigger() {
         return ProcessingTimeTrigger.create();
     }
 

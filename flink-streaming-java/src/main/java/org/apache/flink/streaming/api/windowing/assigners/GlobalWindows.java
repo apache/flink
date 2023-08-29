@@ -50,6 +50,11 @@ public class GlobalWindows extends WindowAssigner<Object, GlobalWindow> {
 
     @Override
     public Trigger<Object, GlobalWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Trigger<Object, GlobalWindow> getDefaultTrigger() {
         return new NeverTrigger();
     }
 
