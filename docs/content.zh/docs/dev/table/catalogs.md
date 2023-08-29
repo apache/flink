@@ -65,9 +65,9 @@ Catalog 是可扩展的，用户可以通过实现 `Catalog` 接口来开发自�
  在用户自定义 catalog 中，应该将 `Thread.currentThread().getContextClassLoader()` 替换成该用户类加载器去加载类。否则，可能会发生 `ClassNotFoundException` 的异常。该用户类加载器可以通过 `CatalogFactory.Context#getClassLoader` 获得。
 {{< /hint >}}
 
-### Catalog 支持时间旅行
+**Catalog 支持时间旅行** 
 
-从 1.18 开始， Flink 框架开始支持[时间旅行]({{< ref "docs/dev/table/sql/queries/time-travel" >}})，如果要使用时间旅行，可通过实现 `getTable(ObjectPath tablePath, long timestamp)` 方法，如下所示:
+从 1.18 开始， Flink 框架开始支持[时间旅行]({{< ref "docs/dev/table/sql/queries/time-travel" >}})查询表的历史数据。如果要查询表的历史数据，需要这张表所属于的 `catalog` 实现 `getTable(ObjectPath tablePath, long timestamp)` 方法，如下所示:
 
 ```java
 public class MyCatalogSupportTimeTravel implements Catalog {

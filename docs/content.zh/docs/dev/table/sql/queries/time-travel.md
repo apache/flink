@@ -25,7 +25,7 @@ under the License.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-`时间旅行`是一种用于查询历史数据的 SQL 语法。它允许用户指定一个时间点，查询对应时间点 table 的数据。
+`时间旅行`语法主要用于查询历史数据。它允许用户指定一个时间点，查询对应时间点 table 的数据。
 
 <span class="label label-danger">注意</span> 目前, `时间旅行`语法需要查询 table 所属的 catalog 实现了 {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/catalog/Catalog.java" name="getTable(ObjectPath tablePath, long timestamp)" >}} 接口。
 
@@ -35,29 +35,26 @@ SELECT select_list FROM table_name FOR SYSTEM_TIME AS OF timestamp_expression
 
 **参数说明：**
 
-- `FOR SYSTEM_TIME AS OF timestamp_expression`：用于特定的时间表达式，用于查询该时间点之前的数据，该表达式只能作用于物理表，不能是 view 或者是子查询
+- `FOR SYSTEM_TIME AS OF timestamp_expression`：用于特定的时间表达式，用于查询该时间点之前的数据。`timestamp_expression` 用于表示需要查询的时间点。`timestamp_expression` 可以是一个具体的 TIMESTAMP 常量 或者时间计算表达式或者函数，该表达式只能作用于物理表不能是试图或者子查询。
+
+## 示例
+ 
+```sql
+--使用时间常量
+SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00'
+
+--使用可以转换为时间常量时间函数
+SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00' - INTERVAL '1' DAY
+```
 
 ## 限制
 
 <span class="label label-danger">注意</span> `时间旅行` 中使用的时间表达式只支持 `TIMESTAMP` 常量表达式， `TIMESTAMP` 加减运算， 以及部分`内置函数`和 `UDF`
 
-### 常量表达式
-
-```sql
-SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00'
-```
-
-### 常量表达式加减运算
-
-```sql
-SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00' - INTERVAL '1' DAY
-```
-
-### 时间函数或UDF （部分支持）
-
 当时间表达式中使用 `UDF` 或者`函数`时， 由于当前框架的限制，部分表达式无法在 sql 解析时直接换为一个 `TIMESTAMP` 常量，会直接抛出异常。
 
 ```sql
+--使用无法在 SQL 解析时直接转换为时间常量的时间表达式
 SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TO_TIMESTAMP_LTZ(0, 3)
 ```
 
