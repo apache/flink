@@ -172,6 +172,26 @@ class CollectSinkOperatorCoordinatorTest {
     }
 
     @Test
+    void testCoordinatorNotConnectingToTheSinkFunctionSocket() throws Exception {
+        try (final TestingSinkFunction sinkFunction =
+                TestingSinkFunction.createTestingSinkFunctionWithoutConnection()) {
+            final CollectSinkOperatorCoordinator coordinator = new CollectSinkOperatorCoordinator();
+            coordinator.start();
+            sinkFunction.registerSinkFunctionWith(coordinator);
+
+            final String expectedVersion = "version";
+            final CompletableFuture<CoordinationResponse> responseFuture =
+                    coordinator.handleCoordinationRequest(
+                            createRequestForCoordinatorGeneratedResponse(expectedVersion));
+            assertThat(responseFuture).isNotDone();
+
+            // closing th coordinator before the request is sent should result in an empty response
+            coordinator.close();
+            assertEmptyResponseGeneratedFromCoordinator(responseFuture, expectedVersion);
+        }
+    }
+
+    @Test
     void testReconnectAfterSinkFunctionSocketDisconnect() throws Exception {
         try (CollectSinkOperatorCoordinator coordinator = new CollectSinkOperatorCoordinator()) {
             coordinator.start();
