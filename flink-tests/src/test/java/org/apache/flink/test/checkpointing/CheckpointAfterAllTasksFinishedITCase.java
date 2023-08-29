@@ -79,7 +79,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
     @Test
     public void testImmediateCheckpointing() throws Exception {
         env.enableCheckpointing(Long.MAX_VALUE - 1);
-        StreamGraph streamGraph = getStreamGraph(env);
+        StreamGraph streamGraph = getStreamGraph(env, false);
         env.execute(streamGraph);
         assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);
         assertThat(bigResult.get().size()).isEqualTo(BIG_SOURCE_NUM_RECORDS);
@@ -98,7 +98,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
 
             env.enableCheckpointing(100);
             IntegerStreamSource.latch = new CountDownLatch(1);
-            JobGraph jobGraph = getStreamGraph(env).getJobGraph();
+            JobGraph jobGraph = getStreamGraph(env, true).getJobGraph();
             miniCluster.submitJob(jobGraph).get();
 
             CommonTestUtils.waitForSubtasksToFinish(
@@ -118,7 +118,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
             bigResult.get().clear();
 
             env.enableCheckpointing(Long.MAX_VALUE - 1);
-            JobGraph restoredJobGraph = getStreamGraph(env).getJobGraph();
+            JobGraph restoredJobGraph = getStreamGraph(env, true).getJobGraph();
             restoredJobGraph.setSavepointRestoreSettings(
                     SavepointRestoreSettings.forPath(savepointPath, false));
             miniCluster.submitJob(restoredJobGraph).get();
@@ -131,13 +131,13 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
         }
     }
 
-    private StreamGraph getStreamGraph(StreamExecutionEnvironment env) {
+    private StreamGraph getStreamGraph(StreamExecutionEnvironment env, boolean block) {
         env.addSource(new IntegerStreamSource(SMALL_SOURCE_NUM_RECORDS, false))
                 .transform("passA", Types.INT, new PassThroughOperator())
                 .addSink(new CollectSink(smallResult))
                 .name("sinkA");
 
-        env.addSource(new IntegerStreamSource(BIG_SOURCE_NUM_RECORDS, true))
+        env.addSource(new IntegerStreamSource(BIG_SOURCE_NUM_RECORDS, block))
                 .transform("passB", Types.INT, new PassThroughOperator())
                 .addSink(new CollectSink(bigResult))
                 .name("sinkB");
