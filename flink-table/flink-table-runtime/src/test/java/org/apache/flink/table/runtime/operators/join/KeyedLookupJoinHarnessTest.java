@@ -288,6 +288,7 @@ public class KeyedLookupJoinHarnessTest {
         testHarness.processElement(updateAfterRecord(3, "c2"));
         testHarness.processElement(deleteRecord(3, "c2"));
         testHarness.processElement(insertRecord(3, "c3"));
+        testHarness.processElement(insertRecord(4, null));
 
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
@@ -304,6 +305,7 @@ public class KeyedLookupJoinHarnessTest {
         expectedOutput.add(deleteRecord(3, "c2", 6, "Jackson-2"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jark-3"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jackson-3"));
+        expectedOutput.add(insertRecord(4, null, null, null));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
@@ -327,6 +329,7 @@ public class KeyedLookupJoinHarnessTest {
         testHarness.processElement(updateAfterRecord(3, "c2"));
         testHarness.processElement(deleteRecord(3, "c2"));
         testHarness.processElement(insertRecord(3, "c3"));
+        testHarness.processElement(insertRecord(4, null));
 
         List<Object> expectedOutput = new ArrayList<>();
         expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
@@ -340,6 +343,7 @@ public class KeyedLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c2", 6, "Jark-2"));
         expectedOutput.add(deleteRecord(3, "c2", 6, "Jark-2"));
         expectedOutput.add(insertRecord(3, "c3", 9, "Jark-3"));
+        expectedOutput.add(insertRecord(4, null, null, null));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
         testHarness.close();
@@ -365,6 +369,8 @@ public class KeyedLookupJoinHarnessTest {
                             new GeneratedFunctionWrapper<>(fetcher),
                             new GeneratedCollectorWrapper<>(
                                     new LookupJoinHarnessTest.TestingFetcherCollector()),
+                            new GeneratedFunctionWrapper(
+                                    new LookupJoinHarnessTest.TestingPreFilterCondition()),
                             isLeftJoin,
                             2);
         } else {
@@ -375,6 +381,8 @@ public class KeyedLookupJoinHarnessTest {
                                     new LookupJoinHarnessTest.CalculateOnTemporalTable()),
                             new GeneratedCollectorWrapper<>(
                                     new LookupJoinHarnessTest.TestingFetcherCollector()),
+                            new GeneratedFunctionWrapper(
+                                    new LookupJoinHarnessTest.TestingPreFilterCondition()),
                             isLeftJoin,
                             2);
         }

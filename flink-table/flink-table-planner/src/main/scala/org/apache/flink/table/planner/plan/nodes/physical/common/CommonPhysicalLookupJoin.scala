@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
-import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, ExpressionFormat, JoinTypeUtil, LookupJoinUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, ExpressionFormat, InputRefVisitor, JoinTypeUtil, LookupJoinUtil, RelExplainUtil}
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
@@ -98,11 +98,11 @@ abstract class CommonPhysicalLookupJoin(
     // all potential index keys, mapping from field index in table source to LookupKey
     analyzeLookupKeys(cluster.getRexBuilder, joinKeyPairs, calcOnTemporalTable)
   }
-  // remaining condition used to filter the joined records (left input record X lookup-ed records)
-  val remainingCondition: Option[RexNode] = getRemainingJoinCondition(
+  // split join condition(except the lookup keys) into pre-filter(used to filter the left input
+  // before lookup) and remaining parts(used to filter the joined records)
+  val (finalPreFilterCondition, finalRemainingCondition) = splitJoinCondition(
     cluster.getRexBuilder,
     inputRel.getRowType,
-    calcOnTemporalTable,
     allLookupKeys.values.toList,
     joinInfo)
 
@@ -195,12 +195,9 @@ abstract class CommonPhysicalLookupJoin(
       .itemIf("where", whereString, whereString.nonEmpty)
       .itemIf(
         "joinCondition",
-        joinConditionToString(
-          resultFieldNames,
-          remainingCondition,
-          preferExpressionFormat(pw),
-          pw.getDetailLevel),
-        remainingCondition.isDefined)
+        joinConditionToString(resultFieldNames, preferExpressionFormat(pw), pw.getDetailLevel),
+        finalRemainingCondition.isDefined || finalPreFilterCondition.isDefined
+      )
       .item("select", selection)
       .itemIf("upsertMaterialize", "true", upsertMaterialize)
       .itemIf("async", asyncOptions.getOrElse(""), asyncOptions.isDefined)
@@ -217,13 +214,15 @@ abstract class CommonPhysicalLookupJoin(
     case _ => ChangelogMode.insertOnly()
   }
 
-  /** Gets the remaining join condition which is used */
-  private def getRemainingJoinCondition(
+  /**
+   * Splits the remaining condition in joinInfo into the pre-filter(used to filter the left input
+   * before lookup) and remaining parts(used to filter the joined records).
+   */
+  private def splitJoinCondition(
       rexBuilder: RexBuilder,
       leftRelDataType: RelDataType,
-      calcOnTemporalTable: Option[RexProgram],
       leftKeys: List[LookupKey],
-      joinInfo: JoinInfo): Option[RexNode] = {
+      joinInfo: JoinInfo): (Option[RexNode], Option[RexNode]) = {
     // indexes of left key fields
     val leftKeyIndexes =
       leftKeys
@@ -244,9 +243,31 @@ abstract class CommonPhysicalLookupJoin(
         val rightInputRef = new RexInputRef(rightIndex, rightFieldType)
         rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, leftInputRef, rightInputRef)
     }
-    val remainingAnds = remainingEquals ++ joinInfo.nonEquiConditions.asScala
-    // build a new condition
-    val condition = RexUtil.composeConjunction(rexBuilder, remainingAnds.toList.asJava)
+    if (joinType.generatesNullsOnRight) {
+      // only extract pre-filter for left & full outer joins(otherwise the pre-filter will always be pushed down)
+      val (leftLocal, remaining) =
+        joinInfo.nonEquiConditions.asScala.partition {
+          r =>
+            {
+              val inputRefs = new InputRefVisitor()
+              r.accept(inputRefs)
+              // if all input refs belong to left
+              inputRefs.getFields.forall(idx => idx < inputRel.getRowType.getFieldCount)
+            }
+        }
+      val remainingAnds = remainingEquals ++ remaining
+      // build final pre-filter and remaining conditions
+      (
+        composeCondition(rexBuilder, leftLocal.toList),
+        composeCondition(rexBuilder, remainingAnds.toList))
+    } else {
+      val remainingAnds = remainingEquals ++ joinInfo.nonEquiConditions.asScala
+      (None, composeCondition(rexBuilder, remainingAnds.toList))
+    }
+  }
+
+  private def composeCondition(rexBuilder: RexBuilder, rexNodes: List[RexNode]): Option[RexNode] = {
+    val condition = RexUtil.composeConjunction(rexBuilder, rexNodes.asJava)
     if (condition.isAlwaysTrue) {
       None
     } else {
@@ -466,16 +487,30 @@ abstract class CommonPhysicalLookupJoin(
 
   private def joinConditionToString(
       resultFieldNames: Array[String],
-      joinCondition: Option[RexNode],
       expressionFormat: ExpressionFormat = ExpressionFormat.Prefix,
-      sqlExplainLevel: SqlExplainLevel): String = joinCondition match {
-    case Some(condition) =>
-      getExpressionString(
-        condition,
-        resultFieldNames.toList,
-        None,
-        expressionFormat,
-        sqlExplainLevel)
-    case None => "N/A"
+      sqlExplainLevel: SqlExplainLevel): String = {
+
+    def appendCondition(sb: StringBuilder, cond: Option[RexNode]): Unit = {
+      cond match {
+        case Some(condition) =>
+          sb.append(
+            getExpressionString(
+              condition,
+              resultFieldNames.toList,
+              None,
+              expressionFormat,
+              sqlExplainLevel))
+        case _ =>
+      }
+    }
+
+    if (finalPreFilterCondition.isEmpty && finalRemainingCondition.isEmpty) {
+      "N/A"
+    } else {
+      val sb = new StringBuilder
+      appendCondition(sb, finalPreFilterCondition)
+      appendCondition(sb, finalRemainingCondition)
+      sb.toString()
+    }
   }
 }

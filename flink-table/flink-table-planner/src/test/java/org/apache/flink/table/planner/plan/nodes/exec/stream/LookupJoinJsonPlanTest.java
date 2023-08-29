@@ -244,4 +244,30 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
                         + "FROM MyTable AS T JOIN LookupTable "
                         + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id");
     }
+
+    @Test
+    public void testLeftJoinTemporalTableWithPreFilter() {
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT * "
+                        + "FROM MyTable AS T LEFT JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b > 'abc'");
+    }
+
+    @Test
+    public void testLeftJoinTemporalTableWithPostFilter() {
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT * "
+                        + "FROM MyTable AS T LEFT JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id "
+                        + "AND CHAR_LENGTH(D.name) > CHAR_LENGTH(T.b)");
+    }
+
+    @Test
+    public void testLeftJoinTemporalTableWithMultiJoinConditions() {
+        util.verifyJsonPlan(
+                "INSERT INTO MySink1 SELECT * "
+                        + "FROM MyTable AS T LEFT JOIN LookupTable "
+                        + "FOR SYSTEM_TIME AS OF T.proctime AS D "
+                        + "ON T.a = D.id AND T.b > 'abc' AND T.b <> D.name AND T.c = 100");
+    }
 }

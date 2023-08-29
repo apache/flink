@@ -412,6 +412,44 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
   }
 
   @Test
+  def testLeftJoinTemporalTableWithPreFilter(): Unit = {
+    val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
+      "for system_time as of T.proctime AS D ON T.id = D.id AND T.len < 15"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected =
+      Seq("1,12,Julian,11", "2,15,null,null", "3,15,null,null", "8,11,null,null", "9,12,null,null")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testLeftJoinTemporalTableWithUdfPreFilter(): Unit = {
+    tEnv.registerFunction("add", new TestAddWithOpen)
+    // use the new api when FLINK-32986 is resolved
+    // tEnv.createTemporaryFunction("add", classOf[TestAddWithOpen])
+
+    // 'add(T.id, 2) > 4' is equal to 'T.id > 2', here we are testing a udf
+    val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T LEFT JOIN user_table " +
+      "for system_time as of T.proctime AS D ON T.id = D.id AND add(T.id, 2) > 4"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "1,12,Julian,null",
+      "2,15,Hello,null",
+      "3,15,Fabian,Fabian",
+      "8,11,Hello world,null",
+      "9,12,Hello world!,null")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertEquals(0, TestAddWithOpen.aliveCounter.get())
+  }
+
+  @Test
   def testLeftJoinTemporalTableOnNullableKey(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T LEFT OUTER JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"

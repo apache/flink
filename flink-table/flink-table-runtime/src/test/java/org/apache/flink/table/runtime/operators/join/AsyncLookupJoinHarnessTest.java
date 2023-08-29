@@ -186,6 +186,7 @@ public class AsyncLookupJoinHarnessTest {
             testHarness.processElement(insertRecord(3, "c"));
             testHarness.processElement(insertRecord(4, "d"));
             testHarness.processElement(insertRecord(5, "e"));
+            testHarness.processElement(insertRecord(6, null));
         }
 
         // wait until all async collectors in the buffer have been emitted out.
@@ -201,6 +202,7 @@ public class AsyncLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(5, "e", null, null));
+        expectedOutput.add(insertRecord(6, null, null, null));
 
         checkResult(expectedOutput, testHarness.getOutput());
     }
@@ -218,6 +220,7 @@ public class AsyncLookupJoinHarnessTest {
             testHarness.processElement(insertRecord(3, "c"));
             testHarness.processElement(insertRecord(4, "d"));
             testHarness.processElement(insertRecord(5, "e"));
+            testHarness.processElement(insertRecord(6, null));
         }
 
         // wait until all async collectors in the buffer have been emitted out.
@@ -232,6 +235,7 @@ public class AsyncLookupJoinHarnessTest {
         expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
         expectedOutput.add(insertRecord(4, "d", 4, "Fabian"));
         expectedOutput.add(insertRecord(5, "e", null, null));
+        expectedOutput.add(insertRecord(6, null, null, null));
 
         checkResult(expectedOutput, testHarness.getOutput());
     }
@@ -257,6 +261,8 @@ public class AsyncLookupJoinHarnessTest {
                             new GeneratedFunctionWrapper(new TestingFetcherFunction()),
                             fetcherConverter,
                             new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+                            new GeneratedFunctionWrapper(
+                                    new LookupJoinHarnessTest.TestingPreFilterCondition()),
                             rightRowSerializer,
                             isLeftJoin,
                             ASYNC_BUFFER_CAPACITY);
@@ -267,6 +273,8 @@ public class AsyncLookupJoinHarnessTest {
                             fetcherConverter,
                             new GeneratedFunctionWrapper<>(new CalculateOnTemporalTable()),
                             new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+                            new GeneratedFunctionWrapper(
+                                    new LookupJoinHarnessTest.TestingPreFilterCondition()),
                             rightRowSerializer,
                             isLeftJoin,
                             ASYNC_BUFFER_CAPACITY);
@@ -290,6 +298,8 @@ public class AsyncLookupJoinHarnessTest {
                         new GeneratedFunctionWrapper(new TestingFetcherFunction()),
                         fetcherConverter,
                         new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
+                        new GeneratedFunctionWrapper(
+                                new LookupJoinHarnessTest.TestingPreFilterCondition()),
                         rightRowSerializer,
                         true,
                         100);
