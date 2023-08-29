@@ -71,15 +71,15 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
     public void setUp() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
-        env.setRestartStrategy(RestartStrategies.noRestart());
         smallResult = sharedObjects.add(new CopyOnWriteArrayList<>());
         bigResult = sharedObjects.add(new CopyOnWriteArrayList<>());
     }
 
     @Test
     public void testImmediateCheckpointing() throws Exception {
+        env.setRestartStrategy(RestartStrategies.noRestart());
         env.enableCheckpointing(Long.MAX_VALUE - 1);
-        StreamGraph streamGraph = getStreamGraph(env, false);
+        StreamGraph streamGraph = getStreamGraph(env, false, false);
         env.execute(streamGraph);
         assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);
         assertThat(bigResult.get().size()).isEqualTo(BIG_SOURCE_NUM_RECORDS);
@@ -96,9 +96,10 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
         try (MiniCluster miniCluster = new MiniCluster(cfg)) {
             miniCluster.start();
 
+            env.setRestartStrategy(RestartStrategies.noRestart());
             env.enableCheckpointing(100);
             IntegerStreamSource.latch = new CountDownLatch(1);
-            JobGraph jobGraph = getStreamGraph(env, true).getJobGraph();
+            JobGraph jobGraph = getStreamGraph(env, true, false).getJobGraph();
             miniCluster.submitJob(jobGraph).get();
 
             CommonTestUtils.waitForSubtasksToFinish(
@@ -118,7 +119,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
             bigResult.get().clear();
 
             env.enableCheckpointing(Long.MAX_VALUE - 1);
-            JobGraph restoredJobGraph = getStreamGraph(env, true).getJobGraph();
+            JobGraph restoredJobGraph = getStreamGraph(env, true, false).getJobGraph();
             restoredJobGraph.setSavepointRestoreSettings(
                     SavepointRestoreSettings.forPath(savepointPath, false));
             miniCluster.submitJob(restoredJobGraph).get();
@@ -128,16 +129,52 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
             miniCluster.requestJobResult(restoredJobGraph.getJobID()).get();
             assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);
             assertThat(bigResult.get().size()).isEqualTo(BIG_SOURCE_NUM_RECORDS);
+        } finally {
+            IntegerStreamSource.latch = null;
         }
     }
 
-    private StreamGraph getStreamGraph(StreamExecutionEnvironment env, boolean block) {
-        env.addSource(new IntegerStreamSource(SMALL_SOURCE_NUM_RECORDS, false))
+    @Test
+    public void testFailoverAfterSomeTasksFinished() throws Exception {
+        final MiniClusterConfiguration cfg =
+                new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
+                        .setNumTaskManagers(1)
+                        .setNumSlotsPerTaskManager(4)
+                        .build();
+        try (MiniCluster miniCluster = new MiniCluster(cfg)) {
+            miniCluster.start();
+
+            env.enableCheckpointing(100);
+            IntegerStreamSource.latch = new CountDownLatch(1);
+            JobGraph jobGraph = getStreamGraph(env, true, true).getJobGraph();
+            miniCluster.submitJob(jobGraph);
+
+            CommonTestUtils.waitForSubtasksToFinish(
+                    miniCluster,
+                    jobGraph.getJobID(),
+                    findVertexByName(jobGraph, "passA -> Sink: sinkA").getID(),
+                    false);
+            bigResult.get().clear();
+            IntegerStreamSource.latch.countDown();
+
+            miniCluster.requestJobResult(jobGraph.getJobID()).get();
+            assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);
+            assertThat(bigResult.get().size()).isEqualTo(BIG_SOURCE_NUM_RECORDS);
+        } finally {
+            IntegerStreamSource.latch = null;
+        }
+    }
+
+    private StreamGraph getStreamGraph(
+            StreamExecutionEnvironment env, boolean block, boolean needFailover) {
+
+        env.addSource(new IntegerStreamSource(SMALL_SOURCE_NUM_RECORDS, false, false))
                 .transform("passA", Types.INT, new PassThroughOperator())
                 .addSink(new CollectSink(smallResult))
                 .name("sinkA");
 
-        env.addSource(new IntegerStreamSource(BIG_SOURCE_NUM_RECORDS, block))
+        env.addSource(new IntegerStreamSource(BIG_SOURCE_NUM_RECORDS, block, needFailover))
                 .transform("passB", Types.INT, new PassThroughOperator())
                 .addSink(new CollectSink(bigResult))
                 .name("sinkB");
@@ -157,16 +194,19 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
 
         private static final long serialVersionUID = 1L;
         private static CountDownLatch latch;
+        private static boolean failedBefore;
 
         private final int numRecords;
         private boolean block;
         private volatile boolean running;
         private int emittedCount;
+        private boolean needFailover;
 
-        public IntegerStreamSource(int numRecords, boolean block) {
+        public IntegerStreamSource(int numRecords, boolean block, boolean needFailover) {
             this.numRecords = numRecords;
             this.running = true;
             this.block = block;
+            this.needFailover = needFailover;
             this.emittedCount = 0;
         }
 
@@ -180,6 +220,10 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
             }
             if (block && latch != null) {
                 latch.await();
+            }
+            if (needFailover && !failedBefore) {
+                failedBefore = true;
+                throw new RuntimeException("forced failure");
             }
         }
 
