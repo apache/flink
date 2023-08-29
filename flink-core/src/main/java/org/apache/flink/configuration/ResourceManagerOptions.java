@@ -64,6 +64,18 @@ public class ResourceManagerOptions {
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     @Documentation.OverrideDefault("infinite")
+    public static final ConfigOption<Integer> MIN_SLOT_NUM =
+            ConfigOptions.key("slotmanager.number-of-slots.min")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "Defines the minimum number of slots that the Flink cluster allocates. This configuration option "
+                                    + "is meant for cluster to initialize certain workers in best efforts when starting. This can "
+                                    + "be used to speed up a job startup process. Note that this configuration option does not take "
+                                    + "effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> MAX_SLOT_NUM =
             ConfigOptions.key("slotmanager.number-of-slots.max")
                     .intType()
@@ -75,6 +87,18 @@ public class ResourceManagerOptions {
                                     + "effect for standalone clusters, where how many slots are allocated is not controlled by Flink.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Double> MIN_TOTAL_CPU =
+            ConfigOptions.key("slotmanager.min-total-resource.cpu")
+                    .doubleType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Minimum cpu cores the Flink cluster allocates for slots. Resources "
+                                    + "for JobManager and TaskManager framework are excluded. If "
+                                    + "not configured, it will be derived from '"
+                                    + MIN_SLOT_NUM.key()
+                                    + "'.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Double> MAX_TOTAL_CPU =
             ConfigOptions.key("slotmanager.max-total-resource.cpu")
                     .doubleType()
@@ -84,6 +108,18 @@ public class ResourceManagerOptions {
                                     + "for JobManager and TaskManager framework are excluded. If "
                                     + "not configured, it will be derived from '"
                                     + MAX_SLOT_NUM.key()
+                                    + "'.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<MemorySize> MIN_TOTAL_MEM =
+            ConfigOptions.key("slotmanager.min-total-resource.memory")
+                    .memoryType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Minimum memory size the Flink cluster allocates for slots. Resources "
+                                    + "for JobManager and TaskManager framework are excluded. If "
+                                    + "not configured, it will be derived from '"
+                                    + MIN_SLOT_NUM.key()
                                     + "'.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
