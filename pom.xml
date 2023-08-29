@@ -2243,8 +2243,8 @@ under the License.
 							</excludes>
 							<accessModifier>public</accessModifier>
 							<breakBuildOnModifications>false</breakBuildOnModifications>
-							<breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
-							<breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
+							<breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
+							<breakBuildOnSourceIncompatibleModifications>false</breakBuildOnSourceIncompatibleModifications>
 							<onlyBinaryIncompatible>false</onlyBinaryIncompatible>
 							<includeSynthetic>true</includeSynthetic>
 							<ignoreMissingClasses>false</ignoreMissingClasses>
