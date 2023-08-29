@@ -33,7 +33,7 @@ public class LocalChangelogRegistryTest extends TestLogger {
     @Test
     public void testRegistryNormal() {
         LocalChangelogRegistry localStateRegistry =
-                new LocalChangelogRegistryImpl(Executors.directExecutor());
+                new LocalChangelogRegistryImpl(Executors.newDirectExecutorService());
         TestingStreamStateHandle handle1 = new TestingStreamStateHandle();
         TestingStreamStateHandle handle2 = new TestingStreamStateHandle();
         // checkpoint 1: handle1, handle2

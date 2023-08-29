@@ -70,7 +70,6 @@ class ChangelogTruncateHelper {
             subsumedUpTo = sqn;
             checkpointedUpTo.headMap(checkpointId, true).clear();
             truncate();
-            stateChangelogWriter.subsume(checkpointId);
         }
     }
 
