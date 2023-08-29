@@ -18,12 +18,12 @@
 
 package org.apache.flink.api.common.functions;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 
 /**
  * The {@link OpenContext} interface provides the necessary information required by the {@link
  * RichFunction} when it is opened. Additional methods will be added to this interface in the future
  * to include more components.
  */
-@PublicEvolving
+@Public
 public interface OpenContext {}
