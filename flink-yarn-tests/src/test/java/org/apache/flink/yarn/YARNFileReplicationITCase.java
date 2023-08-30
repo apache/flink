@@ -43,7 +43,9 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,7 +83,10 @@ class YARNFileReplicationITCase extends YarnTestBase {
                 createYarnClusterDescriptor(configuration)) {
 
             yarnClusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-            yarnClusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+            yarnClusterDescriptor.addShipFiles(
+                    Arrays.stream(Objects.requireNonNull(flinkLibFolder.listFiles()))
+                            .map(file -> new Path(file.toURI()))
+                            .collect(Collectors.toList()));
 
             final int masterMemory =
                     yarnClusterDescriptor
