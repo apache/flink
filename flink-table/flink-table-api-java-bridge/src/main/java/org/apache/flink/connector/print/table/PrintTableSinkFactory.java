@@ -19,9 +19,9 @@
 package org.apache.flink.connector.print.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.PrintSinkOutputWriter;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;

@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
-import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.table.watermark.WatermarkParams;

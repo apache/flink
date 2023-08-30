@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.functions.source.datagen;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;

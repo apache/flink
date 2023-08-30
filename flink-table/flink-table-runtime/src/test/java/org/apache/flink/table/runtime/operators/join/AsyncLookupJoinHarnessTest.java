@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;

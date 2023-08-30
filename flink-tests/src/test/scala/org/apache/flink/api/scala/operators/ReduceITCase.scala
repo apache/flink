@@ -17,12 +17,12 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.common.functions.{OpenContext, RichReduceFunction}
+import org.apache.flink.api.common.functions.RichReduceFunction
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.MutableTuple3
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode

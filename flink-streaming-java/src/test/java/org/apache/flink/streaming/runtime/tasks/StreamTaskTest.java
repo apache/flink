@@ -20,13 +20,13 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;

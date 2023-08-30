@@ -20,7 +20,6 @@ package org.apache.flink.test.operators;
 
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase.CombineHint;
@@ -30,6 +29,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.operators.util.CollectionDataSets.PojoWithDateAndEnum;

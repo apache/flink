@@ -18,11 +18,10 @@
 package org.apache.flink.table.planner.factories.utils
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.functions.OpenContext
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink, DataStreamSource}
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction

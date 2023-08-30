@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;

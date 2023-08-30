@@ -19,8 +19,8 @@
 package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.SpecializedFunction.ExpressionEvaluator;

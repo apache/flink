@@ -19,14 +19,14 @@ package org.apache.flink.api.scala.migration
 
 import org.apache.flink.FlinkVersion
 import org.apache.flink.api.common.accumulators.IntCounter
-import org.apache.flink.api.common.functions.{OpenContext, RichFlatMapFunction}
+import org.apache.flink.api.common.functions.RichFlatMapFunction
 import org.apache.flink.api.common.state._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend

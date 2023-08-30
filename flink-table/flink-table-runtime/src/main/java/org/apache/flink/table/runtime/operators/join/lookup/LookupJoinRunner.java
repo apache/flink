@@ -19,8 +19,8 @@
 package org.apache.flink.table.runtime.operators.join.lookup;
 
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;

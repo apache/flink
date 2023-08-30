@@ -18,8 +18,8 @@
 
 package org.apache.flink.python.util;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.types.Row;
 
 /**

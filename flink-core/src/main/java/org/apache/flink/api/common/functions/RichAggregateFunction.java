@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.OpenContext;
 
 /**
  * Rich variant of the {@link AggregateFunction}. As a {@link RichFunction}, it gives access to the

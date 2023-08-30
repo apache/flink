@@ -18,9 +18,9 @@
 
 package org.apache.flink.test.streaming.runtime;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;

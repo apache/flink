@@ -21,9 +21,9 @@ package org.apache.flink.api.java.operators.translation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.configuration.OpenContext;
 
 /**
  * Wrapper around {@link Function}.

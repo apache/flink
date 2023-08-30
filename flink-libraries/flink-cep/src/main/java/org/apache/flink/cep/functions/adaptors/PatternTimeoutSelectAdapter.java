@@ -19,12 +19,12 @@
 package org.apache.flink.cep.functions.adaptors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternTimeoutFunction;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.util.OutputTag;
 
 import java.util.List;

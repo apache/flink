@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.runtime.operators.deduplicate;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 
 import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfig;

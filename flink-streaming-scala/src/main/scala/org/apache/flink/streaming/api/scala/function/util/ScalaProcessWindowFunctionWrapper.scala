@@ -17,8 +17,8 @@
  */
 package org.apache.flink.streaming.api.scala.function.util
 
-import org.apache.flink.api.common.functions.{OpenContext, RuntimeContext}
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.streaming.api.functions.windowing.{ProcessAllWindowFunction => JProcessAllWindowFunction}
 import org.apache.flink.streaming.api.functions.windowing.{ProcessWindowFunction => JProcessWindowFunction}
 import org.apache.flink.streaming.api.scala.OutputTag

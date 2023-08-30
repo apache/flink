@@ -20,8 +20,8 @@ package org.apache.flink.streaming.api.functions.windowing;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**

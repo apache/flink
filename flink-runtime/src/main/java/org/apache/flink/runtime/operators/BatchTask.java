@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
@@ -1481,9 +1482,9 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
 
     /**
      * Opens the given stub using its {@link
-     * org.apache.flink.api.common.functions.RichFunction#open(org.apache.flink.api.common.functions.OpenContext)}
-     * method. If the open call produces an exception, a new exception with a standard error message
-     * is created, using the encountered exception as its cause.
+     * org.apache.flink.api.common.functions.RichFunction#open(OpenContext)} method. If the open
+     * call produces an exception, a new exception with a standard error message is created, using
+     * the encountered exception as its cause.
      *
      * @param stub The user code instance to be opened.
      * @param parameters The parameters supplied to the user code.

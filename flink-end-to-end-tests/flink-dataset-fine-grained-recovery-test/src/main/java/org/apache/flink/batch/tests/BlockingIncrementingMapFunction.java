@@ -19,9 +19,9 @@
 
 package org.apache.flink.batch.tests;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.batch.tests.util.FileBasedOneShotLatch;
+import org.apache.flink.configuration.OpenContext;
 
 import java.nio.file.Paths;
 

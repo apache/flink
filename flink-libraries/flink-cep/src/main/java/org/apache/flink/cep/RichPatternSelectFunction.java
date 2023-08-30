@@ -19,8 +19,8 @@
 package org.apache.flink.cep;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
+import org.apache.flink.configuration.OpenContext;
 
 import java.util.List;
 import java.util.Map;

@@ -18,12 +18,12 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;

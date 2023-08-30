@@ -18,11 +18,11 @@
 
 package org.apache.flink.test.broadcastvars;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
 import org.junit.Assert;

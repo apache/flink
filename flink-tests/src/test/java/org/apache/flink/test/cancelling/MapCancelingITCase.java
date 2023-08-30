@@ -19,10 +19,10 @@
 package org.apache.flink.test.cancelling;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.test.util.InfiniteIntegerInputFormat;
 
 import org.junit.Test;

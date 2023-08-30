@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.util.Collector;

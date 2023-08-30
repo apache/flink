@@ -17,8 +17,8 @@
 
 package org.apache.flink.python.util;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.RowRowConverter;

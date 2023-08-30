@@ -19,8 +19,8 @@
 package org.apache.flink.state.api.output;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.jobgraph.OperatorID;

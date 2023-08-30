@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 

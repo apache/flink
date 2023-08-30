@@ -18,9 +18,9 @@
 
 package org.apache.flink.cep.pattern.conditions;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.util.Preconditions;
 
 /**

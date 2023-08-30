@@ -19,8 +19,8 @@
 package org.apache.flink.state.api.output;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.runtime.SavepointEnvironment;

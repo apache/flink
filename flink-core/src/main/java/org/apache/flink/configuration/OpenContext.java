@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.functions;
+package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.api.common.functions.RichFunction;
 
 /**
  * The {@link OpenContext} interface provides the necessary information required by the {@link

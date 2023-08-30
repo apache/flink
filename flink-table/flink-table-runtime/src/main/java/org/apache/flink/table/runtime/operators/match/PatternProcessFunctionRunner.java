@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.runtime.operators.match;
 
-import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.cep.functions.PatternProcessFunction;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.util.Collector;
@@ -47,7 +49,10 @@ public class PatternProcessFunctionRunner extends PatternProcessFunction<RowData
     public void open(OpenContext openContext) throws Exception {
         this.function = generatedFunction.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext());
-        FunctionUtils.openFunction(function, openContext);
+        if (function instanceof RichFunction) {
+            RichFunction richFunction = (RichFunction) function;
+            richFunction.open(new Configuration());
+        }
     }
 
     @Override

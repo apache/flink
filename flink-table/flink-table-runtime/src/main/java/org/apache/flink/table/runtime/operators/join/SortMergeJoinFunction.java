@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;

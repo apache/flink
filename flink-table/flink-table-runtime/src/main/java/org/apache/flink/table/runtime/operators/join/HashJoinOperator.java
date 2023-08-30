@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.configuration.AlgorithmOptions;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;

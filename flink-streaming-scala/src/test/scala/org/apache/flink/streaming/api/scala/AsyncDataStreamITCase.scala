@@ -17,8 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala
 
-import org.apache.flink.api.common.functions.OpenContext
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
 import org.apache.flink.streaming.api.scala.async.{AsyncRetryStrategies, ResultFuture, RetryPredicates, RichAsyncFunction}

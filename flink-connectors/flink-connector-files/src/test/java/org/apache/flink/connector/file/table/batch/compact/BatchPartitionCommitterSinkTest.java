@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.file.table.batch.compact;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.connector.file.table.FileSystemCommitterTest;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;

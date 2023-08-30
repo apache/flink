@@ -21,9 +21,9 @@ package org.apache.flink.api.java.operators.translation;
 import org.apache.flink.api.common.functions.CombineFunction;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupCombineFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 

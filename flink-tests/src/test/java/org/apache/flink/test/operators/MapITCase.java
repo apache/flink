@@ -19,12 +19,12 @@
 package org.apache.flink.test.operators;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;

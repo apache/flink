@@ -17,9 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.api.common.functions.{MapFunction, OpenContext, RichMapFunction}
+import org.apache.flink.api.common.functions.{MapFunction, RichMapFunction}
 import org.apache.flink.api.common.functions.util.ListCollector
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.{DecimalDataUtils, GenericRowData, StringData, TimestampData}
 import org.apache.flink.table.planner.codegen.{ConstantCodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}

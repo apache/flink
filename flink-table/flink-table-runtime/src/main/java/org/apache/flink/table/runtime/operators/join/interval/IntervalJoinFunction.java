@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.join.interval;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatJoinFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.NullAwareGetters;
 import org.apache.flink.table.data.utils.JoinedRowData;

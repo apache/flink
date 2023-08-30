@@ -22,7 +22,7 @@ import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.{CustomType, MutableTuple3}
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.optimizer.Optimizer
 import org.apache.flink.test.util.MultipleProgramsTestBase
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode

@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.experimental;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 

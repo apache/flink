@@ -20,6 +20,7 @@ package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 
 import java.io.Serializable;
 

@@ -19,7 +19,6 @@
 package org.apache.flink.examples.java.distcp;
 
 import org.apache.flink.api.common.accumulators.LongCounter;
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -28,6 +27,7 @@ import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;

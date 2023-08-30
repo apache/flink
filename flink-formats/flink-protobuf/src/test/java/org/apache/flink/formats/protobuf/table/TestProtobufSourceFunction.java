@@ -18,8 +18,8 @@
 
 package org.apache.flink.formats.protobuf.table;
 
-import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.table.data.RowData;
 
