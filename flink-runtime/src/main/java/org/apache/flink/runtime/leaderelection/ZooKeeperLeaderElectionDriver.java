@@ -48,6 +48,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
 
     private final LeaderElectionDriver.Listener leaderElectionListener;
 
+    private final String leaderLatchPath;
     private final LeaderLatch leaderLatch;
 
     private final TreeCache treeCache;
@@ -63,6 +64,8 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
         this.curatorFramework = Preconditions.checkNotNull(curatorFramework);
         this.leaderElectionListener = Preconditions.checkNotNull(leaderElectionListener);
 
+        this.leaderLatchPath =
+                ZooKeeperUtils.generateLeaderLatchPath(curatorFramework.getNamespace());
         this.leaderLatch = new LeaderLatch(curatorFramework, ZooKeeperUtils.getLeaderLatchPath());
         this.treeCache =
                 ZooKeeperUtils.createTreeCache(
@@ -269,6 +272,7 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
 
     @Override
     public String toString() {
-        return "ZooKeeperLeaderElectionDriver";
+        return String.format(
+                "%s{leaderLatchPath='%s'}", getClass().getSimpleName(), leaderLatchPath);
     }
 }
