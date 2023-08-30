@@ -163,6 +163,24 @@ class ZooKeeperLeaderElectionDriverTest {
     }
 
     @Test
+    void testToStringContainingLeaderLatchPath() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () ->
+                                assertThat(leaderElectionDriver.toString())
+                                        .as(
+                                                "toString() should contain the leader latch path for human-readable representation of the driver instance.")
+                                        .contains(
+                                                ZooKeeperUtils.generateLeaderLatchPath(
+                                                        curatorFramework
+                                                                .asCuratorFramework()
+                                                                .getNamespace())));
+            }
+        };
+    }
+
+    @Test
     void testNonLeaderCannotPublishLeaderInformation() throws Exception {
         new Context() {
             {
