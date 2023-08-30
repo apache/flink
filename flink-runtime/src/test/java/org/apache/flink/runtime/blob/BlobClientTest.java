@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -48,6 +49,7 @@ import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** This class contains unit tests for the {@link BlobClient}. */
@@ -505,11 +507,12 @@ class BlobClientTest {
                     new InetSocketAddress("localhost", testBlobServer.getPort());
 
             try (BlobClient client = new BlobClient(serverAddress, clientConfig)) {
-                assertThatThrownBy(
-                                () ->
-                                        client.getInternal(
-                                                new JobID(), BlobKey.createKey(TRANSIENT_BLOB)))
-                        .hasCauseInstanceOf(java.net.SocketTimeoutException.class);
+                client.getInternal(new JobID(), BlobKey.createKey(TRANSIENT_BLOB));
+
+                fail("Should throw an exception.");
+            } catch (Throwable t) {
+                assertThat(ExceptionUtils.findThrowable(t, java.net.SocketTimeoutException.class))
+                        .isPresent();
             }
         } finally {
             clientConfig.setInteger(BlobServerOptions.SO_TIMEOUT, oldSoTimeout);
