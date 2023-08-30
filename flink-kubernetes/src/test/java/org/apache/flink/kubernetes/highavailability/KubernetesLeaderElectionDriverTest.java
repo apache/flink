@@ -273,4 +273,18 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
             }
         };
     }
+
+    @Test
+    void testToStringContainingConfigMap() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () ->
+                                assertThat(leaderElectionDriver.toString())
+                                        .as(
+                                                "toString() should contain the ConfigMap name for a human-readable representation of the driver instance.")
+                                        .contains(LEADER_CONFIGMAP_NAME));
+            }
+        };
+    }
 }

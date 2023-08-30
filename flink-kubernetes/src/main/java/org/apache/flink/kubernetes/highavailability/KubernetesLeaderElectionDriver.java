@@ -263,4 +263,9 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
                             throwable));
         }
     }
+
+    @Override
+    public String toString() {
+        return String.format("%s{configMapName='%s'}", getClass().getSimpleName(), configMapName);
+    }
 }
