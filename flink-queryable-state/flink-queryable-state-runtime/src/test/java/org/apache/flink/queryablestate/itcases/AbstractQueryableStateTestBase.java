@@ -43,7 +43,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.queryablestate.client.QueryableStateClient;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
@@ -833,8 +833,8 @@ public abstract class AbstractQueryableStateTestBase {
                             private transient MapState<Integer, Tuple2<Integer, Long>> mapState;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
                                 mapState = getRuntimeContext().getMapState(mapStateDescriptor);
                             }
 
@@ -936,8 +936,8 @@ public abstract class AbstractQueryableStateTestBase {
                             private transient ListState<Long> listState;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
                                 listState = getRuntimeContext().getListState(listStateDescriptor);
                             }
 
@@ -1100,8 +1100,8 @@ public abstract class AbstractQueryableStateTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
         }
 
         @Override
@@ -1155,8 +1155,8 @@ public abstract class AbstractQueryableStateTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             if (getRuntimeContext().getIndexOfThisSubtask() == 0) {
                 LATEST_CHECKPOINT_ID.set(0L);
             }

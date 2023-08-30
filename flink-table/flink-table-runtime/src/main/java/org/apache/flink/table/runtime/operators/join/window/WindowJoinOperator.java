@@ -22,7 +22,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Meter;
@@ -148,7 +148,7 @@ public abstract class WindowJoinOperator extends TableStreamOperator<RowData>
                 generatedJoinCondition.newInstance(getRuntimeContext().getUserCodeClassLoader());
         this.joinCondition = new JoinConditionWithNullFilters(condition, filterNullKeys, this);
         this.joinCondition.setRuntimeContext(getRuntimeContext());
-        this.joinCondition.open(new Configuration());
+        this.joinCondition.open(new OpenContext() {});
 
         // init state
         ListStateDescriptor<RowData> leftRecordStateDesc =

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
@@ -83,7 +84,7 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         private ValueState<Tuple2<String, String>> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             ValueStateDescriptor<Tuple2<String, String>> descriptor =
                     new ValueStateDescriptor<>("state", Types.TUPLE(Types.STRING, Types.STRING));
             state = getRuntimeContext().getState(descriptor);
@@ -103,10 +104,15 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         private ValueState<Tuple2<String, String>> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             ValueStateDescriptor<Tuple2<String, String>> stateDescriptor =
                     new ValueStateDescriptor<>("state", Types.TUPLE(Types.STRING, Types.STRING));
             state = getRuntimeContext().getState(stateDescriptor);
+        }
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            throw new UnsupportedOperationException();
         }
 
         @Override

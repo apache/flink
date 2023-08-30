@@ -36,6 +36,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.OpenContext;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -219,7 +220,7 @@ public class ReduceOperatorBase<T, FT extends ReduceFunction<T>>
         }
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, new OpenContext() {});
 
         TypeSerializer<T> serializer =
                 getOperatorInfo().getInputType().createSerializer(executionConfig);

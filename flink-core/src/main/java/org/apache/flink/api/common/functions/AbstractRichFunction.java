@@ -20,13 +20,14 @@ package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 
 import java.io.Serializable;
 
 /**
  * An abstract stub implementation for rich user-defined functions. Rich functions have additional
- * methods for initialization ({@link #open(Configuration)}) and teardown ({@link #close()}), as
- * well as access to their runtime execution context via {@link #getRuntimeContext()}.
+ * methods for initialization ({@link #open(OpenContext)}) and teardown ({@link #close()}), as well
+ * as access to their runtime execution context via {@link #getRuntimeContext()}.
  */
 @Public
 public abstract class AbstractRichFunction implements RichFunction, Serializable {

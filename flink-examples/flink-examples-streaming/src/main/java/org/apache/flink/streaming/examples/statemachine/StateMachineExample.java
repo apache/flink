@@ -26,8 +26,8 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.file.sink.FileSink;
@@ -195,7 +195,7 @@ public class StateMachineExample {
         private ValueState<State> currentState;
 
         @Override
-        public void open(Configuration conf) {
+        public void open(OpenContext openContext) {
             // get access to the state object
             currentState =
                     getRuntimeContext().getState(new ValueStateDescriptor<>("state", State.class));

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -198,7 +199,7 @@ class TaskManagerProcessFailureStreamingRecoveryITCase
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             stepSize = getRuntimeContext().getNumberOfParallelSubtasks();
             congruence = getRuntimeContext().getIndexOfThisSubtask();
             toCollect = (end % stepSize > congruence) ? (end / stepSize + 1) : (end / stepSize);

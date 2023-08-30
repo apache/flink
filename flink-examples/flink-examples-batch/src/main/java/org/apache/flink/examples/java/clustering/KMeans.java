@@ -28,7 +28,7 @@ import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.examples.java.clustering.util.KMeansData;
 
 import org.slf4j.Logger;
@@ -258,7 +258,7 @@ public class KMeans {
 
         /** Reads the centroid values from a broadcast variable into a collection. */
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             this.centroids = getRuntimeContext().getBroadcastVariable("centroids");
         }
 

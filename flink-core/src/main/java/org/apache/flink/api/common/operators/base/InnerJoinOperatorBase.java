@@ -35,6 +35,7 @@ import org.apache.flink.api.common.typeutils.GenericPairComparator;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
@@ -88,7 +89,7 @@ public class InnerJoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN
         FlatJoinFunction<IN1, IN2, OUT> function = userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, runtimeContext);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, new OpenContext() {});
 
         TypeInformation<IN1> leftInformation = getOperatorInfo().getFirstInputType();
         TypeInformation<IN2> rightInformation = getOperatorInfo().getSecondInputType();

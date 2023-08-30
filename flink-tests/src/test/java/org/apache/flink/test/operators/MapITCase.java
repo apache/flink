@@ -24,6 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
@@ -483,7 +484,7 @@ public class MapITCase extends MultipleProgramsTestBase {
         private Integer f2Replace = 0;
 
         @Override
-        public void open(Configuration config) {
+        public void open(OpenContext openContext) {
             Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
             int sum = 0;
             for (Integer i : ints) {
@@ -526,12 +527,6 @@ public class MapITCase extends MultipleProgramsTestBase {
     private static class RichMapper2
             extends RichMapFunction<Tuple3<Integer, Long, String>, Tuple3<Integer, Long, String>> {
         private static final long serialVersionUID = 1L;
-
-        @Override
-        public void open(Configuration config) {
-            int val = config.getInteger(TEST_KEY, -1);
-            Assert.assertEquals(TEST_VALUE, val);
-        }
 
         @Override
         public Tuple3<Integer, Long, String> map(Tuple3<Integer, Long, String> value) {

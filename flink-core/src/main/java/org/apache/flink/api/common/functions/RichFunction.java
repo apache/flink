@@ -21,6 +21,7 @@ package org.apache.flink.api.common.functions;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 
 /**
  * An base interface for all rich user-defined functions. This class defines methods for the life
@@ -45,7 +46,7 @@ public interface RichFunction extends Function {
      *
      *     private String searchString;
      *
-     *     public void open(Configuration parameters) {
+     *     public void open(OpenContext openContext) {
      *         this.searchString = parameters.getString("foo");
      *     }
      *

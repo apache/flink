@@ -37,7 +37,7 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.SingleInputOperator;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -280,7 +280,7 @@ public class ScalaAggregateOperator<IN>
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             for (AggregationFunction<Object> aggFunction : aggFunctions) {
                 aggFunction.initializeAggregate();
             }

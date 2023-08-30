@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 
 /**
  * Wrapper around {@link Function}.
@@ -42,8 +42,8 @@ public abstract class WrappingFunction<T extends Function> extends AbstractRichF
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        FunctionUtils.openFunction(this.wrappedFunction, parameters);
+    public void open(OpenContext openContext) throws Exception {
+        FunctionUtils.openFunction(this.wrappedFunction, openContext);
     }
 
     @Override

@@ -21,7 +21,7 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.MutableTuple3
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
@@ -180,7 +180,7 @@ class FlatMapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
           MutableTuple3[Int, Long, String]] {
           private var f2Replace = 0
           private val outTuple = MutableTuple3(0, 0L, "")
-          override def open(config: Configuration): Unit = {
+          override def open(openContext: OpenContext): Unit = {
             val ints = getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
             f2Replace = ints.sum
           }

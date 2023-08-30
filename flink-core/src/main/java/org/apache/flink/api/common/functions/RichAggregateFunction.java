@@ -19,12 +19,12 @@
 package org.apache.flink.api.common.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.OpenContext;
 
 /**
  * Rich variant of the {@link AggregateFunction}. As a {@link RichFunction}, it gives access to the
  * {@link RuntimeContext} and provides setup and teardown methods: {@link
- * RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
- * RichFunction#close()}.
+ * RichFunction#open(OpenContext)} and {@link RichFunction#close()}.
  *
  * @see AggregateFunction
  * @param <IN> The type of the values that are aggregated (input values)

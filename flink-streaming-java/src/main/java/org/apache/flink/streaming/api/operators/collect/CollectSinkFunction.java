@@ -27,7 +27,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
@@ -239,7 +239,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         Preconditions.checkState(
                 getRuntimeContext().getNumberOfParallelSubtasks() == 1,
                 "The parallelism of CollectSinkFunction must be 1");

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.functions.util.{FunctionUtils, ListCollector}
 import org.apache.flink.cep.functions.{PatternProcessFunction, TimedOutPartialMatchHandler}
 import org.apache.flink.cep.operator.CepOperator
 import org.apache.flink.cep.scala.pattern.Pattern
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, OpenContext}
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.util
@@ -138,7 +138,7 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
 
     val fun = oper.getUserFunction
     FunctionUtils.setFunctionRuntimeContext(fun, Mockito.mock(classOf[RuntimeContext]))
-    FunctionUtils.openFunction(fun, new Configuration())
+    FunctionUtils.openFunction(fun, new OpenContext() {})
     fun
   }
 

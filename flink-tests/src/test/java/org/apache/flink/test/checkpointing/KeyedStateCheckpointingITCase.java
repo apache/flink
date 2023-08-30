@@ -27,6 +27,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -295,7 +296,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             sum = getRuntimeContext().getState(new ValueStateDescriptor<>("my_state", Long.class));
         }
 
@@ -342,7 +343,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
         private transient ValueState<Long> bCounts;
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             aCounts =
                     getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("a", NonSerializableLong.class));

@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.join.lookup;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.table.data.RowData;
@@ -60,8 +61,8 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         // try to compile the generated ResultFuture, fail fast if the code is corrupt.
         generatedCalc.compile(getRuntimeContext().getUserCodeClassLoader());
     }
@@ -74,7 +75,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
         FlatMapFunction<RowData, RowData> calc =
                 generatedCalc.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(calc, getRuntimeContext());
-        FunctionUtils.openFunction(calc, parameters);
+        FunctionUtils.openFunction(calc, new OpenContext() {});
         return new TemporalTableCalcResultFuture(calc, joinConditionCollector);
     }
 

@@ -35,6 +35,7 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -201,7 +202,7 @@ public class NFA<T> {
             for (StateTransition<T> transition : state.getStateTransitions()) {
                 IterativeCondition condition = transition.getCondition();
                 FunctionUtils.setFunctionRuntimeContext(condition, cepRuntimeContext);
-                FunctionUtils.openFunction(condition, conf);
+                FunctionUtils.openFunction(condition, new OpenContext() {});
             }
         }
     }

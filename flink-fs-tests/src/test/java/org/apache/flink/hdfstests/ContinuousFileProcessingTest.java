@@ -26,7 +26,7 @@ import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -636,7 +636,7 @@ public class ContinuousFileProcessingTest {
         final FileVerifyingSourceContext context =
                 new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction);
 
-        monitoringFunction.open(new Configuration());
+        monitoringFunction.open(new OpenContext() {});
         monitoringFunction.run(context);
 
         Assert.assertArrayEquals(filesKept.toArray(), context.getSeenFiles().toArray());
@@ -697,7 +697,7 @@ public class ContinuousFileProcessingTest {
         final FileVerifyingSourceContext context =
                 new FileVerifyingSourceContext(new OneShotLatch(), monitoringFunction);
 
-        monitoringFunction.open(new Configuration());
+        monitoringFunction.open(new OpenContext() {});
         monitoringFunction.run(context);
 
         Assert.assertArrayEquals(filesToBeRead.toArray(), context.getSeenFiles().toArray());
@@ -737,7 +737,7 @@ public class ContinuousFileProcessingTest {
 
         ModTimeVerifyingSourceContext context = new ModTimeVerifyingSourceContext(modTimes);
 
-        monitoringFunction.open(new Configuration());
+        monitoringFunction.open(new OpenContext() {});
         monitoringFunction.run(context);
         Assert.assertEquals(splits.length, context.getCounter());
 
@@ -777,7 +777,7 @@ public class ContinuousFileProcessingTest {
                     @Override
                     public void run() {
                         try {
-                            monitoringFunction.open(new Configuration());
+                            monitoringFunction.open(new OpenContext() {});
                             monitoringFunction.run(context);
 
                             // we would never arrive here if we were in
@@ -937,7 +937,7 @@ public class ContinuousFileProcessingTest {
                     @Override
                     public void run() {
                         try {
-                            monitoringFunction.open(new Configuration());
+                            monitoringFunction.open(new OpenContext() {});
                             monitoringFunction.run(context);
                         } catch (Exception e) {
                             Assert.fail(e.getMessage());

@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.join.lookup;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
@@ -82,11 +83,11 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         this.fetcher = generatedFetcher.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(fetcher, getRuntimeContext());
-        FunctionUtils.openFunction(fetcher, parameters);
+        FunctionUtils.openFunction(fetcher, openContext);
 
         // try to compile the generated ResultFuture, fail fast if the code is corrupt.
         generatedResultFuture.compile(getRuntimeContext().getUserCodeClassLoader());
@@ -101,7 +102,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             JoinedRowResultFuture rf =
                     new JoinedRowResultFuture(
                             resultFutureBuffer,
-                            createFetcherResultFuture(parameters),
+                            createFetcherResultFuture(new Configuration()),
                             fetcherConverter,
                             isLeftOuterJoin,
                             rightRowSerializer.getArity());
@@ -126,7 +127,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
         TableFunctionResultFuture<RowData> resultFuture =
                 generatedResultFuture.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(resultFuture, getRuntimeContext());
-        FunctionUtils.openFunction(resultFuture, parameters);
+        FunctionUtils.openFunction(resultFuture, new OpenContext() {});
         return resultFuture;
     }
 
