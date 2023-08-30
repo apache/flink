@@ -501,7 +501,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
             if (this.stub != null) {
                 try {
                     Configuration stubConfig = this.config.getStubParameters();
-                    FunctionUtils.openFunction(this.stub, stubConfig);
+                    FunctionUtils.openFunction(this.stub, new OpenContext() {});
                     stubOpen = true;
                 } catch (Throwable t) {
                     throw new Exception(
@@ -1492,7 +1492,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
      */
     public static void openUserCode(Function stub, Configuration parameters) throws Exception {
         try {
-            FunctionUtils.openFunction(stub, parameters);
+            FunctionUtils.openFunction(stub, new OpenContext() {});
         } catch (Throwable t) {
             throw new Exception(
                     "The user defined 'open(Configuration)' method in "

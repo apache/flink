@@ -75,7 +75,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
         FlatMapFunction<RowData, RowData> calc =
                 generatedCalc.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(calc, getRuntimeContext());
-        FunctionUtils.openFunction(calc, parameters);
+        FunctionUtils.openFunction(calc, new OpenContext() {});
         return new TemporalTableCalcResultFuture(calc, joinConditionCollector);
     }
 

@@ -127,7 +127,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
         TableFunctionResultFuture<RowData> resultFuture =
                 generatedResultFuture.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(resultFuture, getRuntimeContext());
-        FunctionUtils.openFunction(resultFuture, parameters);
+        FunctionUtils.openFunction(resultFuture, new OpenContext() {});
         return resultFuture;
     }
 
