@@ -31,8 +31,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Tests for the {@link YarnLocalResourceDescriptor}. */
 class YarnLocalResourceDescriptionTest {
 
-    private final String key = "flink 2.jar";
-    private final Path path = new Path("hdfs://nn/tmp/flink 2.jar");
+    private final String key = "fli'nk 2.jar";
+    private final Path path = new Path("hdfs://nn/tmp/fli'nk 2.jar");
     private final long size = 100 * 1024 * 1024;
     private final long ts = System.currentTimeMillis();
 
@@ -62,7 +62,7 @@ class YarnLocalResourceDescriptionTest {
     void testFromStringMalformed() {
         final String desc =
                 String.format(
-                        "{\"resourceKey\":\"%s\",\"path\":\"%s\",\"size\":%s,\"modificationTime\":%s,\"visibility\":\"%s\"}",
+                        "{'resourceKey':'%s','path':'%s','size':%s,'modificationTime':%s,'visibility':'%s'}",
                         key, path, size, ts, LocalResourceVisibility.PUBLIC);
         assertThrows(desc);
         assertThrows("{}");

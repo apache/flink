@@ -21,6 +21,8 @@ package org.apache.flink.yarn;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactoryBuilder;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,7 +48,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 class YarnLocalResourceDescriptor {
     private static final Logger LOG = LoggerFactory.getLogger(YarnLocalResourceDescriptor.class);
 
-    private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER =
+            JacksonMapperFactory.createObjectMapper(
+                            new JsonFactoryBuilder().quoteChar('\'').build())
+                    .enable(JsonParser.Feature.ALLOW_SINGLE_QUOTES);
 
     private final String resourceKey;
     private final Path path;
