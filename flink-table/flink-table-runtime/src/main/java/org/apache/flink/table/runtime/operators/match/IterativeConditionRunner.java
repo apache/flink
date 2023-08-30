@@ -18,10 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.match;
 
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.cep.pattern.conditions.RichIterativeCondition;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
@@ -45,10 +43,7 @@ public class IterativeConditionRunner extends RichIterativeCondition<RowData> {
     public void open(OpenContext openContext) throws Exception {
         this.function = generatedFunction.newInstance(getRuntimeContext().getUserCodeClassLoader());
         FunctionUtils.setFunctionRuntimeContext(function, getRuntimeContext());
-        if (function instanceof RichFunction) {
-            RichFunction richFunction = (RichFunction) function;
-            richFunction.open(new Configuration());
-        }
+        FunctionUtils.openFunction(function, openContext);
     }
 
     @Override
