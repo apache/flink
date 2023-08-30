@@ -402,6 +402,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     protected void restoreState(
             final Set<ExecutionVertexID> vertices, final boolean isGlobalRecovery)
             throws Exception {
+        vertexEndOfDataListener.restoreVertices(vertices);
+
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
 
@@ -1106,5 +1108,10 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     @VisibleForTesting
     JobID getJobId() {
         return jobGraph.getJobID();
+    }
+
+    @VisibleForTesting
+    VertexEndOfDataListener getVertexEndOfDataListener() {
+        return vertexEndOfDataListener;
     }
 }

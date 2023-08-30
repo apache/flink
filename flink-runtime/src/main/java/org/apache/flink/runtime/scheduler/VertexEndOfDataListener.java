@@ -23,11 +23,13 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Records the end of data event of each task, and allows for checking whether all tasks of a {@link
@@ -72,5 +74,13 @@ public class VertexEndOfDataListener {
             }
         }
         return true;
+    }
+
+    public void restoreVertices(Set<ExecutionVertexID> executionVertices) {
+        for (ExecutionVertexID executionVertex : executionVertices) {
+            JobVertexID jobVertexId = executionVertex.getJobVertexId();
+            tasksReachedEndOfData.putIfAbsent(jobVertexId, new BitSet());
+            tasksReachedEndOfData.get(jobVertexId).set(executionVertex.getSubtaskIndex(), false);
+        }
     }
 }
