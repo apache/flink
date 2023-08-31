@@ -170,12 +170,18 @@ public class ScanReuser {
             // 2. Create new source.
             List<SourceAbilitySpec> specs = abilitySpecsWithoutEscaped(pickTable);
 
-            // 2.1 Apply projections
-            List<SourceAbilitySpec> newSpecs = new ArrayList<>();
+            // 2.1 Create produced type.
+            // The source produced type is the input type into the runtime. The format looks as:
+            // PHYSICAL COLUMNS + METADATA COLUMNS. While re-compute the source ability specs with
+            // source metadata, we need to distinguish between schema type and produced type, which
+            // source ability specs use produced type instead of schema type.
             RowType originType =
                     DynamicSourceUtils.createProducedType(
                             pickTable.contextResolvedTable().getResolvedSchema(),
                             pickTable.tableSource());
+
+            // 2.2 Apply projections
+            List<SourceAbilitySpec> newSpecs = new ArrayList<>();
             RowType newSourceType =
                     applyPhysicalAndMetadataPushDown(
                             pickTable.tableSource(),
@@ -190,15 +196,15 @@ public class ScanReuser {
                             allMetaKeys);
             specs.addAll(newSpecs);
 
-            // 2.2 Watermark spec
+            // 2.3 Watermark spec
             Optional<WatermarkPushDownSpec> watermarkSpec =
-                    getAdjustedWatermarkSpec(pickTable, newSourceType);
+                    getAdjustedWatermarkSpec(pickTable, originType, newSourceType);
             if (watermarkSpec.isPresent()) {
                 specs.add(watermarkSpec.get());
                 newSourceType = watermarkSpec.get().getProducedType().get();
             }
 
-            // 2.3 Create a new ScanTableSource. ScanTableSource can not be pushed down twice.
+            // 2.4 Create a new ScanTableSource. ScanTableSource can not be pushed down twice.
             DynamicTableSourceSpec tableSourceSpec =
                     new DynamicTableSourceSpec(pickTable.contextResolvedTable(), specs);
             ScanTableSource newTableSource =
