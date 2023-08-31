@@ -49,6 +49,7 @@ import org.junit.runners.Parameterized;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.stream.Stream;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
@@ -469,8 +470,7 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            stateList.clear();
-            stateList.add(state);
+            stateList.update(Collections.singletonList(state));
         }
 
         @Override

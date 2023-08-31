@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -242,9 +243,9 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId> extends RichSour
                 new Tuple2<>(context.getCheckpointId(), idsForCurrentCheckpoint));
         idsForCurrentCheckpoint = CollectionUtil.newHashSetWithExpectedSize(64);
 
-        this.checkpointedState.clear();
-        this.checkpointedState.add(
-                SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer));
+        this.checkpointedState.update(
+                Collections.singletonList(
+                        SerializedCheckpointData.fromDeque(pendingCheckpoints, idSerializer)));
     }
 
     @Override

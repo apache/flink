@@ -105,10 +105,7 @@ abstract class AbstractExactlyOnceSink[T] extends RichSinkFunction[T] with Check
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    resultsState.clear()
-    for (value <- localResults) {
-      resultsState.add(value)
-    }
+    resultsState.update(localResults.asJava)
   }
 
   protected def clearAndStashGlobalResults(): Unit = {

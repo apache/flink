@@ -68,6 +68,7 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -147,8 +148,7 @@ public class CheckpointFailureManagerITCase extends TestLogger {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            listState.clear();
-            listState.add(emitted);
+            listState.update(Collections.singletonList(emitted));
         }
 
         @Override

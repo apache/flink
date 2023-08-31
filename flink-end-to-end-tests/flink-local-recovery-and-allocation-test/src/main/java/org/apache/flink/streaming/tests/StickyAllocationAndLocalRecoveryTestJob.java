@@ -46,6 +46,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -199,8 +200,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            sourceCurrentKeyState.clear();
-            sourceCurrentKeyState.add(currentKey);
+            sourceCurrentKeyState.update(Collections.singletonList(currentKey));
         }
 
         @Override
@@ -366,8 +366,8 @@ public class StickyAllocationAndLocalRecoveryTestJob {
                             taskNameWithSubtasks,
                             allocationID);
 
-            schedulingAndFailureState.clear();
-            schedulingAndFailureState.add(currentSchedulingAndFailureInfo);
+            schedulingAndFailureState.update(
+                    Collections.singletonList(currentSchedulingAndFailureInfo));
         }
 
         @Override

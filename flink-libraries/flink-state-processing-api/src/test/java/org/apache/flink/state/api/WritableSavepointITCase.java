@@ -329,8 +329,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.addAll(numbers);
+            state.update(numbers);
         }
 
         @Override
@@ -355,8 +354,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.addAll(numbers);
+            state.update(numbers);
         }
 
         @Override

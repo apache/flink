@@ -412,8 +412,7 @@ public class ContinuousFileMonitoringFunction<OUT>
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-        this.checkpointedState.clear();
-        this.checkpointedState.add(this.globalModificationTime);
+        this.checkpointedState.update(Collections.singletonList(this.globalModificationTime));
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("{} checkpointed {}.", getClass().getSimpleName(), globalModificationTime);

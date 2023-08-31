@@ -54,6 +54,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.channels.Channels;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 
 /**
@@ -183,10 +184,7 @@ public class ArrowSourceFunction extends RichParallelSourceFunction<RowData>
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-        this.checkpointedState.clear();
-        for (Tuple2<Integer, Integer> v : indexesToEmit) {
-            this.checkpointedState.add(v);
-        }
+        this.checkpointedState.update(new ArrayList<>(indexesToEmit));
     }
 
     @Override

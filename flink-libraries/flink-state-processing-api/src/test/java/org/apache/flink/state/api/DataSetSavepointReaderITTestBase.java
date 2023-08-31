@@ -294,13 +294,9 @@ public abstract class DataSetSavepointReaderITTestBase extends AbstractTestBase 
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            listState.clear();
+            listState.update(elements);
 
-            listState.addAll(elements);
-
-            unionState.clear();
-
-            unionState.addAll(elements);
+            unionState.update(elements);
         }
 
         @Override

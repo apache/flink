@@ -330,8 +330,8 @@ class LocalRecoveryITCase {
                 running = false;
             }
 
-            previousAllocations.clear();
-            previousAllocations.add(new TaskNameAllocationID(myName, allocationId));
+            previousAllocations.update(
+                    Collections.singletonList(new TaskNameAllocationID(myName, allocationId)));
         }
     }
 
