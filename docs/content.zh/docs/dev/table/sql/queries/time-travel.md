@@ -29,13 +29,14 @@ under the License.
 
 <span class="label label-danger">注意</span> 目前, `时间旅行`语法需要查询 table 所属的 catalog 实现了 {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/catalog/Catalog.java" name="getTable(ObjectPath tablePath, long timestamp)" >}} 接口。
 
+带有时间旅行子句的语法如下所示：
 ```sql
 SELECT select_list FROM table_name FOR SYSTEM_TIME AS OF timestamp_expression
 ```
 
 **参数说明：**
 
-- `FOR SYSTEM_TIME AS OF timestamp_expression`：用于特定的时间表达式，用于查询该时间点之前的数据。`timestamp_expression` 用于表示需要查询的时间点。`timestamp_expression` 可以是一个具体的 TIMESTAMP 常量 或者时间计算表达式或者函数，该表达式只能作用于物理表不能是试图或者子查询。
+- `FOR SYSTEM_TIME AS OF timestamp_expression`：用于特定的时间表达式，用于查询该时间点之前的数据。`timestamp_expression` 用于表示需要查询的时间点。`timestamp_expression` 可以是一个具体的 `TIMESTAMP` 常量或者是可以简化为 `TIMESTAMP` 常量的时间计算表达式或者函数，该表达式只能作用于物理表不能是视图或者子查询。
 
 ## 示例
  
@@ -43,7 +44,7 @@ SELECT select_list FROM table_name FOR SYSTEM_TIME AS OF timestamp_expression
 --使用时间常量
 SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00'
 
---使用可以转换为时间常量时间函数
+--使用可以转换为时间常量的时间函数
 SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00' - INTERVAL '1' DAY
 ```
 
