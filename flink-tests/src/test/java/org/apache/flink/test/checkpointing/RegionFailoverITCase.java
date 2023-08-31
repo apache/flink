@@ -285,15 +285,13 @@ public class RegionFailoverITCase extends TestLogger {
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             int indexOfThisSubtask = getRuntimeContext().getIndexOfThisSubtask();
             if (indexOfThisSubtask != 0) {
-                listState.clear();
-                listState.add(index);
+                listState.update(Collections.singletonList(index));
                 if (indexOfThisSubtask == NUM_OF_REGIONS - 1) {
                     lastRegionIndex = index;
                     snapshotIndicesOfSubTask.put(context.getCheckpointId(), lastRegionIndex);
                 }
             }
-            unionListState.clear();
-            unionListState.add(indexOfThisSubtask);
+            unionListState.update(Collections.singletonList(indexOfThisSubtask));
         }
 
         @Override

@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 
 /**
@@ -100,10 +101,7 @@ public abstract class SequenceGenerator<T> implements DataGenerator<T> {
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-        this.checkpointedState.clear();
-        for (Long v : this.valuesToEmit) {
-            this.checkpointedState.add(v);
-        }
+        this.checkpointedState.update(new ArrayList<>(this.valuesToEmit));
     }
 
     @Override

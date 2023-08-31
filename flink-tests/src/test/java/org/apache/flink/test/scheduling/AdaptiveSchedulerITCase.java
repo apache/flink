@@ -420,8 +420,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                 hasFailedBefore |= previousState;
             }
 
-            unionListState.clear();
-            unionListState.add(true);
+            unionListState.update(Collections.singletonList(true));
         }
     }
 

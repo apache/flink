@@ -349,8 +349,7 @@ private class CheckpointedSource(val numElements: Int)
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    state.clear()
-    state.add(CustomCaseClass("Here be dragons!", 123))
+    state.update(java.util.Collections.singletonList(CustomCaseClass("Here be dragons!", 123)))
   }
 }
 

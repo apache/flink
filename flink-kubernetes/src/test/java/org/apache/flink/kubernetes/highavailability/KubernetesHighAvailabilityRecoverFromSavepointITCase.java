@@ -60,6 +60,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -245,9 +246,9 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
                 running = false;
             }
 
-            stateFromSavepoint.clear();
             // mark this subtask as executed before
-            stateFromSavepoint.add(getRuntimeContext().getIndexOfThisSubtask());
+            stateFromSavepoint.update(
+                    Collections.singletonList(getRuntimeContext().getIndexOfThisSubtask()));
         }
     }
 }

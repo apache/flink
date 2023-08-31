@@ -46,6 +46,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.operators.aggregate.window.processors.SliceSharedWindowAggProcessor;
 
+import java.util.Collections;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -203,8 +205,7 @@ public final class SlicingWindowOperator<K, W> extends TableStreamOperator<RowDa
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
-        this.watermarkState.clear();
-        this.watermarkState.add(currentWatermark);
+        this.watermarkState.update(Collections.singletonList(currentWatermark));
     }
 
     @Override

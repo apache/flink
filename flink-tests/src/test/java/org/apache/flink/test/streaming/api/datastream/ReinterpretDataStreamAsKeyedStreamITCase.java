@@ -58,6 +58,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -278,8 +279,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            positionState.clear();
-            positionState.add(position);
+            positionState.update(Collections.singletonList(position));
         }
 
         @Override
@@ -331,8 +331,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            sumState.clear();
-            sumState.add(runningSum);
+            sumState.update(Collections.singletonList(runningSum));
         }
 
         @Override

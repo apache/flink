@@ -37,6 +37,8 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 
+import java.util.Collections;
+
 /**
  * This is a periodic streaming job that runs for CLI testing purposes.
  *
@@ -137,8 +139,7 @@ public class PeriodicStreamingJob {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.add(ms);
+            state.update(Collections.singletonList(ms));
         }
     }
 }

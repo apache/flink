@@ -30,6 +30,7 @@ import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
@@ -192,8 +193,7 @@ public class SequenceGeneratorSource extends RichParallelSourceFunction<Event>
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
         snapshotKeyRanges.update(keyRanges);
 
-        lastEventTimes.clear();
-        lastEventTimes.add(monotonousEventTime);
+        lastEventTimes.update(Collections.singletonList(monotonousEventTime));
     }
 
     @Override

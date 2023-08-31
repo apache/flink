@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.io.PrintStream;
+import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -189,8 +190,7 @@ public enum FileSinkProgram {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.add(numRecordsEmitted);
+            state.update(Collections.singletonList(numRecordsEmitted));
         }
     }
 }

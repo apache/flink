@@ -44,6 +44,7 @@ import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -271,8 +272,7 @@ public class FromElementsFunction<T>
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " has not been properly initialized.");
 
-        this.checkpointedState.clear();
-        this.checkpointedState.add(this.numElementsEmitted);
+        this.checkpointedState.update(Collections.singletonList(this.numElementsEmitted));
     }
 
     // ------------------------------------------------------------------------
