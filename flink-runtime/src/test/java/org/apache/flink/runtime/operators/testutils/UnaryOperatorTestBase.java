@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
@@ -216,7 +217,7 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT>
 
             // open stub implementation
             try {
-                FunctionUtils.openFunction(this.stub, getTaskConfig().getStubParameters());
+                FunctionUtils.openFunction(this.stub, new OpenContext() {});
                 stubOpen = true;
             } catch (Throwable t) {
                 throw new Exception(

@@ -29,6 +29,7 @@ import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.configuration.OpenContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +60,7 @@ public class FilterOperatorBase<T, FT extends FlatMapFunction<T, T>>
         FlatMapFunction<T, T> function = this.userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, new OpenContext() {});
 
         ArrayList<T> result = new ArrayList<T>(inputData.size());
         ListCollector<T> collector = new ListCollector<T>(result);

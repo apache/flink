@@ -31,7 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.operators.util.CollectionDataSets.POJO;
@@ -753,7 +753,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
         private int broadcast;
 
         @Override
-        public void open(Configuration config) {
+        public void open(OpenContext openContext) {
             Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
             int sum = 0;
             for (Integer i : ints) {

@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.kubernetes.KubernetesExtension;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
@@ -178,8 +179,8 @@ class KubernetesHighAvailabilityRecoverFromSavepointITCase {
                             ValueState<Integer> state;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
-                                super.open(parameters);
+                            public void open(OpenContext openContext) throws Exception {
+                                super.open(openContext);
 
                                 ValueStateDescriptor<Integer> descriptor =
                                         new ValueStateDescriptor<>("total", Types.INT);

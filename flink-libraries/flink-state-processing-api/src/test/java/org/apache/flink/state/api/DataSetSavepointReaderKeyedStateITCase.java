@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.utils.SavepointTestBase;
@@ -85,7 +86,7 @@ public abstract class DataSetSavepointReaderKeyedStateITCase<B extends StateBack
         private transient ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(valueState);
         }
 
@@ -104,8 +105,13 @@ public abstract class DataSetSavepointReaderKeyedStateITCase<B extends StateBack
         private transient ValueState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             state = getRuntimeContext().getState(valueState);
+        }
+
+        @Override
+        public void open(Configuration parameters) {
+            throw new UnsupportedOperationException();
         }
 
         @Override

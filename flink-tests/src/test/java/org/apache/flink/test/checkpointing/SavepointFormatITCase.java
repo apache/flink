@@ -28,6 +28,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -349,7 +350,7 @@ public class SavepointFormatITCase extends TestLogger {
         private ValueState<Long> counter;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             counter =
                     getRuntimeContext()
                             .getState(

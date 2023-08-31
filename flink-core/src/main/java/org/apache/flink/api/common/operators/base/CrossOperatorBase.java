@@ -30,6 +30,7 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.OpenContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -98,7 +99,7 @@ public class CrossOperatorBase<IN1, IN2, OUT, FT extends CrossFunction<IN1, IN2,
         CrossFunction<IN1, IN2, OUT> function = this.userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, new OpenContext() {});
 
         ArrayList<OUT> result = new ArrayList<OUT>(inputData1.size() * inputData2.size());
 

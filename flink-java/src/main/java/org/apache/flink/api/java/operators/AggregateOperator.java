@@ -35,7 +35,7 @@ import org.apache.flink.api.java.aggregation.AggregationFunctionFactory;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
 
@@ -283,7 +283,7 @@ public class AggregateOperator<IN> extends SingleInputOperator<IN, IN, Aggregate
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             for (AggregationFunction<Object> aggFunction : aggFunctions) {
                 aggFunction.initializeAggregate();
             }

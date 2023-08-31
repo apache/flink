@@ -38,6 +38,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
@@ -481,7 +482,7 @@ public class SavepointITCase extends TestLogger {
                             private ListState<Long> last;
 
                             @Override
-                            public void open(Configuration parameters) {
+                            public void open(OpenContext openContext) {
                                 // we use list state here to create sst files of a significant size
                                 // if sst files do not reach certain thresholds they are not stored
                                 // in files, but as a byte stream in checkpoints metadata
@@ -1478,7 +1479,7 @@ public class SavepointITCase extends TestLogger {
         private byte[] data;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             if (data == null) {
                 // We need this to be large, because we want to test with files
                 Random rand = new Random(getRuntimeContext().getIndexOfThisSubtask());
@@ -1716,7 +1717,7 @@ public class SavepointITCase extends TestLogger {
         private ValueState<Boolean> operatorState;
 
         @Override
-        public void open(Configuration configuration) {
+        public void open(OpenContext openContext) {
             operatorState = this.getRuntimeContext().getState(DESCRIPTOR);
         }
 

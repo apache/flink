@@ -23,6 +23,7 @@ import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
 import org.apache.flink.runtime.util.NonReusingKeyGroupedIterator;
 import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
@@ -61,7 +62,7 @@ final class CombiningSpillingBehaviour<R> implements SpillingThread.SpillingBeha
     @Override
     public void open() {
         try {
-            FunctionUtils.openFunction(combineFunction, udfConfig);
+            FunctionUtils.openFunction(combineFunction, new OpenContext() {});
         } catch (Throwable t) {
             throw new FlinkRuntimeException(
                     "The user-defined combiner failed in its 'open()' method.", t);

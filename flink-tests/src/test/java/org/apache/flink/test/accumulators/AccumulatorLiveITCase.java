@@ -29,6 +29,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.optimizer.DataStatistics;
@@ -219,7 +220,7 @@ public class AccumulatorLiveITCase extends TestLogger {
         private final IntCounter counter = new IntCounter();
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, counter);
         }
 

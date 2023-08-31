@@ -46,7 +46,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple9;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.types.DoubleValue;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.IntValue;
@@ -1821,7 +1821,7 @@ public class TypeExtractorTest {
                     public void setRuntimeContext(RuntimeContext t) {}
 
                     @Override
-                    public void open(Configuration parameters) throws Exception {}
+                    public void open(OpenContext openContext) throws Exception {}
 
                     @Override
                     public RuntimeContext getRuntimeContext() {

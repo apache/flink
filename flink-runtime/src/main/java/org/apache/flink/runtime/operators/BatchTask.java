@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeComparatorFactory;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.broadcast.BroadcastVariableMaterialization;
@@ -500,7 +501,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
             if (this.stub != null) {
                 try {
                     Configuration stubConfig = this.config.getStubParameters();
-                    FunctionUtils.openFunction(this.stub, stubConfig);
+                    FunctionUtils.openFunction(this.stub, new OpenContext() {});
                     stubOpen = true;
                 } catch (Throwable t) {
                     throw new Exception(
@@ -1481,7 +1482,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
 
     /**
      * Opens the given stub using its {@link
-     * org.apache.flink.api.common.functions.RichFunction#open(Configuration)} method. If the open
+     * org.apache.flink.api.common.functions.RichFunction#open(OpenContext)} method. If the open
      * call produces an exception, a new exception with a standard error message is created, using
      * the encountered exception as its cause.
      *
@@ -1491,7 +1492,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
      */
     public static void openUserCode(Function stub, Configuration parameters) throws Exception {
         try {
-            FunctionUtils.openFunction(stub, parameters);
+            FunctionUtils.openFunction(stub, new OpenContext() {});
         } catch (Throwable t) {
             throw new Exception(
                     "The user defined 'open(Configuration)' method in "

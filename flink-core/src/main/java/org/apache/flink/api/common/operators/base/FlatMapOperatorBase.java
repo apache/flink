@@ -30,6 +30,7 @@ import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.OpenContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,7 +63,7 @@ public class FlatMapOperatorBase<IN, OUT, FT extends FlatMapFunction<IN, OUT>>
         FlatMapFunction<IN, OUT> function = userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, parameters);
+        FunctionUtils.openFunction(function, new OpenContext() {});
 
         ArrayList<OUT> result = new ArrayList<OUT>(input.size());
 

@@ -25,7 +25,7 @@ import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.OpenContext;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
 import org.apache.flink.state.api.runtime.VoidTriggerable;
@@ -103,7 +103,7 @@ public abstract class StateReaderOperator<F extends Function, KEY, N, OUT>
     }
 
     public void open() throws Exception {
-        FunctionUtils.openFunction(function, new Configuration());
+        FunctionUtils.openFunction(function, new OpenContext() {});
     }
 
     public void close() throws Exception {
