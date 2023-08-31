@@ -83,17 +83,12 @@ public class PushFilterIntoTableSourceScanRule extends PushFilterIntoSourceScanR
             FlinkPreparingTableBase relOptTable) {
 
         RelBuilder relBuilder = call.builder();
-        final TableSourceTable sourceTable = scan.getTable().unwrap(TableSourceTable.class);
-        final FlinkTypeFactory typeFactory = unwrapTypeFactory(scan);
-        final ResolvedSchema schema = sourceTable.contextResolvedTable().getResolvedSchema();
-        final RowType producedType = createProducedType(schema, sourceTable.tableSource());
         Tuple2<RexNode[], RexNode[]> extractedPredicates =
                 FlinkRexUtil.extractPredicates(
                         filter.getInput().getRowType().getFieldNames().toArray(new String[0]),
                         filter.getCondition(),
                         scan,
-                        relBuilder.getRexBuilder(),
-                        typeFactory.buildRelNodeRowType(producedType));
+                        relBuilder.getRexBuilder());
 
         RexNode[] convertiblePredicates = extractedPredicates._1;
         RexNode[] unconvertedPredicates = extractedPredicates._2;
