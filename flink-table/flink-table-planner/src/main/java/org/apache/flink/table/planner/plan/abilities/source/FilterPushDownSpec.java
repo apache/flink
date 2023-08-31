@@ -35,7 +35,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgn
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 
@@ -89,7 +88,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
 
     @Override
     public void apply(DynamicTableSource tableSource, SourceAbilityContext context) {
-        SupportsFilterPushDown.Result result = apply(predicates, tableSource, context, null);
+        SupportsFilterPushDown.Result result = apply(predicates, tableSource, context);
         if (result.getAcceptedFilters().size() != predicates.size()) {
             throw new TableException("All predicates should be accepted here.");
         }
@@ -98,8 +97,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
     public static SupportsFilterPushDown.Result apply(
             List<RexNode> predicates,
             DynamicTableSource tableSource,
-            SourceAbilityContext context,
-            RelDataType relDataType) {
+            SourceAbilityContext context) {
         if (tableSource instanceof SupportsFilterPushDown) {
             RexNodeToExpressionConverter converter =
                     new RexNodeToExpressionConverter(
@@ -109,7 +107,9 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
                             context.getCatalogManager(),
                             TimeZone.getTimeZone(
                                     TableConfigUtils.getLocalTimeZone(context.getTableConfig())),
-                            Option.apply(relDataType));
+                            Option.apply(
+                                    context.getTypeFactory()
+                                            .buildRelNodeRowType(context.getSourceRowType())));
             List<Expression> filters =
                     predicates.stream()
                             .map(

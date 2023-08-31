@@ -417,7 +417,8 @@ class RexNodeToExpressionConverter(
         inputNames(inputRef.getIndex),
         fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(inputRef.getType)),
         0,
-        inputRef.getIndex))
+        inputRef.getIndex
+      ))
   }
 
   override def visitTableInputRef(rexTableInputRef: RexTableInputRef): Option[ResolvedExpression] =

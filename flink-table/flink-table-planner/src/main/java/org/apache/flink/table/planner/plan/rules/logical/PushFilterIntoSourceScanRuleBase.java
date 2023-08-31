@@ -33,7 +33,6 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
@@ -87,8 +86,7 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                     RexNode[] convertiblePredicates,
                     TableSourceTable oldTableSourceTable,
                     TableScan scan,
-                    RelBuilder relBuilder,
-                    RelDataType relDataType) {
+                    RelBuilder relBuilder) {
         // record size before applyFilters for update statistics
         int originPredicatesSize = convertiblePredicates.length;
 
@@ -99,8 +97,7 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                 FilterPushDownSpec.apply(
                         Arrays.asList(convertiblePredicates),
                         newTableSource,
-                        SourceAbilityContext.from(scan),
-                        relDataType);
+                        SourceAbilityContext.from(scan));
 
         relBuilder.push(scan);
         List<RexNode> acceptedPredicates =
