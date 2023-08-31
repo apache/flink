@@ -30,7 +30,7 @@ This page describes the solutions to some common questions for PyFlink users.
 
 ## Preparing Python Virtual Environment
 
-You can download a [convenience script]({% link downloads/setup-pyflink-virtual-env.sh %}) to prepare a Python virtual env zip which can be used on Mac OS and most Linux distributions.
+You can download a [convenience script](/downloads/setup-pyflink-virtual-env.sh) to prepare a Python virtual env zip which can be used on Mac OS and most Linux distributions.
 You can specify the PyFlink version to generate a Python virtual environment required for the corresponding PyFlink version, otherwise the most recent version will be installed.
 
 {{< stable >}}
