@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.datastream;
 
 import org.apache.flink.annotation.Public;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
@@ -34,8 +33,17 @@ import java.util.Collection;
  * The iterative data stream represents the start of an iteration in a {@link DataStream}.
  *
  * @param <T> Type of the elements in this Stream
+ * @deprecated This method is deprecated since Flink 1.19. The only known use case of this Iteration
+ *     API comes from Flink ML, which already has its own implementation of iteration and no longer
+ *     uses this API. If there's any use cases other than Flink ML that needs iteration support,
+ *     please reach out to dev@flink.apache.org and we can consider making the Flink ML iteration
+ *     implementation a separate common library.
+ * @see <a
+ *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-357%3A+Deprecate+Iteration+API+of+DataStream">
+ *     FLIP-357: Deprecate Iteration API of DataStream </a>
+ * @see <a href="https://nightlies.apache.org/flink/flink-ml-docs-stable/">Flink ML </a>
  */
-@PublicEvolving
+@Deprecated
 public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
 
     // We store these so that we can create a co-iteration if we need to
@@ -128,7 +136,17 @@ public class IterativeStream<T> extends SingleOutputStreamOperator<T> {
      *
      * @param <I> Type of the input of the iteration
      * @param <F> Type of the feedback of the iteration
+     * @deprecated This method is deprecated since Flink 1.19. The only known use case of this
+     *     Iteration API comes from Flink ML, which already has its own implementation of iteration
+     *     and no longer uses this API. If there's any use cases other than Flink ML that needs
+     *     iteration support, please reach out to dev@flink.apache.org and we can consider making
+     *     the Flink ML iteration implementation a separate common library.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-357%3A+Deprecate+Iteration+API+of+DataStream">
+     *     FLIP-357: Deprecate Iteration API of DataStream </a>
+     * @see <a href="https://nightlies.apache.org/flink/flink-ml-docs-stable/">Flink ML </a>
      */
+    @Deprecated
     @Public
     public static class ConnectedIterativeStreams<I, F> extends ConnectedStreams<I, F> {
 

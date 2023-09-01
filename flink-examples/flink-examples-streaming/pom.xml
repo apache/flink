@@ -137,6 +137,12 @@ under the License.
 						<configuration>
 							<compilerArgument>-Xlint:deprecation</compilerArgument>
 							<failOnWarning>true</failOnWarning>
+							<!-- This example is temporarily preserved only for testing purpose. -->
+							<excludes>
+								<exclude>
+									org/apache/flink/streaming/examples/iteration/IterateExample.java
+								</exclude>
+							</excludes>
 						</configuration>
 					</execution>
 				</executions>
