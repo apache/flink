@@ -201,18 +201,15 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             checkNotNull(classLoader, "Class loader cannot be null");
             checkNotNull(config, "Config cannot be null");
             checkNotNull(catalogStoreHolder, "CatalogStoreHolder cannot be null");
-            catalogStoreHolder.open();
-            CatalogManager catalogManager =
-                    new CatalogManager(
-                            defaultCatalogName,
-                            defaultCatalog,
-                            dataTypeFactory != null
-                                    ? dataTypeFactory
-                                    : new DataTypeFactoryImpl(classLoader, config, executionConfig),
-                            new ManagedTableListener(classLoader, config),
-                            catalogModificationListeners,
-                            catalogStoreHolder);
-            return catalogManager;
+            return new CatalogManager(
+                    defaultCatalogName,
+                    defaultCatalog,
+                    dataTypeFactory != null
+                            ? dataTypeFactory
+                            : new DataTypeFactoryImpl(classLoader, config, executionConfig),
+                    new ManagedTableListener(classLoader, config),
+                    catalogModificationListeners,
+                    catalogStoreHolder);
         }
     }
 

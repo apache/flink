@@ -101,7 +101,10 @@ public class CatalogStoreHolder implements AutoCloseable {
             checkNotNull(catalogStore, "CatalogStore cannot be null");
             checkNotNull(config, "Config cannot be null");
             checkNotNull(classLoader, "Class loader cannot be null");
-            return new CatalogStoreHolder(catalogStore, factory, config, classLoader);
+            CatalogStoreHolder catalogStoreHolder =
+                    new CatalogStoreHolder(catalogStore, factory, config, classLoader);
+            catalogStoreHolder.open();
+            return catalogStoreHolder;
         }
     }
 
