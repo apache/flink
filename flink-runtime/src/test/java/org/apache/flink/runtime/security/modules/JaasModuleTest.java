@@ -116,8 +116,7 @@ class JaasModuleTest {
                         .toRealPath()
                         .toString();
         assertThat(resolvedActualPathWithFile)
-                .as(
-                        "The resolved configured directory does not match the expected resolved one.")
+                .as("The resolved configured directory does not match the expected resolved one.")
                 .startsWith(resolvedExpectedPath);
 
         assertThat(System.getProperty(JAVA_SECURITY_AUTH_LOGIN_CONFIG))
