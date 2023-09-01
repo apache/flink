@@ -29,6 +29,7 @@ under the License.
 The syntax of `time travel` is used for querying historical data. It allows users to specify a point in time and query the corresponding table data.
 
 <span class="label label-danger">Attention</span> Currently, `time travel` requires the corresponding catalog that the table belongs to implementing the {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/catalog/Catalog.java" name="getTable(ObjectPath tablePath, long timestamp)" >}} method.
+See more details in [Catalog]({{< ref "/docs/dev/table/catalogs" >}}#interface-in-catalog-for-supporting-time-travel).
 
 The syntax with time travel clause is:
 ```sql
@@ -37,27 +38,27 @@ SELECT select_list FROM table_name FOR SYSTEM_TIME AS OF timestamp_expression
 
 **Parameter Specification:**
 
-- `FOR SYSTEM_TIME AS OF timestamp_expression`：Used to query data at a specific point in time, the `timestamp_expression` represents the historical time point you want to query. The `timestamp_expression` can be a specific timestamp or a time-related expression that can be reduced to a constant, and this expression can only apply to physical tables and not to views or subqueries.
+- `FOR SYSTEM_TIME AS OF timestamp_expression`：Used to query data at a specific point in time, the `timestamp_expression` represents the historical time point you want to query. The `timestamp_expression` can be a specific timestamp or a time-related expression that can be reduced to a constant, and this expression can only apply to physical tables and not to views or sub-queries.
 
 ## Example
 
 ```sql
---use constant expression
+--use timestamp constant expression
 SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00'
 
---use expression with functions that can be reduced to a constant
+--use expression with functions that can be reduced to a timestamp constant
 SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TIMESTAMP '2023-07-31 00:00:00' - INTERVAL '1' DAY
 ```
 
 ## Limitation
 
-<span class="label label-danger">Attention</span> The `timestamp_expression` used in `time travel` only supports certain types of expressions that can be reduced to TIMESTAMP constants, including constant expressions of type `TIMESTAMP`, addition and subtraction operations involving timestamps, as well as some partial built-in functions and UDFs.
+<span class="label label-danger">Attention</span> The `timestamp_expression` used in `time travel` only supports certain types of expressions that can be reduced to TIMESTAMP constants, including constant expressions of type `TIMESTAMP`, adding and subtracting operations on timestamps, as well as some partial built-in functions and UDFs.
 
 When `UDFs` are used in a `timestamp_expression`, due to the limitations of the current framework,
-some expressions cannot be directly converted into a `TIMESTAMP` constant during SQL parsing and an exception will be thrown.
+some expressions cannot be directly reduced to a `TIMESTAMP` constant during SQL parsing and an exception will be thrown.
 
 ```sql
---use expression with functions that can not be reduced to a constant
+--use expression with functions that can not be reduced to a timestamp constant
 SELECT select_list FROM paimon_tb FOR SYSTEM_TIME AS OF TO_TIMESTAMP_LTZ(0, 3)
 ```
 

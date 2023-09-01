@@ -71,7 +71,7 @@ The provided factory identifier will be used for matching against the required `
 User-defined catalogs should replace `Thread.currentThread().getContextClassLoader()` with the user class loader to load classes. Otherwise, `ClassNotFoundException` maybe thrown. The user class loader can be accessed via `CatalogFactory.Context#getClassLoader`.
 {{< /hint >}}
 
-**Catalog supports time travel**
+#### Interface in Catalog for supporting time travel
 
 Starting from version 1.18, the Flink framework supports [time travel]({{< ref "docs/dev/table/sql/queries/time-travel" >}}) to query historical data of a table. To query the historical data of a table, users should implement `getTable(ObjectPath tablePath, long timestamp)` method for the catalog that the table belongs to.
 
