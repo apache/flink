@@ -71,6 +71,44 @@ The provided factory identifier will be used for matching against the required `
 User-defined catalogs should replace `Thread.currentThread().getContextClassLoader()` with the user class loader to load classes. Otherwise, `ClassNotFoundException` maybe thrown. The user class loader can be accessed via `CatalogFactory.Context#getClassLoader`.
 {{< /hint >}}
 
+#### Interface in Catalog for supporting time travel
+
+Starting from version 1.18, the Flink framework supports [time travel]({{< ref "docs/dev/table/sql/queries/time-travel" >}}) to query historical data of a table. To query the historical data of a table, users should implement `getTable(ObjectPath tablePath, long timestamp)` method for the catalog that the table belongs to.
+
+```java
+public class MyCatalogSupportTimeTravel implements Catalog {
+
+    @Override
+    public CatalogBaseTable getTable(ObjectPath tablePath, long timestamp)
+            throws TableNotExistException {
+        // Build a schema corresponding to the specific time point.
+        Schema schema = buildSchema(timestamp);
+        // Set parameters to read data at the corresponding time point.
+        Map<String, String> options = buildOptions(timestamp);
+        // Build CatalogTable
+        CatalogTable catalogTable =
+                CatalogTable.of(schema, "", Collections.emptyList(), options, timestamp);
+        return catalogTable;
+    }
+}
+
+public class MyDynamicTableFactory implements DynamicTableSourceFactory {
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        final ReadableConfig configuration =
+                Configuration.fromMap(context.getCatalogTable().getOptions());
+
+        // Get snapshot from CatalogTable
+        final Optional<Long> snapshot = context.getCatalogTable().getSnapshot();
+
+        // Build DynamicTableSource using snapshot options.
+        final DynamicTableSource dynamicTableSource = buildDynamicSource(configuration, snapshot);
+
+        return dynamicTableSource;
+    }
+}
+```
+
 ## How to Create and Register Flink Tables to Catalog
 
 ### Using SQL DDL

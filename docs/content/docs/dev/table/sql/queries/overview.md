@@ -444,5 +444,6 @@ Unicode characters are supported in string literals. If explicit unicode code po
 - [Window Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}})
 - [Deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}})
 - [Pattern Recognition]({{< ref "docs/dev/table/sql/queries/match_recognize" >}})
+- [Time Travel]({{< ref "docs/dev/table/sql/queries/time-travel" >}})
 
 {{< top >}}
