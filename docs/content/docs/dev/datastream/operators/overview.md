@@ -570,46 +570,6 @@ connectedStreams.flat_map(MyCoFlatMapFunction())
 {{< /tab >}}
 {{< /tabs>}}
 
-### Iterate
-#### DataStream &rarr; IterativeStream &rarr; ConnectedStream
-
-Creates a "feedback" loop in the flow, by redirecting the output of one operator to some previous operator. This is especially useful for defining algorithms that continuously update a model. The following code starts with a stream and applies the iteration body continuously. Elements that are greater than 0 are sent back to the feedback channel, and the rest of the elements are forwarded downstream.
-
-{{< tabs iterate >}}
-{{< tab "Java" >}}
-```java
-IterativeStream<Long> iteration = initialStream.iterate();
-DataStream<Long> iterationBody = iteration.map (/*do something*/);
-DataStream<Long> feedback = iterationBody.filter(new FilterFunction<Long>(){
-    @Override
-    public boolean filter(Long value) throws Exception {
-        return value > 0;
-    }
-});
-iteration.closeWith(feedback);
-DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
-    @Override
-    public boolean filter(Long value) throws Exception {
-        return value <= 0;
-    }
-});
-```
-{{< /tab >}}
-{{< tab "Scala" >}}
-```scala
-initialStream.iterate {
-  iteration => {
-    val iterationBody = iteration.map {/*do something*/}
-    (iterationBody.filter(_ > 0), iterationBody.filter(_ <= 0))
-  }
-}
-```
-{{< /tab >}}
-{{< tab "Python" >}}
-This feature is not yet supported in Python
-{{< /tab >}}
-{{< /tabs>}}
-
 ### Cache
 #### DataStream &rarr; CachedDataStream
 
