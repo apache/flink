@@ -282,12 +282,23 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
         assertThat(nodeSelectorTerms.size()).isEqualTo(1);
 
         List<NodeSelectorRequirement> requirements = nodeSelectorTerms.get(0).getMatchExpressions();
-        assertThat(requirements)
-                .containsExactlyInAnyOrder(
+        for (int i = 0; i < requirements.size(); i++) {
+            Collections.sort(requirements.get(i).getValues());
+            requirements.get(i).setValues(requirements.get(i).getValues());
+        }
+
+        List<NodeSelectorRequirement> expectedRequirements =
+                Collections.singletonList(
                         new NodeSelectorRequirement(
                                 flinkConfig.getString(
                                         KubernetesConfigOptions.KUBERNETES_NODE_NAME_LABEL),
                                 "NotIn",
                                 new ArrayList<>(BLOCKED_NODES)));
+
+        for (int i = 0; i < expectedRequirements.size(); i++) {
+            Collections.sort(expectedRequirements.get(i).getValues());
+            expectedRequirements.get(i).setValues(expectedRequirements.get(i).getValues());
+        }
+        assertEquals(requirements, expectedRequirements);
     }
 }
