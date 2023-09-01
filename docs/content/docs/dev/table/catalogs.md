@@ -808,10 +808,6 @@ env.executeSql("CREATE TABLE ...").wait();
 For sql-gateway, you can add the option `table.catalog-modification.listeners` in the `flink-conf.yaml` and start
 the gateway, or you can also start sql-gateway with dynamic parameter, then you can use sql-client to perform ddl directly.
 
-```sql
-Flink SQL> CREATE TABLE test_table(...);
-```
-
 ## Catalog Store
 
 Catalog Store is used to store the configuration of catalogs. When using Catalog Store, the configurations
