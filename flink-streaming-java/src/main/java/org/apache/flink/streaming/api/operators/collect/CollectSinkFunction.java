@@ -216,11 +216,9 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
         bufferLock.lock();
         try {
-            bufferState.clear();
-            bufferState.addAll(buffer);
+            bufferState.update(buffer);
 
-            offsetState.clear();
-            offsetState.add(offset);
+            offsetState.update(Collections.singletonList(offset));
 
             uncompletedCheckpointMap.put(context.getCheckpointId(), offset);
 

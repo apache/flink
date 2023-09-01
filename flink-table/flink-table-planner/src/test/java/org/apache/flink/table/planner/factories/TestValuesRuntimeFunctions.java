@@ -312,9 +312,8 @@ final class TestValuesRuntimeFunctions {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            rawResultState.clear();
             synchronized (LOCK) {
-                rawResultState.addAll(localRawResult);
+                rawResultState.update(localRawResult);
             }
         }
     }
@@ -512,9 +511,8 @@ final class TestValuesRuntimeFunctions {
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             super.snapshotState(context);
-            retractResultState.clear();
             synchronized (LOCK) {
-                retractResultState.addAll(localRetractResult);
+                retractResultState.update(localRetractResult);
             }
         }
 
