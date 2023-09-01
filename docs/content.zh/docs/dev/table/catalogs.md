@@ -746,7 +746,7 @@ and do some customized operations when receiving the event, such as report the i
 There are two interfaces for the catalog modification listener: `CatalogModificationListenerFactory` to create the listener and `CatalogModificationListener`
 to receive and process the event. You need to implement these interfaces and below is an example.
 
-```
+```java
 /** Factory used to create a {@link CatalogModificationListener} instance. */
 public class YourCatalogListenerFactory implements CatalogModificationListenerFactory {
     /** The identifier for the customized listener factory, you can named it yourself. */
@@ -778,11 +778,16 @@ public class YourCatalogListener implements CatalogModificationListener {
 }
 ```
 
+You need to create a file `org.apache.flink.table.factories.Factory` in `META-INF/services`
+with the content of `the full name of YourCatalogListenerFactory` for your
+customized catalog listener factory. After that, you can package the codes into a jar file
+and add it to `lib` of Flink cluster.
+
 ### Register Catalog Listener
 
 After implemented above catalog modification factory and listener, you can register it to the table environment.
 
-```
+```java
 Configuration configuration = new Configuration();
 
 // Add the factory identifier, you can set multiple listeners in the configuraiton.
@@ -797,12 +802,7 @@ env.executeSql("CREATE TABLE ...").wait();
 ```
 
 For sql-gateway, you can add the option `table.catalog-modification.listeners` in the `flink-conf.yaml` and start
-the gateway, or you can also use `SET` to specify the listener for ddl, for example, in sql-client or jdbc-driver.
-
-```
-Flink SQL> SET 'table.catalog-modification.listeners' = 'your_factory';
-Flink SQL> CREATE TABLE test_table(...);
-```
+the gateway, or you can also start sql-gateway with dynamic parameter, then you can use sql-client to perform ddl directly.
 
 ## Catalog Store
 
