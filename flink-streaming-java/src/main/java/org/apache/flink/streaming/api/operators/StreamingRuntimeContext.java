@@ -237,7 +237,9 @@ public class StreamingRuntimeContext extends AbstractRuntimeUDFContext {
         checkNotNull(stateDescriptor, "The state properties must not be null");
         checkNotNull(
                 keyedStateStore,
-                "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.");
+                String.format(
+                        "Keyed state '%s' with type %s can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
+                        stateDescriptor.getName(), stateDescriptor.getType()));
         return keyedStateStore;
     }
 
