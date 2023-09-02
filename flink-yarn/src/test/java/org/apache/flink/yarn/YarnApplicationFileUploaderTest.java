@@ -23,6 +23,7 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -132,6 +134,27 @@ class YarnApplicationFileUploaderTest {
                         ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
     }
 
+    @Test
+    void testUploadLocalFileWithoutScheme(@TempDir File flinkHomeDir) throws IOException {
+        final MockLocalFileSystem fileSystem = new MockLocalFileSystem();
+        final File tempFile = File.createTempFile(UUID.randomUUID().toString(), "", flinkHomeDir);
+        final Path pathWithoutScheme = new Path(tempFile.getAbsolutePath());
+
+        try (final YarnApplicationFileUploader yarnApplicationFileUploader =
+                YarnApplicationFileUploader.from(
+                        fileSystem,
+                        new Path(flinkHomeDir.getPath()),
+                        Collections.emptyList(),
+                        ApplicationId.newInstance(0, 0),
+                        DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
+
+            yarnApplicationFileUploader.uploadLocalFileToRemote(pathWithoutScheme, "");
+            assertThat(fileSystem.getCopiedPaths())
+                    .hasSize(1)
+                    .allMatch(path -> "file".equals(path.toUri().getScheme()));
+        }
+    }
+
     private static Map<String, String> getLibJars() {
         final HashMap<String, String> libJars = new HashMap<>(4);
         final String jarContent = "JAR Content";
@@ -150,5 +173,34 @@ class YarnApplicationFileUploaderTest {
         usrLibJars.put("udf.jar", jarContent);
 
         return usrLibJars;
+    }
+
+    private static class MockLocalFileSystem extends LocalFileSystem {
+
+        private final List<Path> copiedPaths = new LinkedList<>();
+
+        @Override
+        public void copyFromLocalFile(Path src, Path dst) {
+            copyFromLocalFile(false, src, dst);
+        }
+
+        @Override
+        public void copyFromLocalFile(boolean delSrc, Path src, Path dst) {
+            copyFromLocalFile(delSrc, true, src, dst);
+        }
+
+        @Override
+        public void copyFromLocalFile(boolean delSrc, boolean overwrite, Path src, Path dst) {
+            copyFromLocalFile(delSrc, overwrite, new Path[] {src}, dst);
+        }
+
+        @Override
+        public void copyFromLocalFile(boolean delSrc, boolean overwrite, Path[] srcs, Path dst) {
+            Collections.addAll(copiedPaths, srcs[srcs.length - 1]);
+        }
+
+        public List<Path> getCopiedPaths() {
+            return copiedPaths;
+        }
     }
 }
