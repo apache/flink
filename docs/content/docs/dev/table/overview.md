@@ -61,5 +61,6 @@ Where to go next?
 * [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}): Play around with Flink SQL and submit a table program to a cluster without programming knowledge.
 * [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}): A service that enables the multiple clients to execute SQL from the remote in concurrency.
 * [SQL JDBC Driver]({{< ref "docs/dev/table/jdbcDriver" >}}): A JDBC Driver that submits SQL statements to sql-gateway.
+* [OLAP Quickstart]({{< ref "docs/dev/table/olap_quickstart" >}}): A quickstart to show how to set up a Flink OLAP service.
 
 {{< top >}}
