@@ -22,16 +22,16 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /** Test for Sarg JsonPlan ser/de. */
-public class SargJsonPlanITCase extends JsonPlanTestBase {
+class SargJsonPlanITCase extends JsonPlanTestBase {
     @Test
-    public void testSarg() throws ExecutionException, InterruptedException {
+    void testSarg() throws ExecutionException, InterruptedException {
         List<Row> data =
                 Arrays.asList(Row.of(1), Row.of(2), Row.of((Integer) null), Row.of(4), Row.of(5));
         createTestValuesSourceTable("MyTable", data, "a int");

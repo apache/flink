@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -31,10 +31,10 @@ import java.util.HashMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for temporal sort json plan. */
-public class TemporalSortJsonITCase extends JsonPlanTestBase {
+class TemporalSortJsonITCase extends JsonPlanTestBase {
 
     @Test
-    public void testSortProcessingTime() throws Exception {
+    void testSortProcessingTime() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.smallData3()),
@@ -52,7 +52,7 @@ public class TemporalSortJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testSortRowTime() throws Exception {
+    void testSortRowTime() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.windowDataWithTimestamp()),

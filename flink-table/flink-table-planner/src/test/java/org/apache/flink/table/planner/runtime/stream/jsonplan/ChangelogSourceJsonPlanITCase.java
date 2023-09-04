@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -31,10 +31,10 @@ import java.util.List;
 import java.util.Map;
 
 /** Integration tests for operations on changelog source, including upsert source. */
-public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
+class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testChangelogSource() throws Exception {
+    void testChangelogSource() throws Exception {
         registerChangelogSource();
         createTestNonInsertOnlyValuesSinkTable(
                 "user_sink",
@@ -56,7 +56,7 @@ public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testToUpsertSource() throws Exception {
+    void testToUpsertSource() throws Exception {
         registerUpsertSource();
         createTestNonInsertOnlyValuesSinkTable(
                 "user_sink",
@@ -79,7 +79,7 @@ public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
 
     // ------------------------------------------------------------------------------------------
 
-    public void registerChangelogSource() {
+    protected void registerChangelogSource() {
         Map<String, String> properties = new HashMap<>();
         properties.put("changelog-mode", "I,UA,UB,D");
         createTestValuesSourceTable(
@@ -95,7 +95,7 @@ public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
                 properties);
     }
 
-    public void registerUpsertSource() {
+    protected void registerUpsertSource() {
         Map<String, String> properties = new HashMap<>();
         properties.put("changelog-mode", "I,UA,D");
         createTestValuesSourceTable(

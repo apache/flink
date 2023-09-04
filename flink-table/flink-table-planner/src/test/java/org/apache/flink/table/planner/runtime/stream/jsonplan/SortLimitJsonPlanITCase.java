@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -31,9 +31,9 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /** Test for sort limit JsonPlan ser/de. */
-public class SortLimitJsonPlanITCase extends JsonPlanTestBase {
+class SortLimitJsonPlanITCase extends JsonPlanTestBase {
     @Test
-    public void testSortLimit() throws ExecutionException, InterruptedException, IOException {
+    void testSortLimit() throws ExecutionException, InterruptedException, IOException {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.data1()),

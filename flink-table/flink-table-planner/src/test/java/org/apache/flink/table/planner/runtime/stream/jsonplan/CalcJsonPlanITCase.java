@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Arrays;
@@ -33,10 +33,10 @@ import java.util.Collections;
 import java.util.List;
 
 /** Test for calc json plan. */
-public class CalcJsonPlanITCase extends JsonPlanTestBase {
+class CalcJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testSimpleCalc() throws Exception {
+    void testSimpleCalc() throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
         createTestCsvSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath =
@@ -55,7 +55,7 @@ public class CalcJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testCalcWithUdf() throws Exception {
+    void testCalcWithUdf() throws Exception {
         tableEnv.createTemporaryFunction("udf1", new JavaFunc0());
         tableEnv.createTemporarySystemFunction("udf2", new JavaFunc2());
         tableEnv.createFunction("udf3", UdfWithOpen.class);
@@ -86,7 +86,7 @@ public class CalcJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testProjectPushDown() throws Exception {
+    void testProjectPushDown() throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
         createTestCsvSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createTestCsvSinkTable("MySink", "b int", "a bigint", "a1 varchar");

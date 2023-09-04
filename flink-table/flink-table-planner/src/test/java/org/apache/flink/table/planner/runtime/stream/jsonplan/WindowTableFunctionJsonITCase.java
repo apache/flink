@@ -23,18 +23,19 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
 /** Test for window deduplicate json plan. */
-public class WindowTableFunctionJsonITCase extends JsonPlanTestBase {
+class WindowTableFunctionJsonITCase extends JsonPlanTestBase {
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    @Override
+    protected void setup() throws Exception {
         super.setup();
         createTestValuesSourceTable(
                 "MyTable",
@@ -59,7 +60,7 @@ public class WindowTableFunctionJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testEventTimeTumbleWindow() throws Exception {
+    void testEventTimeTumbleWindow() throws Exception {
         createTestValuesSinkTable(
                 "MySink",
                 "ts STRING",
