@@ -35,8 +35,7 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.serialization.types.ShortType;
 
-import org.junit.experimental.runners.Enclosed;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Nested;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -46,8 +45,7 @@ import java.util.List;
  * Test case for built-in LAST_VALUE with retract aggregate function. This class tests `accumulate`
  * method with order argument.
  */
-@RunWith(Enclosed.class)
-public final class LastValueWithRetractAggFunctionWithOrderTest {
+final class LastValueWithRetractAggFunctionWithOrderTest {
 
     // --------------------------------------------------------------------------------------------
     // Test sets for a particular type being aggregated
@@ -58,7 +56,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     // --------------------------------------------------------------------------------------------
 
     /** Test for {@link TinyIntType}. */
-    public static final class ByteLastValueWithRetractAggFunctionWithOrderTest
+    @Nested
+    final class ByteLastValueWithRetractAggFunctionWithOrderTest
             extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Byte> {
 
         @Override
@@ -73,7 +72,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     }
 
     /** Test for {@link ShortType}. */
-    public static final class ShortLastValueWithRetractAggFunctionWithOrderTest
+    @Nested
+    final class ShortLastValueWithRetractAggFunctionWithOrderTest
             extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Short> {
 
         @Override
@@ -88,7 +88,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     }
 
     /** Test for {@link IntType}. */
-    public static final class IntLastValueWithRetractAggFunctionWithOrderTest
+    @Nested
+    final class IntLastValueWithRetractAggFunctionWithOrderTest
             extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Integer> {
 
         @Override
@@ -104,7 +105,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     }
 
     /** Test for {@link BigIntType}. */
-    public static final class LongLastValueWithRetractAggFunctionWithOrderTest
+    @Nested
+    final class LongLastValueWithRetractAggFunctionWithOrderTest
             extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Long> {
 
         @Override
@@ -119,7 +121,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     }
 
     /** Test for {@link FloatType}. */
-    public static final class FloatLastValueWithRetractAggFunctionWithOrderTest
+    @Nested
+    final class FloatLastValueWithRetractAggFunctionWithOrderTest
             extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Float> {
 
         @Override
@@ -134,7 +137,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     }
 
     /** Test for {@link DoubleType}. */
-    public static final class DoubleLastValueWithRetractAggFunctionWithOrderTest
+    @Nested
+    final class DoubleLastValueWithRetractAggFunctionWithOrderTest
             extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Double> {
 
         @Override
@@ -150,7 +154,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     }
 
     /** Test for {@link BooleanType}. */
-    public static final class BooleanLastValueWithRetractAggFunctionWithOrderTest
+    @Nested
+    final class BooleanLastValueWithRetractAggFunctionWithOrderTest
             extends LastValueWithRetractAggFunctionWithOrderTestBase<Boolean> {
 
         @Override
@@ -186,7 +191,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     }
 
     /** Test for {@link DecimalType}. */
-    public static final class DecimalLastValueWithRetractAggFunctionWithOrderTest
+    @Nested
+    final class DecimalLastValueWithRetractAggFunctionWithOrderTest
             extends LastValueWithRetractAggFunctionWithOrderTestBase<DecimalData> {
 
         private int precision = 20;
@@ -234,7 +240,8 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     }
 
     /** Test for {@link VarCharType}. */
-    public static final class StringLastValueWithRetractAggFunctionWithOrderTest
+    @Nested
+    final class StringLastValueWithRetractAggFunctionWithOrderTest
             extends LastValueWithRetractAggFunctionWithOrderTestBase<StringData> {
 
         @Override
@@ -288,7 +295,7 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     // --------------------------------------------------------------------------------------------
 
     /** Test base for {@link LastValueWithRetractAggFunction} with order. */
-    public abstract static class LastValueWithRetractAggFunctionWithOrderTestBase<T>
+    abstract static class LastValueWithRetractAggFunctionWithOrderTestBase<T>
             extends FirstLastValueAggFunctionWithOrderTestBase<
                     T, LastValueWithRetractAccumulator<T>> {
 
@@ -306,7 +313,7 @@ public final class LastValueWithRetractAggFunctionWithOrderTest {
     }
 
     /** Test base for {@link LastValueWithRetractAggFunction} with number types. */
-    public abstract static class NumberLastValueWithRetractAggFunctionWithOrderTestBase<T>
+    abstract static class NumberLastValueWithRetractAggFunctionWithOrderTestBase<T>
             extends LastValueWithRetractAggFunctionWithOrderTestBase<T> {
 
         protected abstract T getValue(String v);
