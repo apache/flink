@@ -19,14 +19,16 @@ set -e -x
 dev/lint-python.sh -s py_env
 
 PY_ENV_DIR=`pwd`/dev/.conda/envs
-py_env=("3.7" "3.8" "3.9" "3.10")
+py_env=("3.8" "3.9" "3.10")
 ## 2. install dependency
 for ((i=0;i<${#py_env[@]};i++)) do
+    echo "Installing dependencies for environment: ${py_env[i]}"
     ${PY_ENV_DIR}/${py_env[i]}/bin/pip install -r dev/dev-requirements.txt
 done
 
 ## 3. build wheels
 for ((i=0;i<${#py_env[@]};i++)) do
+    echo "Building wheel for environment: ${py_env[i]}"
     if [[ "$(uname)" != "Darwin" ]]; then
         # force the linker to use the older glibc version in Linux
         export CFLAGS="-I. -include dev/glibc_version_fix.h"
@@ -36,6 +38,7 @@ done
 
 ## 4. convert linux_x86_64 wheel to manylinux1 wheel in Linux
 if [[ "$(uname)" != "Darwin" ]]; then
+    echo "Converting linux_x86_64 wheel to manylinux1"
     source `pwd`/dev/.conda/bin/activate
     # 4.1 install patchelf
     conda install -c conda-forge patchelf=0.11 -y

@@ -15,14 +15,18 @@
 # limitations under the License.
 set -e
 # download miniconda.sh
-if [[ `uname -s` == "Darwin" ]]; then
-    if [[ `uname -m` == "arm64" ]]; then
-        wget "https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-MacOSX-arm64.sh" -O "miniconda.sh"
-    else
-        wget "https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-MacOSX-x86_64.sh" -O "miniconda.sh"
-    fi
+sys_os=$(uname -s)
+echo "Detected OS: ${sys_os}"
+sys_machine=$(uname -m)
+echo "Detected machine: ${sys_machine}"
+
+if [[ ${sys_os} == "Darwin" ]]; then
+    wget "https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-MacOSX-${sys_machine}.sh" -O "miniconda.sh"
+elif [[ ${sys_os} == "Linux" ]]; then
+    wget "https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-Linux-${sys_machine}.sh" -O "miniconda.sh"
 else
-    wget "https://repo.anaconda.com/miniconda/Miniconda3-py310_23.5.2-0-Linux-x86_64.sh" -O "miniconda.sh"
+    echo "Unsupported OS: ${sys_os}"
+    exit 1
 fi
 
 # add the execution permission

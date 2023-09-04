@@ -365,11 +365,11 @@ Currently, users are able to submit a PyFlink job via the CLI. It does not requi
 JAR file path or the entry main class, which is different from the Java job submission.
 
 {{< hint info >}}
-When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.7+.
+When submitting Python job via `flink run`, Flink will run the command "python". Please run the following command to confirm that the python executable in current environment points to a supported Python version of 3.8+.
 {{< /hint >}}
 ```bash
 $ python --version
-# the version printed here must be 3.7+
+# the version printed here must be 3.8+
 ```
 
 The following commands show different PyFlink job submission use-cases:
@@ -520,7 +520,7 @@ related options. Here's an overview of all the Python related options for the ac
             <td>
                 Specify the path of the python interpreter used to execute the python UDF worker
                 (e.g.: --pyExecutable /usr/local/bin/python3).
-                The python UDF worker depends on Python 3.7+, Apache Beam (version == 2.43.0),
+                The python UDF worker depends on Python 3.8+, Apache Beam (version == 2.43.0),
                 Pip (version >= 20.3) and SetupTools (version >= 37.0.0).
                 Please ensure that the specified environment meets the above requirements.
             </td>

@@ -72,11 +72,11 @@ The `fast` and `skip-webui-build` profiles have a significant impact on the buil
 
     If you want to build a PyFlink package that can be used for pip installation, you need to build the Flink project first, as described in [Build Flink](#build-flink).
 
-2. Python version(3.7, 3.8, 3.9 or 3.10) is required
+2. Python version(3.8, 3.9 or 3.10) is required
 
     ```shell
     $ python --version
-    # the version printed here must be 3.7, 3.8, 3.9 or 3.10
+    # the version printed here must be 3.8, 3.9 or 3.10
     ```
 
 3. Build PyFlink with Cython extension support (optional)
