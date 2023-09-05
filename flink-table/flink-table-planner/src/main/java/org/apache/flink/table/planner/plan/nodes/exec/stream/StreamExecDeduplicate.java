@@ -255,10 +255,6 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             return config.get(TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED);
         }
 
-        protected long getMinRetentionTime() {
-            return config.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis();
-        }
-
         protected long getMiniBatchSize() {
             if (isMiniBatchEnabled()) {
                 long size = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE);
