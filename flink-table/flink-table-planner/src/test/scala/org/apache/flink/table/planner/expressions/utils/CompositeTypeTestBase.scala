@@ -84,7 +84,7 @@ object CompositeTypeTestBase {
     def getMyString: String = myString
 
     def setMyString(value: String): Unit = {
-      myString = myString
+      myString = value
     }
   }
 }
