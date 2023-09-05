@@ -465,31 +465,24 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
         CheckpointableKeyedStateBackend<Integer> backend =
                 createKeyedBackend(IntSerializer.INSTANCE);
         try {
-            final String ns1 = "ns1";
-            ValueState<Integer> keyedState1 =
-                    backend.getPartitionedState(
-                            ns1,
-                            StringSerializer.INSTANCE,
-                            new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
-
-            final String ns2 = "ns2";
-            ValueState<Integer> keyedState2 =
-                    backend.getPartitionedState(
-                            ns2,
+            String[] namespaces = new String[] {"ns1", "ns2"};
+            InternalValueState<Integer, String, Integer> keyedState =
+                    backend.createInternalState(
                             StringSerializer.INSTANCE,
                             new ValueStateDescriptor<>(fieldName, IntSerializer.INSTANCE));
 
             for (int key = 0; key < elementsNum; key++) {
                 backend.setCurrentKey(key);
-                keyedState1.update(key * 2);
-                keyedState2.update(key * 2);
+                for (String ns : namespaces) {
+                    keyedState.setCurrentNamespace(ns);
+                    keyedState.update(key * 2);
+                }
             }
-
             try (Stream<Tuple2<Integer, String>> stream = backend.getKeysAndNamespaces(fieldName)) {
                 final Map<String, Set<Integer>> keysByNamespace = new HashMap<>();
                 stream.forEach(
                         entry -> {
-                            assertThat("Unexpected namespace", entry.f1, isOneOf(ns1, ns2));
+                            assertThat("Unexpected namespace", entry.f1, isOneOf(namespaces));
                             assertThat(
                                     "Unexpected key",
                                     entry.f0,
@@ -499,6 +492,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                                     keysByNamespace.computeIfAbsent(entry.f1, k -> new HashSet<>());
                             assertTrue("Duplicate key for namespace", keys.add(entry.f0));
                         });
+                assertThat(keysByNamespace.size(), is(namespaces.length));
             }
         } finally {
             IOUtils.closeQuietly(backend);
