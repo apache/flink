@@ -113,7 +113,8 @@ public class SubtasksTimesHandler
             long duration = start >= 0 ? end - start : -1L;
 
             TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
-            String locationString = location == null ? "(unassigned)" : location.getHostname();
+            String locationString =
+                    location == null ? "(unassigned)" : location.getLocationString();
 
             Map<ExecutionState, Long> timestampMap =
                     CollectionUtil.newHashMapWithExpectedSize(ExecutionState.values().length);

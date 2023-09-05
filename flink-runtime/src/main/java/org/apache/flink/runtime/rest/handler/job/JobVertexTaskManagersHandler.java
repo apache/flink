@@ -142,9 +142,7 @@ public class JobVertexTaskManagersHandler
             for (AccessExecution execution : vertex.getCurrentExecutions()) {
                 TaskManagerLocation location = execution.getAssignedResourceLocation();
                 String taskManagerHost =
-                        location == null
-                                ? "(unassigned)"
-                                : location.getHostname() + ':' + location.dataPort();
+                        location == null ? "(unassigned)" : location.getLocationString();
                 String taskmanagerId =
                         location == null ? "(unassigned)" : location.getResourceID().toString();
                 taskManagerId2Host.put(taskmanagerId, taskManagerHost);

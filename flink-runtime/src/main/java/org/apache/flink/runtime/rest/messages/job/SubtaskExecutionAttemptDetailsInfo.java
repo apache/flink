@@ -204,9 +204,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 
         final TaskManagerLocation location = execution.getAssignedResourceLocation();
         final String locationString =
-                location == null
-                        ? "(unassigned)"
-                        : location.getHostname() + ":" + location.dataPort();
+                location == null ? "(unassigned)" : location.getLocationString();
         String taskmanagerId =
                 location == null ? "(unassigned)" : location.getResourceID().toString();
 

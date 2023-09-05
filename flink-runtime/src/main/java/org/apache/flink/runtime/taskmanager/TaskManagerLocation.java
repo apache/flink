@@ -275,6 +275,15 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
         return hostName;
     }
 
+    /**
+     * Gets the location string of the TaskManager in the format of "$HOST:$PORT".
+     *
+     * @return The location string of the TaskManager.
+     */
+    public String getLocationString() {
+        return String.format("%s:%d", getFQDNHostname(), dataPort);
+    }
+
     @Override
     public String toString() {
         if (stringRepresentation == null) {
