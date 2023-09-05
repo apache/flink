@@ -21,7 +21,12 @@ package org.apache.flink.table.planner.calcite;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions.ColumnExpansionStrategy;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.planner.catalog.CatalogSchemaTable;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.DecimalType;
@@ -50,6 +55,8 @@ import org.apache.calcite.sql.SqlWindowTableFunction;
 import org.apache.calcite.sql.validate.DelegatingScope;
 import org.apache.calcite.sql.validate.IdentifierNamespace;
 import org.apache.calcite.sql.validate.IdentifierSnapshotNamespace;
+import org.apache.calcite.sql.validate.SelectScope;
+import org.apache.calcite.sql.validate.SqlQualified;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorImpl;
@@ -66,9 +73,12 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.apache.calcite.sql.type.SqlTypeName.DECIMAL;
+import static org.apache.flink.table.expressions.resolver.lookups.FieldReferenceLookup.includeExpandedColumn;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Extends Calcite's {@link SqlValidator} by Flink-specific behavior. */
@@ -275,5 +285,40 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
                 relOptCluster,
                 frameworkConfig.getConvertletTable(),
                 frameworkConfig.getSqlToRelConverterConfig());
+    }
+
+    @Override
+    protected void addToSelectList(
+            List<SqlNode> list,
+            Set<String> aliases,
+            List<Map.Entry<String, RelDataType>> fieldList,
+            SqlNode exp,
+            SelectScope scope,
+            boolean includeSystemVars) {
+        final List<ColumnExpansionStrategy> strategies =
+                ShortcutUtils.unwrapTableConfig(relOptCluster)
+                        .get(TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY);
+        // Extract column's origin to apply strategy
+        if (!strategies.isEmpty() && exp instanceof SqlIdentifier) {
+            final SqlQualified qualified = scope.fullyQualify((SqlIdentifier) exp);
+            if (qualified.namespace != null && qualified.namespace.getTable() != null) {
+                final CatalogSchemaTable schemaTable =
+                        (CatalogSchemaTable) qualified.namespace.getTable().table();
+                final ResolvedSchema resolvedSchema =
+                        schemaTable.getContextResolvedTable().getResolvedSchema();
+                final String columnName = qualified.suffix().get(0);
+                final Column column = resolvedSchema.getColumn(columnName).orElse(null);
+                if (qualified.suffix().size() == 1 && column != null) {
+                    if (includeExpandedColumn(column, strategies)) {
+                        super.addToSelectList(
+                                list, aliases, fieldList, exp, scope, includeSystemVars);
+                    }
+                    return;
+                }
+            }
+        }
+
+        // Always add to list
+        super.addToSelectList(list, aliases, fieldList, exp, scope, includeSystemVars);
     }
 }
