@@ -271,7 +271,7 @@ public class JobExceptionsHandler
         // '(unassigned)' being the default value is added to support backward-compatibility for the
         // deprecated fields
         return location != null
-                ? taskManagerLocationToString(location.getFQDNHostname(), location.dataPort())
+                ? location.getLocationString()
                 : "(unassigned)";
     }
 
@@ -286,7 +286,7 @@ public class JobExceptionsHandler
     @Nullable
     static String toString(@Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
         return location != null
-                ? taskManagerLocationToString(location.getFQDNHostname(), location.getPort())
+                ? location.getLocationString()
                 : null;
     }
 
@@ -294,9 +294,5 @@ public class JobExceptionsHandler
     static String toTaskManagerId(
             @Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
         return location != null ? String.format("%s", location.getResourceID()) : null;
-    }
-
-    private static String taskManagerLocationToString(String fqdnHostname, int port) {
-        return String.format("%s:%d", fqdnHostname, port);
     }
 }

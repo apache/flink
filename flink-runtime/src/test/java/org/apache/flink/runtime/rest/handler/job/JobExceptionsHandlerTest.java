@@ -356,11 +356,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
         assertThat(
                 JobExceptionsHandler.toString(taskManagerLocation),
-                is(
-                        String.format(
-                                "%s:%s",
-                                taskManagerLocation.getFQDNHostname(),
-                                taskManagerLocation.dataPort())));
+                is(taskManagerLocation.getLocationString()));
     }
 
     @Test
@@ -376,11 +372,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
         assertThat(
                 JobExceptionsHandler.toString(taskManagerLocation),
-                is(
-                        String.format(
-                                "%s:%s",
-                                taskManagerLocation.getFQDNHostname(),
-                                taskManagerLocation.dataPort())));
+                is(taskManagerLocation.getLocationString()));
     }
 
     @Test
