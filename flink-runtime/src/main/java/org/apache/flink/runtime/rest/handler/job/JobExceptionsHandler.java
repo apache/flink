@@ -270,9 +270,7 @@ public class JobExceptionsHandler
     static String toString(@Nullable TaskManagerLocation location) {
         // '(unassigned)' being the default value is added to support backward-compatibility for the
         // deprecated fields
-        return location != null
-                ? location.getLocationString()
-                : "(unassigned)";
+        return location != null ? location.getLocationString() : "(unassigned)";
     }
 
     @VisibleForTesting
@@ -285,9 +283,7 @@ public class JobExceptionsHandler
     @VisibleForTesting
     @Nullable
     static String toString(@Nullable ExceptionHistoryEntry.ArchivedTaskManagerLocation location) {
-        return location != null
-                ? location.getLocationString()
-                : null;
+        return location != null ? location.getLocationString() : null;
     }
 
     @VisibleForTesting
