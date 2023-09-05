@@ -47,7 +47,9 @@
           <th [nzSortFn]="sortAttemptFn" (nzSortOrderChange)="collapseAll()" nzWidth="100px">
             Attempt
           </th>
-          <th [nzSortFn]="sortHostFn" (nzSortOrderChange)="collapseAll()" nzWidth="200px">Host</th>
+          <th [nzSortFn]="sortHostFn" (nzSortOrderChange)="collapseAll()" nzWidth="200px">
+            Host:port
+          </th>
           <th [nzSortFn]="sortStartTimeFn" (nzSortOrderChange)="collapseAll()" nzWidth="150px">
             Start Time
           </th>
