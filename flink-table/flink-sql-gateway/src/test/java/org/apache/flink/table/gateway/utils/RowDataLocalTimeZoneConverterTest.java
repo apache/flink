@@ -29,6 +29,8 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.jupiter.api.Test;
@@ -58,6 +60,15 @@ public class RowDataLocalTimeZoneConverterTest {
                         new MapType(
                                 new VarCharType(100),
                                 new MapType(new VarCharType(20), new LocalZonedTimestampType())));
+        List<LogicalType> logicalTypeListWithMultisetTimestamp =
+                Arrays.asList(new IntType(), new MultisetType(new LocalZonedTimestampType()));
+        List<LogicalType> logicalTypeListWithRowTimestamp =
+                Arrays.asList(
+                        new VarCharType(100),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowType.RowField("a", new LocalZonedTimestampType()),
+                                        new RowType.RowField("b", new IntType()))));
         assertFalse(
                 new RowDataLocalTimeZoneConverter(
                                 logicalTypeListWithoutTimestamp,
@@ -70,6 +81,16 @@ public class RowDataLocalTimeZoneConverterTest {
         assertTrue(
                 new RowDataLocalTimeZoneConverter(
                                 logicalTypeListWithMapTimestamp,
+                                TimeZone.getTimeZone("Asia/Shanghai"))
+                        .hasTimeZoneData());
+        assertTrue(
+                new RowDataLocalTimeZoneConverter(
+                                logicalTypeListWithMultisetTimestamp,
+                                TimeZone.getTimeZone("Asia/Shanghai"))
+                        .hasTimeZoneData());
+        assertTrue(
+                new RowDataLocalTimeZoneConverter(
+                                logicalTypeListWithRowTimestamp,
                                 TimeZone.getTimeZone("Asia/Shanghai"))
                         .hasTimeZoneData());
     }

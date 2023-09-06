@@ -32,6 +32,8 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.MultisetType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.DateTimeUtils;
 
 import java.time.ZoneId;
@@ -42,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 
 /**
  * Convert {@link LocalZonedTimestampType} data in {@link RowData} to {@link TimestampData} based on
@@ -80,6 +83,19 @@ public class RowDataLocalTimeZoneConverter {
             } else if (logicalType.getTypeRoot() == LogicalTypeRoot.ARRAY) {
                 ArrayType arrayType = (ArrayType) logicalType;
                 if (checkTimeZoneType(Collections.singletonList(arrayType.getElementType()))) {
+                    return true;
+                }
+            } else if (logicalType.getTypeRoot() == LogicalTypeRoot.MULTISET) {
+                MultisetType multisetType = (MultisetType) logicalType;
+                if (checkTimeZoneType(Collections.singletonList(multisetType.getElementType()))) {
+                    return true;
+                }
+            } else if (logicalType.getTypeRoot() == LogicalTypeRoot.ROW) {
+                RowType rowType = (RowType) logicalType;
+                if (checkTimeZoneType(
+                        rowType.getFields().stream()
+                                .map(RowType.RowField::getType)
+                                .collect(Collectors.toList()))) {
                     return true;
                 }
             }
