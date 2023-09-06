@@ -560,7 +560,7 @@ class RexNodeToExpressionConverter(
     relDataType match {
       case Some(dataType) =>
         val schema = NestedProjectionUtil.build(Collections.singletonList(fieldAccess), dataType)
-
+        val fieldIndices = NestedProjectionUtil.convertToIndexArray(schema)
         var (topLevelColumnName, nestedColumn) = schema.columns.head
         val fieldNames = new ArrayBuffer[String]()
 
@@ -574,6 +574,7 @@ class RexNodeToExpressionConverter(
         Some(
           new NestedFieldReferenceExpression(
             fieldNames.toArray,
+            fieldIndices(0),
             fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(fieldAccess.getType))))
     }
   }

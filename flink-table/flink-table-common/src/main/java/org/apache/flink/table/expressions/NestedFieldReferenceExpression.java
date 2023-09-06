@@ -31,6 +31,7 @@ import java.util.Objects;
  *
  * <ul>
  *   <li>nested field names to traverse from the top level column to the nested leaf column.
+ *   <li>nested field indices to traverse from the top level column to the nested leaf column.
  *   <li>type
  * </ul>
  */
@@ -40,10 +41,15 @@ public class NestedFieldReferenceExpression implements ResolvedExpression {
     /** Nested field names to traverse from the top level column to the nested leaf column. */
     private final String[] fieldNames;
 
+    /** Nested field index to traverse from the top level column to the nested leaf column. */
+    private final int[] fieldIndices;
+
     private final DataType dataType;
 
-    public NestedFieldReferenceExpression(String[] fieldNames, DataType dataType) {
+    public NestedFieldReferenceExpression(
+            String[] fieldNames, int[] fieldIndices, DataType dataType) {
         this.fieldNames = fieldNames;
+        this.fieldIndices = fieldIndices;
         this.dataType = dataType;
     }
 
@@ -51,8 +57,12 @@ public class NestedFieldReferenceExpression implements ResolvedExpression {
         return fieldNames;
     }
 
+    public int[] getFieldIndices() {
+        return fieldIndices;
+    }
+
     public String getName() {
-        return String.join("_", fieldNames);
+        return String.join(".", fieldNames);
     }
 
     @Override
@@ -89,12 +99,14 @@ public class NestedFieldReferenceExpression implements ResolvedExpression {
             return false;
         }
         NestedFieldReferenceExpression that = (NestedFieldReferenceExpression) o;
-        return Arrays.equals(fieldNames, that.fieldNames) && dataType.equals(that.dataType);
+        return Arrays.equals(fieldNames, that.fieldNames)
+                && Arrays.equals(fieldIndices, that.fieldIndices)
+                && dataType.equals(that.dataType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(fieldNames, dataType);
+        return Objects.hash(fieldNames, fieldIndices, dataType);
     }
 
     @Override
