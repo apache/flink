@@ -484,18 +484,7 @@ public class Path implements IOReadableWritable, Serializable {
     @Deprecated
     @Override
     public void write(DataOutputView out) throws IOException {
-        if (uri == null) {
-            out.writeBoolean(false);
-        } else {
-            out.writeBoolean(true);
-            StringUtils.writeNullableString(uri.getScheme(), out);
-            StringUtils.writeNullableString(uri.getUserInfo(), out);
-            StringUtils.writeNullableString(uri.getHost(), out);
-            out.writeInt(uri.getPort());
-            StringUtils.writeNullableString(uri.getPath(), out);
-            StringUtils.writeNullableString(uri.getQuery(), out);
-            StringUtils.writeNullableString(uri.getFragment(), out);
-        }
+        serializeToDataOutputView(this, out);
     }
 
     // ------------------------------------------------------------------------
