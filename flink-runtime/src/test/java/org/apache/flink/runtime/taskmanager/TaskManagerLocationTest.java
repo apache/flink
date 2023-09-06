@@ -80,12 +80,12 @@ class TaskManagerLocationTest {
                             assertThat(two).isNotEqualTo(three);
                             assertThat(three).isNotEqualTo(four);
 
-                            assertThat(one.compareTo(four)).isEqualTo(0);
-                            assertThat(four.compareTo(one)).isEqualTo(0);
-                            assertThat(one.compareTo(two)).isNotEqualTo(0);
-                            assertThat(one.compareTo(three)).isNotEqualTo(0);
-                            assertThat(two.compareTo(three)).isNotEqualTo(0);
-                            assertThat(three.compareTo(four)).isNotEqualTo(0);
+                            assertThat(one.compareTo(four)).isZero();
+                            assertThat(four.compareTo(one)).isZero();
+                            assertThat(one.compareTo(two)).isNotZero();
+                            assertThat(one.compareTo(three)).isNotZero();
+                            assertThat(two.compareTo(three)).isNotZero();
+                            assertThat(three.compareTo(four)).isNotZero();
 
                             {
                                 int val = one.compareTo(two);
@@ -120,9 +120,9 @@ class TaskManagerLocationTest {
         assertThat(one.hashCode()).isNotEqualTo(two.hashCode());
         assertThat(two.hashCode()).isNotEqualTo(three.hashCode());
 
-        assertThat(one.compareTo(three)).isEqualTo(0);
-        assertThat(one.compareTo(two)).isNotEqualTo(0);
-        assertThat(two.compareTo(three)).isNotEqualTo(0);
+        assertThat(one.compareTo(three)).isZero();
+        assertThat(one.compareTo(two)).isNotZero();
+        assertThat(two.compareTo(three)).isNotZero();
 
         int val = one.compareTo(two);
         assertThat(two.compareTo(one)).isEqualTo(-val);

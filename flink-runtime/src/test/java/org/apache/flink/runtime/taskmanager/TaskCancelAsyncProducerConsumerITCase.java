@@ -185,11 +185,9 @@ class TaskCancelAsyncProducerConsumerITCase {
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
         // Verify the expected Exceptions
-        assertThat(ASYNC_PRODUCER_EXCEPTION).isNotNull();
-        assertThat(ASYNC_PRODUCER_EXCEPTION).isInstanceOf(CancelTaskException.class);
+        assertThat(ASYNC_PRODUCER_EXCEPTION).isNotNull().isInstanceOf(CancelTaskException.class);
 
-        assertThat(ASYNC_CONSUMER_EXCEPTION).isNotNull();
-        assertThat(ASYNC_CONSUMER_EXCEPTION).isInstanceOf(IllegalStateException.class);
+        assertThat(ASYNC_CONSUMER_EXCEPTION).isNotNull().isInstanceOf(IllegalStateException.class);
     }
 
     /** Invokable emitting records in a separate Thread (not the main Task thread). */
