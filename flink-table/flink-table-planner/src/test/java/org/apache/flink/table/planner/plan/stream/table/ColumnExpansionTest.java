@@ -31,6 +31,7 @@ import java.util.Collections;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.range;
+import static org.apache.flink.table.api.Expressions.withAllColumns;
 import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.apache.flink.table.api.Expressions.withoutColumns;
 import static org.apache.flink.table.api.config.TableConfigOptions.ColumnExpansionStrategy.EXCLUDE_ALIASED_VIRTUAL_METADATA_COLUMNS;
@@ -95,7 +96,7 @@ public class ColumnExpansionTest {
 
         // From one table
         assertColumnNames(
-                tableEnv.from("t1").select($("*")),
+                tableEnv.from("t1").select(withAllColumns()),
                 "t1_i",
                 "t1_s",
                 "t1_m_aliased_virtual",
@@ -104,7 +105,7 @@ public class ColumnExpansionTest {
 
         // From one table with explicit selection of metadata column
         assertColumnNames(
-                tableEnv.from("t1").select($("t1_m_virtual"), $("*")),
+                tableEnv.from("t1").select($("t1_m_virtual"), withAllColumns()),
                 "t1_m_virtual",
                 "t1_i",
                 "t1_s",
@@ -114,7 +115,9 @@ public class ColumnExpansionTest {
 
         // Transitive metadata columns are always selected
         assertColumnNames(
-                tableEnv.from("t1").select($("t1_m_virtual"), $("*")).select($("*")),
+                tableEnv.from("t1")
+                        .select($("t1_m_virtual"), withAllColumns())
+                        .select(withAllColumns()),
                 "t1_m_virtual",
                 "t1_i",
                 "t1_s",
@@ -142,7 +145,7 @@ public class ColumnExpansionTest {
 
         // From one table
         assertColumnNames(
-                tableEnv.from("t1").select($("*")),
+                tableEnv.from("t1").select(withAllColumns()),
                 "t1_i",
                 "t1_s",
                 "t1_m_virtual",
@@ -151,7 +154,7 @@ public class ColumnExpansionTest {
 
         // From one table with explicit selection of metadata column
         assertColumnNames(
-                tableEnv.from("t1").select($("t1_m_aliased_virtual"), $("*")),
+                tableEnv.from("t1").select($("t1_m_aliased_virtual"), withAllColumns()),
                 "t1_m_aliased_virtual",
                 "t1_i",
                 "t1_s",
@@ -161,7 +164,9 @@ public class ColumnExpansionTest {
 
         // Transitive metadata columns are always selected
         assertColumnNames(
-                tableEnv.from("t1").select($("t1_m_aliased_virtual"), $("*")).select($("*")),
+                tableEnv.from("t1")
+                        .select($("t1_m_aliased_virtual"), withAllColumns())
+                        .select(withAllColumns()),
                 "t1_m_aliased_virtual",
                 "t1_i",
                 "t1_s",
