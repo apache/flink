@@ -83,6 +83,7 @@ public final class Expressions {
      * }</pre>
      *
      * @see #col(String)
+     * @see #withAllColumns()
      */
     // CHECKSTYLE.OFF: MethodName
     public static ApiExpression $(String name) {
@@ -101,6 +102,8 @@ public final class Expressions {
      * <pre>{@code
      * tab.select(col("key"), col("value"))
      * }</pre>
+     *
+     * @see #withAllColumns()
      */
     public static ApiExpression col(String name) {
         return $(name);
@@ -729,13 +732,33 @@ public final class Expressions {
     }
 
     /**
+     * Creates an expression that selects all columns. It can be used wherever an array of
+     * expression is accepted such as function calls, projections, or groupings.
+     *
+     * <p>This expression is a synonym of $("*"). It is semantically equal to {@code SELECT *} in
+     * SQL when used in a projection.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * tab.select(withAllColumns())
+     * }</pre>
+     *
+     * @see #withColumns(Object, Object...)
+     * @see #withoutColumns(Object, Object...)
+     */
+    public static ApiExpression withAllColumns() {
+        return $("*");
+    }
+
+    /**
      * Creates an expression that selects a range of columns. It can be used wherever an array of
      * expression is accepted such as function calls, projections, or groupings.
      *
      * <p>A range can either be index-based or name-based. Indices start at 1 and boundaries are
      * inclusive.
      *
-     * <p>e.g. withColumns(range("b", "c")) or withoutColumns($("*"))
+     * <p>e.g. withColumns(range("b", "c")) or withColumns($("*"))
      */
     public static ApiExpression withColumns(Object head, Object... tail) {
         return apiCallAtLeastOneArgument(BuiltInFunctionDefinitions.WITH_COLUMNS, head, tail);
