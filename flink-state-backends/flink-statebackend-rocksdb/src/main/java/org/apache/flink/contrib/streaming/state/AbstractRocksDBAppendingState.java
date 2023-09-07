@@ -68,16 +68,12 @@ abstract class AbstractRocksDBAppendingState<K, N, IN, SV, OUT>
     }
 
     @Override
-    public void updateInternal(SV valueToStore) {
+    public void updateInternal(SV valueToStore) throws RocksDBException {
         updateInternal(getKeyBytes(), valueToStore);
     }
 
-    void updateInternal(byte[] key, SV valueToStore) {
-        try {
-            // write the new value to RocksDB
-            backend.db.put(columnFamily, writeOptions, key, getValueBytes(valueToStore));
-        } catch (RocksDBException e) {
-            throw new FlinkRuntimeException("Error while adding value to RocksDB", e);
-        }
+    void updateInternal(byte[] key, SV valueToStore) throws RocksDBException {
+        // write the new value to RocksDB
+        backend.db.put(columnFamily, writeOptions, key, getValueBytes(valueToStore));
     }
 }

@@ -18,8 +18,6 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.util.FlinkRuntimeException;
-
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
 import org.rocksdb.RocksIteratorInterface;
@@ -103,12 +101,8 @@ public class RocksIteratorWrapper implements RocksIteratorInterface, Closeable {
     }
 
     @Override
-    public void status() {
-        try {
-            iterator.status();
-        } catch (RocksDBException ex) {
-            throw new FlinkRuntimeException("Internal exception found in RocksDB", ex);
-        }
+    public void status() throws RocksDBException {
+        iterator.status();
     }
 
     @Override
