@@ -122,7 +122,7 @@ public class TableConfigOptions {
                     .defaultValue(30)
                     .withDescription(
                             "When printing the query results to the client console, this parameter determines the number of characters shown on screen before truncating. "
-                                    + "This only applies to columns with variable-length types (e.g. STRING) in the streaming mode. "
+                                    + "This only applies to columns with variable-length types (e.g. CHAR, VARCHAR, STRING) in the streaming mode. "
                                     + "Fixed-length types are printed in the batch mode using a deterministic column width.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
