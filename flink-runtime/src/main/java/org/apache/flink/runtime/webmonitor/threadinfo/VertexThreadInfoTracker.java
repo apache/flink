@@ -317,9 +317,10 @@ public class VertexThreadInfoTracker implements VertexStatsTracker<VertexThreadI
                 new HashMap<>();
 
         for (AccessExecutionVertex executionVertex : executionVertices) {
-            if (executionVertex.getExecutionState() != ExecutionState.RUNNING) {
+            if (executionVertex.getExecutionState() != ExecutionState.RUNNING
+                    && executionVertex.getExecutionState() != ExecutionState.INITIALIZING) {
                 LOG.trace(
-                        "{} not running, but {}; not sampling",
+                        "{} not running or initializing, but {}; not sampling",
                         executionVertex.getTaskNameWithSubtaskIndex(),
                         executionVertex.getExecutionState());
                 continue;

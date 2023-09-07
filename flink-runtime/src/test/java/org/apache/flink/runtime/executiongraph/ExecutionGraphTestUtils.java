@@ -231,6 +231,16 @@ public class ExecutionGraphTestUtils {
 
     /**
      * Takes all vertices in the given ExecutionGraph and switches their current execution to
+     * INITIALIZING.
+     */
+    public static void switchAllVerticesToInitializing(ExecutionGraph eg) {
+        for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+            vertex.getCurrentExecutionAttempt().switchToInitializing();
+        }
+    }
+
+    /**
+     * Takes all vertices in the given ExecutionGraph and switches their current execution to
      * RUNNING.
      */
     public static void switchAllVerticesToRunning(ExecutionGraph eg) {
