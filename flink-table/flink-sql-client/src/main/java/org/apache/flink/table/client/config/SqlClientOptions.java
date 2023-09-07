@@ -67,7 +67,7 @@ public class SqlClientOptions {
                     .withFallbackKeys(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH.key())
                     .withDescription(
                             "Deprecated, please use table.display.max-column-width instead. When printing the query results, this parameter determines the number of characters shown on screen before truncating. "
-                                    + "This only applies to columns with variable-length types (e.g. STRING) in streaming mode. "
+                                    + "This only applies to columns with variable-length types (e.g. CHAR, VARCHAR, STRING) in streaming mode. "
                                     + "Fixed-length types and all types in batch mode are printed using a deterministic column width.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
