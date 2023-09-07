@@ -47,7 +47,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 /** Tests for {@link InternalTimeServiceManagerImpl}. */
 public class InternalTimeServiceManagerImplTest extends TestLogger {
@@ -72,6 +71,7 @@ public class InternalTimeServiceManagerImplTest extends TestLogger {
     public void testMetricsRegistration() throws Exception {
         final ArrayList<String> addGroupNames = new ArrayList<>();
         final ArrayList<String> registeredGaugeNames = new ArrayList<>();
+        DummyTrigger<Integer, Integer> trigger = new DummyTrigger<>();
 
         MetricGroup metricGroup =
                 new UnregisteredMetricsGroup() {
@@ -103,19 +103,13 @@ public class InternalTimeServiceManagerImplTest extends TestLogger {
 
         // Assert time-service metric
         timeServiceManager.getInternalTimerService(
-                "timer-service-1",
-                IntSerializer.INSTANCE,
-                IntSerializer.INSTANCE,
-                mock(Triggerable.class));
+                "timer-service-1", IntSerializer.INSTANCE, IntSerializer.INSTANCE, trigger);
         Assert.assertEquals(1, registeredGaugeNames.size());
         Assert.assertEquals(registeredGaugeNames.get(0), "timer-service-1");
 
         // Assert co-exist time-service metric
         timeServiceManager.getInternalTimerService(
-                "timer-service-2",
-                IntSerializer.INSTANCE,
-                IntSerializer.INSTANCE,
-                mock(Triggerable.class));
+                "timer-service-2", IntSerializer.INSTANCE, IntSerializer.INSTANCE, trigger);
         Assert.assertEquals(2, registeredGaugeNames.size());
         Assert.assertEquals(registeredGaugeNames.get(0), "timer-service-1");
         Assert.assertEquals(registeredGaugeNames.get(1), "timer-service-2");
@@ -128,6 +122,7 @@ public class InternalTimeServiceManagerImplTest extends TestLogger {
         final Map<String, Gauge<?>> registeredGauges = new HashMap<>();
         String timeServiceName = "time-service";
         TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
+        DummyTrigger<Integer, Integer> trigger = new DummyTrigger<>();
 
         MetricGroup metricGroup =
                 new UnregisteredMetricsGroup() {
@@ -151,10 +146,7 @@ public class InternalTimeServiceManagerImplTest extends TestLogger {
                         metricGroup);
         InternalTimerService<Integer> timeService =
                 timeServiceManager.getInternalTimerService(
-                        timeServiceName,
-                        IntSerializer.INSTANCE,
-                        IntSerializer.INSTANCE,
-                        mock(Triggerable.class));
+                        timeServiceName, IntSerializer.INSTANCE, IntSerializer.INSTANCE, trigger);
 
         // Make sure to adjust this test if metrics are added/removed
         assertEquals(1, registeredGauges.size());
@@ -210,7 +202,7 @@ public class InternalTimeServiceManagerImplTest extends TestLogger {
                 keyContext,
                 processingTimeService,
                 Collections.emptyList(),
-                mock(StreamTaskCancellationContext.class),
+                StreamTaskCancellationContext.alwaysRunning(),
                 metricGroup);
     }
 
@@ -222,5 +214,13 @@ public class InternalTimeServiceManagerImplTest extends TestLogger {
         public Object getCurrentKey() {
             return 0;
         }
+    }
+
+    private static class DummyTrigger<K, N> implements Triggerable<K, N> {
+        @Override
+        public void onEventTime(InternalTimer<K, N> timer) throws Exception {}
+
+        @Override
+        public void onProcessingTime(InternalTimer<K, N> timer) throws Exception {}
     }
 }
