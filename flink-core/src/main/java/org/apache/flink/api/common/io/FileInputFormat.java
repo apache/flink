@@ -841,8 +841,11 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
 
         this.currentSplit = fileSplit;
         this.splitStart = fileSplit.getStart();
-        this.splitLength = fileSplit.getLength();
-
+        final Path path = fileSplit.getPath();
+        this.splitLength =
+                testForUnsplittable(path.getFileSystem().getFileStatus(path))
+                        ? READ_WHOLE_SPLIT_FLAG
+                        : fileSplit.getLength();
         if (LOG.isDebugEnabled()) {
             LOG.debug(
                     "Opening input split "
