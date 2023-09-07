@@ -320,7 +320,7 @@ class ExecutionGraphRestartTest {
             // At this point all resources have been assigned
             for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
                 assertThat(vertex.getCurrentAssignedResource()).isNotNull();
-                vertex.getCurrentExecutionAttempt().switchToRecovering();
+                vertex.getCurrentExecutionAttempt().switchToInitializing();
                 vertex.getCurrentExecutionAttempt().switchToRunning();
             }
 
