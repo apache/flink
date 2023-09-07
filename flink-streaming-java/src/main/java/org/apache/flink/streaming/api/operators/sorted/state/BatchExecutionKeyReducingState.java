@@ -26,8 +26,6 @@ import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 
-import java.io.IOException;
-
 /** A {@link ReducingState} which keeps value for a single key at a time. */
 class BatchExecutionKeyReducingState<K, N, T>
         extends MergingAbstractBatchExecutionKeyState<K, N, T, T, T>
@@ -50,21 +48,17 @@ class BatchExecutionKeyReducingState<K, N, T>
     }
 
     @Override
-    public void add(T value) throws IOException {
+    public void add(T value) throws Exception {
         if (value == null) {
             clear();
             return;
         }
 
-        try {
-            T currentNamespaceValue = getCurrentNamespaceValue();
-            if (currentNamespaceValue != null) {
-                setCurrentNamespaceValue(reduceFunction.reduce(currentNamespaceValue, value));
-            } else {
-                setCurrentNamespaceValue(value);
-            }
-        } catch (Exception e) {
-            throw new IOException("Exception while applying ReduceFunction in reducing state", e);
+        T currentNamespaceValue = getCurrentNamespaceValue();
+        if (currentNamespaceValue != null) {
+            setCurrentNamespaceValue(reduceFunction.reduce(currentNamespaceValue, value));
+        } else {
+            setCurrentNamespaceValue(value);
         }
     }
 
