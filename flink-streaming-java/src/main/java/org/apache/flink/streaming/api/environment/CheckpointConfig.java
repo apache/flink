@@ -749,6 +749,7 @@ public class CheckpointConfig implements java.io.Serializable {
      *
      * @param storage The checkpoint storage policy.
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(CheckpointStorage storage) {
         Preconditions.checkNotNull(storage, "Checkpoint storage must not be null");
@@ -762,6 +763,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * @param checkpointDirectory The path to write checkpoint metadata to.
      * @see #setCheckpointStorage(CheckpointStorage)
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(String checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
@@ -775,6 +777,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * @param checkpointDirectory The path to write checkpoint metadata to.
      * @see #setCheckpointStorage(CheckpointStorage)
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(URI checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
@@ -788,6 +791,7 @@ public class CheckpointConfig implements java.io.Serializable {
      * @param checkpointDirectory The path to write checkpoint metadata to.
      * @see #setCheckpointStorage(String)
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(Path checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
@@ -799,6 +803,7 @@ public class CheckpointConfig implements java.io.Serializable {
      *     if none has been set.
      * @see #setCheckpointStorage(CheckpointStorage)
      */
+    @Deprecated
     @Nullable
     @PublicEvolving
     public CheckpointStorage getCheckpointStorage() {
