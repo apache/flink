@@ -1382,7 +1382,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
         switch (state.getExecutionState()) {
             case INITIALIZING:
-                return attempt.switchToRecovering();
+                return attempt.switchToInitializing();
 
             case RUNNING:
                 return attempt.switchToRunning();

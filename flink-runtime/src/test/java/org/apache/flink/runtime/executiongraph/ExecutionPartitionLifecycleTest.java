@@ -292,7 +292,7 @@ class ExecutionPartitionLifecycleTest {
         execution = executionVertex.getCurrentExecutionAttempt();
 
         scheduler.startScheduling();
-        execution.switchToRecovering();
+        execution.switchToInitializing();
         execution.switchToRunning();
 
         final IntermediateResultPartitionID expectedIntermediateResultPartitionId =
