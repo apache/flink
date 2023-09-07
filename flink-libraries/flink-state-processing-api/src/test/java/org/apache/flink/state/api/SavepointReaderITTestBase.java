@@ -295,7 +295,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
             listState.update(elements);
 
-            unionState.addAll(elements);
+            unionState.update(elements);
         }
 
         @Override

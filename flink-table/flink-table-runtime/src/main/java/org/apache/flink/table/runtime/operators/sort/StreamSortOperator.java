@@ -127,7 +127,7 @@ public class StreamSortOperator extends TableStreamOperator<RowData>
         List<Tuple2<RowData, Long>> dataToFlush = new ArrayList<>(inputBuffer.size());
         inputBuffer.forEach((key, value) -> dataToFlush.add(Tuple2.of(key, value)));
 
-        // batch put
+        // batch update
         bufferState.update(dataToFlush);
     }
 
