@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.connectors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -116,13 +117,20 @@ public final class CollectDynamicSink implements DynamicTableSink {
                                 externalSerializer, accumulatorName, maxBatchSize, socketTimeout);
                 final CollectSinkOperator<RowData> operator =
                         (CollectSinkOperator<RowData>) factory.getOperator();
+                final long resultFetchTimeout =
+                        inputStream
+                                .getExecutionEnvironment()
+                                .getConfiguration()
+                                .get(AkkaOptions.ASK_TIMEOUT_DURATION)
+                                .toMillis();
 
                 iterator =
                         new CollectResultIterator<>(
                                 operator.getOperatorIdFuture(),
                                 externalSerializer,
                                 accumulatorName,
-                                checkpointConfig);
+                                checkpointConfig,
+                                resultFetchTimeout);
                 converter = context.createDataStructureConverter(consumedDataType);
                 converter.open(RuntimeConverter.Context.create(classLoader));
 
