@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators.collect;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -55,9 +56,12 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
             CompletableFuture<OperatorID> operatorIdFuture,
             TypeSerializer<T> serializer,
             String accumulatorName,
-            CheckpointConfig checkpointConfig) {
+            CheckpointConfig checkpointConfig,
+            long resultFetchTimeout) {
         AbstractCollectResultBuffer<T> buffer = createBuffer(serializer, checkpointConfig);
-        this.fetcher = new CollectResultFetcher<>(buffer, operatorIdFuture, accumulatorName);
+        this.fetcher =
+                new CollectResultFetcher<>(
+                        buffer, operatorIdFuture, accumulatorName, resultFetchTimeout);
         this.bufferedResult = null;
     }
 
@@ -68,7 +72,12 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
             String accumulatorName,
             int retryMillis) {
         this.fetcher =
-                new CollectResultFetcher<>(buffer, operatorIdFuture, accumulatorName, retryMillis);
+                new CollectResultFetcher<>(
+                        buffer,
+                        operatorIdFuture,
+                        accumulatorName,
+                        retryMillis,
+                        AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
         this.bufferedResult = null;
     }
 
