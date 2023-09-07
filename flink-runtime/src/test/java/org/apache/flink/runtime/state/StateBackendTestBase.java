@@ -492,7 +492,10 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
                                     keysByNamespace.computeIfAbsent(entry.f1, k -> new HashSet<>());
                             assertTrue("Duplicate key for namespace", keys.add(entry.f0));
                         });
-                assertThat(keysByNamespace.size(), is(namespaces.length));
+                assertThat(
+                        "Unexpected namespaces count",
+                        keysByNamespace.size(),
+                        is(namespaces.length));
             }
         } finally {
             IOUtils.closeQuietly(backend);
