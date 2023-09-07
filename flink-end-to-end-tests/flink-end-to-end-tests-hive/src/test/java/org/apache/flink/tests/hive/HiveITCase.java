@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
-import org.apache.flink.tests.hive.containers.HiveContainer;
+import org.apache.flink.tests.hive.containers.HiveContainers;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
@@ -69,8 +69,8 @@ public class HiveITCase extends TestLogger {
     @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
     @ClassRule
-    public static final HiveContainer HIVE_CONTAINER =
-            new HiveContainer(
+    public static final HiveContainers.HiveContainer HIVE_CONTAINER =
+            HiveContainers.createHiveContainer(
                     Arrays.asList("hive_sink1", "hive_sink2", "h_table_sink1", "h_table_sink2"));
 
     private static final String HIVE_ADD_ONE_UDF_CLASS = "HiveAddOneFunc";
