@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -33,7 +33,7 @@ import java.util.List;
  * Base test case for built-in FIRST_VALUE and LAST_VALUE (with retract) aggregate function. This
  * class tests `accumulate` method with order argument.
  */
-public abstract class FirstLastValueAggFunctionWithOrderTestBase<T, ACC>
+abstract class FirstLastValueAggFunctionWithOrderTestBase<T, ACC>
         extends AggFunctionTestBase<T, T, ACC> {
 
     protected Method getAccumulateFunc() throws NoSuchMethodException {
@@ -46,7 +46,7 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T, ACC>
 
     @Test
     @Override
-    public void testAccumulateAndRetractWithoutMerge()
+    void testAccumulateAndRetractWithoutMerge()
             throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         // iterate over input sets
         List<List<T>> inputValueSets = getInputValueSets();
@@ -80,7 +80,7 @@ public abstract class FirstLastValueAggFunctionWithOrderTestBase<T, ACC>
 
     @Test
     @Override
-    public void testResetAccumulator()
+    void testResetAccumulator()
             throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         AggregateFunction<T, ACC> aggregator = getAggregator();
         if (UserDefinedFunctionUtils.ifMethodExistInFunction("resetAccumulator", aggregator)) {
