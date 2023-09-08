@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -78,7 +78,7 @@ public class SocketClientSinkTest extends TestLogger {
                         try {
                             SocketClientSink<String> simpleSink =
                                     new SocketClientSink<>(host, port, simpleSchema, 0);
-                            simpleSink.open(new Configuration());
+                            simpleSink.open(DefaultOpenContext.INSTANCE);
                             simpleSink.invoke(TEST_MESSAGE + '\n', SinkContextUtil.forTimestamp(0));
                             simpleSink.close();
                         } catch (Throwable t) {
@@ -113,7 +113,7 @@ public class SocketClientSinkTest extends TestLogger {
 
         final SocketClientSink<String> simpleSink =
                 new SocketClientSink<>(host, port, simpleSchema, 0, true);
-        simpleSink.open(new Configuration());
+        simpleSink.open(DefaultOpenContext.INSTANCE);
 
         final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
@@ -175,7 +175,7 @@ public class SocketClientSinkTest extends TestLogger {
 
             SocketClientSink<String> simpleSink =
                     new SocketClientSink<>(host, port, simpleSchema, 0, true);
-            simpleSink.open(new Configuration());
+            simpleSink.open(DefaultOpenContext.INSTANCE);
 
             // wait socket server to close
             serverRunner.join();
@@ -243,7 +243,7 @@ public class SocketClientSinkTest extends TestLogger {
                             host, serverSocket[0].getLocalPort(), simpleSchema, -1, true);
 
             // Create the connection
-            sink.open(new Configuration());
+            sink.open(DefaultOpenContext.INSTANCE);
 
             // Initial payload => this will be received by the server an then the socket will be
             // closed.

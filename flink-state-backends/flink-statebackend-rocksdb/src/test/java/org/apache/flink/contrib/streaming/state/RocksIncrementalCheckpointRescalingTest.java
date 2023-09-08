@@ -18,11 +18,11 @@
 
 package org.apache.flink.contrib.streaming.state;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -428,8 +428,8 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
         private ValueState<Integer> counterState;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             counterState =
                     this.getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("counter", Integer.class));

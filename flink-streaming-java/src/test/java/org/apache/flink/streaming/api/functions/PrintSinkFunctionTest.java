@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.api.functions;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
@@ -65,7 +65,7 @@ public class PrintSinkFunctionTest {
         PrintSinkFunction<String> printSink = new PrintSinkFunction<>();
         printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
 
-        printSink.open(new Configuration());
+        printSink.open(DefaultOpenContext.INSTANCE);
 
         printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 
@@ -78,7 +78,7 @@ public class PrintSinkFunctionTest {
     public void testPrintSinkStdErr() throws Exception {
         PrintSinkFunction<String> printSink = new PrintSinkFunction<>(true);
         printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
-        printSink.open(new Configuration());
+        printSink.open(DefaultOpenContext.INSTANCE);
 
         printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 
@@ -91,7 +91,7 @@ public class PrintSinkFunctionTest {
     public void testPrintSinkWithPrefix() throws Exception {
         PrintSinkFunction<String> printSink = new PrintSinkFunction<>();
         printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 2, 1));
-        printSink.open(new Configuration());
+        printSink.open(DefaultOpenContext.INSTANCE);
 
         printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 
@@ -104,7 +104,7 @@ public class PrintSinkFunctionTest {
     public void testPrintSinkWithIdentifierAndPrefix() throws Exception {
         PrintSinkFunction<String> printSink = new PrintSinkFunction<>("mySink", false);
         printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 2, 1));
-        printSink.open(new Configuration());
+        printSink.open(DefaultOpenContext.INSTANCE);
 
         printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 
@@ -117,7 +117,7 @@ public class PrintSinkFunctionTest {
     public void testPrintSinkWithIdentifierButNoPrefix() throws Exception {
         PrintSinkFunction<String> printSink = new PrintSinkFunction<>("mySink", false);
         printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
-        printSink.open(new Configuration());
+        printSink.open(DefaultOpenContext.INSTANCE);
 
         printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 

@@ -20,10 +20,10 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
-import org.apache.flink.configuration.Configuration;
 
 import org.junit.jupiter.api.Test;
 
@@ -63,7 +63,7 @@ class CollectionExecutionAccumulatorsTest {
         private IntCounter accumulator;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             accumulator = getRuntimeContext().getIntCounter(ACCUMULATOR_NAME);
         }
 

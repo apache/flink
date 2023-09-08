@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
@@ -295,7 +296,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             sum = getRuntimeContext().getState(new ValueStateDescriptor<>("my_state", Long.class));
         }
 
@@ -342,7 +343,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
         private transient ValueState<Long> bCounts;
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             aCounts =
                     getRuntimeContext()
                             .getState(new ValueStateDescriptor<>("a", NonSerializableLong.class));

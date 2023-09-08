@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.common.functions.RichCoGroupFunction
+import org.apache.flink.api.common.functions.{OpenContext, RichCoGroupFunction}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
@@ -163,7 +163,7 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
           (Int, Int, Int)] {
           private var broadcast = 41
 
-          override def open(config: Configuration) {
+          override def open(openContext: OpenContext) {
             val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
             broadcast = ints.sum
           }

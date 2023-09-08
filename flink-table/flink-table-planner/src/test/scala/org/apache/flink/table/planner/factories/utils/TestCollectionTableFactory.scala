@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.factories.utils
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.functions.OpenContext
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
@@ -166,7 +167,7 @@ object TestCollectionTableFactory {
   class UnsafeMemorySinkFunction(outputType: TypeInformation[Row]) extends RichSinkFunction[Row] {
     private var serializer: TypeSerializer[Row] = _
 
-    override def open(param: Configuration): Unit = {
+    override def open(openContext: OpenContext): Unit = {
       serializer = outputType.createSerializer(new ExecutionConfig)
     }
 

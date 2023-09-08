@@ -19,6 +19,7 @@
 package org.apache.flink.test.cancelling;
 
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichJoinFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.operators.base.JoinOperatorBase;
@@ -26,7 +27,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.InfiniteIntegerTupleInputFormat;
 import org.apache.flink.test.util.UniformIntTupleGeneratorInputFormat;
 
@@ -222,7 +222,7 @@ public class JoinCancelingITCase extends CancelingTestBase {
         private static final long serialVersionUID = 1L;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             synchronized (this) {
                 wait();
             }

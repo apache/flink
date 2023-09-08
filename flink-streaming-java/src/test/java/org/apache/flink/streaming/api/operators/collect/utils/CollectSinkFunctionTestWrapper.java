@@ -20,10 +20,10 @@ package org.apache.flink.streaming.api.operators.collect.utils;
 
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -99,7 +99,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
         function = new CollectSinkFunction<>(serializer, maxBytesPerBatch, ACCUMULATOR_NAME);
         function.setRuntimeContext(runtimeContext);
         function.setOperatorEventGateway(gateway);
-        function.open(new Configuration());
+        function.open(DefaultOpenContext.INSTANCE);
         coordinator.handleEventFromOperator(0, 0, gateway.getNextEvent());
     }
 
@@ -109,7 +109,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
         function.setRuntimeContext(runtimeContext);
         function.setOperatorEventGateway(gateway);
         function.initializeState(functionInitializationContext);
-        function.open(new Configuration());
+        function.open(DefaultOpenContext.INSTANCE);
         coordinator.handleEventFromOperator(0, 0, gateway.getNextEvent());
     }
 

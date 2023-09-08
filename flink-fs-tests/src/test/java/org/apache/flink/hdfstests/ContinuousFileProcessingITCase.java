@@ -18,13 +18,13 @@
 
 package org.apache.flink.hdfstests;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -214,7 +214,7 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
         private transient Comparator<String> comparator;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             // this sink can only work with DOP 1
             assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
 

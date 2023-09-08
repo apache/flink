@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -78,7 +79,7 @@ public class InputFormatSourceFunctionTest {
             Assert.assertTrue(!format.isInputFormatOpen);
             Assert.assertTrue(!format.isSplitOpen);
 
-            reader.open(new Configuration());
+            reader.open(DefaultOpenContext.INSTANCE);
             Assert.assertTrue(format.isConfigured);
 
             TestSourceContext ctx = new TestSourceContext(reader, format, midCancel, cancelAt);

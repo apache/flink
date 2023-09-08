@@ -21,6 +21,7 @@ package org.apache.flink.api.common.operators.base;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.Partitioner;
@@ -222,7 +223,7 @@ public class GroupReduceOperatorBase<IN, OUT, FT extends GroupReduceFunction<IN,
         }
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         ArrayList<OUT> result = new ArrayList<OUT>();
 

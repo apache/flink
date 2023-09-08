@@ -19,9 +19,9 @@
 package org.apache.flink.state.api.input.operator.window;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -49,8 +49,8 @@ public abstract class EvictingWindowReaderFunction<IN, R, OUT, KEY, W extends Wi
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        FunctionUtils.openFunction(wrappedFunction, parameters);
+    public void open(OpenContext openContext) throws Exception {
+        FunctionUtils.openFunction(wrappedFunction, openContext);
     }
 
     @Override
