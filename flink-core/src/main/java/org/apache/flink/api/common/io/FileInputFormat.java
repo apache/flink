@@ -157,6 +157,10 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
         }
     }
 
+    public static Set<String> getSupportedCompressionFormats() {
+        return INFLATER_INPUT_STREAM_FACTORIES.keySet();
+    }
+
     /**
      * Returns the extension of a file name (!= a path).
      *

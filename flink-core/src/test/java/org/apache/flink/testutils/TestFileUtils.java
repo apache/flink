@@ -26,6 +26,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 
+import org.apache.flink.api.common.io.FileInputFormat;
+
 public class TestFileUtils {
 
     private static final String FILE_PREFIX = "flink_test_";
@@ -131,6 +133,25 @@ public class TestFileUtils {
 
             try (BufferedWriter out = new BufferedWriter(new FileWriter(child))) {
                 out.write(s);
+            }
+        }
+        return f.toURI().toString();
+    }
+
+    public static String createTempTextFileDirCompressionFormats(File tempDir) throws IOException {
+        File f = null;
+        do {
+            f = new File(tempDir, randomFileName(FILE_SUFFIX));
+        } while (f.exists());
+        f.mkdirs();
+        f.deleteOnExit();
+
+        for (String extension : FileInputFormat.getSupportedCompressionFormats()) {
+            File child = new File(f, randomFileName("." + extension));
+            child.deleteOnExit();
+
+            try (BufferedWriter out = new BufferedWriter(new FileWriter(child))) {
+                out.write("random text " + Math.random());
             }
         }
         return f.toURI().toString();
