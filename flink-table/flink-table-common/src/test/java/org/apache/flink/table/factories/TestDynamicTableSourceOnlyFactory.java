@@ -19,7 +19,10 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.ScanTableSource;
 
 import java.util.Collections;
 import java.util.Set;
@@ -32,9 +35,14 @@ public final class TestDynamicTableSourceOnlyFactory implements DynamicTableSour
 
     public static final String IDENTIFIER = "source-only";
 
+    private static final ConfigOption<Boolean> BOUNDED =
+            ConfigOptions.key("bounded").booleanType().defaultValue(false);
+
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
-        return null;
+        FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+        boolean isBounded = helper.getOptions().get(BOUNDED);
+        return new MockedScanTableSource(isBounded);
     }
 
     @Override
@@ -49,6 +57,35 @@ public final class TestDynamicTableSourceOnlyFactory implements DynamicTableSour
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return Collections.emptySet();
+        return Collections.singleton(BOUNDED);
+    }
+
+    /** A mocked {@link ScanTableSource} for validation test. */
+    private static class MockedScanTableSource implements ScanTableSource {
+        private final boolean isBounded;
+
+        private MockedScanTableSource(boolean isBounded) {
+            this.isBounded = isBounded;
+        }
+
+        @Override
+        public DynamicTableSource copy() {
+            return null;
+        }
+
+        @Override
+        public String asSummaryString() {
+            return null;
+        }
+
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return ChangelogMode.insertOnly();
+        }
+
+        @Override
+        public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+            return () -> isBounded;
+        }
     }
 }
