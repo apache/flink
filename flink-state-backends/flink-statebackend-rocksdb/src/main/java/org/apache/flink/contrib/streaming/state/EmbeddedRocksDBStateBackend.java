@@ -486,6 +486,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                 latencyTrackingConfigBuilder.setMetricGroup(metricGroup).build();
         RocksDBKeyedStateBackendBuilder<K> builder =
                 new RocksDBKeyedStateBackendBuilder<>(
+                                (configurableOptions != null
+                                        ? configurableOptions
+                                        : new Configuration()),
                                 operatorIdentifier,
                                 env.getUserCodeClassLoader().asClassLoader(),
                                 instanceBasePath,

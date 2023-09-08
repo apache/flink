@@ -161,6 +161,7 @@ public class StateBackendBenchmarkUtils {
         RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
         RocksDBKeyedStateBackendBuilder<Long> builder =
                 new RocksDBKeyedStateBackendBuilder<>(
+                        new Configuration(),
                         "Test",
                         Thread.currentThread().getContextClassLoader(),
                         dbPathFile,

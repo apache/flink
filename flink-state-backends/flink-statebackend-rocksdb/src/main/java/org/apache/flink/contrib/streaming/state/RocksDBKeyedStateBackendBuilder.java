@@ -21,6 +21,7 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBFullRestoreOperation;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBHeapTimersFullRestoreOperation;
 import org.apache.flink.contrib.streaming.state.restore.RocksDBIncrementalRestoreOperation;
@@ -88,6 +89,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
     static final String DB_INSTANCE_DIR_STRING = "db";
 
+    private final ReadableConfig configuration;
+
     /** String that identifies the operator that owns this backend. */
     private final String operatorIdentifier;
 
@@ -126,6 +129,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     private RocksDBStateUploader injectRocksDBStateUploader; // for testing
 
     public RocksDBKeyedStateBackendBuilder(
+            ReadableConfig configuration,
             String operatorIdentifier,
             ClassLoader userCodeClassLoader,
             File instanceBasePath,
@@ -158,6 +162,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 keyGroupCompressionDecorator,
                 cancelStreamRegistry);
 
+        this.configuration = configuration;
         this.operatorIdentifier = operatorIdentifier;
         this.priorityQueueStateType = priorityQueueStateType;
         this.localRecoveryConfig = localRecoveryConfig;
@@ -175,6 +180,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
 
     @VisibleForTesting
     RocksDBKeyedStateBackendBuilder(
+            ReadableConfig configuration,
             String operatorIdentifier,
             ClassLoader userCodeClassLoader,
             File instanceBasePath,
@@ -196,6 +202,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             ColumnFamilyHandle injectedDefaultColumnFamilyHandle,
             CloseableRegistry cancelStreamRegistry) {
         this(
+                configuration,
                 operatorIdentifier,
                 userCodeClassLoader,
                 instanceBasePath,
@@ -586,7 +593,9 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                                 writeBatchWrapper,
                                 nativeMetricMonitor,
                                 columnFamilyOptionsFactory,
-                                optionsContainer.getWriteBufferManagerCapacity());
+                                optionsContainer.getWriteBufferManagerCapacity(),
+                                configuration.get(
+                                        RocksDBOptions.ROCKSDB_TIMER_SERVICE_FACTORY_CACHE_SIZE));
                 break;
             default:
                 throw new IllegalArgumentException(

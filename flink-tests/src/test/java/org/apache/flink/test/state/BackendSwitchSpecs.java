@@ -21,6 +21,7 @@ package org.apache.flink.test.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
@@ -95,6 +96,7 @@ public final class BackendSwitchSpecs {
 
             temporaryFolder.create();
             return new RocksDBKeyedStateBackendBuilder<>(
+                             new Configuration(),
                             "no-op",
                             ClassLoader.getSystemClassLoader(),
                             temporaryFolder.newFolder(),

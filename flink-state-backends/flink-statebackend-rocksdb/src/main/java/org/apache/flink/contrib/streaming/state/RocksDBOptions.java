@@ -31,6 +31,7 @@ import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.FLASH_SSD_OPTIMIZED;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM;
+import static org.apache.flink.contrib.streaming.state.RocksDBPriorityQueueSetFactory.DEFAULT_CACHES_SIZE;
 
 /** Configuration options for the RocksDB backend. */
 public class RocksDBOptions {
@@ -61,6 +62,16 @@ public class RocksDBOptions {
                             .defaultValue(ROCKSDB)
                             .withDescription(
                                     "This determines the factory for timer service state implementation.");
+
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    public static final ConfigOption<Integer> ROCKSDB_TIMER_SERVICE_FACTORY_CACHE_SIZE =
+            ConfigOptions.key("state.backend.rocksdb.timer-service.cache-size")
+                    .intType()
+                    .defaultValue(DEFAULT_CACHES_SIZE)
+                    .withDescription(
+                            String.format(
+                                    "The cache size for rocksdb timer service factory. This option only has an effect when '%s' is configured to '%s'",
+                                    TIMER_SERVICE_FACTORY.key(), ROCKSDB.name()));
 
     /**
      * The number of threads used to transfer (download and upload) files in RocksDBStateBackend.
