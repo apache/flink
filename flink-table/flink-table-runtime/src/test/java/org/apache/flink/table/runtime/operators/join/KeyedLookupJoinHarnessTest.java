@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -454,7 +454,7 @@ public class KeyedLookupJoinHarnessTest {
         private transient Map<Integer, Integer> accessCounter;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             baseData.clear();
             baseData.put(1, Collections.singletonList(GenericRowData.of(1, fromString("Julian"))));
             baseData.put(

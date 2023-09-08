@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
@@ -31,7 +32,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -167,8 +167,8 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
             dos =
                     new DataOutputStream(
@@ -211,8 +211,8 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
             File partitionFile = allPartitions.get(subtaskIdx);
             fileLength = partitionFile.length();
@@ -313,8 +313,8 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             Preconditions.checkState(getRuntimeContext().getNumberOfParallelSubtasks() == 1);
         }
 

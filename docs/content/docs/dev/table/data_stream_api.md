@@ -1047,7 +1047,7 @@ joinedStream
           ValueState<String> seen;
 
           @Override
-          public void open(Configuration parameters) {
+          public void open(OpenContext openContext) {
               seen = getRuntimeContext().getState(
                   new ValueStateDescriptor<>("seen", String.class));
           }

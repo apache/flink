@@ -22,6 +22,7 @@ import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
@@ -867,7 +868,7 @@ public class CEPITCase extends AbstractTestBase {
                                 new RichPatternFlatSelectFunction<Event, String>() {
 
                                     @Override
-                                    public void open(Configuration config) {
+                                    public void open(OpenContext openContext) {
                                         try {
                                             getRuntimeContext()
                                                     .getMapState(
@@ -963,7 +964,7 @@ public class CEPITCase extends AbstractTestBase {
                         .select(
                                 new RichPatternSelectFunction<Event, String>() {
                                     @Override
-                                    public void open(Configuration config) {
+                                    public void open(OpenContext openContext) {
                                         try {
                                             getRuntimeContext()
                                                     .getMapState(

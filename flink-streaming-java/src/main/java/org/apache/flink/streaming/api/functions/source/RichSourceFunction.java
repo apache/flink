@@ -19,11 +19,12 @@ package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 
 /**
  * Base class for implementing a parallel data source that has access to context information (via
- * {@link #getRuntimeContext()}) and additional life-cycle methods ({@link
- * #open(org.apache.flink.configuration.Configuration)} and {@link #close()}.
+ * {@link #getRuntimeContext()}) and additional life-cycle methods ({@link #open(OpenContext)} and
+ * {@link #close()}.
  *
  * <p>This class is useful when implementing parallel sources where different parallel subtasks need
  * to perform different work. Typical patterns for that are:

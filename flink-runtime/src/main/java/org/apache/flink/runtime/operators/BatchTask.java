@@ -21,8 +21,10 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -500,7 +502,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
             if (this.stub != null) {
                 try {
                     Configuration stubConfig = this.config.getStubParameters();
-                    FunctionUtils.openFunction(this.stub, stubConfig);
+                    FunctionUtils.openFunction(this.stub, DefaultOpenContext.INSTANCE);
                     stubOpen = true;
                 } catch (Throwable t) {
                     throw new Exception(
@@ -1481,7 +1483,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
 
     /**
      * Opens the given stub using its {@link
-     * org.apache.flink.api.common.functions.RichFunction#open(Configuration)} method. If the open
+     * org.apache.flink.api.common.functions.RichFunction#open(OpenContext)} method. If the open
      * call produces an exception, a new exception with a standard error message is created, using
      * the encountered exception as its cause.
      *
@@ -1491,7 +1493,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable
      */
     public static void openUserCode(Function stub, Configuration parameters) throws Exception {
         try {
-            FunctionUtils.openFunction(stub, parameters);
+            FunctionUtils.openFunction(stub, DefaultOpenContext.INSTANCE);
         } catch (Throwable t) {
             throw new Exception(
                     "The user defined 'open(Configuration)' method in "

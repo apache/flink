@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.util.Collector;
@@ -41,8 +42,8 @@ import org.apache.flink.util.OutputTag;
  * org.apache.flink.api.common.functions.RichFunction}. Therefore, access to the {@link
  * org.apache.flink.api.common.functions.RuntimeContext} is always available and setup and teardown
  * methods can be implemented. See {@link
- * org.apache.flink.api.common.functions.RichFunction#open(org.apache.flink.configuration.Configuration)}
- * and {@link org.apache.flink.api.common.functions.RichFunction#close()}.
+ * org.apache.flink.api.common.functions.RichFunction#open(OpenContext)} and {@link
+ * org.apache.flink.api.common.functions.RichFunction#close()}.
  *
  * @param <I> Type of the input elements.
  * @param <O> Type of the output elements.

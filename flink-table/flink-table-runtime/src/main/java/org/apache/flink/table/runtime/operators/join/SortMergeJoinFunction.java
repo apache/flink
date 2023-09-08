@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -208,7 +208,7 @@ public class SortMergeJoinFunction implements Serializable {
         keyComparator = genKeyComparator.newInstance(cl);
         this.condFunc = condFuncCode.newInstance(cl);
         condFunc.setRuntimeContext(runtimeContext);
-        condFunc.open(new Configuration());
+        condFunc.open(DefaultOpenContext.INSTANCE);
 
         projection1 = projectionCode1.newInstance(cl);
         projection2 = projectionCode2.newInstance(cl);

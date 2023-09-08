@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.api.functions.source;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.util.SplittableIterator;
 
 import java.util.Iterator;
@@ -47,7 +47,7 @@ public class FromSplittableIteratorFunction<T> extends RichParallelSourceFunctio
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         int numberOfSubTasks = getRuntimeContext().getNumberOfParallelSubtasks();
         int indexofThisSubTask = getRuntimeContext().getIndexOfThisSubtask();
         iterator = fullIterator.split(numberOfSubTasks)[indexofThisSubTask];

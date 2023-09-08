@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.state.operator.restore.keyed;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
@@ -173,7 +174,7 @@ public class KeyedJob {
         }
 
         @Override
-        public void open(Configuration config) {
+        public void open(OpenContext openContext) {
             this.state =
                     getRuntimeContext()
                             .getListState(new ListStateDescriptor<>("values", Integer.class));

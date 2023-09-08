@@ -17,7 +17,7 @@
  */
 package org.apache.flink.streaming.api.scala.function.util
 
-import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.functions.{OpenContext, RuntimeContext}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.windowing.{ProcessAllWindowFunction => JProcessAllWindowFunction}
 import org.apache.flink.streaming.api.functions.windowing.{ProcessWindowFunction => JProcessWindowFunction}
@@ -94,10 +94,10 @@ final class ScalaProcessWindowFunctionWrapper[IN, OUT, KEY, W <: Window](
     }
   }
 
-  override def open(parameters: Configuration): Unit = {
-    super.open(parameters)
+  override def open(openContext: OpenContext): Unit = {
+    super.open(openContext)
     func match {
-      case rfunc: ScalaProcessWindowFunction[IN, OUT, KEY, W] => rfunc.open(parameters)
+      case rfunc: ScalaProcessWindowFunction[IN, OUT, KEY, W] => rfunc.open(openContext)
       case _ =>
     }
   }
@@ -160,10 +160,10 @@ final class ScalaProcessAllWindowFunctionWrapper[IN, OUT, W <: Window](
     }
   }
 
-  override def open(parameters: Configuration): Unit = {
-    super.open(parameters)
+  override def open(openContext: OpenContext): Unit = {
+    super.open(openContext)
     func match {
-      case rfunc: ScalaProcessAllWindowFunction[IN, OUT, W] => rfunc.open(parameters)
+      case rfunc: ScalaProcessAllWindowFunction[IN, OUT, W] => rfunc.open(openContext)
       case _ =>
     }
   }
