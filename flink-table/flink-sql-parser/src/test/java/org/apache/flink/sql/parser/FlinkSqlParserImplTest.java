@@ -63,12 +63,23 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("desc catalog a").ok("DESCRIBE CATALOG `A`");
     }
 
-    // ignore test methods that we don't support
-    // BEGIN
-    // ARRAY_AGG
-    @Disabled
     @Test
-    void testArrayAgg() {}
+    void testArrayAgg() {
+        sql("select\n"
+                        + "  array_agg(ename respect nulls order by deptno, ename) as c1,\n"
+                        + "  array_agg(ename order by deptno, ename desc) as c2,\n"
+                        + "  array_agg(distinct ename) as c3,\n"
+                        + "  array_agg(ename) as c4\n"
+                        + "from emp group by gender")
+                .ok(
+                        "SELECT"
+                                + " ARRAY_AGG(`ENAME` ORDER BY `DEPTNO`, `ENAME`) RESPECT NULLS AS `C1`,"
+                                + " ARRAY_AGG(`ENAME` ORDER BY `DEPTNO`, `ENAME` DESC) AS `C2`,"
+                                + " ARRAY_AGG(DISTINCT `ENAME`) AS `C3`,"
+                                + " ARRAY_AGG(`ENAME`) AS `C4`\n"
+                                + "FROM `EMP`\n"
+                                + "GROUP BY `GENDER`");
+    }
 
     // DESCRIBE SCHEMA
     @Disabled
