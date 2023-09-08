@@ -47,11 +47,23 @@ while [ -L "$target" ]; do
     iteration=$((iteration + 1))
 done
 
+printf "======= hahahahah ===== \n"
+
+if [ -z "$FLINK_CONF_DIR" ]; then
+    printf "\n ===111= the CONF_DIR is null ==== \n"
+else
+    printf "\n ===222= the CONF_DIR is $FLINK_CONF_DIR ==== \n"
+fi
+
 # Convert relative path to absolute path
 bin=`dirname "$target"`
 
+printf "\n ==== the bin is $bin ==== \n"
+
 # get flink config
 . "$bin"/config.sh
+
+printf "\n ==== the CONF_DIR is $FLINK_CONF_DIR ==== \n"
 
 if [ "$FLINK_IDENT_STRING" = "" ]; then
         FLINK_IDENT_STRING="$USER"

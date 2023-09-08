@@ -19,6 +19,7 @@
 package org.apache.flink.table.gateway;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -58,6 +59,7 @@ public class SqlGateway {
         this.sessionManager = sessionManager;
         this.endpoints = new ArrayList<>();
         this.latch = new CountDownLatch(1);
+        LOG.info("default config : {}", defaultConfig);
     }
 
     public void start() throws Exception {
@@ -97,6 +99,11 @@ public class SqlGateway {
 
     @VisibleForTesting
     static void startSqlGateway(PrintStream stream, String[] args) {
+        String location = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+        LOG.info(
+                "startSqlGateway: configuration conf directory is {}",
+                location == null ? "null" : location);
+        LOG.info("args : {} ", args);
         SqlGatewayOptions cliOptions = SqlGatewayOptionsParser.parseSqlGatewayOptions(args);
 
         if (cliOptions.isPrintHelp()) {
@@ -108,6 +115,11 @@ public class SqlGateway {
         EnvironmentInformation.logEnvironmentInfo(LOG, "SqlGateway", args);
         SignalHandler.register(LOG);
         JvmShutdownSafeguard.installAsShutdownHook(LOG);
+
+        location = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+        LOG.info(
+                "startSqlGateway -- 2: configuration conf directory is {}",
+                location == null ? "null" : location);
 
         DefaultContext defaultContext =
                 DefaultContext.load(

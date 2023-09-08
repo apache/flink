@@ -19,6 +19,7 @@
 package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -40,6 +41,7 @@ import org.slf4j.event.Level;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
@@ -51,6 +53,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** Flink resource that start local standalone clusters. */
@@ -71,6 +74,16 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
             FlinkResourceSetup setup) {
         LOG.info("Using distribution {}.", distributionDirectory);
         this.distributionDirectory = distributionDirectory;
+        try {
+            LOG.info(
+                    "The distribution directory and child dir are: {}",
+                    Files.walk(distributionDirectory.resolve("conf"))
+                            .filter(Files::isRegularFile)
+                            .collect(Collectors.toSet()));
+        } catch (Exception e) {
+
+        }
+
         this.logBackupDirectory = logBackupDirectory;
         this.setup = setup;
     }
@@ -91,6 +104,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
             distribution.performJarAddition(jarAddition);
         }
         if (setup.getConfig().isPresent()) {
+            LOG.info("setup get config is : {}", setup.getConfig().get());
             distribution.appendConfiguration(setup.getConfig().get());
         }
     }
@@ -186,6 +200,10 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
 
     @Override
     public GatewayController startSqlGateway() throws IOException {
+        String location = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+        LOG.info(
+                "startSqlGateway222: configuration conf directory is {}",
+                location == null ? "null" : location);
         distribution.startSqlGateway();
 
         return new GatewayClusterControllerImpl(distribution);

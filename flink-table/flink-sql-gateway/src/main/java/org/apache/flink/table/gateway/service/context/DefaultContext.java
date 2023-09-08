@@ -144,6 +144,7 @@ public class DefaultContext {
             List<URL> dependencies,
             boolean discoverExecutionConfig,
             boolean discoverPythonJar) {
+        LOG.info("Dynamic config {}", dynamicConfig);
         // 1. find the configuration directory
         String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
 

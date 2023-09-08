@@ -19,6 +19,7 @@
 package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
@@ -143,7 +144,13 @@ public final class FlinkDistribution {
     }
 
     public void startSqlGateway() throws IOException {
-        LOG.info("Starting Flink SQL Gateway.");
+        LOG.info(
+                "Starting Flink SQL Gateway in {}.",
+                bin.resolve("sql-gateway.sh").toAbsolutePath());
+        String location = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+        LOG.info(
+                "startSqlGateway333: configuration conf directory is {}",
+                location == null ? "null" : location);
         AutoClosableProcess.create(
                         bin.resolve("sql-gateway.sh").toAbsolutePath().toString(), "start")
                 .setStdoutProcessor(LOG::info)
@@ -278,6 +285,7 @@ public final class FlinkDistribution {
             // register HiveDriver to the DriverManager
             Class.forName(HIVE_DRIVER);
             SQLJobClientMode.HiveJDBC hiveJdbc = (SQLJobClientMode.HiveJDBC) job.getClientMode();
+            LOG.info("submit sql for hive jdbc {}; {}; {}", hiveJdbc.getHost(), hiveJdbc.getPort());
             submitSQL(
                     () -> {
                         try (Connection connection =
@@ -300,6 +308,11 @@ public final class FlinkDistribution {
                     () -> {
                         SQLJobClientMode.RestClient restClient =
                                 (SQLJobClientMode.RestClient) job.getClientMode();
+                        LOG.info(
+                                "submit sql for rest client {}; {}; {}",
+                                restClient.getHost(),
+                                restClient.getPort(),
+                                restClient.getRestEndpointVersion());
                         // Open a session
                         TestSqlGatewayRestClient client =
                                 new TestSqlGatewayRestClient(
@@ -327,6 +340,8 @@ public final class FlinkDistribution {
             commands.add("--jar");
             commands.add(jar);
         }
+
+        LOG.info("submit sql job, the command is : {}", commands);
 
         AutoClosableProcess.create(commands.toArray(new String[0]))
                 .setStdInputs(job.getSqlLines().toArray(new String[0]))
@@ -421,7 +436,12 @@ public final class FlinkDistribution {
                 mergedConfig.toMap().entrySet().stream()
                         .map(entry -> entry.getKey() + ": " + entry.getValue())
                         .collect(Collectors.toList());
-
+        LOG.info("append configuration # part 1: defaultConfig is {}", defaultConfig);
+        LOG.info("append configuration # part 2: config is {}", config);
+        LOG.info("append configuration # part 3: configurationLines is {}", configurationLines);
+        LOG.info(
+                "append configuration # part 4: conf dir is {}",
+                conf.resolve("flink-config.yaml").toAbsolutePath());
         Files.write(conf.resolve("flink-conf.yaml"), configurationLines);
     }
 

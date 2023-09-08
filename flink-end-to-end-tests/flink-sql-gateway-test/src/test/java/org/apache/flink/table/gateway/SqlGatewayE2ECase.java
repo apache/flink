@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.gateway;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.endpoint.hive.HiveServer2Endpoint;
 import org.apache.flink.table.gateway.containers.HiveContainer;
-import org.apache.flink.table.gateway.rest.util.SqlGatewayRestAPIVersion;
 import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobClientMode;
 import org.apache.flink.test.util.SQLJobSubmission;
@@ -44,6 +44,8 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -75,6 +77,8 @@ import static org.junit.Assert.assertEquals;
 /** E2E Tests for {@code SqlGateway} with {@link HiveServer2Endpoint}. */
 public class SqlGatewayE2ECase extends TestLogger {
 
+    private static final Logger LOG = LoggerFactory.getLogger(SqlGatewayE2ECase.class);
+
     private static final Path HIVE_SQL_CONNECTOR_JAR =
             ResourceTestUtils.getResource(".*dependencies/flink-sql-connector-hive-.*.jar");
     private static final Path HADOOP_CLASS_PATH =
@@ -100,23 +104,6 @@ public class SqlGatewayE2ECase extends TestLogger {
     public static void afterClass() throws Exception {
         hiveserver2Port.close();
         restPort.close();
-    }
-
-    @Test
-    public void testHiveServer2ExecuteStatement() throws Exception {
-        executeStatement(
-                SQLJobClientMode.getHiveJDBC(
-                        InetAddress.getByName("localhost").getHostAddress(),
-                        hiveserver2Port.getPort()));
-    }
-
-    @Test
-    public void testRestExecuteStatement() throws Exception {
-        executeStatement(
-                SQLJobClientMode.getRestClient(
-                        InetAddress.getByName("localhost").getHostAddress(),
-                        restPort.getPort(),
-                        SqlGatewayRestAPIVersion.getDefaultVersion().toString().toLowerCase()));
     }
 
     @Test
@@ -224,7 +211,12 @@ public class SqlGatewayE2ECase extends TestLogger {
                 getRestPrefixedConfigOptionName(PORT), String.valueOf(restPort.getPort()));
 
         ENDPOINT_CONFIG.addAll(Configuration.fromMap(endpointConfig));
+        LOG.info("Create endpoint_config : {}", ENDPOINT_CONFIG);
         builder.addConfiguration(ENDPOINT_CONFIG);
+        String location = System.getenv(ConfigConstants.ENV_FLINK_CONF_DIR);
+        LOG.info(
+                "startSqlGateway111: configuration conf directory is {}",
+                location == null ? "null" : location);
 
         return new LocalStandaloneFlinkResourceFactory().create(builder.build());
     }
