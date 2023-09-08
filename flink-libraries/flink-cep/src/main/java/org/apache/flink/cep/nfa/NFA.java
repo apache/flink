@@ -19,6 +19,7 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
@@ -201,7 +202,7 @@ public class NFA<T> {
             for (StateTransition<T> transition : state.getStateTransitions()) {
                 IterativeCondition condition = transition.getCondition();
                 FunctionUtils.setFunctionRuntimeContext(condition, cepRuntimeContext);
-                FunctionUtils.openFunction(condition, conf);
+                FunctionUtils.openFunction(condition, DefaultOpenContext.INSTANCE);
             }
         }
     }

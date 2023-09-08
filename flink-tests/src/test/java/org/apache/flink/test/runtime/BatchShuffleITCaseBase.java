@@ -19,6 +19,7 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -156,7 +157,7 @@ class BatchShuffleITCaseBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
+        public void open(OpenContext openContext) throws Exception {
             NUM_RECEIVED_RECORDS[getRuntimeContext().getIndexOfThisSubtask()] = 0;
             if (getRuntimeContext().getAttemptNumber() > 0
                     || getRuntimeContext().getIndexOfThisSubtask() != 0) {

@@ -19,9 +19,10 @@
 package org.apache.flink.table.runtime.operators.join;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
@@ -307,11 +308,11 @@ public class AsyncLookupJoinHarnessTest {
         closeAsyncLookupJoinRunner(joinRunner);
 
         joinRunner.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
-        joinRunner.open(new Configuration());
+        joinRunner.open(DefaultOpenContext.INSTANCE);
         assertThat(joinRunner.getAllResultFutures()).isNotNull();
         closeAsyncLookupJoinRunner(joinRunner);
 
-        joinRunner.open(new Configuration());
+        joinRunner.open(DefaultOpenContext.INSTANCE);
         joinRunner.asyncInvoke(row(1, "a"), new TestingFetcherResultFuture());
         assertThat(joinRunner.getAllResultFutures()).isNotNull();
         closeAsyncLookupJoinRunner(joinRunner);
@@ -365,8 +366,8 @@ public class AsyncLookupJoinHarnessTest {
         private transient ExecutorService executor;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             // generate unordered result for async lookup
             this.executor = Executors.newFixedThreadPool(2);
         }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ValueState;
@@ -305,7 +306,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
                                             getRuntimeContext().getNumberOfParallelSubtasks());
@@ -396,7 +397,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 private ValueState<Integer> count;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
                                             getRuntimeContext().getNumberOfParallelSubtasks());
@@ -483,7 +484,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
                                             getRuntimeContext().getNumberOfParallelSubtasks());
@@ -569,7 +570,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
                                             getRuntimeContext().getNumberOfParallelSubtasks());
@@ -655,7 +656,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
                                 private boolean open = false;
 
                                 @Override
-                                public void open(Configuration parameters) {
+                                public void open(OpenContext openContext) {
                                     assertEquals(
                                             PARALLELISM,
                                             getRuntimeContext().getNumberOfParallelSubtasks());

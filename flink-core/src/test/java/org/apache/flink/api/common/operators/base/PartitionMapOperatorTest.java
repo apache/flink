@@ -22,12 +22,12 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.MapPartitionFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext;
 import org.apache.flink.api.common.operators.UnaryOperatorInformation;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
@@ -59,7 +59,7 @@ public class PartitionMapOperatorTest implements java.io.Serializable {
                     new RichMapPartitionFunction<String, Integer>() {
 
                         @Override
-                        public void open(Configuration parameters) throws Exception {
+                        public void open(OpenContext openContext) throws Exception {
                             opened.set(true);
                             RuntimeContext ctx = getRuntimeContext();
                             assertEquals(0, ctx.getIndexOfThisSubtask());

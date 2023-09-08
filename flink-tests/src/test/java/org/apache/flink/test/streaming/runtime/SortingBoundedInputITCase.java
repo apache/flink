@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -252,7 +253,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                                     private ValueState<Long> previousTimestampState;
 
                                     @Override
-                                    public void open(Configuration parameters) {
+                                    public void open(OpenContext openContext) {
                                         countState =
                                                 getRuntimeContext()
                                                         .getMapState(
@@ -403,7 +404,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
                                     private ValueState<Long> previousTimestampState;
 
                                     @Override
-                                    public void open(Configuration parameters) {
+                                    public void open(OpenContext openContext) {
                                         countState =
                                                 getRuntimeContext()
                                                         .getMapState(

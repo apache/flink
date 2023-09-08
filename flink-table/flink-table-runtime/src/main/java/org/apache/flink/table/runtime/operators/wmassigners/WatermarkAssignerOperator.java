@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.wmassigners;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -95,7 +95,7 @@ public class WatermarkAssignerOperator extends AbstractStreamOperator<RowData>
         }
 
         FunctionUtils.setFunctionRuntimeContext(watermarkGenerator, getRuntimeContext());
-        FunctionUtils.openFunction(watermarkGenerator, new Configuration());
+        FunctionUtils.openFunction(watermarkGenerator, DefaultOpenContext.INSTANCE);
     }
 
     @Override

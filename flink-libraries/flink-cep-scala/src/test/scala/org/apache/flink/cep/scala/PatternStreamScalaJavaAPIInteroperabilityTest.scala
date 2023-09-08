@@ -17,7 +17,7 @@
  */
 package org.apache.flink.cep.scala
 
-import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.common.functions.{DefaultOpenContext, OpenContext, RuntimeContext}
 import org.apache.flink.api.common.functions.util.{FunctionUtils, ListCollector}
 import org.apache.flink.cep.functions.{PatternProcessFunction, TimedOutPartialMatchHandler}
 import org.apache.flink.cep.operator.CepOperator
@@ -138,7 +138,7 @@ class PatternStreamScalaJavaAPIInteroperabilityTest extends TestLogger {
 
     val fun = oper.getUserFunction
     FunctionUtils.setFunctionRuntimeContext(fun, Mockito.mock(classOf[RuntimeContext]))
-    FunctionUtils.openFunction(fun, new Configuration())
+    FunctionUtils.openFunction(fun, DefaultOpenContext.INSTANCE)
     fun
   }
 

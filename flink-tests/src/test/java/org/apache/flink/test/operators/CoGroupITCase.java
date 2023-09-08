@@ -21,6 +21,7 @@ package org.apache.flink.test.operators;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.distributions.DataDistribution;
 import org.apache.flink.api.common.functions.CoGroupFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -33,7 +34,6 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple7;
 import org.apache.flink.api.java.utils.DataSetUtils;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.test.operators.util.CollectionDataSets;
@@ -991,7 +991,7 @@ public class CoGroupITCase extends MultipleProgramsTestBase {
         private int broadcast = 42;
 
         @Override
-        public void open(Configuration config) {
+        public void open(OpenContext openContext) {
 
             Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
             int sum = 0;

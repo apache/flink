@@ -17,9 +17,9 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.common.functions.RichJoinFunction
+import org.apache.flink.api.common.functions.{OpenContext, RichJoinFunction}
 import org.apache.flink.api.common.io.OutputFormat
-import org.apache.flink.api.scala.{ExecutionEnvironment, _}
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.operators.ScalaCsvOutputFormat.{DEFAULT_FIELD_DELIMITER, DEFAULT_LINE_DELIMITER}
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
@@ -140,7 +140,7 @@ class OuterJoinITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(
           (String, String, Int)] {
           private var broadcast = 41
 
-          override def open(config: Configuration) {
+          override def open(openContext: OpenContext) {
             val ints = this.getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
             broadcast = ints.sum
           }

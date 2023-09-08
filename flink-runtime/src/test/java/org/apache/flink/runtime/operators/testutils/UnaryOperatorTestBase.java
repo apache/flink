@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -216,7 +217,7 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT>
 
             // open stub implementation
             try {
-                FunctionUtils.openFunction(this.stub, getTaskConfig().getStubParameters());
+                FunctionUtils.openFunction(this.stub, DefaultOpenContext.INSTANCE);
                 stubOpen = true;
             } catch (Throwable t) {
                 throw new Exception(

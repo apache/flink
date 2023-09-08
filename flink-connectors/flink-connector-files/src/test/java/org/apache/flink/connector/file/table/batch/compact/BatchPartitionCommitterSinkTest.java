@@ -18,8 +18,8 @@
 
 package org.apache.flink.connector.file.table.batch.compact;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.table.FileSystemCommitterTest;
 import org.apache.flink.connector.file.table.FileSystemFactory;
 import org.apache.flink.connector.file.table.PartitionCommitPolicyFactory;
@@ -77,7 +77,7 @@ public class BatchPartitionCommitterSinkTest {
                         new LinkedHashMap<>(),
                         identifier,
                         new PartitionCommitPolicyFactory(null, null, null, null));
-        committerSink.open(new Configuration());
+        committerSink.open(DefaultOpenContext.INSTANCE);
 
         List<Path> pathList1 = createFiles(path, "task-1/p1=0/p2=0/", "f1", "f2");
         List<Path> pathList2 = createFiles(path, "task-2/p1=0/p2=0/", "f3");

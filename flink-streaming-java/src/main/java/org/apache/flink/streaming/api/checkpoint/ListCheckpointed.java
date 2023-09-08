@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.api.checkpoint;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.state.OperatorStateStore;
-import org.apache.flink.configuration.Configuration;
 
 import java.io.Serializable;
 import java.util.List;
@@ -152,7 +152,7 @@ public interface ListCheckpointed<T extends Serializable> {
      *
      * <p><b>Important:</b> When implementing this interface together with {@link RichFunction},
      * then the {@code restoreState()} method is called before {@link
-     * RichFunction#open(Configuration)}.
+     * RichFunction#open(OpenContext)}.
      *
      * @param state The state to be restored as a list of atomic sub-states.
      * @throws Exception Throwing an exception in this method causes the recovery to fail. The exact

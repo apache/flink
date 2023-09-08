@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.api.functions.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.SerializableObject;
 
 import org.slf4j.Logger;
@@ -130,10 +130,10 @@ public class SocketClientSink<IN> extends RichSinkFunction<IN> {
     /**
      * Initialize the connection with the Socket in the server.
      *
-     * @param parameters Configuration.
+     * @param openContext the context.
      */
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         try {
             synchronized (lock) {
                 createConnection();

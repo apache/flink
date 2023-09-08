@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CrossFunction;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.operators.BinaryOperatorInformation;
@@ -98,7 +99,7 @@ public class CrossOperatorBase<IN1, IN2, OUT, FT extends CrossFunction<IN1, IN2,
         CrossFunction<IN1, IN2, OUT> function = this.userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, ctx);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         ArrayList<OUT> result = new ArrayList<OUT>(inputData1.size() * inputData2.size());
 

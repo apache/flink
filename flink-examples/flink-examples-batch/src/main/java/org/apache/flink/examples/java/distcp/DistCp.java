@@ -19,6 +19,7 @@
 package org.apache.flink.examples.java.distcp;
 
 import org.apache.flink.api.common.accumulators.LongCounter;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -27,7 +28,6 @@ import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.utils.ParameterTool;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
@@ -119,7 +119,7 @@ public class DistCp {
                             private LongCounter bytesCounter;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
+                            public void open(OpenContext openContext) throws Exception {
                                 bytesCounter =
                                         getRuntimeContext().getLongCounter(BYTES_COPIED_CNT_NAME);
                                 fileCounter =
