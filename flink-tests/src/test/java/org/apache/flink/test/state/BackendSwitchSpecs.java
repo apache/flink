@@ -96,7 +96,7 @@ public final class BackendSwitchSpecs {
 
             temporaryFolder.create();
             return new RocksDBKeyedStateBackendBuilder<>(
-                             new Configuration(),
+                            new Configuration(),
                             "no-op",
                             ClassLoader.getSystemClassLoader(),
                             temporaryFolder.newFolder(),
