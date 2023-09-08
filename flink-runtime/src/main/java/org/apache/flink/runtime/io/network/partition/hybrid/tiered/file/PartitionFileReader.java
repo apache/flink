@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.file;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferHeader;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
@@ -58,7 +57,7 @@ public interface PartitionFileReader {
             MemorySegment memorySegment,
             BufferRecycler recycler,
             @Nullable ReadProgress readProgress,
-            @Nullable PartialBuffer partialBuffer)
+            @Nullable CompositeBuffer partialBuffer)
             throws IOException;
 
     /**
@@ -83,18 +82,19 @@ public interface PartitionFileReader {
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
-            int bufferIndex);
+            int bufferIndex,
+            ReadProgress readProgress);
 
     /** Release the {@link PartitionFileReader}. */
     void release();
 
-    /** A {@link PartialBuffer} is a part slice of a larger buffer. */
-    class PartialBuffer extends CompositeBuffer {
-
-        public PartialBuffer(BufferHeader bufferHeader) {
-            super(bufferHeader);
-        }
-    }
+    /**
+     * This {@link ReadProgress} defines the read progress of the {@link PartitionFileReader}.
+     *
+     * <p>Note that the implementation of the interface should strongly bind with the implementation
+     * of {@link PartitionFileReader}.
+     */
+    interface ReadProgress {}
 
     /**
      * A wrapper class of the reading buffer result, including the read buffers, the hint of
@@ -106,21 +106,21 @@ public interface PartitionFileReader {
         private final List<Buffer> readBuffers;
 
         /**
-         * A hint to determine whether the caller should continue reading the following buffers.
-         * Note that this hint is merely a recommendation and not obligatory. Following the hint
-         * while reading buffers may improve performance.
+         * A hint to determine whether the caller may continue reading the following buffers. Note
+         * that this hint is merely a recommendation and not obligatory. Following the hint while
+         * reading buffers may improve performance.
          */
-        private final boolean shouldContinueReadHint;
+        private final boolean continuousReadSuggested;
 
         /** The read progress state. */
         private final ReadProgress readProgress;
 
         public ReadBufferResult(
                 List<Buffer> readBuffers,
-                boolean shouldContinueReadHint,
+                boolean continuousReadSuggested,
                 ReadProgress readProgress) {
             this.readBuffers = readBuffers;
-            this.shouldContinueReadHint = shouldContinueReadHint;
+            this.continuousReadSuggested = continuousReadSuggested;
             this.readProgress = readProgress;
         }
 
@@ -128,38 +128,12 @@ public interface PartitionFileReader {
             return readBuffers;
         }
 
-        public boolean shouldContinueReadHint() {
-            return shouldContinueReadHint;
+        public boolean continuousReadSuggested() {
+            return continuousReadSuggested;
         }
 
         public ReadProgress getReadProgress() {
             return readProgress;
-        }
-    }
-
-    /** The {@link ReadProgress} mainly includes current reading offset, end of read offset, etc. */
-    class ReadProgress {
-
-        /**
-         * The current read file offset. Note the offset does not contain the length of the partial
-         * buffer, because the partial buffer may be dropped at anytime.
-         */
-        private final long currentReadOffset;
-
-        /** The end of read file offset. */
-        private final long endOfReadOffset;
-
-        public ReadProgress(long currentReadOffset, long endOfReadOffset) {
-            this.currentReadOffset = currentReadOffset;
-            this.endOfReadOffset = endOfReadOffset;
-        }
-
-        public long getCurrentReadOffset() {
-            return currentReadOffset;
-        }
-
-        public long getEndOfReadOffset() {
-            return endOfReadOffset;
         }
     }
 }

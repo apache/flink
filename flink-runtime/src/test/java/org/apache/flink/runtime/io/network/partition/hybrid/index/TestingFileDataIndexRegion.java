@@ -71,12 +71,12 @@ public class TestingFileDataIndexRegion implements FileDataIndexRegionHelper.Reg
     }
 
     @Override
-    public long getRegionFileOffset() {
+    public long getRegionStartOffset() {
         return getRegionFileOffsetSupplier.get();
     }
 
     @Override
-    public long getRegionFileEndOffset() {
+    public long getRegionEndOffset() {
         return getRegionFileEndOffsetSupplier.get();
     }
 
@@ -96,7 +96,7 @@ public class TestingFileDataIndexRegion implements FileDataIndexRegionHelper.Reg
         regionBuffer.clear();
         regionBuffer.putInt(region.getFirstBufferIndex());
         regionBuffer.putInt(region.getNumBuffers());
-        regionBuffer.putLong(region.getRegionFileOffset());
+        regionBuffer.putLong(region.getRegionStartOffset());
         regionBuffer.flip();
         BufferReaderWriterUtil.writeBuffers(channel, regionBuffer.capacity(), regionBuffer);
     }

@@ -23,6 +23,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.file.PartitionFileReader;
@@ -358,7 +359,7 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                                 + " has already been failed.");
             }
 
-            PartitionFileReader.PartialBuffer partialBuffer = null;
+            CompositeBuffer partialBuffer = null;
             boolean shouldContinueRead = true;
             try {
                 while (!buffers.isEmpty() && shouldContinueRead && nextSegmentId >= 0) {
@@ -385,14 +386,8 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                     }
 
                     List<Buffer> readBuffers = readBufferResult.getReadBuffers();
-                    shouldContinueRead = readBufferResult.shouldContinueReadHint();
+                    shouldContinueRead = readBufferResult.continuousReadSuggested();
                     readProgress = readBufferResult.getReadProgress();
-                    if (!shouldContinueRead) {
-                        checkState(
-                                readProgress.getCurrentReadOffset()
-                                        == readProgress.getEndOfReadOffset());
-                        readProgress = null;
-                    }
                     if (readBuffers.isEmpty()) {
                         buffers.add(memorySegment);
                         break;
@@ -417,24 +412,23 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
             if (nextSegmentId < 0) {
                 updateSegmentId();
             }
-            if (nextSegmentId < 0) {
-                priority = Long.MAX_VALUE;
-                return;
-            }
             priority =
-                    readProgress != null
-                            ? readProgress.getCurrentReadOffset()
+                    nextSegmentId < 0
+                            ? Long.MAX_VALUE
                             : partitionFileReader.getPriority(
-                                    partitionId, subpartitionId, nextSegmentId, nextBufferIndex);
+                                    partitionId,
+                                    subpartitionId,
+                                    nextSegmentId,
+                                    nextBufferIndex,
+                                    readProgress);
         }
 
-        private PartitionFileReader.PartialBuffer writeFullBuffersAndGetPartialBuffer(
-                List<Buffer> readBuffers) {
-            PartitionFileReader.PartialBuffer partialBuffer = null;
+        private CompositeBuffer writeFullBuffersAndGetPartialBuffer(List<Buffer> readBuffers) {
+            CompositeBuffer partialBuffer = null;
             for (int i = 0; i < readBuffers.size(); i++) {
                 Buffer readBuffer = readBuffers.get(i);
                 if (i == readBuffers.size() - 1 && isPartialBuffer(readBuffer)) {
-                    partialBuffer = (PartitionFileReader.PartialBuffer) readBuffer;
+                    partialBuffer = (CompositeBuffer) readBuffer;
                     continue;
                 }
                 writeNettyBufferAndUpdateSegmentId(readBuffer);
@@ -443,8 +437,8 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
         }
 
         private boolean isPartialBuffer(Buffer readBuffer) {
-            return readBuffer instanceof PartitionFileReader.PartialBuffer
-                    && ((PartitionFileReader.PartialBuffer) readBuffer).missingLength() > 0;
+            return readBuffer instanceof CompositeBuffer
+                    && ((CompositeBuffer) readBuffer).missingLength() > 0;
         }
 
         private void writeNettyBufferAndUpdateSegmentId(Buffer readBuffer) {

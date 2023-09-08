@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferHeader;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
@@ -85,7 +86,7 @@ public class SegmentPartitionFileReader implements PartitionFileReader {
             MemorySegment memorySegment,
             BufferRecycler recycler,
             @Nullable ReadProgress readProgress,
-            @Nullable PartialBuffer partialBuffer)
+            @Nullable CompositeBuffer partialBuffer)
             throws IOException {
 
         // Get the channel of the segment file for a subpartition.
@@ -139,7 +140,8 @@ public class SegmentPartitionFileReader implements PartitionFileReader {
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
-            int bufferIndex) {
+            int bufferIndex,
+            ReadProgress readProgress) {
         // noop
         return -1;
     }

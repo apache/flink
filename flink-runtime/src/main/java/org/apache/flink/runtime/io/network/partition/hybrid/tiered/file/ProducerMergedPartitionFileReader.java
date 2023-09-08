@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferHeader;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.buffer.ReadOnlySlicedNetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.BufferReaderWriterUtil;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
@@ -86,7 +87,7 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
             MemorySegment memorySegment,
             BufferRecycler recycler,
             @Nullable ReadProgress readProgress,
-            @Nullable PartialBuffer partialBuffer)
+            @Nullable CompositeBuffer partialBuffer)
             throws IOException {
 
         lazyInitializeFileChannel();
@@ -115,11 +116,16 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
 
         // Slice the read memory segment to multiple small network buffers and add them to
         // readBuffers
-        Tuple2<PartialBuffer, Integer> partial =
+        Tuple2<Integer, Integer> partial =
                 sliceBuffer(byteBuffer, memorySegment, partialBuffer, recycler, readBuffers);
 
         return getReadBufferResult(
-                readBuffers, readStartOffset, readEndOffset, numBytesToRead, partial);
+                readBuffers,
+                readStartOffset,
+                readEndOffset,
+                numBytesToRead,
+                partial.f0,
+                partial.f1);
     }
 
     @Override
@@ -127,11 +133,18 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
-            int bufferIndex) {
+            int bufferIndex,
+            ReadProgress readProgress) {
         lazyInitializeFileChannel();
+        if (readProgress != null) {
+            checkState(
+                    readProgress instanceof ProducerMergedPartitionFile.ProducerMergedReadProgress);
+            return ((ProducerMergedPartitionFile.ProducerMergedReadProgress) readProgress)
+                    .getCurrentBufferOffset();
+        }
         return dataIndex
                 .getRegion(subpartitionId, bufferIndex)
-                .map(ProducerMergedPartitionFileIndex.FixedSizeRegion::getRegionFileOffset)
+                .map(ProducerMergedPartitionFileIndex.FixedSizeRegion::getRegionStartOffset)
                 .orElse(Long.MAX_VALUE);
     }
 
@@ -172,13 +185,13 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
      * @param partialBuffer the partial buffer, if the partial buffer is not null, it contains the
      *     partial data buffer from the previous read
      * @param readBuffers the read buffers list is to accept the sliced buffers
-     * @return the first field is the partial data buffer, the second field is the number of sliced
-     *     bytes.
+     * @return the first field is the number of total sliced bytes, the second field is the bytes of
+     *     the partial buffer
      */
-    private Tuple2<PartialBuffer, Integer> sliceBuffer(
+    private Tuple2<Integer, Integer> sliceBuffer(
             ByteBuffer byteBuffer,
             MemorySegment memorySegment,
-            @Nullable PartialBuffer partialBuffer,
+            @Nullable CompositeBuffer partialBuffer,
             BufferRecycler bufferRecycler,
             List<Buffer> readBuffers) {
         checkState(reusedHeaderBuffer.position() == 0);
@@ -220,9 +233,10 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
                     // sliced network buffer. The small sliced buffer is not a partial buffer, we
                     // should read the slice of the buffer directly
                     buffer.retainBuffer();
-                    CompositeBuffer slicedBuffer = new CompositeBuffer(header);
-                    slicedBuffer.addPartialBuffer(
-                            buffer.readOnlySlice(byteBuffer.position(), header.getLength()));
+                    ReadOnlySlicedNetworkBuffer slicedBuffer =
+                            buffer.readOnlySlice(byteBuffer.position(), header.getLength());
+                    slicedBuffer.setDataType(header.getDataType());
+                    slicedBuffer.setCompressed(header.isCompressed());
                     byteBuffer.position(byteBuffer.position() + header.getLength());
                     numSlicedBytes += header.getLength();
                     readBuffers.add(slicedBuffer);
@@ -233,14 +247,14 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
                     buffer.retainBuffer();
                     int numPartialBytes = byteBuffer.remaining();
                     numSlicedBytes += numPartialBytes;
-                    partialBuffer = new PartialBuffer(header);
+                    partialBuffer = new CompositeBuffer(header);
                     partialBuffer.addPartialBuffer(
                             buffer.readOnlySlice(byteBuffer.position(), numPartialBytes));
                     readBuffers.add(partialBuffer);
                     break;
                 }
             }
-            return Tuple2.of(partialBuffer, numSlicedBytes);
+            return Tuple2.of(numSlicedBytes, partialBufferReadBytes(partialBuffer));
         } catch (Throwable throwable) {
             LOG.error("Failed to slice the read buffer {}.", byteBuffer, throwable);
             throw throwable;
@@ -257,22 +271,25 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
     private Tuple2<Long, Long> getReadStartAndEndOffset(
             TieredStorageSubpartitionId subpartitionId,
             int bufferIndex,
-            @Nullable ReadProgress readProgress,
-            @Nullable PartialBuffer partialBuffer) {
+            @Nullable ReadProgress currentReadProgress,
+            @Nullable CompositeBuffer partialBuffer) {
+        ProducerMergedPartitionFile.ProducerMergedReadProgress readProgress =
+                convertToCurrentReadProgress(currentReadProgress);
         long readStartOffset;
         long readEndOffset;
-        if (readProgress == null) {
+        if (readProgress == null
+                || readProgress.getCurrentBufferOffset() == readProgress.getEndOfRegionOffset()) {
             Optional<ProducerMergedPartitionFileIndex.FixedSizeRegion> regionOpt =
                     dataIndex.getRegion(subpartitionId, bufferIndex);
             if (!regionOpt.isPresent()) {
                 return null;
             }
-            readStartOffset = regionOpt.get().getRegionFileOffset();
-            readEndOffset = regionOpt.get().getRegionFileEndOffset();
+            readStartOffset = regionOpt.get().getRegionStartOffset();
+            readEndOffset = regionOpt.get().getRegionEndOffset();
         } else {
             readStartOffset =
-                    readProgress.getCurrentReadOffset() + partialBufferReadBytes(partialBuffer);
-            readEndOffset = readProgress.getEndOfReadOffset();
+                    readProgress.getCurrentBufferOffset() + partialBufferReadBytes(partialBuffer);
+            readEndOffset = readProgress.getEndOfRegionOffset();
         }
 
         checkState(readStartOffset <= readEndOffset);
@@ -284,19 +301,16 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
             long readStartOffset,
             long readEndOffset,
             int numBytesToRead,
-            Tuple2<PartialBuffer, Integer> partialAndReadBytes) {
-        PartialBuffer partialBuffer = partialAndReadBytes.f0;
-        int numBytesRealRead = partialAndReadBytes.f1;
+            int numBytesRealRead,
+            int numBytesReadPartialBuffer) {
         boolean shouldContinueRead = readStartOffset + numBytesRealRead < readEndOffset;
-        ReadProgress readProgress =
-                new ReadProgress(
-                        readStartOffset + numBytesRealRead - partialBufferReadBytes(partialBuffer),
+        ProducerMergedPartitionFile.ProducerMergedReadProgress readProgress =
+                new ProducerMergedPartitionFile.ProducerMergedReadProgress(
+                        readStartOffset + numBytesRealRead - numBytesReadPartialBuffer,
                         readEndOffset);
-
         checkState(
                 numBytesRealRead <= numBytesToRead
                         && numBytesToRead - numBytesRealRead < HEADER_LENGTH);
-        checkState(shouldContinueRead || partialBuffer == null);
 
         return new ReadBufferResult(readBuffers, shouldContinueRead, readProgress);
     }
@@ -313,8 +327,17 @@ public class ProducerMergedPartitionFileReader implements PartitionFileReader {
         }
     }
 
-    private static int partialBufferReadBytes(@Nullable PartialBuffer partialBuffer) {
+    private static int partialBufferReadBytes(@Nullable CompositeBuffer partialBuffer) {
         return partialBuffer == null ? 0 : partialBuffer.readableBytes() + HEADER_LENGTH;
+    }
+
+    private static ProducerMergedPartitionFile.ProducerMergedReadProgress
+            convertToCurrentReadProgress(@Nullable ReadProgress readProgress) {
+        if (readProgress == null) {
+            return null;
+        }
+        checkState(readProgress instanceof ProducerMergedPartitionFile.ProducerMergedReadProgress);
+        return (ProducerMergedPartitionFile.ProducerMergedReadProgress) readProgress;
     }
 
     private BufferHeader parseBufferHeader(ByteBuffer buffer) {

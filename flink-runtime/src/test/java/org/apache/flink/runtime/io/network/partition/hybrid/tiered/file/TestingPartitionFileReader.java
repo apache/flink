@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.file;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.CompositeBuffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
@@ -56,7 +57,7 @@ public class TestingPartitionFileReader implements PartitionFileReader {
             MemorySegment memorySegment,
             BufferRecycler recycler,
             @Nullable ReadProgress readProgress,
-            @Nullable PartialBuffer partialBuffer)
+            @Nullable CompositeBuffer partialBuffer)
             throws IOException {
         return readBufferFunction.apply(bufferIndex, segmentId);
     }
@@ -66,7 +67,8 @@ public class TestingPartitionFileReader implements PartitionFileReader {
             TieredStoragePartitionId partitionId,
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
-            int bufferIndex) {
+            int bufferIndex,
+            ReadProgress readProgress) {
         return getPriorityFunction.apply(subpartitionId.getSubpartitionId());
     }
 

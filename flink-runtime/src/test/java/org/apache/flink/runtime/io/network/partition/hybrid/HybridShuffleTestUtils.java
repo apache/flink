@@ -130,7 +130,7 @@ public class HybridShuffleTestUtils {
     public static void assertRegionEquals(
             FileDataIndexRegionHelper.Region expected, FileDataIndexRegionHelper.Region region) {
         assertThat(region.getFirstBufferIndex()).isEqualTo(expected.getFirstBufferIndex());
-        assertThat(region.getRegionFileOffset()).isEqualTo(expected.getRegionFileOffset());
+        assertThat(region.getRegionStartOffset()).isEqualTo(expected.getRegionStartOffset());
         assertThat(region.getNumBuffers()).isEqualTo(expected.getNumBuffers());
         if (expected instanceof InternalRegion) {
             assertThat(region).isInstanceOf(InternalRegion.class);

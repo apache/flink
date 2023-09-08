@@ -39,4 +39,32 @@ public class ProducerMergedPartitionFile {
             Path dataFilePath, ProducerMergedPartitionFileIndex partitionFileIndex) {
         return new ProducerMergedPartitionFileReader(dataFilePath, partitionFileIndex);
     }
+
+    /**
+     * The implementation of {@link PartitionFileReader.ReadProgress} mainly includes current
+     * reading offset, end of read offset, etc.
+     */
+    public static class ProducerMergedReadProgress implements PartitionFileReader.ReadProgress {
+        /**
+         * The current reading buffer file offset. Note the offset does not contain the length of
+         * the partial buffer, because the partial buffer may be dropped at anytime.
+         */
+        private final long currentBufferOffset;
+
+        /** The end of region file offset. */
+        private final long endOfRegionOffset;
+
+        public ProducerMergedReadProgress(long currentBufferOffset, long endOfRegionOffset) {
+            this.currentBufferOffset = currentBufferOffset;
+            this.endOfRegionOffset = endOfRegionOffset;
+        }
+
+        public long getCurrentBufferOffset() {
+            return currentBufferOffset;
+        }
+
+        public long getEndOfRegionOffset() {
+            return endOfRegionOffset;
+        }
+    }
 }
