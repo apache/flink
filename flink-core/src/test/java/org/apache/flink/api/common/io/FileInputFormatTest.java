@@ -18,6 +18,8 @@
 
 package org.apache.flink.api.common.io;
 
+import java.util.Set;
+
 import org.apache.flink.api.common.io.FileInputFormat.FileBaseStatistics;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.ConfigConstants;
@@ -592,31 +594,29 @@ public class FileInputFormatTest {
     //  Unsplittable input files
     // ------------------------------------------------------------------------
 
-    // ---- Tests for .deflate ---------
+    // ---- Tests for compressed files  ---------
 
     /**
      * Create directory with files with .deflate extension and see if it creates a split for each
      * file. Each split has to start from the beginning.
      */
     @Test
-    public void testFileInputSplit() {
+    public void testFileInputFormatWithCompression() {
         try {
             String tempFile =
-                    TestFileUtils.createTempFileDirExtension(
-                            temporaryFolder.newFolder(),
-                            ".deflate",
-                            "some",
-                            "stupid",
-                            "meaningless",
-                            "files");
+                    TestFileUtils.createTempTextFileDirCompressionFormats(
+                            temporaryFolder.newFolder());
             final DummyFileInputFormat format = new DummyFileInputFormat();
             format.setFilePath(tempFile);
             format.configure(new Configuration());
             FileInputSplit[] splits = format.createInputSplits(2);
-            Assert.assertEquals(4, splits.length);
+            final Set<String> supportedCompressionFormats =
+                    FileInputFormat.getSupportedCompressionFormats();
+            Assert.assertEquals(supportedCompressionFormats.size(), splits.length);
             for (FileInputSplit split : splits) {
                 Assert.assertEquals(
-                        -1L, split.getLength()); // unsplittable deflate files have this size as a
+                        FileInputFormat.READ_WHOLE_SPLIT_FLAG,
+                        split.getLength()); // unsplittable compressed files have this size as a
                 // flag for "read whole file"
                 Assert.assertEquals(0L, split.getStart()); // always read from the beginning.
             }
@@ -630,12 +630,14 @@ public class FileInputFormatTest {
             formatMixed.setFilePath(tempFile);
             formatMixed.configure(new Configuration());
             FileInputSplit[] splitsMixed = formatMixed.createInputSplits(2);
-            Assert.assertEquals(5, splitsMixed.length);
+            Assert.assertEquals(supportedCompressionFormats.size() + 1, splitsMixed.length);
             for (FileInputSplit split : splitsMixed) {
-                if (split.getPath().getName().endsWith(".deflate")) {
+                final String extension =
+                        FileInputFormat.extractFileExtension(split.getPath().getName());
+                if (supportedCompressionFormats.contains(extension)) {
                     Assert.assertEquals(
-                            -1L,
-                            split.getLength()); // unsplittable deflate files have this size as a
+                            FileInputFormat.READ_WHOLE_SPLIT_FLAG,
+                            split.getLength()); // unsplittable compressed files have this size as a
                     // flag for "read whole file"
                     Assert.assertEquals(0L, split.getStart()); // always read from the beginning.
                 } else {
