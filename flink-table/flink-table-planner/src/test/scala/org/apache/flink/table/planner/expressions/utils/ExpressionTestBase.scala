@@ -52,9 +52,10 @@ import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
-import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, assertThatThrownBy}
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 
 import java.util.Collections
 
@@ -317,7 +318,9 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
     val optimized = hep.findBestExp()
 
     // throw exception if plan contains more than a calc
-    assertThat(optimized.getInput(0).getInputs.isEmpty).isTrue
+    assertTrue(
+      optimized.getInput(0).getInputs.isEmpty,
+      "Expression is converted into more than a Calc operation. Use a different test method.")
 
     exprs.asInstanceOf[mutable.ArrayBuffer[(String, RexNode, String)]] +=
       ((summaryString, extractRexNode(optimized), expected))
@@ -341,7 +344,10 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
       .foreach {
         case ((originalExpr, optimizedExpr, expected), actual) =>
           val original = if (originalExpr == null) "" else s"for: [$originalExpr]"
-          assertThat(if (actual == null) "NULL" else actual).isEqualTo(expected)
+          assertEquals(
+            expected,
+            if (actual == null) "NULL" else actual,
+            s"Wrong result $original optimized to: [$optimizedExpr]")
       }
   }
 
