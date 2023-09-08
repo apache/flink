@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.gateway.rest.header.util;
+package org.apache.flink.client.program.rest;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.RestClient;
@@ -24,9 +24,11 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
-import org.apache.flink.table.gateway.rest.header.SqlGatewayMessageHeaders;
+import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
+
+import java.util.Collection;
 
 import static org.apache.flink.shaded.guava31.com.google.common.base.Preconditions.checkNotNull;
 
@@ -41,7 +43,7 @@ import static org.apache.flink.shaded.guava31.com.google.common.base.Preconditio
  */
 public class UrlPrefixDecorator<
                 R extends RequestBody, P extends ResponseBody, M extends MessageParameters>
-        implements SqlGatewayMessageHeaders<R, P, M> {
+        implements MessageHeaders<R, P, M> {
 
     private final String prefixedUrl;
     private final MessageHeaders<R, P, M> decorated;
@@ -99,5 +101,10 @@ public class UrlPrefixDecorator<
     @Override
     public M getUnresolvedMessageParameters() {
         return decorated.getUnresolvedMessageParameters();
+    }
+
+    @Override
+    public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
+        return decorated.getSupportedAPIVersions();
     }
 }
