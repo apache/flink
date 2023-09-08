@@ -71,7 +71,7 @@ public final class RocksDBTestUtils {
                 new KeyGroupRange(0, 1),
                 new ExecutionConfig(),
                 TestLocalRecoveryConfig.disabled(),
-                queueStateType,
+                RocksDBPriorityQueueConfig.buildWithPriorityQueueType(queueStateType),
                 TtlTimeProvider.DEFAULT,
                 LatencyTrackingStateConfig.disabled(),
                 new UnregisteredMetricsGroup(),
@@ -101,7 +101,8 @@ public final class RocksDBTestUtils {
                 new KeyGroupRange(0, 1),
                 new ExecutionConfig(),
                 TestLocalRecoveryConfig.disabled(),
-                EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP,
+                RocksDBPriorityQueueConfig.buildWithPriorityQueueType(
+                        EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP),
                 TtlTimeProvider.DEFAULT,
                 LatencyTrackingStateConfig.disabled(),
                 new UnregisteredMetricsGroup(),

@@ -45,6 +45,12 @@
             <td>The maximum amount of memory that write buffers may take, as a fraction of the total shared memory. This option only has an effect when 'state.backend.rocksdb.memory.managed' or 'state.backend.rocksdb.memory.fixed-per-slot' are configured.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.timer-service.cache-size</h5></td>
+            <td style="word-wrap: break-word;">128</td>
+            <td>Integer</td>
+            <td>The cache size per keyGroup of rocksdb timer service factory. This option only has an effect when 'state.backend.rocksdb.timer-service.factory' is configured to 'ROCKSDB'. Increasing this value can improve the performance of rocksdb timer service, but consumes more heap memory at the same time.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.timer-service.factory</h5></td>
             <td style="word-wrap: break-word;">ROCKSDB</td>
             <td><p>Enum</p></td>

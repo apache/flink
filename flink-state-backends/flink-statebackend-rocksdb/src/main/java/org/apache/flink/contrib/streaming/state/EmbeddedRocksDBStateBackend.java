@@ -82,7 +82,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.RESTORE_OVERLAP_FRACTION_THRESHOLD;
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM;
-import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -146,8 +145,10 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
     /** The configuration for memory settings (pool sizes, etc.). */
     private final RocksDBMemoryConfiguration memoryConfiguration;
 
-    /** This determines the type of priority queue state. */
-    @Nullable private PriorityQueueStateType priorityQueueStateType;
+    /**
+     * The configuration for rocksdb priorityQueue state settings (priorityQueue state type, etc.).
+     */
+    private final RocksDBPriorityQueueConfig priorityQueueConfig;
 
     /** The default rocksdb property-based metrics options. */
     private final RocksDBNativeMetricOptions nativeMetricOptions;
@@ -209,6 +210,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
         this.writeBatchSize = UNDEFINED_WRITE_BATCH_SIZE;
         this.overlapFractionThreshold = UNDEFINED_OVERLAP_FRACTION_THRESHOLD;
         this.rocksDBMemoryFactory = RocksDBMemoryFactory.DEFAULT;
+        this.priorityQueueConfig = new RocksDBPriorityQueueConfig();
     }
 
     /**
@@ -242,11 +244,9 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                         original.memoryConfiguration, config);
         this.memoryConfiguration.validate();
 
-        if (null == original.priorityQueueStateType) {
-            this.priorityQueueStateType = config.get(TIMER_SERVICE_FACTORY);
-        } else {
-            this.priorityQueueStateType = original.priorityQueueStateType;
-        }
+        this.priorityQueueConfig =
+                RocksDBPriorityQueueConfig.fromOtherAndConfiguration(
+                        original.priorityQueueConfig, config);
 
         // configure local directories
         if (original.localRocksDbDirectories != null) {
@@ -497,7 +497,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                                 keyGroupRange,
                                 executionConfig,
                                 localRecoveryConfig,
-                                getPriorityQueueStateType(),
+                                priorityQueueConfig,
                                 ttlTimeProvider,
                                 latencyTrackingStateConfig,
                                 metricGroup,
@@ -727,9 +727,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * @return The type of the priority queue state.
      */
     public PriorityQueueStateType getPriorityQueueStateType() {
-        return priorityQueueStateType == null
-                ? TIMER_SERVICE_FACTORY.defaultValue()
-                : priorityQueueStateType;
+        return priorityQueueConfig.getPriorityQueueStateType();
     }
 
     /**
@@ -737,7 +735,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
      * not explicitly set.
      */
     public void setPriorityQueueStateType(PriorityQueueStateType priorityQueueStateType) {
-        this.priorityQueueStateType = checkNotNull(priorityQueueStateType);
+        this.priorityQueueConfig.setPriorityQueueStateType(priorityQueueStateType);
     }
 
     // ------------------------------------------------------------------------

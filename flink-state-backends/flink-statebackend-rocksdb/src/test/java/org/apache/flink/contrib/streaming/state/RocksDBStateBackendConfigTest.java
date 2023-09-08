@@ -213,6 +213,34 @@ public class RocksDBStateBackendConfigTest {
         env.close();
     }
 
+    @Test
+    public void testConfigureRocksDBPriorityQueueFactoryCacheSize() throws Exception {
+        final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
+        EmbeddedRocksDBStateBackend rocksDbBackend = new EmbeddedRocksDBStateBackend();
+        int cacheSize = 512;
+        Configuration conf = new Configuration();
+        conf.set(
+                RocksDBOptions.TIMER_SERVICE_FACTORY,
+                EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+        conf.set(RocksDBOptions.ROCKSDB_TIMER_SERVICE_FACTORY_CACHE_SIZE, cacheSize);
+
+        rocksDbBackend =
+                rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader());
+
+        RocksDBKeyedStateBackend<Integer> keyedBackend =
+                createKeyedStateBackend(rocksDbBackend, env, IntSerializer.INSTANCE);
+
+        Assert.assertEquals(
+                RocksDBPriorityQueueSetFactory.class,
+                keyedBackend.getPriorityQueueFactory().getClass());
+        Assert.assertEquals(
+                cacheSize,
+                ((RocksDBPriorityQueueSetFactory) keyedBackend.getPriorityQueueFactory())
+                        .getCacheSize());
+        keyedBackend.dispose();
+        env.close();
+    }
+
     /** Validates that user custom configuration from code should override the flink-conf.yaml. */
     @Test
     public void testConfigureTimerServiceLoadingFromApplication() throws Exception {

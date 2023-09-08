@@ -91,7 +91,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     /** String that identifies the operator that owns this backend. */
     private final String operatorIdentifier;
 
-    private final EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType;
+    /** The configuration of rocksDB priorityQueue state. */
+    private final RocksDBPriorityQueueConfig priorityQueueConfig;
 
     /** The configuration of local recovery. */
     private final LocalRecoveryConfig localRecoveryConfig;
@@ -137,7 +138,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             KeyGroupRange keyGroupRange,
             ExecutionConfig executionConfig,
             LocalRecoveryConfig localRecoveryConfig,
-            EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
+            RocksDBPriorityQueueConfig priorityQueueConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
             MetricGroup metricGroup,
@@ -159,7 +160,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 cancelStreamRegistry);
 
         this.operatorIdentifier = operatorIdentifier;
-        this.priorityQueueStateType = priorityQueueStateType;
+        this.priorityQueueConfig = priorityQueueConfig;
         this.localRecoveryConfig = localRecoveryConfig;
         // ensure that we use the right merge operator, because other code relies on this
         this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
@@ -186,7 +187,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             KeyGroupRange keyGroupRange,
             ExecutionConfig executionConfig,
             LocalRecoveryConfig localRecoveryConfig,
-            EmbeddedRocksDBStateBackend.PriorityQueueStateType priorityQueueStateType,
+            RocksDBPriorityQueueConfig rocksDBPriorityQueueConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
             MetricGroup metricGroup,
@@ -207,7 +208,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 keyGroupRange,
                 executionConfig,
                 localRecoveryConfig,
-                priorityQueueStateType,
+                rocksDBPriorityQueueConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
                 metricGroup,
@@ -478,7 +479,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                     writeBatchSize,
                     optionsContainer.getWriteBufferManagerCapacity(),
                     overlapFractionThreshold);
-        } else if (priorityQueueStateType
+        } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP) {
             return new RocksDBHeapTimersFullRestoreOperation<>(
                     keyGroupRange,
@@ -570,7 +571,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             RocksDBWriteBatchWrapper writeBatchWrapper,
             RocksDBNativeMetricMonitor nativeMetricMonitor) {
         PriorityQueueSetFactory priorityQueueFactory;
-        switch (priorityQueueStateType) {
+        switch (priorityQueueConfig.getPriorityQueueStateType()) {
             case HEAP:
                 priorityQueueFactory = createHeapQueueFactory();
                 break;
@@ -586,11 +587,13 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                                 writeBatchWrapper,
                                 nativeMetricMonitor,
                                 columnFamilyOptionsFactory,
-                                optionsContainer.getWriteBufferManagerCapacity());
+                                optionsContainer.getWriteBufferManagerCapacity(),
+                                priorityQueueConfig.getRocksDBPriorityQueueSetCacheSize());
                 break;
             default:
                 throw new IllegalArgumentException(
-                        "Unknown priority queue state type: " + priorityQueueStateType);
+                        "Unknown priority queue state type: "
+                                + priorityQueueConfig.getPriorityQueueStateType());
         }
         return priorityQueueFactory;
     }

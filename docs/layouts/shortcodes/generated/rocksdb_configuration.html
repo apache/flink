@@ -69,6 +69,12 @@
             <td>The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. Current supported candidate predefined-options are DEFAULT, SPINNING_DISK_OPTIMIZED, SPINNING_DISK_OPTIMIZED_HIGH_MEM or FLASH_SSD_OPTIMIZED. Note that user customized options and options from the RocksDBOptionsFactory are applied on top of these predefined ones.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.timer-service.cache-size</h5></td>
+            <td style="word-wrap: break-word;">128</td>
+            <td>Integer</td>
+            <td>The cache size per keyGroup of rocksdb timer service factory. This option only has an effect when 'state.backend.rocksdb.timer-service.factory' is configured to 'ROCKSDB'. Increasing this value can improve the performance of rocksdb timer service, but consumes more heap memory at the same time.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.timer-service.factory</h5></td>
             <td style="word-wrap: break-word;">ROCKSDB</td>
             <td><p>Enum</p></td>
