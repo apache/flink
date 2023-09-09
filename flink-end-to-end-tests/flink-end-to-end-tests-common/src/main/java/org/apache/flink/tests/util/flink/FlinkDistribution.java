@@ -25,7 +25,6 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.test.util.FileUtils;
 import org.apache.flink.test.util.JobSubmission;
-import org.apache.flink.test.util.SQLJobClientMode;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.AutoClosableProcess;
 import org.apache.flink.tests.util.TestUtils;
@@ -58,9 +57,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -267,71 +263,7 @@ public final class FlinkDistribution {
     }
 
     public void submitSQLJob(SQLJobSubmission job, Duration timeout) throws Exception {
-        if (job.getClientMode() instanceof SQLJobClientMode.EmbeddedSqlClient) {
-            final List<String> commands = new ArrayList<>();
-            commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
-            submitSQLJobWithSQLClient(job, commands, timeout);
-        } else if (job.getClientMode() instanceof SQLJobClientMode.GatewaySqlClient) {
-            final List<String> commands = new ArrayList<>();
-            commands.add(bin.resolve("sql-client.sh").toAbsolutePath().toString());
-            commands.add("gateway");
-
-            SQLJobClientMode.GatewaySqlClient sqlClient =
-                    (SQLJobClientMode.GatewaySqlClient) job.getClientMode();
-            commands.add("-e");
-            commands.add(String.format("%s:%s", "127.1.1.1", sqlClient.getPort()));
-            submitSQLJobWithSQLClient(job, commands, timeout);
-        } else if (job.getClientMode() instanceof SQLJobClientMode.HiveJDBC) {
-            // register HiveDriver to the DriverManager
-            Class.forName(HIVE_DRIVER);
-            SQLJobClientMode.HiveJDBC hiveJdbc = (SQLJobClientMode.HiveJDBC) job.getClientMode();
-            LOG.info("submit sql for hive jdbc {}; {}; {}", hiveJdbc.getHost(), hiveJdbc.getPort());
-            submitSQL(
-                    () -> {
-                        try (Connection connection =
-                                        DriverManager.getConnection(
-                                                String.format(
-                                                        "jdbc:hive2://%s:%s/default;auth=noSasl;",
-                                                        hiveJdbc.getHost(), hiveJdbc.getPort()));
-                                Statement statement = connection.createStatement()) {
-                            for (String jar : job.getJars()) {
-                                statement.execute(String.format("ADD JAR '%s'", jar));
-                            }
-                            for (String sql : job.getSqlLines()) {
-                                statement.execute(sql);
-                            }
-                        }
-                    },
-                    timeout);
-        } else if (job.getClientMode() instanceof SQLJobClientMode.RestClient) {
-            submitSQL(
-                    () -> {
-                        SQLJobClientMode.RestClient restClient =
-                                (SQLJobClientMode.RestClient) job.getClientMode();
-                        LOG.info(
-                                "submit sql for rest client {}; {}; {}",
-                                restClient.getHost(),
-                                restClient.getPort(),
-                                restClient.getRestEndpointVersion());
-                        // Open a session
-                        TestSqlGatewayRestClient client =
-                                new TestSqlGatewayRestClient(
-                                        restClient.getHost(),
-                                        restClient.getPort(),
-                                        restClient.getRestEndpointVersion());
-                        List<String> sqlLines = new ArrayList<>();
-                        for (String jar : job.getJars()) {
-                            sqlLines.add(String.format("ADD JAR '%s'", jar));
-                        }
-                        sqlLines.addAll(job.getSqlLines());
-                        // Execute statement
-                        for (String sql : sqlLines) {
-                            String operationHandle = client.executeStatement(sql);
-                            client.waitUntilOperationTerminate(operationHandle);
-                        }
-                    },
-                    timeout);
-        }
+        throw new RuntimeException("test");
     }
 
     private void submitSQLJobWithSQLClient(
