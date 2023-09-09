@@ -279,7 +279,7 @@ public final class FlinkDistribution {
             SQLJobClientMode.GatewaySqlClient sqlClient =
                     (SQLJobClientMode.GatewaySqlClient) job.getClientMode();
             commands.add("-e");
-            commands.add(String.format("%s:%s", sqlClient.getHost(), sqlClient.getPort()));
+            commands.add(String.format("%s:%s", "127.1.1.1", sqlClient.getPort()));
             submitSQLJobWithSQLClient(job, commands, timeout);
         } else if (job.getClientMode() instanceof SQLJobClientMode.HiveJDBC) {
             // register HiveDriver to the DriverManager
