@@ -108,7 +108,20 @@ class FailureEnricherUtilsTest {
                 FailureEnricherUtils.getFailureEnrichers(configuration, createPluginManager());
         assertThat(enrichers).hasSize(1);
         // verify that the failure enricher was created and returned
-        assertThat(enrichers.iterator().next()).isInstanceOf(TestEnricher.class);
+        assertThat(enrichers)
+                .satisfiesExactly(
+                        enricher -> assertThat(enricher).isInstanceOf(TestEnricher.class));
+
+        // Valid plus Invalid Name combination
+        configuration.set(
+                JobManagerOptions.FAILURE_ENRICHERS_LIST,
+                FailureEnricherUtilsTest.class.getName() + "," + TestEnricher.class.getName());
+        final Collection<FailureEnricher> validInvalidEnrichers =
+                FailureEnricherUtils.getFailureEnrichers(configuration, createPluginManager());
+        assertThat(validInvalidEnrichers).hasSize(1);
+        assertThat(validInvalidEnrichers)
+                .satisfiesExactly(
+                        enricher -> assertThat(enricher).isInstanceOf(TestEnricher.class));
     }
 
     @Test
