@@ -298,7 +298,7 @@ class SerializationProxiesTest {
 
     private void assertEqualStateMetaInfoSnapshotsLists(
             List<StateMetaInfoSnapshot> expected, List<StateMetaInfoSnapshot> actual) {
-        assertThat(actual.size()).isEqualTo(expected.size());
+        assertThat(actual).hasSameSizeAs(expected);
         for (int i = 0; i < expected.size(); ++i) {
             assertEqualStateMetaInfoSnapshots(expected.get(i), actual.get(i));
         }

@@ -298,7 +298,7 @@ class TaskStateManagerImplTest {
                         new TaskExecutorStateChangelogStoragesManager(),
                         new JobManagerTaskRestore(2, new TaskStateSnapshot()),
                         new TestCheckpointResponder());
-        assertThat(nonEmptyStateManager.getRestoreCheckpointId().get()).isEqualTo(2L);
+        assertThat(nonEmptyStateManager.getRestoreCheckpointId()).hasValue(2L);
     }
 
     private static TaskStateManager taskStateManager(

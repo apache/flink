@@ -64,8 +64,8 @@ class CheckpointStorageLoaderTest {
 
     @Test
     void testNoCheckpointStorageDefined() throws Exception {
-        assertThat(CheckpointStorageLoader.fromConfig(new Configuration(), cl, null).isPresent())
-                .isFalse();
+        assertThat(CheckpointStorageLoader.fromConfig(new Configuration(), cl, null))
+                .isNotPresent();
     }
 
     @Test
