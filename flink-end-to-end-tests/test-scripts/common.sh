@@ -55,10 +55,10 @@ source "${FLINK_DIR}/bin/config_util.sh"
 FLINK_LIB_DIR=${FLINK_DIR}/lib
 FLINK_BIN_DIR=${FLINK_DIR}/bin
 if [ -z "$FLINK_CONF_DIR" ] ; then
-    export FLINK_CONF_DIR="$FLINK_DIR/conf"
+    FLINK_CONF_DIR="$FLINK_DIR/conf"
 fi
 FLINK_CONF=${FLINK_DIR}/conf/flink-config.yaml
-output=$(parseConfigurationAndExportLogs)
+output=$(parseConfigurationAndExportLogs "${FLINK_CONF_DIR}")
 echo "$output" > $FLINK_CONF
 
 NODENAME=${NODENAME:-"localhost"}

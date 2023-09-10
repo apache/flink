@@ -76,9 +76,10 @@ runBashJavaUtilsCmd() {
 }
 
 parseConfigurationAndExportLogs() {
+    local flink_conf_dir="$1"
     local EXECUTION_PREFIX="BASH_JAVA_UTILS_EXEC_RESULT:"
 
-    java_utils_output=$(runBashJavaUtilsCmd GET_FLINK_CONFIGURATION "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)")
+    java_utils_output=$(runBashJavaUtilsCmd GET_FLINK_CONFIGURATION "${flink_conf_dir}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)")
     logging_output=$(extractLoggingOutputs "${java_utils_output}")
     execution_results=$(echo "${java_utils_output}" | grep ${EXECUTION_PREFIX})
 

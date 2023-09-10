@@ -206,7 +206,7 @@ export FLINK_LIB_DIR
 # export /opt dir to access it for the SQL client
 export FLINK_OPT_DIR
 
-YAML_CONF=$(parseConfigurationAndExportLogs)
+YAML_CONF=$(parseConfigurationAndExportLogs "${FLINK_CONF_DIR}")
 
 ########################################################################################################################
 # ENVIRONMENT VARIABLES
