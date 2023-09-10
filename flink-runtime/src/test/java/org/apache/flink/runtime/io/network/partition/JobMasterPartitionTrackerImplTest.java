@@ -146,8 +146,7 @@ class JobMasterPartitionTrackerImplTest {
 
         assertThat(releaseCalls).isEmpty();
         assertThat(promoteCalls).isEmpty();
-        assertThat(shuffleMaster.externallyReleasedPartitions).hasSize(1);
-        assertThat(shuffleMaster.externallyReleasedPartitions).contains(resultPartitionId);
+        assertThat(shuffleMaster.externallyReleasedPartitions).containsOnly(resultPartitionId);
     }
 
     @Test

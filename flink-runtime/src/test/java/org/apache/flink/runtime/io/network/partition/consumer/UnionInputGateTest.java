@@ -131,7 +131,7 @@ class UnionInputGateTest extends InputGateTestBase {
 
         // Return null when the input gate has received all end-of-partition events
         assertThat(union.isFinished()).isTrue();
-        assertThat(union.getNext()).isEmpty();
+        assertThat(union.getNext()).isNotPresent();
     }
 
     @Test
@@ -290,7 +290,7 @@ class UnionInputGateTest extends InputGateTestBase {
 
         inputChannel1.notifyChannelNonEmpty();
         assertThat(inputGate.getAvailableFuture()).isDone();
-        assertThat(inputGate.pollNext()).isEmpty();
+        assertThat(inputGate.pollNext()).isNotPresent();
         assertThat(inputGate.getAvailableFuture()).isNotDone();
     }
 }

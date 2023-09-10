@@ -479,8 +479,9 @@ class LocalInputChannelTest {
         channel.requestSubpartition();
         Optional<InputChannel.BufferAndAvailability> bufferAndAvailability =
                 channel.getNextBuffer();
-        assertThat(bufferAndAvailability).isPresent();
-        assertThat(bufferAndAvailability.get().buffer().isCompressed()).isFalse();
+
+        assertThat(bufferAndAvailability)
+                .hasValueSatisfying(value -> assertThat(value.buffer().isCompressed()).isFalse());
     }
 
     @Test
@@ -543,13 +544,12 @@ class LocalInputChannelTest {
         subpartition.flush();
 
         // No buffer since the subpartition is blocked.
-        assertThat(channel.inputGate.pollNext()).isEmpty();
+        assertThat(channel.inputGate.pollNext()).isNotPresent();
 
         // Resumption makes the subpartition available.
         channel.resumeConsumption();
         Optional<BufferOrEvent> nextBuffer = channel.inputGate.pollNext();
-        assertThat(nextBuffer).isPresent();
-        assertThat(nextBuffer.get().isBuffer()).isTrue();
+        assertThat(nextBuffer).hasValueSatisfying(value -> assertThat(value.isBuffer()).isTrue());
     }
 
     @Test

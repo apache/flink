@@ -460,14 +460,14 @@ class PartitionRequestQueueTest {
         // add credit to make this reader available for adding into availableReaders queue
         if (isAvailableView) {
             queue.addCreditOrResumeConsumption(receiverId, viewReader -> viewReader.addCredit(1));
-            assertThat(queue.getAvailableReaders().contains(reader)).isTrue();
+            assertThat(queue.getAvailableReaders()).contains(reader);
         }
 
         // cancel this subpartition view
         queue.cancel(receiverId);
         channel.runPendingTasks();
 
-        assertThat(queue.getAvailableReaders().contains(reader)).isFalse();
+        assertThat(queue.getAvailableReaders()).doesNotContain(reader);
 
         // the reader view should be released (the partition is not, though, blocking partitions
         // support multiple successive readers for recovery and caching)

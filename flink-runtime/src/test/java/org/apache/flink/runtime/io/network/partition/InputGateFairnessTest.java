@@ -125,7 +125,7 @@ public class InputGateFairnessTest {
             assertThat(max == min || max == (min + 1)).isTrue();
         }
 
-        assertThat(gate.getNext()).isEmpty();
+        assertThat(gate.getNext()).isNotPresent();
     }
 
     @Test
@@ -246,7 +246,7 @@ public class InputGateFairnessTest {
             assertThat(max == min || max == (min + 1)).isTrue();
         }
 
-        assertThat(gate.getNext()).isEmpty();
+        assertThat(gate.getNext()).isNotPresent();
     }
 
     @Test

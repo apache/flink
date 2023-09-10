@@ -33,7 +33,6 @@ class NettyPayloadTest {
     void testGetBuffer() {
         Buffer buffer = BufferBuilderTestUtils.buildSomeBuffer(0);
         NettyPayload nettyPayload = NettyPayload.newBuffer(buffer, 0, 0);
-        assertThat(nettyPayload.getBuffer()).isPresent();
         assertThat(nettyPayload.getBuffer()).hasValue(buffer);
         assertThatThrownBy(() -> NettyPayload.newBuffer(null, 0, 0))
                 .isInstanceOf(IllegalStateException.class);
@@ -47,7 +46,6 @@ class NettyPayloadTest {
     void testGetError() {
         Throwable error = new RuntimeException("test exception");
         NettyPayload nettyPayload = NettyPayload.newError(error);
-        assertThat(nettyPayload.getError()).isPresent();
         assertThat(nettyPayload.getError()).hasValue(error);
         assertThatThrownBy(() -> NettyPayload.newError(null))
                 .isInstanceOf(NullPointerException.class);

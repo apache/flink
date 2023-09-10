@@ -78,7 +78,7 @@ class ChannelStatePersisterTest {
         persister.startPersisting(1L, Collections.emptyList());
         persister.startPersisting(2L, Collections.emptyList());
 
-        assertThat(persister.checkForBarrier(barrier(1L)).isPresent()).isFalse();
+        assertThat(persister.checkForBarrier(barrier(1L))).isNotPresent();
 
         assertThat(persister.hasBarrierReceived()).isFalse();
     }

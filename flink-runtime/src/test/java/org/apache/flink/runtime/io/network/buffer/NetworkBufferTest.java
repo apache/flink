@@ -256,8 +256,9 @@ class NetworkBufferTest extends AbstractByteBufTest {
         NetworkBuffer buffer = newBuffer(100, 1024, isBuffer);
         assertThat(buffer.getMaxCapacity()).isEqualTo(1024);
         MemorySegment segment = buffer.getMemorySegment();
-        assertThat(segment.size()).isEqualTo(buffer.getMaxCapacity());
-        assertThat(segment.size()).isEqualTo(buffer.maxCapacity());
+        assertThat(segment.size())
+                .isEqualTo(buffer.getMaxCapacity())
+                .isEqualTo(buffer.maxCapacity());
     }
 
     @Test

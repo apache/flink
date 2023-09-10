@@ -173,9 +173,9 @@ class PartitionRequestServerHandlerTest {
         channel.runPendingTasks();
 
         // If error happens outbound messages would be not empty.
-        assertThat(channel.outboundMessages().isEmpty())
+        assertThat(channel.outboundMessages())
                 .withFailMessage(channel.outboundMessages().toString())
-                .isTrue();
+                .isEmpty();
 
         // New buffer size should be silently ignored because it is possible situation.
         assertThat(testViewReader.bufferSize).isEqualTo(-1);

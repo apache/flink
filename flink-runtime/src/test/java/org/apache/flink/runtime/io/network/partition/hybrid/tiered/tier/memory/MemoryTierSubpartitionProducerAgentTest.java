@@ -75,8 +75,7 @@ class MemoryTierSubpartitionProducerAgentTest {
         subpartitionProducerAgent.addFinishedBuffer(sentBuffer);
         Optional<Buffer> receivedBuffer = received.get().getBuffer();
 
-        assertThat(receivedBuffer).isPresent();
-        assertThat(receivedBuffer.get()).isEqualTo(sentBuffer);
+        assertThat(receivedBuffer).hasValue(sentBuffer);
     }
 
     @Test

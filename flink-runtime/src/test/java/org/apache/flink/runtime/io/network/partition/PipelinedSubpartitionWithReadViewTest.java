@@ -103,12 +103,8 @@ class PipelinedSubpartitionWithReadViewTest {
     void testRelease() {
         readView.releaseAllResources();
         resultPartition.close();
-        assertThat(
-                        resultPartition
-                                .getPartitionManager()
-                                .getUnreleasedPartitions()
-                                .contains(resultPartition.getPartitionId()))
-                .isFalse();
+        assertThat(resultPartition.getPartitionManager().getUnreleasedPartitions())
+                .doesNotContain(resultPartition.getPartitionId());
     }
 
     @TestTemplate

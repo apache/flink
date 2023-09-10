@@ -399,7 +399,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
         assertSubpartitionChannelStateFuturesAndQueuedBuffers(
                 subpartition, channelStateFuture, true, 0, true);
-        assertThat(channelStateFuture.get().isEmpty()).isTrue();
+        assertThatFuture(channelStateFuture).eventuallySucceeds().asList().isEmpty();
         subpartition.resumeConsumption();
     }
 

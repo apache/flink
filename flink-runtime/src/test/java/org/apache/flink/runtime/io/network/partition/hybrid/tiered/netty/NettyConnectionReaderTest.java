@@ -60,8 +60,7 @@ class NettyConnectionReaderTest {
                 createInputChannelSupplier(bufferNumber, requiredSegmentIdFuture);
         NettyConnectionReader reader = createNettyConnectionReader(inputChannelSupplier);
         Optional<Buffer> buffer = reader.readBuffer(0);
-        assertThat(buffer).isPresent();
-        assertThat(buffer.get().isBuffer()).isTrue();
+        assertThat(buffer).hasValueSatisfying(value -> assertThat(value.isBuffer()).isTrue());
         assertThat(requiredSegmentIdFuture).isNotDone();
     }
 

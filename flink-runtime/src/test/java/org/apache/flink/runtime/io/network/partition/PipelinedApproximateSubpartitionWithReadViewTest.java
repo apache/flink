@@ -47,11 +47,7 @@ class PipelinedApproximateSubpartitionWithReadViewTest
     @Override
     void testRelease() {
         readView.releaseAllResources();
-        assertThat(
-                        resultPartition
-                                .getPartitionManager()
-                                .getUnreleasedPartitions()
-                                .contains(resultPartition.getPartitionId()))
-                .isTrue();
+        assertThat(resultPartition.getPartitionManager().getUnreleasedPartitions())
+                .contains(resultPartition.getPartitionId());
     }
 }

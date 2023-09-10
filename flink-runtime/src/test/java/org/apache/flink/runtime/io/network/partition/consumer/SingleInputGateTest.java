@@ -356,8 +356,9 @@ class SingleInputGateTest extends InputGateTestBase {
             inputGate.notifyChannelNonEmpty(inputChannel);
 
             Optional<BufferOrEvent> bufferOrEvent = inputGate.getNext();
-            assertThat(bufferOrEvent.isPresent()).isTrue();
-            assertThat(bufferOrEvent.get().isBuffer()).isTrue();
+            assertThat(bufferOrEvent)
+                    .hasValueSatisfying(value -> assertThat(value.isBuffer()).isTrue());
+
             ByteBuffer buffer =
                     bufferOrEvent
                             .get()
@@ -378,12 +379,16 @@ class SingleInputGateTest extends InputGateTestBase {
 
         inputChannel.readEndOfPartitionEvent();
         inputChannel.notifyChannelNonEmpty();
-        assertThat(inputGate.pollNext().get().getEvent()).isEqualTo(EndOfPartitionEvent.INSTANCE);
+        assertThat(inputGate.pollNext())
+                .hasValueSatisfying(
+                        value ->
+                                assertThat(value.getEvent())
+                                        .isEqualTo(EndOfPartitionEvent.INSTANCE));
 
         // gate is still active because of secondary channel
         // test if released channel is enqueued
         inputChannel.notifyChannelNonEmpty();
-        assertThat(inputGate.pollNext().isPresent()).isFalse();
+        assertThat(inputGate.pollNext()).isNotPresent();
     }
 
     @Test
@@ -1101,9 +1106,9 @@ class SingleInputGateTest extends InputGateTestBase {
             assertThat(createdInputGatesById).hasSize(numberOfGates);
 
             for (InputGateID id : createdInputGatesById.keySet()) {
-                assertThat(network.getInputGate(id).isPresent()).isTrue();
+                assertThat(network.getInputGate(id)).isPresent();
                 createdInputGatesById.get(id).close();
-                assertThat(network.getInputGate(id).isPresent()).isFalse();
+                assertThat(network.getInputGate(id)).isNotPresent();
             }
         }
     }
@@ -1417,13 +1422,14 @@ class SingleInputGateTest extends InputGateTestBase {
             throws IOException, InterruptedException {
 
         final Optional<BufferOrEvent> bufferOrEvent = inputGate.getNext();
-        assertThat(bufferOrEvent.isPresent()).isTrue();
+        assertThat(bufferOrEvent).satisfies(value -> assertThat(value).satisfies());
+
         assertThat(bufferOrEvent.get().isBuffer()).isEqualTo(expectedIsBuffer);
         assertThat(bufferOrEvent.get().getChannelInfo())
                 .isEqualTo(inputGate.getChannel(expectedChannelIndex).getChannelInfo());
         assertThat(bufferOrEvent.get().moreAvailable()).isEqualTo(expectedMoreAvailable);
         if (!expectedMoreAvailable) {
-            assertThat(inputGate.pollNext().isPresent()).isFalse();
+            assertThat(inputGate.pollNext()).isNotPresent();
         }
     }
 

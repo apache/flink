@@ -643,6 +643,7 @@ class HsSubpartitionFileReaderImplTest {
             BufferIndexOrError bufferIndexOrError = fileReader.getLoadedBuffers().poll();
             assertThat(bufferIndexOrError).isNotNull();
             assertThat(bufferIndexOrError.getBuffer()).isPresent();
+
             Buffer buffer = bufferIndexOrError.getBuffer().get();
             buffer =
                     buffer.isCompressed() && bufferDecompressor != null

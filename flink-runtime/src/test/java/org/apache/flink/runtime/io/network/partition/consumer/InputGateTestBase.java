@@ -45,12 +45,12 @@ abstract class InputGateTestBase {
             throws Exception {
 
         assertThat(inputGateToTest.getAvailableFuture()).isNotDone();
-        assertThat(inputGateToTest.pollNext()).isEmpty();
+        assertThat(inputGateToTest.pollNext()).isNotPresent();
 
         CompletableFuture<?> future = inputGateToTest.getAvailableFuture();
 
         assertThat(inputGateToTest.getAvailableFuture()).isNotDone();
-        assertThat(inputGateToTest.pollNext()).isEmpty();
+        assertThat(inputGateToTest.pollNext()).isNotPresent();
 
         assertThat(inputGateToTest.getAvailableFuture()).isEqualTo(future);
 
@@ -67,7 +67,7 @@ abstract class InputGateTestBase {
 
         CompletableFuture<?> available = inputGateToTest.getAvailableFuture();
         assertThat(available).isNotDone();
-        assertThat(inputGateToTest.pollNext()).isEmpty();
+        assertThat(inputGateToTest.pollNext()).isNotPresent();
 
         endOfPartitionEvent.run();
 
