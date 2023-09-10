@@ -62,7 +62,13 @@ public class NestedFieldReferenceExpression implements ResolvedExpression {
     }
 
     public String getName() {
-        return String.join(".", fieldNames);
+        return String.format(
+                "`%s`",
+                String.join(
+                        ".",
+                        Arrays.stream(fieldNames)
+                                .map(this::quoteIdentifier)
+                                .toArray(String[]::new)));
     }
 
     @Override
@@ -112,5 +118,9 @@ public class NestedFieldReferenceExpression implements ResolvedExpression {
     @Override
     public String toString() {
         return asSummaryString();
+    }
+
+    private String quoteIdentifier(String identifier) {
+        return identifier.replace("`", "``");
     }
 }

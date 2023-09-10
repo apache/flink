@@ -92,12 +92,12 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "  id int,\n"
                         + "  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n"
                         + "  nested row<name string, `value` int>,\n"
-                        + "  `deepNestedWith.` row<`.value` int, nested row<name string, `.value` int>>,\n"
+                        + "  `deepNestedWith.` row<`.value` int, nested row<```name` string, `.value` int>>,\n"
                         + "  name string,\n"
                         + "  testMap Map<string, string>\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'deepNested.nested1.value;deepNestedWith..nested..value;',"
+                        + " 'filterable-fields' = '`deepNested.nested1.value`;`deepNestedWith..nested..value`;`deepNestedWith..nested.``name`;',"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl3);
@@ -161,6 +161,12 @@ public class PushFilterIntoTableSourceScanRuleTest
     public void testNestedFilterWithDotInTheName() {
         util.verifyRelPlan(
                 "SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.`.value` > 5");
+    }
+
+    @Test
+    public void testNestedFilterWithBacktickInTheName() {
+        util.verifyRelPlan(
+                "SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.```name` = 'foo'");
     }
 
     @Test
