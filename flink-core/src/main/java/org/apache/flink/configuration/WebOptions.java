@@ -67,6 +67,14 @@ public class WebOptions {
                     .withDeprecatedKeys("jobmanager.web.refresh-interval")
                     .withDescription("Refresh interval for the web-frontend in milliseconds.");
 
+    /** The config parameter defining the TTL for the web cache in milliseconds. */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Long> WEB_CACHE_TIME_TO_LIVE =
+            key("web.cache.time-to-live")
+                    .longType()
+                    .defaultValue(3000L)
+                    .withDescription("TTL for the web cache in milliseconds.");
+
     /** Config parameter to override SSL support for the JobManager Web UI. */
     @Deprecated
     public static final ConfigOption<Boolean> SSL_ENABLED =

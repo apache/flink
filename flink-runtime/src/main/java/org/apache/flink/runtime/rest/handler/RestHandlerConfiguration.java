@@ -33,6 +33,8 @@ public class RestHandlerConfiguration {
 
     private final long refreshInterval;
 
+    private final long cacheTimeToLive;
+
     private final int checkpointHistorySize;
 
     private final Duration checkpointCacheExpireAfterWrite;
@@ -51,6 +53,7 @@ public class RestHandlerConfiguration {
 
     public RestHandlerConfiguration(
             long refreshInterval,
+            long cacheTimeToLive,
             int checkpointHistorySize,
             Duration checkpointCacheExpireAfterWrite,
             int checkpointCacheSize,
@@ -62,6 +65,7 @@ public class RestHandlerConfiguration {
         Preconditions.checkArgument(
                 refreshInterval > 0L, "The refresh interval (ms) should be larger than 0.");
         this.refreshInterval = refreshInterval;
+        this.cacheTimeToLive = cacheTimeToLive;
 
         this.checkpointHistorySize = checkpointHistorySize;
         this.checkpointCacheExpireAfterWrite = checkpointCacheExpireAfterWrite;
@@ -76,6 +80,10 @@ public class RestHandlerConfiguration {
 
     public long getRefreshInterval() {
         return refreshInterval;
+    }
+
+    public long getCacheTimeToLive() {
+        return cacheTimeToLive;
     }
 
     public int getCheckpointHistorySize() {
@@ -112,6 +120,7 @@ public class RestHandlerConfiguration {
 
     public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
         final long refreshInterval = configuration.getLong(WebOptions.REFRESH_INTERVAL);
+        final long cacheTimeToLive = configuration.getLong(WebOptions.WEB_CACHE_TIME_TO_LIVE);
 
         final int checkpointHistorySize =
                 configuration.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
@@ -137,6 +146,7 @@ public class RestHandlerConfiguration {
 
         return new RestHandlerConfiguration(
                 refreshInterval,
+                cacheTimeToLive,
                 checkpointHistorySize,
                 checkpointStatsSnapshotCacheExpireAfterWrite,
                 checkpointStatsSnapshotCacheSize,
