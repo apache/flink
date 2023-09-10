@@ -54,7 +54,7 @@ source "${FLINK_DIR}/bin/config_util.sh"
 
 FLINK_LIB_DIR=${FLINK_DIR}/lib
 FLINK_BIN_DIR=${FLINK_DIR}/bin
-if [ -z "$FLINK_CONF_DIR" ] ; then
+if [[ -z "${FLINK_CONF_DIR:-}" ]]; then
     FLINK_CONF_DIR="$FLINK_DIR/conf"
 fi
 FLINK_CONF=${FLINK_DIR}/conf/flink-config.yaml
