@@ -1369,11 +1369,12 @@ object ScalarOperatorGens {
       }
     }
 
-    val elementsCode = elements
+    val elementsCode = elements.zipWithIndex
       .map {
-        element =>
+        case (element, index) =>
           s"""
              | ${element.code}
+             | ${if (index == 0) s"$tmpResult = ${castIfNumeric(elements.head)};" else ""}
              | if (!$nullTerm) {
              |   $boxedResultTypeTerm $cur = ${castIfNumeric(element)};
              |   if (${element.nullTerm}) {
@@ -1391,7 +1392,7 @@ object ScalarOperatorGens {
 
     val code =
       s"""
-         | $boxedResultTypeTerm $tmpResult = ${castIfNumeric(elements.head)};
+         | $boxedResultTypeTerm $tmpResult;
          | $primitiveResultTypeTerm $result = ${primitiveDefaultValue(widerType.get)};
          | boolean $nullTerm = false;
          | $elementsCode
