@@ -33,7 +33,7 @@ public class FileCatalogStoreFactoryOptions {
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "The configuration option for specifying the path to the file catalog store.");
+                            "The configuration option for specifying the path to the file catalog store root directory.");
 
     private FileCatalogStoreFactoryOptions() {}
 }
