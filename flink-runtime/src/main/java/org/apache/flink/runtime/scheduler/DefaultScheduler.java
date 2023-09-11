@@ -19,6 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
@@ -236,6 +237,20 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     @Override
     protected void startSchedulingInternal() {
+        log.info("############### NOTICE ###########");
+        log.info("The execution config from job is:");
+        try {
+            ExecutionConfig executionConfig =
+                    getJobGraph().getSerializedExecutionConfig().deserializeValue(userCodeLoader);
+            Configuration configuration = executionConfig.toConfiguration();
+            Map<String, String> stringStringMap = configuration.toMap();
+            stringStringMap
+                    .entrySet()
+                    .forEach(entry -> log.info(entry.getKey() + ": " + entry.getValue()));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         log.info(
                 "Starting scheduling with scheduling strategy [{}]",
                 schedulingStrategy.getClass().getName());
