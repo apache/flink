@@ -25,8 +25,7 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
-
-import org.apache.flink.api.common.io.FileInputFormat;
+import java.util.Set;
 
 public class TestFileUtils {
 
@@ -138,7 +137,8 @@ public class TestFileUtils {
         return f.toURI().toString();
     }
 
-    public static String createTempTextFileDirCompressionFormats(File tempDir) throws IOException {
+    public static String createTempFileDirForProvidedFormats(File tempDir, Set<String> formats)
+            throws IOException {
         File f = null;
         do {
             f = new File(tempDir, randomFileName(FILE_SUFFIX));
@@ -146,7 +146,7 @@ public class TestFileUtils {
         f.mkdirs();
         f.deleteOnExit();
 
-        for (String extension : FileInputFormat.getSupportedCompressionFormats()) {
+        for (String extension : formats) {
             File child = new File(f, randomFileName("." + extension));
             child.deleteOnExit();
 

@@ -19,6 +19,7 @@
 package org.apache.flink.api.common.io;
 
 import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.io.compression.Bzip2InputStreamFactory;
 import org.apache.flink.api.common.io.compression.DeflateInflaterInputStreamFactory;
 import org.apache.flink.api.common.io.compression.GzipInflaterInputStreamFactory;
@@ -157,6 +158,7 @@ public abstract class FileInputFormat<OT> extends RichInputFormat<OT, FileInputS
         }
     }
 
+    @VisibleForTesting
     public static Set<String> getSupportedCompressionFormats() {
         return INFLATER_INPUT_STREAM_FACTORIES.keySet();
     }
