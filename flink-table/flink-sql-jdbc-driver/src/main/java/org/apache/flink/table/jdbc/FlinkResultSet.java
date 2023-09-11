@@ -25,7 +25,7 @@ import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.jdbc.utils.ArrayFieldGetter;
+import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.jdbc.utils.CloseableResultIterator;
 import org.apache.flink.table.jdbc.utils.StatementResultIterator;
 import org.apache.flink.table.types.DataType;
@@ -44,6 +44,8 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -277,20 +279,17 @@ public class FlinkResultSet extends BaseResultSet {
 
     @Override
     public Date getDate(int columnIndex) throws SQLException {
-        // TODO support date data
-        throw new IllegalArgumentException();
+        return (Date) getObject(columnIndex);
     }
 
     @Override
     public Time getTime(int columnIndex) throws SQLException {
-        // TODO support time data
-        throw new IllegalArgumentException();
+        return (Time) getObject(columnIndex);
     }
 
     @Override
     public Timestamp getTimestamp(int columnIndex) throws SQLException {
-        // TODO support time timestamp
-        throw new IllegalArgumentException();
+        return (Timestamp) getObject(columnIndex);
     }
 
     @Override
@@ -416,8 +415,8 @@ public class FlinkResultSet extends BaseResultSet {
                 {
                     LogicalType keyType = ((MapType) dataType).getKeyType();
                     LogicalType valueType = ((MapType) dataType).getValueType();
-                    ArrayFieldGetter keyGetter = ArrayFieldGetter.createFieldGetter(keyType);
-                    ArrayFieldGetter valueGetter = ArrayFieldGetter.createFieldGetter(valueType);
+                    ArrayData.ElementGetter keyGetter = ArrayData.createElementGetter(keyType);
+                    ArrayData.ElementGetter valueGetter = ArrayData.createElementGetter(valueType);
                     MapData mapData = (MapData) object;
                     int size = mapData.size();
                     ArrayData keyArrayData = mapData.keyArray();
@@ -426,11 +425,33 @@ public class FlinkResultSet extends BaseResultSet {
                     for (int i = 0; i < size; i++) {
                         mapResult.put(
                                 convertToJavaObject(
-                                        keyGetter.getObjectOrNull(keyArrayData, i), keyType),
+                                        keyGetter.getElementOrNull(keyArrayData, i), keyType),
                                 convertToJavaObject(
-                                        valueGetter.getObjectOrNull(valueArrayData, i), valueType));
+                                        valueGetter.getElementOrNull(valueArrayData, i),
+                                        valueType));
                     }
                     return mapResult;
+                }
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                {
+                    return ((TimestampData) object).toTimestamp();
+                }
+            case TIMESTAMP_WITH_TIME_ZONE:
+                {
+                    // TODO should be supported after
+                    // https://issues.apache.org/jira/browse/FLINK-20869
+                    throw new SQLDataException(
+                            "TIMESTAMP WITH TIME ZONE is not supported, use TIMESTAMP or TIMESTAMP_LTZ instead");
+                }
+            case TIME_WITHOUT_TIME_ZONE:
+                {
+                    return Time.valueOf(
+                            LocalTime.ofNanoOfDay(((Number) object).intValue() * 1_000_000L));
+                }
+            case DATE:
+                {
+                    return Date.valueOf(LocalDate.ofEpochDay(((Number) object).intValue()));
                 }
             default:
                 {
