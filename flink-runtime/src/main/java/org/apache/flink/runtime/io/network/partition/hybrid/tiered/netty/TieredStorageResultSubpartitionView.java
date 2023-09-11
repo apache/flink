@@ -200,11 +200,9 @@ public class TieredStorageResultSubpartitionView implements ResultSubpartitionVi
     }
 
     private int getBacklog() {
-        int backlog = 0;
-        for (NettyPayloadManager nettyPayloadManager : nettyPayloadManagers) {
-            backlog += nettyPayloadManager.getBacklog();
-        }
-        return backlog;
+        return managerIndexContainsCurrentSegment == -1
+                ? 0
+                : nettyPayloadManagers.get(managerIndexContainsCurrentSegment).getBacklog();
     }
 
     private boolean isEventOrError(NettyPayloadManager nettyPayloadManager) {
