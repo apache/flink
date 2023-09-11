@@ -19,12 +19,16 @@
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.concurrent.GuardedBy;
 
+import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Optional;
 import java.util.Queue;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link NettyPayloadManager} is used to contain all netty payloads from a storage tier. */
 public class NettyPayloadManager {
@@ -33,16 +37,29 @@ public class NettyPayloadManager {
 
     private final Queue<NettyPayload> queue = new LinkedList<>();
 
-    /** Number of buffers whose {@link Buffer.DataType} is buffer in the queue. */
+    /**
+     * The queue contains a collection of numbers. Each number represents the number of buffers that
+     * belongs to consecutive segment ids.
+     */
     @GuardedBy("lock")
-    private int backlog = 0;
+    private final Deque<Integer> backlogs = new LinkedList<>();
+
+    @GuardedBy("lock")
+    private int lastSegmentId = -1;
 
     public void add(NettyPayload nettyPayload) {
         synchronized (lock) {
             queue.add(nettyPayload);
+            int segmentId = nettyPayload.getSegmentId();
+            if (segmentId != -1 && segmentId != lastSegmentId) {
+                if (segmentId == 0 || segmentId != (lastSegmentId + 1)) {
+                    addNewBacklog();
+                }
+                lastSegmentId = segmentId;
+            }
             Optional<Buffer> buffer = nettyPayload.getBuffer();
             if (buffer.isPresent() && buffer.get().isBuffer()) {
-                backlog++;
+                addBacklog();
             }
         }
     }
@@ -59,7 +76,7 @@ public class NettyPayloadManager {
             if (nettyPayload != null
                     && nettyPayload.getBuffer().isPresent()
                     && nettyPayload.getBuffer().get().isBuffer()) {
-                backlog--;
+                decreaseBacklog();
             }
             return nettyPayload;
         }
@@ -67,13 +84,38 @@ public class NettyPayloadManager {
 
     public int getBacklog() {
         synchronized (lock) {
-            return backlog;
+            Integer backlog = backlogs.peekFirst();
+            return backlog == null ? 0 : backlog;
         }
     }
 
     public int getSize() {
         synchronized (lock) {
             return queue.size();
+        }
+    }
+
+    @GuardedBy("lock")
+    private void addNewBacklog() {
+        backlogs.addLast(0);
+    }
+
+    @GuardedBy("lock")
+    private void addBacklog() {
+        Integer backlog = backlogs.pollLast();
+        if (backlog == null) {
+            backlogs.addLast(1);
+        } else {
+            backlogs.addLast(backlog + 1);
+        }
+    }
+
+    @GuardedBy("lock")
+    private void decreaseBacklog() {
+        int backlog = checkNotNull(backlogs.pollFirst());
+        Preconditions.checkState(backlog > 0);
+        if (backlog > 1) {
+            backlogs.addFirst(backlog - 1);
         }
     }
 }
