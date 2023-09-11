@@ -116,16 +116,17 @@ class ProducerMergedPartitionFileReaderTest {
 
     @Test
     void testGetPriority() throws IOException {
-        ProducerMergedPartitionFile.ProducerMergedReadProgress readProgress = null;
+        ProducerMergedPartitionFileReader.ProducerMergedReadProgress readProgress = null;
         CompositeBuffer partialBuffer = null;
         for (int bufferIndex = 0; bufferIndex < DEFAULT_BUFFER_NUMBER; ) {
             PartitionFileReader.ReadBufferResult readBufferResult =
                     readBuffer(bufferIndex, DEFAULT_SUBPARTITION_ID, readProgress, partialBuffer);
             assertThat(readBufferResult).isNotNull();
             assertThat(readBufferResult.getReadProgress())
-                    .isInstanceOf(ProducerMergedPartitionFile.ProducerMergedReadProgress.class);
+                    .isInstanceOf(
+                            ProducerMergedPartitionFileReader.ProducerMergedReadProgress.class);
             readProgress =
-                    (ProducerMergedPartitionFile.ProducerMergedReadProgress)
+                    (ProducerMergedPartitionFileReader.ProducerMergedReadProgress)
                             readBufferResult.getReadProgress();
             for (Buffer buffer : readBufferResult.getReadBuffers()) {
                 if (buffer instanceof CompositeBuffer) {
@@ -140,8 +141,14 @@ class ProducerMergedPartitionFileReaderTest {
                     buffer.recycleBuffer();
                 }
             }
-            long expectedBufferOffset =
-                    readProgress == null ? 0 : readProgress.getCurrentBufferOffset();
+
+            long expectedBufferOffset;
+            if (bufferIndex < DEFAULT_BUFFER_NUMBER) {
+                expectedBufferOffset =
+                        readProgress == null ? 0 : readProgress.getCurrentBufferOffset();
+            } else {
+                expectedBufferOffset = Long.MAX_VALUE;
+            }
             assertThat(
                             partitionFileReader.getPriority(
                                     DEFAULT_PARTITION_ID,
@@ -156,16 +163,17 @@ class ProducerMergedPartitionFileReaderTest {
     @Test
     void testReadProgress() throws IOException {
         long currentFileOffset = 0;
-        ProducerMergedPartitionFile.ProducerMergedReadProgress readProgress = null;
+        ProducerMergedPartitionFileReader.ProducerMergedReadProgress readProgress = null;
         CompositeBuffer partialBuffer = null;
         for (int bufferIndex = 0; bufferIndex < DEFAULT_BUFFER_NUMBER; ) {
             PartitionFileReader.ReadBufferResult readBufferResult =
                     readBuffer(bufferIndex, DEFAULT_SUBPARTITION_ID, readProgress, partialBuffer);
             assertThat(readBufferResult).isNotNull();
             assertThat(readBufferResult.getReadProgress())
-                    .isInstanceOf(ProducerMergedPartitionFile.ProducerMergedReadProgress.class);
+                    .isInstanceOf(
+                            ProducerMergedPartitionFileReader.ProducerMergedReadProgress.class);
             readProgress =
-                    (ProducerMergedPartitionFile.ProducerMergedReadProgress)
+                    (ProducerMergedPartitionFileReader.ProducerMergedReadProgress)
                             readBufferResult.getReadProgress();
             for (Buffer buffer : readBufferResult.getReadBuffers()) {
                 if (buffer instanceof CompositeBuffer) {

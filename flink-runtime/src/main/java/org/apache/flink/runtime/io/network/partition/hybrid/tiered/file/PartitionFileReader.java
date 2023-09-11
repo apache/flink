@@ -42,7 +42,10 @@ public interface PartitionFileReader {
      * @param bufferIndex the index of buffer
      * @param memorySegment the empty buffer to store the read buffer
      * @param recycler the buffer recycler
-     * @param readProgress the current read process
+     * @param readProgress the current read progress. The progress comes from the previous
+     *     ReadBufferResult. Note that the read progress should be implemented and provided by
+     *     Flink, and it should be directly tied to the file format. The field can be null if the
+     *     current file reader has no the read progress
      * @param partialBuffer the previous partial buffer. The partial buffer is not null only when
      *     the last read has a partial buffer, it will construct a full buffer during the read
      *     process.
@@ -76,6 +79,10 @@ public interface PartitionFileReader {
      * @param subpartitionId the subpartition id of the buffer
      * @param segmentId the segment id of the buffer
      * @param bufferIndex the index of buffer
+     * @param readProgress the current read progress. The progress comes from the previous
+     *     ReadBufferResult. Note that the read progress should be implemented and provided by
+     *     Flink, and it should be directly tied to the file format. The field can be null if the
+     *     current file reader has no the read progress
      * @return the priority of the {@link PartitionFileReader}.
      */
     long getPriority(
@@ -83,7 +90,7 @@ public interface PartitionFileReader {
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
             int bufferIndex,
-            ReadProgress readProgress);
+            @Nullable ReadProgress readProgress);
 
     /** Release the {@link PartitionFileReader}. */
     void release();
@@ -112,13 +119,18 @@ public interface PartitionFileReader {
          */
         private final boolean continuousReadSuggested;
 
-        /** The read progress state. */
-        private final ReadProgress readProgress;
+        /**
+         * The read progress state.
+         *
+         * <p>Note that the field can be null if the current file reader has no the read progress
+         * state when reading buffers.
+         */
+        @Nullable private final ReadProgress readProgress;
 
         public ReadBufferResult(
                 List<Buffer> readBuffers,
                 boolean continuousReadSuggested,
-                ReadProgress readProgress) {
+                @Nullable ReadProgress readProgress) {
             this.readBuffers = readBuffers;
             this.continuousReadSuggested = continuousReadSuggested;
             this.readProgress = readProgress;
@@ -132,6 +144,7 @@ public interface PartitionFileReader {
             return continuousReadSuggested;
         }
 
+        @Nullable
         public ReadProgress getReadProgress() {
             return readProgress;
         }
