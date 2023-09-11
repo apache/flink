@@ -55,7 +55,7 @@ public class TieredStorageResultSubpartitionViewTest {
     @BeforeEach
     void before() {
         availabilityListener = new CompletableFuture<>();
-        nettyPayloadManagers = createNettyPayloadQueues();
+        nettyPayloadManagers = createNettyPayloadManagers();
         connectionBrokenConsumers =
                 Arrays.asList(new CompletableFuture<>(), new CompletableFuture<>());
         tieredStorageResultSubpartitionView =
@@ -68,11 +68,9 @@ public class TieredStorageResultSubpartitionViewTest {
 
     @Test
     void testGetNextBuffer() throws IOException {
-        checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 1);
-        checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 1);
+        checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
         tieredStorageResultSubpartitionView.notifyRequiredSegmentId(1);
         assertThat(availabilityListener).isDone();
-        checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
         checkBufferAndBacklog(tieredStorageResultSubpartitionView.getNextBuffer(), 0);
         assertThat(tieredStorageResultSubpartitionView.getNextBuffer()).isNull();
     }
@@ -96,11 +94,11 @@ public class TieredStorageResultSubpartitionViewTest {
     void testGetAvailabilityAndBacklog() {
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog1 =
                 tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(0);
-        assertThat(availabilityAndBacklog1.getBacklog()).isEqualTo(2);
+        assertThat(availabilityAndBacklog1.getBacklog()).isEqualTo(1);
         assertThat(availabilityAndBacklog1.isAvailable()).isEqualTo(false);
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog2 =
                 tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(2);
-        assertThat(availabilityAndBacklog2.getBacklog()).isEqualTo(2);
+        assertThat(availabilityAndBacklog2.getBacklog()).isEqualTo(1);
         assertThat(availabilityAndBacklog2.isAvailable()).isEqualTo(true);
     }
 
@@ -122,9 +120,9 @@ public class TieredStorageResultSubpartitionViewTest {
 
     @Test
     void testGetNumberOfQueuedBuffers() {
-        assertThat(tieredStorageResultSubpartitionView.getNumberOfQueuedBuffers()).isEqualTo(2);
+        assertThat(tieredStorageResultSubpartitionView.getNumberOfQueuedBuffers()).isEqualTo(1);
         assertThat(tieredStorageResultSubpartitionView.unsynchronizedGetNumberOfQueuedBuffers())
-                .isEqualTo(2);
+                .isEqualTo(1);
     }
 
     private static void checkBufferAndBacklog(BufferAndBacklog bufferAndBacklog, int backlog) {
@@ -138,13 +136,14 @@ public class TieredStorageResultSubpartitionViewTest {
         return () -> notifier.complete(null);
     }
 
-    private static List<NettyPayloadManager> createNettyPayloadQueues() {
+    private static List<NettyPayloadManager> createNettyPayloadManagers() {
         List<NettyPayloadManager> nettyPayloadManagers = new ArrayList<>();
         for (int index = 0; index < TIER_NUMBER; ++index) {
-            NettyPayloadManager queue = new NettyPayloadManager();
-            queue.add(NettyPayload.newSegment(index));
-            queue.add(NettyPayload.newBuffer(BufferBuilderTestUtils.buildSomeBuffer(0), 0, index));
-            queue.add(
+            NettyPayloadManager nettyPayloadManager = new NettyPayloadManager();
+            nettyPayloadManager.add(NettyPayload.newSegment(index));
+            nettyPayloadManager.add(
+                    NettyPayload.newBuffer(BufferBuilderTestUtils.buildSomeBuffer(0), 0, index));
+            nettyPayloadManager.add(
                     NettyPayload.newBuffer(
                             new NetworkBuffer(
                                     MemorySegmentFactory.allocateUnpooledSegment(0),
@@ -152,7 +151,7 @@ public class TieredStorageResultSubpartitionViewTest {
                                     END_OF_SEGMENT),
                             1,
                             index));
-            nettyPayloadManagers.add(queue);
+            nettyPayloadManagers.add(nettyPayloadManager);
         }
         return nettyPayloadManagers;
     }
