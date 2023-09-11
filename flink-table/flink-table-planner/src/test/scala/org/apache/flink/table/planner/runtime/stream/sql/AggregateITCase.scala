@@ -28,7 +28,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
-import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSumAggFunction
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{UserDefinedObjectUDAF, UserDefinedObjectUDAF2, VarSumAggFunction}
 import org.apache.flink.table.planner.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedMaxFunction
@@ -1356,6 +1356,34 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     val expected = List(
       "Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi," +
         "Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testUserDefinedObjectAgg(): Unit = {
+    tEnv.createTemporaryFunction("user_define_object", new UserDefinedObjectUDAF)
+    tEnv.createTemporaryFunction("user_define_object2", new UserDefinedObjectUDAF2)
+    val sqlQuery =
+      s"""
+         |select t1.a, user_define_object2(t1.d) from 
+         |(SELECT a, user_define_object(b) as d
+         |FROM MyTable GROUP BY a) t1
+         |group by t1.a
+         |""".stripMargin
+    val data = new mutable.MutableList[(Int, String)]
+    data.+=((1, "Sam"))
+    data.+=((1, "Jerry"))
+    data.+=((2, "Ali"))
+    data.+=((3, "Grace"))
+    data.+=((3, "Lucas"))
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink)
+    env.execute()
+    val expected = List("1,Jerry", "2,Ali", "3,Lucas")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
