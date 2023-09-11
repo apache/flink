@@ -3557,7 +3557,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
     }
 
     /** Verify that iterator of {@link MapState} compares on the content. */
-    @Test
+    @TestTemplate
     public void testMapStateEntryCompare() throws Exception {
         MapStateDescriptor<Integer, Long> stateDesc1 =
                 new MapStateDescriptor<>("map-state-1", Integer.class, Long.class);
@@ -3580,10 +3580,11 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             state1.put(expectedEntry.getKey(), expectedEntry.getValue());
             state2.put(expectedEntry.getKey(), expectedEntry.getValue());
 
-            assertEquals(state1.entries().iterator().next(), expectedEntry);
-            assertEquals(state2.entries().iterator().next(), expectedEntry);
+            assertThat(state1.entries().iterator().next()).isEqualTo(expectedEntry);
+            assertThat(state2.entries().iterator().next()).isEqualTo(expectedEntry);
 
-            assertEquals(state1.entries().iterator().next(), state2.entries().iterator().next());
+            assertThat(state1.entries().iterator().next())
+                    .isEqualTo(state2.entries().iterator().next());
         } finally {
             IOUtils.closeQuietly(backend);
             backend.dispose();
