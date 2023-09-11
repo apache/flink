@@ -153,6 +153,11 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration = new Configuration();
     }
 
+    @Internal
+    public CheckpointConfig(Configuration configuration) {
+        this.configuration = configuration;
+    }
+
     // ------------------------------------------------------------------------
 
     /** Disables checkpointing. */

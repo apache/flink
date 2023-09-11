@@ -185,10 +185,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     // ------------------------------------------------------------------------
 
     /** The execution configuration for this environment. */
-    protected final ExecutionConfig config = new ExecutionConfig();
+    protected final ExecutionConfig config;
 
     /** Settings that control the checkpointing behavior. */
-    protected final CheckpointConfig checkpointCfg = new CheckpointConfig();
+    protected final CheckpointConfig checkpointCfg;
 
     protected final List<Transformation<?>> transformations = new ArrayList<>();
 
@@ -281,6 +281,8 @@ public class StreamExecutionEnvironment implements AutoCloseable {
             final ClassLoader userClassloader) {
         this.executorServiceLoader = checkNotNull(executorServiceLoader);
         this.configuration = new Configuration(checkNotNull(configuration));
+        this.config = new ExecutionConfig(configuration);
+        this.checkpointCfg = new CheckpointConfig(configuration);
         this.userClassloader =
                 userClassloader == null ? getClass().getClassLoader() : userClassloader;
 

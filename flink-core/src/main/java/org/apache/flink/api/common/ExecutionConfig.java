@@ -142,7 +142,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * In the long run, this field should be somehow merged with the {@link Configuration} from
      * StreamExecutionEnvironment.
      */
-    private final Configuration configuration = new Configuration();
+    private final Configuration configuration;
 
     /**
      * @deprecated Should no longer be used because it is subsumed by RestartStrategyConfiguration
@@ -176,6 +176,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     private LinkedHashSet<Class<?>> registeredPojoTypes = new LinkedHashSet<>();
 
     // --------------------------------------------------------------------------------------------
+
+    public ExecutionConfig() {
+        this.configuration = new Configuration();
+    }
+
+    @Internal
+    public ExecutionConfig(Configuration configuration) {
+        this.configuration = configuration;
+    }
 
     /**
      * Enables the ClosureCleaner. This analyzes user code functions and sets fields to null that
