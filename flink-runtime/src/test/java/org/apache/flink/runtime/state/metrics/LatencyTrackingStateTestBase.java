@@ -39,14 +39,14 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test base for latency tracking state. */
-public abstract class LatencyTrackingStateTestBase<K> {
+abstract class LatencyTrackingStateTestBase<K> {
     protected static final int SAMPLE_INTERVAL = 10;
 
     protected AbstractKeyedStateBackend<K> createKeyedBackend(TypeSerializer<K> keySerializer)
@@ -106,7 +106,7 @@ public abstract class LatencyTrackingStateTestBase<K> {
 
     @Test
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public void testLatencyTrackingStateClear() throws Exception {
+    void testLatencyTrackingStateClear() throws Exception {
         AbstractKeyedStateBackend<K> keyedBackend = createKeyedBackend(getKeySerializer());
         try {
             AbstractLatencyTrackState latencyTrackingState =
@@ -115,13 +115,13 @@ public abstract class LatencyTrackingStateTestBase<K> {
             StateLatencyMetricBase latencyTrackingStateMetric =
                     latencyTrackingState.getLatencyTrackingStateMetric();
 
-            assertEquals(0, latencyTrackingStateMetric.getClearCount());
+            assertThat(latencyTrackingStateMetric.getClearCount()).isZero();
 
             setCurrentKey(keyedBackend);
             for (int index = 1; index <= SAMPLE_INTERVAL; index++) {
                 int expectedResult = index == SAMPLE_INTERVAL ? 0 : index;
                 latencyTrackingState.clear();
-                assertEquals(expectedResult, latencyTrackingStateMetric.getClearCount());
+                assertThat(latencyTrackingStateMetric.getClearCount()).isEqualTo(expectedResult);
             }
         } finally {
             if (keyedBackend != null) {

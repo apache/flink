@@ -117,8 +117,8 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
             while (ite.hasNext() && ale.hasNext()) {
                 assertThat(ale.next()).isEqualTo(ite.next());
             }
-            assertThat(ite.hasNext()).isFalse();
-            assertThat(ale.hasNext()).isFalse();
+            assertThat(ite).isExhausted();
+            assertThat(ale).isExhausted();
         }
     }
 

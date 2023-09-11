@@ -20,7 +20,7 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -29,52 +29,48 @@ import java.util.concurrent.TimeUnit;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.flink.runtime.state.StateUtil.discardStateFuture;
 import static org.apache.flink.util.concurrent.FutureUtils.completedExceptionally;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StateUtil}. */
-public class StateUtilTest {
+class StateUtilTest {
 
     @Test
-    public void testDiscardStateSize() throws Exception {
-        assertEquals(
-                Tuple2.of(1234L, 123L),
-                discardStateFuture(completedFuture(new TestStateObject(1234, 123))));
+    void testDiscardStateSize() throws Exception {
+        assertThat(discardStateFuture(completedFuture(new TestStateObject(1234, 123))))
+                .isEqualTo(Tuple2.of(1234L, 123L));
         Tuple2<Long, Long> zeroSize = Tuple2.of(0L, 0L);
-        assertEquals(zeroSize, discardStateFuture(null));
-        assertEquals(zeroSize, discardStateFuture(new CompletableFuture<>()));
-        assertEquals(zeroSize, discardStateFuture(completedExceptionally(new RuntimeException())));
-        assertEquals(zeroSize, discardStateFuture(emptyFuture(false, true)));
-        assertEquals(zeroSize, discardStateFuture(emptyFuture(false, false)));
-        assertEquals(zeroSize, discardStateFuture(emptyFuture(true, true)));
-        assertEquals(zeroSize, discardStateFuture(emptyFuture(true, false)));
+        assertThat(discardStateFuture(null)).isEqualTo(zeroSize);
+        assertThat(discardStateFuture(new CompletableFuture<>())).isEqualTo(zeroSize);
+        assertThat(discardStateFuture(completedExceptionally(new RuntimeException())))
+                .isEqualTo(zeroSize);
+        assertThat(discardStateFuture(emptyFuture(false, true))).isEqualTo(zeroSize);
+        assertThat(discardStateFuture(emptyFuture(false, false))).isEqualTo(zeroSize);
+        assertThat(discardStateFuture(emptyFuture(true, true))).isEqualTo(zeroSize);
+        assertThat(discardStateFuture(emptyFuture(true, false))).isEqualTo(zeroSize);
     }
 
     @Test
-    public void unexpectedStateExceptionForSingleExpectedType() {
+    void unexpectedStateExceptionForSingleExpectedType() {
         Exception exception =
                 StateUtil.unexpectedStateHandleException(
                         KeyGroupsStateHandle.class, KeyGroupsStateHandle.class);
 
-        assertThat(
-                exception.getMessage(),
-                containsString(
-                        "Unexpected state handle type, expected one of: class org.apache.flink.runtime.state.KeyGroupsStateHandle, but found: class org.apache.flink.runtime.state.KeyGroupsStateHandle. This can mostly happen when a different StateBackend from the one that was used for taking a checkpoint/savepoint is used when restoring."));
+        assertThat(exception.getMessage())
+                .contains(
+                        "Unexpected state handle type, expected one of: class org.apache.flink.runtime.state.KeyGroupsStateHandle, but found: class org.apache.flink.runtime.state.KeyGroupsStateHandle. This can mostly happen when a different StateBackend from the one that was used for taking a checkpoint/savepoint is used when restoring.");
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void unexpectedStateExceptionForMultipleExpectedTypes() {
+    void unexpectedStateExceptionForMultipleExpectedTypes() {
         Exception exception =
                 StateUtil.unexpectedStateHandleException(
                         new Class[] {KeyGroupsStateHandle.class, KeyGroupsStateHandle.class},
                         KeyGroupsStateHandle.class);
 
-        assertThat(
-                exception.getMessage(),
-                containsString(
-                        "Unexpected state handle type, expected one of: class org.apache.flink.runtime.state.KeyGroupsStateHandle, class org.apache.flink.runtime.state.KeyGroupsStateHandle, but found: class org.apache.flink.runtime.state.KeyGroupsStateHandle. This can mostly happen when a different StateBackend from the one that was used for taking a checkpoint/savepoint is used when restoring."));
+        assertThat(exception.getMessage())
+                .contains(
+                        "Unexpected state handle type, expected one of: class org.apache.flink.runtime.state.KeyGroupsStateHandle, class org.apache.flink.runtime.state.KeyGroupsStateHandle, but found: class org.apache.flink.runtime.state.KeyGroupsStateHandle. This can mostly happen when a different StateBackend from the one that was used for taking a checkpoint/savepoint is used when restoring.");
     }
 
     private static <T> Future<T> emptyFuture(boolean done, boolean canBeCancelled) {

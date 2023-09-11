@@ -23,8 +23,7 @@ import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocal
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.TernaryBoolean;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -35,22 +34,21 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.state.DiscardRecordedStateObject.verifyDiscard;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-public class IncrementalRemoteKeyedStateHandleTest {
+class IncrementalRemoteKeyedStateHandleTest {
 
     /**
      * This test checks, that for an unregistered {@link IncrementalRemoteKeyedStateHandle} all
      * state (including shared) is discarded.
      */
     @Test
-    public void testUnregisteredDiscarding() throws Exception {
+    void testUnregisteredDiscarding() throws Exception {
         IncrementalRemoteKeyedStateHandle stateHandle = create(new Random(42));
 
         stateHandle.discardState();
@@ -71,7 +69,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
      * respect all shared state and only discard it one all references are released.
      */
     @Test
-    public void testSharedStateDeRegistration() throws Exception {
+    void testSharedStateDeRegistration() throws Exception {
 
         SharedStateRegistry registry = spy(new SharedStateRegistryImpl());
 
@@ -158,7 +156,7 @@ public class IncrementalRemoteKeyedStateHandleTest {
      * state registry and re-registers all live checkpoint states.
      */
     @Test
-    public void testSharedStateReRegistration() throws Exception {
+    void testSharedStateReRegistration() throws Exception {
 
         SharedStateRegistry stateRegistryA = spy(new SharedStateRegistryImpl());
 
@@ -171,12 +169,10 @@ public class IncrementalRemoteKeyedStateHandleTest {
         stateHandleY.registerSharedStates(stateRegistryA, 0L);
         stateHandleZ.registerSharedStates(stateRegistryA, 0L);
 
-        try {
-            // Second attempt should fail
-            stateHandleX.registerSharedStates(stateRegistryA, 0L);
-            fail("Should not be able to register twice with the same registry.");
-        } catch (IllegalStateException ignore) {
-        }
+        // Second attempt should fail
+        assertThatThrownBy(() -> stateHandleX.registerSharedStates(stateRegistryA, 0L))
+                .withFailMessage("Should not be able to register twice with the same registry.")
+                .isInstanceOf(IllegalStateException.class);
 
         // Everything should be discarded for this handle
         stateHandleZ.discardState();
@@ -186,11 +182,9 @@ public class IncrementalRemoteKeyedStateHandleTest {
         stateRegistryA.close();
 
         // Attempt to register to closed registry should trigger exception
-        try {
-            create(new Random(4)).registerSharedStates(stateRegistryA, 0L);
-            fail("Should not be able to register new state to closed registry.");
-        } catch (IllegalStateException ignore) {
-        }
+        assertThatThrownBy(() -> create(new Random(4)).registerSharedStates(stateRegistryA, 0L))
+                .withFailMessage("Should not be able to register new state to closed registry.")
+                .isInstanceOf(IllegalStateException.class);
 
         // Private state should still get discarded
         stateHandleY.discardState();
@@ -221,28 +215,28 @@ public class IncrementalRemoteKeyedStateHandleTest {
     }
 
     @Test
-    public void testCheckpointedSize() {
+    void testCheckpointedSize() {
         IncrementalRemoteKeyedStateHandle stateHandle1 = create(ThreadLocalRandom.current());
-        Assert.assertEquals(stateHandle1.getStateSize(), stateHandle1.getCheckpointedSize());
+        assertThat(stateHandle1.getCheckpointedSize()).isEqualTo(stateHandle1.getStateSize());
 
         long checkpointedSize = 123L;
         IncrementalRemoteKeyedStateHandle stateHandle2 =
                 create(ThreadLocalRandom.current(), checkpointedSize);
-        Assert.assertEquals(checkpointedSize, stateHandle2.getCheckpointedSize());
+        assertThat(stateHandle2.getCheckpointedSize()).isEqualTo(checkpointedSize);
     }
 
     @Test
-    public void testNonEmptyIntersection() {
+    void testNonEmptyIntersection() {
         IncrementalRemoteKeyedStateHandle handle = create(ThreadLocalRandom.current());
 
         KeyGroupRange expectedRange = new KeyGroupRange(0, 3);
         KeyedStateHandle newHandle = handle.getIntersection(expectedRange);
-        assertTrue(newHandle instanceof IncrementalRemoteKeyedStateHandle);
-        assertEquals(handle.getStateHandleId(), newHandle.getStateHandleId());
+        assertThat(newHandle).isInstanceOf(IncrementalRemoteKeyedStateHandle.class);
+        assertThat(newHandle.getStateHandleId()).isEqualTo(handle.getStateHandleId());
     }
 
     @Test
-    public void testConcurrentCheckpointSharedStateRegistration() throws Exception {
+    void testConcurrentCheckpointSharedStateRegistration() throws Exception {
         String localPath = "1.sst";
         StreamStateHandle streamHandle1 = new ByteStreamStateHandle("file-1", new byte[] {'s'});
         StreamStateHandle streamHandle2 = new ByteStreamStateHandle("file-2", new byte[] {'s'});

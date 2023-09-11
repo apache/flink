@@ -24,13 +24,11 @@ import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.plugin.TestingPluginManager;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.net.URI;
@@ -46,8 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link FileStateHandle}. */
-@ExtendWith(TestLoggerExtension.class)
-public class FileStateHandleTest {
+class FileStateHandleTest {
 
     private static final String TEST_SCHEME = "test";
 
@@ -62,7 +59,7 @@ public class FileStateHandleTest {
      * systems like Amazon S3 is prohibitively expensive.
      */
     @Test
-    public void testDisposeDoesNotDeleteParentDirectory() throws Exception {
+    void testDisposeDoesNotDeleteParentDirectory() throws Exception {
         final Path p = resolve("path", "with", "parent");
         final List<Path> pathsToDelete = new ArrayList<>();
 
@@ -85,7 +82,7 @@ public class FileStateHandleTest {
     }
 
     @Test
-    public void testDiscardStateForNonExistingFileWithoutAnErrorBeingExposedByTheFileSystem()
+    void testDiscardStateForNonExistingFileWithoutAnErrorBeingExposedByTheFileSystem()
             throws Exception {
         testDiscardStateForNonExistingFile(
                 MockedLocalFileSystem.newBuilder()
@@ -101,7 +98,7 @@ public class FileStateHandleTest {
     }
 
     @Test
-    public void testDiscardStateForNonExistingFileWithDeleteCallReturningFalse() throws Exception {
+    void testDiscardStateForNonExistingFileWithDeleteCallReturningFalse() throws Exception {
         testDiscardStateForNonExistingFile(
                 MockedLocalFileSystem.newBuilder()
                         .setDeleteFunction((ignoredPath, ignoredRecursionMarker) -> false)
@@ -110,7 +107,7 @@ public class FileStateHandleTest {
     }
 
     @Test
-    public void testDiscardStateForNonExistingFileWithEDeleteCallFailing() throws Exception {
+    void testDiscardStateForNonExistingFileWithEDeleteCallFailing() throws Exception {
         testDiscardStateForNonExistingFile(
                 MockedLocalFileSystem.newBuilder()
                         .setDeleteFunction(
@@ -134,7 +131,7 @@ public class FileStateHandleTest {
     }
 
     @Test
-    public void testDiscardStateWithDeletionFailureThroughException() throws Exception {
+    void testDiscardStateWithDeletionFailureThroughException() throws Exception {
         testDiscardStateFailed(
                 MockedLocalFileSystem.newBuilder()
                         .setDeleteFunction(
@@ -147,7 +144,7 @@ public class FileStateHandleTest {
     }
 
     @Test
-    public void testDiscardStateWithDeletionFailureThroughReturnValue() throws Exception {
+    void testDiscardStateWithDeletionFailureThroughReturnValue() throws Exception {
         testDiscardStateFailed(
                 MockedLocalFileSystem.newBuilder()
                         .setDeleteFunction((ignoredPath, ignoredRecursionMarker) -> false)
