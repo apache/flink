@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
@@ -55,9 +56,19 @@ public class AvroRowDataSerializationSchema implements SerializationSchema<RowDa
 
     /** Creates an Avro serialization schema with the given record row type. */
     public AvroRowDataSerializationSchema(RowType rowType) {
+        this(rowType, AvroEncoding.BINARY);
+    }
+
+    /**
+     * Creates an Avro serialization schema with the given record row type.
+     *
+     * @param encoding The serialization approach used to serialize the data.
+     */
+    public AvroRowDataSerializationSchema(RowType rowType, AvroEncoding encoding) {
         this(
                 rowType,
-                AvroSerializationSchema.forGeneric(AvroSchemaConverter.convertToSchema(rowType)),
+                AvroSerializationSchema.forGeneric(
+                        AvroSchemaConverter.convertToSchema(rowType), encoding),
                 RowDataToAvroConverters.createConverter(rowType));
     }
 

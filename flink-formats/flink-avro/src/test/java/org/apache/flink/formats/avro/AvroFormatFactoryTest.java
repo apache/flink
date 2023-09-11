@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -32,7 +33,8 @@ import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContex
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -51,10 +53,12 @@ class AvroFormatFactoryTest {
     private static final RowType ROW_TYPE =
             (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
 
-    @Test
-    void testSeDeSchema() {
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSeDeSchema(AvroEncoding encoding) {
         final AvroRowDataDeserializationSchema expectedDeser =
-                new AvroRowDataDeserializationSchema(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE));
+                new AvroRowDataDeserializationSchema(
+                        ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), encoding);
 
         final Map<String, String> options = getAllOptions();
 
@@ -70,7 +74,7 @@ class AvroFormatFactoryTest {
         assertThat(actualDeser).isEqualTo(expectedDeser);
 
         final AvroRowDataSerializationSchema expectedSer =
-                new AvroRowDataSerializationSchema(ROW_TYPE);
+                new AvroRowDataSerializationSchema(ROW_TYPE, encoding);
 
         final DynamicTableSink actualSink = FactoryMocks.createTableSink(SCHEMA, options);
         assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
