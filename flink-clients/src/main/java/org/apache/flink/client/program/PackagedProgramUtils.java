@@ -184,7 +184,7 @@ public enum PackagedProgramUtils {
         throw generateException(
                 program,
                 "The program plan could not be fetched - the program aborted pre-maturely. "
-                        + "The root cause may be that the main method doesn't call env.execute().",
+                        + "The root cause may be that the main method doesn't call `env.execute()` or `env.executeAsync()`.",
                 null,
                 stdOutBuffer,
                 stdErrBuffer);
