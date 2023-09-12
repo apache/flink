@@ -26,10 +26,10 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.hint.RelHint;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests clearing join hint with invalid propagation in batch. */
-public class ClearJoinHintWithInvalidPropagationShuttleTest
+class ClearJoinHintWithInvalidPropagationShuttleTest
         extends ClearJoinHintWithInvalidPropagationShuttleTestBase {
     @Override
     TableTestUtil getTableTestUtil() {
@@ -42,7 +42,7 @@ public class ClearJoinHintWithInvalidPropagationShuttleTest
     }
 
     @Test
-    public void testNoNeedToClearJoinHint() {
+    void testNoNeedToClearJoinHint() {
         // SELECT /*+ BROADCAST(t1)*/t1.a FROM t1 JOIN t2 ON t1.a = t2.a
         RelHint joinHintInView =
                 RelHint.builder(JoinStrategy.BROADCAST.getJoinHintName()).hintOption("t1").build();
@@ -60,7 +60,7 @@ public class ClearJoinHintWithInvalidPropagationShuttleTest
     }
 
     @Test
-    public void testClearJoinHintWithInvalidPropagationToViewWhileViewHasJoinHints() {
+    void testClearJoinHintWithInvalidPropagationToViewWhileViewHasJoinHints() {
         //  SELECT /*+ BROADCAST(t3)*/t4.a FROM (
         //      SELECT /*+ BROADCAST(t1)*/t1.a FROM t1 JOIN t2 ON t1.a = t2.a
         //  ) t4 JOIN t3 ON t4.a = t3.a
@@ -91,7 +91,7 @@ public class ClearJoinHintWithInvalidPropagationShuttleTest
     }
 
     @Test
-    public void testClearJoinHintWithInvalidPropagationToViewWhileViewHasNoJoinHints() {
+    void testClearJoinHintWithInvalidPropagationToViewWhileViewHasNoJoinHints() {
         //  SELECT /*+ BROADCAST(t3)*/t4.a FROM (
         //      SELECT t1.a FROM t1 JOIN t2 ON t1.a = t2.a
         //  ) t4 JOIN t3 ON t4.a = t3.a
@@ -119,7 +119,7 @@ public class ClearJoinHintWithInvalidPropagationShuttleTest
     }
 
     @Test
-    public void testClearJoinHintWithoutPropagatingToView() {
+    void testClearJoinHintWithoutPropagatingToView() {
         //  SELECT /*+ BROADCAST(t1)*/t4.a FROM (
         //      SELECT t1.a FROM t1 JOIN t2 ON t1.a = t2.a
         //  ) t4 JOIN t3 ON t4.a = t3.a

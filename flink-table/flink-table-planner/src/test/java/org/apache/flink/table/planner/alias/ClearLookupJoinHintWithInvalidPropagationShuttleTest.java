@@ -38,13 +38,13 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.fun.SqlCollectionTableOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlModality;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
 /** Tests clearing lookup join hint with invalid propagation in stream. */
-public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
+class ClearLookupJoinHintWithInvalidPropagationShuttleTest
         extends ClearJoinHintWithInvalidPropagationShuttleTestBase {
     @Override
     TableTestUtil getTableTestUtil() {
@@ -56,8 +56,8 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
         return false;
     }
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         super.before();
 
         util.tableEnv()
@@ -84,7 +84,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
     }
 
     @Test
-    public void testNoNeedToClearLookupHint() {
+    void testNoNeedToClearLookupHint() {
         // SELECT /*+ LOOKUP('table'='lookup', 'retry-predicate'='lookup_miss',
         // 'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
         // 'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
@@ -129,7 +129,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
     }
 
     @Test
-    public void testClearLookupHintWithInvalidPropagationToSubQuery() {
+    void testClearLookupHintWithInvalidPropagationToSubQuery() {
         // SELECT /*+ LOOKUP('table'='src', 'retry-predicate'='lookup_miss',
         // 'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
         // 'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
@@ -187,7 +187,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
     }
 
     @Test
-    public void testNoNeedToClearLookupHintWhileJoinWithUnnest() {
+    void testNoNeedToClearLookupHintWhileJoinWithUnnest() {
         //  SELECT /*+ LOOKUP('table'='d', 'retry-predicate'='lookup_miss',
         //  'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
         //  'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
@@ -224,7 +224,7 @@ public class ClearLookupJoinHintWithInvalidPropagationShuttleTest
     }
 
     @Test
-    public void testNoNeedToClearLookupHintWhileJoinWithUDTF() {
+    void testNoNeedToClearLookupHintWhileJoinWithUDTF() {
         //  SELECT /*+ LOOKUP('table'='d', 'retry-predicate'='lookup_miss',
         //  'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
         //  'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')

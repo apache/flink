@@ -31,13 +31,13 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
 /** Tests clearing lookup join hint case-insensitive in stream. */
-public class ClearJoinHintWithCapitalizeJoinHintShuttleTest
+class ClearJoinHintWithCapitalizeJoinHintShuttleTest
         extends ClearJoinHintWithInvalidPropagationShuttleTestBase {
 
     @Override
@@ -50,8 +50,8 @@ public class ClearJoinHintWithCapitalizeJoinHintShuttleTest
         return false;
     }
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         super.before();
 
         util.tableEnv()
@@ -72,7 +72,7 @@ public class ClearJoinHintWithCapitalizeJoinHintShuttleTest
     }
 
     @Test
-    public void testClearCaseInsensitiveLookupHint() {
+    void testClearCaseInsensitiveLookupHint() {
         // SELECT /*+ lookUp('table'='lookup', 'retry-predicate'='lookup_miss',
         // 'retry-strategy'='fixed_delay', 'fixed-delay'='155 ms', 'max-attempts'='10',
         // 'async'='true', 'output-mode'='allow_unordered','capacity'='1000', 'time-out'='300 s')
@@ -130,7 +130,7 @@ public class ClearJoinHintWithCapitalizeJoinHintShuttleTest
     }
 
     @Override
-    public void verifyRelPlan(RelNode node) {
+    protected void verifyRelPlan(RelNode node) {
         String plan = buildRelPlanWithQueryBlockAlias(node);
         util.assertEqualsOrExpand("beforePropagatingHints", plan, true);
 

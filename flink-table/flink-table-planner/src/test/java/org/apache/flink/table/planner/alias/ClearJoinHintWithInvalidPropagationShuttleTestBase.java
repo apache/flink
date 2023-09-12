@@ -34,12 +34,12 @@ import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlExplainLevel;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.util.Collections;
 
 /** A base class for testing clearing join hint with invalid propagation. */
-public abstract class ClearJoinHintWithInvalidPropagationShuttleTestBase extends TableTestBase {
+abstract class ClearJoinHintWithInvalidPropagationShuttleTestBase extends TableTestBase {
 
     protected final TableTestUtil util = getTableTestUtil();
 
@@ -67,8 +67,8 @@ public abstract class ClearJoinHintWithInvalidPropagationShuttleTestBase extends
                     .build();
     protected final FlinkRelBuilder builder = plannerMocks.getPlannerContext().createRelBuilder();
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         util.tableEnv().registerCatalog("testCatalog", catalog);
         util.tableEnv().executeSql("use catalog testCatalog");
 
