@@ -42,7 +42,7 @@ To implement a custom FailureEnricher plugin, you need to:
 
 Then, create a jar which includes your `FailureEnricher`, `FailureEnricherFactory`, `META-INF/services/` and all external dependencies.
 Make a directory in `plugins/` of your Flink distribution with an arbitrary name, e.g. "failure-enrichment", and put the jar into this directory.
-See [Flink Plugin]({% link deployment/filesystems/plugins.md %}) for more details.
+See [Flink Plugin]({{< ref "docs/deployment/filesystems/plugins" >}}) for more details.
 
 {{< hint warning >}}
 Note that every FailureEnricher should have defined a set of {{< gh_link file="/flink-core/src/main/java/org/apache/flink/core/failure/FailureEnricher.java" name="output keys" >}} that may be associated with values. This set of keys has to be unique otherwise all enrichers with overlapping keys will be ignored.
