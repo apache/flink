@@ -30,10 +30,12 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,14 +51,14 @@ import static org.apache.flink.table.api.Expressions.lit;
 /**
  * Tests for resolving types of computed columns (including time attributes) of tables from catalog.
  */
-@RunWith(Parameterized.class)
-public class JavaCatalogTableTest extends TableTestBase {
-    @Parameterized.Parameters(name = "streamingMode = {0}")
-    public static Collection<Boolean> parameters() {
+@ExtendWith(ParameterizedTestExtension.class)
+class JavaCatalogTableTest extends TableTestBase {
+    @Parameters(name = "streamingMode = {0}")
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 
-    @Parameterized.Parameter public boolean isStreamingMode;
+    @Parameter private boolean isStreamingMode;
 
     private TableTestUtil getTestUtil() {
         if (isStreamingMode) {
@@ -66,8 +68,8 @@ public class JavaCatalogTableTest extends TableTestBase {
         }
     }
 
-    @Test
-    public void testResolvingSchemaOfCustomCatalogTableSql() throws Exception {
+    @TestTemplate
+    void testResolvingSchemaOfCustomCatalogTableSql() throws Exception {
         TableTestUtil testUtil = getTestUtil();
         TableEnvironment tableEnvironment = testUtil.getTableEnv();
         GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
@@ -83,8 +85,8 @@ public class JavaCatalogTableTest extends TableTestBase {
                 "SELECT COUNT(*) FROM testTable2 GROUP BY TUMBLE(rowtime, INTERVAL '10' MINUTE)");
     }
 
-    @Test
-    public void testResolvingSchemaOfCustomCatalogTableTableApi() throws Exception {
+    @TestTemplate
+    void testResolvingSchemaOfCustomCatalogTableTableApi() throws Exception {
         TableTestUtil testUtil = getTestUtil();
         TableEnvironment tableEnvironment = testUtil.getTableEnv();
         GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog("in-memory");
@@ -103,8 +105,8 @@ public class JavaCatalogTableTest extends TableTestBase {
         testUtil.verifyExecPlan(table);
     }
 
-    @Test
-    public void testResolvingProctimeOfCustomTableSql() throws Exception {
+    @TestTemplate
+    void testResolvingProctimeOfCustomTableSql() throws Exception {
         if (!isStreamingMode) {
             // proctime not supported in batch
             return;
@@ -123,8 +125,8 @@ public class JavaCatalogTableTest extends TableTestBase {
                         + "GROUP BY TUMBLE(proctime, INTERVAL '10' MINUTE)");
     }
 
-    @Test
-    public void testResolvingProctimeOfCustomTableTableApi() throws Exception {
+    @TestTemplate
+    void testResolvingProctimeOfCustomTableTableApi() throws Exception {
         if (!isStreamingMode) {
             // proctime not supported in batch
             return;
