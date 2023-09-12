@@ -28,19 +28,19 @@ import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, St
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy._
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.ZoneId
 import java.util
 
 import scala.collection.JavaConversions._
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class WindowAggregateITCase(
     aggPhase: AggregatePhaseStrategy,
     state: StateBackendMode,
@@ -132,7 +132,7 @@ class WindowAggregateITCase(
 
   val SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai")
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // enable checkpoint, we are using failing source to force have a complete checkpoint
@@ -170,7 +170,7 @@ class WindowAggregateITCase(
     tEnv.getConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhase.toString)
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeTumbleWindow(): Unit = {
     val sql =
       """
@@ -201,10 +201,11 @@ class WindowAggregateITCase(
       "b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeTumbleWindowWithOffset(): Unit = {
     val sql =
       """
@@ -232,10 +233,11 @@ class WindowAggregateITCase(
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testCascadeEventTimeTumbleWindowWithOffset(): Unit = {
     val sql =
       """
@@ -263,10 +265,11 @@ class WindowAggregateITCase(
 
     val expected =
       Seq("0,2020-10-09T08:00,2020-10-10T08:00,1", "3,2020-10-09T08:00,2020-10-10T08:00,2")
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeTumbleWindowWithNegativeOffset(): Unit = {
     val sql =
       """
@@ -294,10 +297,11 @@ class WindowAggregateITCase(
       "b,2020-10-09T16:00,2020-10-10T16:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeTumbleWindow_GroupingSets(): Unit = {
     val sql =
       """
@@ -321,12 +325,11 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(
-      TumbleWindowGroupSetExpectedData.sorted.mkString("\n"),
-      sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(TumbleWindowGroupSetExpectedData.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeTumbleWindow_Cube(): Unit = {
     val sql =
       """
@@ -350,12 +353,11 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(
-      TumbleWindowCubeExpectedData.sorted.mkString("\n"),
-      sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(TumbleWindowCubeExpectedData.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeTumbleWindow_Rollup(): Unit = {
     val sql =
       """
@@ -379,12 +381,11 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(
-      TumbleWindowRollupExpectedData.sorted.mkString("\n"),
-      sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(TumbleWindowRollupExpectedData.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowOutputWindowTime(): Unit = {
     val sql =
       """
@@ -422,10 +423,11 @@ class WindowAggregateITCase(
         "null,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999,1"
       )
     }
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowGroupOnWindowOnly(): Unit = {
     val sql =
       """
@@ -453,10 +455,11 @@ class WindowAggregateITCase(
       "2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,4.0,4.0,1,Hi",
       "2020-10-10T00:00:30,2020-10-10T00:00:35,2,11.10,7.0,3.0,1,Comment#3"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowWithoutOutputWindowColumns(): Unit = {
     val sql =
       """
@@ -481,10 +484,11 @@ class WindowAggregateITCase(
       "3,9.99,6.0,3.0,3,Hello|Hi|Comment#2",
       "1,4.44,4.0,4.0,1,Hi",
       "2,11.10,7.0,3.0,1,Comment#3")
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeHopWindow(): Unit = {
     val sql =
       """
@@ -520,10 +524,11 @@ class WindowAggregateITCase(
       "null,2020-10-10T00:00:25,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeHopWindowWithOffset(): Unit = {
     val sql =
       """
@@ -559,10 +564,11 @@ class WindowAggregateITCase(
       "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null",
       "null,2020-10-09T20:00,2020-10-10T20:00,1,7.77,7.0,7.0,0,null"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeHopWindowWithNegativeOffset(): Unit = {
     val sql =
       """
@@ -598,10 +604,11 @@ class WindowAggregateITCase(
       "null,2020-10-09T04:00,2020-10-10T04:00,1,7.77,7.0,7.0,0,null",
       "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeHopWindow_GroupingSets(): Unit = {
     val sql =
       """
@@ -625,12 +632,11 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(
-      HopWindowGroupSetExpectedData.sorted.mkString("\n"),
-      sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(HopWindowGroupSetExpectedData.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeHopWindow_Cube(): Unit = {
     val sql =
       """
@@ -654,12 +660,11 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(
-      HopWindowCubeExpectedData.sorted.mkString("\n"),
-      sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(HopWindowCubeExpectedData.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeHopWindow_Rollup(): Unit = {
     val sql =
       """
@@ -683,12 +688,11 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(
-      HopWindowRollupExpectedData.sorted.mkString("\n"),
-      sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(HopWindowRollupExpectedData.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeCumulateWindow(): Unit = {
     val sql =
       """
@@ -731,10 +735,11 @@ class WindowAggregateITCase(
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0,null"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeCumulateWindowWithOffset(): Unit = {
     val sql =
       """
@@ -767,10 +772,11 @@ class WindowAggregateITCase(
       "b,2020-10-09T08:00,2020-10-10T08:00,4,14.43,6.0,3.0,3,Hello|Hi|Comment#3",
       "null,2020-10-09T08:00,2020-10-10T08:00,1,7.77,7.0,7.0,0,null"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeCumulateWindowWithNegativeOffset(): Unit = {
     val sql =
       """
@@ -806,10 +812,11 @@ class WindowAggregateITCase(
       "null,2020-10-09T16:00,2020-10-10T04:00,1,7.77,7.0,7.0,0,null",
       "null,2020-10-09T16:00,2020-10-10T16:00,1,7.77,7.0,7.0,0,null"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeCumulateWindow_GroupingSets(): Unit = {
     val sql =
       """
@@ -837,12 +844,11 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(
-      CumulateWindowGroupSetExpectedData.sorted.mkString("\n"),
-      sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(CumulateWindowGroupSetExpectedData.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeCumulateWindow_Cube(): Unit = {
     val sql =
       """
@@ -870,12 +876,11 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(
-      CumulateWindowCubeExpectedData.sorted.mkString("\n"),
-      sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(CumulateWindowCubeExpectedData.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeCumulateWindow_Rollup(): Unit = {
     val sql =
       """
@@ -903,12 +908,11 @@ class WindowAggregateITCase(
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertEquals(
-      CumulateWindowRollupExpectedData.sorted.mkString("\n"),
-      sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(CumulateWindowRollupExpectedData.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testFieldNameConflict(): Unit = {
     val sql =
       """
@@ -940,10 +944,11 @@ class WindowAggregateITCase(
         "2020-10-10T00:00:34.999,2020-10-10T00:00:32,2020-10-10T00:00:34"
       )
     }
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testRelaxFormProctimeCascadeWindowAgg(): Unit = {
     val timestampDataId = TestValuesTableFactory.registerData(TestData.windowDataWithTimestamp)
     tEnv.executeSql(s"""
@@ -991,7 +996,7 @@ class WindowAggregateITCase(
 
 object WindowAggregateITCase {
 
-  @Parameterized.Parameters(name = "AggPhase={0}, StateBackend={1}, UseTimestampLtz = {2}")
+  @Parameters(name = "AggPhase={0}, StateBackend={1}, UseTimestampLtz = {2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       // we do not test all cases to simplify the test matrix

@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunction
 import org.apache.flink.table.planner.utils.{RF, TableFunc7}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.lang.{Boolean => JBoolean}
 
@@ -36,7 +36,7 @@ import scala.collection.mutable
 
 class CorrelateITCase extends StreamingTestBase {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     tEnv.registerFunction("STRING_SPLIT", new StringSplit())
@@ -74,7 +74,7 @@ class CorrelateITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List("1,abc", "1,abc", "1,bcd", "1,bcd", "1,hhh", "1,hhh", "1,xxx", "1,xxx")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -86,7 +86,7 @@ class CorrelateITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List("a", "b", "c")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -98,7 +98,7 @@ class CorrelateITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List("Jack", "John")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -121,7 +121,7 @@ class CorrelateITCase extends StreamingTestBase {
       "1,2,hhh,John",
       "1,2,xxx,Jack",
       "1,2,xxx,John")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -132,9 +132,9 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val res = sink.getAppendResults;
-    assertEquals(1, res.size)
-    assertTrue(res(0).equals("Jack") || res(0).equals("John"))
+    val res = sink.getAppendResults
+    assertThat(res.size).isOne
+    assertThat(res(0)).isIn("Jack", "John")
   }
 
   @Test
@@ -150,8 +150,8 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    val res = sink.getAppendResults;
-    assertEquals(3, res.size)
+    val res = sink.getAppendResults
+    assertThat(res.size).isEqualTo(3)
   }
 
   @Test
@@ -176,7 +176,7 @@ class CorrelateITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List("1,abc", "1,bcd", "1,hhh", "1,xxx")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -209,7 +209,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     val expected =
       List("1,1,L,A", "1,1,L,B", "1,A,B,1", "1,A,B,L", "2,2,L,B", "2,2,L,C", "2,B,C,2", "2,B,C,L")
-    assertEquals(expected.sorted, (sink1.getAppendResults ++ sink2.getAppendResults).sorted)
+    assertThat((sink1.getAppendResults ++ sink2.getAppendResults).sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -235,7 +235,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     env.execute()
 
-    assertEquals(List(), sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(List())
   }
 
   @Test
@@ -259,7 +259,7 @@ class CorrelateITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List("1,3018-06-10")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -277,7 +277,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("1,2,,null", "1,3,,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -295,7 +295,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("3018-06-10", "2018-06-03", "2018-06-01", "2018-06-02")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -313,7 +313,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("1,3018-06-10", "1,2018-06-03", "1,2018-06-01", "1,2018-06-02")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -331,7 +331,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("a")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -350,7 +350,7 @@ class CorrelateITCase extends StreamingTestBase {
 
     // output two null
     val expected = List("null", "null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -368,7 +368,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("1,a")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -386,7 +386,7 @@ class CorrelateITCase extends StreamingTestBase {
     result.executeInsert("MySink").await()
 
     val expected = List("2,null", "3,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   // TODO support agg

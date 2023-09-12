@@ -22,10 +22,11 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -39,12 +40,12 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test of the filesystem source in streaming mode. */
-public class FileSystemTableSourceStreamingITCase extends StreamingTestBase {
+class FileSystemTableSourceStreamingITCase extends StreamingTestBase {
 
     @Test
-    public void testMonitorContinuously() throws Exception {
+    void testMonitorContinuously() throws Exception {
         // Create temp dir
-        File testPath = TEMPORARY_FOLDER.newFolder();
+        File testPath = TempDirUtils.newFolder(tempFolder());
 
         // Write first csv file out
         Files.write(
@@ -90,10 +91,10 @@ public class FileSystemTableSourceStreamingITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testSourceWithRegexPattern() throws Exception {
+    void testSourceWithRegexPattern() throws Exception {
         // Create temp dir
-        File testPath0 = TEMPORARY_FOLDER.newFolder("dir0");
-        File testPath1 = TEMPORARY_FOLDER.newFolder("dir1");
+        File testPath0 = TempDirUtils.newFolder(tempFolder(), "dir0");
+        File testPath1 = TempDirUtils.newFolder(tempFolder(), "dir1");
 
         // Write first csv file out
         Files.write(
@@ -119,7 +120,7 @@ public class FileSystemTableSourceStreamingITCase extends StreamingTestBase {
                                 .format("testcsv")
                                 .option(
                                         FileSystemConnectorOptions.PATH,
-                                        TEMPORARY_FOLDER.getRoot().getPath())
+                                        tempFolder().toFile().getPath())
                                 .option(
                                         FileSystemConnectorOptions.SOURCE_PATH_REGEX_PATTERN,
                                         "/.*/input_[0-9]+.csv")

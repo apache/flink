@@ -24,17 +24,17 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // enable checkpoint, we are using failing source to force have a complete checkpoint
@@ -63,7 +63,7 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
                        |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindow(): Unit = {
     val sql =
       """
@@ -110,10 +110,11 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
         "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowTVFWithOffset(): Unit = {
     val sql =
       s"""
@@ -162,10 +163,11 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:31,2020-10-10T00:00:36,2020-10-10T00:00:35.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowTVFWithNegativeOffset(): Unit = {
     val sql =
       s"""
@@ -214,10 +216,11 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:34,2020-10-10T00:00:39,2020-10-10T00:00:38.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testHopWindow(): Unit = {
     val sql =
       """
@@ -287,10 +290,11 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
         "2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testCumulateWindow(): Unit = {
     val sql =
       """
@@ -376,6 +380,7 @@ class WindowTableFunctionITCase(mode: StateBackendMode) extends StreamingWithSta
       "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
         "2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 }

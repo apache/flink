@@ -35,9 +35,11 @@ import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
+import org.apache.flink.testutils.junit.utils.TempDirUtils
 
-import org.junit.{After, Assert, Before}
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{AfterEach, BeforeEach}
 
 import java.io.File
 import java.util
@@ -57,11 +59,11 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
 
   var baseCheckpointPath: File = _
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // set state backend
-    baseCheckpointPath = tempFolder.newFolder().getAbsoluteFile
+    baseCheckpointPath = TempDirUtils.newFolder(tempFolder).getAbsoluteFile
     state match {
       case HEAP_BACKEND =>
         val conf = new Configuration()
@@ -77,10 +79,10 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     FailingCollectionSource.failedBefore = true
   }
 
-  @After
+  @AfterEach
   override def after(): Unit = {
     super.after()
-    Assert.assertTrue(FailingCollectionSource.failedBefore)
+    assertThat(FailingCollectionSource.failedBefore).isTrue
   }
 
   /** Creates a BinaryRowData DataStream from the given non-empty [[Seq]]. */
@@ -235,7 +237,7 @@ object StreamingWithStateTestBase {
   val HEAP_BACKEND = StateBackendMode("HEAP")
   val ROCKSDB_BACKEND = StateBackendMode("ROCKSDB")
 
-  @Parameterized.Parameters(name = "StateBackend={0}")
+  @Parameters(name = "StateBackend={0}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](Array(HEAP_BACKEND), Array(ROCKSDB_BACKEND))
   }

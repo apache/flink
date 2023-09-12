@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** IT Case for [CREATE OR] REPLACE TABLE AS SELECT statement. */
-public class RTASITCase extends StreamingTestBase {
+class RTASITCase extends StreamingTestBase {
 
     @BeforeEach
     @Override

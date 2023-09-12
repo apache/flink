@@ -25,8 +25,8 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingR
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.Assert.assertEquals
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[PushLimitIntoTableSourceScanRule]]. */
 class LimitableSourceITCase extends StreamingTestBase() {
@@ -39,7 +39,7 @@ class LimitableSourceITCase extends StreamingTestBase() {
     row("fruit", 3, 44),
     row("fruit", 5, 22))
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val dataId = TestValuesTableFactory.registerData(data)
     val ddl =
@@ -66,7 +66,7 @@ class LimitableSourceITCase extends StreamingTestBase() {
     env.execute()
 
     val expected = Seq("book,1,12", "book,2,19", "book,4,11", "fruit,4,33")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -78,7 +78,7 @@ class LimitableSourceITCase extends StreamingTestBase() {
     env.execute()
 
     val expected = Seq("book,4,11", "fruit,4,33", "fruit,3,44", "fruit,5,22")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
 }

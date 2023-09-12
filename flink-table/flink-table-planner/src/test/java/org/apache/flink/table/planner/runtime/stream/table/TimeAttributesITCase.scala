@@ -21,22 +21,21 @@ package org.apache.flink.table.planner.runtime.stream.table
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
-import org.apache.flink.runtime.client.JobExecutionException
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
-import org.junit.Assert.{assertEquals, assertThat, fail}
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.{Duration, Instant, LocalDateTime, ZoneOffset}
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Test
+  @TestTemplate
   def testMissingTimeAttributeThrowsCorrectException(): Unit = {
     val data = List(1L -> "hello", 2L -> "world")
     val stream = env.fromCollection[(Long, String)](data)
@@ -46,20 +45,14 @@ class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTes
 
     val sink = new TestingAppendSink()
     tEnv.toAppendStream[Row](result).addSink(sink)
-    try {
-      env.execute()
-      fail("should fail")
-    } catch {
-      case t: Throwable =>
-        assertThat(
-          t,
-          containsMessage("Rowtime timestamp is not defined. Please make sure that a " +
-            "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
-            "time characteristic."))
-    }
+
+    assertThatThrownBy(() => env.execute())
+      .hasMessageNotContaining("Rowtime timestamp is not defined. Please make sure that a " +
+        "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
+        "time characteristic.")
   }
 
-  @Test
+  @TestTemplate
   def testTimestampAttributesWithWatermarkStrategy(): Unit = {
     val data = List(Instant.now().toEpochMilli -> "hello", Instant.now().toEpochMilli -> "world")
     val stream = env.fromCollection[(Long, String)](data).assignTimestampsAndWatermarks(
@@ -86,6 +79,6 @@ class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTes
           LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC).toString
         s"$formattedTimestamp,$data"
     }
-    assertEquals(sink.getAppendResults.sorted, formattedData.sorted)
+    assertThat(formattedData.sorted).isEqualTo(sink.getAppendResults.sorted)
   }
 }
