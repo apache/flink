@@ -24,12 +24,14 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.apache.calcite.rel.RelNode;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -40,21 +42,21 @@ import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toSca
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link InternalConfigOptions}. */
-@RunWith(Parameterized.class)
-public class InternalConfigOptionsTest extends TableTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class InternalConfigOptionsTest extends TableTestBase {
 
     private TableEnvironment tEnv;
     private PlannerBase planner;
 
-    @Parameterized.Parameters(name = "plannerMode = {0}")
-    public static Collection<String> parameters() {
+    @Parameters(name = "plannerMode = {0}")
+    private static Collection<String> parameters() {
         return Arrays.asList("STREAMING", "BATCH");
     }
 
-    @Parameterized.Parameter public String plannerMode;
+    @Parameter private String plannerMode;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         if (plannerMode.equals("STREAMING")) {
             StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
             tEnv = util.getTableEnv();
@@ -66,8 +68,8 @@ public class InternalConfigOptionsTest extends TableTestBase {
         }
     }
 
-    @Test
-    public void testTranslateExecNodeGraphWithInternalTemporalConf() {
+    @TestTemplate
+    void testTranslateExecNodeGraphWithInternalTemporalConf() {
         Table table =
                 tEnv.sqlQuery("SELECT LOCALTIME, LOCALTIMESTAMP, CURRENT_TIME, CURRENT_TIMESTAMP");
         RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
