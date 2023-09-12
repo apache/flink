@@ -241,12 +241,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682: Lines 644 ~ 654
- *   <li>Added in FLINK-28682: Lines 2277 ~ 2294
- *   <li>Added in FLINK-28682: Lines 2331 ~ 2359
- *   <li>Added in FLINK-20873: Lines 5484 ~ 5493
- *   <li>Added in FLINK-32474: Lines 2841 ~ 2853
- *   <li>Added in FLINK-32474: Lines 2953 ~ 2987
+ *   <li>Added in FLINK-29081, FLINK-28682: Lines 667 ~ 677
+ *   <li>Added in FLINK-28682: Lines 2300 ~ 2317
+ *   <li>Added in FLINK-28682: Lines 2354 ~ 2382
+ *   <li>Added in FLINK-32474: Lines 2932 ~ 2944
+ *   <li>Added in FLINK-32474: Lines 3057 ~ 3093
+ *   <li>Added in FLINK-20873: Lines 5594 ~ 5603
+ *   <li>Added in FLINK-33064: Lines 2431 ~ 2475
+ *   <li>Added in FLINK-33064: Lines 2481 ~ 2570
+ *   <li>Added in FLINK-33064: Lines 2970 ~ 2978
+ *   <li>Added in FLINK-33064: Lines 3050 ~ 3052
+ *   <li>Added in FLINK-33064: Lines 4102 ~ 4107
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -2423,7 +2428,7 @@ public class SqlToRelConverter {
                     throw new AssertionError("unknown TABLESAMPLE type: " + sampleSpec);
                 }
                 return;
-
+                // ----- FLINK MODIFICATION BEGIN -----
             case TABLE_REF:
                 convertTableRef(bb, from, false);
                 return;
@@ -2467,11 +2472,13 @@ public class SqlToRelConverter {
                 convertCollectionTable(bb, from, false);
                 return;
 
+                // ----- FLINK MODIFICATION END -----
             default:
                 throw new AssertionError("not a join operator " + from);
         }
     }
 
+    // ----- FLINK MODIFICATION BEGIN -----
     private void convertTableRef(Blackboard bb, SqlNode from, boolean isTemporalJoinRightSide) {
         SqlCall call = (SqlCall) from;
         convertIdentifier(
@@ -2523,6 +2530,44 @@ public class SqlToRelConverter {
                 convertFrom(bb, from, fieldNames);
         }
     }
+
+    /**
+     * Validate the input {@link RelNode} to judge if it is a legal source. For example, for a table
+     * source that only implements the {@link
+     * org.apache.flink.table.connector.source.LookupTableSource}, and doesn't implement the {@link
+     * ScanTableSource}, it can only be used as a right table ref in temporal join or lookup join
+     * and cannot be used as a scan table.
+     */
+    private void validateScan(RelNode relNode, boolean isTemporalJoinRightSide) {
+        relNode.accept(
+                new RelShuttleImpl() {
+                    @Override
+                    public RelNode visit(TableScan scan) {
+                        final RelOptTable table = scan.getTable();
+                        if (table instanceof TableSourceTable) {
+                            final TableSourceTable sourceTable =
+                                    scan.getTable().unwrap(TableSourceTable.class);
+                            assert sourceTable != null;
+                            final DynamicTableSource dynamicTableSource = sourceTable.tableSource();
+                            if (!isTemporalJoinRightSide
+                                    && !(dynamicTableSource instanceof ScanTableSource)) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "The specified table source %s doesn't extend %s and can not be used "
+                                                        + "as the scan source.\n"
+                                                        + "Hint: You can read the data from the source as a dim table "
+                                                        + "with the look up join syntax. Otherwise, please refer to "
+                                                        + "the document and change the type of the connector to a "
+                                                        + "source table that supports direct reads.",
+                                                sourceTable.contextResolvedTable().getIdentifier(),
+                                                ScanTableSource.class.getSimpleName()));
+                            }
+                        }
+                        return scan;
+                    }
+                });
+    }
+    // ----- FLINK MODIFICATION END -----
 
     private void convertUnnest(Blackboard bb, SqlCall call, @Nullable List<String> fieldNames) {
         final List<SqlNode> nodes = call.getOperandList();
@@ -2922,6 +2967,7 @@ public class SqlToRelConverter {
         }
     }
 
+    // ----- FLINK MODIFICATION BEGIN -----
     protected void convertCollectionTable(
             Blackboard bb, SqlNode from, boolean isTemporalJoinRightSide) {
         SqlCall sqlCall = (SqlCall) from;
@@ -2929,6 +2975,7 @@ public class SqlToRelConverter {
         // Dig out real call; TABLE() wrapper is just syntactic.
         assert sqlCall.getOperandList().size() == 1;
         final SqlCall call = sqlCall.operand(0);
+        // ----- FLINK MODIFICATION END -----
         final SqlOperator operator = call.getOperator();
         if (operator == SqlStdOperatorTable.TABLESAMPLE) {
             final String sampleName = SqlLiteral.unchain(call.operand(0)).getValueAs(String.class);
@@ -3000,7 +3047,9 @@ public class SqlToRelConverter {
         final SqlSnapshot snapshot = (SqlSnapshot) call;
         final RexNode period = bb.convertExpression(snapshot.getPeriod());
 
+        // ----- FLINK MODIFICATION BEGIN -----
         boolean isTemporalJoin = TemporalTableJoinUtil.isTemporalJoinSupportPeriod(period);
+        // ----- FLINK MODIFICATION END -----
 
         // convert inner query, could be a table name or a derived table
         SqlNode expr = snapshot.getTableRef();
@@ -4050,10 +4099,12 @@ public class SqlToRelConverter {
         return ViewExpanders.toRelContext(viewExpander, cluster, hints);
     }
 
+    // ----- FLINK MODIFICATION BEGIN -----
     public RelNode toRel(
             final RelOptTable table, final List<RelHint> hints, boolean isTemporalJoinRightSide) {
         final RelNode scan = table.toRel(createToRelContext(hints));
         validateScan(scan, isTemporalJoinRightSide);
+        // ----- FLINK MODIFICATION END -----
 
         final InitializerExpressionFactory ief =
                 table.maybeUnwrap(InitializerExpressionFactory.class)
@@ -4096,43 +4147,6 @@ public class SqlToRelConverter {
         }
 
         return scan;
-    }
-
-    /**
-     * Validate the input {@link RelNode} to judge if it is a legal source. For example, for a table
-     * source that only implements the {@link
-     * org.apache.flink.table.connector.source.LookupTableSource}, and doesn't implement the {@link
-     * ScanTableSource}, it can only be used as a right table ref in temporal join or lookup join
-     * and cannot be used as a scan table.
-     */
-    private void validateScan(RelNode relNode, boolean isTemporalJoinRightSide) {
-        relNode.accept(
-                new RelShuttleImpl() {
-                    @Override
-                    public RelNode visit(TableScan scan) {
-                        final RelOptTable table = scan.getTable();
-                        if (table instanceof TableSourceTable) {
-                            final TableSourceTable sourceTable =
-                                    scan.getTable().unwrap(TableSourceTable.class);
-                            assert sourceTable != null;
-                            final DynamicTableSource dynamicTableSource = sourceTable.tableSource();
-                            if (!isTemporalJoinRightSide
-                                    && !(dynamicTableSource instanceof ScanTableSource)) {
-                                throw new ValidationException(
-                                        String.format(
-                                                "The specified table source %s doesn't extend %s and can not be used "
-                                                        + "as the scan source.\n"
-                                                        + "Hint: You can read the data from the source as a dim table "
-                                                        + "with the look up join syntax. Otherwise, please refer to "
-                                                        + "the document and change the type of the connector to a "
-                                                        + "source table that supports direct reads.",
-                                                sourceTable.contextResolvedTable().getIdentifier(),
-                                                ScanTableSource.class.getSimpleName()));
-                            }
-                        }
-                        return scan;
-                    }
-                });
     }
 
     protected RelOptTable getTargetTable(SqlNode call) {
