@@ -28,8 +28,8 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestInputFormatTableSource, TestLegacyFilterableTableSource, TestLegacyProjectableTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestStreamTableSource, TestTableSourceSinks}
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
@@ -72,7 +72,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("Mary,10,1", "Bob,20,2", "Mike,30,3", "Liz,40,4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -114,7 +114,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.002,Bob,2",
       "1970-01-01T00:00:00.002,Mike,3",
       "1970-01-01T00:00:02.001,Liz,4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -153,7 +153,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("Mary,1", "Bob,2", "Mike,3", "Liz,4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   def testProjectOnlyProctime(): Unit = {
@@ -191,7 +191,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   def testProjectOnlyRowtime(): Unit = {
@@ -232,7 +232,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       "1970-01-01 00:00:00.002",
       "1970-01-01 00:00:00.002",
       "1970-01-01 00:00:02.001")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -276,7 +276,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       "Bob,1970-01-01T00:00:00.002,20",
       "Mike,1970-01-01T00:00:00.002,30",
       "Liz,1970-01-01T00:00:02.001,40")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -350,7 +350,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
 
     val expected =
       Seq("1,Sarah,10000,true,1000", "2,Rob,20000,false,2000", "3,Mike,30000,true,3000")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -367,7 +367,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -381,7 +381,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("3,John,A,2", "4,nosharp,A,2")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -397,7 +397,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
 
     val expected =
       mutable.MutableList("1,Mike,Smith,12.3", "2,Bob,Taylor,45.6", "3,Sam,Miller,7.89")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -425,7 +425,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       "3,Euro,119",
       "5,US Dollar,102"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -449,7 +449,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       "2,Hello",
       "3,Hello world"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -479,7 +479,7 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       "2,6.10,12,12",
       "3,7.10,123,123"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   /**
@@ -513,6 +513,6 @@ class LegacyTableSourceITCase extends StreamingTestBase {
       "2,6.099999999999999645,12",
       "3,7.099999999999999645,123"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }

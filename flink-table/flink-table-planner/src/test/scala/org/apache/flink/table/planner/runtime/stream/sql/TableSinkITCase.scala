@@ -22,18 +22,20 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
 import org.assertj.core.api.Assertions
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import scala.collection.JavaConversions._
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
+  @BeforeEach
   override def before(): Unit = {
     super.before()
 
@@ -91,7 +93,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                        |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testJoinDisorderChangeLog(): Unit = {
     tEnv.executeSql("""
                       |CREATE TABLE JoinDisorderChangeLog (
@@ -119,7 +121,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     assertEquals(expected.sorted, result.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSinkDisorderChangeLog(): Unit = {
     tEnv.executeSql("""
                       |CREATE TABLE SinkDisorderChangeLog (
@@ -144,7 +146,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     assertEquals(expected.sorted, result.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSinkDisorderChangeLogWithRank(): Unit = {
     tEnv.executeSql("""
                       |CREATE TABLE SinkRankChangeLog (
@@ -173,7 +175,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     assertEquals(expected.sorted, result.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testChangelogSourceWithNonDeterministicFuncSinkWithDifferentPk(): Unit = {
     tEnv.createTemporaryFunction("ndFunc", new TestNonDeterministicUdf)
     tEnv.executeSql("""
@@ -219,7 +221,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     assertEquals(expectedRaw, rawResult.toList)
   }
 
-  @Test
+  @TestTemplate
   def testInsertPartColumn(): Unit = {
     tEnv.executeSql("""
                       |CREATE TABLE zm_test (
@@ -256,7 +258,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     assertEquals(expected.sorted, result.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCreateTableAsSelect(): Unit = {
     tEnv
       .executeSql("""
@@ -299,7 +301,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     Assertions.assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCreateTableAsSelectWithoutOptions(): Unit = {
     // TODO: CTAS supports ManagedTable
     // If the connector option is not specified, Flink will creates a Managed table.
@@ -313,7 +315,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
         " managed table relies on checkpoint to commit and the data is visible only after commit.")
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsert(): Unit = {
     val srcDataId = TestValuesTableFactory.registerData(
       Seq(

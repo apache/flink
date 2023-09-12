@@ -18,25 +18,27 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.core.testutils.FlinkMatchers.containsCause
+import org.apache.flink.core.testutils.{EachCallbackWrapper, FlinkAssertions}
+import org.apache.flink.core.testutils.FlinkAssertions.{anyCauseMatches, assertThatChainOfCauses}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.runtime.functions.scalar.SourceWatermarkFunction
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Rule, Test}
-import org.junit.Assert._
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.extension.RegisterExtension
 
 class TableSourceITCase extends StreamingTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     val myTableDataId = TestValuesTableFactory.registerData(TestData.smallData3)
@@ -117,7 +119,7 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("1,Hi", "2,Hello", "3,Hello world")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -127,8 +129,7 @@ class TableSourceITCase extends StreamingTestBase {
     result.addSink(sink).setParallelism(result.parallelism)
     env.execute()
 
-    val expected = Seq("3")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(Seq("3"))
   }
 
   @Test
@@ -153,7 +154,7 @@ class TableSourceITCase extends StreamingTestBase {
       "1,Sarah,10000,true,1100,mary",
       "2,Rob,20000,false,2200,bob",
       "3,Mike,30000,true,3300,liz")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -168,7 +169,7 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("1", "1", "1")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -180,7 +181,7 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("5,5,Record_5", "6,6,Record_6", "7,7,Record_7", "8,8,Record_8")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -193,7 +194,7 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("5,5,Record_5")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -219,7 +220,7 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("1,Hi", "2,Hello", "3,Hello world")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -271,7 +272,8 @@ class TableSourceITCase extends StreamingTestBase {
         "23:23:23,2020-05-01T23:23:23,2020-05-01T23:23:23Z,[8],4,c,null,{null=3}",
       "null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
   @Test
@@ -284,7 +286,7 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("1,1,Hallo", "2,2,Hallo Welt", "2,3,Hallo Welt wie")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -300,7 +302,7 @@ class TableSourceITCase extends StreamingTestBase {
     // (2, 2L, 1, 2, "Hallo Welt", 2L)
     // (2, 3L, 2, 4, "Hallo Welt wie", 1L)
     val expected = Seq("1,1,1,Hallo,0", "2,2,2,Hallo Welt,2", "2,1,3,Hallo Welt wie,4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -313,7 +315,7 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("1,1,Hallo", "1,1,Hallo Welt wie", "2,2,Hallo Welt")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -338,7 +340,7 @@ class TableSourceITCase extends StreamingTestBase {
       "1,Sarah,10000,true,1100,mary",
       "2,Rob,20000,false,2200,bob",
       "3,Mike,30000,true,3300,liz")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -358,24 +360,14 @@ class TableSourceITCase extends StreamingTestBase {
                        |)
                        |""".stripMargin)
 
-    try {
-      tEnv.executeSql("SELECT * FROM tableWithWatermark").await()
-      fail("should fail")
-    } catch {
-      case t: Throwable =>
-        assertThat(t, containsCause(new TableException(SourceWatermarkFunction.ERROR_MESSAGE)))
-    }
+    assertThatThrownBy(() => tEnv.executeSql("SELECT * FROM tableWithWatermark").await())
+      .satisfies(anyCauseMatches(classOf[TableException], SourceWatermarkFunction.ERROR_MESSAGE))
   }
 
   @Test
   def testSourceWatermarkInQuery(): Unit = {
-    try {
-      tEnv.executeSql("SELECT *, SOURCE_WATERMARK() FROM MyTable").print()
-      fail("should fail")
-    } catch {
-      case t: Throwable =>
-        assertThat(t, containsCause(new TableException(SourceWatermarkFunction.ERROR_MESSAGE)))
-    }
+    assertThatThrownBy(() => tEnv.executeSql("SELECT *, SOURCE_WATERMARK() FROM MyTable").print())
+      .satisfies(anyCauseMatches(classOf[TableException], SourceWatermarkFunction.ERROR_MESSAGE))
   }
 
   @Test
@@ -391,7 +383,7 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("3,Mike")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -409,7 +401,7 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("1,Sarah,2", "2,Rob,2", "3,Mike,2")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -428,6 +420,6 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("1,Sarah,1", "2,Rob,1", "3,Mike,1")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }

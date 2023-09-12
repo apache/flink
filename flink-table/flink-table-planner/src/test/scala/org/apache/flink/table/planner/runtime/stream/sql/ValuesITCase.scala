@@ -24,8 +24,8 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingA
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{IntType, VarCharType}
 
-import org.junit.Assert._
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 class ValuesITCase extends StreamingTestBase {
 
@@ -42,6 +42,6 @@ class ValuesITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List("+I(1,Alice)", "+I(1,Bob)")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }

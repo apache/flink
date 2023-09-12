@@ -30,12 +30,12 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase,
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.planner.utils.TableTestUtil
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.sql.Timestamp
 import java.time.{Instant, ZoneId}
@@ -43,10 +43,10 @@ import java.util.TimeZone
 
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithStateTestBase(backend) {
 
-  @Test
+  @TestTemplate
   def testSimplePattern(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -89,10 +89,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = mutable.MutableList("6,7,8")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testSimplePatternWithNulls(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -136,10 +136,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = mutable.MutableList("1,null,3,null", "6,null,8,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCodeSplitsAreProperlyGenerated(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -192,10 +192,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val expected = mutable.MutableList(
       "key1,second_key3,1,key1,2,3,second_key3",
       "key2,second_key4,6,key2,7,8,second_key4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testEventsAreProperlyOrdered(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -250,10 +250,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = mutable.MutableList("10,11,12")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testMatchRecognizeAppliedToWindowedGrouping(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -311,10 +311,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List("ACME,2,1970-01-01T00:00:03")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testWindowedGroupingAppliedToMatchRecognize(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -365,10 +365,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val expected = List(
       "ACME,3,1970-01-01T00:00:02.999,1970-01-01T00:00",
       "ACME,2,1970-01-01T00:00:05.999,1970-01-01T00:00:03")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testWindowedGroupingAppliedToMatchRecognizeOnLtzRowtime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -429,10 +429,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val expected = List(
       "ACME,3,1970-01-01T00:00:02.999Z,1970-01-01T08:00",
       "ACME,2,1970-01-01T00:00:05.999Z,1970-01-01T08:00:03")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLogicalOffsets(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -479,10 +479,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List("6,7,8,33,33")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testPartitionByWithParallelSource(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -525,10 +525,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List("ACME,3,4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLogicalOffsetsWithStarVariable(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -586,10 +586,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List("1,2,3,4,5,6,7,8,8,7,6,5,4,3,2,1")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLogicalOffsetOutsideOfRangeInMeasures(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -630,7 +630,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List("19,13,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   /**
@@ -640,7 +640,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
    *      because no rows matched to D 3. aggregates that take multiple parameters work 4.
    *      aggregates with expressions work
    */
-  @Test
+  @TestTemplate
   def testAggregates(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -699,10 +699,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = mutable.MutableList("1,5,0,null,2,3,3.4,8", "9,4,0,null,3,4,3.2,12")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAggregatesWithNullInputs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -756,10 +756,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = mutable.MutableList("29,7,5,8,6,8")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAccessingCurrentTime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -792,13 +792,13 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = List("1")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
 
     // We do not assert the proctime in the result, cause it is currently
     // accessed from System.currentTimeMillis(), so there is no graceful way to assert the proctime
   }
 
-  @Test
+  @TestTemplate
   def testUserDefinedFunctions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -850,7 +850,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     env.execute()
 
     val expected = mutable.MutableList("1,PREF:a,8,5", "7,PREF:a,6,9")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }
 
