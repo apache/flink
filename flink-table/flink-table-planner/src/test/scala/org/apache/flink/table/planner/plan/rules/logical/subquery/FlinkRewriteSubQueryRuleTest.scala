@@ -20,12 +20,12 @@ package org.apache.flink.table.planner.plan.rules.logical.subquery
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[org.apache.flink.table.planner.plan.rules.logical.FlinkRewriteSubQueryRule]]. */
 class FlinkRewriteSubQueryRuleTest extends SubQueryTestBase {
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource[(Int, Long, String)]("x", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("y", 'd, 'e, 'f)

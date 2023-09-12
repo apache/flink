@@ -23,14 +23,14 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class DistinctAggregateTest(
     splitDistinctAggEnabled: Boolean,
     aggPhaseEnforcer: AggregatePhaseStrategy)
@@ -39,7 +39,7 @@ class DistinctAggregateTest(
   protected val util: StreamTableTestUtil = streamTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     util.enableMiniBatch()
@@ -53,17 +53,17 @@ class DistinctAggregateTest(
       .set(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, Boolean.box(false))
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctAgg(): Unit = {
     util.verifyExecPlan("SELECT COUNT(DISTINCT c) FROM MyTable")
   }
 
-  @Test
+  @TestTemplate
   def testMultiDistinctAggs(): Unit = {
     util.verifyExecPlan("SELECT COUNT(DISTINCT a), SUM(DISTINCT b) FROM MyTable")
   }
 
-  @Test
+  @TestTemplate
   def testSingleMaxWithDistinctAgg(): Unit = {
     val sqlQuery =
       """
@@ -74,24 +74,24 @@ class DistinctAggregateTest(
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test
+  @TestTemplate
   def testSingleFirstValueWithDistinctAgg(): Unit = {
     // FIRST_VALUE is not mergeable, so the final plan does not contain local agg
     util.verifyExecPlan("SELECT a, FIRST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
-  @Test
+  @TestTemplate
   def testSingleLastValueWithDistinctAgg(): Unit = {
     // LAST_VALUE is not mergeable, so the final plan does not contain local agg
     util.verifyExecPlan("SELECT a, LAST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
-  @Test
+  @TestTemplate
   def testSingleListAggWithDistinctAgg(): Unit = {
     util.verifyExecPlan("SELECT a, LISTAGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctAggWithAllNonDistinctAgg(): Unit = {
     val sqlQuery =
       """
@@ -102,29 +102,29 @@ class DistinctAggregateTest(
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test
+  @TestTemplate
   def testTwoDistinctAggregateWithNonDistinctAgg(): Unit = {
     util.verifyExecPlan(
       "SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c")
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctAggWithGroupBy(): Unit = {
     util.verifyExecPlan("SELECT a, COUNT(DISTINCT c) FROM MyTable GROUP BY a")
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctAggWithAndNonDistinctAggOnSameColumn(): Unit = {
     util.verifyExecPlan("SELECT a, COUNT(DISTINCT b), SUM(b), AVG(b) FROM MyTable GROUP BY a")
   }
 
-  @Test
+  @TestTemplate
   def testSomeColumnsBothInDistinctAggAndGroupBy(): Unit = {
     // TODO: the COUNT(DISTINCT a) can be optimized to literal 1
     util.verifyExecPlan("SELECT a, COUNT(DISTINCT a), COUNT(b) FROM MyTable GROUP BY a")
   }
 
-  @Test
+  @TestTemplate
   def testAggWithFilterClause(): Unit = {
     val sqlQuery =
       s"""
@@ -139,7 +139,7 @@ class DistinctAggregateTest(
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test
+  @TestTemplate
   def testMultiGroupBys(): Unit = {
     val sqlQuery =
       s"""
@@ -155,7 +155,7 @@ class DistinctAggregateTest(
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctWithRetraction(): Unit = {
     val sqlQuery =
       """
@@ -169,7 +169,7 @@ class DistinctAggregateTest(
     util.verifyRelPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
-  @Test
+  @TestTemplate
   def testSumCountWithSingleDistinctAndRetraction(): Unit = {
     val sqlQuery =
       s"""
@@ -185,7 +185,7 @@ class DistinctAggregateTest(
     util.verifyRelPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
-  @Test
+  @TestTemplate
   def testMinMaxWithRetraction(): Unit = {
     val sqlQuery =
       s"""
@@ -201,7 +201,7 @@ class DistinctAggregateTest(
     util.verifyRelPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
-  @Test
+  @TestTemplate
   def testFirstValueLastValueWithRetraction(): Unit = {
     val sqlQuery =
       s"""
@@ -219,7 +219,7 @@ class DistinctAggregateTest(
 }
 
 object DistinctAggregateTest {
-  @Parameterized.Parameters(name = "splitDistinctAggEnabled={0}, aggPhaseEnforcer={1}")
+  @Parameters(name = "splitDistinctAggEnabled={0}, aggPhaseEnforcer={1}")
   def parameters(): util.Collection[Array[Any]] = {
     util.Arrays.asList(
       Array(true, AggregatePhaseStrategy.ONE_PHASE),

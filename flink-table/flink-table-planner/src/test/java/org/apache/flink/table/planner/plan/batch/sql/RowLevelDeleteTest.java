@@ -25,11 +25,12 @@ import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -38,8 +39,8 @@ import java.util.Collections;
 import scala.collection.Seq;
 
 /** Test for row-level delete. */
-@RunWith(Parameterized.class)
-public class RowLevelDeleteTest extends TableTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class RowLevelDeleteTest extends TableTestBase {
 
     private final SupportsRowLevelDelete.RowLevelDeleteMode deleteMode;
     private final Seq<ExplainDetail> explainDetails =
@@ -48,19 +49,19 @@ public class RowLevelDeleteTest extends TableTestBase {
 
     private BatchTableTestUtil util;
 
-    @Parameterized.Parameters(name = "deleteMode = {0}")
-    public static Collection<SupportsRowLevelDelete.RowLevelDeleteMode> data() {
+    @Parameters(name = "deleteMode = {0}")
+    private static Collection<SupportsRowLevelDelete.RowLevelDeleteMode> data() {
         return Arrays.asList(
                 SupportsRowLevelDelete.RowLevelDeleteMode.DELETED_ROWS,
                 SupportsRowLevelDelete.RowLevelDeleteMode.REMAINING_ROWS);
     }
 
-    public RowLevelDeleteTest(SupportsRowLevelDelete.RowLevelDeleteMode deleteMode) {
+    RowLevelDeleteTest(SupportsRowLevelDelete.RowLevelDeleteMode deleteMode) {
         this.deleteMode = deleteMode;
     }
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         util = batchTestUtil(TableConfig.getDefault());
         util.tableEnv()
                 .getConfig()
@@ -68,27 +69,27 @@ public class RowLevelDeleteTest extends TableTestBase {
                 .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 12);
     }
 
-    @Test
-    public void testDeleteWithoutFilter() {
+    @TestTemplate
+    void testDeleteWithoutFilter() {
         createTableForDelete();
         util.verifyExplainInsert("DELETE FROM t", explainDetails);
     }
 
-    @Test
-    public void testDeleteWithFilter() {
+    @TestTemplate
+    void testDeleteWithFilter() {
         createTableForDelete();
         util.verifyExplainInsert("DELETE FROM t where a = 1 and b = '123'", explainDetails);
     }
 
-    @Test
-    public void testDeleteWithSubQuery() {
+    @TestTemplate
+    void testDeleteWithSubQuery() {
         createTableForDelete();
         util.verifyExplainInsert(
                 "DELETE FROM t where b = '123' and a = (select count(*) from t)", explainDetails);
     }
 
-    @Test
-    public void testDeleteWithCustomColumns() {
+    @TestTemplate
+    void testDeleteWithCustomColumns() {
         util.tableEnv()
                 .executeSql(
                         String.format(
@@ -102,8 +103,8 @@ public class RowLevelDeleteTest extends TableTestBase {
         util.verifyExplainInsert("DELETE FROM t where b = '123'", explainDetails);
     }
 
-    @Test
-    public void testDeleteWithMetaColumns() {
+    @TestTemplate
+    void testDeleteWithMetaColumns() {
         util.tableEnv()
                 .executeSql(
                         String.format(

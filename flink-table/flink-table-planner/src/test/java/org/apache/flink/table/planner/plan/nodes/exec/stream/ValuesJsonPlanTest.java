@@ -23,17 +23,17 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for values. */
-public class ValuesJsonPlanTest extends TableTestBase {
+class ValuesJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
         String sinkTableDdl =
@@ -49,7 +49,7 @@ public class ValuesJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testValues() {
+    void testValues() {
         util.verifyJsonPlan(
                 "INSERT INTO MySink SELECT * FROM (VALUES (1, 2, 'Hi'), (3, 4, 'Hello'))");
     }

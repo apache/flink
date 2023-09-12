@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** A test class for {@link ClearQueryBlockAliasResolver}. */
-public class ClearQueryBlockAliasResolverTest extends JoinHintTestBase {
+class ClearQueryBlockAliasResolverTest extends JoinHintTestBase {
 
     // use any join hint for test
     @Override

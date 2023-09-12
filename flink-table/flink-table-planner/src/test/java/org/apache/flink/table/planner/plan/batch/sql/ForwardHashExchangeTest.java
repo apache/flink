@@ -23,16 +23,16 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Tests for ForwardHashExchangeProcessor. */
-public class ForwardHashExchangeTest extends TableTestBase {
+class ForwardHashExchangeTest extends TableTestBase {
 
     private BatchTableTestUtil util;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         util = batchTestUtil(TableConfig.getDefault());
 
         util.tableEnv()
@@ -77,13 +77,13 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankWithHashShuffle() {
+    void testRankWithHashShuffle() {
         util.verifyExecPlan(
                 "SELECT * FROM (SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM T) WHERE rk <= 10");
     }
 
     @Test
-    public void testSortAggregateWithHashShuffle() {
+    void testSortAggregateWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
@@ -91,7 +91,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testOverAggOnHashAggWithHashShuffle() {
+    void testOverAggOnHashAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
@@ -106,7 +106,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testOverAggOnHashAggWithGlobalShuffle() {
+    void testOverAggOnHashAggWithGlobalShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
@@ -114,7 +114,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testOverAggOnSortAggWithHashShuffle() {
+    void testOverAggOnSortAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
@@ -129,7 +129,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testOverAggOnSortAggWithGlobalShuffle() {
+    void testOverAggOnSortAggWithGlobalShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
@@ -137,7 +137,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testHashAggOnHashJoinWithHashShuffle() {
+    void testHashAggOnHashJoinWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(
@@ -149,7 +149,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testOnePhaseSortAggOnSortMergeJoinWithHashShuffle() {
+    void testOnePhaseSortAggOnSortMergeJoinWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(
@@ -164,7 +164,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testTwoPhaseSortAggOnSortMergeJoinWithHashShuffle() {
+    void testTwoPhaseSortAggOnSortMergeJoinWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(
@@ -179,7 +179,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testAutoPhaseSortAggOnSortMergeJoinWithHashShuffle() {
+    void testAutoPhaseSortAggOnSortMergeJoinWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(
@@ -194,7 +194,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testHashAggOnNestedLoopJoinWithGlobalShuffle() {
+    void testHashAggOnNestedLoopJoinWithGlobalShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
@@ -208,7 +208,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testSortAggOnNestedLoopJoinWithGlobalShuffle() {
+    void testSortAggOnNestedLoopJoinWithGlobalShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
@@ -222,7 +222,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankOnHashAggWithHashShuffle() {
+    void testRankOnHashAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
@@ -235,7 +235,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankOnHashAggWithGlobalShuffle() {
+    void testRankOnHashAggWithGlobalShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
@@ -248,7 +248,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankOnOnePhaseSortAggWithHashShuffle() {
+    void testRankOnOnePhaseSortAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
@@ -264,7 +264,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankOnTwoPhaseSortAggWithHashShuffle() {
+    void testRankOnTwoPhaseSortAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
@@ -280,7 +280,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankOnOnePhaseSortAggWithGlobalShuffle() {
+    void testRankOnOnePhaseSortAggWithGlobalShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
@@ -296,7 +296,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankOnTwoPhaseSortAggWithGlobalShuffle() {
+    void testRankOnTwoPhaseSortAggWithGlobalShuffle() {
         util.tableEnv()
                 .getConfig()
                 .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
@@ -312,7 +312,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testHashJoinWithMultipleInputDisabled() {
+    void testHashJoinWithMultipleInputDisabled() {
         util.tableEnv()
                 .getConfig()
                 .set(
@@ -328,7 +328,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testSortJoinWithMultipleInputDisabled() {
+    void testSortJoinWithMultipleInputDisabled() {
         util.tableEnv()
                 .getConfig()
                 .set(
@@ -344,7 +344,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testMultipleInputs() {
+    void testMultipleInputs() {
         util.getTableEnv()
                 .getConfig()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, false)

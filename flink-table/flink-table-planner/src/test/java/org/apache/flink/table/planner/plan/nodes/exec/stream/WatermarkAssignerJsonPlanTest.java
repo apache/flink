@@ -23,23 +23,23 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for watermark assigner. */
-public class WatermarkAssignerJsonPlanTest extends TableTestBase {
+class WatermarkAssignerJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
     }
 
     @Test
-    public void testWatermarkAssigner() {
+    void testWatermarkAssigner() {
         String srcTableDdl =
                 "CREATE TABLE WatermarkTable (\n"
                         + "  a bigint,\n"

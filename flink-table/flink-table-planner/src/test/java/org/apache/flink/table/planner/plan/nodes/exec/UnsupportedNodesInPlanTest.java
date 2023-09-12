@@ -23,15 +23,15 @@ import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for deserialising invalid {@link org.apache.flink.table.api.CompiledPlan}. */
-public class UnsupportedNodesInPlanTest extends TableTestBase {
+class UnsupportedNodesInPlanTest extends TableTestBase {
 
     @Test
-    public void testInvalidType() {
+    void testInvalidType() {
         final TableEnvironment tEnv =
                 TableEnvironment.create(EnvironmentSettings.inStreamingMode());
         assertThatThrownBy(
