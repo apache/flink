@@ -22,6 +22,8 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
@@ -76,9 +78,11 @@ class YarnApplicationFileUploaderTest {
     @Test
     void testRegisterProvidedLocalResourcesWithParentDir(@TempDir File flinkLibDir)
             throws IOException {
-        final Map<String, String> filesWithParentDir = getFilesWithParentDir();
-
-        generateFilesInDirectory(flinkLibDir, filesWithParentDir);
+        final String xmlContent = "XML Content";
+        final Map<String, String> xmlResources =
+                ImmutableMap.of(
+                        "conf/hive-site.xml", xmlContent, "conf/ivysettings.xml", xmlContent);
+        generateFilesInDirectory(flinkLibDir, xmlResources);
 
         try (final YarnApplicationFileUploader yarnApplicationFileUploader =
                 YarnApplicationFileUploader.from(
@@ -89,7 +93,7 @@ class YarnApplicationFileUploaderTest {
                         DFSConfigKeys.DFS_REPLICATION_DEFAULT)) {
 
             List<String> classPath = yarnApplicationFileUploader.registerProvidedLocalResources();
-            List<String> expectedClassPathEntries = getExpectedClassPathWithParentDir();
+            List<String> expectedClassPathEntries = Arrays.asList("conf");
 
             assertThat(classPath).containsExactlyInAnyOrderElementsOf(expectedClassPathEntries);
         }
@@ -163,22 +167,6 @@ class YarnApplicationFileUploaderTest {
         libJars.put("flink-table.jar", jarContent);
 
         return libJars;
-    }
-
-    private static Map<String, String> getFilesWithParentDir() {
-        final Map<String, String> filesWithParentDir = new HashMap<>(2);
-        final String xmlContent = "XML Content";
-
-        filesWithParentDir.put("conf/hive-site.xml", xmlContent);
-        filesWithParentDir.put("conf/ivysettings.xml", xmlContent);
-
-        return filesWithParentDir;
-    }
-
-    private static List<String> getExpectedClassPathWithParentDir() {
-        List<String> expectedClassPathEntries = new ArrayList<>();
-        expectedClassPathEntries.add("conf");
-        return expectedClassPathEntries;
     }
 
     private static Map<String, String> getUsrLibJars() {
