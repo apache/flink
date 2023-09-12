@@ -167,7 +167,7 @@
       <tr *ngFor="let subTask of table.data">
         <td>{{ subTask['index'] }}</td>
         <ng-container *ngIf="subTask['status'] === 'completed'">
-          <td>{{ subTask['ack_timestamp'] | date: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ subTask['ack_timestamp'] | date: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
           <td>
             {{ subTask['end_to_end_duration'] | humanizeDuration }}
             <span *ngIf="subTask['aborted']">(aborted)</span>
