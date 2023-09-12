@@ -99,9 +99,9 @@
               </td>
               <td>{{ subtask.attempt + 1 }}</td>
               <td>{{ subtask.host }}</td>
-              <td>{{ subtask['start_time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+              <td>{{ subtask['start_time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
               <td>{{ subtask.duration | humanizeDuration }}</td>
-              <td>{{ subtask['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+              <td>{{ subtask['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
               <td>
                 {{ subtask['metrics']['accumulated-backpressured-time'] | humanizeDuration }}
                 /
@@ -165,9 +165,9 @@
                   </td>
                   <td>{{ attempt.attempt + 1 }}</td>
                   <td>{{ attempt.host }}</td>
-                  <td>{{ attempt['start_time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+                  <td>{{ attempt['start_time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
                   <td>{{ attempt.duration | humanizeDuration }}</td>
-                  <td>{{ attempt['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+                  <td>{{ attempt['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
                   <td>
                     {{ attempt['metrics']['accumulated-backpressured-time'] | humanizeDuration }}
                     /

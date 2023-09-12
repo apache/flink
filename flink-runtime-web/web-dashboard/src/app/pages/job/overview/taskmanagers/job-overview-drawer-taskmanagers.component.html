@@ -70,8 +70,8 @@
               {{ taskManager['metrics']['write-records'] | number }}
             </span>
           </td>
-          <td>{{ taskManager['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
-          <td>{{ taskManager['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss' }}</td>
+          <td>{{ taskManager['start-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
+          <td>{{ taskManager['end-time'] | humanizeDate: 'yyyy-MM-dd HH:mm:ss.SSS' }}</td>
           <td>{{ taskManager['duration'] | humanizeDuration }}</td>
           <td>
             <flink-dynamic-host
