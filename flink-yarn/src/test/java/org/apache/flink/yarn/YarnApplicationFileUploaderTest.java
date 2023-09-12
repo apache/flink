@@ -178,8 +178,6 @@ class YarnApplicationFileUploaderTest {
     private static List<String> getExpectedClassPathWithParentDir() {
         List<String> expectedClassPathEntries = new ArrayList<>();
         expectedClassPathEntries.add("conf");
-        expectedClassPathEntries.add("conf/hive-site.xml");
-        expectedClassPathEntries.add("conf/ivysettings.xml");
         return expectedClassPathEntries;
     }
 

@@ -344,7 +344,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
         checkNotNull(localResources);
 
         final ArrayList<String> classPaths = new ArrayList<>();
-        final Set<String> resources = new HashSet<>();
+        final Set<String> resourcesJar = new HashSet<>();
         final Set<String> resourcesDir = new HashSet<>();
         providedSharedLibs.forEach(
                 (fileName, fileStatus) -> {
@@ -362,17 +362,11 @@ class YarnApplicationFileUploader implements AutoCloseable {
                     envShipResourceList.add(descriptor);
 
                     if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
-                        URI parentDirectoryUri = new Path(fileName).getParent().toUri();
-                        String relativeParentDirectory =
-                                new Path(filePath.getName())
-                                        .toUri()
-                                        .relativize(parentDirectoryUri)
-                                        .toString();
-
-                        if (!resourcesDir.contains(relativeParentDirectory)) {
-                            resourcesDir.add(relativeParentDirectory);
+                        if (fileName.endsWith("jar")) {
+                            resourcesJar.add(fileName);
+                        } else {
+                            resourcesDir.add(new Path(fileName).getParent().toString());
                         }
-                        resources.add(fileName);
                     } else if (isFlinkDistJar(filePath.getName())) {
                         flinkDist = descriptor;
                     }
@@ -382,7 +376,7 @@ class YarnApplicationFileUploader implements AutoCloseable {
         // by resource files. Sort both resources and resource directories in
         // order to make classpath deterministic.
         resourcesDir.stream().sorted().forEach(classPaths::add);
-        resources.stream().sorted().forEach(classPaths::add);
+        resourcesJar.stream().sorted().forEach(classPaths::add);
         return classPaths;
     }
 
