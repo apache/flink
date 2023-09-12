@@ -24,31 +24,33 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.planner.runtime.stream.sql.CompactionITCaseBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
 /** Test sink file compaction of hive tables. */
-@RunWith(Parameterized.class)
-public class HiveSinkCompactionITCase extends CompactionITCaseBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class HiveSinkCompactionITCase extends CompactionITCaseBase {
 
-    @Parameterized.Parameters(name = "format = {0}")
-    public static Collection<String> parameters() {
+    @Parameters(name = "format = {0}")
+    private static Collection<String> parameters() {
         return Arrays.asList("sequencefile", "parquet");
     }
 
-    @Parameterized.Parameter public String format;
+    @Parameter private String format;
 
     private HiveCatalog hiveCatalog;
 
     @Override
-    @Before
+    @BeforeEach
     public void init() throws IOException {
         hiveCatalog = HiveTestUtils.createHiveCatalog();
         tEnv().registerCatalog(hiveCatalog.getName(), hiveCatalog);
@@ -60,7 +62,7 @@ public class HiveSinkCompactionITCase extends CompactionITCaseBase {
         super.init();
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws TableNotExistException {
         if (hiveCatalog != null) {
             hiveCatalog.dropTable(new ObjectPath(tEnv().getCurrentDatabase(), "sink_table"), true);
