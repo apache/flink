@@ -21,7 +21,6 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
@@ -61,7 +60,6 @@ public final class RocksDBTestUtils {
         final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
         return new RocksDBKeyedStateBackendBuilder<>(
-                new Configuration(),
                 "no-op",
                 ClassLoader.getSystemClassLoader(),
                 instanceBasePath,
@@ -73,7 +71,7 @@ public final class RocksDBTestUtils {
                 new KeyGroupRange(0, 1),
                 new ExecutionConfig(),
                 TestLocalRecoveryConfig.disabled(),
-                queueStateType,
+                RocksDBPriorityQueueConfig.buildWithPriorityQueueType(queueStateType),
                 TtlTimeProvider.DEFAULT,
                 LatencyTrackingStateConfig.disabled(),
                 new UnregisteredMetricsGroup(),
@@ -92,7 +90,6 @@ public final class RocksDBTestUtils {
         final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
         return new RocksDBKeyedStateBackendBuilder<>(
-                new Configuration(),
                 "no-op",
                 ClassLoader.getSystemClassLoader(),
                 instanceBasePath,
@@ -104,7 +101,8 @@ public final class RocksDBTestUtils {
                 new KeyGroupRange(0, 1),
                 new ExecutionConfig(),
                 TestLocalRecoveryConfig.disabled(),
-                EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP,
+                RocksDBPriorityQueueConfig.buildWithPriorityQueueType(
+                        EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP),
                 TtlTimeProvider.DEFAULT,
                 LatencyTrackingStateConfig.disabled(),
                 new UnregisteredMetricsGroup(),

@@ -31,7 +31,6 @@ import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.FLASH_SSD_OPTIMIZED;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM;
-import static org.apache.flink.contrib.streaming.state.RocksDBPriorityQueueSetFactory.DEFAULT_CACHES_SIZE;
 
 /** Configuration options for the RocksDB backend. */
 public class RocksDBOptions {
@@ -63,14 +62,17 @@ public class RocksDBOptions {
                             .withDescription(
                                     "This determines the factory for timer service state implementation.");
 
+    /** The cache size per key-group for ROCKSDB timer service factory implementation. */
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
     public static final ConfigOption<Integer> ROCKSDB_TIMER_SERVICE_FACTORY_CACHE_SIZE =
             ConfigOptions.key("state.backend.rocksdb.timer-service.cache-size")
                     .intType()
-                    .defaultValue(DEFAULT_CACHES_SIZE)
+                    .defaultValue(128)
                     .withDescription(
                             String.format(
-                                    "The cache size for rocksdb timer service factory. This option only has an effect when '%s' is configured to '%s'",
+                                    "The cache size per keyGroup of rocksdb timer service factory. This option only has an effect "
+                                            + "when '%s' is configured to '%s'. Increasing this value can improve the performance "
+                                            + "of rocksdb timer service, but consumes more heap memory at the same time.",
                                     TIMER_SERVICE_FACTORY.key(), ROCKSDB.name()));
 
     /**

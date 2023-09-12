@@ -51,9 +51,7 @@ import java.util.function.Function;
  */
 public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
 
-    /** Default cache size per key-group. */
-    @VisibleForTesting static final int DEFAULT_CACHES_SIZE = 128;
-
+    /** The priorityQueue cache size per key-group. */
     private final int cacheSize;
 
     /** A shared buffer to serialize elements for the priority queue. */
@@ -227,5 +225,10 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
         }
 
         return stateInfo;
+    }
+
+    @VisibleForTesting
+    public int getCacheSize() {
+        return cacheSize;
     }
 }

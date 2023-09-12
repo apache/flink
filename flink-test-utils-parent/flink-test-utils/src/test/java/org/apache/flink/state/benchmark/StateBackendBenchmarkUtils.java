@@ -35,6 +35,7 @@ import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
+import org.apache.flink.contrib.streaming.state.RocksDBPriorityQueueConfig;
 import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
@@ -161,7 +162,6 @@ public class StateBackendBenchmarkUtils {
         RocksDBResourceContainer resourceContainer = new RocksDBResourceContainer();
         RocksDBKeyedStateBackendBuilder<Long> builder =
                 new RocksDBKeyedStateBackendBuilder<>(
-                        new Configuration(),
                         "Test",
                         Thread.currentThread().getContextClassLoader(),
                         dbPathFile,
@@ -173,7 +173,8 @@ public class StateBackendBenchmarkUtils {
                         new KeyGroupRange(0, 1),
                         executionConfig,
                         new LocalRecoveryConfig(null),
-                        EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
+                        RocksDBPriorityQueueConfig.buildWithPriorityQueueType(
+                                EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB),
                         TtlTimeProvider.DEFAULT,
                         LatencyTrackingStateConfig.disabled(),
                         new UnregisteredMetricsGroup(),

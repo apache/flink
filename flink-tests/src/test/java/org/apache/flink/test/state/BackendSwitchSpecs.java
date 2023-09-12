@@ -21,11 +21,11 @@ package org.apache.flink.test.state;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder;
+import org.apache.flink.contrib.streaming.state.RocksDBPriorityQueueConfig;
 import org.apache.flink.contrib.streaming.state.RocksDBResourceContainer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
@@ -96,7 +96,6 @@ public final class BackendSwitchSpecs {
 
             temporaryFolder.create();
             return new RocksDBKeyedStateBackendBuilder<>(
-                            new Configuration(),
                             "no-op",
                             ClassLoader.getSystemClassLoader(),
                             temporaryFolder.newFolder(),
@@ -109,7 +108,7 @@ public final class BackendSwitchSpecs {
                             keyGroupRange,
                             new ExecutionConfig(),
                             TestLocalRecoveryConfig.disabled(),
-                            queueStateType,
+                            RocksDBPriorityQueueConfig.buildWithPriorityQueueType(queueStateType),
                             TtlTimeProvider.DEFAULT,
                             LatencyTrackingStateConfig.disabled(),
                             new UnregisteredMetricsGroup(),
