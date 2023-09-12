@@ -71,6 +71,8 @@ jobs:
       ${{parameters.environment}} ./tools/ci/compile_ci.sh || exit $?
       ./tools/azure-pipelines/create_build_artifact.sh
     displayName: Compile
+    env:
+      DEVELOCITY_ACCESS_KEY: $(SECRET_DV_ACCESS_KEY)
 
   # upload artifacts for next stage
   - task: PublishPipelineArtifact@1
@@ -155,6 +157,7 @@ jobs:
       IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
       IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
       IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
+      DEVELOCITY_ACCESS_KEY: $(SECRET_DV_ACCESS_KEY)
 
   - task: PublishTestResults@2
     condition: succeededOrFailed()
