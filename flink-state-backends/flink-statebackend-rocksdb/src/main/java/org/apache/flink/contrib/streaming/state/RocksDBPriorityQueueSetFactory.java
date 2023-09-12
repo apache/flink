@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInf
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyHandle;
@@ -95,6 +96,7 @@ public class RocksDBPriorityQueueSetFactory implements PriorityQueueSetFactory {
         this.sharedElementOutView = new DataOutputSerializer(128);
         this.sharedElementInView = new DataInputDeserializer();
         this.writeBufferManagerCapacity = writeBufferManagerCapacity;
+        Preconditions.checkArgument(cacheSize > 0);
         this.cacheSize = cacheSize;
     }
 

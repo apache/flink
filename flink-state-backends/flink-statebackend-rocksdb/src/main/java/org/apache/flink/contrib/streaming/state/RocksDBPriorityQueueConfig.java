@@ -22,12 +22,16 @@ import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.Prio
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
+
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.ROCKSDB_TIMER_SERVICE_FACTORY_CACHE_SIZE;
 import static org.apache.flink.contrib.streaming.state.RocksDBOptions.TIMER_SERVICE_FACTORY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The configuration of rocksDB priority queue state implementation. */
-public class RocksDBPriorityQueueConfig {
+public class RocksDBPriorityQueueConfig implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private static final int UNDEFINED_ROCKSDB_PRIORITY_QUEUE_SET_CACHE_SIZE = -1;
 
@@ -38,8 +42,7 @@ public class RocksDBPriorityQueueConfig {
     private int rocksDBPriorityQueueSetCacheSize;
 
     public RocksDBPriorityQueueConfig() {
-        this.priorityQueueStateType = null;
-        this.rocksDBPriorityQueueSetCacheSize = UNDEFINED_ROCKSDB_PRIORITY_QUEUE_SET_CACHE_SIZE;
+        this(null, UNDEFINED_ROCKSDB_PRIORITY_QUEUE_SET_CACHE_SIZE);
     }
 
     public RocksDBPriorityQueueConfig(
@@ -70,10 +73,6 @@ public class RocksDBPriorityQueueConfig {
         return rocksDBPriorityQueueSetCacheSize == UNDEFINED_ROCKSDB_PRIORITY_QUEUE_SET_CACHE_SIZE
                 ? ROCKSDB_TIMER_SERVICE_FACTORY_CACHE_SIZE.defaultValue()
                 : rocksDBPriorityQueueSetCacheSize;
-    }
-
-    public void setRocksDBPriorityQueueSetCacheSize(int cacheSize) {
-        this.rocksDBPriorityQueueSetCacheSize = cacheSize;
     }
 
     public static RocksDBPriorityQueueConfig fromOtherAndConfiguration(
