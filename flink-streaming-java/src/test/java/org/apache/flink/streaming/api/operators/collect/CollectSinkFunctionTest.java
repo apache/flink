@@ -245,6 +245,12 @@ public class CollectSinkFunctionTest extends TestLogger {
                 serializer);
     }
 
+    @Test
+    public void testSpecifyCollectPort() throws Exception {
+        functionWrapper = new CollectSinkFunctionTestWrapper<>(serializer, 12, 22333);
+        testIncreasingToken();
+    }
+
     private String initializeVersion() throws Exception {
         CollectCoordinationResponse response = functionWrapper.sendRequestAndGetResponse("", 0);
         return response.getVersion();

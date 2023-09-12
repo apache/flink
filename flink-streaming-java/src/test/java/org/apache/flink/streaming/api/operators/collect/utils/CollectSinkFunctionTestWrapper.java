@@ -24,11 +24,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
+import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.operators.collect.CollectCoordinationRequest;
 import org.apache.flink.streaming.api.operators.collect.CollectCoordinationResponse;
@@ -76,6 +78,33 @@ public class CollectSinkFunctionTestWrapper<IN> {
                         .setTaskName("mockTask")
                         .setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
                         .setIOManager(ioManager)
+                        .build();
+        this.runtimeContext = new MockStreamingRuntimeContext(false, 1, 0, environment);
+        this.gateway = new MockOperatorEventGateway();
+
+        this.coordinator = new CollectSinkOperatorCoordinator(SOCKET_TIMEOUT_MILLIS);
+        this.coordinator.start();
+
+        this.functionInitializationContext = new MockFunctionInitializationContext();
+    }
+
+    public CollectSinkFunctionTestWrapper(
+            TypeSerializer<IN> serializer, int maxBytesPerBatch, int collectPort) throws Exception {
+        this.serializer = serializer;
+        this.maxBytesPerBatch = maxBytesPerBatch;
+
+        this.ioManager = new IOManagerAsync();
+        TestingTaskManagerRuntimeInfo testingTaskManagerRuntimeInfo =
+                new TestingTaskManagerRuntimeInfo();
+        testingTaskManagerRuntimeInfo
+                .getConfiguration()
+                .setInteger(TaskManagerOptions.COLLECT_PORT, collectPort);
+        MockEnvironment environment =
+                new MockEnvironmentBuilder()
+                        .setTaskName("mockTask")
+                        .setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
+                        .setIOManager(ioManager)
+                        .setTaskManagerRuntimeInfo(testingTaskManagerRuntimeInfo)
                         .build();
         this.runtimeContext = new MockStreamingRuntimeContext(false, 1, 0, environment);
         this.gateway = new MockOperatorEventGateway();

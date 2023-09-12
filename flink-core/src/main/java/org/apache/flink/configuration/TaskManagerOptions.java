@@ -162,6 +162,15 @@ public class TaskManagerOptions {
                                     + RPC_PORT.key()
                                     + "') will be used.");
 
+    /** The local collect port that the TaskManager binds to. */
+    public static final ConfigOption<Integer> COLLECT_PORT =
+            key("taskmanager.collect.port")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "A sink function that collects query results and binds to the local port that sends them back\n"
+                                    + " to the client.");
+
     /**
      * The initial registration backoff between two consecutive registration attempts. The backoff
      * is doubled for each new registration attempt until it reaches the maximum registration

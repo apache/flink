@@ -66,6 +66,15 @@ public interface TaskManagerRuntimeInfo {
     }
 
     /**
+     * Gets the collect port of the Taskmanager.
+     *
+     * @return The collect port of the TaskManager.
+     */
+    default int getTaskManagerCollectPort() {
+        return getConfiguration().getInteger(TaskManagerOptions.COLLECT_PORT);
+    }
+
+    /**
      * Gets the temporary working directory of the TaskManager instance.
      *
      * @return The temporary working directory of the TaskManager.

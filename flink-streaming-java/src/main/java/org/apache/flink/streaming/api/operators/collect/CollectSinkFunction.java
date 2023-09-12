@@ -371,7 +371,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
 
         private ServerThread(TypeSerializer<IN> serializer) throws Exception {
             this.serializer = serializer.duplicate();
-            this.serverSocket = new ServerSocket(0, 0, getBindAddress());
+            this.serverSocket = new ServerSocket(getCollectPort(), 0, getBindAddress());
             this.running = true;
         }
 
@@ -467,25 +467,27 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
             closeCurrentConnection();
         }
 
-        private InetSocketAddress getServerSocketAddress() {
+        private StreamingRuntimeContext getStreamingRuntimeContext() {
             RuntimeContext context = getRuntimeContext();
             Preconditions.checkState(
                     context instanceof StreamingRuntimeContext,
                     "CollectSinkFunction can only be used in StreamTask");
-            StreamingRuntimeContext streamingContext = (StreamingRuntimeContext) context;
+            return (StreamingRuntimeContext) context;
+        }
+
+        private InetSocketAddress getServerSocketAddress() {
             String taskManagerAddress =
-                    streamingContext.getTaskManagerRuntimeInfo().getTaskManagerExternalAddress();
+                    getStreamingRuntimeContext()
+                            .getTaskManagerRuntimeInfo()
+                            .getTaskManagerExternalAddress();
             return new InetSocketAddress(taskManagerAddress, serverSocket.getLocalPort());
         }
 
         private InetAddress getBindAddress() {
-            RuntimeContext context = getRuntimeContext();
-            Preconditions.checkState(
-                    context instanceof StreamingRuntimeContext,
-                    "CollectSinkFunction can only be used in StreamTask");
-            StreamingRuntimeContext streamingContext = (StreamingRuntimeContext) context;
             String bindAddress =
-                    streamingContext.getTaskManagerRuntimeInfo().getTaskManagerBindAddress();
+                    getStreamingRuntimeContext()
+                            .getTaskManagerRuntimeInfo()
+                            .getTaskManagerBindAddress();
 
             if (bindAddress != null) {
                 try {
@@ -495,6 +497,12 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
                 }
             }
             return null;
+        }
+
+        private int getCollectPort() {
+            return getStreamingRuntimeContext()
+                    .getTaskManagerRuntimeInfo()
+                    .getTaskManagerCollectPort();
         }
 
         private void sendBackResults(List<byte[]> serializedResults) throws IOException {
