@@ -19,11 +19,11 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 
-import org.junit.Before
+import org.junit.jupiter.api.BeforeEach
 
 class NestedLoopSemiAntiJoinTest extends SemiAntiJoinTestBase {
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortMergeJoin, HashJoin")

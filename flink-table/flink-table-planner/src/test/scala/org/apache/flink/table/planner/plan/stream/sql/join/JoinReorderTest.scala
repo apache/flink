@@ -19,12 +19,12 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.table.planner.plan.common.JoinReorderTestBase
 import org.apache.flink.table.planner.utils.TableTestUtil
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.extension.ExtendWith
 
 /** The plan test for join reorder in stream mode. */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class JoinReorderTest(isBushyJoinReorder: Boolean)
   extends JoinReorderTestBase(isBushyJoinReorder: Boolean) {
   override protected def getTableTestUtil: TableTestUtil = streamTestUtil()

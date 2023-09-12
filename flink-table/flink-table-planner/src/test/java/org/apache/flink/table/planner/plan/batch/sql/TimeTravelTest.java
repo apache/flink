@@ -28,20 +28,20 @@ import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.DateTimeTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.ZoneId;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Plan tests for time travel. */
-public class TimeTravelTest extends TableTestBase {
+class TimeTravelTest extends TableTestBase {
 
     private BatchTableTestUtil util;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         util = batchTestUtil(TableConfig.getDefault());
         String catalogName = "TimeTravelCatalog";
         TestTimeTravelCatalog catalog =
@@ -53,25 +53,25 @@ public class TimeTravelTest extends TableTestBase {
     }
 
     @Test
-    public void testTimeTravel() {
+    void testTimeTravel() {
         util.verifyExecPlan(
                 "SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00'");
     }
 
     @Test
-    public void testTimeTravelWithAsExpression() {
+    void testTimeTravelWithAsExpression() {
         util.verifyExecPlan(
                 "SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00' AS t2");
     }
 
     @Test
-    public void testTimeTravelWithSimpleExpression() {
+    void testTimeTravelWithSimpleExpression() {
         util.verifyExecPlan(
                 "SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 00:00:00'+INTERVAL '60' DAY");
     }
 
     @Test
-    public void testTimeTravelWithDifferentTimezone() {
+    void testTimeTravelWithDifferentTimezone() {
         util.tableEnv().getConfig().setLocalTimeZone(ZoneId.of("Asia/Shanghai"));
 
         util.verifyExecPlan(
@@ -85,7 +85,7 @@ public class TimeTravelTest extends TableTestBase {
     }
 
     @Test
-    public void testTimeTravelOneTableMultiTimes() {
+    void testTimeTravelOneTableMultiTimes() {
         util.verifyExecPlan(
                 "SELECT\n"
                         + "    f1\n"
@@ -99,7 +99,7 @@ public class TimeTravelTest extends TableTestBase {
     }
 
     @Test
-    public void testTimeTravelWithLookupJoin() {
+    void testTimeTravelWithLookupJoin() {
         util.verifyExecPlan(
                 "SELECT\n"
                         + "    l.f2,\n"
@@ -116,13 +116,13 @@ public class TimeTravelTest extends TableTestBase {
     }
 
     @Test
-    public void testTimeTravelWithHints() {
+    void testTimeTravelWithHints() {
         util.verifyExecPlan(
                 "SELECT * FROM t1 /*+ options('bounded'='true') */ FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00' AS t2");
     }
 
     @Test
-    public void testTimeTravelWithUnsupportedExpression() {
+    void testTimeTravelWithUnsupportedExpression() {
         assertThatThrownBy(
                         () ->
                                 util.tableEnv()
@@ -149,7 +149,7 @@ public class TimeTravelTest extends TableTestBase {
     }
 
     @Test
-    public void testTimeTravelWithIdentifierSnapshot() {
+    void testTimeTravelWithIdentifierSnapshot() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE\n"
@@ -173,7 +173,7 @@ public class TimeTravelTest extends TableTestBase {
     }
 
     @Test
-    public void testTimeTravelWithView() {
+    void testTimeTravelWithView() {
         util.tableEnv().executeSql("CREATE VIEW tb_view AS SELECT * FROM t1");
 
         assertThatThrownBy(

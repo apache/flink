@@ -24,17 +24,17 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for table source. */
-public class TableSourceJsonPlanTest extends TableTestBase {
+class TableSourceJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -60,7 +60,7 @@ public class TableSourceJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProjectPushDown() {
+    void testProjectPushDown() {
         String sinkTableDdl =
                 "CREATE TABLE sink (\n"
                         + "  a bigint,\n"
@@ -73,7 +73,7 @@ public class TableSourceJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testReadingMetadata() {
+    void testReadingMetadata() {
         String srcTableDdl =
                 "CREATE TABLE MyTable2 (\n"
                         + "  a bigint,\n"
@@ -98,7 +98,7 @@ public class TableSourceJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testFilterPushDown() {
+    void testFilterPushDown() {
         String srcTableDdl =
                 "CREATE TABLE src (\n"
                         + "  a bigint,\n"
@@ -113,12 +113,12 @@ public class TableSourceJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testLimitPushDown() {
+    void testLimitPushDown() {
         util.verifyJsonPlan("insert into MySink select * from MyTable limit 3");
     }
 
     @Test
-    public void testPartitionPushDown() {
+    void testPartitionPushDown() {
         String srcTableDdl =
                 "CREATE TABLE PartitionTable (\n"
                         + "  a bigint,\n"
@@ -134,7 +134,7 @@ public class TableSourceJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testWatermarkPushDown() {
+    void testWatermarkPushDown() {
         String srcTableDdl =
                 "CREATE TABLE WatermarkTable (\n"
                         + "  a bigint,\n"
@@ -160,7 +160,7 @@ public class TableSourceJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testReuseSourceWithoutProjectionPushDown() {
+    void testReuseSourceWithoutProjectionPushDown() {
         tEnv.executeSql(
                 "CREATE TEMPORARY TABLE src (\n"
                         + "    x varchar,\n"

@@ -21,7 +21,8 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 /** Tests for window deduplicate. */
 class WindowDeduplicateTest extends TableTestBase {
@@ -161,9 +162,9 @@ class WindowDeduplicateTest extends TableTestBase {
         |WHERE rownum <= 1
       """.stripMargin
 
-    thrown.expectMessage("Processing time Window Deduplication is not supported yet.")
-    thrown.expect(classOf[TableException])
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window Deduplication is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -180,9 +181,9 @@ class WindowDeduplicateTest extends TableTestBase {
         |WHERE rownum <= 1
       """.stripMargin
 
-    thrown.expectMessage("Processing time Window Deduplication is not supported yet.")
-    thrown.expect(classOf[TableException])
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window Deduplication is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   // ----------------------------------------------------------------------------------------

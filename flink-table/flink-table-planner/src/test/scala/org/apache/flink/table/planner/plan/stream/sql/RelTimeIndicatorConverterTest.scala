@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.stream.sql.RelTimeIndicatorConverterT
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.BigIntType
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 

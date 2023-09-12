@@ -23,17 +23,17 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for join. */
-public class JoinJsonPlanTest extends TableTestBase {
+class JoinJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -76,7 +76,7 @@ public class JoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testInnerJoin() {
+    void testInnerJoin() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a1 int,\n"
@@ -89,7 +89,7 @@ public class JoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testInnerJoinWithEqualPk() {
+    void testInnerJoinWithEqualPk() {
         String query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1";
         String query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1";
         String query =
@@ -107,7 +107,7 @@ public class JoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testInnerJoinWithPk() {
+    void testInnerJoinWithPk() {
         String query1 = "SELECT SUM(a2) AS a2, a1 FROM A GROUP BY a1";
         String query2 = "SELECT SUM(b2) AS b2, b1 FROM B GROUP BY b1";
         String query =
@@ -128,7 +128,7 @@ public class JoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testLeftJoinNonEqui() {
+    void testLeftJoinNonEqui() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a1 int,\n"

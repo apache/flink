@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableFunc1, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class JoinTest extends TableTestBase {
 

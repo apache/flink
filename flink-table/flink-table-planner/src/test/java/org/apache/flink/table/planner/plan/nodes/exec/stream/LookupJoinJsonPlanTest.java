@@ -29,8 +29,8 @@ import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 
@@ -40,13 +40,13 @@ import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test json serialization/deserialization for LookupJoin. */
-public class LookupJoinJsonPlanTest extends TableTestBase {
+class LookupJoinJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -97,7 +97,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinTemporalTable() {
+    void testJoinTemporalTable() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a int,\n"
@@ -118,7 +118,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinTemporalTableWithProjectionPushDown() {
+    void testJoinTemporalTableWithProjectionPushDown() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a int,\n"
@@ -140,7 +140,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testLegacyTableSourceException() {
+    void testLegacyTableSourceException() {
         TableSchema tableSchema =
                 TableSchema.builder()
                         .field("id", Types.INT)
@@ -182,7 +182,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testAggAndLeftJoinWithTryResolveMode() {
+    void testAggAndLeftJoinWithTryResolveMode() {
         tEnv.getConfig()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
@@ -197,7 +197,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinTemporalTableWithAsyncHint() {
+    void testJoinTemporalTableWithAsyncHint() {
         // LookupTable has sync func only, just verify the hint has take effect
         util.verifyJsonPlan(
                 "INSERT INTO MySink1 SELECT "
@@ -207,7 +207,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinTemporalTableWithAsyncHint2() {
+    void testJoinTemporalTableWithAsyncHint2() {
         // LookupTable has sync func only, just verify the hint has take effect
         util.verifyJsonPlan(
                 "INSERT INTO MySink1 SELECT "
@@ -217,7 +217,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinTemporalTableWithRetryHint() {
+    void testJoinTemporalTableWithRetryHint() {
         util.verifyJsonPlan(
                 "INSERT INTO MySink1 SELECT "
                         + "/*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ * "
@@ -226,7 +226,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinTemporalTableWithAsyncRetryHint() {
+    void testJoinTemporalTableWithAsyncRetryHint() {
         // LookupTable has sync func only, just verify the hint has take effect
         util.verifyJsonPlan(
                 "INSERT INTO MySink1 SELECT "
@@ -236,7 +236,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinTemporalTableWithAsyncRetryHint2() {
+    void testJoinTemporalTableWithAsyncRetryHint2() {
         // LookupTable has sync func only, just verify the hint has take effect
         util.verifyJsonPlan(
                 "INSERT INTO MySink1 SELECT "
@@ -246,7 +246,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testLeftJoinTemporalTableWithPreFilter() {
+    void testLeftJoinTemporalTableWithPreFilter() {
         util.verifyJsonPlan(
                 "INSERT INTO MySink1 SELECT * "
                         + "FROM MyTable AS T LEFT JOIN LookupTable "
@@ -254,7 +254,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testLeftJoinTemporalTableWithPostFilter() {
+    void testLeftJoinTemporalTableWithPostFilter() {
         util.verifyJsonPlan(
                 "INSERT INTO MySink1 SELECT * "
                         + "FROM MyTable AS T LEFT JOIN LookupTable "
@@ -263,7 +263,7 @@ public class LookupJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testLeftJoinTemporalTableWithMultiJoinConditions() {
+    void testLeftJoinTemporalTableWithMultiJoinConditions() {
         util.verifyJsonPlan(
                 "INSERT INTO MySink1 SELECT * "
                         + "FROM MyTable AS T LEFT JOIN LookupTable "

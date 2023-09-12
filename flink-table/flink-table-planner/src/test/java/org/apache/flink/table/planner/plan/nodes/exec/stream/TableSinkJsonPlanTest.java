@@ -24,17 +24,17 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for table sink. */
-public class TableSinkJsonPlanTest extends TableTestBase {
+class TableSinkJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -50,7 +50,7 @@ public class TableSinkJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testOverwrite() {
+    void testOverwrite() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"
@@ -65,7 +65,7 @@ public class TableSinkJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testPartitioning() {
+    void testPartitioning() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"
@@ -80,7 +80,7 @@ public class TableSinkJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testWritingMetadata() {
+    void testWritingMetadata() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"
@@ -94,7 +94,7 @@ public class TableSinkJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testCdcWithNonDeterministicFuncSinkWithDifferentPk() {
+    void testCdcWithNonDeterministicFuncSinkWithDifferentPk() {
         tEnv.createTemporaryFunction(
                 "ndFunc", new JavaUserDefinedScalarFunctions.NonDeterministicUdf());
 
@@ -129,7 +129,7 @@ public class TableSinkJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testPartialInsert() {
+    void testPartialInsert() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"

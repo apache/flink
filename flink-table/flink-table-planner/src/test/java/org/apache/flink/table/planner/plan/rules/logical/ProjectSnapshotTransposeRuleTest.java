@@ -26,33 +26,35 @@ import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
 /** Test rule {@link ProjectSnapshotTransposeRule}. */
-@RunWith(Parameterized.class)
-public class ProjectSnapshotTransposeRuleTest extends TableTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class ProjectSnapshotTransposeRuleTest extends TableTestBase {
 
     private static final String STREAM = "stream";
     private static final String BATCH = "batch";
 
-    @Parameterized.Parameter public String mode;
+    @Parameter private String mode;
 
-    @Parameterized.Parameters(name = "mode = {0}")
-    public static Collection<String> parameters() {
+    @Parameters(name = "mode = {0}")
+    private static Collection<String> parameters() {
         return Arrays.asList(STREAM, BATCH);
     }
 
     private TableTestUtil util;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         boolean isStreaming = STREAM.equals(mode);
         if (isStreaming) {
             util = streamTestUtil(TableConfig.getDefault());
@@ -90,8 +92,8 @@ public class ProjectSnapshotTransposeRuleTest extends TableTestBase {
         tEnv.executeSql(lookup);
     }
 
-    @Test
-    public void testJoinTemporalTableWithProjectionPushDown() {
+    @TestTemplate
+    void testJoinTemporalTableWithProjectionPushDown() {
         String sql =
                 "SELECT T.*, D.id\n"
                         + "FROM MyTable AS T\n"
@@ -101,8 +103,8 @@ public class ProjectSnapshotTransposeRuleTest extends TableTestBase {
         util.verifyRelPlan(sql);
     }
 
-    @Test
-    public void testJoinTemporalTableNotProjectable() {
+    @TestTemplate
+    void testJoinTemporalTableNotProjectable() {
         String sql =
                 "SELECT T.*, D.*\n"
                         + "FROM MyTable AS T\n"
@@ -112,8 +114,8 @@ public class ProjectSnapshotTransposeRuleTest extends TableTestBase {
         util.verifyRelPlan(sql);
     }
 
-    @Test
-    public void testJoinTemporalTableWithReorderedProject() {
+    @TestTemplate
+    void testJoinTemporalTableWithReorderedProject() {
         String sql =
                 "SELECT T.*, D.age, D.name, D.id\n"
                         + "FROM MyTable AS T\n"
@@ -123,8 +125,8 @@ public class ProjectSnapshotTransposeRuleTest extends TableTestBase {
         util.verifyRelPlan(sql);
     }
 
-    @Test
-    public void testJoinTemporalTableWithProjectAndFilter() {
+    @TestTemplate
+    void testJoinTemporalTableWithProjectAndFilter() {
         String sql =
                 "SELECT T.*, D.id\n"
                         + "FROM MyTable AS T\n"

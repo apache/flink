@@ -23,23 +23,23 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for deduplicate. */
-public class DeduplicationJsonPlanTest extends TableTestBase {
+class DeduplicationJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
     }
 
     @Test
-    public void testDeduplication() {
+    void testDeduplication() {
         String srcTableDdl =
                 "CREATE TABLE srcValuesTable (\n"
                         + "  order_id bigint,\n"

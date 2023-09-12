@@ -24,7 +24,8 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.junit.jupiter.api.Test
 
 import java.time.Duration
 
@@ -74,21 +75,23 @@ class AggregateTest extends TableTestBase {
       "decimal105")
   )
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnNonExistentField(): Unit = {
-    util.verifyExecPlan("SELECT COUNT(*) FROM MyTable GROUP BY foo")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT COUNT(*) FROM MyTable GROUP BY foo"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingInvalidSelection(): Unit = {
-    util.verifyExecPlan("SELECT b FROM MyTable GROUP BY a")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT b FROM MyTable GROUP BY a"))
   }
 
   @Test
   def testCannotCountOnMultiFields(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("We now only support the count of one field")
-    util.verifyExecPlan("SELECT b, COUNT(a, c) FROM MyTable GROUP BY b")
+    assertThatThrownBy(() => util.verifyExecPlan("SELECT COUNT(a, c) FROM MyTable GROUP BY b"))
+      .hasMessageContaining("We now only support the count of one field")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -391,9 +394,10 @@ class AggregateTest extends TableTestBase {
       ExplainDetail.CHANGELOG_MODE)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testApproximateCountDistinct(): Unit = {
-    util.verifyExecPlan("SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable")
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable"))
   }
 
   @Test

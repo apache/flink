@@ -23,8 +23,9 @@ import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
 
-import org.junit.Assert.{assertTrue, fail}
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable
+import org.junit.jupiter.api.Test
 
 class CorrelateValidationTest extends TableTestBase {
 
@@ -84,65 +85,84 @@ class CorrelateValidationTest extends TableTestBase {
    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the join
    * predicate can only be empty or literal true (the restriction should be removed in FLINK-7865).
    */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testLeftOuterJoinWithPredicates(): Unit = {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new TableFunc1
     util.addFunction("func1", function)
 
-    val result = table
-      .leftOuterJoinLateral(function('c).as('s), 'c === 's)
-      .select('c, 's)
-      .where('a > 10)
-
-    util.verifyExecPlan(result)
+    expectExceptionThrown(
+      {
+        val result = table
+          .leftOuterJoinLateral(function('c).as('s), 'c === 's)
+          .select('c, 's)
+          .where('a > 10)
+        util.verifyExecPlan(result)
+      },
+      null)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidMapFunctionTypeAggregation(): Unit = {
     val util = streamTestUtil()
-    util
-      .addTableSource[(Int)]("MyTable", 'int)
-      .flatMap('int.sum) // do not support AggregateFunction as input
+    expectExceptionThrown(
+      util
+        .addTableSource[(Int)]("MyTable", 'int)
+        // do not support AggregateFunction as input
+        .flatMap('int.sum),
+      null)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidMapFunctionTypeUDAGG(): Unit = {
     val util = streamTestUtil()
-
     val weightedAvg = new WeightedAvg
-    util
-      .addTableSource[(Int)]("MyTable", 'int)
-      .flatMap(weightedAvg('int, 'int)) // do not support AggregateFunction as input
+
+    expectExceptionThrown(
+      util
+        .addTableSource[(Int)]("MyTable", 'int)
+        // do not support AggregateFunction as input
+        .flatMap(weightedAvg('int, 'int)),
+      null)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidMapFunctionTypeUDAGG2(): Unit = {
     val util = streamTestUtil()
 
     util.addFunction("weightedAvg", new WeightedAvg)
-    util
-      .addTableSource[(Int)]("MyTable", 'int)
-      .flatMap(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
+
+    expectExceptionThrown(
+      util
+        .addTableSource[(Int)]("MyTable", 'int)
+        // do not support AggregateFunction as input
+        .flatMap(call("weightedAvg", $"int", $"int")),
+      null)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidMapFunctionTypeScalarFunction(): Unit = {
     val util = streamTestUtil()
 
-    util
-      .addTableSource[(String)]("MyTable", 'string)
-      .flatMap(Func15('string)) // do not support ScalarFunction as input
+    expectExceptionThrown(
+      util
+        .addTableSource[(String)]("MyTable", 'string)
+        // do not support ScalarFunction as input
+        .flatMap(Func15('string)),
+      null)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidFlatMapFunctionTypeFieldReference(): Unit = {
     val util = batchTestUtil()
 
-    util
-      .addTableSource[(String)]("MyTable", 'string)
-      .flatMap('string) // Only TableFunction can be used in flatMap
+    expectExceptionThrown(
+      util
+        .addTableSource[(String)]("MyTable", 'string)
+        // Only TableFunction can be used in flatMap
+        .flatMap('string),
+      null)
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -151,17 +171,14 @@ class CorrelateValidationTest extends TableTestBase {
       function: => Unit,
       keywords: String,
       clazz: Class[_ <: Throwable] = classOf[ValidationException]): Unit = {
-    try {
-      function
-      fail(s"Expected a $clazz, but no exception is thrown.")
-    } catch {
-      case e if e.getClass == clazz =>
-        if (keywords != null) {
-          assertTrue(
-            s"The exception message '${e.getMessage}' doesn't contain keyword '$keywords'",
-            e.getMessage.contains(keywords))
-        }
-      case e: Throwable => fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+    val callable: ThrowingCallable = () => function
+    if (keywords != null) {
+      assertThatExceptionOfType(clazz)
+        .isThrownBy(callable)
+        .withMessageContaining(keywords)
+    } else {
+      assertThatExceptionOfType(clazz)
+        .isThrownBy(callable)
     }
   }
 }

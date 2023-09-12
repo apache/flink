@@ -24,16 +24,16 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for group window aggregate. */
-public class GroupWindowAggregateJsonPlanTest extends TableTestBase {
+class GroupWindowAggregateJsonPlanTest extends TableTestBase {
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -51,7 +51,7 @@ public class GroupWindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testEventTimeTumbleWindow() {
+    void testEventTimeTumbleWindow() {
         tEnv.createFunction(
                 "concat_distinct_agg", JavaUserDefinedAggFunctions.ConcatDistinctAggFunction.class);
         String sinkTableDdl =
@@ -80,7 +80,7 @@ public class GroupWindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeTumbleWindow() {
+    void testProcTimeTumbleWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -99,7 +99,7 @@ public class GroupWindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testEventTimeHopWindow() {
+    void testEventTimeHopWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -118,7 +118,7 @@ public class GroupWindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeHopWindow() {
+    void testProcTimeHopWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -135,7 +135,7 @@ public class GroupWindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testEventTimeSessionWindow() {
+    void testEventTimeSessionWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"
@@ -154,7 +154,7 @@ public class GroupWindowAggregateJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcTimeSessionWindow() {
+    void testProcTimeSessionWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " b BIGINT,\n"

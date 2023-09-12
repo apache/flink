@@ -23,17 +23,17 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for window table function. */
-public class WindowTableFunctionJsonPlanTest extends TableTestBase {
+class WindowTableFunctionJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -63,7 +63,7 @@ public class WindowTableFunctionJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testIndividualWindowTVF() {
+    void testIndividualWindowTVF() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " window_start TIMESTAMP(3),\n"
@@ -85,7 +85,7 @@ public class WindowTableFunctionJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testIndividualWindowTVFProcessingTime() {
+    void testIndividualWindowTVFProcessingTime() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " window_start TIMESTAMP(3),\n"
@@ -107,7 +107,7 @@ public class WindowTableFunctionJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testFollowedByWindowJoin() {
+    void testFollowedByWindowJoin() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " window_start TIMESTAMP(3) NOT NULL,\n"
@@ -155,7 +155,7 @@ public class WindowTableFunctionJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testFollowedByWindowRank() {
+    void testFollowedByWindowRank() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " window_start TIMESTAMP(3),\n"
@@ -182,7 +182,7 @@ public class WindowTableFunctionJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testFollowedByWindowDeduplicate() {
+    void testFollowedByWindowDeduplicate() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " window_start TIMESTAMP(3),\n"
