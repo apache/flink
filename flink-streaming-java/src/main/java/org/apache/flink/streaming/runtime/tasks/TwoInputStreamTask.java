@@ -95,7 +95,7 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
                         input2WatermarkGauge,
                         operatorChain,
                         getConfiguration(),
-                        getEnvironment().getTaskConfiguration(),
+                        getEnvironment().getTaskManagerInfo().getConfiguration(),
                         getJobConfiguration(),
                         getExecutionConfig(),
                         getUserCodeClassLoader(),
