@@ -804,8 +804,10 @@ public final class DynamicSinkUtils {
             project.replaceInput(0, newTableScan);
         }
         // validate and apply metadata
+        // TODO FLINK-33083 we should not ignore the produced abilities but actually put those into
+        //  the table scan
         DynamicSourceUtils.validateAndApplyMetadata(
-                tableDebugName, resolvedSchema, newTableSourceTab.tableSource());
+                tableDebugName, resolvedSchema, newTableSourceTab.tableSource(), new ArrayList<>());
         return resolvedSchema;
     }
 

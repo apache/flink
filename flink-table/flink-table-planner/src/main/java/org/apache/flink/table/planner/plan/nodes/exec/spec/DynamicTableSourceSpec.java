@@ -103,7 +103,7 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
                         (RowType)
                                 contextResolvedTable
                                         .getResolvedSchema()
-                                        .toSourceRowDataType()
+                                        .toPhysicalRowDataType()
                                         .getLogicalType();
                 for (SourceAbilitySpec spec : sourceAbilities) {
                     SourceAbilityContext sourceAbilityContext =
