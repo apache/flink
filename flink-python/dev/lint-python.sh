@@ -147,35 +147,47 @@ function parse_component_args() {
 }
 
 # For convenient to index something binded to OS.
-# Now, the script only make a distinction between 'Mac' and 'Non-Mac'.
 function get_os_index() {
-    if [ $1 == "Darwin" ]; then
+    local sys_os=$(uname -s)
+    echo "Detected OS: ${sys_os}"
+    if [ ${sys_os} == "Darwin" ]; then
         return 0
-    else
+    elif [[ ${sys_os} == "Linux" ]]; then
         return 1
+    else
+        echo "Unsupported OS: ${sys_os}"
+        exit 1
+    fi
+}
+
+function install_brew() {
+    hash "brew" 2>/dev/null
+    if [ $? -ne 0 ]; then
+        print_function "STEP" "install brew..."
+        $((/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)") 2>&1 >/dev/null)
+        if [ $? -ne 0 ]; then
+            echo "Failed to install brew"
+            exit 1
+        fi
+        print_function "STEP" "install brew... [SUCCESS]"
     fi
 }
 
 # Considering the file size of miniconda.sh,
 # "wget" is better than "curl" in the weak network environment.
 function install_wget() {
-    if [ $1 == "Darwin" ]; then
-        hash "brew" 2>/dev/null
-        if [ $? -ne 0 ]; then
-            $((/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)") 2>&1 >/dev/null)
-            if [ $? -ne 0 ]; then
-                echo "Failed to install brew"
-                exit 1
-            fi
-        fi
+    if [ $1 -eq 0 ]; then  # Darwin
+        install_brew
 
         hash "wget" 2>/dev/null
         if [ $? -ne 0 ]; then
+            print_function "STEP" "install wget..."
             brew install wget 2>&1 >/dev/null
             if [ $? -ne 0 ]; then
                 echo "Failed to install wget"
                 exit 1
             fi
+            print_function "STEP" "install wget... [SUCCESS]"
         fi
     fi
 }
@@ -185,10 +197,12 @@ function install_wget() {
 # some packages including checks such as tox and flake8.
 
 function install_miniconda() {
-    OS_TO_CONDA_URL=("https://repo.continuum.io/miniconda/Miniconda3-4.7.10-MacOSX-x86_64.sh" \
-        "https://repo.continuum.io/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh")
+    local sys_machine=$(uname -m)
+    echo "Detected machine: ${sys_machine}"
+    OS_TO_CONDA_URL=("https://repo.continuum.io/miniconda/Miniconda3-py310_23.5.2-0-MacOSX-${sys_machine}.sh" \
+        "https://repo.continuum.io/miniconda/Miniconda3-py310_23.5.2-0-Linux-${sys_machine}.sh")
     if [ ! -f "$CONDA_INSTALL" ]; then
-        print_function "STEP" "download miniconda..."
+        print_function "STEP" "download miniconda from ${OS_TO_CONDA_URL[$1]}..."
         download ${OS_TO_CONDA_URL[$1]} $CONDA_INSTALL_SH
         chmod +x $CONDA_INSTALL_SH
         if [ $? -ne 0 ]; then
@@ -228,7 +242,7 @@ function install_py_env() {
     if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
         py_env=("3.10")
     else
-        py_env=("3.7" "3.8" "3.9" "3.10")
+        py_env=("3.8" "3.9" "3.10")
     fi
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.conda/envs/${py_env[i]}" ]; then
@@ -352,7 +366,7 @@ function install_mypy() {
             exit 1
         fi
     fi
-    ${CURRENT_DIR}/install_command.sh -q mypy==0.790 2>&1 >/dev/null
+    ${CURRENT_DIR}/install_command.sh -q mypy==1.5.1 2>&1 >/dev/null
     if [[ $? -ne 0 ]]; then
         echo "pip install mypy failed \
         please try to exec the script again.\
@@ -376,8 +390,7 @@ function install_environment() {
 
     print_function "STAGE" "installing environment"
 
-    local sys_os=`uname -s`
-    #get the index of the SUPPORT_OS array for convinient to intall tool.
+    #get the index of the SUPPORT_OS array for convenient to install tool.
     get_os_index $sys_os
     local os_index=$?
 
@@ -386,7 +399,7 @@ function install_environment() {
     # of the "curl" in the weak network environment.
     if [ $STEP -lt 1 ]; then
         print_function "STEP" "installing wget..."
-        install_wget ${SUPPORT_OS[$os_index]}
+        install_wget $os_index
         STEP=1
         checkpoint_stage $STAGE $STEP
         print_function "STEP" "install wget... [SUCCESS]"
@@ -403,7 +416,7 @@ function install_environment() {
     fi
 
     # step-3 install python environment which includes
-    # 3.7 3.8 3.9 3.10
+    # 3.8 3.9 3.10
     if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
@@ -673,7 +686,8 @@ function mypy_check() {
     # the return value of a pipeline is the status of the last command to exit
     # with a non-zero status or zero if no command exited with a non-zero status
     set -o pipefail
-    (${MYPY_PATH} --config-file tox.ini) 2>&1 | tee -a ${LOG_FILE}
+
+    (${MYPY_PATH} --install-types --non-interactive --config-file tox.ini) 2>&1 | tee -a ${LOG_FILE}
     TYPE_HINT_CHECK_STATUS=$?
     if [ ${TYPE_HINT_CHECK_STATUS} -ne 0 ]; then
         print_function "STAGE" "mypy checks... [FAILED]"
@@ -788,17 +802,17 @@ usage: $0 [options]
             include checks which split by comma(,)
 -l          list all checks supported.
 Examples:
-  ./lint-python -s basic        =>  install environment with basic components.
-  ./lint-python -s py_env       =>  install environment with python env(3.7,3.8,3.9,3.10).
-  ./lint-python -s all          =>  install environment with all components such as python env,tox,flake8,sphinx,mypy etc.
-  ./lint-python -s tox,flake8   =>  install environment with tox,flake8.
-  ./lint-python -s tox -f       =>  reinstall environment with tox.
-  ./lint-python -e tox,flake8   =>  exclude checks tox,flake8.
-  ./lint-python -i flake8       =>  include checks flake8.
-  ./lint-python                 =>  exec all checks.
-  ./lint-python -f              =>  reinstall environment with all components and exec all checks.
-  ./lint-python -l              =>  list all checks supported.
-  ./lint-python -r              =>  clean up python environment.
+  ./lint-python.sh -s basic        =>  install environment with basic components.
+  ./lint-python.sh -s py_env       =>  install environment with python env(3.8,3.9,3.10).
+  ./lint-python.sh -s all          =>  install environment with all components such as python env,tox,flake8,sphinx,mypy etc.
+  ./lint-python.sh -s tox,flake8   =>  install environment with tox,flake8.
+  ./lint-python.sh -s tox -f       =>  reinstall environment with tox.
+  ./lint-python.sh -e tox,flake8   =>  exclude checks tox,flake8.
+  ./lint-python.sh -i flake8       =>  include checks flake8.
+  ./lint-python.sh                 =>  exec all checks.
+  ./lint-python.sh -f              =>  reinstall environment with all components and exec all checks.
+  ./lint-python.sh -l              =>  list all checks supported.
+  ./lint-python.sh -r              =>  clean up python environment.
 "
 while getopts "hfs:i:e:lr" arg; do
     case "$arg" in
