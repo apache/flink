@@ -381,6 +381,8 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 
 - TTL 的配置并不会保存在 checkpoint/savepoint 中，仅对当前 Job 有效。
 
+- 不建议checkpoint恢复前后将state TTL从短调长，这可能会产生潜在的数据错误。
+
 - 当前开启 TTL 的 map state 仅在用户值序列化器支持 null 的情况下，才支持用户值为 null。如果用户值序列化器不支持 null，
 可以用 `NullableSerializer` 包装一层。
   
