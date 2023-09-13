@@ -65,6 +65,26 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
+    public void testReadingMetadataWithProjectionPushDownDisabled() throws Exception {
+        createTestValuesSourceTable(
+                "MyTable",
+                JavaScalaConversionUtil.toJava(TestData.smallData3()),
+                new String[] {"a int", "b bigint", "m varchar metadata"},
+                new HashMap<String, String>() {
+                    {
+                        put("readable-metadata", "m:STRING");
+                        put("enable-projection-push-down", "false");
+                    }
+                });
+
+        File sinkPath = createTestCsvSinkTable("MySink", "a int", "m varchar");
+
+        compileSqlAndExecutePlan("insert into MySink select a, m from MyTable").await();
+
+        assertResult(Arrays.asList("1,Hi", "2,Hello", "3,Hello world"), sinkPath);
+    }
+
+    @Test
     public void testFilterPushDown() throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
         createTestCsvSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
