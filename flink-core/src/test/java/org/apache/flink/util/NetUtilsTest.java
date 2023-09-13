@@ -52,6 +52,14 @@ public class NetUtilsTest extends TestLogger {
     }
 
     @Test
+    public void testCorrectHostnamePortWithHttpsScheme() throws Exception {
+        final URL url = new URL("https", "foo.com", 8080, "/some/other/path/index.html");
+        assertEquals(
+                url,
+                NetUtils.getCorrectHostnamePort("https://foo.com:8080/some/other/path/index.html"));
+    }
+
+    @Test
     public void testParseHostPortAddress() {
         final InetSocketAddress socketAddress = new InetSocketAddress("foo.com", 8080);
         assertEquals(socketAddress, NetUtils.parseHostPortAddress("foo.com:8080"));

@@ -103,8 +103,15 @@ public class NetUtils {
      * @return URL object for accessing host and port
      */
     private static URL validateHostPortString(String hostPort) {
+        if (StringUtils.isNullOrWhitespaceOnly(hostPort)) {
+            throw new IllegalArgumentException("hostPort should not be null or empty");
+        }
         try {
-            URL u = new URL("http://" + hostPort);
+            URL u =
+                    (hostPort.toLowerCase().startsWith("http://")
+                                    || hostPort.toLowerCase().startsWith("https://"))
+                            ? new URL(hostPort)
+                            : new URL("http://" + hostPort);
             if (u.getHost() == null) {
                 throw new IllegalArgumentException(
                         "The given host:port ('" + hostPort + "') doesn't contain a valid host");

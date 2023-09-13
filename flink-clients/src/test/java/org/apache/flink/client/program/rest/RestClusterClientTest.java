@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.client.cli.CliArgsException;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
@@ -50,6 +51,7 @@ import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.rest.FileUpload;
+import org.apache.flink.runtime.rest.HttpHeader;
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
@@ -694,20 +696,58 @@ class RestClusterClientTest {
     /** Tests that command line options override the configuration settings. */
     @Test
     void testRESTManualConfigurationOverride() throws Exception {
-        final String configuredHostname = "localhost";
-        final int configuredPort = 1234;
-        final Configuration configuration = new Configuration();
-
-        configuration.setString(JobManagerOptions.ADDRESS, configuredHostname);
-        configuration.setInteger(JobManagerOptions.PORT, configuredPort);
-        configuration.setString(RestOptions.ADDRESS, configuredHostname);
-        configuration.setInteger(RestOptions.PORT, configuredPort);
-
-        final DefaultCLI defaultCLI = new DefaultCLI();
-
         final String manualHostname = "123.123.123.123";
         final int manualPort = 4321;
+        final String httpProtocol = "http";
         final String[] args = {"-m", manualHostname + ':' + manualPort};
+
+        final RestClusterClient<?> clusterClient = getRestClusterClient(args);
+
+        URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
+        assertThat(webMonitorBaseUrl).hasHost(manualHostname).hasPort(manualPort);
+        assertThat(clusterClient.getJobmanagerUrl())
+                .hasHost(manualHostname)
+                .hasPort(manualPort)
+                .hasNoPath()
+                .hasProtocol(httpProtocol);
+        assertThat(clusterClient.getCustomHttpHeaders()).isEmpty();
+
+        final String urlPath = "/some/path/here/index.html";
+        final String httpsProtocol = "https";
+        final String[] httpsUrlArgs = {
+            "-m", httpsProtocol + "://" + manualHostname + ':' + manualPort + urlPath
+        };
+
+        final Map<String, String> envMap =
+                Collections.singletonMap(
+                        ConfigConstants.FLINK_REST_CLIENT_HEADERS,
+                        "Cookie:authCookie=12:345\nCustomHeader:value1,value2\nMalformedHeaderSkipped");
+        org.apache.flink.core.testutils.CommonTestUtils.setEnv(envMap);
+
+        final RestClusterClient<?> newClusterClient = getRestClusterClient(httpsUrlArgs);
+        assertThat(newClusterClient.getWebMonitorBaseUrl().get())
+                .hasHost(manualHostname)
+                .hasPort(manualPort);
+
+        final URL jobManagerUrl = newClusterClient.getJobmanagerUrl();
+        assertThat(jobManagerUrl)
+                .hasHost(manualHostname)
+                .hasPort(manualPort)
+                .hasPath(urlPath)
+                .hasProtocol(httpsProtocol);
+
+        final List<HttpHeader> customHttpHeaders =
+                new ArrayList<>(newClusterClient.getCustomHttpHeaders());
+        final HttpHeader expectedHeader1 = new HttpHeader("Cookie", "authCookie=12:345");
+        final HttpHeader expectedHeader2 = new HttpHeader("CustomHeader", "value1,value2");
+        assertThat(customHttpHeaders).hasSize(2);
+        assertThat(customHttpHeaders.get(0)).isEqualTo(expectedHeader1);
+        assertThat(customHttpHeaders.get(1)).isEqualTo(expectedHeader2);
+    }
+
+    private static RestClusterClient<?> getRestClusterClient(String[] args)
+            throws CliArgsException, FlinkException {
+        final DefaultCLI defaultCLI = new DefaultCLI();
 
         CommandLine commandLine = defaultCLI.parseCommandLineOptions(args, false);
 
@@ -725,9 +765,7 @@ class RestClusterClientTest {
                         clusterDescriptor
                                 .retrieve(clusterFactory.getClusterId(executorConfig))
                                 .getClusterClient();
-
-        URL webMonitorBaseUrl = clusterClient.getWebMonitorBaseUrl().get();
-        assertThat(webMonitorBaseUrl).hasHost(manualHostname).hasPort(manualPort);
+        return clusterClient;
     }
 
     /** Tests that the send operation is being retried. */
