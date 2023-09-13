@@ -73,6 +73,8 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
@@ -1065,6 +1067,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
         config.configure(configuration, classLoader);
         checkpointCfg.configure(configuration);
+
+        // here we should make sure the configured checkpoint storage will take effect
+        // this needs to happen after checkpointCfg#configure(...) to override the effect of
+        // checkpointCfg#setCheckpointStorage(checkpointDirectory)
+        configureCheckpointStorage(configuration, checkpointCfg);
     }
 
     private void registerCustomListeners(
@@ -1095,6 +1102,17 @@ public class StreamExecutionEnvironment implements AutoCloseable {
                     .ifPresent(t -> this.setBufferTimeout(t.toMillis()));
         } else {
             this.setBufferTimeout(ExecutionOptions.DISABLED_NETWORK_BUFFER_TIMEOUT);
+        }
+    }
+
+    protected void configureCheckpointStorage(
+            ReadableConfig configuration, CheckpointConfig checkpointCfg) {
+        try {
+            Optional<CheckpointStorage> storageOptional =
+                    CheckpointStorageLoader.fromConfig(configuration, userClassloader, null);
+            storageOptional.ifPresent(checkpointCfg::setCheckpointStorage);
+        } catch (DynamicCodeLoadingException e) {
+            throw new WrappingRuntimeException(e);
         }
     }
 

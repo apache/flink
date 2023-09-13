@@ -123,6 +123,36 @@ class StreamContextEnvironmentTest {
 
     @ParameterizedTest
     @MethodSource("provideExecutors")
+    void testDisallowCheckpointStorageByConfiguration(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+
+        Configuration jobConfig = new Configuration();
+        String disallowedPath = "file:///flink/disallowed/modification";
+        jobConfig.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+        jobConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, disallowedPath);
+        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final StreamContextEnvironment environment =
+                new StreamContextEnvironment(
+                        new MockExecutorServiceLoader(),
+                        clusterConfig,
+                        jobConfig,
+                        classLoader,
+                        true,
+                        true,
+                        false,
+                        Collections.emptyList());
+
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(MutatedConfigurationException.class)
+                .hasMessageContainingAll(
+                        CheckpointingOptions.CHECKPOINT_STORAGE.key(),
+                        CheckpointingOptions.CHECKPOINTS_DIRECTORY.key());
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
     void testAllowCheckpointStorage(
             ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
         final Configuration clusterConfig = new Configuration();
