@@ -1117,15 +1117,17 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testCreateViewAndShowCreateTable(): Unit = {
+    val isBounded = !isStreamingMode
     val createTableDDL =
-      """ |create table `source` (
-        |  `id` bigint not null,
-        | `group` string not null,
-        | `score` double
-        |) with (
-        |  'connector' = 'source-only'
-        |)
-        |""".stripMargin
+      s""" |create table `source` (
+         |  `id` bigint not null,
+         | `group` string not null,
+         | `score` double
+         |) with (
+         |  'connector' = 'source-only',
+         |  'bounded' = '$isBounded'
+         |)
+         |""".stripMargin
     val createViewDDL =
       """ |create view `tmp` as
         |select `group`, avg(`score`) as avg_score
@@ -1144,13 +1146,15 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testAlterViewRename(): Unit = {
-    tableEnv.executeSql("""
-                          | CREATE TABLE T (
-                          |   id INT
-                          | ) WITH (
-                          |   'connector' = 'source-only'
-                          | )
-                          |""".stripMargin)
+    val isBounded = !isStreamingMode
+    tableEnv.executeSql(s"""
+                           | CREATE TABLE T (
+                           |   id INT
+                           | ) WITH (
+                           |   'connector' = 'source-only',
+                           |   'bounded' = '$isBounded'
+                           | )
+                           |""".stripMargin)
     tableEnv.executeSql("CREATE VIEW V AS SELECT * FROM T")
 
     tableEnv.executeSql("ALTER VIEW V RENAME TO V2")
@@ -1159,14 +1163,16 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testAlterViewAs(): Unit = {
-    tableEnv.executeSql("""
-                          | CREATE TABLE T (
-                          |   a INT,
-                          |   b INT
-                          | ) WITH (
-                          |   'connector' = 'source-only'
-                          | )
-                          |""".stripMargin)
+    val isBounded = !isStreamingMode
+    tableEnv.executeSql(s"""
+                           | CREATE TABLE T (
+                           |   a INT,
+                           |   b INT
+                           | ) WITH (
+                           |   'connector' = 'source-only',
+                           |   'bounded' = '$isBounded'
+                           | )
+                           |""".stripMargin)
     tableEnv.executeSql("CREATE VIEW V AS SELECT a FROM T")
 
     tableEnv.executeSql("ALTER VIEW V AS SELECT b FROM T")

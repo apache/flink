@@ -731,8 +731,12 @@ class TableScanTest extends TableTestBase {
                      |  'table-source-class' = '${classOf[MockedLookupTableSource].getName}'
                      |)
       """.stripMargin)
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      "The specified table source `default_catalog`.`default_database`.`src` " +
+        "doesn't extend ScanTableSource and can not be used as the scan source.\nHint: You can read the data " +
+        "from the source as a dim table with the look up join syntax. Otherwise, please refer to the document " +
+        "and change the type of the connector to a source table that supports direct reads.")
     util.verifyRelPlan("SELECT * FROM src", ExplainDetail.CHANGELOG_MODE)
   }
 
