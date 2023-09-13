@@ -18,13 +18,16 @@ package org.apache.calcite.sql2rel;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.source.DynamicTableSource;
+import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
 import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.TemporalTableJoinUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
@@ -241,17 +244,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682: Lines 667 ~ 677
- *   <li>Added in FLINK-28682: Lines 2300 ~ 2317
- *   <li>Added in FLINK-28682: Lines 2354 ~ 2382
- *   <li>Added in FLINK-32474: Lines 2932 ~ 2944
+ *   <li>Added in FLINK-29081, FLINK-28682: Lines 671 ~ 681
+ *   <li>Added in FLINK-28682: Lines 2304 ~ 2321
+ *   <li>Added in FLINK-28682: Lines 2358 ~ 2386
+ *   <li>Added in FLINK-32474: Lines 2996 ~ 23008
  *   <li>Added in FLINK-32474: Lines 3057 ~ 3093
- *   <li>Added in FLINK-20873: Lines 5594 ~ 5603
- *   <li>Added in FLINK-33064: Lines 2431 ~ 2475
- *   <li>Added in FLINK-33064: Lines 2481 ~ 2570
- *   <li>Added in FLINK-33064: Lines 2970 ~ 2978
- *   <li>Added in FLINK-33064: Lines 3050 ~ 3052
- *   <li>Added in FLINK-33064: Lines 4102 ~ 4107
+ *   <li>Added in FLINK-20873: Lines 5668 ~ 5677
+ *   <li>Added in FLINK-33085: Lines 2435 ~ 2479
+ *   <li>Added in FLINK-33085: Lines 2485 ~ 2634
+ *   <li>Added in FLINK-33085: Lines 3034 ~ 3044
+ *   <li>Added in FLINK-33085: Lines 3117 ~ 3124
+ *   <li>Added in FLINK-33085: Lines 4174 ~ 4181
+ *   <li>Added in FLINK-33085: Lines 6767 ~ 6782
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -2430,15 +2434,15 @@ public class SqlToRelConverter {
                 return;
                 // ----- FLINK MODIFICATION BEGIN -----
             case TABLE_REF:
-                convertTableRef(bb, from, false);
+                convertTableRef(bb, from, null);
                 return;
 
             case IDENTIFIER:
-                convertIdentifier(bb, (SqlIdentifier) from, null, null, null, false);
+                convertIdentifier(bb, (SqlIdentifier) from, null, null, null, null);
                 return;
 
             case EXTEND:
-                convertExtend(bb, from, false);
+                convertExtend(bb, from, null);
                 return;
 
             case SNAPSHOT:
@@ -2469,7 +2473,7 @@ public class SqlToRelConverter {
                 return;
 
             case COLLECTION_TABLE:
-                convertCollectionTable(bb, from, false);
+                convertCollectionTable(bb, from, null);
                 return;
 
                 // ----- FLINK MODIFICATION END -----
@@ -2479,13 +2483,19 @@ public class SqlToRelConverter {
     }
 
     // ----- FLINK MODIFICATION BEGIN -----
-    private void convertTableRef(Blackboard bb, SqlNode from, boolean isTemporalJoinRightSide) {
+    private void convertTableRef(
+            Blackboard bb,
+            SqlNode from,
+            @Nullable TemporalJoinRightSideConvertSpec temporalJoinRightSideConvertSpec) {
         SqlCall call = (SqlCall) from;
         convertIdentifier(
-                bb, call.operand(0), null, call.operand(1), null, isTemporalJoinRightSide);
+                bb, call.operand(0), null, call.operand(1), null, temporalJoinRightSideConvertSpec);
     }
 
-    private void convertExtend(Blackboard bb, SqlNode from, boolean isTemporalJoinRightSide) {
+    private void convertExtend(
+            Blackboard bb,
+            SqlNode from,
+            @Nullable TemporalJoinRightSideConvertSpec temporalJoinRightSideConvertSpec) {
         SqlCall call = (SqlCall) from;
         final SqlNode operand0 = call.getOperandList().get(0);
         final SqlIdentifier id =
@@ -2493,7 +2503,7 @@ public class SqlToRelConverter {
                         ? ((SqlCall) operand0).operand(0)
                         : (SqlIdentifier) operand0;
         SqlNodeList extendedColumns = (SqlNodeList) call.getOperandList().get(1);
-        convertIdentifier(bb, id, extendedColumns, null, null, isTemporalJoinRightSide);
+        convertIdentifier(bb, id, extendedColumns, null, null, temporalJoinRightSideConvertSpec);
     }
 
     /**
@@ -2507,7 +2517,10 @@ public class SqlToRelConverter {
      * @param fieldNames Field aliases, usually come from AS clause, or null
      */
     private void convertTemporalJoinRightSide(
-            Blackboard bb, @Nullable SqlNode from, @Nullable List<String> fieldNames) {
+            Blackboard bb,
+            @Nullable SqlNode from,
+            @Nullable List<String> fieldNames,
+            TemporalJoinRightSideConvertSpec temporalJoinRightSideConvertSpec) {
         if (from == null) {
             bb.setRoot(LogicalValues.createOneRow(cluster), false);
             return;
@@ -2515,16 +2528,22 @@ public class SqlToRelConverter {
 
         switch (from.getKind()) {
             case TABLE_REF:
-                convertTableRef(bb, from, true);
+                convertTableRef(bb, from, temporalJoinRightSideConvertSpec);
                 return;
             case IDENTIFIER:
-                convertIdentifier(bb, (SqlIdentifier) from, null, null, null, true);
+                convertIdentifier(
+                        bb,
+                        (SqlIdentifier) from,
+                        null,
+                        null,
+                        null,
+                        temporalJoinRightSideConvertSpec);
                 return;
             case EXTEND:
-                convertExtend(bb, from, true);
+                convertExtend(bb, from, temporalJoinRightSideConvertSpec);
                 return;
             case COLLECTION_TABLE:
-                convertCollectionTable(bb, from, true);
+                convertCollectionTable(bb, from, temporalJoinRightSideConvertSpec);
                 return;
             default:
                 convertFrom(bb, from, fieldNames);
@@ -2538,34 +2557,79 @@ public class SqlToRelConverter {
      * ScanTableSource}, it can only be used as a right table ref in temporal join or lookup join
      * and cannot be used as a scan table.
      */
-    private void validateScan(RelNode relNode, boolean isTemporalJoinRightSide) {
+    private void validateScan(
+            RelNode relNode,
+            @Nullable TemporalJoinRightSideConvertSpec temporalJoinRightSideConvertSpec) {
+        // Set whether contains primary key for convert spec after SqlNode converse to RelNode.
+        if (temporalJoinRightSideConvertSpec != null) {
+            temporalJoinRightSideConvertSpec.containsPrimaryKey = containsPrimaryKey(relNode);
+        }
+
         relNode.accept(
                 new RelShuttleImpl() {
                     @Override
                     public RelNode visit(TableScan scan) {
                         final RelOptTable table = scan.getTable();
                         if (table instanceof TableSourceTable) {
-                            final TableSourceTable sourceTable =
-                                    scan.getTable().unwrap(TableSourceTable.class);
-                            assert sourceTable != null;
-                            final DynamicTableSource dynamicTableSource = sourceTable.tableSource();
-                            if (!isTemporalJoinRightSide
-                                    && !(dynamicTableSource instanceof ScanTableSource)) {
-                                throw new ValidationException(
-                                        String.format(
-                                                "The specified table source %s doesn't extend %s and can not be used "
-                                                        + "as the scan source.\n"
-                                                        + "Hint: You can read the data from the source as a dim table "
-                                                        + "with the look up join syntax. Otherwise, please refer to "
-                                                        + "the document and change the type of the connector to a "
-                                                        + "source table that supports direct reads.",
-                                                sourceTable.contextResolvedTable().getIdentifier(),
-                                                ScanTableSource.class.getSimpleName()));
-                            }
+                            validateSourceTable(
+                                    requireNonNull(scan.getTable().unwrap(TableSourceTable.class)),
+                                    temporalJoinRightSideConvertSpec);
                         }
                         return scan;
                     }
                 });
+    }
+
+    private void validateSourceTable(
+            TableSourceTable sourceTable,
+            @Nullable TemporalJoinRightSideConvertSpec temporalJoinRightSideConvertSpec) {
+        final DynamicTableSource dynamicTableSource = sourceTable.tableSource();
+        ObjectIdentifier identifier = sourceTable.contextResolvedTable().getIdentifier();
+        if (temporalJoinRightSideConvertSpec != null) {
+            if (!temporalJoinRightSideConvertSpec.containsPrimaryKey) {
+                String lookupSourceName = LookupTableSource.class.getSimpleName();
+                if (!temporalJoinRightSideConvertSpec.isProcessingTime) {
+                    throw new ValidationException(
+                            String.format(
+                                    "The specified table source %s is used as a dim table in temporal join "
+                                            + "or lookup join, but it doesn't contains primary key in this versioned table "
+                                            + "and the row time attribute is not processing time\n"
+                                            + "Hint: If you want use lookup join, you need change the row time attribute "
+                                            + "to processing time, and if you want use temporal join, you need add primary "
+                                            + "key for this versioned table.",
+                                    identifier));
+                }
+                if (!(dynamicTableSource instanceof LookupTableSource)) {
+                    throw new ValidationException(
+                            String.format(
+                                    "The specified table source %s is used as a dim table in temporal join or lookup "
+                                            + "join, but it doesn't contains primary key in this versioned table and "
+                                            + "doesn't extend %s\n"
+                                            + "Hint: If you want use lookup join, you need to extend %s, on the contrary, "
+                                            + "if you want to use temporal join, you need add primary key for this "
+                                            + "versioned table. The difference between temporal join and lookup join please "
+                                            + "refer to Flink docs.",
+                                    identifier, lookupSourceName, lookupSourceName));
+                }
+            }
+        } else {
+            if (!(dynamicTableSource instanceof ScanTableSource)) {
+                throw new ValidationException(
+                        String.format(
+                                "The specified table source %s doesn't extend %s and can not be used "
+                                        + "as the scan source.\n"
+                                        + "Hint: You can read the data from the source as a dim table with the "
+                                        + "look up join syntax. Otherwise, please refer to the document and change "
+                                        + "the type of the connector to a source table that supports direct reads.",
+                                identifier, ScanTableSource.class.getSimpleName()));
+            }
+        }
+    }
+
+    private static boolean containsPrimaryKey(RelNode rel) {
+        FlinkRelMetadataQuery fmq =
+                FlinkRelMetadataQuery.reuseOrCreate(rel.getCluster().getMetadataQuery());
+        return fmq.getUpsertKeys(rel) != null;
     }
     // ----- FLINK MODIFICATION END -----
 
@@ -2921,7 +2985,7 @@ public class SqlToRelConverter {
             @Nullable SqlNodeList extendedColumns,
             @Nullable SqlNodeList tableHints,
             @Nullable SchemaVersion schemaVersion,
-            boolean isTemporalJoinRightSide) {
+            @Nullable TemporalJoinRightSideConvertSpec temporalJoinRightSideConvertSpec) {
         final SqlValidatorNamespace fromNamespace = getNamespace(id).resolve();
         if (fromNamespace.getNode() != null) {
             convertFrom(bb, fromNamespace.getNode());
@@ -2955,7 +3019,7 @@ public class SqlToRelConverter {
                 hintStrategies.apply(
                         SqlUtil.getRelHint(hintStrategies, tableHints),
                         LogicalTableScan.create(cluster, table, ImmutableList.of()));
-        final RelNode tableRel = toRel(table, hints, isTemporalJoinRightSide);
+        final RelNode tableRel = toRel(table, hints, temporalJoinRightSideConvertSpec);
         bb.setRoot(tableRel, true);
 
         if (RelOptUtil.isPureOrder(castNonNull(bb.root)) && removeSortInSubQuery(bb.top)) {
@@ -2969,7 +3033,9 @@ public class SqlToRelConverter {
 
     // ----- FLINK MODIFICATION BEGIN -----
     protected void convertCollectionTable(
-            Blackboard bb, SqlNode from, boolean isTemporalJoinRightSide) {
+            Blackboard bb,
+            SqlNode from,
+            @Nullable TemporalJoinRightSideConvertSpec temporalJoinRightSideConvertSpec) {
         SqlCall sqlCall = (SqlCall) from;
 
         // Dig out real call; TABLE() wrapper is just syntactic.
@@ -3010,7 +3076,8 @@ public class SqlToRelConverter {
             RelOptTable relOptTable =
                     RelOptTableImpl.create(
                             null, rowType, udf.getNameAsId().names, table, expressionFunction);
-            RelNode converted = toRel(relOptTable, ImmutableList.of(), isTemporalJoinRightSide);
+            RelNode converted =
+                    toRel(relOptTable, ImmutableList.of(), temporalJoinRightSideConvertSpec);
             bb.setRoot(converted, true);
             return;
         }
@@ -3061,7 +3128,12 @@ public class SqlToRelConverter {
         // in most cases, tableRef is a SqlBasicCall and the first operand is a SqlIdentifier.
         // when using SQL Hints, tableRef will be a SqlTableRef.
         if (isTemporalJoin) {
-            convertTemporalJoinRightSide(bb, expr, Collections.emptyList());
+            convertTemporalJoinRightSide(
+                    bb,
+                    expr,
+                    Collections.emptyList(),
+                    new TemporalJoinRightSideConvertSpec(
+                            TemporalTableJoinUtil.isProcessingTime(period)));
         } else if (((tableRef instanceof SqlBasicCall
                                 && ((SqlBasicCall) tableRef).operand(0) instanceof SqlIdentifier)
                         || (tableRef instanceof SqlTableRef))
@@ -3086,7 +3158,7 @@ public class SqlToRelConverter {
                             ? ((SqlBasicCall) tableRef).operand(0)
                             : ((SqlTableRef) tableRef).operand(0);
             SchemaVersion schemaVersion = TimestampSchemaVersion.of(timeTravelTimestamp);
-            convertIdentifier(bb, sqlIdentifier, null, null, schemaVersion, false);
+            convertIdentifier(bb, sqlIdentifier, null, null, schemaVersion, null);
         } else {
             convertFrom(bb, expr);
         }
@@ -4101,9 +4173,11 @@ public class SqlToRelConverter {
 
     // ----- FLINK MODIFICATION BEGIN -----
     public RelNode toRel(
-            final RelOptTable table, final List<RelHint> hints, boolean isTemporalJoinRightSide) {
+            final RelOptTable table,
+            final List<RelHint> hints,
+            @Nullable TemporalJoinRightSideConvertSpec temporalJoinRightSideConvertSpec) {
         final RelNode scan = table.toRel(createToRelContext(hints));
-        validateScan(scan, isTemporalJoinRightSide);
+        validateScan(scan, temporalJoinRightSideConvertSpec);
         // ----- FLINK MODIFICATION END -----
 
         final InitializerExpressionFactory ief =
@@ -6689,6 +6763,23 @@ public class SqlToRelConverter {
             this.r = r;
         }
     }
+
+    // ----- FLINK MODIFICATION BEGIN -----
+    /**
+     * Used to pass the needed parameters when converting sql to rel for temporal join right side in
+     * method #convertTemporalJoinRightSide.
+     */
+    private static class TemporalJoinRightSideConvertSpec {
+        /** To record whether the period is processing time. */
+        private final boolean isProcessingTime;
+
+        private boolean containsPrimaryKey;
+
+        TemporalJoinRightSideConvertSpec(boolean isProcessingTime) {
+            this.isProcessingTime = isProcessingTime;
+        }
+    }
+    // ----- FLINK MODIFICATION END -----
 
     /** Returns a default {@link Config}. */
     public static Config config() {

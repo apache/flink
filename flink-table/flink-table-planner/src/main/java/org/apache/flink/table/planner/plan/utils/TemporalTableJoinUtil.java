@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
@@ -78,6 +79,16 @@ public class TemporalTableJoinUtil {
             return rexFieldAccess.getType() instanceof TimeIndicatorRelDataType
                     && rexFieldAccess.getReferenceExpr() instanceof RexCorrelVariable;
         }
+        return false;
+    }
+
+    public static boolean isProcessingTime(RexNode period) {
+        RelDataType type = period.getType();
+        if (type instanceof TimeIndicatorRelDataType) {
+            TimeIndicatorRelDataType timeIndicator = (TimeIndicatorRelDataType) type;
+            return !timeIndicator.isEventTime();
+        }
+
         return false;
     }
 }

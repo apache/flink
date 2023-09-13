@@ -443,11 +443,11 @@ class TemporalJoinTest extends TableTestBase {
       "ON o.currency = r.currency"
     expectExceptionThrown(
       sqlQuery3,
-      "Temporal Table Join requires primary key in versioned table, " +
-        "but no primary key can be found. The physical plan is:\n" +
-        "FlinkLogicalJoin(condition=[AND(=($1, $4), " +
-        "__INITIAL_TEMPORAL_JOIN_CONDITION($2, $6, __TEMPORAL_JOIN_LEFT_KEY($1), " +
-        "__TEMPORAL_JOIN_RIGHT_KEY($4)))], joinType=[inner])",
+      "The specified table source `default_catalog`.`default_database`.`versionedTableWithoutPk` " +
+        "is used as a dim table in temporal join or lookup join, but it doesn't contains primary key " +
+        "in this versioned table and the row time attribute is not processing time\n" +
+        "Hint: If you want use lookup join, you need change the row time attribute to processing time, " +
+        "and if you want use temporal join, you need add primary key for this versioned table.",
       classOf[ValidationException]
     )
 

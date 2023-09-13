@@ -22,8 +22,7 @@ import org.apache.flink.table.connector.source.LookupTableSource
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalLookupJoin, CommonPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule
-import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.planner.plan.utils.JoinUtil
+import org.apache.flink.table.planner.plan.utils.{JoinUtil, TemporalTableJoinUtil}
 import org.apache.flink.table.sources.LookupableTableSource
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptTable}
@@ -60,11 +59,7 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
 
     // Temporal table join implemented by lookup join only supports processing-time join
     // Other temporal table join will be matched by CommonTemporalTableJoinRule
-    val isProcessingTime = snapshot.getPeriod.getType match {
-      case t: TimeIndicatorRelDataType if !t.isEventTime => true
-      case _ => false
-    }
-    isProcessingTime
+    TemporalTableJoinUtil.isProcessingTime(snapshot.getPeriod)
   }
 
   protected def isTableSourceScan(relNode: RelNode): Boolean = {

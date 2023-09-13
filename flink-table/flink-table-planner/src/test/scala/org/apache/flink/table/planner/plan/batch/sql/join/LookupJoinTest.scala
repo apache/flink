@@ -136,6 +136,34 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
   }
 
   @Test
+  def testLookupJoinInvalidateLookupTable(): Unit = {
+    testUtil.addTable("""
+                        |CREATE TABLE InvalidateLookupTable (
+                        |  `id` INT,
+                        |  `name` STRING,
+                        |  `age` INT
+                        |) WITH (
+                        |  'connector' = 'values'
+                        |  ,'bounded' = 'true'
+                        |  ,'disable-lookup' = 'true'
+                        |)
+                        |""".stripMargin)
+    val sql = "SELECT * FROM MyTable AS T JOIN InvalidateLookupTable " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+
+    expectExceptionThrown(
+      sql,
+      "The specified table source `default_catalog`.`default_database`.`InvalidateLookupTable` " +
+        "is used as a dim table in temporal join or lookup join, but it doesn't contains primary key " +
+        "in this versioned table and doesn't extend LookupTableSource\n" +
+        "Hint: If you want use lookup join, you need to extend LookupTableSource, on the contrary, " +
+        "if you want to use temporal join, you need add primary key for this versioned table. The difference " +
+        "between temporal join and lookup join please refer to Flink docs.",
+      classOf[ValidationException]
+    )
+  }
+
+  @Test
   def testPythonUDFInJoinCondition(): Unit = {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
