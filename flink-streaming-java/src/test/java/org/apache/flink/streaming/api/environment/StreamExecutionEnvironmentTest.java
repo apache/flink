@@ -25,12 +25,16 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -471,6 +475,21 @@ class StreamExecutionEnvironmentTest {
         for (CheckedThread thread : threads) {
             thread.sync();
         }
+    }
+
+    @Test
+    void testConfigureCheckpointStorage() {
+        Configuration configuration = new Configuration();
+        String path = "file:///valid";
+        configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+        configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, path);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+
+        CheckpointStorage storage = env.getCheckpointConfig().getCheckpointStorage();
+        assertThat(storage).isInstanceOf(JobManagerCheckpointStorage.class);
+        assertThat(((JobManagerCheckpointStorage) storage).getCheckpointPath())
+                .isEqualTo(new Path(path));
     }
 
     /////////////////////////////////////////////////////////////
