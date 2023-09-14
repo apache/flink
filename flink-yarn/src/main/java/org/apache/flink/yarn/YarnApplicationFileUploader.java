@@ -345,6 +345,8 @@ class YarnApplicationFileUploader implements AutoCloseable {
         checkNotNull(localResources);
 
         final ArrayList<String> classPaths = new ArrayList<>();
+        final Set<String> resourcesJar = new HashSet<>();
+        final Set<String> resourcesDir = new HashSet<>();
         providedSharedLibs.forEach(
                 (fileName, fileStatus) -> {
                     final Path filePath = fileStatus.getPath();
@@ -361,11 +363,21 @@ class YarnApplicationFileUploader implements AutoCloseable {
                     envShipResourceList.add(descriptor);
 
                     if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
-                        classPaths.add(fileName);
+                        if (fileName.endsWith("jar")) {
+                            resourcesJar.add(fileName);
+                        } else {
+                            resourcesDir.add(new Path(fileName).getParent().toString());
+                        }
                     } else if (isFlinkDistJar(filePath.getName())) {
                         flinkDist = descriptor;
                     }
                 });
+
+        // Construct classpath where resource directories go first followed
+        // by resource files. Sort both resources and resource directories in
+        // order to make classpath deterministic.
+        resourcesDir.stream().sorted().forEach(classPaths::add);
+        resourcesJar.stream().sorted().forEach(classPaths::add);
         return classPaths;
     }
 
