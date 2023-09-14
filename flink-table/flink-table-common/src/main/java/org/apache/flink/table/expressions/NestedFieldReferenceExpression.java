@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * A reference to a nested field in an input. The reference contains.
+ * A reference to a nested field in an input. The reference contains:
  *
  * <ul>
  *   <li>nested field names to traverse from the top level column to the nested leaf column.
@@ -112,7 +112,7 @@ public class NestedFieldReferenceExpression implements ResolvedExpression {
 
     @Override
     public int hashCode() {
-        return Objects.hash(fieldNames, fieldIndices, dataType);
+        return Objects.hash(Arrays.hashCode(fieldNames), Arrays.hashCode(fieldIndices), dataType);
     }
 
     @Override

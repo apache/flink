@@ -34,6 +34,7 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLog
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.YearMonthIntervalType
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptUtil
@@ -407,7 +408,7 @@ class RexNodeToExpressionConverter(
       functionCatalog: FunctionCatalog,
       catalogManager: CatalogManager,
       timeZone: TimeZone) = {
-    this(rexBuilder, inputNames, functionCatalog, catalogManager, timeZone, null)
+    this(rexBuilder, inputNames, functionCatalog, catalogManager, timeZone, None)
   }
 
   override def visitInputRef(inputRef: RexInputRef): Option[ResolvedExpression] = {
@@ -575,7 +576,8 @@ class RexNodeToExpressionConverter(
           new NestedFieldReferenceExpression(
             fieldNames.toArray,
             fieldIndices(0),
-            fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(fieldAccess.getType))))
+            TypeConversions.fromLogicalToDataType(
+              FlinkTypeFactory.toLogicalType(fieldAccess.getType))))
     }
   }
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): Option[ResolvedExpression] =
