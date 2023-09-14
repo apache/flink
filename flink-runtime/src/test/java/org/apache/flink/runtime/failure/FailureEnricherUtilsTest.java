@@ -203,6 +203,38 @@ class FailureEnricherUtilsTest {
     }
 
     @Test
+    public void testLabelFailureWithValidAndThrowingEnricher() {
+        // A failing enricher shouldn't affect remaining enrichers with valid labels
+        final Throwable cause = new RuntimeException("test exception");
+        final FailureEnricher validEnricher = new TestEnricher("enricherKey");
+        final FailureEnricher throwingEnricher = new ThrowingEnricher("throwingKey");
+
+        final Set<FailureEnricher> enrichers =
+                new HashSet<FailureEnricher>() {
+                    {
+                        add(validEnricher);
+                        add(throwingEnricher);
+                    }
+                };
+
+        final CompletableFuture<Map<String, String>> result =
+                FailureEnricherUtils.labelFailure(
+                        cause,
+                        null,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        enrichers);
+
+        assertThatFuture(result)
+                .eventuallySucceeds()
+                .satisfies(
+                        labels -> {
+                            assertThat(labels).hasSize(1);
+                            assertThat(labels).containsKey("enricherKey");
+                            assertThat(labels).containsValue("enricherKeyValue");
+                        });
+    }
+
+    @Test
     public void testLabelFailureMergeException() {
         // Throwing exception labelFailure when merging duplicate keys
         final Throwable cause = new RuntimeException("test failure");
@@ -250,6 +282,20 @@ class FailureEnricherUtilsTest {
         @Override
         public FailureEnricher createFailureEnricher(Configuration conf) {
             return new TestEnricher();
+        }
+    }
+
+    private static class ThrowingEnricher extends TestEnricher {
+        ThrowingEnricher(String... outputKeys) {
+            super(outputKeys);
+        }
+
+        @Override
+        public CompletableFuture<Map<String, String>> processFailure(
+                Throwable cause, Context context) {
+            final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+            future.completeExceptionally(new RuntimeException("test failure"));
+            return future;
         }
     }
 
