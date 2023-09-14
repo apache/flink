@@ -29,7 +29,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 
 	<modelVersion>4.0.0</modelVersion>
 
-	<artifactId>flink-end-to-end-failure-enricher-test</artifactId>
+	<artifactId>flink-failure-enricher-test</artifactId>
 	<name>Flink : E2E Tests : Failure Enricher Test</name>
 	<packaging>jar</packaging>
 

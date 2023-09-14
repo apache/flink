@@ -22,11 +22,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricherFactory;
 
-/** The failure enricher factory for test. */
+/** The factory of {@link CustomTestFailureEnricher}. */
 public class CustomTestFailureEnricherFactory implements FailureEnricherFactory {
 
     @Override
     public FailureEnricher createFailureEnricher(Configuration conf) {
-        return new CustomEnricher();
+        return new CustomTestFailureEnricher();
     }
 }

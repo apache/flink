@@ -71,4 +71,7 @@ else
 fi
 
 # stop the cluster
-stop_cluster
+function cleanup {
+    stop_cluster
+}
+on_exit cleanup

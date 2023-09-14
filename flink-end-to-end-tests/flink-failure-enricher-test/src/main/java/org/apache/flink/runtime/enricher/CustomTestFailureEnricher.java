@@ -25,16 +25,15 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /** The custom enricher for test. */
-public class CustomEnricher implements FailureEnricher {
+public class CustomTestFailureEnricher implements FailureEnricher {
 
     private final Set<String> outputKeys;
 
-    public CustomEnricher() {
-        this.outputKeys = Stream.of("type").collect(Collectors.toSet());
+    public CustomTestFailureEnricher() {
+        this.outputKeys = Collections.singleton("type");
+        ;
     }
 
     @Override

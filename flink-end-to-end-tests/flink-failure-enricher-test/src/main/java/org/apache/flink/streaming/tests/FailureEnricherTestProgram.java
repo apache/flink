@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * org.apache.flink.configuration.JobManagerOptions#FAILURE_ENRICHERS_LIST}. We test this by
  * creating a {@code CustomTestFailureEnricherFactory} and {@code CustomEnricher} which will add a
  * label for the failure. And we will add this jar to plugin/failure-enricher package, then submit
- * this job and verify the exceptions through restful api in end-to-end test script.
+ * this job and verify the exceptions through restful api in test_failure_enricher.sh script.
  */
 public class FailureEnricherTestProgram {
 
