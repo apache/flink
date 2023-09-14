@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /** The data client is used to fetch data from remote tier. */
@@ -107,8 +106,8 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent {
             memorySegment.free();
             ExceptionUtils.rethrow(e, "Failed to read buffer from partition file.");
         }
-        List<Buffer> readBuffers = checkNotNull(readBufferResult).getReadBuffers();
-        if (!readBuffers.isEmpty()) {
+        if (readBufferResult != null && !readBufferResult.getReadBuffers().isEmpty()) {
+            List<Buffer> readBuffers = readBufferResult.getReadBuffers();
             checkState(readBuffers.size() == 1);
             Buffer buffer = readBuffers.get(0);
             currentBufferIndexAndSegmentIds
