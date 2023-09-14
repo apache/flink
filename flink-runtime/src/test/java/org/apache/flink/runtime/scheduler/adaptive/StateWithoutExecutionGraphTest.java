@@ -86,7 +86,8 @@ public class StateWithoutExecutionGraphTest {
                             .isEqualTo(expectedException);
                 });
 
-        state.handleGlobalFailure(expectedException, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
+        state.handleGlobalFailureWithFailureLabels(
+                expectedException, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
     }
 
     private static final class TestingStateWithoutExecutionGraph

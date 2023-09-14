@@ -199,7 +199,7 @@ class StopWithSavepointTest {
 
             ctx.setExpectRestarting(assertNonNull());
 
-            sws.handleGlobalFailure(
+            sws.handleGlobalFailureWithFailureLabels(
                     new RuntimeException(), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
@@ -219,7 +219,7 @@ class StopWithSavepointTest {
                                 .satisfies(FlinkAssertions.anyCauseMatches(RuntimeException.class));
                     });
 
-            sws.handleGlobalFailure(
+            sws.handleGlobalFailureWithFailureLabels(
                     new RuntimeException(), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
@@ -656,7 +656,8 @@ class StopWithSavepointTest {
 
         @Override
         public void handleGlobalFailure(Throwable cause) {
-            state.handleGlobalFailure(cause, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
+            state.handleGlobalFailureWithFailureLabels(
+                    cause, FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
 

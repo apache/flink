@@ -59,7 +59,7 @@ public class FinishedTest extends TestLogger {
     public void testGlobalFailureIgnored() {
         MockFinishedContext ctx = new MockFinishedContext();
         createFinishedState(ctx)
-                .handleGlobalFailure(
+                .handleGlobalFailureWithFailureLabels(
                         new RuntimeException(), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         assertThat(ctx.getArchivedExecutionGraph().getState(), is(testJobStatus));
     }

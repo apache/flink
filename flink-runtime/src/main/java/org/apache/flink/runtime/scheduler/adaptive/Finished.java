@@ -57,7 +57,7 @@ class Finished implements State {
     }
 
     @Override
-    public void handleGlobalFailure(
+    public void handleGlobalFailureWithFailureLabels(
             Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         logger.debug(
                 "Ignore global failure because we already finished the job {}.",

@@ -367,7 +367,7 @@ abstract class StateWithExecutionGraph implements State {
     abstract void onGloballyTerminalState(JobStatus globallyTerminalState);
 
     @Override
-    public void handleGlobalFailure(
+    public void handleGlobalFailureWithFailureLabels(
             Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         failureCollection.add(ExceptionHistoryEntry.createGlobal(cause, failureLabels));
         onFailure(cause);

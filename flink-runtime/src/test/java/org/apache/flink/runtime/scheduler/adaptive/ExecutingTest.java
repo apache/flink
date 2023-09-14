@@ -195,7 +195,7 @@ public class ExecutingTest extends TestLogger {
                         assertThat(failingArguments.getFailureCause().getMessage(), is(failureMsg));
                     }));
             ctx.setHowToHandleFailure(FailureResult::canNotRestart);
-            exec.handleGlobalFailure(
+            exec.handleGlobalFailureWithFailureLabels(
                     new RuntimeException(failureMsg), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
     }
@@ -209,7 +209,7 @@ public class ExecutingTest extends TestLogger {
                     (restartingArguments ->
                             assertThat(restartingArguments.getBackoffTime(), is(duration))));
             ctx.setHowToHandleFailure((f) -> FailureResult.canRestart(f, duration));
-            exec.handleGlobalFailure(
+            exec.handleGlobalFailureWithFailureLabels(
                     new RuntimeException("Recoverable error"),
                     FailureEnricherUtils.EMPTY_FAILURE_LABELS);
         }
@@ -810,7 +810,7 @@ public class ExecutingTest extends TestLogger {
         }
 
         @Override
-        public void handleGlobalFailure(
+        public void handleGlobalFailureWithFailureLabels(
                 Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {}
 
         @Override

@@ -20,18 +20,20 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.slf4j.Logger;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * State abstraction of the {@link AdaptiveScheduler}. This interface contains all methods every
  * state implementation must support.
  */
-interface State extends LabeledGlobalFailureHandler {
+interface State extends GlobalFailureHandler {
 
     /**
      * This method is called whenever one transitions out of this state.
@@ -49,6 +51,15 @@ interface State extends LabeledGlobalFailureHandler {
      * @param cause cause for the suspension
      */
     void suspend(Throwable cause);
+
+    /**
+     * Initialize the default implementation of this method. It is recommended to use the {@link
+     * GlobalFailureHandler#handleGlobalFailureWithFailureLabels(Throwable, CompletableFuture)}
+     * method, which will handle the label information corresponding to the exception.
+     *
+     * @param cause A cause that describes the global failure.
+     */
+    default void handleGlobalFailure(Throwable cause) {}
 
     /**
      * Gets the current {@link JobStatus}. The returned job status will remain unchanged at least

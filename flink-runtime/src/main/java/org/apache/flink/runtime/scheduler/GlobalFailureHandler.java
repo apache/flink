@@ -19,6 +19,9 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
 /**
  * An interface for handling global failures. In context of a scheduler we distinguish between local
  * and global failures. Global failure is the one that happens in context of the scheduler (in the
@@ -28,9 +31,18 @@ package org.apache.flink.runtime.scheduler;
 public interface GlobalFailureHandler {
 
     /**
-     * Handles a global failure.
+     * Handles a global failure in scheduler.
      *
      * @param cause A cause that describes the global failure.
      */
     void handleGlobalFailure(Throwable cause);
+
+    /**
+     * Handles a global failure with enricher labels.
+     *
+     * @param cause A cause that describes the global failure.
+     * @param failureLabels Labels providing an additional context about the failure.
+     */
+    default void handleGlobalFailureWithFailureLabels(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {}
 }

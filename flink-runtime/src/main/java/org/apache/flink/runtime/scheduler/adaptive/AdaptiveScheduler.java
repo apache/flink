@@ -531,7 +531,7 @@ public class AdaptiveScheduler
         final CompletableFuture<Map<String, String>> failureLabels =
                 FailureEnricherUtils.labelFailure(
                         cause, ctx, getMainThreadExecutor(), failureEnrichers);
-        state.handleGlobalFailure(cause, failureLabels);
+        state.handleGlobalFailureWithFailureLabels(cause, failureLabels);
     }
 
     private CompletableFuture<Map<String, String>> labelFailure(

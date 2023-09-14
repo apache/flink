@@ -89,7 +89,7 @@ public class CancelingTest extends TestLogger {
     public void testGlobalFailuresAreIgnored() throws Exception {
         try (MockStateWithExecutionGraphContext ctx = new MockStateWithExecutionGraphContext()) {
             Canceling canceling = createCancelingState(ctx, new StateTrackingMockExecutionGraph());
-            canceling.handleGlobalFailure(
+            canceling.handleGlobalFailureWithFailureLabels(
                     new RuntimeException("test"), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
             ctx.assertNoStateTransition();
         }

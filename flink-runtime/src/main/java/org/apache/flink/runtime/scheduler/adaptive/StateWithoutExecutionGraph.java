@@ -59,7 +59,7 @@ abstract class StateWithoutExecutionGraph implements State {
     }
 
     @Override
-    public void handleGlobalFailure(
+    public void handleGlobalFailureWithFailureLabels(
             Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
         context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, cause));
     }

@@ -90,7 +90,7 @@ public class RestartingTest extends TestLogger {
     public void testGlobalFailuresAreIgnored() throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             Restarting restarting = createRestartingState(ctx);
-            restarting.handleGlobalFailure(
+            restarting.handleGlobalFailureWithFailureLabels(
                     new RuntimeException(), FailureEnricherUtils.EMPTY_FAILURE_LABELS);
             ctx.assertNoStateTransition();
         }
