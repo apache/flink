@@ -200,6 +200,14 @@ public class FailureEnricherUtils {
                                                     }
                                                 });
                                         return validLabels;
+                                    })
+                            .exceptionally(
+                                    t -> {
+                                        LOG.warn(
+                                                "Enricher {} threw an exception.",
+                                                enricher.getClass(),
+                                                t);
+                                        return Collections.emptyMap();
                                     }));
         }
         // combine all CompletableFutures into a single CompletableFuture containing a Map of labels
