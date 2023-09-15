@@ -75,6 +75,7 @@ public class HashSubpartitionBufferAccumulator {
     }
 
     public void close() {
+        finishCurrentWritingBufferIfNotEmpty();
         while (!unfinishedBuffers.isEmpty()) {
             unfinishedBuffers.poll().close();
         }
