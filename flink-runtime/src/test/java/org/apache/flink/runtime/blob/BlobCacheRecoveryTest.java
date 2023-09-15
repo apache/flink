@@ -51,7 +51,8 @@ public class BlobCacheRecoveryTest {
                     config, blobStoreService, TempDirUtils.newFolder(tempDir));
         } finally {
             if (blobStoreService != null) {
-                blobStoreService.closeAndCleanupAllData();
+                blobStoreService.cleanupAllData();
+                blobStoreService.close();
             }
         }
     }

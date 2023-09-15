@@ -192,32 +192,18 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         try {
             internalCleanup();
             deletedHAData = true;
+            blobStoreService.cleanupAllData();
         } catch (Exception t) {
             exception = t;
         }
 
-        try {
-            if (leaderElectionService != null) {
-                leaderElectionService.close();
-            }
-        } catch (Throwable t) {
-            exception = ExceptionUtils.firstOrSuppressed(t, exception);
+        if (!deletedHAData) {
+            logger.info(
+                    "Cannot delete HA blobs because we failed to delete the pointers in the HA store.");
         }
 
         try {
-            internalClose();
-        } catch (Throwable t) {
-            exception = ExceptionUtils.firstOrSuppressed(t, exception);
-        }
-
-        try {
-            if (deletedHAData) {
-                blobStoreService.closeAndCleanupAllData();
-            } else {
-                logger.info(
-                        "Cannot delete HA blobs because we failed to delete the pointers in the HA store.");
-                blobStoreService.close();
-            }
+            close();
         } catch (Throwable t) {
             exception = ExceptionUtils.firstOrSuppressed(t, exception);
         }

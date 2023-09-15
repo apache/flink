@@ -140,7 +140,7 @@ class AbstractHaServicesTest {
         }
 
         @Override
-        public void closeAndCleanupAllData() {
+        public void cleanupAllData() {
             closeOperations.offer(CloseOperations.BLOB_CLEANUP_AND_CLOSE);
         }
 
