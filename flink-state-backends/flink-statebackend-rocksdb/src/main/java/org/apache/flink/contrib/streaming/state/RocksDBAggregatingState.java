@@ -88,7 +88,7 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
     }
 
     @Override
-    public R get() {
+    public R get() throws IOException, RocksDBException {
         ACC accumulator = getInternal();
         if (accumulator == null) {
             return null;
@@ -97,7 +97,7 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
     }
 
     @Override
-    public void add(T value) throws RocksDBException {
+    public void add(T value) throws IOException, RocksDBException {
         byte[] key = getKeyBytes();
         ACC accumulator = getInternal(key);
         accumulator = accumulator == null ? aggFunction.createAccumulator() : accumulator;

@@ -29,7 +29,9 @@ import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalReducingState;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.RocksDBException;
 
+import java.io.IOException;
 import java.util.Collection;
 
 /**
@@ -83,7 +85,7 @@ class RocksDBReducingState<K, N, V> extends AbstractRocksDBAppendingState<K, N, 
     }
 
     @Override
-    public V get() {
+    public V get() throws IOException, RocksDBException {
         return getInternal();
     }
 

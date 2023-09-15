@@ -50,7 +50,7 @@ class BatchExecutionKeyAggregatingState<K, N, IN, ACC, OUT>
     }
 
     @Override
-    public void add(IN value) throws Exception {
+    public void add(IN value) {
         if (value == null) {
             clear();
             return;

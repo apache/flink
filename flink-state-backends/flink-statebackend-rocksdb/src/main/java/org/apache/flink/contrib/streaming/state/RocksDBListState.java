@@ -108,12 +108,12 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
     }
 
     @Override
-    public Iterable<V> get() throws RocksDBException {
+    public Iterable<V> get() throws IOException, RocksDBException {
         return getInternal();
     }
 
     @Override
-    public List<V> getInternal() throws RocksDBException {
+    public List<V> getInternal() throws IOException, RocksDBException {
         byte[] key = serializeCurrentKeyWithGroupAndNamespace();
         byte[] valueBytes = backend.db.get(columnFamily, key);
         return listSerializer.deserializeList(valueBytes, elementSerializer);
@@ -293,19 +293,21 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
             in.setBuffer(value);
             T next;
             int prevPosition = 0;
-            while ((next = ListDelimitedSerializer.deserializeNextElement(in, elementSerializer))
-                    != null) {
-                T transformedElement = elementTransformer.filterOrTransform(next);
-                if (transformedElement != null) {
-                    if (transformStrategy == STOP_ON_FIRST_INCLUDED) {
-                        return Arrays.copyOfRange(value, prevPosition, value.length);
-                    } else {
-                        result.add(transformedElement);
-                    }
-                }
-                prevPosition = in.getPosition();
-            }
             try {
+                while ((next =
+                                ListDelimitedSerializer.deserializeNextElement(
+                                        in, elementSerializer))
+                        != null) {
+                    T transformedElement = elementTransformer.filterOrTransform(next);
+                    if (transformedElement != null) {
+                        if (transformStrategy == STOP_ON_FIRST_INCLUDED) {
+                            return Arrays.copyOfRange(value, prevPosition, value.length);
+                        } else {
+                            result.add(transformedElement);
+                        }
+                    }
+                    prevPosition = in.getPosition();
+                }
                 return result.isEmpty()
                         ? null
                         : listSerializer.serializeList(result, elementSerializer);
