@@ -33,7 +33,6 @@ public class CustomTestFailureEnricher implements FailureEnricher {
 
     public CustomTestFailureEnricher() {
         this.outputKeys = Collections.singleton("type");
-        ;
     }
 
     @Override
