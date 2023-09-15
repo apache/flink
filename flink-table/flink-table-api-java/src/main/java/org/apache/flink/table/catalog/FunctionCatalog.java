@@ -47,6 +47,7 @@ import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -305,21 +306,32 @@ public final class FunctionCatalog {
                         .map(FunctionIdentifier::of)
                         .collect(Collectors.toSet()));
 
-        // add catalog functions
-        Catalog catalog = catalogManager.getCatalog(catalogName).get();
-        try {
-            catalog.listFunctions(databaseName)
-                    .forEach(
-                            name ->
-                                    result.add(
-                                            FunctionIdentifier.of(
-                                                    ObjectIdentifier.of(
-                                                            catalogName, databaseName, name))));
-        } catch (DatabaseNotExistException e) {
-            // Ignore since there will always be a current database of the current catalog
-        }
+        // add catalog functions if catalog exists
+        catalogManager
+                .getCatalog(catalogName)
+                .ifPresent(
+                        catalog ->
+                                result.addAll(
+                                        getCatalogFunctions(catalog, catalogName, databaseName)));
 
         return result;
+    }
+
+    private static Collection<FunctionIdentifier> getCatalogFunctions(
+            Catalog catalog, String catalogName, String databaseName) {
+        try {
+            return catalog.listFunctions(databaseName).stream()
+                    .map(
+                            name -> {
+                                final ObjectIdentifier identifier =
+                                        ObjectIdentifier.of(catalogName, databaseName, name);
+                                return FunctionIdentifier.of(identifier);
+                            })
+                    .collect(Collectors.toList());
+        } catch (DatabaseNotExistException e) {
+            // if database does not exist, do not add catalog functions
+            return Collections.emptyList();
+        }
     }
 
     /**
