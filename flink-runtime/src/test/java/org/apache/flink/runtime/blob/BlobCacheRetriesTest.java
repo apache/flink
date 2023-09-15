@@ -150,6 +150,7 @@ class BlobCacheRetriesTest {
         } finally {
             if (blobStoreService != null) {
                 blobStoreService.cleanupAllData();
+                blobStoreService.close();
             }
         }
     }
