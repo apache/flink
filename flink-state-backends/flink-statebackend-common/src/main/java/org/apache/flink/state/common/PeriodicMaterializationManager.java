@@ -267,7 +267,7 @@ public class PeriodicMaterializationManager implements Closeable {
                                                 metrics.reportFailedMaterialization();
                                             }
                                         },
-                                        "Task {} update materializedSnapshot up to changelog sequence number: {}",
+                                        "Task %s update materializedSnapshot up to changelog sequence number: %s.",
                                         subtaskName,
                                         upTo);
 
@@ -310,7 +310,7 @@ public class PeriodicMaterializationManager implements Closeable {
                 () ->
                         target.handleMaterializationFailureOrCancellation(
                                 materializationId, upTo, cause),
-                "Task {} materialization:{},upTo:{} failed or canceled.",
+                "Task %s materialization: %d, upTo: %s, failed or canceled.",
                 subtaskName,
                 materializationId,
                 upTo);
