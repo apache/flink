@@ -147,6 +147,11 @@ class PartitionableSourceTest(val sourceFetchPartitions: Boolean, val useCatalog
       "select name from PartitionableAndFilterableTable " +
         "where part1 = 'A' and part2 > 1 and id > 1")
   }
+
+  @Test
+  def testPushDownNonExistentPartition(): Unit = {
+    util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE part2 = 4")
+  }
 }
 
 object PartitionableSourceTest {

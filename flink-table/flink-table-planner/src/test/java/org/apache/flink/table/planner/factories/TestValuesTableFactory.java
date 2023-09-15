@@ -1244,14 +1244,14 @@ public final class TestValuesTableFactory
                 } else {
                     // we will read data from Collections.emptyList() if allPartitions is empty.
                     // therefore, we should clear all data manually.
-                    remainingPartitions = (List<Map<String, String>>) Collections.emptyMap();
+                    remainingPartitions = Collections.singletonList(Collections.emptyMap());
                     this.data.put(Collections.emptyMap(), Collections.emptyList());
                 }
 
             } else {
                 this.allPartitions = remainingPartitions;
                 if (remainingPartitions.isEmpty()) {
-                    remainingPartitions = (List<Map<String, String>>) Collections.emptyMap();
+                    remainingPartitions = Collections.singletonList(Collections.emptyMap());
                 }
             }
             // only keep the data in the remaining partitions
@@ -1263,7 +1263,9 @@ public final class TestValuesTableFactory
                 Map<Map<String, String>, Collection<Row>> allData) {
             Map<Map<String, String>, Collection<Row>> result = new HashMap<>();
             for (Map<String, String> remainingPartition : remainingPartitions) {
-                result.put(remainingPartition, allData.get(remainingPartition));
+                result.put(
+                        remainingPartition,
+                        allData.getOrDefault(remainingPartition, Collections.emptyList()));
             }
             return result;
         }
