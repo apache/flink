@@ -216,7 +216,7 @@ public class SqlClientITCase {
                         "    WATERMARK FOR `rowtime` AS `rowtime` - INTERVAL '2' SECOND",
                         ") WITH (",
                         "    'connector' = 'kafka',",
-                        "    'topic' = 'test-json',",
+                        "    'topic' = '[test-json]',",
                         "    'properties.bootstrap.servers' = '"
                                 + INTER_CONTAINER_KAFKA_ALIAS
                                 + ":9092',",
