@@ -213,7 +213,7 @@ public class SqlGatewayE2ECase extends TestLogger {
         hiveserver2Port = NetUtils.getAvailablePort();
         restPort = NetUtils.getAvailablePort();
         Map<String, String> endpointConfig = new HashMap<>();
-        endpointConfig.put("sql-gateway.endpoint.type", "hiveserver2;rest");
+        endpointConfig.put("sql-gateway.endpoint.type", "[hiveserver2, rest]");
         // hive server2
         endpointConfig.put(
                 getPrefixedConfigOptionName(THRIFT_PORT),
