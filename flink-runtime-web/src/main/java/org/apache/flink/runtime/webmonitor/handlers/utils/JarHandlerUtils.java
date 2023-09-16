@@ -189,7 +189,11 @@ public class JarHandlerUtils {
                         .setArguments(programArgs.toArray(new String[0]))
                         .build();
             } catch (final ProgramInvocationException e) {
-                throw new CompletionException(e);
+                throw new CompletionException(
+                        new RestHandlerException(
+                                "Could not execute application.",
+                                HttpResponseStatus.BAD_REQUEST,
+                                e));
             }
         }
 

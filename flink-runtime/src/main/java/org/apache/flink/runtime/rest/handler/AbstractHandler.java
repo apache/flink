@@ -242,8 +242,14 @@ public abstract class AbstractHandler<
             return CompletableFuture.completedFuture(null);
         }
         int maxLength = flinkHttpObjectAggregator.maxContentLength() - OTHER_RESP_PAYLOAD_OVERHEAD;
-        if (throwable instanceof RestHandlerException) {
-            RestHandlerException rhe = (RestHandlerException) throwable;
+        if (throwable instanceof RestHandlerException
+                || throwable.getCause() instanceof RestHandlerException) {
+            RestHandlerException rhe = null;
+            if (throwable.getCause() instanceof RestHandlerException) {
+                rhe = (RestHandlerException) throwable.getCause();
+            } else {
+                rhe = (RestHandlerException) throwable;
+            }
             String stackTrace = ExceptionUtils.stringifyException(rhe);
             String truncatedStackTrace = Ascii.truncate(stackTrace, maxLength, "...");
             if (log.isDebugEnabled()) {
