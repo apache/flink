@@ -82,11 +82,9 @@ class RpcSSLAuthITCase {
 
         try {
             // to test whether the test is still good:
-            //   - create actorSystem2 with sslConfig1 (same as actorSystem1)
-            // and see that both can
+            //   - create actorSystem2 with sslConfig1 (same as actorSystem1) and see that both can
             // connect
-            //   - set 'require-mutual-authentication = off' in the ConfigUtils
-            // ssl config section
+            //   - set 'require-mutual-authentication = off' in the ConfigUtils ssl config section
             rpcService1 =
                     RpcSystem.load()
                             .localServiceBuilder(sslConfig1)

@@ -116,7 +116,9 @@ class AsyncCallsTest {
             assertThat(str).isEqualTo("test");
 
             // validate that no concurrent access happened
-            assertThat(concurrentAccess).isFalse();
+            assertThat(concurrentAccess)
+                    .withFailMessage("Rpc Endpoint had concurrent access")
+                    .isFalse();
         } finally {
             RpcUtils.terminateRpcEndpoint(rpcEndpoint);
         }
