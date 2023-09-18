@@ -21,12 +21,12 @@ source "$(dirname "$0")"/common.sh
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-failure-enricher-test/target/FailureEnricherTest.jar
 
-echo "Moving the custom failure enricher to plugin/failure-enricher package"
+echo "Moving the custom failure enricher to plugins/failure-enricher package."
 
 mkdir ${FLINK_DIR}/plugins/failure-enricher
 cp $TEST_PROGRAM_JAR ${FLINK_DIR}/plugins/failure-enricher/
 
-set_config_key "jobmanager.failure-enrichers" "org.apache.flink.runtime.enricher.CustomEnricher"
+set_config_key "jobmanager.failure-enrichers" "org.apache.flink.runtime.enricher.CustomTestFailureEnricher"
 
 echo "Testing FailureEnricher function."
 
