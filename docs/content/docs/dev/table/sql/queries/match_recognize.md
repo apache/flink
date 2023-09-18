@@ -190,7 +190,7 @@ time attribute.
 
 The `PATTERN` clause specifies that we are interested in a pattern with a starting event `START_ROW`
 that is followed by one or more `PRICE_DOWN` events and concluded with a `PRICE_UP` event. If such
-a pattern can be found, the next pattern match will be seeked at the last `PRICE_UP` event as
+a pattern can be found, the next pattern match will be sought at the last `PRICE_UP` event as
 indicated by the `AFTER MATCH SKIP TO LAST` clause.
 
 The `DEFINE` clause specifies the conditions that need to be met for a `PRICE_DOWN` and `PRICE_UP`
