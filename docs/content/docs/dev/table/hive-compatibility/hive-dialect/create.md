@@ -73,7 +73,7 @@ CREATE [EXTERNAL] TABLE [IF NOT EXISTS] [db_name.]table_name
   ]
   [LOCATION fs_path]
   [TBLPROPERTIES (property_name=property_value, ...)]
-  [AS select_statment];
+  [AS select_statement];
   
 data_type
   : primitive_type
