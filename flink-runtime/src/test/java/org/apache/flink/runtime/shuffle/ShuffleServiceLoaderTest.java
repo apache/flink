@@ -23,49 +23,49 @@ import org.apache.flink.runtime.io.network.NettyShuffleServiceFactory;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.runtime.shuffle.ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS;
-import static org.hamcrest.core.IsInstanceOf.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test suite for {@link ShuffleServiceLoader} utility. */
-public class ShuffleServiceLoaderTest extends TestLogger {
+class ShuffleServiceLoaderTest {
 
     @Test
-    public void testLoadDefaultNettyShuffleServiceFactory() throws FlinkException {
+    void testLoadDefaultNettyShuffleServiceFactory() throws FlinkException {
         Configuration configuration = new Configuration();
         ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory =
                 ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
-        assertThat(
-                "Loaded shuffle service factory is not the default netty implementation",
-                shuffleServiceFactory,
-                instanceOf(NettyShuffleServiceFactory.class));
+        assertThat(shuffleServiceFactory)
+                .withFailMessage(
+                        "Loaded shuffle service factory is not the default netty implementation")
+                .isInstanceOf(NettyShuffleServiceFactory.class);
     }
 
     @Test
-    public void testLoadCustomShuffleServiceFactory() throws FlinkException {
+    void testLoadCustomShuffleServiceFactory() throws FlinkException {
         Configuration configuration = new Configuration();
         configuration.setString(
                 SHUFFLE_SERVICE_FACTORY_CLASS,
                 "org.apache.flink.runtime.shuffle.ShuffleServiceLoaderTest$CustomShuffleServiceFactory");
         ShuffleServiceFactory<?, ?, ?> shuffleServiceFactory =
                 ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
-        assertThat(
-                "Loaded shuffle service factory is not the custom test implementation",
-                shuffleServiceFactory,
-                instanceOf(CustomShuffleServiceFactory.class));
+        assertThat(shuffleServiceFactory)
+                .withFailMessage(
+                        "Loaded shuffle service factory is not the custom test implementation")
+                .isInstanceOf(CustomShuffleServiceFactory.class);
     }
 
-    @Test(expected = FlinkException.class)
-    public void testLoadShuffleServiceFactoryFailure() throws FlinkException {
+    @Test
+    public void testLoadShuffleServiceFactoryFailure() {
         Configuration configuration = new Configuration();
         configuration.setString(
                 SHUFFLE_SERVICE_FACTORY_CLASS,
                 "org.apache.flink.runtime.shuffle.UnavailableShuffleServiceFactory");
-        ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+        assertThatThrownBy(() -> ShuffleServiceLoader.loadShuffleServiceFactory(configuration))
+                .isInstanceOf(FlinkException.class);
     }
 
     /**
