@@ -19,7 +19,7 @@
 
 source "$(dirname "$0")"/common.sh
 
-TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-end-to-end-failure-enricher-test/target/FailureEnricherTest.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-failure-enricher-test/target/FailureEnricherTest.jar
 
 echo "Moving the custom failure enricher to plugin/failure-enricher package"
 
