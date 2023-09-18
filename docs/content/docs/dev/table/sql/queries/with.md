@@ -33,7 +33,7 @@ The syntax of `WITH` statement is:
 WITH <with_item_definition> [ , ... ]
 SELECT ... FROM ...;
 
-<with_item_defintion>:
+<with_item_definition>:
     with_item_name (column_name[, ...n]) AS ( <select_query> )
 ```
 
