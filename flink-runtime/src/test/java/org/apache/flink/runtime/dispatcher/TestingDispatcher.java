@@ -62,7 +62,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 
 /** {@link Dispatcher} implementation used for testing purposes. */
-class TestingDispatcher extends Dispatcher {
+public class TestingDispatcher extends Dispatcher {
 
     private final CompletableFuture<Void> startFuture;
 
@@ -133,6 +133,10 @@ class TestingDispatcher extends Dispatcher {
         startFuture.complete(null);
     }
 
+    public void cleanupJob(JobID jobId) {
+        runAsync(() -> getJobTerminationFuture(jobId).complete(null));
+    }
+
     void completeJobExecution(ExecutionGraphInfo executionGraphInfo) {
         runAsync(
                 () -> {
@@ -165,6 +169,7 @@ class TestingDispatcher extends Dispatcher {
         return new Builder();
     }
 
+    /** Builder to build {@link TestingDispatcher}. */
     public static class Builder {
         private DispatcherId fencingToken = DispatcherId.generate();
         private Collection<JobGraph> recoveredJobs = Collections.emptyList();
