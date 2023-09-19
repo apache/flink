@@ -65,7 +65,7 @@ class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testReadingMetadataWithProjectionPushDownDisabled() throws Exception {
+    void testReadingMetadataWithProjectionPushDownDisabled() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.smallData3()),

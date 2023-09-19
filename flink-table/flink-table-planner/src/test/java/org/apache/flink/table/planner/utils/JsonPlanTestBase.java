@@ -60,15 +60,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** The base class for json plan testing. */
 public abstract class JsonPlanTestBase {
 
-    private static final int DEFAULT_TASK_MANAGERS = 1;
-    private static final int DEFAULT_PARALLELISM = 4;
-
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(DEFAULT_TASK_MANAGERS)
-                            .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(4)
                             .build());
 
     @TempDir protected Path tempFolder;
