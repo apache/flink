@@ -126,6 +126,23 @@ public class HistoryServerOptions {
                             "Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the"
                                     + " global SSL flag security.ssl.enabled is set to true.");
 
+    public static final ConfigOption<Integer> HISTORY_SERVER_CACHED_JOBS =
+            key("historyserver.archive.cached-retained-jobs")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            String.format(
+                                                    "The maximum number of n latest jobs to retain in the local directory defined by `%s`. ",
+                                                    HISTORY_SERVER_WEB_DIR.key()))
+                                    .text(
+                                            "If this configuration is provided, the remote and local storage of job archives will be decoupled.")
+                                    .text(
+                                            "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
+                                            code("IllegalConfigurationException"))
+                                    .build());
+
     public static final ConfigOption<Integer> HISTORY_SERVER_RETAINED_JOBS =
             key("historyserver.archive.retained-jobs")
                     .intType()
@@ -140,6 +157,25 @@ public class HistoryServerOptions {
                                             "If set to `-1`(default), there is no limit to the number of archives. ")
                                     .text(
                                             "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
+                                            code("IllegalConfigurationException"))
+                                    .build());
+
+    public static final ConfigOption<Integer> HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS =
+            key("historyserver.archive.num-cached-most-recently-viewed-jobs")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            String.format(
+                                                    "The maximum number of jobs to retain in the local cache defined by `%s` which "
+                                                            + "stores the job archives that are fetched from the remote storage. This "
+                                                            + "limit is distinct from the number of most recent jobs which will in the cache."
+                                                            + "The total cache size is a combination of the number of remote cache jobs and "
+                                                            + "the number of remote fetch cached jobs and retained cache jobs.",
+                                                    HISTORY_SERVER_WEB_DIR.key()))
+                                    .text(
+                                            "If set to less than `0` HistoryServer will throw an %s. ",
                                             code("IllegalConfigurationException"))
                                     .build());
 

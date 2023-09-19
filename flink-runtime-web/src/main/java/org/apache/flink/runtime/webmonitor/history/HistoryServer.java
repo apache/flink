@@ -112,6 +112,8 @@ public class HistoryServer {
 
     private final HistoryServerArchiveFetcher archiveFetcher;
 
+    private final HistoryServerStaticFileServerHandler staticFileServerHandler;
+
     @Nullable private final SSLHandlerFactory serverSSLFactory;
     private WebFrontendBootstrap netty;
 
@@ -215,12 +217,12 @@ public class HistoryServer {
             throw new FlinkException(
                     HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS + " was not configured.");
         }
-        List<RefreshLocation> refreshDirs = new ArrayList<>();
+        List<HistoryServer.RefreshLocation> refreshDirs = new ArrayList<>();
         for (String refreshDirectory : refreshDirectories.split(",")) {
             try {
                 Path refreshPath = new Path(refreshDirectory);
                 FileSystem refreshFS = refreshPath.getFileSystem();
-                refreshDirs.add(new RefreshLocation(refreshPath, refreshFS));
+                refreshDirs.add(new HistoryServer.RefreshLocation(refreshPath, refreshFS));
             } catch (Exception e) {
                 // there's most likely something wrong with the path itself, so we ignore it from
                 // here on
@@ -244,13 +246,41 @@ public class HistoryServer {
                     "Cannot set %s to 0 or less than -1",
                     HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
         }
+        boolean remoteFetchEnabled =
+                config.contains(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS);
+
+        int generalCachedJobSize = -1;
+        if (remoteFetchEnabled) {
+            generalCachedJobSize = config.get(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS);
+            if (generalCachedJobSize == 0 || generalCachedJobSize < -1) {
+                throw new IllegalConfigurationException(
+                        "Cannot set %s to 0 or less than -1",
+                        HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS.key());
+            }
+        }
+        int numCachedMostRecentlyViewedJobs =
+                config.get(
+                        HistoryServerOptions.HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS);
+        if (numCachedMostRecentlyViewedJobs <= 0) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to less than 0",
+                    HistoryServerOptions.HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS.key());
+        }
+
         archiveFetcher =
                 new HistoryServerArchiveFetcher(
                         refreshDirs,
                         webDir,
                         jobArchiveEventListener,
                         cleanupExpiredArchives,
-                        maxHistorySize);
+                        maxHistorySize,
+                        generalCachedJobSize,
+                        remoteFetchEnabled,
+                        numCachedMostRecentlyViewedJobs);
+
+        staticFileServerHandler =
+                new HistoryServerStaticFileServerHandler(
+                        webDir, remoteFetchEnabled, archiveFetcher);
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -310,7 +340,7 @@ public class HistoryServer {
                                             new GeneratedLogUrlHandler(
                                                     CompletableFuture.completedFuture(pattern))));
 
-            router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
+            router.addGet("/:*", staticFileServerHandler);
 
             createDashboardConfigFile();
 
@@ -393,11 +423,11 @@ public class HistoryServer {
     }
 
     /** Container for the {@link Path} and {@link FileSystem} of a refresh directory. */
-    static class RefreshLocation {
+    public static class RefreshLocation {
         private final Path path;
         private final FileSystem fs;
 
-        private RefreshLocation(Path path, FileSystem fs) {
+        public RefreshLocation(Path path, FileSystem fs) {
             this.path = path;
             this.fs = fs;
         }

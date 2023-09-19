@@ -44,11 +44,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
@@ -74,7 +77,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the HistoryServer. */
 class HistoryServerTest {
-
     private static final JsonFactory JACKSON_FACTORY =
             new JsonFactory()
                     .enable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
@@ -176,15 +178,14 @@ class HistoryServerTest {
         }
 
         CountDownLatch numArchivesCreatedInitially = new CountDownLatch(numArchivesToKeepInHistory);
-        CountDownLatch numArchivesDeletedInitially =
-                new CountDownLatch(numArchivesToRemoveUponHsStart);
         CountDownLatch numArchivesCreatedTotal =
                 new CountDownLatch(
                         numArchivesBeforeHsStarted
                                 - numArchivesToRemoveUponHsStart
                                 + numArchivesAfterHsStarted);
-        CountDownLatch numArchivesDeletedTotal =
-                new CountDownLatch(numArchivesToRemoveUponHsStart + numArchivesAfterHsStarted);
+        CountDownLatch numArchivesDeletedTotal = new CountDownLatch(numArchivesAfterHsStarted);
+        CountDownLatch numArchivesRemovedInitially =
+                new CountDownLatch(numArchivesToRemoveUponHsStart);
 
         Configuration historyServerConfig =
                 createTestConfiguration(
@@ -201,8 +202,10 @@ class HistoryServerTest {
                                     numArchivesCreatedTotal.countDown();
                                     break;
                                 case DELETED:
-                                    numArchivesDeletedInitially.countDown();
                                     numArchivesDeletedTotal.countDown();
+                                    break;
+                                case DELETED_FROM_REMOTE:
+                                    numArchivesRemovedInitially.countDown();
                                     break;
                             }
                         });
@@ -211,7 +214,7 @@ class HistoryServerTest {
             hs.start();
             String baseUrl = "http://localhost:" + hs.getWebPort();
             assertThat(numArchivesCreatedInitially.await(10L, TimeUnit.SECONDS)).isTrue();
-            assertThat(numArchivesDeletedInitially.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(numArchivesRemovedInitially.await(10L, TimeUnit.SECONDS)).isTrue();
             assertThat(getIdsFromJobOverview(baseUrl))
                     .isEqualTo(new HashSet<>(expectedJobIdsToKeep));
 
@@ -251,6 +254,24 @@ class HistoryServerTest {
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
+    @Test
+    void testFailIfCacheSizeLimitIsZero() throws Exception {
+        assertThatThrownBy(() -> startHistoryServerWithCacheSizeLimit(0))
+                .isInstanceOf(IllegalConfigurationException.class);
+    }
+
+    @Test
+    void testFailIfCacheSizeLimitIsLessThanMinusOne() throws Exception {
+        assertThatThrownBy(() -> startHistoryServerWithCacheSizeLimit(-2))
+                .isInstanceOf(IllegalConfigurationException.class);
+    }
+
+    @Test
+    void testFailIfRemoteCacheSizeLimitIsLessThanOrEqualToZero() throws Exception {
+        assertThatThrownBy(() -> startHistoryServerWithRemoteFetchCacheSizeLimit(0))
+                .isInstanceOf(IllegalConfigurationException.class);
+    }
+
     private void startHistoryServerWithSizeLimit(int maxHistorySize)
             throws IOException, FlinkException, InterruptedException {
         Configuration historyServerConfig =
@@ -260,30 +281,73 @@ class HistoryServerTest {
         new HistoryServer(historyServerConfig).start();
     }
 
-    @Test
-    void testCleanExpiredJob() throws Exception {
-        runArchiveExpirationTest(true);
+    private void startHistoryServerWithCacheSizeLimit(int maxCacheSize)
+            throws IOException, FlinkException, InterruptedException {
+        Configuration historyServerConfig =
+                createTestConfiguration(
+                        HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS.defaultValue());
+        historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS, maxCacheSize);
+        new HistoryServer(historyServerConfig).start();
     }
 
-    @Test
-    void testRemainExpiredJob() throws Exception {
-        runArchiveExpirationTest(false);
+    private void startHistoryServerWithRemoteFetchCacheSizeLimit(
+            int numCachedMostRecentlyViewedJobs)
+            throws IOException, FlinkException, InterruptedException {
+        Configuration historyServerConfig =
+                createTestConfiguration(
+                        HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS.defaultValue());
+        historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS, 3);
+        historyServerConfig.set(
+                HistoryServerOptions.HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS,
+                numCachedMostRecentlyViewedJobs);
+        new HistoryServer(historyServerConfig).start();
     }
 
-    private void runArchiveExpirationTest(boolean cleanupExpiredJobs) throws Exception {
+    private static Stream<Arguments> archiveExpirationTestSource() {
+        return Stream.of(
+                Arguments.arguments(true, 3, 5, 5, 3),
+                Arguments.arguments(false, 3, 5, 5, 3),
+                Arguments.arguments(true, 3, 5, 1, 1),
+                Arguments.arguments(false, 3, 5, 1, 1),
+                Arguments.arguments(true, 5, 4, -1, 4),
+                Arguments.arguments(false, 3, 1, 5, 1),
+                Arguments.arguments(true, 5, 1, -1, 1),
+                Arguments.arguments(true, 3, 5, 2, 2),
+                Arguments.arguments(true, 4, -1, 3, 3),
+                Arguments.arguments(true, 3, -1, -1, 3),
+                Arguments.arguments(false, 3, -1, -1, 3));
+    }
+
+    @ParameterizedTest
+    @MethodSource("archiveExpirationTestSource")
+    void runArchiveExpirationTest(
+            boolean cleanupExpiredJobs,
+            final int numJobs,
+            final int maxCache,
+            final int maxHistory,
+            final int limitingHistory)
+            throws Exception {
         int numExpiredJobs = cleanupExpiredJobs ? 1 : 0;
-        int numJobs = 3;
         for (int x = 0; x < numJobs; x++) {
             runJob();
         }
         waitForArchivesCreation(numJobs);
 
-        CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs);
-        CountDownLatch firstArchiveExpiredLatch = new CountDownLatch(numExpiredJobs);
-        CountDownLatch allArchivesExpiredLatch =
-                new CountDownLatch(cleanupExpiredJobs ? numJobs : 0);
+        CountDownLatch numExpectedArchivedJobs = new CountDownLatch(limitingHistory);
+        int initialDeletedArchives =
+                (maxHistory > 0 && maxHistory < numJobs) ? numJobs - maxHistory : 0;
+        CountDownLatch numInitialDeletedArchives = new CountDownLatch(initialDeletedArchives);
+
+        CountDownLatch numDeletedArchivesInCache = new CountDownLatch(numExpiredJobs);
+
+        int allDeletedArchives =
+                (maxCache > 0 && maxCache == limitingHistory) ? maxCache : limitingHistory;
+        CountDownLatch allArchivesExpiredLatch;
+        allArchivesExpiredLatch = new CountDownLatch(cleanupExpiredJobs ? allDeletedArchives : 0);
 
         Configuration historyServerConfig = createTestConfiguration(cleanupExpiredJobs);
+        historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS, maxCache);
+        historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS, maxHistory);
 
         HistoryServer hs =
                 new HistoryServer(
@@ -294,8 +358,11 @@ class HistoryServerTest {
                                     numExpectedArchivedJobs.countDown();
                                     break;
                                 case DELETED:
-                                    firstArchiveExpiredLatch.countDown();
+                                    numDeletedArchivesInCache.countDown();
                                     allArchivesExpiredLatch.countDown();
+                                    break;
+                                case DELETED_FROM_REMOTE:
+                                    numInitialDeletedArchives.countDown();
                                     break;
                             }
                         });
@@ -304,12 +371,15 @@ class HistoryServerTest {
             hs.start();
             String baseUrl = "http://localhost:" + hs.getWebPort();
             assertThat(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(numInitialDeletedArchives.await(10L, TimeUnit.SECONDS)).isTrue();
 
             Collection<JobDetails> jobs = getJobsOverview(baseUrl).getJobs();
-            assertThat(jobs).hasSize(numJobs);
+            assertThat(jobs).hasSize(Math.min(numJobs, limitingHistory));
 
+            int jobCount = jobs.size();
             String jobIdToDelete =
                     jobs.stream()
+                            .skip(jobCount - 1)
                             .findFirst()
                             .map(JobDetails::getJobId)
                             .map(JobID::toString)
@@ -322,34 +392,125 @@ class HistoryServerTest {
             // we fetch again to probabilistically cause a concurrent deletion
             hs.fetchArchives();
             Files.deleteIfExists(jmDirectory.toPath().resolve(jobIdToDelete));
-
-            assertThat(firstArchiveExpiredLatch.await(10L, TimeUnit.SECONDS)).isTrue();
-
+            assertThat(numDeletedArchivesInCache.await(10L, TimeUnit.SECONDS)).isTrue();
             // check that archive is still/no longer present in hs
             Collection<JobDetails> jobsAfterDeletion = getJobsOverview(baseUrl).getJobs();
-            assertThat(jobsAfterDeletion).hasSize(numJobs - numExpiredJobs);
-            assertThat(
-                            jobsAfterDeletion.stream()
-                                    .map(JobDetails::getJobId)
-                                    .map(JobID::toString)
-                                    .filter(jobId -> jobId.equals(jobIdToDelete))
-                                    .count())
-                    .isEqualTo(1 - numExpiredJobs);
 
-            // delete remaining archives from jm and ensure files are cleaned up
-            List<String> remainingJobIds =
-                    jobsAfterDeletion.stream()
-                            .map(JobDetails::getJobId)
-                            .map(JobID::toString)
-                            .collect(Collectors.toList());
-
-            for (String remainingJobId : remainingJobIds) {
-                Files.deleteIfExists(jmDirectory.toPath().resolve(remainingJobId));
+            if (numExpiredJobs != 0) {
+                assertThat(
+                                jobsAfterDeletion.stream()
+                                        .map(JobDetails::getJobId)
+                                        .map(JobID::toString)
+                                        .filter(jobId -> jobId.equals(jobIdToDelete))
+                                        .count())
+                        .isEqualTo(0);
             }
 
+            // delete remaining archives from jm and ensure files are cleaned up
+            FileUtils.cleanDirectory(jmDirectory);
             assertThat(allArchivesExpiredLatch.await(10L, TimeUnit.SECONDS)).isTrue();
-
+            Thread.sleep(3000);
             assertJobFilesCleanedUp(cleanupExpiredJobs);
+        } finally {
+            hs.stop();
+        }
+    }
+
+    private static Stream<Arguments> remoteAndLocalCacheSource() {
+        return Stream.of(
+                Arguments.arguments(true, 1, 3, 1),
+                Arguments.arguments(false, 1, 3, 1),
+                Arguments.arguments(true, 3, 1, 1),
+                Arguments.arguments(false, 1, 3, 1),
+                Arguments.arguments(
+                        true,
+                        2,
+                        HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.defaultValue(),
+                        2),
+                Arguments.arguments(
+                        false,
+                        2,
+                        HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.defaultValue(),
+                        2),
+                Arguments.arguments(true, -1, 2, 2),
+                Arguments.arguments(false, -1, 2, 2));
+    }
+
+    @ParameterizedTest
+    @MethodSource("remoteAndLocalCacheSource")
+    void testRemoveLocalAndRemoteArchiveLimits(
+            final boolean versionLessThan14,
+            final int cacheLimit,
+            final int remoteHistoryLimit,
+            final int limitingStorage)
+            throws Exception {
+
+        final int numRemoteArchivesBeforeHsStarted = 4;
+        final int numRemoteArchivesAfterHsStarted = 2;
+
+        final int numArchivesDeletedAfterHsStarted =
+                numRemoteArchivesAfterHsStarted - limitingStorage;
+
+        final long oneMinuteSinceEpoch = 1000L * 60L;
+        List<String> expectedJobIdsToKeep = new LinkedList<>();
+
+        for (int j = 0; j < numRemoteArchivesBeforeHsStarted; j++) {
+            String jobId =
+                    createLegacyArchive(
+                            jmDirectory.toPath(), j * oneMinuteSinceEpoch, versionLessThan14);
+            if (j >= numRemoteArchivesBeforeHsStarted - limitingStorage) {
+                expectedJobIdsToKeep.add(jobId);
+            }
+        }
+
+        CountDownLatch numArchivesCreatedInitially = new CountDownLatch(limitingStorage);
+        CountDownLatch numArchivesCreatedTotal = new CountDownLatch(limitingStorage * 2);
+        CountDownLatch numArchivesDeletedTotal =
+                new CountDownLatch(numArchivesDeletedAfterHsStarted);
+
+        Configuration historyServerConfig =
+                createTestConfiguration(
+                        HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS.defaultValue());
+        if (cacheLimit > 0) {
+            historyServerConfig.set(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS, cacheLimit);
+        }
+        historyServerConfig.set(
+                HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS, remoteHistoryLimit);
+
+        HistoryServer hs =
+                new HistoryServer(
+                        historyServerConfig,
+                        (event) -> {
+                            switch (event.getType()) {
+                                case CREATED:
+                                    numArchivesCreatedInitially.countDown();
+                                    numArchivesCreatedTotal.countDown();
+                                    break;
+                                case DELETED:
+                                    numArchivesDeletedTotal.countDown();
+                                    break;
+                            }
+                        });
+
+        try {
+            hs.start();
+            String baseUrl = "http://localhost:" + hs.getWebPort();
+            assertThat(numArchivesCreatedInitially.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(getIdsFromJobOverview(baseUrl))
+                    .isEqualTo(new HashSet<>(expectedJobIdsToKeep));
+
+            for (int j = numRemoteArchivesBeforeHsStarted;
+                    j < numRemoteArchivesBeforeHsStarted + numRemoteArchivesAfterHsStarted;
+                    j++) {
+                expectedJobIdsToKeep.remove(0);
+                expectedJobIdsToKeep.add(
+                        createLegacyArchive(
+                                jmDirectory.toPath(), j * oneMinuteSinceEpoch, versionLessThan14));
+            }
+            assertThat(numArchivesCreatedTotal.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(numArchivesDeletedTotal.await(10L, TimeUnit.SECONDS)).isTrue();
+            assertThat(getIdsFromJobOverview(baseUrl))
+                    .isEqualTo(new HashSet<>(expectedJobIdsToKeep));
         } finally {
             hs.stop();
         }
@@ -391,7 +552,7 @@ class HistoryServerTest {
                 HistoryServerOptions.HISTORY_SERVER_WEB_DIR, hsDirectory.getAbsolutePath());
         historyServerConfig.set(
                 HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL,
-                Duration.ofMillis(100L));
+                Duration.ofMillis(1000L));
 
         historyServerConfig.set(
                 HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS, cleanupExpiredJobs);

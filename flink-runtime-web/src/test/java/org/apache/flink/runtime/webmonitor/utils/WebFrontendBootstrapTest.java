@@ -20,10 +20,13 @@ package org.apache.flink.runtime.webmonitor.utils;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.io.network.netty.InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio1InboundChannelHandlerFactory;
 import org.apache.flink.runtime.rest.handler.router.Router;
+import org.apache.flink.runtime.webmonitor.history.HistoryServer;
+import org.apache.flink.runtime.webmonitor.history.HistoryServerArchiveFetcher;
 import org.apache.flink.runtime.webmonitor.history.HistoryServerStaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.testutils.HttpUtils;
 import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
@@ -36,6 +39,8 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,12 +62,28 @@ class WebFrontendBootstrapTest {
     @Test
     void testHandlersMustBeLoaded() throws Exception {
         Path webDir = Files.createDirectories(tmp.resolve("webDir"));
+
+        Path refreshDir = Files.createDirectories(tmp.resolve("refreshDir"));
+        final org.apache.flink.core.fs.Path tempDirFs =
+                new org.apache.flink.core.fs.Path(refreshDir.toUri());
+
+        List<HistoryServer.RefreshLocation> refreshDirs = new ArrayList<>();
+        FileSystem refreshFS = tempDirFs.getFileSystem();
+        refreshDirs.add(new HistoryServer.RefreshLocation(tempDirFs, refreshFS));
+
         Configuration configuration = new Configuration();
         configuration.set(Prio0InboundChannelHandlerFactory.REDIRECT_FROM_URL, "/nonExisting");
         configuration.set(Prio0InboundChannelHandlerFactory.REDIRECT_TO_URL, "/index.html");
+
+        HistoryServerArchiveFetcher archiveFetcher =
+                new HistoryServerArchiveFetcher(
+                        refreshDirs, webDir.toFile(), (event) -> {}, true, 10, 5, true, 3);
         Router<?> router =
                 new Router<>()
-                        .addGet("/:*", new HistoryServerStaticFileServerHandler(webDir.toFile()));
+                        .addGet(
+                                "/:*",
+                                new HistoryServerStaticFileServerHandler(
+                                        webDir.toFile(), false, archiveFetcher));
         WebFrontendBootstrap webUI =
                 new WebFrontendBootstrap(
                         router,
