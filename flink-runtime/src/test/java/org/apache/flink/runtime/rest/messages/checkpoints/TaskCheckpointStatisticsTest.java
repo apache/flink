@@ -20,9 +20,13 @@ package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.checkpoint.CheckpointStatsStatus;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /** Tests the (un)marshalling of {@link TaskCheckpointStatistics}. */
-public class TaskCheckpointStatisticsTest
+@ExtendWith(NoOpTestExtension.class)
+class TaskCheckpointStatisticsTest
         extends RestResponseMarshallingTestBase<TaskCheckpointStatistics> {
 
     @Override

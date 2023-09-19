@@ -23,12 +23,16 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.HardwareDescription;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Random;
 import java.util.UUID;
 
 /** Test for (un)marshalling of the {@link TaskManagerInfo}. */
-public class TaskManagerInfoTest extends RestResponseMarshallingTestBase<TaskManagerInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class TaskManagerInfoTest extends RestResponseMarshallingTestBase<TaskManagerInfo> {
 
     private static final Random random = new Random();
 

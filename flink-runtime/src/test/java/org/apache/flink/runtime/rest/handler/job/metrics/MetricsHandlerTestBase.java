@@ -30,22 +30,18 @@ import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionResponseBody;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit test base class for subclasses of {@link AbstractMetricsHandler}. */
-public abstract class MetricsHandlerTestBase<T extends AbstractMetricsHandler> extends TestLogger {
+abstract class MetricsHandlerTestBase<T extends AbstractMetricsHandler> {
 
     private static final String TEST_METRIC_NAME = "test_counter";
 
@@ -65,8 +61,8 @@ public abstract class MetricsHandlerTestBase<T extends AbstractMetricsHandler> e
 
     private Map<String, String> pathParameters;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         final MetricStore metricStore = new MetricStore();
         metricStore.add(
                 new MetricDump.CounterDump(
@@ -97,7 +93,7 @@ public abstract class MetricsHandlerTestBase<T extends AbstractMetricsHandler> e
      * AbstractMetricsHandler#getComponentMetricStore(HandlerRequest, MetricStore)}.
      */
     @Test
-    public void testGetMetric() throws Exception {
+    void testGetMetric() throws Exception {
         @SuppressWarnings("unchecked")
         final CompletableFuture<MetricCollectionResponseBody> completableFuture =
                 metricsHandler.handleRequest(
@@ -109,13 +105,13 @@ public abstract class MetricsHandlerTestBase<T extends AbstractMetricsHandler> e
                                 Collections.emptyList()),
                         mockDispatcherGateway);
 
-        assertTrue(completableFuture.isDone());
+        assertThat(completableFuture).isDone();
 
         final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
-        assertThat(metricCollectionResponseBody.getMetrics(), hasSize(1));
+        assertThat(metricCollectionResponseBody.getMetrics()).hasSize(1);
 
         final Metric metric = metricCollectionResponseBody.getMetrics().iterator().next();
-        assertThat(metric.getId(), equalTo(getExpectedIdForMetricName(TEST_METRIC_NAME)));
+        assertThat(metric.getId()).isEqualTo(getExpectedIdForMetricName(TEST_METRIC_NAME));
     }
 
     /** Returns instance under test. */

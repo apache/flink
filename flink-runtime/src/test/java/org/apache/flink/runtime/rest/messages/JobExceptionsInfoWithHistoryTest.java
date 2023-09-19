@@ -19,22 +19,23 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests that the {@link JobExceptionsInfoWithHistory} can be marshalled and unmarshalled. */
-public class JobExceptionsInfoWithHistoryTest
+@ExtendWith(NoOpTestExtension.class)
+class JobExceptionsInfoWithHistoryTest
         extends RestResponseMarshallingTestBase<JobExceptionsInfoWithHistory> {
     @Override
     protected Class<JobExceptionsInfoWithHistory> getTestResponseClass() {
@@ -74,14 +75,14 @@ public class JobExceptionsInfoWithHistoryTest
      * @throws JsonProcessingException is not expected to be thrown
      */
     @Test
-    public void testNullFieldsNotSet() throws JsonProcessingException {
+    void testNullFieldsNotSet() throws JsonProcessingException {
         ObjectMapper objMapper = RestMapperUtils.getStrictObjectMapper();
         String json =
                 objMapper.writeValueAsString(
                         new JobExceptionsInfoWithHistory.ExceptionInfo(
                                 "exception name", "stacktrace", 0L));
 
-        assertThat(json, not(CoreMatchers.containsString("taskName")));
-        assertThat(json, not(CoreMatchers.containsString("location")));
+        assertThat(json).doesNotContain("taskName");
+        assertThat(json).doesNotContain("location");
     }
 }

@@ -19,43 +19,31 @@
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
-import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
-import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 
 import java.util.HashMap;
 import java.util.Map;
 
-/** Tests for {@link SubtaskMetricsHandler}. */
-public class SubtaskMetricsHandlerTest extends MetricsHandlerTestBase<SubtaskMetricsHandler> {
+/** Tests for {@link JobMetricsHandler}. */
+class JobMetricsHandlerTestBase extends MetricsHandlerTestBase<JobMetricsHandler> {
 
     private static final String TEST_JOB_ID = new JobID().toString();
 
-    private static final String TEST_VERTEX_ID = new JobVertexID().toString();
-
-    private static final int TEST_SUBTASK_INDEX = 0;
-
-    private static final int TEST_ATTEMPT_NUMBER = 0;
-
     @Override
-    SubtaskMetricsHandler getMetricsHandler() {
-        return new SubtaskMetricsHandler(leaderRetriever, TIMEOUT, TEST_HEADERS, mockMetricFetcher);
+    JobMetricsHandler getMetricsHandler() {
+        return new JobMetricsHandler(leaderRetriever, TIMEOUT, TEST_HEADERS, mockMetricFetcher);
     }
 
     @Override
     QueryScopeInfo getQueryScopeInfo() {
-        return new QueryScopeInfo.TaskQueryScopeInfo(
-                TEST_JOB_ID, TEST_VERTEX_ID, TEST_SUBTASK_INDEX, TEST_ATTEMPT_NUMBER);
+        return new QueryScopeInfo.JobQueryScopeInfo(TEST_JOB_ID);
     }
 
     @Override
     Map<String, String> getPathParameters() {
-        final Map<String, String> pathParameters = new HashMap<>();
+        Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(JobIDPathParameter.KEY, TEST_JOB_ID);
-        pathParameters.put(JobVertexIdPathParameter.KEY, TEST_VERTEX_ID);
-        pathParameters.put(SubtaskIndexPathParameter.KEY, Integer.toString(TEST_SUBTASK_INDEX));
         return pathParameters;
     }
 }

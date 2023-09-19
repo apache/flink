@@ -18,36 +18,35 @@
 
 package org.apache.flink.runtime.rest.versioning;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for {@link RuntimeRestAPIVersion}. */
-public class RuntimeRestAPIVersionTest extends TestLogger {
+class RuntimeRestAPIVersionTest {
     @Test
-    public void testGetLatest() {
+    void testGetLatest() {
         Collection<RuntimeRestAPIVersion> candidates =
                 Arrays.asList(RuntimeRestAPIVersion.V0, RuntimeRestAPIVersion.V1);
-        Assert.assertEquals(RuntimeRestAPIVersion.V1, RestAPIVersion.getLatestVersion(candidates));
+        assertThat(RestAPIVersion.getLatestVersion(candidates)).isEqualTo(RuntimeRestAPIVersion.V1);
     }
 
     @Test
-    public void testSingleDefaultVersion() {
+    void testSingleDefaultVersion() {
         final List<RuntimeRestAPIVersion> defaultVersions =
                 Arrays.stream(RuntimeRestAPIVersion.values())
                         .filter(RuntimeRestAPIVersion::isDefaultVersion)
                         .collect(Collectors.toList());
 
-        Assert.assertEquals(
-                "Only one RestAPIVersion should be marked as the default. Defaults: "
-                        + defaultVersions,
-                1,
-                defaultVersions.size());
+        assertThat(defaultVersions.size())
+                .as(
+                        "Only one RestAPIVersion should be marked as the default. Defaults: "
+                                + defaultVersions)
+                .isOne();
     }
 }

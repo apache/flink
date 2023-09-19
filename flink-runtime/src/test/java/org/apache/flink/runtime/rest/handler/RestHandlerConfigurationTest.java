@@ -23,10 +23,8 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.configuration.WebOptions;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -35,7 +33,6 @@ import java.time.Duration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link RestHandlerConfiguration}. */
-@ExtendWith(TestLoggerExtension.class)
 class RestHandlerConfigurationTest {
 
     @Test
@@ -108,7 +105,7 @@ class RestHandlerConfigurationTest {
     }
 
     @Test
-    public void testCheckpointCacheExpireAfterWrite() {
+    void testCheckpointCacheExpireAfterWrite() {
         final Duration testDuration = Duration.ofMillis(100L);
         final Configuration config = new Configuration();
         config.set(RestOptions.CACHE_CHECKPOINT_STATISTICS_TIMEOUT, testDuration);
@@ -120,7 +117,7 @@ class RestHandlerConfigurationTest {
     }
 
     @Test
-    public void testCheckpointCacheExpiryFallbackToRefreshInterval() {
+    void testCheckpointCacheExpiryFallbackToRefreshInterval() {
         final long refreshInterval = 1000L;
         final Configuration config = new Configuration();
         config.set(WebOptions.REFRESH_INTERVAL, refreshInterval);
@@ -132,7 +129,7 @@ class RestHandlerConfigurationTest {
     }
 
     @Test
-    public void testCheckpointCacheSize() {
+    void testCheckpointCacheSize() {
         final int testCacheSize = 50;
         final Configuration config = new Configuration();
         config.set(RestOptions.CACHE_CHECKPOINT_STATISTICS_SIZE, testCacheSize);

@@ -52,7 +52,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 
 import org.hamcrest.Description;
@@ -60,7 +59,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.hamcrest.collection.IsEmptyIterable;
 import org.hamcrest.collection.IsIterableContainingInOrder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,18 +72,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.collection.IsEmptyCollection.empty;
-import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.collection.IsIterableWithSize.iterableWithSize;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /** Test for the {@link JobExceptionsHandler}. */
-public class JobExceptionsHandlerTest extends TestLogger {
+class JobExceptionsHandlerTest {
 
     private final JobExceptionsHandler testInstance =
             new JobExceptionsHandler(
@@ -96,7 +90,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
                     Executors.directExecutor());
 
     @Test
-    public void testNoExceptions() throws HandlerRequestException {
+    void testNoExceptions() throws HandlerRequestException {
         final ExecutionGraphInfo executionGraphInfo =
                 new ExecutionGraphInfo(new ArchivedExecutionGraphBuilder().build());
 
@@ -105,15 +99,15 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
 
-        assertThat(response.getRootException(), is(nullValue()));
-        assertThat(response.getRootTimestamp(), is(nullValue()));
-        assertFalse(response.isTruncated());
-        assertThat(response.getAllExceptions(), empty());
-        assertThat(response.getExceptionHistory().getEntries(), empty());
+        assertThat(response.getRootException()).isNull();
+        assertThat(response.getRootTimestamp()).isNull();
+        assertThat(response.isTruncated()).isFalse();
+        assertThat(response.getAllExceptions()).isEmpty();
+        assertThat(response.getExceptionHistory().getEntries()).isEmpty();
     }
 
     @Test
-    public void testOnlyRootCause()
+    void testOnlyRootCause()
             throws HandlerRequestException, ExecutionException, InterruptedException {
         final Throwable rootCause = new RuntimeException("root cause");
         final long rootCauseTimestamp = System.currentTimeMillis();
@@ -125,18 +119,22 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
 
-        assertThat(response.getRootException(), is(ExceptionUtils.stringifyException(rootCause)));
-        assertThat(response.getRootTimestamp(), is(rootCauseTimestamp));
-        assertFalse(response.isTruncated());
-        assertThat(response.getAllExceptions(), empty());
+        assertThat(response.getRootException())
+                .isEqualTo(ExceptionUtils.stringifyException(rootCause));
+        assertThat(response.getRootTimestamp()).isEqualTo(rootCauseTimestamp);
+        assertThat(response.isTruncated()).isFalse();
+        assertThat(response.getAllExceptions()).isEmpty();
 
-        assertThat(
-                response.getExceptionHistory().getEntries(),
-                contains(historyContainsGlobalFailure(rootCause, rootCauseTimestamp)));
+        assertThat(response.getExceptionHistory().getEntries())
+                .satisfies(
+                        matching(
+                                contains(
+                                        historyContainsGlobalFailure(
+                                                rootCause, rootCauseTimestamp))));
     }
 
     @Test
-    public void testOnlyExceptionHistory()
+    void testOnlyExceptionHistory()
             throws HandlerRequestException, ExecutionException, InterruptedException {
         final RuntimeException rootThrowable = new RuntimeException("exception #0");
         final long rootTimestamp = System.currentTimeMillis();
@@ -148,17 +146,19 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
 
-        assertThat(response.getRootException(), is(nullValue()));
-        assertThat(response.getRootTimestamp(), is(nullValue()));
+        assertThat(response.getRootException()).isNull();
+        assertThat(response.getRootTimestamp()).isNull();
 
-        assertThat(
-                response.getExceptionHistory().getEntries(),
-                contains(historyContainsGlobalFailure(rootThrowable, rootTimestamp)));
+        assertThat(response.getExceptionHistory().getEntries())
+                .satisfies(
+                        matching(
+                                contains(
+                                        historyContainsGlobalFailure(
+                                                rootThrowable, rootTimestamp))));
     }
 
     @Test
-    public void testOnlyExceptionHistoryWithNoMatchingFailureLabel()
-            throws HandlerRequestException {
+    void testOnlyExceptionHistoryWithNoMatchingFailureLabel() throws HandlerRequestException {
         final RuntimeException rootThrowable = new RuntimeException("exception #0");
         final long rootTimestamp = System.currentTimeMillis();
         final RootExceptionHistoryEntry rootEntry = fromGlobalFailure(rootThrowable, rootTimestamp);
@@ -170,14 +170,14 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
 
-        assertThat(response.getRootException(), is(nullValue()));
-        assertThat(response.getRootTimestamp(), is(nullValue()));
+        assertThat(response.getRootException()).isNull();
+        assertThat(response.getRootTimestamp()).isNull();
 
-        assertThat(response.getExceptionHistory().getEntries(), is(empty()));
+        assertThat(response.getExceptionHistory().getEntries()).isEmpty();
     }
 
     @Test
-    public void testWithExceptionHistory()
+    void testWithExceptionHistory()
             throws HandlerRequestException, ExecutionException, InterruptedException {
         final RootExceptionHistoryEntry rootCause =
                 fromGlobalFailure(new RuntimeException("exception #0"), System.currentTimeMillis());
@@ -197,25 +197,26 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
 
-        assertThat(
-                response.getExceptionHistory().getEntries(),
-                contains(
-                        historyContainsGlobalFailure(
-                                rootCause.getException(), rootCause.getTimestamp()),
-                        historyContainsJobExceptionInfo(
-                                otherFailure.getException(),
-                                otherFailure.getTimestamp(),
-                                otherFailure.getFailureLabelsFuture(),
-                                otherFailure.getFailingTaskName(),
-                                JobExceptionsHandler.toString(
-                                        otherFailure.getTaskManagerLocation()),
-                                JobExceptionsHandler.toTaskManagerId(
-                                        otherFailure.getTaskManagerLocation()))));
-        assertFalse(response.getExceptionHistory().isTruncated());
+        assertThat(response.getExceptionHistory().getEntries())
+                .satisfies(
+                        matching(
+                                contains(
+                                        historyContainsGlobalFailure(
+                                                rootCause.getException(), rootCause.getTimestamp()),
+                                        historyContainsJobExceptionInfo(
+                                                otherFailure.getException(),
+                                                otherFailure.getTimestamp(),
+                                                otherFailure.getFailureLabelsFuture(),
+                                                otherFailure.getFailingTaskName(),
+                                                JobExceptionsHandler.toString(
+                                                        otherFailure.getTaskManagerLocation()),
+                                                JobExceptionsHandler.toTaskManagerId(
+                                                        otherFailure.getTaskManagerLocation())))));
+        assertThat(response.getExceptionHistory().isTruncated()).isFalse();
     }
 
     @Test
-    public void testWithExceptionHistoryWithMatchingFailureLabel()
+    void testWithExceptionHistoryWithMatchingFailureLabel()
             throws HandlerRequestException, ExecutionException, InterruptedException {
         final RootExceptionHistoryEntry rootCause =
                 fromGlobalFailure(new RuntimeException("exception #0"), System.currentTimeMillis());
@@ -269,24 +270,26 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
 
-        assertThat(response.getExceptionHistory().getEntries().size(), is(1));
-        assertThat(
-                response.getExceptionHistory().getEntries(),
-                contains(
-                        historyContainsJobExceptionInfo(
-                                matchingFailure.getException(),
-                                matchingFailure.getTimestamp(),
-                                matchingFailure.getFailureLabelsFuture(),
-                                matchingFailure.getFailingTaskName(),
-                                JobExceptionsHandler.toString(
-                                        matchingFailure.getTaskManagerLocation()),
-                                JobExceptionsHandler.toTaskManagerId(
-                                        matchingFailure.getTaskManagerLocation()))));
-        assertFalse(response.getExceptionHistory().isTruncated());
+        assertThat(response.getExceptionHistory().getEntries()).hasSize(1);
+        assertThat(response.getExceptionHistory().getEntries())
+                .satisfies(
+                        matching(
+                                contains(
+                                        historyContainsJobExceptionInfo(
+                                                matchingFailure.getException(),
+                                                matchingFailure.getTimestamp(),
+                                                matchingFailure.getFailureLabelsFuture(),
+                                                matchingFailure.getFailingTaskName(),
+                                                JobExceptionsHandler.toString(
+                                                        matchingFailure.getTaskManagerLocation()),
+                                                JobExceptionsHandler.toTaskManagerId(
+                                                        matchingFailure
+                                                                .getTaskManagerLocation())))));
+        assertThat(response.getExceptionHistory().isTruncated()).isFalse();
     }
 
     @Test
-    public void testWithLocalExceptionHistoryEntryNotHavingATaskManagerInformationAvailable()
+    void testWithLocalExceptionHistoryEntryNotHavingATaskManagerInformationAvailable()
             throws HandlerRequestException, ExecutionException, InterruptedException {
         final RootExceptionHistoryEntry failure =
                 new RootExceptionHistoryEntry(
@@ -303,21 +306,23 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
 
-        assertThat(
-                response.getExceptionHistory().getEntries(),
-                contains(
-                        historyContainsJobExceptionInfo(
-                                failure.getException(),
-                                failure.getTimestamp(),
-                                failure.getFailureLabelsFuture(),
-                                failure.getFailingTaskName(),
-                                JobExceptionsHandler.toString(failure.getTaskManagerLocation()),
-                                JobExceptionsHandler.toTaskManagerId(
-                                        failure.getTaskManagerLocation()))));
+        assertThat(response.getExceptionHistory().getEntries())
+                .satisfies(
+                        matching(
+                                contains(
+                                        historyContainsJobExceptionInfo(
+                                                failure.getException(),
+                                                failure.getTimestamp(),
+                                                failure.getFailureLabelsFuture(),
+                                                failure.getFailingTaskName(),
+                                                JobExceptionsHandler.toString(
+                                                        failure.getTaskManagerLocation()),
+                                                JobExceptionsHandler.toTaskManagerId(
+                                                        failure.getTaskManagerLocation())))));
     }
 
     @Test
-    public void testWithExceptionHistoryWithTruncationThroughParameter()
+    void testWithExceptionHistoryWithTruncationThroughParameter()
             throws HandlerRequestException, ExecutionException, InterruptedException {
         final RootExceptionHistoryEntry rootCause =
                 fromGlobalFailure(new RuntimeException("exception #0"), System.currentTimeMillis());
@@ -337,54 +342,57 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final JobExceptionsInfoWithHistory response =
                 testInstance.handleRequest(request, executionGraphInfo);
 
-        assertThat(
-                response.getExceptionHistory().getEntries(),
-                contains(
-                        historyContainsGlobalFailure(
-                                rootCause.getException(), rootCause.getTimestamp())));
-        assertThat(response.getExceptionHistory().getEntries(), iterableWithSize(1));
-        assertTrue(response.getExceptionHistory().isTruncated());
+        assertThat(response.getExceptionHistory().getEntries())
+                .satisfies(
+                        matching(
+                                contains(
+                                        historyContainsGlobalFailure(
+                                                rootCause.getException(),
+                                                rootCause.getTimestamp()))));
+
+        assertThat(response.getExceptionHistory().getEntries())
+                .satisfies(matching(iterableWithSize(1)));
+        assertThat(response.getExceptionHistory().isTruncated()).isTrue();
     }
 
     @Test
-    public void testTaskManagerLocationFallbackHandling() {
-        assertThat(JobExceptionsHandler.toString((TaskManagerLocation) null), is("(unassigned)"));
+    void testTaskManagerLocationFallbackHandling() {
+        assertThat(JobExceptionsHandler.toString((TaskManagerLocation) null))
+                .isEqualTo("(unassigned)");
     }
 
     @Test
-    public void testTaskManagerLocationHandling() {
+    void testTaskManagerLocationHandling() {
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-        assertThat(
-                JobExceptionsHandler.toString(taskManagerLocation),
-                is(
+        assertThat(JobExceptionsHandler.toString(taskManagerLocation))
+                .isEqualTo(
                         String.format(
                                 "%s:%s",
                                 taskManagerLocation.getFQDNHostname(),
-                                taskManagerLocation.dataPort())));
+                                taskManagerLocation.dataPort()));
     }
 
     @Test
-    public void testArchivedTaskManagerLocationFallbackHandling() {
+    void testArchivedTaskManagerLocationFallbackHandling() {
         assertThat(
-                JobExceptionsHandler.toString(
-                        (ExceptionHistoryEntry.ArchivedTaskManagerLocation) null),
-                is(nullValue()));
+                        JobExceptionsHandler.toString(
+                                (ExceptionHistoryEntry.ArchivedTaskManagerLocation) null))
+                .isNull();
     }
 
     @Test
-    public void testArchivedTaskManagerLocationHandling() {
+    void testArchivedTaskManagerLocationHandling() {
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-        assertThat(
-                JobExceptionsHandler.toString(taskManagerLocation),
-                is(
+        assertThat(JobExceptionsHandler.toString(taskManagerLocation))
+                .isEqualTo(
                         String.format(
                                 "%s:%s",
                                 taskManagerLocation.getFQDNHostname(),
-                                taskManagerLocation.dataPort())));
+                                taskManagerLocation.dataPort()));
     }
 
     @Test
-    public void testGetJobExceptionsInfo() throws HandlerRequestException {
+    void testGetJobExceptionsInfo() throws HandlerRequestException {
         final int numExceptions = 20;
         final ExecutionGraphInfo archivedExecutionGraph = createAccessExecutionGraph(numExceptions);
         checkExceptionLimit(testInstance, archivedExecutionGraph, numExceptions, 10);
@@ -403,7 +411,7 @@ public class JobExceptionsHandlerTest extends TestLogger {
         final JobExceptionsInfo jobExceptionsInfo =
                 jobExceptionsHandler.handleRequest(handlerRequest, graph);
         final int numReportedException = Math.min(maxNumExceptions, numExpectedException);
-        assertEquals(jobExceptionsInfo.getAllExceptions().size(), numReportedException);
+        assertThat(numReportedException).isEqualTo(jobExceptionsInfo.getAllExceptions().size());
     }
 
     private static ExecutionGraphInfo createAccessExecutionGraph(int numTasks) {

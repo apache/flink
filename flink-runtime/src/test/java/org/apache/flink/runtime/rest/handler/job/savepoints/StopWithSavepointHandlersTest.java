@@ -40,12 +40,11 @@ import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -57,12 +56,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.rest.handler.job.savepoints.SavepointTestUtilities.getResultIfKeyMatches;
 import static org.apache.flink.runtime.rest.handler.job.savepoints.SavepointTestUtilities.setReferenceToOperationKey;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Test for the {@link
@@ -70,7 +65,7 @@ import static org.junit.Assert.fail;
  *
  * <p>Shamelessly copied from {@link SavepointHandlersTest}.
  */
-public class StopWithSavepointHandlersTest extends TestLogger {
+class StopWithSavepointHandlersTest {
 
     private static final Time TIMEOUT = Time.seconds(10);
 
@@ -87,8 +82,8 @@ public class StopWithSavepointHandlersTest extends TestLogger {
 
     private GatewayRetriever<RestfulGateway> leaderRetriever;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    void setUp() throws Exception {
         leaderRetriever = () -> CompletableFuture.completedFuture(null);
 
         final SavepointHandlers savepointHandlers = new SavepointHandlers(null);
@@ -102,7 +97,7 @@ public class StopWithSavepointHandlersTest extends TestLogger {
     }
 
     @Test
-    public void testSavepointCompletedSuccessfully() throws Exception {
+    void testSavepointCompletedSuccessfully() throws Exception {
         final OperationResult<String> successfulResult =
                 OperationResult.success(COMPLETED_SAVEPOINT_EXTERNAL_POINTER);
         AtomicReference<AsynchronousJobOperationKey> keyReference = new AtomicReference<>();
@@ -125,15 +120,14 @@ public class StopWithSavepointHandlersTest extends TestLogger {
                         .handleRequest(savepointStatusRequest(triggerId), testingRestfulGateway)
                         .get();
 
-        assertThat(savepointResponseBody.queueStatus().getId(), equalTo(QueueStatus.Id.COMPLETED));
-        assertThat(savepointResponseBody.resource(), notNullValue());
-        assertThat(
-                savepointResponseBody.resource().getLocation(),
-                equalTo(COMPLETED_SAVEPOINT_EXTERNAL_POINTER));
+        assertThat(savepointResponseBody.queueStatus().getId()).isEqualTo(QueueStatus.Id.COMPLETED);
+        assertThat(savepointResponseBody.resource()).isNotNull();
+        assertThat(savepointResponseBody.resource().getLocation())
+                .isEqualTo(COMPLETED_SAVEPOINT_EXTERNAL_POINTER);
     }
 
     @Test
-    public void testTriggerSavepointWithDefaultDirectory() throws Exception {
+    void testTriggerSavepointWithDefaultDirectory() throws Exception {
         final CompletableFuture<String> targetDirectoryFuture = new CompletableFuture<>();
         final TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
@@ -155,11 +149,11 @@ public class StopWithSavepointHandlersTest extends TestLogger {
                 .handleRequest(triggerSavepointRequestWithDefaultDirectory(), testingRestfulGateway)
                 .get();
 
-        assertThat(targetDirectoryFuture.get(), equalTo(defaultSavepointDir));
+        assertThat(targetDirectoryFuture.get()).isEqualTo(defaultSavepointDir);
     }
 
     @Test
-    public void testTriggerSavepointNoDirectory() throws Exception {
+    void testTriggerSavepointNoDirectory() throws Exception {
         TestingRestfulGateway testingRestfulGateway =
                 new TestingRestfulGateway.Builder()
                         .setStopWithSavepointFunction(
@@ -176,17 +170,16 @@ public class StopWithSavepointHandlersTest extends TestLogger {
                     .get();
             fail("Expected exception not thrown.");
         } catch (RestHandlerException rhe) {
-            assertThat(
-                    rhe.getMessage(),
-                    equalTo(
+            assertThat(rhe.getMessage())
+                    .isEqualTo(
                             "Config key [state.savepoints.dir] is not set. "
-                                    + "Property [targetDirectory] must be provided."));
-            assertThat(rhe.getHttpResponseStatus(), equalTo(HttpResponseStatus.BAD_REQUEST));
+                                    + "Property [targetDirectory] must be provided.");
+            assertThat(rhe.getHttpResponseStatus()).isEqualTo(HttpResponseStatus.BAD_REQUEST);
         }
     }
 
     @Test
-    public void testSavepointCompletedWithException() throws Exception {
+    void testSavepointCompletedWithException() throws Exception {
         AtomicReference<AsynchronousJobOperationKey> keyReference = new AtomicReference<>();
         final OperationResult<String> failedResult =
                 OperationResult.failure(new RuntimeException("expected"));
@@ -208,20 +201,20 @@ public class StopWithSavepointHandlersTest extends TestLogger {
                         .handleRequest(savepointStatusRequest(triggerId), testingRestfulGateway)
                         .get();
 
-        assertThat(savepointResponseBody.queueStatus().getId(), equalTo(QueueStatus.Id.COMPLETED));
-        assertThat(savepointResponseBody.resource(), notNullValue());
-        assertThat(savepointResponseBody.resource().getFailureCause(), notNullValue());
+        assertThat(savepointResponseBody.queueStatus().getId()).isEqualTo(QueueStatus.Id.COMPLETED);
+        assertThat(savepointResponseBody.resource()).isNotNull();
+        assertThat(savepointResponseBody.resource().getFailureCause()).isNotNull();
         final Throwable savepointError =
                 savepointResponseBody
                         .resource()
                         .getFailureCause()
                         .deserializeError(ClassLoader.getSystemClassLoader());
-        assertThat(savepointError.getMessage(), equalTo("expected"));
-        assertThat(savepointError, instanceOf(RuntimeException.class));
+        assertThat(savepointError.getMessage()).isEqualTo("expected");
+        assertThat(savepointError).isInstanceOf(RuntimeException.class);
     }
 
     @Test
-    public void testProvidedTriggerId() throws Exception {
+    void testProvidedTriggerId() throws Exception {
         final OperationResult<String> successfulResult =
                 OperationResult.success(COMPLETED_SAVEPOINT_EXTERNAL_POINTER);
         AtomicReference<AsynchronousJobOperationKey> keyReference = new AtomicReference<>();
@@ -245,7 +238,7 @@ public class StopWithSavepointHandlersTest extends TestLogger {
                         .get()
                         .getTriggerId();
 
-        assertEquals(providedTriggerId, returnedTriggerId);
+        assertThat(returnedTriggerId).isEqualTo(providedTriggerId);
 
         AsynchronousOperationResult<SavepointInfo> savepointResponseBody;
         savepointResponseBody =
@@ -254,11 +247,10 @@ public class StopWithSavepointHandlersTest extends TestLogger {
                                 savepointStatusRequest(providedTriggerId), testingRestfulGateway)
                         .get();
 
-        assertThat(savepointResponseBody.queueStatus().getId(), equalTo(QueueStatus.Id.COMPLETED));
-        assertThat(savepointResponseBody.resource(), notNullValue());
-        assertThat(
-                savepointResponseBody.resource().getLocation(),
-                equalTo(COMPLETED_SAVEPOINT_EXTERNAL_POINTER));
+        assertThat(savepointResponseBody.queueStatus().getId()).isEqualTo(QueueStatus.Id.COMPLETED);
+        assertThat(savepointResponseBody.resource()).isNotNull();
+        assertThat(savepointResponseBody.resource().getLocation())
+                .isEqualTo(COMPLETED_SAVEPOINT_EXTERNAL_POINTER);
     }
 
     private static HandlerRequest<StopWithSavepointRequestBody> triggerSavepointRequest()

@@ -20,33 +20,32 @@ package org.apache.flink.runtime.rest.handler.legacy.files;
 
 import org.apache.flink.runtime.rest.handler.util.MimeTypes;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the MIME types map. */
 public class MimeTypesTest {
 
     @Test
-    public void testCompleteness() {
+    void testCompleteness() {
         try {
-            assertNotNull(MimeTypes.getMimeTypeForExtension("txt"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("htm"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("html"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("css"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("js"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("json"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("png"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("jpg"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("jpeg"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("gif"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("woff"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("woff2"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("otf"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("ttf"));
-            assertNotNull(MimeTypes.getMimeTypeForExtension("eot"));
+            assertThat(MimeTypes.getMimeTypeForExtension("txt")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("htm")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("html")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("css")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("js")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("json")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("png")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("jpg")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("jpeg")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("gif")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("woff")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("woff2")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("otf")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("ttf")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForExtension("eot")).isNotNull();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -54,15 +53,15 @@ public class MimeTypesTest {
     }
 
     @Test
-    public void testFileNameExtraction() {
+    void testFileNameExtraction() {
         try {
-            assertNotNull(MimeTypes.getMimeTypeForFileName("test.txt"));
-            assertNotNull(MimeTypes.getMimeTypeForFileName("t.txt"));
-            assertNotNull(MimeTypes.getMimeTypeForFileName("first.second.third.txt"));
+            assertThat(MimeTypes.getMimeTypeForFileName("test.txt")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForFileName("t.txt")).isNotNull();
+            assertThat(MimeTypes.getMimeTypeForFileName("first.second.third.txt")).isNotNull();
 
-            assertNull(MimeTypes.getMimeTypeForFileName(".txt"));
-            assertNull(MimeTypes.getMimeTypeForFileName("txt"));
-            assertNull(MimeTypes.getMimeTypeForFileName("test."));
+            assertThat(MimeTypes.getMimeTypeForFileName(".txt")).isNull();
+            assertThat(MimeTypes.getMimeTypeForFileName("txt")).isNull();
+            assertThat(MimeTypes.getMimeTypeForFileName("test.")).isNull();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

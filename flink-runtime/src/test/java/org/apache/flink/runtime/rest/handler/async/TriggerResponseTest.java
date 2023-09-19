@@ -20,13 +20,15 @@ package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Marshalling test for {@link TriggerResponse}. */
-public class TriggerResponseTest extends RestResponseMarshallingTestBase<TriggerResponse> {
+@ExtendWith(NoOpTestExtension.class)
+class TriggerResponseTest extends RestResponseMarshallingTestBase<TriggerResponse> {
 
     @Override
     protected Class<TriggerResponse> getTestResponseClass() {
@@ -41,6 +43,6 @@ public class TriggerResponseTest extends RestResponseMarshallingTestBase<Trigger
     @Override
     protected void assertOriginalEqualsToUnmarshalled(
             TriggerResponse expected, TriggerResponse actual) {
-        assertThat(actual.getTriggerId(), is(equalTo(expected.getTriggerId())));
+        assertThat(actual.getTriggerId()).isEqualTo(expected.getTriggerId());
     }
 }
