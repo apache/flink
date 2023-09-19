@@ -32,7 +32,6 @@ import org.apache.flink.runtime.rest.messages.JobCancellationMessageParameters;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingConsumer;
 
@@ -45,19 +44,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for the {@link JobCancellationHandler}. */
-public class JobCancellationHandlerTest extends TestLogger {
+class JobCancellationHandlerTest {
     @Test
-    public void testSuccessfulCancellation() throws Exception {
+    void testSuccessfulCancellation() throws Exception {
         testResponse(
                 jobId -> CompletableFuture.completedFuture(Acknowledge.get()),
                 CompletableFuture::get);
     }
 
     @Test
-    public void testErrorCodeForNonCanceledTerminalJob() throws Exception {
+    void testErrorCodeForNonCanceledTerminalJob() throws Exception {
         testResponseCodeOnFailedDispatcherCancellationResponse(
                 jobId ->
                         FutureUtils.completedExceptionally(
@@ -67,21 +67,21 @@ public class JobCancellationHandlerTest extends TestLogger {
     }
 
     @Test
-    public void testErrorCodeForTimeout() throws Exception {
+    void testErrorCodeForTimeout() throws Exception {
         testResponseCodeOnFailedDispatcherCancellationResponse(
                 jobId -> FutureUtils.completedExceptionally(new TimeoutException()),
                 HttpResponseStatus.REQUEST_TIMEOUT);
     }
 
     @Test
-    public void testErrorCodeForUnknownJob() throws Exception {
+    void testErrorCodeForUnknownJob() throws Exception {
         testResponseCodeOnFailedDispatcherCancellationResponse(
                 jobId -> FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId)),
                 HttpResponseStatus.NOT_FOUND);
     }
 
     @Test
-    public void testErrorCodeForUnknownError() throws Exception {
+    void testErrorCodeForUnknownError() throws Exception {
         testResponseCodeOnFailedDispatcherCancellationResponse(
                 jobId -> FutureUtils.completedExceptionally(new RuntimeException()),
                 HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -95,9 +95,11 @@ public class JobCancellationHandlerTest extends TestLogger {
         testResponse(
                 cancelJobFunction,
                 cancellationFuture ->
-                        assertThat(
-                                cancellationFuture,
-                                RestMatchers.respondsWithError(expectedErrorCode)));
+                        assertThat(cancellationFuture)
+                                .satisfies(
+                                        matching(
+                                                RestMatchers.respondsWithError(
+                                                        expectedErrorCode))));
     }
 
     private static void testResponse(

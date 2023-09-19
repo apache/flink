@@ -35,10 +35,9 @@ import org.apache.flink.runtime.rest.messages.job.metrics.Metric;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricCollectionResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.MetricsFilterParameter;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -49,15 +48,11 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link AbstractMetricsHandler}. */
-public class AbstractMetricsHandlerTest extends TestLogger {
+class AbstractMetricsHandlerTest {
 
     private static final String TEST_METRIC_NAME = "test_counter";
 
@@ -71,8 +66,8 @@ public class AbstractMetricsHandlerTest extends TestLogger {
 
     private TestMetricsHandler testMetricsHandler;
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         MockitoAnnotations.initMocks(this);
 
         final MetricStore metricStore = new MetricStore();
@@ -99,7 +94,7 @@ public class AbstractMetricsHandlerTest extends TestLogger {
     }
 
     @Test
-    public void testListMetrics() throws Exception {
+    void testListMetrics() throws Exception {
         final CompletableFuture<MetricCollectionResponseBody> completableFuture =
                 testMetricsHandler.handleRequest(
                         HandlerRequest.create(
@@ -108,18 +103,18 @@ public class AbstractMetricsHandlerTest extends TestLogger {
                                 Collections.emptyList()),
                         mockDispatcherGateway);
 
-        assertTrue(completableFuture.isDone());
+        assertThat(completableFuture).isDone();
 
         final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
-        assertThat(metricCollectionResponseBody.getMetrics(), hasSize(1));
+        assertThat(metricCollectionResponseBody.getMetrics()).hasSize(1);
 
         final Metric metric = metricCollectionResponseBody.getMetrics().iterator().next();
-        assertThat(metric.getId(), equalTo(TEST_METRIC_NAME));
-        assertThat(metric.getValue(), equalTo(null));
+        assertThat(metric.getId()).isEqualTo(TEST_METRIC_NAME);
+        assertThat(metric.getValue()).isNull();
     }
 
     @Test
-    public void testReturnEmptyListIfNoComponentMetricStore() throws Exception {
+    void testReturnEmptyListIfNoComponentMetricStore() throws Exception {
         testMetricsHandler.returnComponentMetricStore = false;
 
         final CompletableFuture<MetricCollectionResponseBody> completableFuture =
@@ -130,14 +125,14 @@ public class AbstractMetricsHandlerTest extends TestLogger {
                                 Collections.emptyList()),
                         mockDispatcherGateway);
 
-        assertTrue(completableFuture.isDone());
+        assertThat(completableFuture).isDone();
 
         final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
-        assertThat(metricCollectionResponseBody.getMetrics(), empty());
+        assertThat(metricCollectionResponseBody.getMetrics()).isEmpty();
     }
 
     @Test
-    public void testGetMetrics() throws Exception {
+    void testGetMetrics() throws Exception {
         final CompletableFuture<MetricCollectionResponseBody> completableFuture =
                 testMetricsHandler.handleRequest(
                         HandlerRequest.resolveParametersAndCreate(
@@ -150,18 +145,18 @@ public class AbstractMetricsHandlerTest extends TestLogger {
                                 Collections.emptyList()),
                         mockDispatcherGateway);
 
-        assertTrue(completableFuture.isDone());
+        assertThat(completableFuture).isDone();
 
         final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
-        assertThat(metricCollectionResponseBody.getMetrics(), hasSize(1));
+        assertThat(metricCollectionResponseBody.getMetrics()).hasSize(1);
 
         final Metric metric = metricCollectionResponseBody.getMetrics().iterator().next();
-        assertThat(metric.getId(), equalTo(TEST_METRIC_NAME));
-        assertThat(metric.getValue(), equalTo(Integer.toString(TEST_METRIC_VALUE)));
+        assertThat(metric.getId()).isEqualTo(TEST_METRIC_NAME);
+        assertThat(metric.getValue()).isEqualTo(Integer.toString(TEST_METRIC_VALUE));
     }
 
     @Test
-    public void testReturnEmptyListIfRequestedMetricIsUnknown() throws Exception {
+    void testReturnEmptyListIfRequestedMetricIsUnknown() throws Exception {
         final CompletableFuture<MetricCollectionResponseBody> completableFuture =
                 testMetricsHandler.handleRequest(
                         HandlerRequest.resolveParametersAndCreate(
@@ -174,10 +169,10 @@ public class AbstractMetricsHandlerTest extends TestLogger {
                                 Collections.emptyList()),
                         mockDispatcherGateway);
 
-        assertTrue(completableFuture.isDone());
+        assertThat(completableFuture).isDone();
 
         final MetricCollectionResponseBody metricCollectionResponseBody = completableFuture.get();
-        assertThat(metricCollectionResponseBody.getMetrics(), empty());
+        assertThat(metricCollectionResponseBody.getMetrics()).isEmpty();
     }
 
     private static class TestMetricsHandler extends AbstractMetricsHandler<TestMessageParameters> {

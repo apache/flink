@@ -18,46 +18,31 @@
 
 package org.apache.flink.runtime.rest.handler.job.metrics;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerIdPathParameter;
 
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 
-/** Tests for {@link JobVertexMetricsHandler}. */
-public class JobVertexMetricsHandlerTest extends MetricsHandlerTestBase<JobVertexMetricsHandler> {
+/** Tests for {@link TaskManagerMetricsHandler}. */
+class TaskManagerMetricsHandlerTestBase extends MetricsHandlerTestBase<TaskManagerMetricsHandler> {
 
-    private static final String TEST_JOB_ID = new JobID().toString();
-
-    private static final String TEST_VERTEX_ID = new JobVertexID().toString();
-
-    private static final int TEST_SUBTASK_INDEX = 1;
-
-    private static final int TEST_ATTEMPT_NUMBER = 0;
+    private static final String TEST_TASK_MANAGER_ID = new InstanceID().toString();
 
     @Override
-    JobVertexMetricsHandler getMetricsHandler() {
-        return new JobVertexMetricsHandler(
+    TaskManagerMetricsHandler getMetricsHandler() {
+        return new TaskManagerMetricsHandler(
                 leaderRetriever, TIMEOUT, TEST_HEADERS, mockMetricFetcher);
     }
 
     @Override
     QueryScopeInfo getQueryScopeInfo() {
-        return new QueryScopeInfo.TaskQueryScopeInfo(
-                TEST_JOB_ID, TEST_VERTEX_ID, TEST_SUBTASK_INDEX, TEST_ATTEMPT_NUMBER);
+        return new QueryScopeInfo.TaskManagerQueryScopeInfo(TEST_TASK_MANAGER_ID);
     }
 
     @Override
     Map<String, String> getPathParameters() {
-        final HashMap<String, String> pathParameters = new HashMap<>();
-        pathParameters.put("jobid", TEST_JOB_ID);
-        pathParameters.put("vertexid", TEST_VERTEX_ID);
-        return pathParameters;
-    }
-
-    @Override
-    String getExpectedIdForMetricName(final String metricName) {
-        return String.format("%s.%s", TEST_SUBTASK_INDEX, metricName);
+        return Collections.singletonMap(TaskManagerIdPathParameter.KEY, TEST_TASK_MANAGER_ID);
     }
 }

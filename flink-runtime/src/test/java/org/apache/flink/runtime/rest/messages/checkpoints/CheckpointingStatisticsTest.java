@@ -25,8 +25,10 @@ import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics.RestAPICheckpointType;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,8 +39,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link CheckpointingStatistics}. */
-public class CheckpointingStatisticsTest
-        extends RestResponseMarshallingTestBase<CheckpointingStatistics> {
+@ExtendWith(NoOpTestExtension.class)
+class CheckpointingStatisticsTest extends RestResponseMarshallingTestBase<CheckpointingStatistics> {
     @Override
     protected Class<CheckpointingStatistics> getTestResponseClass() {
         return CheckpointingStatistics.class;

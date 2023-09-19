@@ -45,10 +45,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the multipart functionality of the {@link RestClient}. */
 class RestClientMultipartTest {
 
-    @TempDir public static Path tempDir;
+    @TempDir private static Path tempDir;
 
     @RegisterExtension
-    public static final AllCallbackWrapper<MultipartUploadExtension>
+    private static final AllCallbackWrapper<MultipartUploadExtension>
             MULTIPART_UPLOAD_EXTENSION_WRAPPER =
                     new AllCallbackWrapper<>(new MultipartUploadExtension(() -> tempDir));
 

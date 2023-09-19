@@ -22,42 +22,38 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.util.ConfigurationException;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import static org.hamcrest.CoreMatchers.containsString;
+import java.io.File;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link RestServerEndpointConfiguration}. */
-public class RestServerEndpointConfigurationTest extends TestLogger {
+class RestServerEndpointConfigurationTest {
 
     private static final String ADDRESS = "123.123.123.123";
     private static final String BIND_ADDRESS = "023.023.023.023";
     private static final String BIND_PORT = "7282";
     private static final int CONTENT_LENGTH = 1234;
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
-
     @Test
-    public void testBasicMapping() throws ConfigurationException {
+    void testBasicMapping(@TempDir File file) throws ConfigurationException {
         Configuration originalConfig = new Configuration();
         originalConfig.setString(RestOptions.ADDRESS, ADDRESS);
         originalConfig.setString(RestOptions.BIND_ADDRESS, BIND_ADDRESS);
         originalConfig.setString(RestOptions.BIND_PORT, BIND_PORT);
         originalConfig.setInteger(RestOptions.SERVER_MAX_CONTENT_LENGTH, CONTENT_LENGTH);
-        originalConfig.setString(WebOptions.TMP_DIR, temporaryFolder.getRoot().getAbsolutePath());
+        originalConfig.setString(WebOptions.TMP_DIR, file.getAbsolutePath());
 
         final RestServerEndpointConfiguration result =
                 RestServerEndpointConfiguration.fromConfiguration(originalConfig);
-        Assert.assertEquals(ADDRESS, result.getRestAddress());
-        Assert.assertEquals(BIND_ADDRESS, result.getRestBindAddress());
-        Assert.assertEquals(BIND_PORT, result.getRestBindPortRange());
-        Assert.assertEquals(CONTENT_LENGTH, result.getMaxContentLength());
-        Assert.assertThat(
-                result.getUploadDir().toAbsolutePath().toString(),
-                containsString(temporaryFolder.getRoot().getAbsolutePath()));
+        assertThat(result.getRestAddress()).isEqualTo(ADDRESS);
+        assertThat(result.getRestBindAddress()).isEqualTo(BIND_ADDRESS);
+        assertThat(result.getRestBindPortRange()).isEqualTo(BIND_PORT);
+        assertThat(result.getMaxContentLength()).isEqualTo(CONTENT_LENGTH);
+        assertThat(result.getUploadDir().toAbsolutePath().toString())
+                .contains(file.getAbsolutePath());
     }
 }
