@@ -36,6 +36,7 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
+import org.apache.flink.runtime.state.TaskExecutorFileMergingManager;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.taskexecutor.slot.DefaultTimerService;
@@ -80,6 +81,7 @@ public class TaskManagerServices {
     private final JobTable jobTable;
     private final JobLeaderService jobLeaderService;
     private final TaskExecutorLocalStateStoresManager taskManagerStateStore;
+    private final TaskExecutorFileMergingManager taskManagerFileMergingManager;
     private final TaskExecutorStateChangelogStoragesManager taskManagerChangelogManager;
     private final TaskExecutorChannelStateExecutorFactoryManager taskManagerChannelStateManager;
     private final TaskEventDispatcher taskEventDispatcher;
@@ -100,6 +102,7 @@ public class TaskManagerServices {
             JobTable jobTable,
             JobLeaderService jobLeaderService,
             TaskExecutorLocalStateStoresManager taskManagerStateStore,
+            TaskExecutorFileMergingManager taskManagerFileMergingManager,
             TaskExecutorStateChangelogStoragesManager taskManagerChangelogManager,
             TaskExecutorChannelStateExecutorFactoryManager taskManagerChannelStateManager,
             TaskEventDispatcher taskEventDispatcher,
@@ -120,6 +123,8 @@ public class TaskManagerServices {
         this.jobTable = Preconditions.checkNotNull(jobTable);
         this.jobLeaderService = Preconditions.checkNotNull(jobLeaderService);
         this.taskManagerStateStore = Preconditions.checkNotNull(taskManagerStateStore);
+        this.taskManagerFileMergingManager =
+                Preconditions.checkNotNull(taskManagerFileMergingManager);
         this.taskManagerChangelogManager = Preconditions.checkNotNull(taskManagerChangelogManager);
         this.taskManagerChannelStateManager = taskManagerChannelStateManager;
         this.taskEventDispatcher = Preconditions.checkNotNull(taskEventDispatcher);
@@ -172,6 +177,10 @@ public class TaskManagerServices {
 
     public TaskExecutorLocalStateStoresManager getTaskManagerStateStore() {
         return taskManagerStateStore;
+    }
+
+    public TaskExecutorFileMergingManager getTaskManagerFileMergingManager() {
+        return taskManagerFileMergingManager;
     }
 
     public TaskExecutorStateChangelogStoragesManager getTaskManagerChangelogManager() {
@@ -363,6 +372,9 @@ public class TaskManagerServices {
         final TaskExecutorChannelStateExecutorFactoryManager channelStateExecutorFactoryManager =
                 new TaskExecutorChannelStateExecutorFactoryManager();
 
+        final TaskExecutorFileMergingManager fileMergingManager =
+                new TaskExecutorFileMergingManager();
+
         final boolean failOnJvmMetaspaceOomError =
                 taskManagerServicesConfiguration
                         .getConfiguration()
@@ -407,6 +419,7 @@ public class TaskManagerServices {
                 jobTable,
                 jobLeaderService,
                 taskStateManager,
+                fileMergingManager,
                 changelogStoragesManager,
                 channelStateExecutorFactoryManager,
                 taskEventDispatcher,

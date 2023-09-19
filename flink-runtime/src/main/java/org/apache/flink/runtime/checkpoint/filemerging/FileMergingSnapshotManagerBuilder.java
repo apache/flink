@@ -50,8 +50,6 @@ public class FileMergingSnapshotManagerBuilder {
     /**
      * Create file-merging snapshot manager based on configuration.
      *
-     * <p>TODO (FLINK-32072): Create manager during the initialization of task manager services.
-     *
      * <p>TODO (FLINK-32074): Support another type of FileMergingSnapshotManager that merges files
      * across different checkpoints.
      *

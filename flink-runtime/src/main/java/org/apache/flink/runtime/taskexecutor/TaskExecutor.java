@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -98,6 +99,7 @@ import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
+import org.apache.flink.runtime.state.TaskExecutorFileMergingManager;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
@@ -217,6 +219,12 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     /** The state manager for this task, providing state managers per slot. */
     private final TaskExecutorLocalStateStoresManager localStateStoresManager;
 
+    /**
+     * The file merging manager for this task, providing file merging snapshot manager per job, see
+     * {@link FileMergingSnapshotManager} for details.
+     */
+    private final TaskExecutorFileMergingManager fileMergingManager;
+
     /** The changelog manager for this task, providing changelog storage per job. */
     private final TaskExecutorStateChangelogStoragesManager changelogStoragesManager;
 
@@ -329,6 +337,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         this.unresolvedTaskManagerLocation =
                 taskExecutorServices.getUnresolvedTaskManagerLocation();
         this.localStateStoresManager = taskExecutorServices.getTaskManagerStateStore();
+        this.fileMergingManager = taskExecutorServices.getTaskManagerFileMergingManager();
         this.changelogStoragesManager = taskExecutorServices.getTaskManagerChangelogManager();
         this.channelStateExecutorFactoryManager =
                 taskExecutorServices.getTaskManagerChannelStateManager();
@@ -730,6 +739,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             taskManagerConfiguration.getConfiguration(),
                             jobInformation.getJobConfiguration());
 
+            final FileMergingSnapshotManager fileMergingSnapshotManager =
+                    fileMergingManager.fileMergingSnapshotManagerForJob(jobId);
+
             // TODO: Pass config value from user program and do overriding here.
             final StateChangelogStorage<?> changelogStorage;
             try {
@@ -750,6 +762,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             jobId,
                             tdd.getExecutionAttemptId(),
                             localStateStore,
+                            fileMergingSnapshotManager,
                             changelogStorage,
                             changelogStoragesManager,
                             taskRestore,
@@ -1891,6 +1904,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         currentSlotOfferPerJob.remove(jobId);
         channelStateExecutorFactoryManager.releaseResourcesForJob(jobId);
         shuffleDescriptorsCache.clearCacheForJob(jobId);
+        fileMergingManager.releaseMergingSnapshotManagerForJob(jobId);
     }
 
     private void scheduleResultPartitionCleanup(JobID jobId) {
