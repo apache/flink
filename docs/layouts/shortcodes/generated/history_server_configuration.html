@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>historyserver.archive.cached-retained-jobs</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The maximum number of n latest jobs to retain in the local directory defined by `historyserver.web.tmpdir`. If this configuration is provided, the remote and local storage of job archives will be decoupled.If set to `0` or less than `-1` HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. </td>
+        </tr>
+        <tr>
             <td><h5>historyserver.archive.clean-expired-applications</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -31,6 +37,12 @@
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
             <td>Interval for refreshing the archived job directories.</td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.archive.num-cached-most-recently-viewed-jobs</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The maximum number of jobs to retain in the local cache defined by `historyserver.web.tmpdir` which stores the job archives that are fetched from the remote storage. This limit is distinct from the number of most recent jobs which will in the cache.The total cache size is a combination of the number of remote cache jobs and the number of remote fetch cached jobs and retained cache jobs.If set to less than `0` HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. </td>
         </tr>
         <tr>
             <td><h5>historyserver.archive.retained-applications</h5></td>

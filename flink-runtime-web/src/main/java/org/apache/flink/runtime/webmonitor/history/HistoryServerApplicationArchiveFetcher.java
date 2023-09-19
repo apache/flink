@@ -81,7 +81,16 @@ public class HistoryServerApplicationArchiveFetcher extends HistoryServerArchive
             boolean cleanupExpiredArchives,
             ArchiveRetainedStrategy retainedStrategy)
             throws IOException {
-        super(refreshDirs, webDir, archiveEventListener, cleanupExpiredArchives, retainedStrategy);
+        // Applications don't use caching, so pass default values for cache parameters
+        super(
+                refreshDirs,
+                webDir,
+                archiveEventListener,
+                cleanupExpiredArchives,
+                retainedStrategy,
+                -1, // generalCachedJobSize (disabled)
+                false, // remoteFetchEnabled (disabled for applications)
+                0); // numCachedMostRecentlyViewedJobs (not used)
 
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedApplicationIdsToJobIds.put(refreshDir.getPath(), new HashMap<>());

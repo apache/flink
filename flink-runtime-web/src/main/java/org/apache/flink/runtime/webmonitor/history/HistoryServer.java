@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HistoryServerOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -124,6 +125,8 @@ public class HistoryServer {
      */
     private final HistoryServerApplicationArchiveFetcher applicationArchiveFetcher;
 
+    private final HistoryServerStaticFileServerHandler staticFileServerHandler;
+
     @Nullable private final SSLHandlerFactory serverSSLFactory;
     private WebFrontendBootstrap netty;
 
@@ -223,12 +226,12 @@ public class HistoryServer {
             throw new FlinkException(
                     HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS + " was not configured.");
         }
-        List<RefreshLocation> refreshDirs = new ArrayList<>();
+        List<HistoryServer.RefreshLocation> refreshDirs = new ArrayList<>();
         for (String refreshDirectory : refreshDirectories.split(",")) {
             try {
                 Path refreshPath = new Path(refreshDirectory);
                 FileSystem refreshFS = refreshPath.getFileSystem();
-                refreshDirs.add(new RefreshLocation(refreshPath, refreshFS));
+                refreshDirs.add(new HistoryServer.RefreshLocation(refreshPath, refreshFS));
             } catch (Exception e) {
                 // there's most likely something wrong with the path itself, so we ignore it from
                 // here on
@@ -246,13 +249,26 @@ public class HistoryServer {
 
         refreshIntervalMillis =
                 config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL).toMillis();
+
+        // FLIP-505: Validate cache configuration options using extracted methods
+        boolean remoteFetchEnabled =
+                config.contains(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS);
+
+        int generalCachedJobSize = validateCachedJobsConfig(config, remoteFetchEnabled);
+        int numCachedMostRecentlyViewedJobs = validateNumCachedMostRecentlyViewedJobsConfig(config);
+
+        // FLIP-490: Use retention strategies for job and application archives
+        // FLIP-505: Pass cache parameters to job archive fetcher
         archiveFetcher =
                 new HistoryServerArchiveFetcher(
                         refreshDirs,
                         webDir,
                         jobArchiveEventListener,
                         cleanupExpiredJobs,
-                        CompositeArchiveRetainedStrategy.createForJobFromConfig(config));
+                        CompositeArchiveRetainedStrategy.createForJobFromConfig(config),
+                        generalCachedJobSize,
+                        remoteFetchEnabled,
+                        numCachedMostRecentlyViewedJobs);
         applicationArchiveFetcher =
                 new HistoryServerApplicationArchiveFetcher(
                         refreshDirs,
@@ -260,6 +276,11 @@ public class HistoryServer {
                         applicationArchiveEventListener,
                         cleanupExpiredApplications,
                         CompositeArchiveRetainedStrategy.createForApplicationFromConfig(config));
+
+        // FLIP-505: Create static file server handler with remote fetch support
+        staticFileServerHandler =
+                new HistoryServerStaticFileServerHandler(
+                        webDir, remoteFetchEnabled, archiveFetcher);
 
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
@@ -347,7 +368,7 @@ public class HistoryServer {
                                             new GeneratedLogUrlHandler(
                                                     CompletableFuture.completedFuture(pattern))));
 
-            router.addGet("/:*", new HistoryServerStaticFileServerHandler(webDir));
+            router.addGet("/:*", staticFileServerHandler);
 
             createDashboardConfigFile();
 
@@ -433,12 +454,52 @@ public class HistoryServer {
         return OBJECT_MAPPER.writeValueAsString(dashboardConfiguration);
     }
 
+    /**
+     * Validates and retrieves the cached jobs configuration if remote fetch is enabled.
+     *
+     * @param config the configuration
+     * @param remoteFetchEnabled whether remote fetch is enabled
+     * @return the general cached job size
+     * @throws IllegalConfigurationException if the configuration is invalid
+     */
+    private static int validateCachedJobsConfig(Configuration config, boolean remoteFetchEnabled) {
+        int generalCachedJobSize = -1;
+        if (remoteFetchEnabled) {
+            generalCachedJobSize = config.get(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS);
+            if (generalCachedJobSize == 0 || generalCachedJobSize < -1) {
+                throw new IllegalConfigurationException(
+                        "Cannot set %s to 0 or less than -1",
+                        HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS.key());
+            }
+        }
+        return generalCachedJobSize;
+    }
+
+    /**
+     * Validates and retrieves the number of cached most recently viewed jobs configuration.
+     *
+     * @param config the configuration
+     * @return the number of cached most recently viewed jobs
+     * @throws IllegalConfigurationException if the configuration is invalid
+     */
+    private static int validateNumCachedMostRecentlyViewedJobsConfig(Configuration config) {
+        int numCachedMostRecentlyViewedJobs =
+                config.get(
+                        HistoryServerOptions.HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS);
+        if (numCachedMostRecentlyViewedJobs <= 0) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to less than or equal to 0",
+                    HistoryServerOptions.HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS.key());
+        }
+        return numCachedMostRecentlyViewedJobs;
+    }
+
     /** Container for the {@link Path} and {@link FileSystem} of a refresh directory. */
-    static class RefreshLocation {
+    public static class RefreshLocation {
         private final Path path;
         private final FileSystem fs;
 
-        private RefreshLocation(Path path, FileSystem fs) {
+        public RefreshLocation(Path path, FileSystem fs) {
             this.path = path;
             this.fs = fs;
         }
