@@ -23,6 +23,7 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.Column;
@@ -30,11 +31,13 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.STRING;
@@ -88,6 +91,19 @@ public class UnknownCatalogTest {
         Table table = tEnv.sqlQuery("SELECT CURRENT_TIMESTAMP");
 
         assertThat(table.getResolvedSchema()).isEqualTo(CURRENT_TIMESTAMP_EXPECTED_SCHEMA);
+    }
+
+    @Test
+    public void testUnsetCatalogWithShowFunctions() throws Exception {
+        TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
+
+        tEnv.useCatalog(null);
+
+        TableResult table = tEnv.executeSql("SHOW FUNCTIONS");
+        final List<Row> functions = CollectionUtil.iteratorToList(table.collect());
+
+        // check it has some built-in functions
+        assertThat(functions).hasSizeGreaterThan(0);
     }
 
     @Test
