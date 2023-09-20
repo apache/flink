@@ -24,13 +24,13 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.table.planner.utils.{InternalConfigOptions, TableConfigUtils}
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Assume.assumeTrue
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assumptions.assumeThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Long => JLong}
 import java.sql.Time
@@ -42,12 +42,12 @@ import java.util.TimeZone
 import scala.collection.mutable
 
 /** Tests that check all non-deterministic functions can be executed. */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class NonDeterministicTest(isStreaming: Boolean) extends ExpressionTestBase(isStreaming) {
 
-  @Test
+  @TestTemplate
   def testTemporalFunctionsInStreamMode(): Unit = {
-    assumeTrue(isStreaming)
+    assumeThat(isStreaming).isTrue
     val temporalFunctions = getCodeGenFunctions(
       List(
         "CURRENT_DATE",
@@ -61,7 +61,7 @@ class NonDeterministicTest(isStreaming: Boolean) extends ExpressionTestBase(isSt
     Thread.sleep(1 * 1000L)
     val round2: List[String] = evaluateFunctionResult(temporalFunctions)
 
-    assertEquals(round1.size, round2.size)
+    assertThat(round2.size).isEqualTo(round2.size)
     round1.zip(round2).zipWithIndex.foreach {
       case ((result1: String, result2: String), index: Int) =>
         // CURRENT_DATE may be same between two records
@@ -76,14 +76,14 @@ class NonDeterministicTest(isStreaming: Boolean) extends ExpressionTestBase(isSt
     // should return same value for one record in stream job
     val currentTimeStampIndex = 2
     val currentRowTimestampIndex = 3
-    assertEquals(round1(currentTimeStampIndex), round1(currentRowTimestampIndex))
-    assertEquals(round2(currentTimeStampIndex), round2(currentRowTimestampIndex))
+    assertThat(round1(currentTimeStampIndex)).isEqualTo(round1(currentRowTimestampIndex))
+    assertThat(round2(currentTimeStampIndex)).isEqualTo(round2(currentRowTimestampIndex))
 
   }
 
-  @Test
+  @TestTemplate
   def testTemporalFunctionsInBatchMode(): Unit = {
-    assumeTrue(!isStreaming)
+    assumeThat(isStreaming).isFalse
     val zoneId = ZoneId.of("Asia/Shanghai")
     tableConfig.setLocalTimeZone(zoneId)
     tableConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
@@ -111,32 +111,31 @@ class NonDeterministicTest(isStreaming: Boolean) extends ExpressionTestBase(isSt
       "1970-01-01 08:00:01.123")
 
     val result = evaluateFunctionResult(temporalFunctions)
-    assertEquals(expected.toList.sorted, result.sorted)
-
+    assertThat(result.sorted).isEqualTo(expected.toList.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCurrentRowTimestampFunctionsInBatchMode(): Unit = {
-    assumeTrue(!isStreaming)
+    assumeThat(isStreaming).isFalse
     val temporalFunctions = getCodeGenFunctions(List("CURRENT_ROW_TIMESTAMP()"))
 
     val round1 = evaluateFunctionResult(temporalFunctions)
     Thread.sleep(1 * 1000L)
     val round2: List[String] = evaluateFunctionResult(temporalFunctions)
 
-    assertEquals(round1.size, round2.size)
+    assumeThat(round2.size).isEqualTo(round1.size)
     round1.zip(round2).foreach {
       case (result1: String, result2: String) =>
         assert(result1 < result2)
     }
   }
 
-  @Test
+  @TestTemplate
   def testTemporalFunctionsInUTC(): Unit = {
     testTemporalTimestamp(ZoneId.of("UTC"))
   }
 
-  @Test
+  @TestTemplate
   def testTemporalFunctionsInShanghai(): Unit = {
     testTemporalTimestamp(ZoneId.of("Asia/Shanghai"))
   }
@@ -193,12 +192,12 @@ class NonDeterministicTest(isStreaming: Boolean) extends ExpressionTestBase(isSt
       "TRUE")
   }
 
-  @Test
+  @TestTemplate
   def testUUID(): Unit = {
     testAllApis(uuid().charLength(), "CHARACTER_LENGTH(UUID())", "36")
   }
 
-  @Test
+  @TestTemplate
   def testRand(): Unit = {
     testSqlApi("RAND() <> RAND() or RAND() = RAND()", "TRUE")
     testSqlApi("RAND(1) <> RAND(1) or RAND(1) = RAND(1)", "TRUE")
@@ -243,7 +242,7 @@ object DateDiffFun extends ScalarFunction {
 }
 
 object NonDeterministicTest {
-  @Parameterized.Parameters(name = "isStream={0}")
+  @Parameters(name = "isStream={0}")
   def parameters(): util.Collection[Boolean] = {
     util.Arrays.asList(true, false)
   }

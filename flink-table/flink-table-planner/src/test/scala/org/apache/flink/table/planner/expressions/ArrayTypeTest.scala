@@ -21,7 +21,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ArrayTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.time.{LocalDateTime => JLocalDateTime}
 
@@ -226,16 +226,16 @@ class ArrayTypeTest extends ArrayTypeTestBase {
 
   @Test
   def testArrayIndexStaticCheckForTable(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Array element access needs an index starting at 1 but was 0.")
-    testTableApi('f2.at(0), "1")
+    testExpectedTableApiException(
+      'f2.at(0),
+      "Array element access needs an index starting at 1 but was 0.")
   }
 
   @Test
   def testArrayIndexStaticCheckForSql(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Array element access needs an index starting at 1 but was 0.")
-    testSqlApi("f2[0]", "1")
+    testExpectedSqlException(
+      "f2[0]",
+      "Array element access needs an index starting at 1 but was 0.")
   }
 
   @Test

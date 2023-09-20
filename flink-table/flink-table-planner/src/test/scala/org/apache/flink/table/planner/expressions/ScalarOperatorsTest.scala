@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.table.api.{DataTypes, LiteralStringExpression, UnresolvedFieldExpression}
 import org.apache.flink.table.planner.expressions.utils.ScalarOperatorsTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ScalarOperatorsTest extends ScalarOperatorsTestBase {
 
