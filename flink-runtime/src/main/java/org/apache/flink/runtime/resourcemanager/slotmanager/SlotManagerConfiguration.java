@@ -30,16 +30,10 @@ import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.Preconditions;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 
 /** Configuration for the {@link SlotManager}. */
 public class SlotManagerConfiguration {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(SlotManagerConfiguration.class);
-
     private final Time taskManagerRequestTimeout;
     private final Time taskManagerTimeout;
     private final Duration requirementCheckDelay;
