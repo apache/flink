@@ -33,7 +33,7 @@ It is recommended to migrate to Java 11.
 
 ## Java 11
 
-Support for Java 17 was added in 1.10.0 and is the recommended Java version to run Flink on.
+Support for Java 11 was added in 1.10.0 and is the recommended Java version to run Flink on.
 
 This is the default version for docker images.
 
