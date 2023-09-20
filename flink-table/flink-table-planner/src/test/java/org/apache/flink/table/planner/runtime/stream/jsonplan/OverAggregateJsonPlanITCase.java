@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -34,10 +34,10 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /** Test json deserialization for over aggregate. */
-public class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
+class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testProcTimeBoundedPartitionedRowsOver()
+    void testProcTimeBoundedPartitionedRowsOver()
             throws ExecutionException, InterruptedException, IOException {
         createTestValuesSourceTable(
                 "MyTable",
@@ -79,7 +79,7 @@ public class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testProcTimeUnboundedNonPartitionedRangeOver()
+    void testProcTimeUnboundedNonPartitionedRangeOver()
             throws IOException, ExecutionException, InterruptedException {
         List<Row> data =
                 Arrays.asList(
@@ -124,7 +124,7 @@ public class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testRowTimeBoundedPartitionedRangeOver()
+    void testRowTimeBoundedPartitionedRangeOver()
             throws IOException, ExecutionException, InterruptedException {
         List<Row> data =
                 Arrays.asList(

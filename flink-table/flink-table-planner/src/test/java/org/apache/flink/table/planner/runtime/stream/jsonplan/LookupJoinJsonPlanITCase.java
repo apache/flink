@@ -22,17 +22,19 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
 /** Test for LookupJoin json plan. */
-public class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
+class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
 
+    @BeforeEach
     @Override
-    public void setup() throws Exception {
+    protected void setup() throws Exception {
         super.setup();
         List<Row> rowT1 =
                 Arrays.asList(
@@ -66,7 +68,7 @@ public class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
 
     /** test join temporal table. * */
     @Test
-    public void testJoinLookupTable() throws Exception {
+    void testJoinLookupTable() throws Exception {
         compileSqlAndExecutePlan(
                         "insert into MySink "
                                 + "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table \n"
@@ -81,7 +83,7 @@ public class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testJoinLookupTableWithPushDown() throws Exception {
+    void testJoinLookupTableWithPushDown() throws Exception {
         compileSqlAndExecutePlan(
                         "insert into MySink \n"
                                 + "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table \n "
@@ -93,7 +95,7 @@ public class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testLeftJoinLookupTableWithPreFilter() throws Exception {
+    void testLeftJoinLookupTableWithPreFilter() throws Exception {
         compileSqlAndExecutePlan(
                         "insert into MySink "
                                 + "SELECT T.id, T.len, T.content, D.name FROM src AS T LEFT JOIN user_table \n"

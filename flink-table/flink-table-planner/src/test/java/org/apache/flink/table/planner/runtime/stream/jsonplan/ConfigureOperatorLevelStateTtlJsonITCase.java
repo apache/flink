@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.utils.JsonTestUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -39,10 +39,10 @@ import java.util.Map;
  * Tests for configuring operator-level state TTL via {@link
  * org.apache.flink.table.api.CompiledPlan}.
  */
-public class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
+class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
 
     @Test
-    public void testDifferentStateTtlForDifferentOneInputOperator() throws Exception {
+    void testDifferentStateTtlForDifferentOneInputOperator() throws Exception {
         String dataId =
                 TestValuesTableFactory.registerRowData(
                         Arrays.asList(
@@ -117,7 +117,7 @@ public class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testDifferentStateTtlForSameTwoInputStreamOperator() throws Exception {
+    void testDifferentStateTtlForSameTwoInputStreamOperator() throws Exception {
         String leftTableDataId =
                 TestValuesTableFactory.registerRowData(
                         Arrays.asList(

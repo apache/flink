@@ -21,16 +21,16 @@ package org.apache.flink.table.planner.runtime.stream.jsonplan;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Test for values json plan. */
-public class ValuesJsonPlanITCase extends JsonPlanTestBase {
+class ValuesJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testValues() throws Exception {
+    void testValues() throws Exception {
         createTestValuesSinkTable("MySink", "b INT", "a INT", "c VARCHAR");
         compileSqlAndExecutePlan(
                         "INSERT INTO MySink SELECT * from (VALUES (1, 2, 'Hi'), (3, 4, 'Hello'))")

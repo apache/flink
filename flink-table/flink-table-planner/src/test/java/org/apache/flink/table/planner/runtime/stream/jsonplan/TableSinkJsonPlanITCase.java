@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.runtime.stream.jsonplan;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Arrays;
@@ -30,18 +30,19 @@ import java.util.HashMap;
 import java.util.List;
 
 /** Test for table sink json plan. */
-public class TableSinkJsonPlanITCase extends JsonPlanTestBase {
+class TableSinkJsonPlanITCase extends JsonPlanTestBase {
 
     List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    @Override
+    protected void setup() throws Exception {
         super.setup();
         createTestCsvSourceTable("MyTable", data, "a bigint", "b int", "c varchar");
     }
 
     @Test
-    public void testPartitioning() throws Exception {
+    void testPartitioning() throws Exception {
         File sinkPath =
                 createTestCsvSinkTable(
                         "MySink",
@@ -55,7 +56,7 @@ public class TableSinkJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testWritingMetadata() throws Exception {
+    void testWritingMetadata() throws Exception {
         createTestValuesSinkTable(
                 "MySink",
                 new String[] {"a bigint", "b int", "c varchar METADATA"},

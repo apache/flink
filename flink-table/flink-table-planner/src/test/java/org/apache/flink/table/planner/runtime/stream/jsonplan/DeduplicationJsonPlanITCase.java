@@ -24,16 +24,16 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Test for deduplication json plan. */
-public class DeduplicationJsonPlanITCase extends JsonPlanTestBase {
+class DeduplicationJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testDeduplication() throws Exception {
+    void testDeduplication() throws Exception {
         List<Row> data =
                 Arrays.asList(
                         Row.of(1L, "terry", "pen", 1000L),

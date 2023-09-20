@@ -22,17 +22,17 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Test for IntervalJoin json plan. */
-public class IntervalJoinJsonPlanITCase extends JsonPlanTestBase {
+class IntervalJoinJsonPlanITCase extends JsonPlanTestBase {
 
     /** test process time inner join. * */
     @Test
-    public void testProcessTimeInnerJoin() throws Exception {
+    void testProcessTimeInnerJoin() throws Exception {
         List<Row> rowT1 =
                 Arrays.asList(
                         Row.of(1, 1L, "Hi1"),
@@ -69,7 +69,7 @@ public class IntervalJoinJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testRowTimeInnerJoin() throws Exception {
+    void testRowTimeInnerJoin() throws Exception {
         List<Row> rowT1 =
                 Arrays.asList(
                         Row.of(1, 1L, "Hi1"),

@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -31,9 +31,9 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /** Test for Rank JsonPlan ser/de. */
-public class RankJsonPlanITCase extends JsonPlanTestBase {
+class RankJsonPlanITCase extends JsonPlanTestBase {
     @Test
-    public void testRank() throws ExecutionException, InterruptedException, IOException {
+    void testRank() throws ExecutionException, InterruptedException, IOException {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.data1()),
@@ -52,7 +52,7 @@ public class RankJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testFirstN() throws ExecutionException, InterruptedException, IOException {
+    void testFirstN() throws ExecutionException, InterruptedException, IOException {
         createTestValuesSourceTable(
                 "MyTable1",
                 JavaScalaConversionUtil.toJava(TestData.data4()),

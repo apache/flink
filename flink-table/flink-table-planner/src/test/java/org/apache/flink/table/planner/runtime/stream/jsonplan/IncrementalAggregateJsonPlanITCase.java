@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -37,10 +37,11 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /** Test for incremental aggregate json plan. */
-public class IncrementalAggregateJsonPlanITCase extends JsonPlanTestBase {
+class IncrementalAggregateJsonPlanITCase extends JsonPlanTestBase {
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    @Override
+    protected void setup() throws Exception {
         super.setup();
         tableEnv.getConfig()
                 .set(
@@ -56,8 +57,7 @@ public class IncrementalAggregateJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testIncrementalAggregate()
-            throws IOException, ExecutionException, InterruptedException {
+    void testIncrementalAggregate() throws IOException, ExecutionException, InterruptedException {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.smallData3()),

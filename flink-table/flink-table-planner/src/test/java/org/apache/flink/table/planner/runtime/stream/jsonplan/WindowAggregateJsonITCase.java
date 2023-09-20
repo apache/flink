@@ -24,32 +24,35 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
 /** Test for window aggregate json plan. */
-@RunWith(Parameterized.class)
-public class WindowAggregateJsonITCase extends JsonPlanTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class WindowAggregateJsonITCase extends JsonPlanTestBase {
 
-    @Parameterized.Parameters(name = "agg_phase = {0}")
-    public static Object[] parameters() {
+    @Parameters(name = "agg_phase = {0}")
+    private static Object[] parameters() {
         return new Object[][] {
             new Object[] {AggregatePhaseStrategy.ONE_PHASE},
             new Object[] {AggregatePhaseStrategy.TWO_PHASE}
         };
     }
 
-    @Parameterized.Parameter public AggregatePhaseStrategy aggPhase;
+    @Parameter private AggregatePhaseStrategy aggPhase;
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    @Override
+    protected void setup() throws Exception {
         super.setup();
         createTestValuesSourceTable(
                 "MyTable",
@@ -77,8 +80,8 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                         aggPhase.toString());
     }
 
-    @Test
-    public void testEventTimeTumbleWindow() throws Exception {
+    @TestTemplate
+    void testEventTimeTumbleWindow() throws Exception {
         createTestValuesSinkTable(
                 "MySink",
                 "name STRING",
@@ -112,8 +115,8 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                 result);
     }
 
-    @Test
-    public void testEventTimeHopWindow() throws Exception {
+    @TestTemplate
+    void testEventTimeHopWindow() throws Exception {
         createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
         compileSqlAndExecutePlan(
                         "insert into MySink select\n"
@@ -141,8 +144,8 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                 result);
     }
 
-    @Test
-    public void testEventTimeCumulateWindow() throws Exception {
+    @TestTemplate
+    void testEventTimeCumulateWindow() throws Exception {
         createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
         compileSqlAndExecutePlan(
                         "insert into MySink select\n"
@@ -177,8 +180,8 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                 result);
     }
 
-    @Test
-    public void testDistinctSplitEnabled() throws Exception {
+    @TestTemplate
+    void testDistinctSplitEnabled() throws Exception {
         tableEnv.getConfig()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
         createTestValuesSinkTable(

@@ -23,19 +23,19 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
 /** Test for join json plan. */
-public class JoinJsonPlanITCase extends JsonPlanTestBase {
+class JoinJsonPlanITCase extends JsonPlanTestBase {
 
     @Override
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    protected void setup() throws Exception {
         super.setup();
         createTestValuesSourceTable(
                 "A",
@@ -55,7 +55,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
 
     /** test non-window inner join. * */
     @Test
-    public void testNonWindowInnerJoin() throws Exception {
+    void testNonWindowInnerJoin() throws Exception {
         List<String> dataT1 =
                 Arrays.asList(
                         "1,1,Hi1", "1,2,Hi2", "1,2,Hi2", "1,5,Hi3", "2,7,Hi5", "1,9,Hi6", "1,8,Hi8",
@@ -88,7 +88,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testIsNullInnerJoinWithNullCond() throws Exception {
+    void testIsNullInnerJoinWithNullCond() throws Exception {
         List<String> dataT1 =
                 Arrays.asList(
                         "1,1,Hi1", "1,2,Hi2", "1,2,Hi2", "1,5,Hi3", "2,7,Hi5", "1,9,Hi6", "1,8,Hi8",
@@ -125,7 +125,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testJoin() throws Exception {
+    void testJoin() throws Exception {
         createTestValuesSinkTable("MySink", "a3 varchar", "b4 varchar");
         compileSqlAndExecutePlan("insert into MySink \n" + "SELECT a3, b4 FROM A, B WHERE a2 = b2")
                 .await();
@@ -136,7 +136,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testInnerJoin() throws Exception {
+    void testInnerJoin() throws Exception {
         createTestValuesSinkTable("MySink", "a1 int", "b1 int");
         compileSqlAndExecutePlan("insert into MySink \n" + "SELECT a1, b1 FROM A JOIN B ON a1 = b1")
                 .await();
@@ -145,7 +145,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testJoinWithFilter() throws Exception {
+    void testJoinWithFilter() throws Exception {
         createTestValuesSinkTable("MySink", "a3 varchar", "b4 varchar");
         compileSqlAndExecutePlan(
                         "insert into MySink \n"
@@ -156,7 +156,7 @@ public class JoinJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testInnerJoinWithDuplicateKey() throws Exception {
+    void testInnerJoinWithDuplicateKey() throws Exception {
         createTestValuesSinkTable("MySink", "a1 int", "b1 int", "b3 int");
         compileSqlAndExecutePlan(
                         "insert into MySink \n"
