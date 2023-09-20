@@ -219,18 +219,12 @@ class RestClusterClientTest {
 
     private RestClusterClient<StandaloneClusterId> createRestClusterClient(
             int port, Configuration clientConfig) throws Exception {
-        return createRestClusterClient(port, clientConfig, Files.createTempDirectory("flink"));
-    }
-
-    private RestClusterClient<StandaloneClusterId> createRestClusterClient(
-            int port, Configuration clientConfig, Path tmpDir) throws Exception {
         clientConfig.setInteger(RestOptions.PORT, port);
         return new RestClusterClient<>(
                 clientConfig,
                 createRestClient(),
                 StandaloneClusterId.getInstance(),
-                (attempt) -> 0,
-                tmpDir);
+                (attempt) -> 0);
     }
 
     @Nonnull
@@ -986,21 +980,30 @@ class RestClusterClientTest {
     }
 
     @Test
-    void testJobGraphFileCleanedUpOnJobSubmissionFailure(@TempDir Path tmp) throws Exception {
+    void testJobGraphFileCleanedUpOnJobSubmissionFailure() throws Exception {
+        final Path jobGraphFileDir = getTempDir();
         try (final TestRestServerEndpoint restServerEndpoint =
                 createRestServerEndpoint(new SubmissionFailingHandler())) {
             try (RestClusterClient<?> restClusterClient =
-                    createRestClusterClient(
-                            restServerEndpoint.getServerAddress().getPort(),
-                            new Configuration(restConfig),
-                            tmp)) {
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
                 assertThatThrownBy(() -> restClusterClient.submitJob(jobGraph).join())
                         .hasCauseInstanceOf(JobSubmissionException.class);
-                try (Stream<Path> files = Files.list(tmp)) {
-                    assertThat(files).isEmpty();
+                try (Stream<Path> files = Files.list(jobGraphFileDir)) {
+                    assertThat(files)
+                            .noneMatch(
+                                    path ->
+                                            path.toString()
+                                                    .contains(jobGraph.getJobID().toString()));
                 }
             }
         }
+    }
+
+    private static Path getTempDir() throws IOException {
+        Path tempFile = Files.createTempFile("test", ".bin");
+        Path tempDir = tempFile.getParent();
+        Files.delete(tempFile);
+        return tempDir;
     }
 
     private final class SubmissionFailingHandler
