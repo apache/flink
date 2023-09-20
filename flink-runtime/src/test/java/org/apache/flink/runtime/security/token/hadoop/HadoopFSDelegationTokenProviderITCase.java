@@ -35,6 +35,7 @@ import java.util.Set;
 
 import static java.time.Instant.ofEpochMilli;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Test for {@link HadoopFSDelegationTokenProvider}. */
@@ -214,5 +215,12 @@ class HadoopFSDelegationTokenProviderITCase {
                 NOW,
                 provider.getIssueDate(
                         constantClock, tokenIdentifier.getKind().toString(), tokenIdentifier));
+    }
+
+    @Test
+    public void obtainDelegationTokenWithStandaloneDeployment() throws Exception {
+        HadoopFSDelegationTokenProvider provider = new HadoopFSDelegationTokenProvider();
+        provider.init(new org.apache.flink.configuration.Configuration());
+        assertNotNull(provider.obtainDelegationTokens());
     }
 }
