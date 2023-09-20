@@ -38,14 +38,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DefaultExecutionGraphCache}. */
 class DefaultExecutionGraphCacheTest {
@@ -75,12 +75,16 @@ class DefaultExecutionGraphCacheTest {
             CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertThat(executionGraphInfoFuture.get()).isEqualTo(expectedExecutionGraphInfo);
+            assertThatFuture(executionGraphInfoFuture)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
 
             executionGraphInfoFuture =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertThat(executionGraphInfoFuture.get()).isEqualTo(expectedExecutionGraphInfo);
+            assertThatFuture(executionGraphInfoFuture)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
 
             assertThat(restfulGateway.getNumRequestJobCalls()).isOne();
         }
@@ -103,7 +107,9 @@ class DefaultExecutionGraphCacheTest {
             CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertThat(executionGraphInfoFuture.get()).isEqualTo(expectedExecutionGraphInfo);
+            assertThatFuture(executionGraphInfoFuture)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
 
             // sleep for the TTL
             Thread.sleep(timeToLive.toMilliseconds() * 5L);
@@ -111,7 +117,9 @@ class DefaultExecutionGraphCacheTest {
             CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture2 =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertThat(executionGraphInfoFuture2.get()).isEqualTo(expectedExecutionGraphInfo);
+            assertThatFuture(executionGraphInfoFuture2)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
 
             assertThat(restfulGateway.getNumRequestJobCalls()).isEqualTo(2);
         }
@@ -139,18 +147,15 @@ class DefaultExecutionGraphCacheTest {
             CompletableFuture<ExecutionGraphInfo> executionGraphFuture =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            try {
-                executionGraphFuture.get();
-
-                fail("The execution graph future should have been completed exceptionally.");
-            } catch (ExecutionException ee) {
-                assertThat(ee.getCause() instanceof FlinkException).isTrue();
-            }
+            assertThatThrownBy(() -> executionGraphFuture.get())
+                    .hasCauseInstanceOf(FlinkException.class);
 
             CompletableFuture<ExecutionGraphInfo> executionGraphFuture2 =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId, restfulGateway);
 
-            assertThat(executionGraphFuture2.get()).isEqualTo(expectedExecutionGraphInfo);
+            assertThatFuture(executionGraphFuture2)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
         }
     }
 
@@ -193,9 +198,13 @@ class DefaultExecutionGraphCacheTest {
             CompletableFuture<ExecutionGraphInfo> executionGraph2Future =
                     executionGraphCache.getExecutionGraphInfo(expectedJobId2, restfulGateway);
 
-            assertThat(executionGraph1Future.get()).isEqualTo(expectedExecutionGraphInfo);
+            assertThatFuture(executionGraph1Future)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo);
 
-            assertThat(executionGraph2Future.get()).isEqualTo(expectedExecutionGraphInfo2);
+            assertThatFuture(executionGraph2Future)
+                    .eventuallySucceeds()
+                    .isEqualTo(expectedExecutionGraphInfo2);
 
             assertThat(requestJobCalls.get()).isEqualTo(2);
 

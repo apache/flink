@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.util.ManualTicker;
 
@@ -31,9 +30,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for {@link CompletedOperationCache}. */
 class CompletedOperationCacheTest {
@@ -177,7 +176,7 @@ class CompletedOperationCacheTest {
                 TEST_OPERATION_KEY, CompletableFuture.completedFuture(null));
         assertThat(completedOperationCache.containsOperation(TEST_OPERATION_KEY)).isTrue();
 
-        assertThat(completedOperationCache.closeAsync())
-                .satisfies(matching(FlinkMatchers.willNotComplete(Duration.ofMillis(10))));
+        assertThatFuture(completedOperationCache.closeAsync())
+                .willNotCompleteWithin(Duration.ofMillis(10));
     }
 }

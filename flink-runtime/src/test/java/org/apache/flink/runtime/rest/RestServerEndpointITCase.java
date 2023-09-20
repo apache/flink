@@ -112,6 +112,7 @@ import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** IT cases for {@link RestClient} and {@link RestServerEndpoint}. */
 @ExtendWith(ParameterizedTestExtension.class)
@@ -513,10 +514,9 @@ public class RestServerEndpointITCase {
 
     @TestTemplate
     void testDefaultVersionRouting() throws Exception {
-        // Ignoring SSL-enabled test to keep OkHttp usage simple.
-        if (config.getBoolean(SecurityOptions.SSL_REST_ENABLED)) {
-            return;
-        }
+        assumeThat(config.getBoolean(SecurityOptions.SSL_REST_ENABLED))
+                .as("Ignoring SSL-enabled test to keep OkHttp usage simple.")
+                .isFalse();
 
         OkHttpClient client = new OkHttpClient();
 
@@ -535,9 +535,8 @@ public class RestServerEndpointITCase {
 
     @TestTemplate
     void testNonSslRedirectForEnabledSsl() throws Exception {
-        if (!config.getBoolean(SecurityOptions.SSL_REST_ENABLED)) {
-            return;
-        }
+        assumeThat(config.getBoolean(SecurityOptions.SSL_REST_ENABLED)).isTrue();
+
         OkHttpClient client = new OkHttpClient.Builder().followRedirects(false).build();
         String httpsUrl = serverEndpoint.getRestBaseUrl() + "/path";
         String httpUrl = httpsUrl.replace("https://", "http://");

@@ -143,10 +143,7 @@ abstract class AggregatingMetricsHandlerTestBase<
                             .sorted()
                             .collect(Collectors.toList());
 
-            assertThat(sortedMetrics1).hasSize(2);
-
-            assertThat(sortedMetrics1.get(0)).isEqualTo("1");
-            assertThat(sortedMetrics1.get(1)).isEqualTo("3");
+            assertThat(sortedMetrics1).containsExactly("1", "3");
 
             List<String> sortedMetrics2 =
                     subStores.stream()
@@ -155,9 +152,7 @@ abstract class AggregatingMetricsHandlerTestBase<
                             .sorted()
                             .collect(Collectors.toList());
 
-            assertThat(sortedMetrics2).hasSize(1);
-
-            assertThat(sortedMetrics2.get(0)).isEqualTo("5");
+            assertThat(sortedMetrics2).containsExactly("5");
         }
 
         { // test with filter
@@ -183,9 +178,7 @@ abstract class AggregatingMetricsHandlerTestBase<
                             .sorted()
                             .collect(Collectors.toList());
 
-            assertThat(sortedMetrics1).hasSize(1);
-
-            assertThat(sortedMetrics1.get(0)).isEqualTo("1");
+            assertThat(sortedMetrics1).containsExactly("1");
 
             List<String> sortedMetrics2 =
                     subStores.stream()
@@ -194,9 +187,7 @@ abstract class AggregatingMetricsHandlerTestBase<
                             .sorted()
                             .collect(Collectors.toList());
 
-            assertThat(sortedMetrics2).hasSize(1);
-
-            assertThat(sortedMetrics2.get(0)).isEqualTo("5");
+            assertThat(sortedMetrics2).containsExactly("5");
         }
     }
 
@@ -219,9 +210,7 @@ abstract class AggregatingMetricsHandlerTestBase<
                         .sorted()
                         .collect(Collectors.toList());
 
-        assertThat(availableMetrics).hasSize(2);
-        assertThat(availableMetrics.get(0)).isEqualTo("abc.metric1");
-        assertThat(availableMetrics.get(1)).isEqualTo("abc.metric2");
+        assertThat(availableMetrics).containsExactly("abc.metric1", "abc.metric2");
     }
 
     @Test

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.io.network.netty.InboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.OutboundChannelHandlerFactory;
 import org.apache.flink.runtime.io.network.netty.Prio0InboundChannelHandlerFactory;
@@ -47,10 +48,10 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 /** IT cases for {@link RestClient} and {@link RestServerEndpoint}. */
 class RestExternalHandlersITCase {
@@ -138,14 +139,12 @@ class RestExternalHandlersITCase {
         assertThat(outboundChannelHandlerFactories.get(1))
                 .isInstanceOf(Prio0OutboundChannelHandlerFactory.class);
 
-        try {
-            final CompletableFuture<TestResponse> response =
-                    sendRequestToTestHandler(new TestRequest());
-            response.get();
-            fail("Request must fail with 2 times redirected URL");
-        } catch (Exception e) {
-            assertThat(e.getMessage()).contains(REDIRECT2_URL);
-        }
+        final CompletableFuture<TestResponse> response =
+                sendRequestToTestHandler(new TestRequest());
+        FlinkAssertions.assertThatFuture(response)
+                .eventuallyFailsWith(ExecutionException.class)
+                .as("Request must fail with 2 times redirected URL")
+                .withMessageContaining(REDIRECT2_URL);
     }
 
     private CompletableFuture<TestResponse> sendRequestToTestHandler(

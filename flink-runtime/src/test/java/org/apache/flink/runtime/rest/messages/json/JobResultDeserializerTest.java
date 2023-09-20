@@ -30,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link JobResultDeserializer}. */
 class JobResultDeserializerTest {
@@ -65,28 +66,29 @@ class JobResultDeserializerTest {
     }
 
     @Test
-    void testInvalidType() throws Exception {
-        try {
-            objectMapper.readValue(
-                    "{\n"
-                            + "\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\",\n"
-                            + "\t\"net-runtime\": \"invalid\"\n"
-                            + "}",
-                    JobResult.class);
-        } catch (final JsonMappingException e) {
-            assertThat(e.getMessage())
-                    .contains("Expected token VALUE_NUMBER_INT (was VALUE_STRING)");
-        }
+    void testInvalidType() {
+        assertThatThrownBy(
+                        () ->
+                                objectMapper.readValue(
+                                        "{\n"
+                                                + "\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\",\n"
+                                                + "\t\"net-runtime\": \"invalid\"\n"
+                                                + "}",
+                                        JobResult.class))
+                .isInstanceOf(JsonMappingException.class)
+                .hasMessageContaining("Expected token VALUE_NUMBER_INT (was VALUE_STRING)");
     }
 
     @Test
     void testIncompleteJobResult() throws Exception {
-        try {
-            objectMapper.readValue(
-                    "{\n" + "\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\"\n" + "}",
-                    JobResult.class);
-        } catch (final JsonMappingException e) {
-            assertThat(e.getMessage()).contains("Could not deserialize JobResult");
-        }
+        assertThatThrownBy(
+                        () ->
+                                objectMapper.readValue(
+                                        "{\n"
+                                                + "\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\"\n"
+                                                + "}",
+                                        JobResult.class))
+                .isInstanceOf(JsonMappingException.class)
+                .hasMessageContaining("Could not deserialize JobResult");
     }
 }
