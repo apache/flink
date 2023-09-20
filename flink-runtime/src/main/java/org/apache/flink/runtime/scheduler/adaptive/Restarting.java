@@ -110,6 +110,13 @@ class Restarting extends StateWithExecutionGraph {
                         backoffTime);
     }
 
+    @Override
+    public void handleGlobalFailure(
+            Throwable cause, CompletableFuture<Map<String, String>> failureLabels) {
+        // Skip failure history until FLINK-34922 is in place
+        onFailure(cause, failureLabels);
+    }
+
     /** Context of the {@link Restarting} state. */
     interface Context
             extends StateWithExecutionGraph.Context,
