@@ -143,6 +143,7 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYN
  */
 @Internal
 public class TableEnvironmentImpl implements TableEnvironmentInternal {
+
     // Flag that tells if the TableSource/TableSink used in this environment is stream table
     // source/sink,
     // and this should always be true. This avoids too many hard code.
@@ -951,18 +952,29 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     createTableOperation.getTableIdentifier(),
                     catalogTable,
                     createTableOperation.isTemporary())) {
-                DynamicTableSink dynamicTableSink =
-                        ExecutableOperationUtils.createDynamicTableSink(
-                                catalog,
-                                () -> moduleManager.getFactory((Module::getTableSinkFactory)),
-                                createTableOperation.getTableIdentifier(),
-                                catalogTable,
-                                Collections.emptyMap(),
-                                tableConfig,
-                                resourceManager.getUserClassLoader(),
-                                createTableOperation.isTemporary());
-                if (dynamicTableSink instanceof SupportsStaging) {
-                    return Optional.of(dynamicTableSink);
+                try {
+                    DynamicTableSink dynamicTableSink =
+                            ExecutableOperationUtils.createDynamicTableSink(
+                                    catalog,
+                                    () -> moduleManager.getFactory((Module::getTableSinkFactory)),
+                                    createTableOperation.getTableIdentifier(),
+                                    catalogTable,
+                                    Collections.emptyMap(),
+                                    tableConfig,
+                                    resourceManager.getUserClassLoader(),
+                                    createTableOperation.isTemporary());
+                    if (dynamicTableSink instanceof SupportsStaging) {
+                        return Optional.of(dynamicTableSink);
+                    }
+                } catch (Exception e) {
+                    throw new TableException(
+                            String.format(
+                                    "Fail to create DynamicTableSink for the table %s, "
+                                            + "maybe the table does not support atomicity of CTAS/RTAS, "
+                                            + "please set %s to false and try again.",
+                                    createTableOperation.getTableIdentifier(),
+                                    TableConfigOptions.TABLE_RTAS_CTAS_ATOMICITY_ENABLED.key()),
+                            e);
                 }
             }
         }
