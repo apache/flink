@@ -31,6 +31,7 @@ import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.service.utils.IgnoreExceptionHandler;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
@@ -39,6 +40,7 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.commons.collections.iterators.IteratorChain;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -52,7 +54,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -69,8 +72,14 @@ public class ResultFetcherTest extends TestLogger {
     private static ResolvedSchema schema;
     private static List<RowData> data;
 
-    private final ThreadFactory threadFactory =
-            new ExecutorThreadFactory("Result Fetcher Test Pool", IgnoreExceptionHandler.INSTANCE);
+    @RegisterExtension
+    private static final TestExecutorExtension<ExecutorService> EXECUTOR_EXTENSION =
+            new TestExecutorExtension<>(
+                    () ->
+                            Executors.newCachedThreadPool(
+                                    new ExecutorThreadFactory(
+                                            "Result Fetcher Test Pool",
+                                            IgnoreExceptionHandler.INSTANCE)));
 
     @BeforeAll
     public static void setUp() {
@@ -244,8 +253,9 @@ public class ResultFetcherTest extends TestLogger {
 
         AtomicReference<Boolean> payloadHasData = new AtomicReference<>(true);
         for (int i = 0; i < fetchThreadNum; i++) {
-            threadFactory
-                    .newThread(
+            EXECUTOR_EXTENSION
+                    .getExecutor()
+                    .submit(
                             () -> {
                                 ResultSet resultSet =
                                         fetcher.fetchResults(FetchOrientation.FETCH_NEXT, 1);
@@ -254,10 +264,19 @@ public class ResultFetcherTest extends TestLogger {
                                     payloadHasData.set(false);
                                 }
 
-                                rows.put(Thread.currentThread().getId(), resultSet.getData());
+                                rows.compute(
+                                        Thread.currentThread().getId(),
+                                        (k, v) -> {
+                                            if (v == null) {
+                                                return resultSet.getData();
+                                            } else {
+                                                v.addAll(resultSet.getData());
+                                                return v;
+                                            }
+                                        });
+
                                 latch.countDown();
-                            })
-                    .start();
+                            });
         }
 
         latch.await();
@@ -291,8 +310,9 @@ public class ResultFetcherTest extends TestLogger {
 
         long testToken = token;
         AtomicReference<Boolean> meetEnd = new AtomicReference<>(false);
-        threadFactory
-                .newThread(
+        EXECUTOR_EXTENSION
+                .getExecutor()
+                .submit(
                         () -> {
                             // Should meet EOS in the end.
                             long nextToken = testToken;
@@ -305,8 +325,7 @@ public class ResultFetcherTest extends TestLogger {
                                 nextToken = checkNotNull(resultSet.getNextToken());
                             }
                             meetEnd.set(true);
-                        })
-                .start();
+                        });
 
         CommonTestUtils.waitUtil(
                 meetEnd::get,
@@ -437,8 +456,9 @@ public class ResultFetcherTest extends TestLogger {
 
         List<RowData> firstFetch = fetcher.fetchResults(0, Integer.MAX_VALUE).getData();
         for (int i = 0; i < fetchThreadNum; i++) {
-            threadFactory
-                    .newThread(
+            EXECUTOR_EXTENSION
+                    .getExecutor()
+                    .submit(
                             () -> {
                                 ResultSet resultSet = fetcher.fetchResults(0, Integer.MAX_VALUE);
 
@@ -446,8 +466,7 @@ public class ResultFetcherTest extends TestLogger {
                                     isEqual.set(false);
                                 }
                                 latch.countDown();
-                            })
-                    .start();
+                            });
         }
 
         latch.await();
