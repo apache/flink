@@ -61,6 +61,7 @@ import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationInfo;
 import org.apache.flink.runtime.rest.handler.async.AsynchronousOperationResult;
 import org.apache.flink.runtime.rest.handler.async.TriggerResponse;
 import org.apache.flink.runtime.rest.messages.AccumulatorsIncludeSerializedValueQueryParameter;
+import org.apache.flink.runtime.rest.messages.CustomHeadersDecorator;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -909,6 +910,11 @@ class RestClusterClientTest {
         final AtomicBoolean firstSubmitRequestFailed = new AtomicBoolean(false);
         failHttpRequest =
                 (messageHeaders, messageParameters, requestBody) -> {
+                    messageHeaders =
+                            ((UrlPrefixDecorator)
+                                            ((CustomHeadersDecorator) messageHeaders)
+                                                    .getDecorated())
+                                    .getDecorated();
                     if (messageHeaders instanceof JobExecutionResultHeaders) {
                         return !firstExecutionResultPollFailed.getAndSet(true);
                     }
