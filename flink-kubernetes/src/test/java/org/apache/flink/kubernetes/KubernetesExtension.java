@@ -50,7 +50,6 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
         assumeThat(kubeConfigEnv)
                 .withFailMessage("ITCASE_KUBECONFIG environment is not set.")
                 .isNotBlank();
-        
         kubeConfigFile = kubeConfigEnv;
     }
 
