@@ -251,7 +251,9 @@ public class PlannerCallProcedureOperation implements CallProcedureOperation {
 
         RowRowConverter rowConverter = null;
         // if the output is struct type,
-        // we need a row converter to convert the struct value to Row
+        // we need a row converter to help convert it to Row.
+        // we will first convert the struct value to RowData, and then use the row converter
+        // to convert the RowData to Row.
         if (outputType.getLogicalType().getTypeRoot() == STRUCTURED_TYPE) {
             rowConverter = RowRowConverter.create(tableResultType);
             rowConverter.open(userClassLoader);
@@ -305,7 +307,7 @@ public class PlannerCallProcedureOperation implements CallProcedureOperation {
         public CallProcedureResultProvider(
                 DataStructureConverter<Object, Object> converter,
                 RowDataToStringConverter toStringConverter,
-                RowRowConverter rowConverter,
+                @Nullable RowRowConverter rowConverter,
                 Object result) {
             this.converter = converter;
             this.toStringConverter = toStringConverter;
