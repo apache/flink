@@ -75,6 +75,12 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     rowOf(33, 3L, "Fabian"),
     rowOf(44, null, "Hello world"))
 
+  val userDataWithComplexType = List(
+    rowOf(11, 1L, "Julian", Array(rowOf(1, "a"))),
+    rowOf(22, 2L, "Jark", Array(rowOf(2, "b"), rowOf(3, "c"))),
+    rowOf(33, 3L, "Fabian", Array[Row]())
+  )
+
   @Before
   override def before(): Unit = {
     super.before()
@@ -93,6 +99,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     // lookup will start from the 3rd time, first lookup will always get null result
     createLookupTable("user_table_with_lookup_threshold3", userData, 3)
     createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
+    createLookupTableWithComplex("user_table_with_complex_type", userDataWithComplexType)
   }
 
   @After
@@ -150,6 +157,55 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
                          |) WITH (
                          |  $cacheOptions
                          |  $lookupThresholdOption
+                         |  'connector' = 'values',
+                         |  'data-id' = '$dataId'
+                         |)
+                         |""".stripMargin)
+    }
+  }
+
+  private def createLookupTableWithComplex(
+      tableName: String,
+      data: List[Row]
+  ): Unit = {
+
+    if (legacyTableSource) {
+      val userSchema = TableSchema
+        .builder()
+        .field("age", Types.INT)
+        .field("id", Types.LONG)
+        .field("name", Types.STRING)
+        .field("attributes", Types.OBJECT_ARRAY(Types.ROW(Types.INT(), Types.STRING())))
+        .build()
+      InMemoryLookupableTableSource.createTemporaryTable(
+        tEnv,
+        isAsync = false,
+        data,
+        userSchema,
+        tableName)
+    } else {
+      val dataId = TestValuesTableFactory.registerData(data)
+      val cacheOptions =
+        if (cacheType == LookupCacheType.PARTIAL)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.PARTIAL}',
+             |  '${LookupOptions.PARTIAL_CACHE_MAX_ROWS.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else if (cacheType == LookupCacheType.FULL)
+          s"""
+             |  '${LookupOptions.CACHE_TYPE.key()}' = '${LookupCacheType.FULL}',
+             |  '${LookupOptions.FULL_CACHE_RELOAD_STRATEGY.key()}' = '${ReloadStrategy.PERIODIC}',
+             |  '${LookupOptions.FULL_CACHE_PERIODIC_RELOAD_INTERVAL.key()}' = '${Long.MaxValue}',
+             |""".stripMargin
+        else ""
+
+      tEnv.executeSql(s"""
+                         |CREATE TABLE $tableName (
+                         |  `age` INT,
+                         |  `id` BIGINT,
+                         |  `name` STRING
+                         |) WITH (
+                         |  $cacheOptions
                          |  'connector' = 'values',
                          |  'data-id' = '$dataId'
                          |)
@@ -524,6 +580,20 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     assertTrue(sink.getAppendResults.isEmpty)
+  }
+
+  @Test
+  def testJoinTemporalTableOnComplexData(): Unit = {
+    val sql =
+      "SELECT T.id, T.len, D.name, D.attributes FROM src AS T JOIN user_table_with_complex_type " +
+        "for system_time as of T.proctime AS D ON T.id = D.id"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq("1,12,Julian,[+I[1, a]]", "2,15,Jark,[+I[2, b], +I[3, c]]", "3,15,Fabian,[]")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test

@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.data.GenericRowData;
@@ -631,11 +632,11 @@ final class TestValuesRuntimeFunctions {
         public void open(FunctionContext context) throws Exception {
             RESOURCE_COUNTER.incrementAndGet();
             isOpenCalled = true;
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             if (projectable) {
-                projection =
-                        generatedProjection.newInstance(
-                                Thread.currentThread().getContextClassLoader());
+                projection = generatedProjection.newInstance(classLoader);
             }
+            converter.open(RuntimeConverter.Context.create(classLoader));
             rowSerializer = InternalSerializers.create(producedRowType);
             indexDataByKey();
         }
@@ -725,11 +726,11 @@ final class TestValuesRuntimeFunctions {
         @Override
         public void open(FunctionContext context) throws Exception {
             RESOURCE_COUNTER.incrementAndGet();
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             if (projectable) {
-                projection =
-                        generatedProjection.newInstance(
-                                Thread.currentThread().getContextClassLoader());
+                projection = generatedProjection.newInstance(classLoader);
             }
+            converter.open(RuntimeConverter.Context.create(classLoader));
             rowSerializer = InternalSerializers.create(producedRowType);
             isOpenCalled = true;
             // generate unordered result for async lookup
