@@ -54,8 +54,7 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
     }
 
     @Override
-    public void beforeAll(ExtensionContext extensionContext) throws Exception {
-    }
+    public void beforeAll(ExtensionContext extensionContext) throws Exception {}
 
     @Override
     public void afterAll(ExtensionContext extensionContext) throws Exception {
@@ -64,8 +63,8 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
         }
     }
 
-    public  void createConfiguration() {
-        if(configuration == null) {
+    public void createConfiguration() {
+        if (configuration == null) {
             checkEnv();
             configuration = new Configuration();
             configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
@@ -82,7 +81,7 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
     }
 
     public FlinkKubeClient getFlinkKubeClient() {
-        if(flinkKubeClient == null) {
+        if (flinkKubeClient == null) {
             createConfiguration();
             final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
             flinkKubeClient = kubeClientFactory.fromConfiguration(configuration, "testing");
