@@ -45,6 +45,18 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
     private Configuration configuration;
     private FlinkKubeClient flinkKubeClient;
 
+    public KubernetesExtension(){
+        checkEnv();
+        configuration = new Configuration();
+        configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
+        configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
+        configuration.set(
+                KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES,
+                KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
+        final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
+        flinkKubeClient = kubeClientFactory.fromConfiguration(configuration, "testing");
+    }
+
     public static void checkEnv() {
         final String kubeConfigEnv = System.getenv("ITCASE_KUBECONFIG");
         assumeThat(kubeConfigEnv)
@@ -63,29 +75,11 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
         }
     }
 
-    public void createConfiguration() {
-        if (configuration == null) {
-            checkEnv();
-            configuration = new Configuration();
-            configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
-            configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-            configuration.set(
-                    KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES,
-                    KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
-        }
-    }
-
     public Configuration getConfiguration() {
-        createConfiguration();
         return configuration;
     }
 
     public FlinkKubeClient getFlinkKubeClient() {
-        if (flinkKubeClient == null) {
-            createConfiguration();
-            final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
-            flinkKubeClient = kubeClientFactory.fromConfiguration(configuration, "testing");
-        }
         return flinkKubeClient;
     }
 }
