@@ -46,13 +46,9 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
     private Configuration configuration;
     private FlinkKubeClient flinkKubeClient;
 
-    public KubernetesExtension() {
-        checkEnv();
-    }
-
     public static void checkEnv() {
         final String kubeConfigEnv = System.getenv("ITCASE_KUBECONFIG");
-        assumeThat(kubeConfigEnv)
+        assertThat(kubeConfigEnv)
                 .withFailMessage("ITCASE_KUBECONFIG environment is not set.")
                 .isNotBlank();
         kubeConfigFile = kubeConfigEnv;
@@ -60,6 +56,7 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
 
     @Override
     public void beforeAll(ExtensionContext extensionContext) throws Exception {
+        checkEnv();
         configuration = new Configuration();
         configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
         configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
