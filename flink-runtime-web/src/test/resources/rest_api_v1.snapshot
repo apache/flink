@@ -1968,7 +1968,7 @@
               "task" : {
                 "type" : "string"
               },
-              "location" : {
+              "endpoint" : {
                 "type" : "string"
               },
               "timestamp" : {
@@ -2598,6 +2598,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "start-time" : {
                 "type" : "integer"
               },
@@ -2941,6 +2944,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "user-accumulators" : {
                 "type" : "array",
                 "items" : {
@@ -3031,6 +3037,9 @@
           "type" : "integer"
         },
         "host" : {
+          "type" : "string"
+        },
+        "endpoint" : {
           "type" : "string"
         },
         "start-time" : {
@@ -3140,6 +3149,9 @@
           "type" : "integer"
         },
         "host" : {
+          "type" : "string"
+        },
+        "endpoint" : {
           "type" : "string"
         },
         "start-time" : {
@@ -3338,6 +3350,9 @@
               "host" : {
                 "type" : "string"
               },
+              "endpoint" : {
+                "type" : "string"
+              },
               "duration" : {
                 "type" : "integer"
               },
@@ -3391,6 +3406,9 @@
             "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo:TaskManagersInfo",
             "properties" : {
               "host" : {
+                "type" : "string"
+              },
+              "endpoint" : {
                 "type" : "string"
               },
               "status" : {

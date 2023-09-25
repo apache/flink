@@ -189,6 +189,7 @@ class SubtaskExecutionAttemptDetailsHandlerTest {
                         expectedState,
                         attempt,
                         "(unassigned)",
+                        "(unassigned)",
                         -1L,
                         0L,
                         -1L,

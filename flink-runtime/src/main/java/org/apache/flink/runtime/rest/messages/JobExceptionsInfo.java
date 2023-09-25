@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonAlias;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -144,7 +145,8 @@ public class JobExceptionsInfo {
     public static final class ExecutionExceptionInfo {
         public static final String FIELD_NAME_EXCEPTION = "exception";
         public static final String FIELD_NAME_TASK = "task";
-        public static final String FIELD_NAME_LOCATION = "location";
+        public static final String DEPRECATED_FIELD_NAME_LOCATION = "location";
+        public static final String FIELD_NAME_ENDPOINT = "endpoint";
         public static final String FIELD_NAME_TIMESTAMP = "timestamp";
         public static final String FIELD_NAME_TASK_MANAGER_ID = "taskManagerId";
 
@@ -154,8 +156,9 @@ public class JobExceptionsInfo {
         @JsonProperty(FIELD_NAME_TASK)
         private final String task;
 
-        @JsonProperty(FIELD_NAME_LOCATION)
-        private final String location;
+        @JsonProperty(FIELD_NAME_ENDPOINT)
+        @JsonAlias(DEPRECATED_FIELD_NAME_LOCATION)
+        private final String endpoint;
 
         @JsonProperty(FIELD_NAME_TIMESTAMP)
         private final long timestamp;
@@ -167,12 +170,12 @@ public class JobExceptionsInfo {
         public ExecutionExceptionInfo(
                 @JsonProperty(FIELD_NAME_EXCEPTION) String exception,
                 @JsonProperty(FIELD_NAME_TASK) String task,
-                @JsonProperty(FIELD_NAME_LOCATION) String location,
+                @JsonProperty(FIELD_NAME_ENDPOINT) String endpoint,
                 @JsonProperty(FIELD_NAME_TIMESTAMP) long timestamp,
                 @JsonProperty(FIELD_NAME_TASK_MANAGER_ID) String taskManagerId) {
             this.exception = Preconditions.checkNotNull(exception);
             this.task = Preconditions.checkNotNull(task);
-            this.location = Preconditions.checkNotNull(location);
+            this.endpoint = Preconditions.checkNotNull(endpoint);
             this.timestamp = timestamp;
             this.taskManagerId = taskManagerId;
         }
@@ -190,13 +193,13 @@ public class JobExceptionsInfo {
             return timestamp == that.timestamp
                     && Objects.equals(exception, that.exception)
                     && Objects.equals(task, that.task)
-                    && Objects.equals(location, that.location)
+                    && Objects.equals(endpoint, that.endpoint)
                     && Objects.equals(taskManagerId, that.taskManagerId);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(timestamp, exception, task, location, taskManagerId);
+            return Objects.hash(timestamp, exception, task, endpoint, taskManagerId);
         }
 
         @Override
@@ -204,7 +207,7 @@ public class JobExceptionsInfo {
             return new StringJoiner(", ", ExecutionExceptionInfo.class.getSimpleName() + "[", "]")
                     .add("exception='" + exception + "'")
                     .add("task='" + task + "'")
-                    .add("location='" + location + "'")
+                    .add("endpoint='" + endpoint + "'")
                     .add("timestamp=" + timestamp)
                     .add("taskManagerId=" + taskManagerId)
                     .toString();

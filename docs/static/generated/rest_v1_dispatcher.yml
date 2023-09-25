@@ -2058,9 +2058,9 @@ components:
     ExecutionExceptionInfo:
       type: object
       properties:
-        exception:
+        endpoint:
           type: string
-        location:
+        exception:
           type: string
         task:
           type: string
@@ -2593,6 +2593,8 @@ components:
         end-time:
           type: integer
           format: int64
+        endpoint:
+          type: string
         host:
           type: string
         metrics:
@@ -2892,6 +2894,8 @@ components:
         attempt:
           type: integer
           format: int32
+        endpoint:
+          type: string
         host:
           type: string
         subtask:
@@ -2969,6 +2973,8 @@ components:
         end-time:
           type: integer
           format: int64
+        endpoint:
+          type: string
         host:
           type: string
         metrics:
@@ -2998,6 +3004,8 @@ components:
         duration:
           type: integer
           format: int64
+        endpoint:
+          type: string
         host:
           type: string
         subtask:
