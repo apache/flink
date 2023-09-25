@@ -28,6 +28,7 @@ import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.rules.ExternalResource;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
@@ -47,14 +48,6 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
 
     public KubernetesExtension() {
         checkEnv();
-        configuration = new Configuration();
-        configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
-        configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
-        configuration.set(
-                KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES,
-                KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
-        final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
-        flinkKubeClient = kubeClientFactory.fromConfiguration(configuration, "testing");
     }
 
     public static void checkEnv() {
@@ -66,7 +59,16 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
     }
 
     @Override
-    public void beforeAll(ExtensionContext extensionContext) throws Exception {}
+    public void beforeAll(ExtensionContext extensionContext) throws Exception {
+        configuration = new Configuration();
+        configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
+        configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
+        configuration.set(
+                KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES,
+                KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
+        final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
+        flinkKubeClient = kubeClientFactory.fromConfiguration(configuration, "testing");
+    }
 
     @Override
     public void afterAll(ExtensionContext extensionContext) throws Exception {
