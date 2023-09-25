@@ -45,7 +45,7 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
     private Configuration configuration;
     private FlinkKubeClient flinkKubeClient;
 
-    public KubernetesExtension(){
+    public KubernetesExtension() {
         checkEnv();
         configuration = new Configuration();
         configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
