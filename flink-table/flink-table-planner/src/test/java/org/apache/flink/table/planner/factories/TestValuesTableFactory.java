@@ -1776,7 +1776,7 @@ public final class TestValuesTableFactory
 
         @Override
         public LookupRuntimeProvider getLookupRuntimeProvider(LookupContext context) {
-            return null;
+            return TableFunctionProvider.of(new TableFunction<RowData>() {});
         }
 
         @Override

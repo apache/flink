@@ -29,6 +29,7 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.factories.TableSourceFactory
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.MockedLookupTableSource
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
 import org.apache.flink.table.planner.utils.TableTestUtil.{readFromResource, replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
@@ -546,6 +547,30 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       """.stripMargin
 
     util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testLookupJoinReferencedByView(): Unit = {
+    if (!legacyTableSource) {
+      util.addTable(s"""
+                       |CREATE TABLE LookupTable1 (
+                       |  `id` INT,
+                       |  `name` STRING,
+                       |  `age` INT
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'table-source-class' = '${classOf[MockedLookupTableSource].getName}',
+                       |  'bounded' = 'true'
+                       |)
+                       |""".stripMargin)
+
+      val sql = "SELECT * FROM MyTable AS T JOIN LookupTable1 " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+      val table = util.tableEnv.sqlQuery(sql)
+      util.getTableEnv.createTemporaryView("view1", table)
+
+      util.verifyExecPlan("select * from view1")
+    }
   }
 
   @Test

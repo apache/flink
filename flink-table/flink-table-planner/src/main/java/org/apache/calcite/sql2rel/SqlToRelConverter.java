@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationS
 import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
+import org.apache.flink.table.planner.plan.schema.CatalogSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.TemporalTableJoinUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
@@ -241,17 +242,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682: Lines 667 ~ 677
- *   <li>Added in FLINK-28682: Lines 2300 ~ 2317
- *   <li>Added in FLINK-28682: Lines 2354 ~ 2382
- *   <li>Added in FLINK-32474: Lines 2932 ~ 2944
- *   <li>Added in FLINK-32474: Lines 3057 ~ 3093
- *   <li>Added in FLINK-20873: Lines 5594 ~ 5603
- *   <li>Added in FLINK-33064: Lines 2431 ~ 2475
- *   <li>Added in FLINK-33064: Lines 2481 ~ 2570
- *   <li>Added in FLINK-33064: Lines 2970 ~ 2978
- *   <li>Added in FLINK-33064: Lines 3050 ~ 3052
- *   <li>Added in FLINK-33064: Lines 4102 ~ 4107
+ *   <li>Added in FLINK-29081, FLINK-28682: Lines 668 ~ 678
+ *   <li>Added in FLINK-28682: Lines 2301 ~ 2318
+ *   <li>Added in FLINK-28682: Lines 2355 ~ 2383
+ *   <li>Added in FLINK-32474: Lines 2933 ~ 2945
+ *   <li>Added in FLINK-32474: Lines 3058 ~ 3094
+ *   <li>Added in FLINK-20873: Lines 5598 ~ 5607
+ *   <li>Added in FLINK-33064: Lines 2432 ~ 2476
+ *   <li>Added in FLINK-33064: Lines 2482 ~ 2571
+ *   <li>Added in FLINK-33064: Lines 2971 ~ 2979
+ *   <li>Added in FLINK-33064: Lines 3051 ~ 3053
+ *   <li>Added in FLINK-33064: Lines 4103 ~ 4111
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -4103,7 +4104,10 @@ public class SqlToRelConverter {
     public RelNode toRel(
             final RelOptTable table, final List<RelHint> hints, boolean isTemporalJoinRightSide) {
         final RelNode scan = table.toRel(createToRelContext(hints));
-        validateScan(scan, isTemporalJoinRightSide);
+
+        if (table instanceof CatalogSourceTable) {
+            validateScan(scan, isTemporalJoinRightSide);
+        }
         // ----- FLINK MODIFICATION END -----
 
         final InitializerExpressionFactory ief =

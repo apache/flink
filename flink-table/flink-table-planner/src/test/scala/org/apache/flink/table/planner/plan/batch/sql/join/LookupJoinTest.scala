@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.MockedLookupTableSource
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
@@ -314,6 +315,30 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
         |  ON T.a = D.id and D.nominal_age > 12
       """.stripMargin
     testUtil.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testLookupJoinReferencedByView(): Unit = {
+    if (!legacyTableSource) {
+      testUtil.addTable(s"""
+                           |CREATE TABLE LookupTable1 (
+                           |  `id` INT,
+                           |  `name` STRING,
+                           |  `age` INT
+                           |) WITH (
+                           |  'connector' = 'values',
+                           |  'table-source-class' = '${classOf[MockedLookupTableSource].getName}',
+                           |  'bounded' = 'true'
+                           |)
+                           |""".stripMargin)
+
+      val sql = "SELECT * FROM MyTable AS T JOIN LookupTable1 " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+      val table = testUtil.tableEnv.sqlQuery(sql)
+      testUtil.getTableEnv.createTemporaryView("view1", table)
+
+      testUtil.verifyExecPlan("select * from view1")
+    }
   }
 
   @Test
