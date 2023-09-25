@@ -28,9 +28,6 @@ import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.rules.ExternalResource;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
-
 /**
  * {@link ExternalResource} which has a configured real Kubernetes cluster and client. We assume
  * that one already has a running Kubernetes cluster. And all the ITCases assume that the
@@ -46,11 +43,11 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
     private Configuration configuration;
     private FlinkKubeClient flinkKubeClient;
 
-    public static void checkEnv() {
+    public static void checkEnv() throws Exception {
         final String kubeConfigEnv = System.getenv("ITCASE_KUBECONFIG");
-        assertThat(kubeConfigEnv)
-                .withFailMessage("ITCASE_KUBECONFIG environment is not set.")
-                .isNotBlank();
+        if (kubeConfigEnv.isEmpty()) {
+            throw new Exception("ITCASE_KUBECONFIG environment is not set.");
+        }
         kubeConfigFile = kubeConfigEnv;
     }
 
