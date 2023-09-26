@@ -1108,10 +1108,15 @@ public final class ConfigConstants {
     @Deprecated public static final String METRICS_REPORTERS_LIST = "metrics.reporters";
 
     /**
-     * The prefix for per-reporter configs. Has to be combined with a reporter name and the configs
-     * mentioned below.
+     * The prefix for per-metric reporter configs. Has to be combined with a reporter name and the
+     * configs mentioned below.
      */
     public static final String METRICS_REPORTER_PREFIX = "metrics.reporter.";
+    /**
+     * The prefix for per-trace reporter configs. Has to be combined with a reporter name and the
+     * configs mentioned below.
+     */
+    public static final String TRACES_REPORTER_PREFIX = "traces.reporter.";
 
     /** @deprecated use {@link MetricOptions#REPORTER_CLASS} */
     @Deprecated public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";

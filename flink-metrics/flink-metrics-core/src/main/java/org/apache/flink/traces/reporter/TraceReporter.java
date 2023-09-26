@@ -16,20 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.reporter;
+package org.apache.flink.traces.reporter;
 
-import org.apache.flink.annotation.Public;
-import org.apache.flink.metrics.Metric;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.traces.Span;
 
 /**
- * Metric reporters are used to export {@link Metric Metrics} to an external backend.
+ * Trace reporters are used to export {@link Span Spans} to an external backend.
  *
- * <p>Metric reporters are instantiated via a {@link MetricReporterFactory}.
+ * <p>Reporters are instantiated via a {@link TraceReporterFactory}.
  */
-@Public
-public interface MetricReporter {
+@Experimental
+public interface TraceReporter {
 
     // ------------------------------------------------------------------------
     //  life cycle
@@ -51,25 +50,5 @@ public interface MetricReporter {
     /** Closes this reporter. Should be used to close channels, streams and release resources. */
     void close();
 
-    // ------------------------------------------------------------------------
-    //  adding / removing metrics
-    // ------------------------------------------------------------------------
-
-    /**
-     * Called when a new {@link Metric} was added.
-     *
-     * @param metric the metric that was added
-     * @param metricName the name of the metric
-     * @param group the group that contains the metric
-     */
-    void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group);
-
-    /**
-     * Called when a {@link Metric} was removed.
-     *
-     * @param metric the metric that should be removed
-     * @param metricName the name of the metric
-     * @param group the group that contains the metric
-     */
-    void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group);
+    void notifyOfAddedSpan(Span span);
 }

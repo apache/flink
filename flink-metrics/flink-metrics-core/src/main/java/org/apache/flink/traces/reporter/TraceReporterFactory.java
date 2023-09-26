@@ -16,28 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.metrics.reporter;
+package org.apache.flink.traces.reporter;
 
-import org.apache.flink.annotation.Public;
+import org.apache.flink.annotation.Experimental;
 
 import java.util.Properties;
 
 /**
- * {@link MetricReporter} factory.
+ * {@link TraceReporter} factory.
  *
- * <p>Metric reporters that can be instantiated with a factory automatically qualify for being
- * loaded as a plugin, so long as the reporter jar is self-contained (excluding Flink dependencies)
- * and contains a {@code META-INF/services/org.apache.flink.metrics.reporter.MetricReporterFactory}
- * file containing the qualified class name of the factory.
+ * <p>Trace reporters that can be instantiated with a factory automatically qualify for being loaded
+ * as a plugin, so long as the reporter jar is self-contained (excluding Flink dependencies) and
+ * contains a {@code META-INF/services/org.apache.flink.traces.reporter.SpanReporterFactory} file
+ * containing the qualified class name of the factory.
  */
-@Public
-public interface MetricReporterFactory {
+@Experimental
+public interface TraceReporterFactory {
 
     /**
-     * Creates a new metric reporter.
+     * Creates a new trace reporter.
      *
      * @param properties configured properties for the reporter
      * @return created metric reporter
      */
-    MetricReporter createMetricReporter(final Properties properties);
+    TraceReporter createTraceReporter(final Properties properties);
 }
