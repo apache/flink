@@ -30,6 +30,7 @@ import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
+import org.apache.flink.traces.SpanBuilder;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -339,6 +340,25 @@ public abstract class AbstractMetricGroup<A extends AbstractMetricGroup<?>> impl
 
     public final boolean isClosed() {
         return closed;
+    }
+
+    // -----------------------------------------------------------------------------------------------------------------
+    //  Spans
+    // -----------------------------------------------------------------------------------------------------------------
+
+    @Override
+    public void addSpan(SpanBuilder spanBuilder) {
+        if (spanBuilder == null) {
+            LOG.warn("Ignoring attempted addition of a span due to being null");
+            return;
+        }
+        // add the span only if the group is still open
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            registry.addSpan(spanBuilder);
+        }
     }
 
     // -----------------------------------------------------------------------------------------------------------------

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
+import org.apache.flink.traces.SpanBuilder;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -220,6 +221,9 @@ class RocksDBNativeMetricMonitorTest {
         public int getNumberReporters() {
             return 0;
         }
+
+        @Override
+        public void addSpan(SpanBuilder spanBuilder) {}
 
         @Override
         public void register(Metric metric, String metricName, AbstractMetricGroup group) {
