@@ -68,4 +68,61 @@ Currently reporting Spans from Python is not supported.
 
 For information on how to set up Flink's trace reporters please take a look at the [trace reporters documentation]({{< ref "docs/deployment/trace_reporters" >}}).
 
+## System traces
+
+Flink reports traces listed below.
+
+The tables below generally feature 5 columns:
+
+* The "Scope" column describes what is that trace reported scope.
+
+* The "Name" column describes the name of the reported trace.
+
+* The "Attributes" column lists the names of all attributes that are reported with the given trace.
+
+* The "Description" column provides information as to what a given attribute is reporting.
+
+### Checkpointing
+
+Flink reports a single span trace for the whole checkpoint once checkpoint reaches a terminal state: COMPLETED or FAILED.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 18%">Scope</th>
+      <th class="text-left" style="width: 22%">Name</th>
+      <th class="text-left" style="width: 20%">Attributes</th>
+      <th class="text-left" style="width: 32%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="6">org.apache.flink.runtime.checkpoint.CheckpointStatsTracker</th>
+      <th rowspan="6"><strong>Checkpoint</strong></th>
+      <td>startTs</td>
+      <td>Timestamp when the checkpoint has started.</td>
+    </tr>
+    <tr>
+      <td>endTs</td>
+      <td>Timestamp when the checkpoint has finished.</td>
+    </tr>
+    <tr>
+      <td>checkpointId</td>
+      <td>Id of the checkpoint.</td>
+    </tr>
+    <tr>
+      <td>checkpointedSize</td>
+      <td>Size in bytes of checkpointed state during this checkpoint. Might be smaller than fullSize if incremental checkpoints are used.</td>
+    </tr>
+    <tr>
+      <td>fullSize</td>
+      <td>Full size in bytes of the referenced state by this checkpoint. Might be larger than checkpointSize if incremental checkpoints are used.</td>
+    </tr>
+    <tr>
+      <td>checkpointStatus</td>
+      <td>What was the state of this checkpoint: FAILED or COMPLETED.</td>
+    </tr>
+  </tbody>
+</table>
+
 {{< top >}}

@@ -28,6 +28,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.traces.Span;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -84,6 +85,7 @@ public class CheckpointStatsTracker {
     private final CheckpointStatsHistory history;
 
     private final JobID jobID;
+    private final MetricGroup metricGroup;
 
     /** The latest restored checkpoint. */
     @Nullable private RestoredCheckpointStats latestRestoredCheckpoint;
@@ -121,6 +123,7 @@ public class CheckpointStatsTracker {
         checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
         this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
         this.jobID = jobID;
+        this.metricGroup = metricGroup;
 
         // Latest snapshot is empty
         latestSnapshot =
@@ -261,6 +264,14 @@ public class CheckpointStatsTracker {
 
     private void logCheckpointStatistics(AbstractCheckpointStats checkpointStats) {
         try {
+            metricGroup.addSpan(
+                    Span.builder(CheckpointStatsTracker.class, "Checkpoint")
+                            .setStartTsMillis(checkpointStats.getTriggerTimestamp())
+                            .setEndTsMillis(checkpointStats.getLatestAckTimestamp())
+                            .setAttribute("checkpointId", checkpointStats.getCheckpointId())
+                            .setAttribute("fullSize", checkpointStats.getStateSize())
+                            .setAttribute("checkpointedSize", checkpointStats.getCheckpointedSize())
+                            .setAttribute("checkpointStatus", checkpointStats.getStatus().name()));
             if (LOG.isDebugEnabled()) {
                 StringWriter sw = new StringWriter();
                 MAPPER.writeValue(
