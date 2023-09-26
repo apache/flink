@@ -89,7 +89,7 @@ class HybridShuffleITCase extends BatchShuffleITCaseBase {
 
         if (enableNewHybridMode && isSelective) {
             // Note that the memory tier of the new mode need more buffers for the selective mode
-            configuration.setString(TaskManagerOptions.NETWORK_MEMORY_MAX.key(), "256m");
+            configuration.setString(TaskManagerOptions.NETWORK_MEMORY_MAX.key(), "128m");
         }
         return configuration;
     }
