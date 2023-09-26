@@ -147,14 +147,10 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         }
 
         @Override
-        public void reuseInputMetricsForTask() {
-
-        }
+        public void reuseInputMetricsForTask() {}
 
         @Override
-        public void reuseOutputMetricsForTask() {
-
-        }
+        public void reuseOutputMetricsForTask() {}
     }
 
     private static class UnregisteredSourceReaderMetricGroup extends UnregisteredMetricsGroup
