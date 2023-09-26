@@ -126,6 +126,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecRank.class);
                     add(StreamExecSink.class);
                     add(StreamExecSortLimit.class);
+                    add(StreamExecSort.class);
                     add(StreamExecTableSourceScan.class);
                     add(StreamExecTemporalJoin.class);
                     add(StreamExecTemporalSort.class);
@@ -163,7 +164,6 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecLegacySink.class);
                     add(StreamExecGroupTableAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
-                    add(StreamExecSort.class);
                     add(StreamExecMultipleInput.class);
                 }
             };
