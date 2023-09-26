@@ -101,6 +101,7 @@ class TableSourceITCase extends StreamingTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'nested-projection-supported' = 'true',
+         |  'filterable-fields' = '`nested.value`;`nestedItem.deepMap`;`nestedItem.deepArray`',
          |  'data-id' = '$nestedTableDataId',
          |  'bounded' = 'true'
          |)
@@ -375,5 +376,58 @@ class TableSourceITCase extends StreamingTestBase {
       case t: Throwable =>
         assertThat(t, containsCause(new TableException(SourceWatermarkFunction.ERROR_MESSAGE)))
     }
+  }
+
+  @Test
+  def testSimpleNestedFilter(): Unit = {
+    val query =
+      """
+        |SELECT id, deepNested.nested1.name AS nestedName FROM NestedTable
+        |   WHERE nested.`value` > 20000
+    """.stripMargin
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq("3,Mike")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testNestedFilterOnArray(): Unit = {
+    val query =
+      """
+        |SELECT id,
+        |   deepNested.nested1.name AS nestedName,
+        |   nestedItem.deepArray[2].`value` FROM NestedTable
+        |WHERE nestedItem.deepArray[2].`value` > 1
+      """.stripMargin
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq("1,Sarah,2", "2,Rob,2", "3,Mike,2")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testNestedFilterOnMap(): Unit = {
+    val query =
+      """
+        |SELECT id,
+        |   deepNested.nested1.name AS nestedName,
+        |   nestedItem.deepMap['Monday'] FROM NestedTable
+        |WHERE nestedItem.deepMap['Monday'] = 1
+      """.stripMargin
+
+    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq("1,Sarah,1", "2,Rob,1", "3,Mike,1")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

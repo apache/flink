@@ -1007,6 +1007,17 @@ public final class TestValuesTableFactory
             };
         }
 
+        private Function<int[], Comparable<?>> getNestedValueGetter(Row row) {
+            return fieldIndices -> {
+                Object current = row;
+                for (int i = 0; i < fieldIndices.length - 1; i++) {
+                    current = ((Row) current).getField(fieldIndices[i]);
+                }
+                return (Comparable<?>)
+                        ((Row) current).getField(fieldIndices[fieldIndices.length - 1]);
+            };
+        }
+
         @Override
         public DynamicTableSource copy() {
             return new TestValuesScanTableSourceWithoutProjectionPushDown(
@@ -1183,7 +1194,9 @@ public final class TestValuesTableFactory
                 for (Row row : allData.get(partition)) {
                     boolean isRetained =
                             FilterUtils.isRetainedAfterApplyingFilterPredicates(
-                                    filterPredicates, getValueGetter(row));
+                                    filterPredicates,
+                                    getValueGetter(row),
+                                    getNestedValueGetter(row));
                     if (isRetained) {
                         remainData.add(row);
                     }
