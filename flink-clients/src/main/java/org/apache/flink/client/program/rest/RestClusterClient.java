@@ -1021,7 +1021,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                                         restClient.sendRequest(
                                                                 webMonitorBaseUrl.getHost(),
                                                                 webMonitorBaseUrl.getPort(),
-                                                                messageHeaders,
+                                                                headers,
                                                                 messageParameters,
                                                                 request,
                                                                 filesToUpload);
