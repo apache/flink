@@ -45,14 +45,10 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
     private Configuration configuration;
     private FlinkKubeClient flinkKubeClient;
 
-    public KubernetesExtension() {
-        checkEnv();
-    }
-
     public static void checkEnv() {
         final String kubeConfigEnv = System.getenv("ITCASE_KUBECONFIG");
         assumeThat(kubeConfigEnv)
-                .withFailMessage("ITCASE_KUBECONFIG environment is not set.")
+                .describedAs("ITCASE_KUBECONFIG environment is not set.")
                 .isNotBlank();
         kubeConfigFile = kubeConfigEnv;
     }
