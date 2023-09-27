@@ -2530,6 +2530,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "exception" : {
             "type" : "string"
           },
+          "location" : {
+            "type" : "string"
+          },
           "task" : {
             "type" : "string"
           },
@@ -2558,6 +2561,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                   "type" : "object",
                   "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfoWithHistory:ExceptionInfo",
                   "properties" : {
+                    "endpoint" : {
+                      "type" : "string"
+                    },
                     "exceptionName" : {
                       "type" : "string"
                     },
@@ -2584,6 +2590,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                     }
                   }
                 }
+              },
+              "endpoint" : {
+                "type" : "string"
               },
               "exceptionName" : {
                 "type" : "string"

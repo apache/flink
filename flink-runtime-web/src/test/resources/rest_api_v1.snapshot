@@ -1968,6 +1968,9 @@
               "task" : {
                 "type" : "string"
               },
+              "location" : {
+                "type" : "string"
+              },
               "endpoint" : {
                 "type" : "string"
               },
@@ -2014,6 +2017,9 @@
                   "location" : {
                     "type" : "string"
                   },
+                  "endpoint" : {
+                    "type" : "string"
+                  },
                   "taskManagerId" : {
                     "type" : "string"
                   },
@@ -2042,6 +2048,9 @@
                           "type" : "string"
                         },
                         "location" : {
+                          "type" : "string"
+                        },
+                        "endpoint" : {
                           "type" : "string"
                         },
                         "taskManagerId" : {

@@ -2022,6 +2022,8 @@ components:
     ExceptionInfo:
       type: object
       properties:
+        endpoint:
+          type: string
         exceptionName:
           type: string
         failureLabels:
@@ -2061,6 +2063,8 @@ components:
         endpoint:
           type: string
         exception:
+          type: string
+        location:
           type: string
         task:
           type: string
@@ -2784,6 +2788,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ExceptionInfo'
+        endpoint:
+          type: string
         exceptionName:
           type: string
         failureLabels:
