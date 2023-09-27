@@ -53,7 +53,7 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
     public static void checkEnv() {
         final String kubeConfigEnv = System.getenv("ITCASE_KUBECONFIG");
         assumeThat(kubeConfigEnv)
-                .describedAs("ITCASE_KUBECONFIG environment is not set, skipping test...")
+                .as("ITCASE_KUBECONFIG environment is not set, skipping test...")
                 .isNotBlank();
         kubeConfigFile = kubeConfigEnv;
     }
