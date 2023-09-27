@@ -61,9 +61,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>com.ververica</groupId>
-			<artifactId>frocksdbjni</artifactId>
-			<version>8.5.0-ververica-1.0-db-SNASHOT</version>
+		  <groupId>io.github.mayuehappy</groupId>
+		  <artifactId>frocksdbjni</artifactId>
+		  <version>8.5.0-ververica-bd-test</version>
 		</dependency>
 
 		<!-- test dependencies -->
