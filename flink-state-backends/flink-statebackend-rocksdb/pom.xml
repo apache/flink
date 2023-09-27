@@ -63,7 +63,7 @@ under the License.
 		<dependency>
 			<groupId>io.github.mayuehappy</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>8.5.0-ververica-ingest-db-test</version>
+			<version>8.5.0-ververica-support-ingest-db</version>
 		</dependency>
 
 		<!-- test dependencies -->
