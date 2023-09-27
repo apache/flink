@@ -111,7 +111,7 @@ class FlinkTypeFactory(
           rowType.getFieldNames,
           rowType.getChildren,
           // fields are not expanded in "SELECT *"
-          StructKind.PEEK_FIELDS_NO_EXPAND)
+          StructKind.FULLY_QUALIFIED)
 
       case LogicalTypeRoot.STRUCTURED_TYPE =>
         t match {
