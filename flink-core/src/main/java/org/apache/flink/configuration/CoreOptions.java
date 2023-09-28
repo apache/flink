@@ -81,7 +81,7 @@ public class CoreOptions {
      *
      * <p>It is important that all classes whose objects move between Flink's runtime and any user
      * code (including Flink connectors that run as part of the user code) are covered by these
-     * patterns here. Otherwise it is be possible that the Flink runtime and the user code load two
+     * patterns here. Otherwise, it is possible that the Flink runtime and the user code load two
      * different copies of a class through the different class loaders. That leads to errors like "X
      * cannot be cast to X" exceptions, where both class names are equal, or "X cannot be assigned
      * to Y", where X should be a subclass of Y.
@@ -273,7 +273,7 @@ public class CoreOptions {
                                     .build());
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
@@ -297,7 +297,7 @@ public class CoreOptions {
                             "Defines the directory where the flink-<host>-<process>.pid files are saved.");
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
@@ -322,7 +322,7 @@ public class CoreOptions {
                                     + "Note that redirected files do not support rolling rotate.");
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
@@ -336,7 +336,7 @@ public class CoreOptions {
                                     + " stop-zookeeper-quorum.sh).");
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
@@ -349,7 +349,7 @@ public class CoreOptions {
                                     + " configuration. You can also set it via environment variable.");
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
@@ -362,7 +362,7 @@ public class CoreOptions {
                                     + " set it via environment variable.");
 
     /**
-     * This options is here only for documentation generation, it is only evaluated in the shell
+     * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
      */
     @SuppressWarnings("unused")
