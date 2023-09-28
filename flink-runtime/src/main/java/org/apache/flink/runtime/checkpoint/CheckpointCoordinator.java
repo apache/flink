@@ -1625,22 +1625,6 @@ public class CheckpointCoordinator {
         }
     }
 
-    /**
-     * Fails all pending checkpoints which have not been acknowledged by the given execution attempt
-     * id.
-     *
-     * @param executionAttemptId for which to discard unacknowledged pending checkpoints
-     * @param cause of the failure
-     */
-    public void failUnacknowledgedPendingCheckpointsFor(
-            ExecutionAttemptID executionAttemptId, Throwable cause) {
-        synchronized (lock) {
-            abortPendingCheckpoints(
-                    checkpoint -> !checkpoint.isAcknowledgedBy(executionAttemptId),
-                    new CheckpointException(CheckpointFailureReason.TASK_FAILURE, cause));
-        }
-    }
-
     private void rememberRecentExpiredCheckpointId(long id) {
         if (recentExpiredCheckpoints.size() >= NUM_GHOST_CHECKPOINT_IDS) {
             recentExpiredCheckpoints.removeFirst();
