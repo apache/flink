@@ -153,6 +153,7 @@ readFromConfig() {
 
 DEFAULT_ENV_PID_DIR="/tmp"                          # Directory to store *.pid files to
 DEFAULT_ENV_LOG_MAX=10                              # Maximum number of old log files to keep
+DEFAULT_ENV_LOG_LEVEL="INFO"                        # Level of the root logger
 DEFAULT_ENV_JAVA_OPTS=""                            # Optional JVM args
 DEFAULT_ENV_JAVA_OPTS_JM=""                         # Optional JVM args (JobManager)
 DEFAULT_ENV_JAVA_OPTS_TM=""                         # Optional JVM args (TaskManager)
@@ -172,6 +173,7 @@ KEY_TASKM_COMPUTE_NUMA="taskmanager.compute.numa"
 KEY_ENV_PID_DIR="env.pid.dir"
 KEY_ENV_LOG_DIR="env.log.dir"
 KEY_ENV_LOG_MAX="env.log.max"
+KEY_ENV_LOG_LEVEL="env.log.level"
 KEY_ENV_STD_REDIRECT_TO_FILE="env.stdout-err.redirect-to-file"
 KEY_ENV_YARN_CONF_DIR="env.yarn.conf.dir"
 KEY_ENV_HADOOP_CONF_DIR="env.hadoop.conf.dir"
@@ -290,6 +292,11 @@ fi
 if [ -z "${MAX_LOG_FILE_NUMBER}" ]; then
     MAX_LOG_FILE_NUMBER=$(readFromConfig ${KEY_ENV_LOG_MAX} ${DEFAULT_ENV_LOG_MAX} "${YAML_CONF}")
     export MAX_LOG_FILE_NUMBER
+fi
+
+if [ -z "${ROOT_LOG_LEVEL}" ]; then
+    ROOT_LOG_LEVEL=$(readFromConfig ${KEY_ENV_LOG_LEVEL} "${DEFAULT_ENV_LOG_LEVEL}" "${YAML_CONF}")
+    export ROOT_LOG_LEVEL
 fi
 
 if [ -z "${STD_REDIRECT_TO_FILE}" ]; then

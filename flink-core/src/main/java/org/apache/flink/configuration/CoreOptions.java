@@ -312,6 +312,17 @@ public class CoreOptions {
      * scripts.
      */
     @SuppressWarnings("unused")
+    public static final ConfigOption<String> FLINK_LOG_LEVEL =
+            ConfigOptions.key("env.log.level")
+                    .stringType()
+                    .defaultValue("INFO")
+                    .withDescription("Defines the level of the root logger.");
+
+    /**
+     * This option is here only for documentation generation, it is only evaluated in the shell
+     * scripts.
+     */
+    @SuppressWarnings("unused")
     public static final ConfigOption<Boolean> FLINK_STD_REDIRECT_TO_FILE =
             ConfigOptions.key("env.stdout-err.redirect-to-file")
                     .booleanType()
