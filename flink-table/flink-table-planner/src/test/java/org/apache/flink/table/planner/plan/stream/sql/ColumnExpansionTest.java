@@ -68,6 +68,17 @@ public class ColumnExpansionTest {
                         + " 'readable-metadata' = 't2_m_virtual:INT,k1:STRING,t2_m_default:INT,k2:STRING'\n"
                         + ")");
 
+        tableEnv.executeSql(
+                "CREATE TABLE t3 (\n"
+                        + "  t3_s STRING,\n"
+                        + "  t3_i INT,\n"
+                        + "  t3_m_virtual TIMESTAMP_LTZ(3) METADATA VIRTUAL,\n"
+                        + "  WATERMARK FOR t3_m_virtual AS t3_m_virtual - INTERVAL '1' SECOND\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'readable-metadata' = 't3_m_virtual:TIMESTAMP_LTZ(3)'\n"
+                        + ")");
+
         tableEnv.getConfig().set(TABLE_COLUMN_EXPANSION_STRATEGY, Collections.emptyList());
     }
 
@@ -220,6 +231,33 @@ public class ColumnExpansionTest {
         tableEnv.executeSql("CREATE VIEW v1 AS SELECT * FROM t1");
 
         assertColumnNames("SELECT * FROM v1", "t1_i", "t1_s", "t1_m_default", "t1_m_aliased");
+    }
+
+    @Test
+    public void testExplicitTableWithinTableFunction() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        // t3_m_virtual is selected due to expansion of the explicit table expression
+        // with hints from descriptor
+        assertColumnNames(
+                "SELECT * FROM TABLE(TUMBLE(TABLE t3, DESCRIPTOR(t3_m_virtual), INTERVAL '1' MINUTE))",
+                "t3_s",
+                "t3_i",
+                "t3_m_virtual",
+                "window_start",
+                "window_end",
+                "window_time");
+
+        // Test common window TVF syntax
+        assertColumnNames(
+                "SELECT t3_s, SUM(t3_i) AS agg "
+                        + "FROM TABLE(TUMBLE(TABLE t3, DESCRIPTOR(t3_m_virtual), INTERVAL '1' MINUTE)) "
+                        + "GROUP BY t3_s, window_start, window_end",
+                "t3_s",
+                "agg");
     }
 
     private void assertColumnNames(String sql, String... columnNames) {
