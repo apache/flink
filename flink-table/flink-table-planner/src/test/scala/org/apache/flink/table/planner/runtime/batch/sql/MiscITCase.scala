@@ -621,4 +621,58 @@ class MiscITCase extends BatchTestBase {
         )).isInstanceOf(classOf[ValidationException])
 
   }
+
+  @Test
+  def testMultisetEqualAndNotEqual(): Unit = {
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT t1.ms = t2.ms FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t2 ON t1.f1 = t2.f1",
+      Seq(Tuple1("true"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT t1.ms = t2.ms FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM (SELECT * FROM Table1 LIMIT 2) GROUP BY f1) t2 " +
+        "ON t1.f1 = t2.f1",
+      Seq(Tuple1("false"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT t1.ms = NULL FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NULL = t1.ms FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(t1.ms = t2.ms) FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t2 ON t1.f1 = t2.f1",
+      Seq(Tuple1("false"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(t1.ms = t2.ms) FROM " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1 LEFT JOIN " +
+        "(SELECT f1, COLLECT(f0) AS ms FROM (SELECT * FROM Table1 LIMIT 2) GROUP BY f1) t2 " +
+        "ON t1.f1 = t2.f1",
+      Seq(Tuple1("true"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(t1.ms = NULL) FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
+    checkQuery(
+      Seq(("b", 1), ("a", 1), ("b", 1)),
+      "SELECT NOT(NULL = t1.ms) FROM (SELECT f1, COLLECT(f0) AS ms FROM Table1 GROUP BY f1) t1",
+      Seq(Tuple1("null"))
+    )
+  }
 }
