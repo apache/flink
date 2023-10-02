@@ -274,6 +274,14 @@ Please refer to vendor maintained documentation on how to use these products.
 Please keep this list in alphabetical order
 -->
 
+#### Aiven
+
+[Website](https://aiven.io/flink)
+
+{{< label AWS >}}
+{{< label Azure >}}
+{{< label Google Cloud >}}
+
 #### AliCloud Realtime Compute
 
 [Website](https://www.alibabacloud.com/products/realtime-compute)
@@ -304,6 +312,13 @@ Supported Environment:
 {{< label Azure >}}
 {{< label Google Cloud >}}
 {{< label On-Premise >}}
+
+#### Decodable
+
+[Website](https://decodable.co/)
+
+Supported Environment:
+{{< label AWS >}}
 
 #### Huawei Cloud Stream Service
 
