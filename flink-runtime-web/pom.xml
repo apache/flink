@@ -262,52 +262,52 @@ under the License.
 							<npmVersion>8.1.2</npmVersion>
 						</configuration>
 					</execution>
-<!--					<execution>-->
-<!--						<id>npm install</id>-->
-<!--						<goals>-->
-<!--							<goal>npm</goal>-->
-<!--						</goals>-->
-<!--						<configuration>-->
-<!--							<arguments>ci &#45;&#45;cache-max=0 &#45;&#45;no-save</arguments>-->
-<!--							<environmentVariables>-->
-<!--								<HUSKY_SKIP_INSTALL>true</HUSKY_SKIP_INSTALL>-->
-<!--							</environmentVariables>-->
-<!--						</configuration>-->
-<!--					</execution>-->
-<!--					<execution>-->
-<!--						<id>npm run ci-check</id>-->
-<!--						<goals>-->
-<!--							<goal>npm</goal>-->
-<!--						</goals>-->
-<!--						<configuration>-->
-<!--							<arguments>run ci-check</arguments>-->
-<!--						</configuration>-->
-<!--					</execution>-->
+					<execution>
+						<id>npm install</id>
+						<goals>
+							<goal>npm</goal>
+						</goals>
+						<configuration>
+							<arguments>ci --cache-max=0 --no-save</arguments>
+							<environmentVariables>
+								<HUSKY_SKIP_INSTALL>true</HUSKY_SKIP_INSTALL>
+							</environmentVariables>
+						</configuration>
+					</execution>
+					<execution>
+						<id>npm run ci-check</id>
+						<goals>
+							<goal>npm</goal>
+						</goals>
+						<configuration>
+							<arguments>run ci-check</arguments>
+						</configuration>
+					</execution>
 				</executions>
 				<configuration>
 					<workingDirectory>web-dashboard</workingDirectory>
 				</configuration>
 			</plugin>
 
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.8</version>
-				<executions>
-					<execution>
-						<id>wait</id>
-						<phase>integration-test</phase>
-						<configuration>
-							<target>
-								<sleep seconds="1200" />
-							</target>
-						</configuration>
-						<goals>
-							<goal>run</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
+<!--			<plugin>-->
+<!--				<groupId>org.apache.maven.plugins</groupId>-->
+<!--				<artifactId>maven-antrun-plugin</artifactId>-->
+<!--				<version>1.8</version>-->
+<!--				<executions>-->
+<!--					<execution>-->
+<!--						<id>wait</id>-->
+<!--						<phase>integration-test</phase>-->
+<!--						<configuration>-->
+<!--							<target>-->
+<!--								<sleep seconds="1200" />-->
+<!--							</target>-->
+<!--						</configuration>-->
+<!--						<goals>-->
+<!--							<goal>run</goal>-->
+<!--						</goals>-->
+<!--					</execution>-->
+<!--				</executions>-->
+<!--			</plugin>-->
 
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
