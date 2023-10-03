@@ -1558,6 +1558,7 @@ under the License.
 						<exclude>flink-table/flink-sql-client/src/test/resources/**/*.out</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/**/*.out</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/json/*.json</exclude>
+						<exclude>flink-table/flink-table-planner/src/test/resources/jsonplan/*.json</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/hadoop/config/keystore.jks</exclude>
