@@ -203,7 +203,8 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
                          |CREATE TABLE $tableName (
                          |  `age` INT,
                          |  `id` BIGINT,
-                         |  `name` STRING
+                         |  `name` STRING,
+                         |  `attributes` ARRAY<ROW<`id` INT, `name` STRING>>
                          |) WITH (
                          |  $cacheOptions
                          |  'connector' = 'values',
