@@ -57,8 +57,7 @@ public class EmbeddedHaServicesTest extends TestLogger {
     @After
     public void teardownTest() throws Exception {
         if (embeddedHaServices != null) {
-            embeddedHaServices.cleanupAllData();
-            embeddedHaServices.close();
+            embeddedHaServices.closeWithOptionalClean(true);
             embeddedHaServices = null;
         }
     }

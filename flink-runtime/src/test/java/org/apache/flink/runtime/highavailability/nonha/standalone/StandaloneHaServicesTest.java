@@ -54,8 +54,7 @@ public class StandaloneHaServicesTest extends TestLogger {
     @After
     public void teardownTest() throws Exception {
         if (standaloneHaServices != null) {
-            standaloneHaServices.cleanupAllData();
-            standaloneHaServices.close();
+            standaloneHaServices.closeWithOptionalClean(true);
             standaloneHaServices = null;
         }
     }

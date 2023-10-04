@@ -66,8 +66,7 @@ class AbstractHaServicesTest {
                         () -> closeOperations.offer(CloseOperations.HA_CLEANUP),
                         ignored -> {});
 
-        haServices.cleanupAllData();
-        haServices.close();
+        haServices.closeWithOptionalClean(true);
 
         assertThat(closeOperations)
                 .contains(
@@ -98,8 +97,8 @@ class AbstractHaServicesTest {
                         },
                         ignored -> {});
 
-        assertThatThrownBy(haServices::cleanupAllData).isInstanceOf(FlinkException.class);
-        haServices.close();
+        assertThatThrownBy(() -> haServices.closeWithOptionalClean(true))
+                .isInstanceOf(FlinkException.class);
         assertThat(closeOperations).contains(CloseOperations.HA_CLOSE, CloseOperations.BLOB_CLOSE);
     }
 
