@@ -268,7 +268,7 @@ under the License.
 							<goal>npm</goal>
 						</goals>
 						<configuration>
-							<arguments>ci --cache-max=0 --no-save --registry http://172.17.0.1:8888/repository/npm/</arguments>
+							<arguments>ci --cache-max=0 --no-save </arguments>
 							<environmentVariables>
 								<HUSKY_SKIP_INSTALL>true</HUSKY_SKIP_INSTALL>
 							</environmentVariables>
