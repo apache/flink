@@ -207,6 +207,7 @@ under the License.
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
+		<test.exclusion.pattern>**/Java17*.java</test.exclusion.pattern>
 	</properties>
 
 	<dependencies>
@@ -1104,6 +1105,12 @@ under the License.
 
 		<profile>
 			<id>java17-target</id>
+
+			<!-- Include Java 17 specific tests (by not excluding them) -->
+			<properties>
+				<test.exclusion.pattern>nothing</test.exclusion.pattern>
+			</properties>
+
 			<build>
 				<plugins>
 					<plugin>
@@ -2060,6 +2067,9 @@ under the License.
 							<!-- Prevents recompilation due to missing package-info.class, see MCOMPILER-205 -->
 							<arg>-Xpkginfo:always</arg>
 						</compilerArgs>
+						<testExcludes>
+							<testExclude>${test.exclusion.pattern}</testExclude>
+						</testExcludes>
 					</configuration>
 				</plugin>
 
