@@ -100,8 +100,8 @@ class ZooKeeperLeaderRetrievalTest {
     @AfterEach
     void after() throws Exception {
         if (highAvailabilityServices != null) {
-            highAvailabilityServices.closeAndCleanupAllData();
-
+            highAvailabilityServices.cleanupAllData();
+            highAvailabilityServices.close();
             highAvailabilityServices = null;
         }
     }

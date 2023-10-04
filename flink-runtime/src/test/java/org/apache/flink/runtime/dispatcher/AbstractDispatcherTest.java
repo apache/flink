@@ -118,7 +118,8 @@ public class AbstractDispatcherTest extends TestLogger {
     @After
     public void tearDown() throws Exception {
         if (haServices != null) {
-            haServices.closeAndCleanupAllData();
+            haServices.cleanupAllData();
+            haServices.close();
         }
         if (blobServer != null) {
             blobServer.close();

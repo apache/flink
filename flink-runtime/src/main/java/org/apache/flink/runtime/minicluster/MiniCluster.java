@@ -1276,12 +1276,16 @@ public class MiniCluster implements AutoCloseableAsync {
 
             // shut down high-availability services
             if (haServices != null) {
-                try {
-                    if (cleanupHaData) {
-                        haServices.closeAndCleanupAllData();
-                    } else {
-                        haServices.close();
+                if (cleanupHaData) {
+                    try {
+                        haServices.cleanupAllData();
+                    } catch (Exception e) {
+                        exception = ExceptionUtils.firstOrSuppressed(e, exception);
                     }
+                }
+
+                try {
+                    haServices.close();
                 } catch (Exception e) {
                     exception = ExceptionUtils.firstOrSuppressed(e, exception);
                 }

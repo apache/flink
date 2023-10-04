@@ -406,7 +406,8 @@ class JobManagerHAProcessFailureRecoveryITCase {
             }
 
             if (highAvailabilityServices != null) {
-                highAvailabilityServices.closeAndCleanupAllData();
+                highAvailabilityServices.cleanupAllData();
+                highAvailabilityServices.close();
             }
 
             RpcUtils.terminateRpcService(rpcService);

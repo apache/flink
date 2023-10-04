@@ -147,7 +147,8 @@ class ResourceManagerTest {
         }
 
         if (highAvailabilityServices != null) {
-            highAvailabilityServices.closeAndCleanupAllData();
+            highAvailabilityServices.cleanupAllData();
+            highAvailabilityServices.close();
         }
 
         if (testingFatalErrorHandler.hasExceptionOccurred()) {
