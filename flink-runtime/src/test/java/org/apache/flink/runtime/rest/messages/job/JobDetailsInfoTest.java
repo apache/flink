@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.messages.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
@@ -108,6 +109,7 @@ class JobDetailsInfoTest extends RestResponseMarshallingTestBase<JobDetailsInfo>
         int parallelism = 1 + (random.nextInt() / 3);
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 new JobVertexID(),
+                new SlotSharingGroupId(),
                 "jobVertex" + random.nextLong(),
                 2 * parallelism,
                 parallelism,
