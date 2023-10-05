@@ -105,7 +105,7 @@ class TaskManagerRunnerStartupTest {
 
     @AfterEach
     void tearDownTest() throws Exception {
-        highAvailabilityServices.closeAndCleanupAllData();
+        highAvailabilityServices.closeWithOptionalClean(true);
         highAvailabilityServices = null;
     }
 
