@@ -23,6 +23,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 
+import org.junit.AssumptionViolatedException;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -45,10 +46,14 @@ public class KubernetesExtension implements BeforeAllCallback, AfterAllCallback 
     private Configuration configuration;
     private FlinkKubeClient flinkKubeClient;
 
+    /**
+     * Checks whether credentials are available in the environment variables of this JVM. If not,
+     * throws an {@link AssumptionViolatedException} which causes JUnit tests to be skipped.
+     */
     public static void checkEnv() {
         final String kubeConfigEnv = System.getenv("ITCASE_KUBECONFIG");
         assumeThat(kubeConfigEnv)
-                .withFailMessage("ITCASE_KUBECONFIG environment is not set.")
+                .as("ITCASE_KUBECONFIG environment is not set, skipping test...")
                 .isNotBlank();
         kubeConfigFile = kubeConfigEnv;
     }
