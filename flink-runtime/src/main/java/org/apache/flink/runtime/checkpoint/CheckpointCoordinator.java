@@ -1535,7 +1535,11 @@ public class CheckpointCoordinator {
                             CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE,
                             exception);
             reportFailedCheckpoint(pendingCheckpoint, checkpointException);
-            sendAbortedMessages(tasksToAbort, checkpointId, completedCheckpoint.getTimestamp());
+            sendAbortedMessages(
+                    tasksToAbort,
+                    checkpointId,
+                    completedCheckpoint.getTimestamp(),
+                    checkpointException.getCheckpointFailureReason());
             throw checkpointException;
         }
     }
@@ -1586,7 +1590,10 @@ public class CheckpointCoordinator {
     }
 
     private void sendAbortedMessages(
-            List<ExecutionVertex> tasksToAbort, long checkpointId, long timeStamp) {
+            List<ExecutionVertex> tasksToAbort,
+            long checkpointId,
+            long timeStamp,
+            CheckpointFailureReason failureReason) {
         assert (Thread.holdsLock(lock));
         long latestCompletedCheckpointId = completedCheckpointStore.getLatestCheckpointId();
 
@@ -1598,7 +1605,10 @@ public class CheckpointCoordinator {
                         Execution ee = ev.getCurrentExecutionAttempt();
                         if (ee != null) {
                             ee.notifyCheckpointAborted(
-                                    checkpointId, latestCompletedCheckpointId, timeStamp);
+                                    checkpointId,
+                                    latestCompletedCheckpointId,
+                                    timeStamp,
+                                    failureReason);
                         }
                     }
                 });
@@ -2265,7 +2275,8 @@ public class CheckpointCoordinator {
                 sendAbortedMessages(
                         pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),
                         pendingCheckpoint.getCheckpointID(),
-                        pendingCheckpoint.getCheckpointTimestamp());
+                        pendingCheckpoint.getCheckpointTimestamp(),
+                        exception.getCheckpointFailureReason());
                 pendingCheckpoints.remove(pendingCheckpoint.getCheckpointID());
                 if (exception
                         .getCheckpointFailureReason()

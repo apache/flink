@@ -51,6 +51,7 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointExpiredThreadDumper;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -191,7 +192,8 @@ public class StreamTaskTerminationTest extends TestLogger {
                         UnregisteredMetricGroups.createUnregisteredTaskMetricGroup(),
                         mock(PartitionProducerStateChecker.class),
                         Executors.directExecutor(),
-                        new ChannelStateWriteRequestExecutorFactory(jobInformation.getJobId()));
+                        new ChannelStateWriteRequestExecutorFactory(jobInformation.getJobId()),
+                        new CheckpointExpiredThreadDumper());
 
         CompletableFuture<Void> taskRun =
                 CompletableFuture.runAsync(() -> task.run(), EXECUTOR_RESOURCE.getExecutor());

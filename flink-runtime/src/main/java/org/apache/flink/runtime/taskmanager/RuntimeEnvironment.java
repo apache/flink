@@ -44,6 +44,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointExpiredThreadDumper;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
@@ -111,6 +112,8 @@ public class RuntimeEnvironment implements Environment {
 
     ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
 
+    @Nullable private final CheckpointExpiredThreadDumper checkpointExpiredThreadDumper;
+
     // ------------------------------------------------------------------------
 
     public RuntimeEnvironment(
@@ -142,7 +145,8 @@ public class RuntimeEnvironment implements Environment {
             Task containingTask,
             ExternalResourceInfoProvider externalResourceInfoProvider,
             ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory,
-            TaskManagerActions taskManagerActions) {
+            TaskManagerActions taskManagerActions,
+            @Nullable CheckpointExpiredThreadDumper checkpointExpiredThreadDumper) {
 
         this.jobId = checkNotNull(jobId);
         this.jobVertexId = checkNotNull(jobVertexId);
@@ -173,6 +177,7 @@ public class RuntimeEnvironment implements Environment {
         this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
         this.channelStateExecutorFactory = checkNotNull(channelStateExecutorFactory);
         this.taskManagerActions = checkNotNull(taskManagerActions);
+        this.checkpointExpiredThreadDumper = checkpointExpiredThreadDumper;
     }
 
     // ------------------------------------------------------------------------
@@ -386,5 +391,10 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
         return channelStateExecutorFactory;
+    }
+
+    @Override
+    public CheckpointExpiredThreadDumper getCheckpointExpiredThreadDumper() {
+        return checkpointExpiredThreadDumper;
     }
 }

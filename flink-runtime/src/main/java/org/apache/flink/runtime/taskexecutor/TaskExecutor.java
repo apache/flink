@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.management.jmx.JMXService;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.JobPermanentBlobService;
@@ -98,6 +97,7 @@ import org.apache.flink.runtime.rpc.RpcServiceUtils;
 import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.CheckpointExpiredThreadDumper;
 import org.apache.flink.runtime.state.TaskExecutorChannelStateExecutorFactoryManager;
 import org.apache.flink.runtime.state.TaskExecutorFileMergingManager;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
@@ -180,6 +180,7 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.configuration.ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -299,6 +300,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final ShuffleDescriptorsCache shuffleDescriptorsCache;
 
+    private final CheckpointExpiredThreadDumper checkpointExpiredThreadDumper;
+
     public TaskExecutor(
             RpcService rpcService,
             TaskManagerConfiguration taskManagerConfiguration,
@@ -375,6 +378,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
         this.sharedResources = taskExecutorServices.getSharedResources();
         this.shuffleDescriptorsCache = taskExecutorServices.getShuffleDescriptorCache();
+        this.checkpointExpiredThreadDumper = new CheckpointExpiredThreadDumper();
     }
 
     private HeartbeatManager<Void, TaskExecutorHeartbeatPayload>
@@ -803,7 +807,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             taskMetricGroup,
                             partitionStateChecker,
                             getRpcService().getScheduledExecutor(),
-                            channelStateExecutorFactoryManager.getOrCreateExecutorFactory(jobId));
+                            channelStateExecutorFactoryManager.getOrCreateExecutorFactory(jobId),
+                            checkpointExpiredThreadDumper);
 
             taskMetricGroup.gauge(MetricNames.IS_BACK_PRESSURED, task::isBackPressured);
 
@@ -1088,7 +1093,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             ExecutionAttemptID executionAttemptID,
             long checkpointId,
             long latestCompletedCheckpointId,
-            long checkpointTimestamp) {
+            long checkpointTimestamp,
+            CheckpointFailureReason failureReason) {
         log.debug(
                 "Abort checkpoint {}@{} for {}.",
                 checkpointId,
@@ -1098,6 +1104,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         final Task task = taskSlotTable.getTask(executionAttemptID);
 
         if (task != null) {
+            if (failureReason == CheckpointFailureReason.CHECKPOINT_EXPIRED) {
+                task.threadDumpWhenCheckpointTimeout(checkpointId);
+            }
             task.notifyCheckpointAborted(checkpointId, latestCompletedCheckpointId);
 
             return CompletableFuture.completedFuture(Acknowledge.get());
@@ -1357,9 +1366,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     @Override
     public CompletableFuture<ThreadDumpInfo> requestThreadDump(Time timeout) {
         int stacktraceMaxDepth =
-                taskManagerConfiguration
-                        .getConfiguration()
-                        .get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH);
+                taskManagerConfiguration.getConfiguration().get(THREAD_DUMP_STACKTRACE_MAX_DEPTH);
         return CompletableFuture.completedFuture(ThreadDumpInfo.dumpAndCreate(stacktraceMaxDepth));
     }
 
@@ -1905,6 +1912,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         channelStateExecutorFactoryManager.releaseResourcesForJob(jobId);
         shuffleDescriptorsCache.clearCacheForJob(jobId);
         fileMergingManager.releaseMergingSnapshotManagerForJob(jobId);
+        checkpointExpiredThreadDumper.removeCheckpointExpiredThreadDumpRecordForJob(jobId);
     }
 
     private void scheduleResultPartitionCleanup(JobID jobId) {

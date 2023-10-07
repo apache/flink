@@ -107,4 +107,12 @@ public interface CheckpointableTask {
      * @param cause The reason why the checkpoint was aborted during alignment
      */
     void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) throws IOException;
+
+    /**
+     * Request to do a thread dump when checkpoint timeout.
+     *
+     * @param checkpointId the id of the checkpoint that timeout.
+     * @return future that completes when the thread dump has been processed by the task.
+     */
+    Future<Void> threadDumpOnCheckpointTimeout(long checkpointId);
 }

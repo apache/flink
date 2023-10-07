@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -174,7 +175,8 @@ public interface TaskExecutorGateway
             ExecutionAttemptID executionAttemptID,
             long checkpointId,
             long latestCompletedCheckpointId,
-            long checkpointTimestamp);
+            long checkpointTimestamp,
+            CheckpointFailureReason failureReason);
 
     /**
      * Cancel the given task.

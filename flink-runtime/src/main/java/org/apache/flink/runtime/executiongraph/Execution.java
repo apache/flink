@@ -25,6 +25,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -818,12 +819,16 @@ public class Execution
     /**
      * Notify the task of this execution about a aborted checkpoint.
      *
-     * @param abortCheckpointId of the subsumed checkpoint
+     * @param abortCheckpointId of the aborted checkpoint
      * @param latestCompletedCheckpointId of the latest completed checkpoint
-     * @param timestamp of the subsumed checkpoint
+     * @param timestamp of the aborted checkpoint
+     * @param failureReason the reason why abort this checkpoint
      */
     public void notifyCheckpointAborted(
-            long abortCheckpointId, long latestCompletedCheckpointId, long timestamp) {
+            long abortCheckpointId,
+            long latestCompletedCheckpointId,
+            long timestamp,
+            CheckpointFailureReason failureReason) {
         final LogicalSlot slot = assignedResource;
 
         if (slot != null) {
@@ -834,7 +839,8 @@ public class Execution
                     getVertex().getJobId(),
                     abortCheckpointId,
                     latestCompletedCheckpointId,
-                    timestamp);
+                    timestamp,
+                    failureReason);
         } else {
             LOG.debug(
                     "The execution has no slot assigned. This indicates that the execution is "

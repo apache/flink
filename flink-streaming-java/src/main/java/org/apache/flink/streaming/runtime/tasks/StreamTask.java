@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptionsInternal;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -315,6 +316,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     @Nullable private final AvailabilityProvider changelogWriterAvailabilityProvider;
 
+    @Nullable private final CheckpointExpiredThreadDumperWrapper checkpointExpiredThreadDumper;
+
     // ------------------------------------------------------------------------
 
     /**
@@ -471,6 +474,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             }
 
             this.systemTimerService = createTimerService("System Time Trigger for " + getName());
+
+            this.checkpointExpiredThreadDumper =
+                    environment.getCheckpointExpiredThreadDumper() == null
+                            ? null
+                            : new CheckpointExpiredThreadDumperWrapper(
+                                    environment.getCheckpointExpiredThreadDumper(),
+                                    environment.getJobID(),
+                                    configuration
+                                            .getConfiguration()
+                                            .get(
+                                                    ExecutionCheckpointingOptions
+                                                            .THREAD_DUMP_LOG_LEVEL_WHEN_CHECKPOINT_TIMEOUT),
+                                    configuration
+                                            .getConfiguration()
+                                            .get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH));
 
             this.subtaskCheckpointCoordinator =
                     new SubtaskCheckpointCoordinatorImpl(
@@ -1314,6 +1332,24 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             throw new FlinkRuntimeException("Stop-with-savepoint failed.");
         }
         subtaskCheckpointCoordinator.abortCheckpointOnBarrier(checkpointId, cause, operatorChain);
+    }
+
+    @Override
+    public Future<Void> threadDumpOnCheckpointTimeout(long checkpointId) {
+        if (checkpointExpiredThreadDumper != null) {
+            return notifyCheckpointOperation(
+                    () -> {
+                        if (isRunning()
+                                && subtaskCheckpointCoordinator.checkCheckpointRegistered(
+                                        checkpointId)) {
+                            checkpointExpiredThreadDumper.threadDumpIfNeeded(checkpointId);
+                        }
+                    },
+                    "Request thread dump when checkpoint timeout");
+        }
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        result.complete(null);
+        return result;
     }
 
     private boolean performCheckpoint(

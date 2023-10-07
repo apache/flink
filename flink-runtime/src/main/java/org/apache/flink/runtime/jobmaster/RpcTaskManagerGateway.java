@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -98,9 +99,14 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
             JobID jobId,
             long checkpointId,
             long latestCompletedCheckpointId,
-            long timestamp) {
+            long timestamp,
+            CheckpointFailureReason failureReason) {
         taskExecutorGateway.abortCheckpoint(
-                executionAttemptID, checkpointId, latestCompletedCheckpointId, timestamp);
+                executionAttemptID,
+                checkpointId,
+                latestCompletedCheckpointId,
+                timestamp,
+                failureReason);
     }
 
     @Override

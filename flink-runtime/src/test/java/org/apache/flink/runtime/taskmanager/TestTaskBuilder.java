@@ -47,6 +47,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.CheckpointExpiredThreadDumper;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
@@ -227,7 +228,8 @@ public final class TestTaskBuilder {
                 taskMetricGroup,
                 partitionProducerStateChecker,
                 executor,
-                new ChannelStateWriteRequestExecutorFactory(jobId));
+                new ChannelStateWriteRequestExecutorFactory(jobId),
+                new CheckpointExpiredThreadDumper());
     }
 
     public static void setTaskState(Task task, ExecutionState state) {

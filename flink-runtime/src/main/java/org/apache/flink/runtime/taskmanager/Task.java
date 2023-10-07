@@ -74,6 +74,7 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
+import org.apache.flink.runtime.state.CheckpointExpiredThreadDumper;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
@@ -266,6 +267,8 @@ public class Task
     /** The factory of channel state write request executor. */
     private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
 
+    private final CheckpointExpiredThreadDumper checkpointExpiredThreadDumper;
+
     // ------------------------------------------------------------------------
     //  Fields that control the task execution. All these fields are volatile
     //  (which means that they introduce memory barriers), to establish
@@ -329,7 +332,8 @@ public class Task
             @Nonnull TaskMetricGroup metricGroup,
             PartitionProducerStateChecker partitionProducerStateChecker,
             Executor executor,
-            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory) {
+            ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory,
+            @Nullable CheckpointExpiredThreadDumper checkpointExpiredThreadDumper) {
 
         Preconditions.checkNotNull(jobInformation);
         Preconditions.checkNotNull(taskInformation);
@@ -388,6 +392,7 @@ public class Task
                 Preconditions.checkNotNull(partitionProducerStateChecker);
         this.executor = Preconditions.checkNotNull(executor);
         this.channelStateExecutorFactory = channelStateExecutorFactory;
+        this.checkpointExpiredThreadDumper = checkpointExpiredThreadDumper;
 
         // create the reader and writer structures
 
@@ -716,7 +721,8 @@ public class Task
                             this,
                             externalResourceInfoProvider,
                             channelStateExecutorFactory,
-                            taskManagerActions);
+                            taskManagerActions,
+                            checkpointExpiredThreadDumper);
 
             // Make sure the user code classloader is accessible thread-locally.
             // We are setting the correct context class loader before instantiating the invokable
@@ -1479,6 +1485,12 @@ public class Task
                     "Ignoring checkpoint {} notification for non-running task {}.",
                     notifyCheckpointOperation,
                     taskNameWithSubtask);
+        }
+    }
+
+    public void threadDumpWhenCheckpointTimeout(long checkpointId) {
+        if (executionState == ExecutionState.RUNNING && invokable != null) {
+            ((CheckpointableTask) invokable).threadDumpOnCheckpointTimeout(checkpointId);
         }
     }
 

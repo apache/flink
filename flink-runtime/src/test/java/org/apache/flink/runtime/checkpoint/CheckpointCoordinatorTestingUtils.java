@@ -519,7 +519,8 @@ public class CheckpointCoordinatorTestingUtils {
                 JobID jobId,
                 long checkpointId,
                 long latestCompletedCheckpointId,
-                long timestamp) {
+                long timestamp,
+                CheckpointFailureReason failureReason) {
             notifiedAbortCheckpoints
                     .computeIfAbsent(attemptId, k -> new ArrayList<>())
                     .add(new NotifiedCheckpoint(jobId, checkpointId, timestamp));

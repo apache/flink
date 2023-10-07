@@ -215,6 +215,14 @@ public abstract class AbstractInvokable
                         this.getClass().getName()));
     }
 
+    @Override
+    public Future<Void> threadDumpOnCheckpointTimeout(long checkpointId) {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "threadDumpOnCheckpointTimeout not supported by %s",
+                        this.getClass().getName()));
+    }
+
     public void dispatchOperatorEvent(OperatorID operator, SerializedValue<OperatorEvent> event)
             throws FlinkException {
         throw new UnsupportedOperationException(

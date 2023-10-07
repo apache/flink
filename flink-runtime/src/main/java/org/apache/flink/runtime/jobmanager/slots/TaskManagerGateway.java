@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobmanager.slots;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -110,13 +111,15 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * @param checkpointId of the subsumed checkpoint
      * @param latestCompletedCheckpointId of the latest completed checkpoint
      * @param timestamp of the subsumed checkpoint
+     * @param failureReason the reason of this abortion
      */
     void notifyCheckpointAborted(
             ExecutionAttemptID executionAttemptID,
             JobID jobId,
             long checkpointId,
             long latestCompletedCheckpointId,
-            long timestamp);
+            long timestamp,
+            CheckpointFailureReason failureReason);
 
     /**
      * Trigger for the given task a checkpoint.

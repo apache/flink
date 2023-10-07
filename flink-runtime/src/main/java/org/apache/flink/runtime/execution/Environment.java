@@ -43,6 +43,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.state.CheckpointExpiredThreadDumper;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -267,4 +268,6 @@ public interface Environment {
     }
 
     ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory();
+
+    CheckpointExpiredThreadDumper getCheckpointExpiredThreadDumper();
 }

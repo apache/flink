@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.runtime.util.JvmUtils;
 import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
 
 import org.junit.jupiter.api.Test;
@@ -68,7 +69,7 @@ class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDumpInfo>
         String[] threadInfoLines = threadInfo.toString().split("\n");
         String[] expected = Arrays.copyOfRange(threadInfoLines, 1, threadInfoLines.length);
 
-        String stringifyThreadInfo = ThreadDumpInfo.stringifyThreadInfo(threadInfo, 8);
+        String stringifyThreadInfo = JvmUtils.stringifyThreadInfo(threadInfo, 8);
         String[] stringifyThreadInfoLines = stringifyThreadInfo.split("\n");
         String[] stringified =
                 Arrays.copyOfRange(stringifyThreadInfoLines, 1, stringifyThreadInfoLines.length);
@@ -84,11 +85,11 @@ class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDumpInfo>
 
         int expectedStacktraceDepth = threadInfo.getStackTrace().length;
 
-        String stringifiedInfo = ThreadDumpInfo.stringifyThreadInfo(threadInfo, Integer.MAX_VALUE);
+        String stringifiedInfo = JvmUtils.stringifyThreadInfo(threadInfo, Integer.MAX_VALUE);
         assertThat(getOutputDepth(stringifiedInfo)).isEqualTo(expectedStacktraceDepth);
 
         String stringifiedInfoExceedMaxDepth =
-                ThreadDumpInfo.stringifyThreadInfo(threadInfo, expectedStacktraceDepth - 1);
+                JvmUtils.stringifyThreadInfo(threadInfo, expectedStacktraceDepth - 1);
         assertThat(getOutputDepth(stringifiedInfoExceedMaxDepth))
                 .isEqualTo(expectedStacktraceDepth - 1);
         assertThat(stringifiedInfoExceedMaxDepth.contains("\t...")).isTrue();

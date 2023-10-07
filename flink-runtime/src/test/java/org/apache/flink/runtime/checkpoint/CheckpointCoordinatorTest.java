@@ -587,7 +587,8 @@ class CheckpointCoordinatorTest {
                                             JobID jobId,
                                             long checkpointId,
                                             long latestCompletedCheckpointId,
-                                            long timestamp) {
+                                            long timestamp,
+                                            CheckpointFailureReason failureReason) {
                                         checkpointAborted.set(true);
                                     }
                                 })
@@ -3913,7 +3914,8 @@ class CheckpointCoordinatorTest {
                                             JobID jobId,
                                             long checkpointId,
                                             long latestCompletedCheckpointId,
-                                            long timestamp) {
+                                            long timestamp,
+                                            CheckpointFailureReason failureReason) {
                                         reportedCheckpointId.set(latestCompletedCheckpointId);
                                     }
                                 })

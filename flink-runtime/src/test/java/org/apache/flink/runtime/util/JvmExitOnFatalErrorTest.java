@@ -50,6 +50,7 @@ import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.state.CheckpointExpiredThreadDumper;
 import org.apache.flink.runtime.state.TaskExecutorStateChangelogStoragesManager;
 import org.apache.flink.runtime.state.TaskLocalStateStore;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
@@ -255,7 +256,8 @@ class JvmExitOnFatalErrorTest {
                                 new NoOpPartitionProducerStateChecker(),
                                 executor,
                                 new ChannelStateWriteRequestExecutorFactory(
-                                        jobInformation.getJobId()));
+                                        jobInformation.getJobId()),
+                                new CheckpointExpiredThreadDumper());
 
                 System.err.println("starting task thread");
 

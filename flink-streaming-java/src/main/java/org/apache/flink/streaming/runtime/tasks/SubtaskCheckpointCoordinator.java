@@ -101,6 +101,14 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
     /** Waits for all the pending checkpoints to finish their asynchronous step. */
     void waitForPendingCheckpoints() throws Exception;
 
+    /**
+     * Check whether a checkpoint is registered (running) in this coordinator.
+     *
+     * @param checkpointId of the target checkpoint
+     * @return true if the checkpoint is running.
+     */
+    boolean checkCheckpointRegistered(long checkpointId);
+
     /** Cancel all resources. */
     void cancel() throws IOException;
 }
