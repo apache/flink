@@ -126,6 +126,10 @@ public class TaskManagerOptions {
                                     + " additional non-shared TaskManager-specific config file.");
 
     /** The local address of the network interface that the task manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
     public static final ConfigOption<String> BIND_HOST =
             key("taskmanager.bind-host")
                     .stringType()
@@ -152,6 +156,10 @@ public class TaskManagerOptions {
                                     + " range of ports to avoid collisions when multiple TaskManagers are running on the same machine.");
 
     /** The local port that the task manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
     public static final ConfigOption<Integer> RPC_BIND_PORT =
             key("taskmanager.rpc.bind-port")
                     .intType()

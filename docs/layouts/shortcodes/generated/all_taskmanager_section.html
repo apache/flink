@@ -27,6 +27,12 @@
             <td>Time we wait for the timers in milliseconds to finish all pending timer threads when the stream task is cancelled.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.bind-host</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The local address of the network interface that the task manager binds to. If not configured, '0.0.0.0' will be used.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.data.bind-port</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -104,6 +110,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The TaskManager's ResourceID. If not configured, the ResourceID will be generated with the "RpcAddress:RpcPort" and a 6-character random string. Notice that this option is not valid in Yarn and Native Kubernetes mode.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.rpc.bind-port</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The local RPC port that the TaskManager binds to. If not configured, the external port (configured by 'taskmanager.rpc.port') will be used.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.rpc.port</h5></td>
