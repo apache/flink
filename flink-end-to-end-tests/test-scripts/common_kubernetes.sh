@@ -24,7 +24,6 @@ CONTAINER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 MINIKUBE_START_RETRIES=3
 MINIKUBE_START_BACKOFF=5
 RESULT_HASH="e682ec6622b5e83f2eb614617d5ab2cf"
-MINIKUBE_VERSION="v1.28.0"
 
 NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux environment. ******"
 
@@ -43,14 +42,22 @@ function setup_kubernetes_for_linux {
             chmod +x kubectl && sudo mv kubectl /usr/local/bin/
     fi
     # Download minikube when it is not installed beforehand.
-    if [ -x "$(command -v minikube)" ] && [[ "$(minikube version | grep -c $MINIKUBE_VERSION)" == "0" ]]; then
-      echo "Removing any already installed minikube binaries ..."
-      sudo rm "$(which minikube)"
+    if [ -x "$(command -v minikube)" ]; then
+        minikubeVersionArray=(`minikube update-check | awk '{ print $2 }'`)
+        if [ ${#minikubeVersionArray[@]} == 2 ];then
+            CurrentVersion=${minikubeVersionArray[0]}
+            LatestVersion=${minikubeVersionArray[1]}
+            if [[ ${CurrentVersion} != ${LatestVersion} ]];then
+                remove_old_minikube_version
+            fi
+        else
+            remove_old_minikube_version
+        fi
     fi
 
     if ! [ -x "$(command -v minikube)" ]; then
       echo "Installing minikube $MINIKUBE_VERSION ..."
-      curl -Lo minikube https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube-linux-$arch && \
+      curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-$arch && \
           chmod +x minikube && sudo mv minikube /usr/bin/minikube
     fi
 
@@ -256,6 +263,11 @@ function get_host_machine_address {
     else
         echo $(hostname --ip-address)
     fi
+}
+
+function remove_old_minikube_version {
+    echo "Removing any already installed minikube binaries ..."
+    sudo rm "$(which minikube)"
 }
 
 on_exit cleanup
