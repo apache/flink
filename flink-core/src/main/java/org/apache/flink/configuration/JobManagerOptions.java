@@ -65,8 +65,11 @@ public class JobManagerOptions {
                                     + " leader-election service (like ZooKeeper) is used to elect and discover the JobManager"
                                     + " leader from potentially multiple standby JobManagers.");
 
-    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     /** The local address of the network interface that the job manager binds to. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
     public static final ConfigOption<String> BIND_HOST =
             key("jobmanager.bind-host")
                     .stringType()
@@ -106,7 +109,10 @@ public class JobManagerOptions {
                                     + " leader from potentially multiple standby JobManagers.");
 
     /** The local port that the job manager binds to. */
-    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
     public static final ConfigOption<Integer> RPC_BIND_PORT =
             key("jobmanager.rpc.bind-port")
                     .intType()
