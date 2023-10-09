@@ -56,7 +56,7 @@ function setup_kubernetes_for_linux {
     fi
 
     if ! [ -x "$(command -v minikube)" ]; then
-      echo "Installing minikube $MINIKUBE_VERSION ..."
+      echo "Installing minikube ..."
       curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-$arch && \
           chmod +x minikube && sudo mv minikube /usr/bin/minikube
     fi
