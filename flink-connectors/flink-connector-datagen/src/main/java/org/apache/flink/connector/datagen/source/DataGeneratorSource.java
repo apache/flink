@@ -35,6 +35,7 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
+import java.lang.reflect.Method;
 import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -100,6 +101,40 @@ public class DataGeneratorSource<OUT>
     private final TypeInformation<OUT> typeInfo;
 
     private final NumberSequenceSource numberSource;
+
+    public DataGeneratorSource(GeneratorFunction<Long, OUT> generatorFunction, long count) {
+        this(
+                generatorFunction,
+                count,
+                RateLimiterStrategy.noOp(),
+                getGeneratorFunctionReturnType(generatorFunction));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <OUT> TypeInformation<OUT> getGeneratorFunctionReturnType(
+            GeneratorFunction<Long, OUT> generatorFunction) {
+        try {
+            Method mapMethod = generatorFunction.getClass().getMethod("map", Object.class);
+            Class<OUT> returnType = (Class<OUT>) mapMethod.getReturnType();
+            return TypeInformation.of(returnType);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public DataGeneratorSource(
+            GeneratorFunction<Long, OUT> generatorFunction,
+            long count,
+            RateLimiterStrategy rateLimiterStrategy) {
+        this(
+                new GeneratorSourceReaderFactory<>(generatorFunction, rateLimiterStrategy),
+                count,
+                getGeneratorFunctionReturnType(generatorFunction));
+        ClosureCleaner.clean(
+                generatorFunction, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+        ClosureCleaner.clean(
+                rateLimiterStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+    }
 
     /**
      * Instantiates a new {@code DataGeneratorSource}.
