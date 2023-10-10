@@ -553,8 +553,22 @@ class DefaultResourceAllocationStrategyTest {
                         .getCpuCores()
                         .multiply(NUM_OF_SLOTS)
                         .multiply(BigDecimal.valueOf(4.5));
-
         testMinRequiredResourceLimitInFulfillRequirements(minRequiredCPU, MemorySize.ZERO, 4);
+    }
+
+    @Test
+    void testMinRequiredCPULimitInTryFulfillWithRequirement() {
+        CPUResource minRequiredCPU =
+                DEFAULT_SLOT_RESOURCE
+                        .getCpuCores()
+                        .multiply(NUM_OF_SLOTS)
+                        .multiply(BigDecimal.valueOf(4.5));
+        List<ResourceRequirement> resourceRequirements =
+                Collections.singletonList(
+                        ResourceRequirement.create(DEFAULT_SLOT_RESOURCE, 3 * NUM_OF_SLOTS));
+
+        testMinRequiredResourceLimitInFulfillRequirements(
+                minRequiredCPU, MemorySize.ZERO, 4, resourceRequirements);
     }
 
     @Test
@@ -563,6 +577,20 @@ class DefaultResourceAllocationStrategyTest {
                 DEFAULT_SLOT_RESOURCE.getTotalMemory().multiply(NUM_OF_SLOTS).multiply(3.5);
         testMinRequiredResourceLimitInFulfillRequirements(
                 new CPUResource(0.0), minRequiredMemory, 3);
+    }
+
+    @Test
+    void testMinRequiredMemoryLimitInTryFulfillWithRequirement() {
+        CPUResource minRequiredCPU =
+                DEFAULT_SLOT_RESOURCE
+                        .getCpuCores()
+                        .multiply(NUM_OF_SLOTS)
+                        .multiply(BigDecimal.valueOf(4.5));
+        List<ResourceRequirement> resourceRequirements =
+                Collections.singletonList(
+                        ResourceRequirement.create(DEFAULT_SLOT_RESOURCE, 3 * NUM_OF_SLOTS));
+        testMinRequiredResourceLimitInFulfillRequirements(
+                minRequiredCPU, MemorySize.ZERO, 4, resourceRequirements);
     }
 
     void testMinResourceLimitInReconcile(
@@ -631,10 +659,19 @@ class DefaultResourceAllocationStrategyTest {
             CPUResource minRequiredCPU,
             MemorySize minRequiredMemory,
             int pendingTaskManagersToAllocate) {
+        testMinRequiredResourceLimitInFulfillRequirements(
+                minRequiredCPU,
+                minRequiredMemory,
+                pendingTaskManagersToAllocate,
+                Collections.emptyList());
+    }
 
+    void testMinRequiredResourceLimitInFulfillRequirements(
+            CPUResource minRequiredCPU,
+            MemorySize minRequiredMemory,
+            int pendingTaskManagersToAllocate,
+            List<ResourceRequirement> requirements) {
         final JobID jobId = new JobID();
-        final List<ResourceRequirement> requirements = Collections.emptyList();
-
         final PendingTaskManager pendingTaskManager =
                 new PendingTaskManager(DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS), NUM_OF_SLOTS);
 
