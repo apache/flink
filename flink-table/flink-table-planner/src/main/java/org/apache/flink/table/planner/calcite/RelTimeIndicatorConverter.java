@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalDistribution;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExchange;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExpand;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalIntersect;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
@@ -144,7 +145,8 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 || node instanceof FlinkLogicalSort
                 || node instanceof FlinkLogicalOverAggregate
                 || node instanceof FlinkLogicalExpand
-                || node instanceof FlinkLogicalScriptTransform) {
+                || node instanceof FlinkLogicalScriptTransform
+                || node instanceof FlinkLogicalExchange) {
             return visitSimpleRel(node);
         } else if (node instanceof FlinkLogicalWindowAggregate) {
             return visitWindowAggregate((FlinkLogicalWindowAggregate) node);

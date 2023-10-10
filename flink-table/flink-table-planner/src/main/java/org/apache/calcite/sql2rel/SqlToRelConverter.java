@@ -236,12 +236,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 654 ~ 671
- *   <li>Added in FLINK-28682: Lines 2294 ~ 2311
- *   <li>Added in FLINK-28682: Lines 2348 ~ 2376
- *   <li>Added in FLINK-20873: Lines 5489 ~ 5498
- *   <li>Added in FLINK-32474: Lines 2846 ~ 2858
- *   <li>Added in FLINK-32474: Lines 2958 ~ 2992
+ *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 660 ~ 677
+ *   <li>Added in Flink-24024: Lines 1441 ~ 1449
+ *   <li>Added in FLINK-28682: Lines 2306 ~ 2323
+ *   <li>Added in FLINK-28682: Lines 2360 ~ 2388
+ *   <li>Added in FLINK-32474: Lines 2858 ~ 2870
+ *   <li>Added in FLINK-32474: Lines 2970 ~ 3004
+ *   <li>Added in FLINK-20873: Lines 5601 ~ 5610
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -1432,9 +1433,15 @@ public class SqlToRelConverter {
                 bb.cursors.add(converted.r);
                 return;
             case SET_SEMANTICS_TABLE:
-                if (!config.isExpand()) {
-                    return;
-                }
+                // ----- FLINK MODIFICATION BEGIN -----
+                // Currently, Flink will not distinguish tvf between SET semantics and ROW
+                // semantics.
+                // And in Flink, only session window tvf need to support SET semantics. It will
+                // always be expanded.
+                //  if (!config.isExpand()) {
+                //      return;
+                //  }
+                // ----- FLINK MODIFICATION END -----
                 substituteSubQueryOfSetSemanticsInputTable(bb, subQuery);
                 return;
             default:

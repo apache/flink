@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.api.common.restartstrategy.RestartStrategies
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.CheckpointingMode
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
@@ -27,6 +28,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelog
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy._
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
@@ -1176,6 +1178,95 @@ class WindowAggregateITCase(
       "a,2020-10-10T00:00,2020-10-10T00:00:10,1,-1,2",
       // TODO align the behavior when receiving single delete after fixing FLINK-33760
       "a,2020-10-10T00:00:05,2020-10-10T00:00:15,-1,-3,0"
+    )
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @TestTemplate
+  def testEventTimeSessionWindow(): Unit = {
+    // To verify the "merge" functionality, we create this test with the following characteristics:
+    // 1. set the Parallelism to 1, and have the test data out of order
+    // 2. create a waterMark with 10ms offset to delay the window emission by 10ms
+    val sessionData = List(
+      (1L, 1, "Hello", "a"),
+      (2L, 2, "Hello", "b"),
+      (8L, 8, "Hello", "a"),
+      (9L, 9, "Hello World", "b"),
+      (4L, 4, "Hello", "c"),
+      (16L, 16, "Hello", "d"))
+
+    val stream = failingDataSource(sessionData)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(Long, Int, String, String)](10L))
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'string, 'name)
+    tEnv.registerTable("T", table)
+
+    val sql =
+      """
+        |SELECT
+        |  `string`,
+        |  window_start,
+        |  window_time,
+        |  COUNT(1),
+        |  SUM(1),
+        |  COUNT(`int`),
+        |  SUM(`int`),
+        |  COUNT(DISTINCT name)
+        |FROM TABLE(
+        |  SESSION(TABLE T PARTITION BY `string`, DESCRIPTOR(rowtime), INTERVAL '0.005' SECOND))
+        |GROUP BY `string`, window_start, window_end, window_time
+      """.stripMargin
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "Hello World,1970-01-01T00:00:00.009,1970-01-01T00:00:00.013,1,1,1,9,1",
+      "Hello,1970-01-01T00:00:00.016,1970-01-01T00:00:00.020,1,1,1,16,1",
+      "Hello,1970-01-01T00:00:00.001,1970-01-01T00:00:00.012,4,4,4,15,3"
+    )
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
+  }
+
+  @TestTemplate
+  def testDistinctAggWithMergeOnEventTimeSessionGroupWindow(): Unit = {
+    // create a watermark with 10ms offset to delay the window emission by 10ms to verify merge
+    val sessionWindowTestData = List(
+      (1L, 2, "Hello"), // (1, Hello)       - window
+      (2L, 2, "Hello"), // (1, Hello)       - window, deduped
+      (8L, 2, "Hello"), // (2, Hello)       - window, deduped during merge
+      (10L, 3, "Hello"), // (2, Hello)       - window, forwarded during merge
+      (9L, 9, "Hello World"), // (1, Hello World) - window
+      (4L, 1, "Hello"), // (1, Hello)       - window, triggering merge
+      (16L, 16, "Hello")
+    ) // (3, Hello)       - window (not merged)
+
+    val stream = failingDataSource(sessionWindowTestData)
+      .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
+    tEnv.registerTable("MyTable", table)
+
+    val sqlQuery =
+      """
+        |SELECT c,
+        |   COUNT(DISTINCT b),
+        |   window_end
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable PARTITION BY c, DESCRIPTOR(rowtime), INTERVAL '0.005' SECOND))
+        |GROUP BY c, window_start, window_end
+      """.stripMargin
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "Hello World,1,1970-01-01T00:00:00.014", // window starts at [9L] till {14L}
+      "Hello,1,1970-01-01T00:00:00.021", // window starts at [16L] till {21L}, not merged
+      "Hello,3,1970-01-01T00:00:00.015" // window starts at [1L,2L],
+      //   merged with [8L,10L], by [4L], till {15L}
     )
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
       .isEqualTo(expected.sorted.mkString("\n"))

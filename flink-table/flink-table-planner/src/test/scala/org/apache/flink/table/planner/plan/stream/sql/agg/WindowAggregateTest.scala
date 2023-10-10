@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.{ExplainDetail, TableException}
+import org.apache.flink.table.api.{ExplainDetail, TableException, ValidationException}
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMerge}
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
@@ -1432,6 +1432,177 @@ class WindowAggregateTest(aggPhaseEnforcer: AggregatePhaseStrategy) extends Tabl
                          |FROM win_join
                          |GROUP BY a, ws, we
       """.stripMargin)
+  }
+
+  @TestTemplate
+  def testSession_OnRowtime(): Unit = {
+    // Session window does not support two-phase optimization
+    // TODO remove redundant Exchange
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable PARTITION BY a, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testSession_OnProctime(): Unit = {
+    // Session window does not support two-phase optimization
+    // TODO remove redundant Exchange
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable PARTITION BY a, DESCRIPTOR(proctime), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testSession_DistinctSplitEnabled(): Unit = {
+    // Session window does not support split-distinct optimization
+    util.tableEnv.getConfig.getConfiguration
+      .setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    // TODO remove redundant Exchange
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable PARTITION BY a, DESCRIPTOR(proctime), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @TestTemplate
+  def testContainInvalidGroupKeySessionWindow(): Unit = {
+    // Window aggregate group key could only contain window_start, window_end and partition keys
+    // of session window
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining(
+        "Group keys of Window Aggregate should contain and only contain window_start, " +
+          "window_end and partition keys of session window.\n" +
+          s"Session partition keys are [].\n" +
+          s"Window Aggregate group keys are [a, window_start, window_end].")
+      .isInstanceOf[TableException]
+  }
+
+  @TestTemplate
+  def testMissRequiredGroupKeySessionWindow(): Unit = {
+    // Window aggregate group key could only contain window_start, window_end and partition keys
+    // of session window
+    val sql = {
+      """
+        |SELECT
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable PARTITION BY (b, a), DESCRIPTOR(rowtime), INTERVAL '5' MINUTE))
+        |GROUP BY b, window_start, window_end
+      """.stripMargin
+    }
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining(
+        "Group keys of Window Aggregate should contain and only contain window_start, " +
+          "window_end and partition keys of session window.\n" +
+          s"Session partition keys are [a, b].\n" +
+          s"Window Aggregate group keys are [b, window_start, window_end].")
+      .isInstanceOf[TableException]
+  }
+
+  @TestTemplate
+  def testDeprecatedSyntaxAboutPartitionKeyInSessionWindow(): Unit = {
+    // Session window does not support two-phase optimization
+    val sql =
+      """
+        |SELECT
+        |   a,
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   sum(d),
+        |   max(d) filter (where b > 1000),
+        |   weightedAvg(b, e) AS wAvg,
+        |   count(distinct c) AS uv
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable, DESCRIPTOR(proctime), DESCRIPTOR(a), INTERVAL '5' MINUTE))
+        |GROUP BY a, window_start, window_end
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining(
+        "Invalid number of arguments to function 'SESSION'. Was expecting 3 arguments")
+      .isInstanceOf[ValidationException]
+  }
+
+  @TestTemplate
+  def testGroupKeysOrderDifferentWithSessionPartitionKeysInSessionWindow(): Unit = {
+    // TODO fix it later to support: fixing replacing window spec in FlinkRelMdWindowProperties
+    val sql =
+      """
+        |SELECT
+        |   window_start,
+        |   window_end,
+        |   count(*),
+        |   a
+        |FROM TABLE(
+        |  SESSION(TABLE MyTable partition by a, DESCRIPTOR(proctime), INTERVAL '10' MINUTE))
+        |GROUP BY window_start, window_end, a
+      """.stripMargin
+
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining(
+        "Error while applying rule PullUpWindowTableFunctionIntoWindowAggregateRule")
+      .isInstanceOf[ValidationException]
   }
 }
 

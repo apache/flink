@@ -323,7 +323,8 @@ object FlinkStreamRuleSets {
     FlinkLogicalSnapshot.CONVERTER,
     FlinkLogicalMatch.CONVERTER,
     FlinkLogicalSink.CONVERTER,
-    FlinkLogicalLegacySink.CONVERTER
+    FlinkLogicalLegacySink.CONVERTER,
+    FlinkLogicalExchange.CONVERTER
   )
 
   /** RuleSet to do logical optimize for stream */
@@ -421,6 +422,8 @@ object FlinkStreamRuleSets {
     FlinkCalcMergeRule.STREAM_PHYSICAL_INSTANCE,
     FlinkExpandConversionRule.STREAM_INSTANCE,
     StreamPhysicalCalcRemoveRule.INSTANCE,
+    // exchange
+    StreamPhysicalExchangeRule.INSTANCE,
     // source
     StreamPhysicalDataStreamScanRule.INSTANCE,
     StreamPhysicalTableSourceScanRule.INSTANCE,

@@ -28,19 +28,22 @@ import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate,
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.inferAggAccumulatorNames
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.typeutils.RowTypeUtils
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.TimestampType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType
 
+import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, SingleRel}
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc}
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc, Exchange, Project}
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeFamily
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.util.{ImmutableBitSet, Util}
+import org.apache.calcite.util.mapping.Mappings.TargetMapping
 
 import java.time.Duration
 import java.util.Collections
@@ -188,7 +191,7 @@ object WindowUtil {
    */
   def convertToWindowingStrategy(
       windowCall: RexCall,
-      inputRowType: RelDataType): TimeAttributeWindowingStrategy = {
+      scanInput: RelNode): TimeAttributeWindowingStrategy = {
     if (!isWindowTableFunctionCall(windowCall)) {
       throw new IllegalArgumentException(
         s"RexCall $windowCall is not a window table-valued " +
@@ -196,6 +199,7 @@ object WindowUtil {
     }
 
     val timeIndex = getTimeAttributeIndex(windowCall.operands(0))
+    val inputRowType = scanInput.getRowType
     val fieldType = inputRowType.getFieldList.get(timeIndex).getType
     val timeAttributeType = FlinkTypeFactory.toLogicalType(fieldType)
     if (!canBeTimeAttributeType(timeAttributeType)) {
@@ -234,9 +238,69 @@ object WindowUtil {
         val step = getOperandAsLong(windowCall.operands(1))
         val maxSize = getOperandAsLong(windowCall.operands(2))
         new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
+      case FlinkSqlOperatorTable.SESSION =>
+        val gap = getOperandAsLong(windowCall.operands(1))
+        val partitionKeys =
+          exploreSessionWindowPartitionKeys(scanInput)
+        new SessionWindowSpec(Duration.ofMillis(gap), partitionKeys)
     }
 
     new TimeAttributeWindowingStrategy(windowSpec, timeAttributeType, timeIndex)
+  }
+
+  /**
+   * If the session window tvf has partition keys, the whole tree is like:
+   *
+   * {{{
+   *          TableFunctionScan
+   *                  |
+   *          Project / Calc (optional)
+   *                 |
+   *              Exchange
+   * }}}
+   */
+  private def exploreSessionWindowPartitionKeys(scanInput: RelNode): Array[Int] = {
+    var input = unwrapHepRelVertexOrRelSubSet(scanInput)
+    // when transpose project or calc, the indices of the partition keys will change
+    var indexMapper: TargetMapping = null
+    input = input match {
+      case project: Project =>
+        indexMapper = project.getMapping
+        unwrapHepRelVertexOrRelSubSet(input.getInput(0))
+      case calc: Calc =>
+        val calcProgram = calc.getProgram
+        val projects = calcProgram.getProjectList
+        val inputSize = calcProgram.getInputRowType.getFieldNames.size()
+        indexMapper =
+          Project.getMapping(inputSize, projects.map(p => calcProgram.expandLocalRef(p)).toList)
+        unwrapHepRelVertexOrRelSubSet(input.getInput(0))
+      case _ => input
+    }
+
+    input match {
+      case exchange: Exchange =>
+        val partitionKey = exchange.getDistribution.getKeys
+        val originalIndices = JavaScalaConversionUtil.toScala(partitionKey).map(_.toInt).toArray
+        if (indexMapper != null) {
+          originalIndices.map(
+            v => {
+              indexMapper.getTarget(v)
+            })
+        } else {
+          originalIndices
+        }
+      case _ =>
+        Array.empty[Int]
+    }
+
+  }
+
+  private def unwrapHepRelVertexOrRelSubSet(node: RelNode): RelNode = {
+    node match {
+      case hepRelVertex: HepRelVertex => hepRelVertex.getCurrentRel
+      case relSubset: RelSubset => relSubset.getOriginal
+      case _ => node
+    }
   }
 
   /**

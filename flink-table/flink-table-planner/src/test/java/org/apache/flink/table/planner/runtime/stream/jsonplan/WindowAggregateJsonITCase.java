@@ -219,4 +219,25 @@ class WindowAggregateJsonITCase extends JsonPlanTestBase {
                         "+I[null, 7.0, 1]"),
                 result);
     }
+
+    @TestTemplate
+    public void testEventTimeSessionWindow() throws Exception {
+        createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
+        compileSqlAndExecutePlan(
+                        "insert into MySink select\n"
+                                + "  name,\n"
+                                + "  COUNT(*)\n"
+                                + "FROM TABLE(\n"
+                                + "  SESSION(\n"
+                                + "     TABLE MyTable PARTITION BY name,\n"
+                                + "     DESCRIPTOR(rowtime),\n"
+                                + "     INTERVAL '5' SECOND))"
+                                + "GROUP BY name, window_start, window_end")
+                .await();
+
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
+        assertResult(
+                Arrays.asList("+I[a, 6]", "+I[b, 1]", "+I[b, 1]", "+I[b, 2]", "+I[null, 1]"),
+                result);
+    }
 }

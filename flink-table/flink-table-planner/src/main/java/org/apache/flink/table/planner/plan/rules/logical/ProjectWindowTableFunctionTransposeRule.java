@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.SqlWindowTableFunction;
+import org.apache.flink.table.planner.plan.logical.SessionWindowSpec;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.utils.WindowUtil;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -76,8 +77,7 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
         LogicalTableFunctionScan scan = call.rel(1);
         RelNode scanInput = scan.getInput(0);
         TimeAttributeWindowingStrategy windowingStrategy =
-                WindowUtil.convertToWindowingStrategy(
-                        (RexCall) scan.getCall(), scanInput.getRowType());
+                WindowUtil.convertToWindowingStrategy((RexCall) scan.getCall(), scanInput);
         // 1. get fields to push down
         ImmutableBitSet projectFields = RelOptUtil.InputFinder.bits(project.getProjects(), null);
         int scanInputFieldCount = scanInput.getRowType().getFieldCount();
@@ -85,6 +85,14 @@ public class ProjectWindowTableFunctionTransposeRule extends RelOptRule {
                 ImmutableBitSet.range(0, scanInputFieldCount)
                         .intersect(projectFields)
                         .set(windowingStrategy.getTimeAttributeIndex());
+        // partition keys in session window tvf also need be pushed down
+        if (windowingStrategy.getWindow() instanceof SessionWindowSpec) {
+            SessionWindowSpec sessionWindowSpec = (SessionWindowSpec) windowingStrategy.getWindow();
+            int[] partitionKeyIndices = sessionWindowSpec.getPartitionKeyIndices();
+            for (int partitionKeyIndex : partitionKeyIndices) {
+                toPushFields = toPushFields.set(partitionKeyIndex);
+            }
+        }
         if (toPushFields.cardinality() == scanInputFieldCount) {
             return;
         }

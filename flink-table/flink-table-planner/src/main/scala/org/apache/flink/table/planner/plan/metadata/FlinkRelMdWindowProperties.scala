@@ -92,6 +92,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
       return null
     }
 
+    // TODO if there is a session window tvf, the partition key indices should also be changed
     childProps.copy(
       transformColumnIndex(childProps.getWindowStartColumns, mapInToOutPos),
       transformColumnIndex(childProps.getWindowEndColumns, mapInToOutPos),
@@ -196,7 +197,7 @@ class FlinkRelMdWindowProperties private extends MetadataHandler[FlinkMetadata.W
     if (isWindowTableFunctionCall(rel.getCall)) {
       val fieldCount = rel.getRowType.getFieldCount
       val windowingStrategy =
-        convertToWindowingStrategy(rel.getCall.asInstanceOf[RexCall], rel.getInput(0).getRowType)
+        convertToWindowingStrategy(rel.getCall.asInstanceOf[RexCall], rel.getInput(0))
 
       RelWindowProperties.create(
         ImmutableBitSet.of(fieldCount - 3),
