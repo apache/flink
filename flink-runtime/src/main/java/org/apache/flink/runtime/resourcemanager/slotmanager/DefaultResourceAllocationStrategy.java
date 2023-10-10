@@ -53,13 +53,13 @@ import static org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUt
  * resources and cannot fit into the pre-defined total resource profile.
  *
  * <p>Note: This strategy tries to find a feasible allocation result, rather than an optimal one (in
- * term of resource utilization). It also does not guarantee always finding a feasible solution when
- * exist.
+ * terms of resource utilization). It also does not guarantee always finding a feasible solution
+ * when exists.
  *
  * <p>Note: The current implementation of this strategy is non-optimal, in terms of computation
  * efficiency. In the worst case, for each distinctly profiled requirement it checks all registered
  * and pending resources. Further optimization requires complex data structures for ordering
- * multi-dimensional resource profiles. The complexity is not necessary.
+ * multidimensional resource profiles. The complexity is not necessary.
  */
 public class DefaultResourceAllocationStrategy implements ResourceAllocationStrategy {
     private final ResourceProfile defaultSlotResourceProfile;
@@ -71,7 +71,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
 
     /**
      * Always use any matching strategy for pending resources to use as less pending workers as
-     * possible, so that the rest can be canceled
+     * possible, so that the rest can be canceled.
      */
     private final ResourceMatchingStrategy pendingResourceMatchingStrategy =
             AnyMatchingResourceMatchingStrategy.INSTANCE;
@@ -144,7 +144,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         // to the latest state after a new PendingTaskManager is created,
         // tryFulFillRequiredResources will not update pendingResources even after new
         // PendingTaskManagers are created.
-        // This is because the pendingResources are no longer needed afterwards.
+        // This is because the pendingResources are no longer needed afterward.
         tryFulFillRequiredResources(
                 registeredResources, pendingResources, totalCurrentResources, resultBuilder);
         return resultBuilder.build();
