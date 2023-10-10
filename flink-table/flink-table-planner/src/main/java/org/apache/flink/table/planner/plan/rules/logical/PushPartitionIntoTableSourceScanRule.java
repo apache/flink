@@ -183,6 +183,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
         if (remainingPartitions.isEmpty()) {
             RelNode emptyValue = relBuilder.push(filter).empty().build();
             call.transformTo(emptyValue);
+            return;
         }
 
         // apply push down
