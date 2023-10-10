@@ -131,12 +131,13 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                             jobId, resourceRequirements.getValue(), registeredResources);
 
             if (!unfulfilledJobRequirements.isEmpty()) {
-                tryFulfillRequirementsForJobWithPendingResources(
-                        jobId,
-                        unfulfilledJobRequirements,
-                        pendingResources,
-                        totalCurrentResources,
-                        resultBuilder);
+                totalCurrentResources =
+                        totalCurrentResources.merge(
+                                tryFulfillRequirementsForJobWithPendingResources(
+                                        jobId,
+                                        unfulfilledJobRequirements,
+                                        pendingResources,
+                                        resultBuilder));
             }
         }
 
@@ -311,12 +312,13 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
         return resourceProfile.allFieldsNoLessThan(requirement);
     }
 
-    private void tryFulfillRequirementsForJobWithPendingResources(
+    private ResourceProfile tryFulfillRequirementsForJobWithPendingResources(
             JobID jobId,
             Collection<ResourceRequirement> unfulfilledRequirements,
             List<InternalResourceInfo> availableResources,
-            ResourceProfile totalCurrentResources,
             ResourceAllocationResult.Builder resultBuilder) {
+        ResourceProfile newAddedResourceProfile = ResourceProfile.ZERO;
+
         for (ResourceRequirement missingResource : unfulfilledRequirements) {
             // for this strategy, all pending resources should have the same default slot resource
             final ResourceProfile effectiveProfile =
@@ -334,13 +336,12 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 resultBuilder.addUnfulfillableJob(jobId);
                 continue;
             }
-
             while (numUnfulfilled > 0) {
                 // Circularly add new pending task manager
                 final PendingTaskManager newPendingTaskManager =
                         new PendingTaskManager(totalResourceProfile, numSlotsPerWorker);
                 resultBuilder.addPendingTaskManagerAllocate(newPendingTaskManager);
-                totalCurrentResources.merge(totalResourceProfile);
+                newAddedResourceProfile = newAddedResourceProfile.merge(totalResourceProfile);
                 ResourceProfile remainResource = totalResourceProfile;
                 while (numUnfulfilled > 0
                         && canFulfillRequirement(effectiveProfile, remainResource)) {
@@ -365,6 +366,8 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 }
             }
         }
+
+        return newAddedResourceProfile;
     }
 
     private boolean isRequiredResourcesFulfilled(
@@ -386,9 +389,9 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
     private void tryFulFillRequiredResources(
             List<InternalResourceInfo> availableRegisteredResources,
             List<InternalResourceInfo> availablePendingResources,
-            ResourceProfile totalCurrentResources,
+            ResourceProfile resourcesInTotal,
             ResourceAllocationResult.Builder resultBuilder) {
-        ResourceProfile totalAvailableResources =
+        ResourceProfile resourcesAvailable =
                 Stream.concat(
                                 availableRegisteredResources.stream(),
                                 availablePendingResources.stream())
@@ -396,9 +399,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                         .reduce(ResourceProfile.ZERO, ResourceProfile::merge);
 
         tryFulFillRequiredResourcesWithAction(
-                totalAvailableResources,
-                totalCurrentResources,
-                resultBuilder::addPendingTaskManagerAllocate);
+                resourcesAvailable, resourcesInTotal, resultBuilder::addPendingTaskManagerAllocate);
     }
 
     private void tryFulFillRequiredResourcesWithAction(
