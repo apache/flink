@@ -183,11 +183,10 @@ public class Predicates {
         if (fqClassName.trim().isEmpty()) {
             throw new IllegalArgumentException("Fully qualified class name cannot be empty");
         }
-        String[] classNameComponents = fqClassName.split("\\.");
-        if (classNameComponents.length == 0) {
-            throw new IllegalArgumentException("Failed to extract class name from: " + fqClassName);
-        }
-        String className = classNameComponents[classNameComponents.length - 1];
+        int lastDotIndex = fqClassName.lastIndexOf('.');
+        int lastDollarIndex = fqClassName.lastIndexOf('$');
+        int startIndex = Math.max(lastDotIndex, lastDollarIndex) + 1;
+        String className = fqClassName.substring(startIndex);
         if (className.trim().isEmpty()) {
             throw new IllegalArgumentException(
                     "Extracted class name is empty from: " + fqClassName);
