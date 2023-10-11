@@ -167,6 +167,14 @@ public class HighAvailabilityOptions {
                     .withDescription(
                             "Defines the number of connection retries before the client gives up.");
 
+    /** @deprecated Don't use this option anymore. It has no effect on Flink. */
+    @Deprecated
+    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
+    public static final ConfigOption<String> ZOOKEEPER_RUNNING_JOB_REGISTRY_PATH =
+            key("high-availability.zookeeper.path.running-registry")
+                    .stringType()
+                    .defaultValue("/running_job_registry/");
+
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<String> ZOOKEEPER_CLIENT_ACL =
             key("high-availability.zookeeper.client.acl")
