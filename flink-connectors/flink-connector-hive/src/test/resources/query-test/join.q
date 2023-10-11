@@ -37,3 +37,7 @@ select * from (select a.value, a.* from (select * from src) a join (select * fro
 select f1.x,f1.y,f2.x,f2.y from (select * from foo order by x,y) f1 join (select * from foo order by x,y) f2;
 
 [+I[1, 1, 1, 1], +I[1, 1, 2, 2], +I[1, 1, 3, 3], +I[1, 1, 4, 4], +I[1, 1, 5, 5], +I[2, 2, 1, 1], +I[2, 2, 2, 2], +I[2, 2, 3, 3], +I[2, 2, 4, 4], +I[2, 2, 5, 5], +I[3, 3, 1, 1], +I[3, 3, 2, 2], +I[3, 3, 3, 3], +I[3, 3, 4, 4], +I[3, 3, 5, 5], +I[4, 4, 1, 1], +I[4, 4, 2, 2], +I[4, 4, 3, 3], +I[4, 4, 4, 4], +I[4, 4, 5, 5], +I[5, 5, 1, 1], +I[5, 5, 2, 2], +I[5, 5, 3, 3], +I[5, 5, 4, 4], +I[5, 5, 5, 5]]
+
+select foo.y, bar.I from bar join foo on hiveudf(foo.x) = bar.I where bar.I > 1;
+
+[+I[2, 2]]
