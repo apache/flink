@@ -533,7 +533,8 @@ class SpeculativeSchedulerITCase {
         }
 
         @Override
-        public Committer<Tuple3<Integer, Integer, Map<Long, Long>>> createCommitter() {
+        public Committer<Tuple3<Integer, Integer, Map<Long, Long>>> createCommitter(
+                CommitterInitContext context) {
             return new DummyCommitter();
         }
 

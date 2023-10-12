@@ -337,7 +337,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
     // -------------------------------------- Sink Committer ---------------------------------------
 
     /** Base class for testing {@link Committer}. */
-    static class DefaultCommitter implements Committer<String>, Serializable {
+    public static class DefaultCommitter implements Committer<String>, Serializable {
 
         @Nullable protected Queue<CommitRequest<String>> committedData;
 

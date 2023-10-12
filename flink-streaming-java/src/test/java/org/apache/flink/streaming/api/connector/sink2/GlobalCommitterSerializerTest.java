@@ -21,6 +21,8 @@ package org.apache.flink.streaming.api.connector.sink2;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollector;
 import org.apache.flink.streaming.runtime.operators.sink.committables.CommittableCollectorSerializer;
 import org.apache.flink.streaming.runtime.operators.sink.committables.SinkV1CommittableDeserializer;
@@ -40,15 +42,18 @@ class GlobalCommitterSerializerTest {
 
     private static final int SUBTASK_ID = 0;
     private static final int NUMBER_OF_SUBTASKS = 1;
+    private static final SinkCommitterMetricGroup METRIC_GROUP =
+            MetricsGroupTestUtils.mockCommitterMetricGroup();
     private static final CommittableCollectorSerializer<Integer> COMMITTABLE_COLLECTOR_SERIALIZER =
             new CommittableCollectorSerializer<>(
-                    new IntegerSerializer(), SUBTASK_ID, NUMBER_OF_SUBTASKS);
+                    new IntegerSerializer(), SUBTASK_ID, NUMBER_OF_SUBTASKS, METRIC_GROUP);
     private static final GlobalCommitterSerializer<Integer, String> SERIALIZER =
             new GlobalCommitterSerializer<>(
                     COMMITTABLE_COLLECTOR_SERIALIZER,
                     new StringSerializer(),
                     SUBTASK_ID,
-                    NUMBER_OF_SUBTASKS);
+                    NUMBER_OF_SUBTASKS,
+                    METRIC_GROUP);
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
@@ -58,9 +63,10 @@ class GlobalCommitterSerializerTest {
                         COMMITTABLE_COLLECTOR_SERIALIZER,
                         withSinkV1State ? new StringSerializer() : null,
                         SUBTASK_ID,
-                        NUMBER_OF_SUBTASKS);
+                        NUMBER_OF_SUBTASKS,
+                        METRIC_GROUP);
         final CommittableCollector<Integer> collector =
-                new CommittableCollector<>(SUBTASK_ID, NUMBER_OF_SUBTASKS);
+                new CommittableCollector<>(SUBTASK_ID, NUMBER_OF_SUBTASKS, METRIC_GROUP);
         collector.addMessage(new CommittableSummary<>(2, 3, 1L, 1, 1, 0));
         collector.addMessage(new CommittableWithLineage<>(1, 1L, 2));
         final List<String> v1State =
