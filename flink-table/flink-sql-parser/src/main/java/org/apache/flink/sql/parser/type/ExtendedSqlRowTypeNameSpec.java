@@ -20,7 +20,7 @@ package org.apache.flink.sql.parser.type;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.sql.SqlCharStringLiteral;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlRowTypeNameSpec;
@@ -50,7 +50,7 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
 
     private final List<SqlIdentifier> fieldNames;
     private final List<SqlDataTypeSpec> fieldTypes;
-    private final List<SqlCharStringLiteral> comments;
+    private final List<SqlNode> comments;
 
     private final boolean unparseAsStandard;
 
@@ -67,7 +67,7 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
             SqlParserPos pos,
             List<SqlIdentifier> fieldNames,
             List<SqlDataTypeSpec> fieldTypes,
-            List<SqlCharStringLiteral> comments,
+            List<SqlNode> comments,
             boolean unparseAsStandard) {
         super(new SqlIdentifier(SqlTypeName.ROW.getName(), pos), pos);
         this.fieldNames = fieldNames;
@@ -84,7 +84,7 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
         return fieldTypes;
     }
 
-    public List<SqlCharStringLiteral> getComments() {
+    public List<SqlNode> getComments() {
         return comments;
     }
 

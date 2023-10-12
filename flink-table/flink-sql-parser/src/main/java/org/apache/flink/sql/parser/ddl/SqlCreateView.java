@@ -18,7 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -47,7 +46,7 @@ public class SqlCreateView extends SqlCreate {
     private final SqlNode query;
     private final boolean isTemporary;
 
-    @Nullable private final SqlCharStringLiteral comment;
+    @Nullable private final SqlNode comment;
 
     @Nullable private final SqlNodeList properties;
 
@@ -59,7 +58,7 @@ public class SqlCreateView extends SqlCreate {
             boolean replace,
             boolean isTemporary,
             boolean ifNotExists,
-            SqlCharStringLiteral comment,
+            SqlNode comment,
             SqlNodeList properties) {
         super(OPERATOR, pos, replace, ifNotExists);
         this.viewName = requireNonNull(viewName, "viewName should not be null");
@@ -92,7 +91,7 @@ public class SqlCreateView extends SqlCreate {
         return query;
     }
 
-    public Optional<SqlCharStringLiteral> getComment() {
+    public Optional<SqlNode> getComment() {
         return Optional.ofNullable(comment);
     }
 

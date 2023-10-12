@@ -67,7 +67,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     private final SqlWatermark watermark;
 
-    private final SqlCharStringLiteral comment;
+    private final SqlNode comment;
 
     private final boolean isTemporary;
 
@@ -79,7 +79,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList propertyList,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
-            @Nullable SqlCharStringLiteral comment,
+            @Nullable SqlNode comment,
             boolean isTemporary,
             boolean ifNotExists) {
         this(
@@ -105,7 +105,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             SqlNodeList propertyList,
             SqlNodeList partitionKeyList,
             @Nullable SqlWatermark watermark,
-            @Nullable SqlCharStringLiteral comment,
+            @Nullable SqlNode comment,
             boolean isTemporary,
             boolean ifNotExists) {
         super(operator, pos, false, ifNotExists);
@@ -162,7 +162,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         return Optional.ofNullable(watermark);
     }
 
-    public Optional<SqlCharStringLiteral> getComment() {
+    public Optional<SqlNode> getComment() {
         return Optional.ofNullable(comment);
     }
 

@@ -177,7 +177,7 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 {
     SqlParserPos startPos;
     SqlIdentifier databaseName;
-    SqlCharStringLiteral comment = null;
+    SqlNode comment = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     boolean ifNotExists = false;
 }
@@ -187,11 +187,8 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
     ifNotExists = IfNotExistsOpt()
 
     databaseName = CompoundIdentifier()
-    [ <COMMENT> <QUOTED_STRING>
-        {
-            String p = SqlParserUtil.parseString(token.image);
-            comment = SqlLiteral.createCharString(p, getPos());
-        }
+    [
+        <COMMENT> comment = StringLiteral()
     ]
     [
         <WITH>
@@ -1316,7 +1313,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
     List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
     SqlWatermark watermark = null;
     SqlNodeList columnList = SqlNodeList.EMPTY;
-	SqlCharStringLiteral comment = null;
+	SqlNode comment = null;
 	SqlTableLike tableLike = null;
     SqlNode asQuery = null;
 
@@ -1344,10 +1341,9 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
         }
         <RPAREN>
     ]
-    [ <COMMENT> <QUOTED_STRING> {
-        String p = SqlParserUtil.parseString(token.image);
-        comment = SqlLiteral.createCharString(p, getPos());
-    }]
+    [
+        <COMMENT> comment = StringLiteral()
+    ]
     [
         <PARTITIONED> <BY>
         partitionColumns = ParenthesizedSimpleIdentifierList()
@@ -1502,7 +1498,7 @@ SqlDrop SqlDropTable(Span s, boolean replace, boolean isTemporary) :
 SqlNode SqlReplaceTable() :
 {
     SqlIdentifier tableName;
-    SqlCharStringLiteral comment = null;
+    SqlNode comment = null;
     SqlNode asQuery = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlParserPos pos;
@@ -1537,10 +1533,9 @@ SqlNode SqlReplaceTable() :
         }
         <RPAREN>
     ]
-    [ <COMMENT> <QUOTED_STRING> {
-        String p = SqlParserUtil.parseString(token.image);
-        comment = SqlLiteral.createCharString(p, getPos());
-    }]
+    [
+        <COMMENT> comment = StringLiteral()
+    ]
     [
         <PARTITIONED> <BY>
         partitionColumns = ParenthesizedSimpleIdentifierList()
@@ -1668,7 +1663,7 @@ void PartitionSpecCommaList(SqlNodeList list) :
 */
 SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
     SqlIdentifier viewName;
-    SqlCharStringLiteral comment = null;
+    SqlNode comment = null;
     SqlNode query;
     SqlNodeList fieldList = SqlNodeList.EMPTY;
     boolean ifNotExists = false;
@@ -1682,10 +1677,8 @@ SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
     [
         fieldList = ParenthesizedSimpleIdentifierList()
     ]
-    [ <COMMENT> <QUOTED_STRING> {
-            String p = SqlParserUtil.parseString(token.image);
-            comment = SqlLiteral.createCharString(p, getPos());
-        }
+    [
+        <COMMENT> comment = StringLiteral()
     ]
     <AS>
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
@@ -1883,11 +1876,12 @@ SqlTypeNameSpec SqlRawTypeName() :
 void ExtendedFieldNameTypeCommaList(
         List<SqlIdentifier> fieldNames,
         List<SqlDataTypeSpec> fieldTypes,
-        List<SqlCharStringLiteral> comments) :
+        List<SqlNode> comments) :
 {
     SqlIdentifier fName;
     SqlDataTypeSpec fType;
     boolean nullable;
+    SqlNode comment;
 }
 {
     [
@@ -1898,10 +1892,8 @@ void ExtendedFieldNameTypeCommaList(
             fieldTypes.add(fType);
         }
         (
-            <QUOTED_STRING> {
-                String p = SqlParserUtil.parseString(token.image);
-                comments.add(SqlLiteral.createCharString(p, getPos()));
-            }
+            comment = StringLiteral()
+            { comments.add(comment); }
         |
             { comments.add(null); }
         )
@@ -1915,10 +1907,8 @@ void ExtendedFieldNameTypeCommaList(
             fieldTypes.add(fType);
         }
         (
-            <QUOTED_STRING> {
-                String p = SqlParserUtil.parseString(token.image);
-                comments.add(SqlLiteral.createCharString(p, getPos()));
-            }
+            comment = StringLiteral()
+            { comments.add(comment); }
         |
             { comments.add(null); }
         )
@@ -1942,7 +1932,7 @@ SqlTypeNameSpec ExtendedSqlRowTypeName() :
 {
     List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
     List<SqlDataTypeSpec> fieldTypes = new ArrayList<SqlDataTypeSpec>();
-    List<SqlCharStringLiteral> comments = new ArrayList<SqlCharStringLiteral>();
+    List<SqlNode> comments = new ArrayList<SqlNode>();
     final boolean unparseAsStandard;
 }
 {
