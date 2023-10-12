@@ -90,6 +90,55 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
   }
 
   @Test
+  def testMaxAggRetractWithCondition(): Unit = {
+    val data = new mutable.MutableList[(Int, Int)]
+    data.+=((1, 10))
+    data.+=((1, 10))
+    data.+=((2, 5))
+    data.+=((1, 10))
+
+    val t = failingDataSource(data).toTable(tEnv, 'id, 'price)
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        |SELECT MAX(price) FROM(
+        |   SELECT id, count(*) as c, price FROM T GROUP BY id, price)
+        |WHERE c > 0 and c < 3""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("5")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testMinAggRetractWithCondition(): Unit = {
+    val data = new mutable.MutableList[(Int, Int)]
+    data.+=((1, 5))
+    data.+=((2, 6))
+    data.+=((1, 5))
+
+    val t = failingDataSource(data).toTable(tEnv, 'id, 'price)
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        |SELECT MIN(price) FROM(
+        |   SELECT id, count(*) as c, price FROM T GROUP BY id, price)
+        |WHERE c < 2""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("6")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testShufflePojo(): Unit = {
     val data = new mutable.MutableList[(Int, Int)]
     data.+=((1, 1))

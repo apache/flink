@@ -64,6 +64,63 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   }
 
   @Test
+  def testMaxAggRetractWithCondition(): Unit = {
+    val data = new mutable.MutableList[(Int, Int)]
+    data.+=((1, 10))
+    data.+=((1, 10))
+    data.+=((2, 5))
+    data.+=((1, 10))
+
+    // select id, price, count() as c, from table group by id, price
+    val subQuery = failingDataSource(data)
+      .toTable(tEnv, 'id, 'price)
+      .groupBy('id, 'price)
+      .aggregate('id.count().as("c"))
+      .select('id, 'price, 'c)
+
+    // select max(price) from subQuery where c > 0 and c < 3
+    val topQuery = subQuery
+      .where(and('c.isGreater(0), 'c.isLess(3)))
+      .select('price)
+      .aggregate('price.max().as("max_price"))
+      .select('max_price)
+
+    val sink = new TestingRetractSink()
+    topQuery.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    assertEquals(List("5"), sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testMinAggRetractWithCondition(): Unit = {
+    val data = new mutable.MutableList[(Int, Int)]
+    data.+=((1, 5))
+    data.+=((2, 6))
+    data.+=((1, 5))
+
+    // select id, price, count() as c, from table group by id, price
+    val subQuery = failingDataSource(data)
+      .toTable(tEnv, 'id, 'price)
+      .groupBy('id, 'price)
+      .aggregate('id.count().as("c"))
+      .select('id, 'price, 'c)
+
+    // select min(price) from subQuery where c < 2
+    val topQuery = subQuery
+      .where('c.isLess(2))
+      .select('price)
+      .aggregate('price.min().as("min_price"))
+      .select('min_price)
+
+    val sink = new TestingRetractSink()
+    topQuery.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    assertEquals(List("6"), sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testDistinctUDAGGMixedWithNonDistinctUsage(): Unit = {
     val testAgg = new WeightedAvg
     val t = failingDataSource(tupleData5)
