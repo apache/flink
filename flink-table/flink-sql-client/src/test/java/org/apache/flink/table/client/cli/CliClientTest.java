@@ -21,6 +21,7 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.streaming.environment.TestingJobClient;
 import org.apache.flink.table.api.DataTypes;
@@ -309,14 +310,13 @@ public class CliClientTest extends TestLogger {
                         mockExecutor,
                         historyFilePath,
                         null)) {
-            Thread thread =
-                    new Thread(
-                            () -> {
-                                try {
-                                    client.executeInInteractiveMode();
-                                } catch (Exception ignore) {
-                                }
-                            });
+            CheckedThread thread =
+                    new CheckedThread() {
+                        @Override
+                        public void go() {
+                            client.executeInInteractiveMode();
+                        }
+                    };
             thread.start();
 
             while (!mockExecutor.isAwait) {
@@ -326,6 +326,8 @@ public class CliClientTest extends TestLogger {
             client.getTerminal().raise(Terminal.Signal.INT);
             CommonTestUtils.waitUntilCondition(
                     () -> outputStream.toString().contains("'key' = 'value'"));
+            // Prevent NPE when closing the terminal. See FLINK-33116 for more information.
+            thread.sync();
         }
     }
 
