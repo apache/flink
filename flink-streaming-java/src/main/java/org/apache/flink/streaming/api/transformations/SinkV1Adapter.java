@@ -336,7 +336,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     private class TwoPhaseCommittingSinkAdapter extends PlainSinkAdapter
             implements TwoPhaseCommittingSink<InputT, CommT>, WithCompatibleState {
         @Override
-        public Committer<CommT> createCommitter() throws IOException {
+        public Committer<CommT> createCommitter(CommitterInitContext context) throws IOException {
             return new CommitterAdapter<>(
                     sink.createCommitter().orElse(new SinkV1Adapter.NoopCommitter<>()));
         }
@@ -374,8 +374,8 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
         TwoPhaseCommittingSinkAdapter adapter = new TwoPhaseCommittingSinkAdapter();
 
         @Override
-        public Committer<CommT> createCommitter() throws IOException {
-            return adapter.createCommitter();
+        public Committer<CommT> createCommitter(CommitterInitContext context) throws IOException {
+            return adapter.createCommitter(context);
         }
 
         @Override

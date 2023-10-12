@@ -60,7 +60,6 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         this.writer = writer;
     }
 
-    @Override
     public SinkWriter<InputT> createWriter(InitContext context) {
         writer.init(context);
         return writer;
@@ -337,7 +336,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
     // -------------------------------------- Sink Committer ---------------------------------------
 
     /** Base class for testing {@link Committer}. */
-    static class DefaultCommitter implements Committer<String>, Serializable {
+    public static class DefaultCommitter implements Committer<String>, Serializable {
 
         @Nullable protected Queue<CommitRequest<String>> committedData;
 

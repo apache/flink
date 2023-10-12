@@ -2348,7 +2348,7 @@ class StreamingJobGraphGeneratorTest {
         }
 
         @Override
-        public Committer<Void> createCommitter() throws IOException {
+        public Committer<Void> createCommitter(CommitterInitContext context) throws IOException {
             return new Committer<Void>() {
                 @Override
                 public void commit(Collection<CommitRequest<Void>> committables)
