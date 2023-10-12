@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.operators;
+package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -24,24 +24,21 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 /**
  * Stream operators can implement this interface if they need access to the output type information
- * at {@link org.apache.flink.streaming.api.graph.StreamGraph} generation. This can be useful for
+ * at {@code org.apache.flink.streaming.api.graph.StreamGraph} generation. This can be useful for
  * cases where the output type is specified by the returns method and, thus, after the stream
  * operator has been created.
- *
- * @deprecated Use {@link org.apache.flink.api.java.typeutils.OutputTypeConfigurable} instead
  */
-@Deprecated
 @PublicEvolving
 public interface OutputTypeConfigurable<OUT> {
 
     /**
-     * Is called by the {@link org.apache.flink.streaming.api.graph.StreamGraph#addOperator(Integer,
-     * String, StreamOperator, TypeInformation, TypeInformation, String)} method when the {@link
+     * Is called by the {@code org.apache.flink.streaming.api.graph.StreamGraph#addOperator(Integer,
+     * String, StreamOperator, TypeInformation, TypeInformation, String)} method when the {@code
      * org.apache.flink.streaming.api.graph.StreamGraph} is generated. The method is called with the
-     * output {@link TypeInformation} which is also used for the {@link
+     * output {@link TypeInformation} which is also used for the {@code
      * org.apache.flink.streaming.runtime.tasks.StreamTask} output serializer.
      *
-     * @param outTypeInfo Output type information of the {@link
+     * @param outTypeInfo Output type information of the {@code
      *     org.apache.flink.streaming.runtime.tasks.StreamTask}
      * @param executionConfig Execution configuration
      */
