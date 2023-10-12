@@ -19,11 +19,14 @@
 package org.apache.flink.api.connector.sink2;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.OptionalLong;
 
 /**
  * A {@link Sink} for exactly-once semantics using a two-phase commit protocol. The {@link Sink}
@@ -57,8 +60,25 @@ public interface TwoPhaseCommittingSink<InputT, CommT> extends Sink<InputT> {
      *
      * @return A committer for the two-phase commit protocol.
      * @throws IOException for any failure during creation.
+     * @deprecated Please use {@link #createCommitter(CommitterInitContext)}
      */
-    Committer<CommT> createCommitter() throws IOException;
+    @Deprecated
+    default Committer<CommT> createCommitter() throws IOException {
+        throw new UnsupportedOperationException(
+                "Deprecated, please use createCommitter(CommitterInitContext)");
+    }
+
+    /**
+     * Creates a {@link Committer} that permanently makes the previously written data visible
+     * through {@link Committer#commit(Collection)}.
+     *
+     * @param context The context information for the committer initialization.
+     * @return A committer for the two-phase commit protocol.
+     * @throws IOException for any failure during creation.
+     */
+    default Committer<CommT> createCommitter(CommitterInitContext context) throws IOException {
+        return createCommitter();
+    }
 
     /** Returns the serializer of the committable type. */
     SimpleVersionedSerializer<CommT> getCommittableSerializer();
@@ -76,5 +96,43 @@ public interface TwoPhaseCommittingSink<InputT, CommT> extends Sink<InputT> {
          * @throws IOException if fail to prepare for a commit.
          */
         Collection<CommT> prepareCommit() throws IOException, InterruptedException;
+    }
+
+    /** The interface exposes some runtime info for creating a {@link Committer}. */
+    @PublicEvolving
+    interface CommitterInitContext {
+        /**
+         * The first checkpoint id when an application is started and not recovered from a
+         * previously taken checkpoint or savepoint.
+         */
+        long INITIAL_CHECKPOINT_ID = 1;
+
+        /** @return The id of task where the committer is running. */
+        int getSubtaskId();
+
+        /** @return The number of parallel committer tasks. */
+        int getNumberOfParallelSubtasks();
+
+        /**
+         * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
+         *
+         * @return Attempt number of the subtask.
+         */
+        int getAttemptNumber();
+
+        /** @return The metric group this committer belongs to. */
+        SinkCommitterMetricGroup metricGroup();
+
+        /**
+         * Returns id of the restored checkpoint, if state was restored from the snapshot of a
+         * previous execution.
+         */
+        OptionalLong getRestoredCheckpointId();
+
+        /**
+         * The ID of the current job. Note that Job ID can change in particular upon manual restart.
+         * The returned ID should NOT be used for any job management tasks.
+         */
+        JobID getJobId();
     }
 }
