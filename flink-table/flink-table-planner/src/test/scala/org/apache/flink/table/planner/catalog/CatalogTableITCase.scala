@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.catalog
 
+import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
@@ -31,6 +32,7 @@ import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, UserClassLoaderJarTestUtils}
 
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.{Before, Rule, Test}
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
@@ -1271,6 +1273,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |)
       """.stripMargin
     tableEnv.executeSql(ddl2)
+    assertThatThrownBy(() => tableEnv.executeSql("drop database db1")).satisfies(
+      anyCauseMatches(
+        classOf[ValidationException],
+        "Cannot drop a database which is currently in use."))
+    tableEnv.executeSql("use `default`")
     try {
       tableEnv.executeSql("drop database db1")
       fail("ValidationException expected")
