@@ -122,7 +122,7 @@ under the License.
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
 		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
-		<flink.shaded.version>13.0</flink.shaded.version>
+		<flink.shaded.version>16.1</flink.shaded.version>
 		<flink.shaded.jackson.version>2.13.4</flink.shaded.jackson.version>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
@@ -139,7 +139,7 @@ under the License.
 		<scala.binary.version>2.12</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
 		<!-- keep FlinkTestcontainersConfigurator.configureZookeeperContainer in sync -->
-		<zookeeper.version>3.5.6</zookeeper.version>
+		<zookeeper.version>3.5.10</zookeeper.version>
 		<curator.version>5.2.0</curator.version>
 		<avro.version>1.11.1</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
