@@ -79,6 +79,9 @@ public class DummyEnvironment implements Environment {
     private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory =
             new ChannelStateWriteRequestExecutorFactory(jobId);
 
+    private final CheckpointExpiredThreadDumper checkpointExpiredThreadDumper =
+            new CheckpointExpiredThreadDumper();
+
     public DummyEnvironment() {
         this("Test Job", 1, 0, 1);
     }
@@ -286,6 +289,6 @@ public class DummyEnvironment implements Environment {
 
     @Override
     public CheckpointExpiredThreadDumper getCheckpointExpiredThreadDumper() {
-        return null;
+        return checkpointExpiredThreadDumper;
     }
 }

@@ -141,6 +141,8 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
 
+    private final CheckpointExpiredThreadDumper checkpointExpiredThreadDumper;
+
     public static MockEnvironmentBuilder builder() {
         return new MockEnvironmentBuilder();
     }
@@ -203,6 +205,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
         this.asyncOperationsThreadPool = Executors.newDirectExecutorService();
         this.channelStateExecutorFactory = channelStateExecutorFactory;
+        this.checkpointExpiredThreadDumper = new CheckpointExpiredThreadDumper();
     }
 
     public IteratorWrappingTestSingleInputGate<Record> addInput(
@@ -461,7 +464,7 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     @Override
     public CheckpointExpiredThreadDumper getCheckpointExpiredThreadDumper() {
-        return null;
+        return checkpointExpiredThreadDumper;
     }
 
     public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {

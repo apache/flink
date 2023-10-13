@@ -107,7 +107,7 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
      * @param checkpointId of the target checkpoint
      * @return true if the checkpoint is running.
      */
-    boolean checkCheckpointRegistered(long checkpointId);
+    boolean isCheckpointRegistered(long checkpointId);
 
     /** Cancel all resources. */
     void cancel() throws IOException;

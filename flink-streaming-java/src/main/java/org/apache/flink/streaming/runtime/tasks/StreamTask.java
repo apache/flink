@@ -1340,16 +1340,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             return notifyCheckpointOperation(
                     () -> {
                         if (isRunning()
-                                && subtaskCheckpointCoordinator.checkCheckpointRegistered(
+                                && subtaskCheckpointCoordinator.isCheckpointRegistered(
                                         checkpointId)) {
                             checkpointExpiredThreadDumper.threadDumpIfNeeded(checkpointId);
                         }
                     },
                     "Request thread dump when checkpoint timeout");
         }
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        result.complete(null);
-        return result;
+        return FutureUtils.completedVoidFuture();
     }
 
     private boolean performCheckpoint(

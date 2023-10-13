@@ -319,7 +319,7 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public CheckpointExpiredThreadDumper getCheckpointExpiredThreadDumper() {
-        return null;
+        throw new UnsupportedOperationException(ERROR_MSG);
     }
 
     @Override

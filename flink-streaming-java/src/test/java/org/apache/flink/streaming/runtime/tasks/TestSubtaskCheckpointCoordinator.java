@@ -98,7 +98,7 @@ public class TestSubtaskCheckpointCoordinator implements SubtaskCheckpointCoordi
     public void waitForPendingCheckpoints() throws Exception {}
 
     @Override
-    public boolean checkCheckpointRegistered(long checkpointId) {
+    public boolean isCheckpointRegistered(long checkpointId) {
         return false;
     }
 

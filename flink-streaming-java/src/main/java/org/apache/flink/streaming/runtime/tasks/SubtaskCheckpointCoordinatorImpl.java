@@ -531,7 +531,7 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     }
 
     @Override
-    public boolean checkCheckpointRegistered(long checkpointId) {
+    public boolean isCheckpointRegistered(long checkpointId) {
         synchronized (lock) {
             return !closed && checkpoints.containsKey(checkpointId);
         }

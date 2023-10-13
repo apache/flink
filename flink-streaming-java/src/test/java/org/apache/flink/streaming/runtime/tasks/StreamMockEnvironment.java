@@ -137,6 +137,9 @@ public class StreamMockEnvironment implements Environment {
 
     private CheckpointResponder checkpointResponder = NoOpCheckpointResponder.INSTANCE;
 
+    private CheckpointExpiredThreadDumper checkpointExpiredThreadDumper =
+            new CheckpointExpiredThreadDumper();
+
     public StreamMockEnvironment(
             Configuration jobConfig,
             Configuration taskConfig,
@@ -435,6 +438,6 @@ public class StreamMockEnvironment implements Environment {
 
     @Override
     public CheckpointExpiredThreadDumper getCheckpointExpiredThreadDumper() {
-        return null;
+        return checkpointExpiredThreadDumper;
     }
 }

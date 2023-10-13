@@ -24,14 +24,17 @@ import org.apache.flink.runtime.util.JvmUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
+import javax.annotation.concurrent.ThreadSafe;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
  * A worker that can print thread dump to log when checkpoint aborted. There is a throttling
  * strategy that it can only output once for each job and each checkpoint abortion.
  */
+@ThreadSafe
 public class CheckpointExpiredThreadDumper {
 
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointExpiredThreadDumper.class);
@@ -50,10 +53,10 @@ public class CheckpointExpiredThreadDumper {
     }
 
     /** A map records the last dumped checkpoint for each job. */
-    private final Map<JobID, Long> jobIdLastDumpCheckpointIdMap;
+    private final ConcurrentHashMap<JobID, Long> jobIdLastDumpCheckpointIdMap;
 
     public CheckpointExpiredThreadDumper() {
-        this.jobIdLastDumpCheckpointIdMap = new HashMap<>();
+        this.jobIdLastDumpCheckpointIdMap = new ConcurrentHashMap<>();
     }
 
     /**
@@ -74,12 +77,16 @@ public class CheckpointExpiredThreadDumper {
             long checkpointId,
             ThreadDumpLogLevel threadDumpLogLevelWhenAbort,
             int maxDepthOfThreadDump) {
-        synchronized (this) {
-            long lastCheckpointId = jobIdLastDumpCheckpointIdMap.computeIfAbsent(jobId, (k) -> -1L);
-            if (lastCheckpointId >= checkpointId) {
-                return false;
-            }
-            jobIdLastDumpCheckpointIdMap.put(jobId, checkpointId);
+        AtomicBoolean needDump = new AtomicBoolean(false);
+        jobIdLastDumpCheckpointIdMap.compute(
+                jobId,
+                (k, v) -> {
+                    long lastCheckpointId = v == null ? -1L : v;
+                    needDump.set(lastCheckpointId < checkpointId);
+                    return Math.max(lastCheckpointId, checkpointId);
+                });
+        if (!needDump.get()) {
+            return false;
         }
         Consumer<String> logger = null;
         switch (threadDumpLogLevelWhenAbort) {
@@ -136,8 +143,6 @@ public class CheckpointExpiredThreadDumper {
      * @param jobId the specified job to remove history.
      */
     public void removeCheckpointExpiredThreadDumpRecordForJob(JobID jobId) {
-        synchronized (this) {
-            jobIdLastDumpCheckpointIdMap.remove(jobId);
-        }
+        jobIdLastDumpCheckpointIdMap.remove(jobId);
     }
 }
