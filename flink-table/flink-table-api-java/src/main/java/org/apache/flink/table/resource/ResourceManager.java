@@ -33,7 +33,7 @@ import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.JarUtils;
 import org.apache.flink.util.MutableURLClassLoader;
 
-import org.apache.flink.shaded.guava30.com.google.common.io.Files;
+import org.apache.flink.shaded.guava31.com.google.common.io.Files;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;

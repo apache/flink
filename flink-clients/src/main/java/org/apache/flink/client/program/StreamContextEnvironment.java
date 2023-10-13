@@ -40,8 +40,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.ShutdownHookUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.MapDifference;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Maps;
+import org.apache.flink.shaded.guava31.com.google.common.collect.MapDifference;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Maps;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

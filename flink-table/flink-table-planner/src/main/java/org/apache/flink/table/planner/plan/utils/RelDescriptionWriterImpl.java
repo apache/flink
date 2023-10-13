@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;

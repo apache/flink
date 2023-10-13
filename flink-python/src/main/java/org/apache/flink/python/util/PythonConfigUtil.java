@@ -52,9 +52,9 @@ import org.apache.flink.streaming.runtime.translators.python.PythonBroadcastStat
 import org.apache.flink.streaming.runtime.translators.python.PythonKeyedBroadcastStateTransformationTranslator;
 import org.apache.flink.util.OutputTag;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Queues;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Queues;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;

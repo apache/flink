@@ -43,7 +43,7 @@ import org.apache.flink.runtime.testutils.WorkingDirectoryResource;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Sets;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;

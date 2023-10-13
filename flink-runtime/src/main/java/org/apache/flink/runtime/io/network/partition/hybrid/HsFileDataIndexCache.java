@@ -22,9 +22,9 @@ import org.apache.flink.runtime.io.network.partition.hybrid.HsFileDataIndexImpl.
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
-import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalNotification;
+import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava31.com.google.common.cache.RemovalNotification;
 
 import java.io.IOException;
 import java.nio.file.Path;

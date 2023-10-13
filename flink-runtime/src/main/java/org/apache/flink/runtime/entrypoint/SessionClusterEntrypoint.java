@@ -27,7 +27,7 @@ import org.apache.flink.runtime.dispatcher.FileExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Ticker;
+import org.apache.flink.shaded.guava31.com.google.common.base.Ticker;
 
 import java.io.File;
 import java.io.IOException;

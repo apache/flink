@@ -25,7 +25,7 @@ import org.apache.flink.metrics.groups.CacheMetricGroup;
 import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
 import org.apache.flink.table.data.RowData;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava31.com.google.common.base.Joiner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

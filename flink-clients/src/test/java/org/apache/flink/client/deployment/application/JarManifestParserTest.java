@@ -22,8 +22,8 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.testjar.TestJob;
 import org.apache.flink.client.testjar.TestJobInfo;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

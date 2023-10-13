@@ -34,8 +34,8 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaShuffleFetcher
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaShuffleFetcher.KafkaShuffleWatermark;
 import org.apache.flink.util.PropertiesUtil;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Rule;

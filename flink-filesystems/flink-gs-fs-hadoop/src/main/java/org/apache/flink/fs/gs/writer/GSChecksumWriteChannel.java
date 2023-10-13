@@ -23,7 +23,7 @@ import org.apache.flink.fs.gs.storage.GSBlobStorage;
 import org.apache.flink.fs.gs.utils.ChecksumUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.guava30.com.google.common.hash.Hasher;
+import org.apache.flink.shaded.guava31.com.google.common.hash.Hasher;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

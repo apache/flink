@@ -22,9 +22,9 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 
-import org.apache.flink.shaded.guava30.com.google.common.hash.HashFunction;
-import org.apache.flink.shaded.guava30.com.google.common.hash.Hasher;
-import org.apache.flink.shaded.guava30.com.google.common.hash.Hashing;
+import org.apache.flink.shaded.guava31.com.google.common.hash.HashFunction;
+import org.apache.flink.shaded.guava31.com.google.common.hash.Hasher;
+import org.apache.flink.shaded.guava31.com.google.common.hash.Hashing;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -29,7 +29,7 @@ import org.apache.flink.runtime.security.contexts.NoOpSecurityContextFactory;
 import org.apache.flink.runtime.security.contexts.TestSecurityContextFactory;
 import org.apache.flink.runtime.security.modules.TestSecurityModuleFactory;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.AfterClass;
 import org.junit.Test;

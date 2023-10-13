@@ -17,7 +17,7 @@
 
 package org.apache.flink.table.runtime.functions;
 
-import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
 
 import com.jayway.jsonpath.JsonPath;
 import com.jayway.jsonpath.spi.cache.Cache;
@@ -27,7 +27,7 @@ public class JsonPathCache implements Cache {
 
     private static final long DEFAULT_CACHE_MAXIMUM_SIZE = 400;
 
-    private final org.apache.flink.shaded.guava30.com.google.common.cache.Cache<String, JsonPath>
+    private final org.apache.flink.shaded.guava31.com.google.common.cache.Cache<String, JsonPath>
             jsonPathCache =
                     CacheBuilder.newBuilder().maximumSize(DEFAULT_CACHE_MAXIMUM_SIZE).build();
 

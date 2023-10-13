@@ -35,10 +35,10 @@ import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
-import org.apache.flink.shaded.guava30.com.google.common.base.Splitter;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMultimap;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
-import org.apache.flink.shaded.guava30.com.google.common.collect.Multimap;
+import org.apache.flink.shaded.guava31.com.google.common.base.Splitter;
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMultimap;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Multimap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

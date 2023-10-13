@@ -27,8 +27,8 @@ import org.apache.flink.runtime.entrypoint.parser.CommandLineOptions;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtils;
 import org.apache.flink.util.OperatingSystem;
 
-import org.apache.flink.shaded.guava30.com.google.common.escape.Escaper;
-import org.apache.flink.shaded.guava30.com.google.common.escape.Escapers;
+import org.apache.flink.shaded.guava31.com.google.common.escape.Escaper;
+import org.apache.flink.shaded.guava31.com.google.common.escape.Escapers;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;

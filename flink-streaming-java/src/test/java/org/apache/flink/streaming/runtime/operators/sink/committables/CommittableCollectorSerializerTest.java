@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.connector.sink2.IntegerSerializer;
 import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Streams;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Streams;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
