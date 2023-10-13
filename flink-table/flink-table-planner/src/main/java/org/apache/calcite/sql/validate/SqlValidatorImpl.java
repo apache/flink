@@ -158,10 +158,13 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * Default implementation of {@link SqlValidator}, the class was copied over because of
  * CALCITE-4554.
  *
- * <p>Lines 5079 ~ 5092, Flink enables TIMESTAMP and TIMESTAMP_LTZ for system time period
+ * <p>Lines 1954 ~ 1977, Flink improves error message for functions without appropriate arguments in
+ * handleUnresolvedFunction at {@link SqlValidatorImpl#handleUnresolvedFunction}.
+ *
+ * <p>Lines 5101 ~ 5114, Flink enables TIMESTAMP and TIMESTAMP_LTZ for system time period
  * specification type at {@link org.apache.calcite.sql.validate.SqlValidatorImpl#validateSnapshot}.
  *
- * <p>Lines 5436 ~ 5442, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
+ * <p>Lines 5458 ~ 5464, Flink enables TIMESTAMP and TIMESTAMP_LTZ for first orderBy column in
  * matchRecognize at {@link SqlValidatorImpl#validateMatchRecognize}.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
@@ -180,6 +183,9 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
     /** Alias prefix generated for source columns when rewriting UPDATE to MERGE. */
     public static final String UPDATE_ANON_PREFIX = "SYS$ANON";
+
+    private static final ExtraCalciteResource EXTRA_RESOURCE =
+            Resources.create(ExtraCalciteResource.class);
 
     // ~ Instance fields --------------------------------------------------------
 
@@ -1946,11 +1952,27 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
         final String signature;
         if (unresolvedFunction instanceof SqlFunction) {
+            // ----- FLINK MODIFICATION BEGIN -----
             final SqlOperandTypeChecker typeChecking =
                     new AssignableOperandTypeChecker(argTypes, argNames);
-            signature =
+            final String invocation =
                     typeChecking.getAllowedSignatures(
                             unresolvedFunction, unresolvedFunction.getName());
+            if (unresolvedFunction.getOperandTypeChecker() != null) {
+                final String allowedSignatures =
+                        unresolvedFunction
+                                .getOperandTypeChecker()
+                                .getAllowedSignatures(
+                                        unresolvedFunction, unresolvedFunction.getName());
+                throw newValidationError(
+                        call,
+                        EXTRA_RESOURCE.validatorNoFunctionMatch(invocation, allowedSignatures));
+            } else {
+                signature =
+                        typeChecking.getAllowedSignatures(
+                                unresolvedFunction, unresolvedFunction.getName());
+            }
+            // ----- FLINK MODIFICATION END -----
         } else {
             signature = unresolvedFunction.getName();
         }
