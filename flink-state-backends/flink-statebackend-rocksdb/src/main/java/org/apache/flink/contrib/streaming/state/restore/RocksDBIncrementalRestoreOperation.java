@@ -304,8 +304,10 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
         Preconditions.checkArgument(restoreStateHandles != null && !restoreStateHandles.isEmpty());
 
-        Map<StateHandleID, StateHandleDownloadSpec> allDownloadSpecs =
+        final Map<StateHandleID, StateHandleDownloadSpec> allDownloadSpecs =
                 CollectionUtil.newHashMapWithExpectedSize(restoreStateHandles.size());
+
+        final List<IncrementalLocalKeyedStateHandle> localKeyedStateHandles = new ArrayList<>();
 
         // Choose the best state handle for the initial DB
         final KeyedStateHandle selectedInitialHandle =
@@ -318,15 +320,18 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
         // Prepare and collect all the download request to pull remote state to a local directory
         for (KeyedStateHandle stateHandle : restoreStateHandles) {
-            if (!(stateHandle instanceof IncrementalRemoteKeyedStateHandle)) {
+            if (stateHandle instanceof IncrementalRemoteKeyedStateHandle) {
+                StateHandleDownloadSpec downloadRequest =
+                        new StateHandleDownloadSpec(
+                                (IncrementalRemoteKeyedStateHandle) stateHandle,
+                                absolutInstanceBasePath.resolve(UUID.randomUUID().toString()));
+                allDownloadSpecs.put(stateHandle.getStateHandleId(), downloadRequest);
+            } else if (stateHandle instanceof IncrementalLocalKeyedStateHandle) {
+                localKeyedStateHandles.add((IncrementalLocalKeyedStateHandle) stateHandle);
+            } else {
                 throw unexpectedStateHandleException(
                         IncrementalRemoteKeyedStateHandle.class, stateHandle.getClass());
             }
-            StateHandleDownloadSpec downloadRequest =
-                    new StateHandleDownloadSpec(
-                            (IncrementalRemoteKeyedStateHandle) stateHandle,
-                            absolutInstanceBasePath.resolve(UUID.randomUUID().toString()));
-            allDownloadSpecs.put(stateHandle.getStateHandleId(), downloadRequest);
         }
 
         // Process all state downloads
@@ -472,7 +477,6 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
 
     private RestoredDBInstance restoreTempDBInstanceFromDownloadedState(
             StateHandleDownloadSpec downloadRequest) throws Exception {
-
         KeyedBackendSerializationProxy<K> serializationProxy =
                 readMetaData(downloadRequest.getStateHandle().getMetaDataStateHandle());
         // read meta data

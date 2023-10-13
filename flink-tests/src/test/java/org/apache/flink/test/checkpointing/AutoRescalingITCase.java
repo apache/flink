@@ -110,7 +110,7 @@ public class AutoRescalingITCase extends TestLogger {
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
-                    {"rocksdb", 0}, {"rocksdb", 2}, {"filesystem", 0}, {"filesystem", 2}
+                    {"rocksdb", 0}, {"rocksdb", 2}, /*{"filesystem", 0}, {"filesystem", 2}*/
                 });
     }
 

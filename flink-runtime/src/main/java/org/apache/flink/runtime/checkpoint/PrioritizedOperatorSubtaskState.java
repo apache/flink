@@ -20,10 +20,12 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.commons.lang3.BooleanUtils;
 
@@ -31,8 +33,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -286,7 +291,7 @@ public class PrioritizedOperatorSubtaskState {
             }
 
             return new PrioritizedOperatorSubtaskState(
-                    resolvePrioritizedAlternatives(
+                    resolveKeyedStatePrioritizedAlternatives(
                             jobManagerState.getManagedKeyedState(),
                             managedKeyedAlternatives,
                             eqStateApprover(KeyedStateHandle::getKeyGroupRange)),
@@ -362,6 +367,66 @@ public class PrioritizedOperatorSubtaskState {
             // Of course we include the ground truth as last alternative.
             approved.add(jobManagerState);
             return Collections.unmodifiableList(approved);
+        }
+
+        protected <T extends KeyedStateHandle>
+                List<StateObjectCollection<T>> resolveKeyedStatePrioritizedAlternatives(
+                        StateObjectCollection<T> jobManagerState,
+                        List<StateObjectCollection<T>> alternativesByPriority,
+                        BiFunction<T, T, Boolean> approveFun) {
+
+            List<StateObjectCollection<T>> prioritizedAcceptedAlternatives =
+                    resolvePrioritizedAlternatives(
+                            jobManagerState, alternativesByPriority, approveFun);
+
+            if (alternativesByPriority != null
+                    && !alternativesByPriority.isEmpty()
+                    && jobManagerState.hasState()
+                    && prioritizedAcceptedAlternatives.size() == 1) {
+
+                Optional<StateObjectCollection<T>> mergedAlternative =
+                        tryCreateMergedAlternative(jobManagerState, alternativesByPriority);
+
+                if (mergedAlternative.isPresent()) {
+                    return Arrays.asList(mergedAlternative.get(), jobManagerState);
+                }
+            }
+            return prioritizedAcceptedAlternatives;
+        }
+
+        <T extends KeyedStateHandle> Optional<StateObjectCollection<T>> tryCreateMergedAlternative(
+                StateObjectCollection<T> jobManagerState,
+                List<StateObjectCollection<T>> alternativesByPriority) {
+
+            List<T> result = Collections.emptyList();
+
+            HashMap<KeyGroupRange, T> keyGroupToHandleMap =
+                    CollectionUtil.newHashMapWithExpectedSize(jobManagerState.size());
+
+            for (T stateHandle : jobManagerState) {
+                keyGroupToHandleMap.put(stateHandle.getKeyGroupRange(), stateHandle);
+            }
+
+            for (StateObjectCollection<T> alternative : alternativesByPriority) {
+                for (T stateHandle : alternative) {
+                    if (keyGroupToHandleMap.remove(stateHandle.getKeyGroupRange()) != null) {
+                        if (result.isEmpty()) {
+                            result = new ArrayList<>(jobManagerState.size());
+                        }
+                        result.add(stateHandle);
+                        if (keyGroupToHandleMap.isEmpty()) {
+                            return Optional.of(new StateObjectCollection<>(result));
+                        }
+                    }
+                }
+            }
+
+            if (result.isEmpty()) {
+                return Optional.empty();
+            }
+
+            result.addAll(keyGroupToHandleMap.values());
+            return Optional.of(new StateObjectCollection<>(result));
         }
     }
 
