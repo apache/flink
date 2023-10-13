@@ -659,9 +659,12 @@ class CalcITCase extends StreamingTestBase {
     } catch {
       case e: Exception =>
         assertEquals(
-          "SQL validation failed. From line 1, column 12 to line 1, column 30: " +
-            "No match found for function signature CURRENT_WATERMARK()",
-          e.getMessage)
+          "SQL validation failed. From line 1, column 12 to line 1, column 30: No match found for function signature CURRENT_WATERMARK().\n" +
+            "Supported signatures are:\n" +
+            "CURRENT_WATERMARK(<TIMESTAMP_WITHOUT_TIME_ZONE *ROWTIME*>)\n" +
+            "CURRENT_WATERMARK(<TIMESTAMP_WITH_LOCAL_TIME_ZONE *ROWTIME*>)",
+          e.getMessage
+        )
     }
   }
 
