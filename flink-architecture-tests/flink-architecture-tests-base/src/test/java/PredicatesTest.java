@@ -19,7 +19,8 @@
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.architecture.common.Predicates.getClassSimpleNameFromFqName;
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link org.apache.flink.architecture.common.Predicates}. */
 class PredicatesTest {
