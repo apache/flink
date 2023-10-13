@@ -55,7 +55,8 @@ public class StateHandleDummyUtil {
             OperatorStateHandle.StateMetaInfo metaInfo =
                     new OperatorStateHandle.StateMetaInfo(
                             offsets, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE);
-            operatorStateMetaData.put(String.valueOf(UUID.randomUUID()), metaInfo);
+            operatorStateMetaData.put(
+                    String.valueOf(new UUID(random.nextLong(), random.nextLong())), metaInfo);
         }
         return new OperatorStreamStateHandle(
                 operatorStateMetaData, createStreamStateHandle(numNamedStates, random));
@@ -65,7 +66,8 @@ public class StateHandleDummyUtil {
             int numNamedStates, Random random) {
         byte[] streamData = new byte[numNamedStates * 4];
         random.nextBytes(streamData);
-        return new ByteStreamStateHandle(String.valueOf(UUID.randomUUID()), streamData);
+        return new ByteStreamStateHandle(
+                String.valueOf(new UUID(random.nextLong(), random.nextLong())), streamData);
     }
 
     /** Creates a new test {@link KeyedStateHandle} for the given key-group. */
@@ -149,11 +151,11 @@ public class StateHandleDummyUtil {
     }
 
     public static ResultSubpartitionStateHandle createNewResultSubpartitionStateHandle(
-            int i, Random random) {
+            int numNamedStates, Random random) {
         return new ResultSubpartitionStateHandle(
                 new ResultSubpartitionInfo(random.nextInt(), random.nextInt()),
-                createStreamStateHandle(i, random),
-                genOffsets(i, random));
+                createStreamStateHandle(numNamedStates, random),
+                genOffsets(numNamedStates, random));
     }
 
     private static ArrayList<Long> genOffsets(int size, Random random) {
@@ -162,6 +164,23 @@ public class StateHandleDummyUtil {
             offsets.add(random.nextLong());
         }
         return offsets;
+    }
+
+    public static KeyedStateHandle createKeyedStateHandleFromSeed(int seed) {
+        return createNewKeyedStateHandle(KeyGroupRange.of(seed * 4, seed * 4 + 3));
+    }
+
+    public static OperatorStateHandle createOperatorStateHandleFromSeed(int seed) {
+        return createNewOperatorStateHandle(1 + (seed % 3), new Random(seed));
+    }
+
+    public static InputChannelStateHandle createInputChannelStateHandleFromSeed(int seed) {
+        return createNewInputChannelStateHandle(1 + (seed % 3), new Random(seed));
+    }
+
+    public static ResultSubpartitionStateHandle createResultSubpartitionStateHandleFromSeed(
+            int seed) {
+        return createNewResultSubpartitionStateHandle(1 + (seed % 3), new Random(seed));
     }
 
     /** KeyedStateHandle that only holds a key-group information. */
