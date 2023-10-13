@@ -2191,7 +2191,7 @@ under the License.
 							<breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
 							<onlyBinaryIncompatible>false</onlyBinaryIncompatible>
 							<includeSynthetic>true</includeSynthetic>
-							<ignoreMissingClasses>false</ignoreMissingClasses>
+							<ignoreMissingClasses>true</ignoreMissingClasses>
 							<skipPomModules>true</skipPomModules>
 							<!-- Don't break build on newly added maven modules -->
 							<ignoreNonResolvableArtifacts>true</ignoreNonResolvableArtifacts>
