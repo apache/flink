@@ -63,7 +63,6 @@ public class ResourceManagerOptions {
                                     + " Its not possible to use this configuration key to define port ranges.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
-    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> MIN_SLOT_NUM =
             ConfigOptions.key("slotmanager.number-of-slots.min")
                     .intType()
