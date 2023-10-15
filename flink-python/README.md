@@ -32,14 +32,14 @@ Apache Flink Python API depends on Py4J (currently version 0.10.9.7), CloudPickl
 
 ### Protobuf Code Generation
 
-Protocol buffer is used in file `flink_fn_execution_pb2.py` and the file is generated from `flink-fn-execution.proto`. Whenever `flink-fn-execution.proto` is updated, please re-generate `flink_fn_execution_pb2.py` by executing:
+Protocol buffer is used in file `flink_fn_execution_pb2.py` and `flink_fn_execution_pb2.pyi`, the file is generated from `flink-fn-execution.proto`. Whenever `flink-fn-execution.proto` is updated, please re-generate `flink_fn_execution_pb2.py` and `flink_fn_execution_pb2.pyi` by executing:
 
 ```
 python pyflink/gen_protos.py
 ```
 
 PyFlink depends on the following libraries to execute the above script:
-1. grpcio-tools (>=1.29.0,<=1.48.2)
+1. grpcio-tools (>=1.29.0,<=1.50.0)
 2. setuptools (>=37.0.0)
 3. pip (>=20.3)
 
