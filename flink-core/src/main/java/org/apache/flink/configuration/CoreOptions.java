@@ -272,6 +272,16 @@ public class CoreOptions {
                                     .text("Java options to start the JVM of the Flink Client with.")
                                     .build());
 
+    public static final ConfigOption<String> FLINK_SQL_GATEWAY_JVM_OPTIONS =
+            ConfigOptions.key("env.java.opts.sql-gateway")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Java options to start the JVM of the Flink SQL Gateway with.")
+                                    .build());
+
     /**
      * This option is here only for documentation generation, it is only evaluated in the shell
      * scripts.
