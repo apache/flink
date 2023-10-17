@@ -1321,12 +1321,14 @@ under the License.
 								</goals>
 								<configuration>
 									<rules>
+										<!-- versions for certain build tools are enforced to match the CI setup -->
+										<!-- the rules below should stay in sync with Flink Release wiki documentation and the CI scripts -->
 										<requireMavenVersion>
 											<!-- maven version must be lower than 3.3. See FLINK-3158 -->
 											<version>(,3.3)</version>
 										</requireMavenVersion>
 										<requireJavaVersion>
-											<version>1.8.0</version>
+											<version>[1.8.0,1.8.1)</version>
 										</requireJavaVersion>
 									</rules>
 								</configuration>
