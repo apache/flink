@@ -396,4 +396,20 @@ public class NetUtilsTest extends TestLogger {
 
         Assertions.assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
     }
+
+    @Test
+    public void testIpv6SocketToUrl() throws MalformedURLException {
+        InetSocketAddress socketAddress = new InetSocketAddress("[2001:1db8::ff00:42:8329]", 8080);
+        URL expectedResult = new URL("http://[2001:1db8::ff00:42:8329]:8080");
+
+        Assertions.assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
+    }
+
+    @Test
+    public void testIpv4SocketToUrl() throws MalformedURLException {
+        InetSocketAddress socketAddress = new InetSocketAddress("192.168.0.1", 8080);
+        URL expectedResult = new URL("http://192.168.0.1:8080");
+
+        Assertions.assertThat(socketToUrl(socketAddress)).isEqualTo(expectedResult);
+    }
 }
