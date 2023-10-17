@@ -48,17 +48,15 @@ function setup_kubernetes_for_linux {
       sudo rm "$(which minikube)"
     fi
 
-    if ! [ -x "$(command -v minikube)" ]; then
-      echo "Installing minikube $MINIKUBE_VERSION ..."
-      curl -Lo minikube https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube-linux-$arch && \
-          chmod +x minikube && sudo mv minikube /usr/bin/minikube
-    fi
-
-    if ! [ -x "$(command -v minikube)" ]; then
-      echo "Installing minikube $MINIKUBE_VERSION ..."
-      curl -Lo minikube https://kubernetes.oss-cn-hangzhou.aliyuncs.com/minikube/releases/$MINIKUBE_VERSION/minikube-linux-$arch && \
-          chmod +x minikube && sudo mv minikube /usr/bin/minikube
-    fi
+    # Retry loop download minikube.
+    local MINIKUBE_DOWNLOAD_RETRY_COUNT=2
+    for i in $(seq 1 ${MINIKUBE_DOWNLOAD_RETRY_COUNT}); do
+      if ! [ -x "$(command -v minikube)" ]; then
+        echo "Installing minikube $MINIKUBE_VERSION ..."
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube-linux-$arch && \
+            chmod +x minikube && sudo mv minikube /usr/bin/minikube
+      fi
+    done
 
     if ! [ -x "$(command -v minikube)" ]; then
       echo "Minikube couldn't be installed..."
