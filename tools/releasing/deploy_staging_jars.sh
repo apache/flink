@@ -17,6 +17,9 @@
 # limitations under the License.
 #
 
+## check required Java and Maven version
+. check_java_maven_versions.sh
+
 ##
 ## Variables with defaults (if not overwritten by environment)
 ##
