@@ -1125,6 +1125,30 @@ under the License.
 		</profile>
 
 		<profile>
+			<id>java21</id>
+			<activation>
+				<jdk>[21,)</jdk>
+			</activation>
+
+			<build>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>com.diffplug.spotless</groupId>
+							<artifactId>spotless-maven-plugin</artifactId>
+							<configuration>
+								<!-- Current google format does not run on Java 21.
+									 Don't upgrade it in this profile because it formats code differently.
+									 Re-evaluate once support for Java 8 is dropped. -->
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
+			</build>
+		</profile>
+
+		<profile>
 			<id>fast</id>
 			<activation>
 				<property>
