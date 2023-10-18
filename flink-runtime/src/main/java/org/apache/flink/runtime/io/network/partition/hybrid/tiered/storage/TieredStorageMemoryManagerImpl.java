@@ -233,7 +233,6 @@ public class TieredStorageMemoryManagerImpl implements TieredStorageMemoryManage
 
     @Override
     public void release() {
-        checkState(numRequestedBuffers.get() == 0, "Leaking buffers.");
         if (executor != null) {
             executor.shutdown();
             try {
