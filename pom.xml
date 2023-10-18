@@ -1130,6 +1130,11 @@ under the License.
 				<jdk>[21,)</jdk>
 			</activation>
 
+			<properties>
+				<!-- Bump Scala because before 2.12.18 doesn't compile on Java 21. -->
+				<scala.version>2.12.18</scala.version>
+			</properties>
+
 			<build>
 				<pluginManagement>
 					<plugins>
