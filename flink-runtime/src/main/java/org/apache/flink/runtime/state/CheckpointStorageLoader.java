@@ -213,7 +213,8 @@ public class CheckpointStorageLoader {
                     logger.info(
                             "Using job/cluster config to configure application-defined checkpoint storage: {}",
                             fromApplication);
-                    logger.info("Checkpoint path in fromApplication: {}",
+                    logger.info(
+                            "Checkpoint path in fromApplication: {}",
                             ((FileSystemCheckpointStorage) fromApplication).getCheckpointPath());
                     if (config.get(CheckpointingOptions.CHECKPOINT_STORAGE) != null) {
                         logger.warn(

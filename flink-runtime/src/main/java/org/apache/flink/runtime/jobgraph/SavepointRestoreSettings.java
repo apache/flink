@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import org.apache.commons.lang.StringUtils;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+
+import org.apache.commons.lang.StringUtils;
 
 import java.io.Serializable;
 import java.util.Objects;
