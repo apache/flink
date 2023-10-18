@@ -19,24 +19,36 @@
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.AbstractThreadsafeJobResultStore;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.concurrent.Executors;
 
+import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.runtime.highavailability.JobResultStoreOptions.TIME_TO_REMOVE_CLEAN_JOB_RESULT;
 
 /** A thread-safe in-memory implementation of the {@link JobResultStore}. */
 public class EmbeddedJobResultStore extends AbstractThreadsafeJobResultStore {
 
     private final Map<JobID, JobResultEntry> dirtyJobResults = new HashMap<>();
 
-    private final Map<JobID, JobResultEntry> cleanJobResults = new HashMap<>();
+    private final Cache<JobID, JobResultEntry> cleanJobResults =
+            CacheBuilder.newBuilder()
+                    .expireAfterAccess(
+                            new Configuration().get(TIME_TO_REMOVE_CLEAN_JOB_RESULT),
+                            TimeUnit.MINUTES)
+                    .build();
 
     public EmbeddedJobResultStore() {
         super(Executors.directExecutor());
@@ -67,7 +79,7 @@ public class EmbeddedJobResultStore extends AbstractThreadsafeJobResultStore {
 
     @Override
     public boolean hasCleanJobResultEntryInternal(JobID jobId) {
-        return cleanJobResults.containsKey(jobId);
+        return cleanJobResults.asMap().containsKey(jobId);
     }
 
     @Override
