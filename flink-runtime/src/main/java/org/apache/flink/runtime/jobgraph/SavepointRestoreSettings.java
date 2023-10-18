@@ -58,7 +58,8 @@ public class SavepointRestoreSettings implements Serializable {
     private SavepointRestoreSettings(
             String restorePath, boolean allowNonRestoredState, RestoreMode restoreMode) {
         if (StringUtils.isWhitespace(restorePath)) {
-            throw new RuntimeException("Tried to construct with whitespace restorePath: " + restorePath);
+            throw new RuntimeException(
+                    "Tried to construct with whitespace restorePath: " + restorePath);
         }
         this.restorePath = restorePath;
         this.allowNonRestoredState = allowNonRestoredState;
