@@ -38,7 +38,9 @@ under the License.
 			FromElementsFunctionTest
 			-->--add-opens=java.base/java.lang=ALL-UNNAMED <!--
 			chill ArraysAsListSerializer
-			-->--add-opens=java.base/java.util=ALL-UNNAMED
+			-->--add-opens=java.base/java.util=ALL-UNNAMED <!--
+		    StreamTaskSystemExitTest
+		    -->-Djava.security.manager=allow
 		</surefire.module.config>
 	</properties>
 

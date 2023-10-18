@@ -43,7 +43,9 @@ under the License.
 			OperatorStateBackendTest
 			-->--add-opens=java.base/java.io=ALL-UNNAMED <!--
 			AsynchronousFileIOChannelTest
-			-->--add-opens=java.base/java.util.concurrent=ALL-UNNAMED
+			-->--add-opens=java.base/java.util.concurrent=ALL-UNNAMED <!--
+		    DeclarativeSlotManagerTest
+		    -->-Djava.security.manager=allow
 		</surefire.module.config>
 	</properties>
 

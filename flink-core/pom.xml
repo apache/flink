@@ -47,7 +47,9 @@ under the License.
 			-->--add-opens=java.base/java.net=ALL-UNNAMED <!--
 			InitOutputPathTest
 			-->--add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED <!--
-			-->--add-opens=java.base/java.lang.reflect=ALL-UNNAMED
+			-->--add-opens=java.base/java.lang.reflect=ALL-UNNAMED <!--
+		    FlinkSecurityManagerTest
+		    -->-Djava.security.manager=allow
 		</surefire.module.config>
 	</properties>
 
