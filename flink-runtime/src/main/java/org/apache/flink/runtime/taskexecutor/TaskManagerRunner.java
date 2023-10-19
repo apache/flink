@@ -638,6 +638,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         taskExecutorBlobService.getPermanentBlobService(),
                         taskManagerMetricGroup.f1,
                         ioExecutor,
+                        rpcService.getScheduledExecutor(),
                         fatalErrorHandler,
                         workingDirectory);
 
