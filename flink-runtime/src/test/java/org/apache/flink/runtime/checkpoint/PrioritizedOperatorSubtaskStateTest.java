@@ -27,6 +27,8 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.Preconditions;
 
+import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -34,6 +36,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -51,6 +54,87 @@ class PrioritizedOperatorSubtaskStateTest {
 
     private static final Random RANDOM = new Random(0x42);
 
+    @Test
+    void testTryCreateMixedLocalAndRemoteAlternative() {
+        List<KeyedStateHandle> jmState =
+                Arrays.asList(
+                        createNewKeyedStateHandle(KeyGroupRange.of(0, 3)),
+                        createNewKeyedStateHandle(KeyGroupRange.of(4, 7)),
+                        createNewKeyedStateHandle(KeyGroupRange.of(8, 11)),
+                        createNewKeyedStateHandle(KeyGroupRange.of(12, 15)));
+
+        List<KeyedStateHandle> alternativeA =
+                Arrays.asList(
+                        createNewKeyedStateHandle(KeyGroupRange.of(0, 3)),
+                        createNewKeyedStateHandle(KeyGroupRange.of(12, 15)));
+
+        List<KeyedStateHandle> alternativeB =
+                Arrays.asList(
+                        createNewKeyedStateHandle(KeyGroupRange.of(4, 7)),
+                        createNewKeyedStateHandle(KeyGroupRange.of(12, 15)),
+                        createNewKeyedStateHandle(KeyGroupRange.of(16, 19)));
+
+        List<StateObjectCollection<KeyedStateHandle>> alternatives =
+                Arrays.asList(
+                        new StateObjectCollection<>(alternativeA),
+                        new StateObjectCollection<>(Collections.emptyList()),
+                        new StateObjectCollection<>(alternativeB));
+
+        StateObjectCollection<KeyedStateHandle> result =
+                PrioritizedOperatorSubtaskState.Builder.tryCreateMixedLocalAndRemoteAlternative(
+                                new StateObjectCollection<>(jmState), alternatives)
+                        .get();
+
+        Assertions.assertEquals(4, result.size());
+        List<KeyedStateHandle> expected = new ArrayList<>();
+        expected.addAll(alternativeA);
+        expected.add(alternativeB.get(0));
+        expected.add(jmState.get(2));
+        Assert.assertTrue(result.containsAll(expected));
+    }
+
+    @Test
+    void testTryCreateMixedLocalAndRemoteAlternativeEmptyAlternative() {
+        List<KeyedStateHandle> jmState =
+                Arrays.asList(
+                        createNewKeyedStateHandle(KeyGroupRange.of(0, 4)),
+                        createNewKeyedStateHandle(KeyGroupRange.of(5, 8)),
+                        createNewKeyedStateHandle(KeyGroupRange.of(9, 12)),
+                        createNewKeyedStateHandle(KeyGroupRange.of(13, 15)));
+
+        Assertions.assertFalse(
+                PrioritizedOperatorSubtaskState.Builder.tryCreateMixedLocalAndRemoteAlternative(
+                                new StateObjectCollection<>(jmState), Collections.emptyList())
+                        .isPresent());
+
+        Assertions.assertFalse(
+                PrioritizedOperatorSubtaskState.Builder.tryCreateMixedLocalAndRemoteAlternative(
+                                new StateObjectCollection<>(jmState),
+                                Collections.singletonList(new StateObjectCollection<>()))
+                        .isPresent());
+    }
+
+    @Test
+    void testTryCreateMixedLocalAndRemoteAlternativeEmptyJMState() {
+        List<KeyedStateHandle> alternativeA =
+                Arrays.asList(
+                        createNewKeyedStateHandle(KeyGroupRange.of(0, 4)),
+                        createNewKeyedStateHandle(KeyGroupRange.of(13, 15)));
+
+        Assertions.assertFalse(
+                PrioritizedOperatorSubtaskState.Builder.tryCreateMixedLocalAndRemoteAlternative(
+                                new StateObjectCollection<>(Collections.emptyList()),
+                                Collections.singletonList(
+                                        new StateObjectCollection<>(alternativeA)))
+                        .isPresent());
+
+        Assertions.assertFalse(
+                PrioritizedOperatorSubtaskState.Builder.tryCreateMixedLocalAndRemoteAlternative(
+                                new StateObjectCollection<>(Collections.emptyList()),
+                                Collections.emptyList())
+                        .isPresent());
+    }
+
     /**
      * This tests attempts to test (almost) the full space of significantly different options for
      * verifying and prioritizing {@link OperatorSubtaskState} options for local recovery over
@@ -58,7 +142,6 @@ class PrioritizedOperatorSubtaskStateTest {
      */
     @Test
     void testPrioritization() {
-
         for (int i = 0; i < 81; ++i) { // 3^4 possible configurations.
 
             OperatorSubtaskState primaryAndFallback = generateForConfiguration(i);
@@ -95,6 +178,37 @@ class PrioritizedOperatorSubtaskStateTest {
                 OperatorSubtaskState[] onlyPrimary =
                         new OperatorSubtaskState[] {primaryAndFallback};
 
+                Optional<StateObjectCollection<KeyedStateHandle>> mixedManagedKeyedStateHandle =
+                        PrioritizedOperatorSubtaskState.Builder
+                                .tryCreateMixedLocalAndRemoteAlternative(
+                                        primaryAndFallback.getManagedKeyedState(),
+                                        orderedAlternativesList.stream()
+                                                .map(OperatorSubtaskState::getManagedKeyedState)
+                                                .collect(Collectors.toList()));
+
+                final OperatorSubtaskState[] mixed;
+                if (mixedManagedKeyedStateHandle.isPresent()) {
+                    OperatorSubtaskState mixedAlternative =
+                            OperatorSubtaskState.builder()
+                                    .setManagedOperatorState(
+                                            primaryAndFallback.getManagedOperatorState())
+                                    .setRawOperatorState(primaryAndFallback.getRawOperatorState())
+                                    .setManagedKeyedState(mixedManagedKeyedStateHandle.get())
+                                    .setRawKeyedState(primaryAndFallback.getRawKeyedState())
+                                    .setInputChannelState(primaryAndFallback.getInputChannelState())
+                                    .setResultSubpartitionState(
+                                            primaryAndFallback.getResultSubpartitionState())
+                                    .setInputRescalingDescriptor(
+                                            primaryAndFallback.getInputRescalingDescriptor())
+                                    .setOutputRescalingDescriptor(
+                                            primaryAndFallback.getOutputRescalingDescriptor())
+                                    .build();
+
+                    mixed = new OperatorSubtaskState[] {mixedAlternative, primaryAndFallback};
+                } else {
+                    mixed = onlyPrimary;
+                }
+
                 assertThat(
                                 checkResultAsExpected(
                                         OperatorSubtaskState::getManagedOperatorState,
@@ -106,15 +220,22 @@ class PrioritizedOperatorSubtaskStateTest {
                                                 : onlyPrimary))
                         .isTrue();
 
+                final OperatorSubtaskState[] expectedManagedKeyed;
+                if (primaryAndFallback.getManagedKeyedState().size() == 1) {
+                    expectedManagedKeyed = validAlternatives;
+                } else if (primaryAndFallback.getManagedKeyedState().size() > 1) {
+                    expectedManagedKeyed = mixed;
+                } else {
+                    expectedManagedKeyed = onlyPrimary;
+                }
+
                 assertThat(
                                 checkResultAsExpected(
                                         OperatorSubtaskState::getManagedKeyedState,
                                         PrioritizedOperatorSubtaskState
                                                 ::getPrioritizedManagedKeyedState,
                                         prioritizedOperatorSubtaskState,
-                                        primaryAndFallback.getManagedKeyedState().size() == 1
-                                                ? validAlternatives
-                                                : onlyPrimary))
+                                        expectedManagedKeyed))
                         .isTrue();
 
                 assertThat(
