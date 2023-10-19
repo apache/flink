@@ -252,7 +252,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                         stateHandle.getCheckpointId(),
                         new DirectoryStateHandle(downloadedState.getDownloadDestination()),
                         stateHandle.getKeyGroupRange(),
-                        stateHandle.getMetaStateHandle(),
+                        stateHandle.getMetaDataStateHandle(),
                         stateHandle.getSharedState()));
     }
 
@@ -260,7 +260,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     private void restoreBaseDBFromLocalState(IncrementalLocalKeyedStateHandle localKeyedStateHandle)
             throws Exception {
         KeyedBackendSerializationProxy<K> serializationProxy =
-                readMetaData(localKeyedStateHandle.getMetaDataState());
+                readMetaData(localKeyedStateHandle.getMetaDataStateHandle());
         List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
                 serializationProxy.getStateMetaInfoSnapshots();
 
@@ -474,7 +474,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             StateHandleDownloadSpec downloadRequest) throws Exception {
 
         KeyedBackendSerializationProxy<K> serializationProxy =
-                readMetaData(downloadRequest.getStateHandle().getMetaStateHandle());
+                readMetaData(downloadRequest.getStateHandle().getMetaDataStateHandle());
         // read meta data
         List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
                 serializationProxy.getStateMetaInfoSnapshots();
