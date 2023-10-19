@@ -22,6 +22,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -30,6 +32,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Savepoint restore settings. */
 public class SavepointRestoreSettings implements Serializable {
+    private static final Logger LOG = LoggerFactory.getLogger(SavepointRestoreSettings.class);
 
     private static final long serialVersionUID = 87377506900849777L;
 
@@ -57,7 +60,9 @@ public class SavepointRestoreSettings implements Serializable {
      */
     private SavepointRestoreSettings(
             String restorePath, boolean allowNonRestoredState, RestoreMode restoreMode) {
+        LOG.info("passed in restorePath: {}", restorePath);
         if (StringUtils.isWhitespace(restorePath)) {
+            LOG.info("inside if clause with restorePath: {}", restorePath);
             throw new RuntimeException(
                     "Tried to construct with whitespace restorePath: " + restorePath);
         }
