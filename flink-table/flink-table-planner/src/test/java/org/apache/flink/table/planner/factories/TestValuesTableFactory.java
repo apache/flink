@@ -24,11 +24,13 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.source.DynamicFilteringValuesSource;
+import org.apache.flink.connector.source.TerminatingLogic;
 import org.apache.flink.connector.source.ValuesSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -313,6 +315,15 @@ public final class TestValuesTableFactory
     private static final ConfigOption<Boolean> BOUNDED =
             ConfigOptions.key("bounded").booleanType().defaultValue(false);
 
+    private static final ConfigOption<Boolean> TERMINATING =
+            ConfigOptions.key("terminating")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Declares the behaviour of sources after all data has been"
+                                    + " produced. It is separate from 'bounded', because even if a source"
+                                    + " is unbounded it can stop producing records and shutdown.");
+
     private static final ConfigOption<String> CHANGELOG_MODE =
             ConfigOptions.key("changelog-mode")
                     .stringType()
@@ -457,6 +468,7 @@ public final class TestValuesTableFactory
         ChangelogMode changelogMode = parseChangelogMode(helper.getOptions().get(CHANGELOG_MODE));
         String runtimeSource = helper.getOptions().get(RUNTIME_SOURCE);
         boolean isBounded = helper.getOptions().get(BOUNDED);
+        boolean isFinite = helper.getOptions().get(TERMINATING);
         String dataId = helper.getOptions().get(DATA_ID);
         String sourceClass = helper.getOptions().get(TABLE_SOURCE_CLASS);
         boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
@@ -495,6 +507,16 @@ public final class TestValuesTableFactory
                 convertToMetadataMap(
                         helper.getOptions().get(READABLE_METADATA), context.getClassLoader());
 
+        if (!isFinite && isBounded) {
+            throw new IllegalArgumentException(
+                    "Source can not be bounded and infinite at the same time.");
+        }
+
+        TerminatingLogic terminating =
+                isFinite ? TerminatingLogic.FINITE : TerminatingLogic.INFINITE;
+        Boundedness boundedness =
+                isBounded ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
+
         if (sourceClass.equals("DEFAULT")) {
             if (internalData) {
                 return new TestValuesScanTableSourceWithInternalData(
@@ -521,7 +543,8 @@ public final class TestValuesTableFactory
                 return new TestValuesScanTableSourceWithoutProjectionPushDown(
                         producedDataType,
                         changelogMode,
-                        isBounded,
+                        boundedness,
+                        terminating,
                         runtimeSource,
                         failingSource,
                         partition2Rows,
@@ -542,6 +565,7 @@ public final class TestValuesTableFactory
                     return new TestValuesScanTableSourceWithWatermarkPushDown(
                             producedDataType,
                             changelogMode,
+                            terminating,
                             runtimeSource,
                             failingSource,
                             partition2Rows,
@@ -560,7 +584,8 @@ public final class TestValuesTableFactory
                     return new TestValuesScanTableSource(
                             producedDataType,
                             changelogMode,
-                            isBounded,
+                            boundedness,
+                            terminating,
                             runtimeSource,
                             failingSource,
                             partition2Rows,
@@ -580,7 +605,8 @@ public final class TestValuesTableFactory
                         context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType(),
                         producedDataType,
                         changelogMode,
-                        isBounded,
+                        boundedness,
+                        terminating,
                         runtimeSource,
                         failingSource,
                         partition2Rows,
@@ -679,6 +705,7 @@ public final class TestValuesTableFactory
                         DATA_ID,
                         CHANGELOG_MODE,
                         BOUNDED,
+                        TERMINATING,
                         RUNTIME_SOURCE,
                         TABLE_SOURCE_CLASS,
                         FAILING_SOURCE,
@@ -855,7 +882,8 @@ public final class TestValuesTableFactory
 
         protected DataType producedDataType;
         protected final ChangelogMode changelogMode;
-        protected final boolean bounded;
+        protected final Boundedness boundedness;
+        protected final TerminatingLogic terminating;
         protected final String runtimeSource;
         protected final boolean failingSource;
         protected Map<Map<String, String>, Collection<Row>> data;
@@ -878,7 +906,8 @@ public final class TestValuesTableFactory
         private TestValuesScanTableSourceWithoutProjectionPushDown(
                 DataType producedDataType,
                 ChangelogMode changelogMode,
-                boolean bounded,
+                Boundedness boundedness,
+                TerminatingLogic terminating,
                 String runtimeSource,
                 boolean failingSource,
                 Map<Map<String, String>, Collection<Row>> data,
@@ -894,7 +923,8 @@ public final class TestValuesTableFactory
                 @Nullable int[] projectedMetadataFields) {
             this.producedDataType = producedDataType;
             this.changelogMode = changelogMode;
-            this.bounded = bounded;
+            this.boundedness = boundedness;
+            this.terminating = terminating;
             this.runtimeSource = runtimeSource;
             this.failingSource = failingSource;
             this.data = data;
@@ -930,6 +960,9 @@ public final class TestValuesTableFactory
             switch (runtimeSource) {
                 case "SourceFunction":
                     try {
+                        checkArgument(
+                                terminating != TerminatingLogic.FINITE,
+                                "Values Source doesn't support infinite SourceFunction.");
                         Collection<RowData> values = convertToRowData(converter);
                         final SourceFunction<RowData> sourceFunction;
                         if (failingSource) {
@@ -939,7 +972,8 @@ public final class TestValuesTableFactory
                         } else {
                             sourceFunction = new FromElementsFunction<>(serializer, values);
                         }
-                        return SourceFunctionProvider.of(sourceFunction, bounded);
+                        return SourceFunctionProvider.of(
+                                sourceFunction, boundedness == Boundedness.BOUNDED);
                     } catch (IOException e) {
                         throw new TableException("Fail to init source function", e);
                     }
@@ -947,12 +981,18 @@ public final class TestValuesTableFactory
                     checkArgument(
                             !failingSource,
                             "Values InputFormat Source doesn't support as failing source.");
+                    checkArgument(
+                            terminating != TerminatingLogic.FINITE,
+                            "Values Source doesn't support infinite InputFormat.");
                     Collection<RowData> values = convertToRowData(converter);
                     return InputFormatProvider.of(new CollectionInputFormat<>(values, serializer));
                 case "DataStream":
                     checkArgument(
                             !failingSource,
                             "Values DataStream Source doesn't support as failing source.");
+                    checkArgument(
+                            terminating != TerminatingLogic.FINITE,
+                            "Values Source doesn't support infinite DataStream.");
                     try {
                         Collection<RowData> values2 = convertToRowData(converter);
                         FromElementsFunction<RowData> function =
@@ -972,7 +1012,7 @@ public final class TestValuesTableFactory
 
                             @Override
                             public boolean isBounded() {
-                                return bounded;
+                                return boundedness == Boundedness.BOUNDED;
                             }
                         };
                     } catch (IOException e) {
@@ -984,13 +1024,18 @@ public final class TestValuesTableFactory
                     if (acceptedPartitionFilterFields == null
                             || acceptedPartitionFilterFields.isEmpty()) {
                         Collection<RowData> values2 = convertToRowData(converter);
-                        return SourceProvider.of(new ValuesSource(values2, serializer));
+                        return SourceProvider.of(
+                                new ValuesSource(terminating, boundedness, values2, serializer));
                     } else {
                         Map<Map<String, String>, Collection<RowData>> partitionValues =
                                 convertToPartitionedRowData(converter);
                         DynamicFilteringValuesSource source =
                                 new DynamicFilteringValuesSource(
-                                        partitionValues, serializer, acceptedPartitionFilterFields);
+                                        terminating,
+                                        boundedness,
+                                        partitionValues,
+                                        serializer,
+                                        acceptedPartitionFilterFields);
                         return SourceProvider.of(source);
                     }
                 default:
@@ -1041,7 +1086,8 @@ public final class TestValuesTableFactory
             return new TestValuesScanTableSourceWithoutProjectionPushDown(
                     producedDataType,
                     changelogMode,
-                    bounded,
+                    boundedness,
+                    terminating,
                     runtimeSource,
                     failingSource,
                     data,
@@ -1385,7 +1431,8 @@ public final class TestValuesTableFactory
         private TestValuesScanTableSource(
                 DataType producedDataType,
                 ChangelogMode changelogMode,
-                boolean bounded,
+                Boundedness boundedness,
+                TerminatingLogic terminating,
                 String runtimeSource,
                 boolean failingSource,
                 Map<Map<String, String>, Collection<Row>> data,
@@ -1402,7 +1449,8 @@ public final class TestValuesTableFactory
             super(
                     producedDataType,
                     changelogMode,
-                    bounded,
+                    boundedness,
+                    terminating,
                     runtimeSource,
                     failingSource,
                     data,
@@ -1423,7 +1471,8 @@ public final class TestValuesTableFactory
             return new TestValuesScanTableSource(
                     producedDataType,
                     changelogMode,
-                    bounded,
+                    boundedness,
+                    terminating,
                     runtimeSource,
                     failingSource,
                     data,
@@ -1464,6 +1513,7 @@ public final class TestValuesTableFactory
         private TestValuesScanTableSourceWithWatermarkPushDown(
                 DataType producedDataType,
                 ChangelogMode changelogMode,
+                TerminatingLogic terminating,
                 String runtimeSource,
                 boolean failingSource,
                 Map<Map<String, String>, Collection<Row>> data,
@@ -1481,7 +1531,8 @@ public final class TestValuesTableFactory
             super(
                     producedDataType,
                     changelogMode,
-                    false,
+                    Boundedness.CONTINUOUS_UNBOUNDED,
+                    terminating,
                     runtimeSource,
                     failingSource,
                     data,
@@ -1534,6 +1585,7 @@ public final class TestValuesTableFactory
                     new TestValuesScanTableSourceWithWatermarkPushDown(
                             producedDataType,
                             changelogMode,
+                            terminating,
                             runtimeSource,
                             failingSource,
                             data,
@@ -1574,7 +1626,8 @@ public final class TestValuesTableFactory
                 DataType originType,
                 DataType producedDataType,
                 ChangelogMode changelogMode,
-                boolean bounded,
+                Boundedness boundedness,
+                TerminatingLogic terminating,
                 String runtimeSource,
                 boolean failingSource,
                 Map<Map<String, String>, Collection<Row>> data,
@@ -1596,7 +1649,8 @@ public final class TestValuesTableFactory
             super(
                     producedDataType,
                     changelogMode,
-                    bounded,
+                    boundedness,
+                    terminating,
                     runtimeSource,
                     failingSource,
                     data,
@@ -1780,7 +1834,8 @@ public final class TestValuesTableFactory
                     originType,
                     producedDataType,
                     changelogMode,
-                    bounded,
+                    boundedness,
+                    terminating,
                     runtimeSource,
                     failingSource,
                     data,
