@@ -174,7 +174,7 @@ public interface ChangelogStateBackendHandle
 
                 StreamStateHandle castMetaStateHandle =
                         restoreFileStateHandle(
-                                incrementalRemoteKeyedStateHandle.getMetaStateHandle());
+                                incrementalRemoteKeyedStateHandle.getMetaDataStateHandle());
                 List<HandleAndLocalPath> castSharedStates =
                         incrementalRemoteKeyedStateHandle.getSharedState().stream()
                                 .map(
