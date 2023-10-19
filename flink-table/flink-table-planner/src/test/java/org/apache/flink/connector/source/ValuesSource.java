@@ -57,10 +57,19 @@ public class ValuesSource implements Source<RowData, ValuesSourceSplit, NoOpEnum
 
     private final List<byte[]> serializedElements;
 
-    public ValuesSource(Collection<RowData> elements, TypeSerializer<RowData> serializer) {
+    private final FinishingLogic finishingLogic;
+    private final Boundedness boundedness;
+
+    public ValuesSource(
+            FinishingLogic finishingLogic,
+            Boundedness boundedness,
+            Collection<RowData> elements,
+            TypeSerializer<RowData> serializer) {
         Preconditions.checkState(serializer != null, "serializer not set");
         this.serializedElements = serializeElements(elements, serializer);
         this.serializer = serializer;
+        this.finishingLogic = finishingLogic;
+        this.boundedness = boundedness;
     }
 
     private List<byte[]> serializeElements(
@@ -82,7 +91,7 @@ public class ValuesSource implements Source<RowData, ValuesSourceSplit, NoOpEnum
 
     @Override
     public Boundedness getBoundedness() {
-        return Boundedness.BOUNDED;
+        return boundedness;
     }
 
     @Override
@@ -98,7 +107,7 @@ public class ValuesSource implements Source<RowData, ValuesSourceSplit, NoOpEnum
                 IntStream.range(0, serializedElements.size())
                         .mapToObj(ValuesSourceSplit::new)
                         .collect(Collectors.toList());
-        return new ValuesSourceEnumerator(enumContext, splits);
+        return new ValuesSourceEnumerator(enumContext, splits, finishingLogic);
     }
 
     @Override

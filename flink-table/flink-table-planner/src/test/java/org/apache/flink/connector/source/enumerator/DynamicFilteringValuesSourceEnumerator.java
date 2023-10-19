@@ -21,6 +21,7 @@ package org.apache.flink.connector.source.enumerator;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.connector.source.FinishingLogic;
 import org.apache.flink.connector.source.split.ValuesSourcePartitionSplit;
 import org.apache.flink.table.connector.source.DynamicFilteringData;
 import org.apache.flink.table.connector.source.DynamicFilteringEvent;
@@ -35,6 +36,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -47,15 +49,18 @@ public class DynamicFilteringValuesSourceEnumerator
     private final SplitEnumeratorContext<ValuesSourcePartitionSplit> context;
     private final List<ValuesSourcePartitionSplit> allSplits;
     private final List<String> dynamicFilteringFields;
+    private final FinishingLogic finishingLogic;
     private transient boolean receivedDynamicFilteringEvent;
     private transient List<ValuesSourcePartitionSplit> remainingSplits;
 
     public DynamicFilteringValuesSourceEnumerator(
             SplitEnumeratorContext<ValuesSourcePartitionSplit> context,
+            FinishingLogic finishingLogic,
             List<ValuesSourcePartitionSplit> allSplits,
             List<String> dynamicFilteringFields) {
         this.context = context;
         this.allSplits = allSplits;
+        this.finishingLogic = finishingLogic;
         this.dynamicFilteringFields = dynamicFilteringFields;
     }
 
@@ -68,8 +73,15 @@ public class DynamicFilteringValuesSourceEnumerator
             throw new IllegalStateException("DynamicFilteringEvent has not receive");
         }
         if (remainingSplits.isEmpty()) {
-            context.signalNoMoreSplits(subtaskId);
-            LOG.info("No more splits available for subtask {}", subtaskId);
+            if (finishingLogic == FinishingLogic.INFINITE) {
+                context.assignSplit(
+                        new ValuesSourcePartitionSplit(
+                                Collections.emptyMap(), FinishingLogic.INFINITE),
+                        subtaskId);
+            } else {
+                context.signalNoMoreSplits(subtaskId);
+                LOG.info("No more splits available for subtask {}", subtaskId);
+            }
         } else {
             ValuesSourcePartitionSplit split = remainingSplits.remove(0);
             LOG.debug("Assigned split to subtask {} : {}", subtaskId, split);

@@ -24,11 +24,13 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.source.DynamicFilteringValuesSource;
+import org.apache.flink.connector.source.FinishingLogic;
 import org.apache.flink.connector.source.ValuesSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -313,6 +315,9 @@ public final class TestValuesTableFactory
     private static final ConfigOption<Boolean> BOUNDED =
             ConfigOptions.key("bounded").booleanType().defaultValue(false);
 
+    private static final ConfigOption<Boolean> FINITE =
+            ConfigOptions.key("finite").booleanType().defaultValue(true);
+
     private static final ConfigOption<String> CHANGELOG_MODE =
             ConfigOptions.key("changelog-mode")
                     .stringType()
@@ -457,6 +462,7 @@ public final class TestValuesTableFactory
         ChangelogMode changelogMode = parseChangelogMode(helper.getOptions().get(CHANGELOG_MODE));
         String runtimeSource = helper.getOptions().get(RUNTIME_SOURCE);
         boolean isBounded = helper.getOptions().get(BOUNDED);
+        boolean isFinite = helper.getOptions().get(FINITE);
         String dataId = helper.getOptions().get(DATA_ID);
         String sourceClass = helper.getOptions().get(TABLE_SOURCE_CLASS);
         boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
@@ -522,6 +528,7 @@ public final class TestValuesTableFactory
                         producedDataType,
                         changelogMode,
                         isBounded,
+                        isFinite,
                         runtimeSource,
                         failingSource,
                         partition2Rows,
@@ -542,6 +549,7 @@ public final class TestValuesTableFactory
                     return new TestValuesScanTableSourceWithWatermarkPushDown(
                             producedDataType,
                             changelogMode,
+                            isFinite,
                             runtimeSource,
                             failingSource,
                             partition2Rows,
@@ -561,6 +569,7 @@ public final class TestValuesTableFactory
                             producedDataType,
                             changelogMode,
                             isBounded,
+                            isFinite,
                             runtimeSource,
                             failingSource,
                             partition2Rows,
@@ -581,6 +590,7 @@ public final class TestValuesTableFactory
                         producedDataType,
                         changelogMode,
                         isBounded,
+                        isFinite,
                         runtimeSource,
                         failingSource,
                         partition2Rows,
@@ -856,6 +866,7 @@ public final class TestValuesTableFactory
         protected DataType producedDataType;
         protected final ChangelogMode changelogMode;
         protected final boolean bounded;
+        protected final boolean finite;
         protected final String runtimeSource;
         protected final boolean failingSource;
         protected Map<Map<String, String>, Collection<Row>> data;
@@ -879,6 +890,7 @@ public final class TestValuesTableFactory
                 DataType producedDataType,
                 ChangelogMode changelogMode,
                 boolean bounded,
+                boolean finite,
                 String runtimeSource,
                 boolean failingSource,
                 Map<Map<String, String>, Collection<Row>> data,
@@ -895,6 +907,7 @@ public final class TestValuesTableFactory
             this.producedDataType = producedDataType;
             this.changelogMode = changelogMode;
             this.bounded = bounded;
+            this.finite = finite;
             this.runtimeSource = runtimeSource;
             this.failingSource = failingSource;
             this.data = data;
@@ -930,6 +943,8 @@ public final class TestValuesTableFactory
             switch (runtimeSource) {
                 case "SourceFunction":
                     try {
+                        checkArgument(
+                                finite, "Values Source doesn't support infinite SourceFunction.");
                         Collection<RowData> values = convertToRowData(converter);
                         final SourceFunction<RowData> sourceFunction;
                         if (failingSource) {
@@ -947,12 +962,14 @@ public final class TestValuesTableFactory
                     checkArgument(
                             !failingSource,
                             "Values InputFormat Source doesn't support as failing source.");
+                    checkArgument(finite, "Values Source doesn't support infinite InputFormat.");
                     Collection<RowData> values = convertToRowData(converter);
                     return InputFormatProvider.of(new CollectionInputFormat<>(values, serializer));
                 case "DataStream":
                     checkArgument(
                             !failingSource,
                             "Values DataStream Source doesn't support as failing source.");
+                    checkArgument(finite, "Values Source doesn't support infinite DataStream.");
                     try {
                         Collection<RowData> values2 = convertToRowData(converter);
                         FromElementsFunction<RowData> function =
@@ -981,16 +998,25 @@ public final class TestValuesTableFactory
                 case "NewSource":
                     checkArgument(
                             !failingSource, "Values Source doesn't support as failing new source.");
+                    final FinishingLogic finishingLogic =
+                            finite ? FinishingLogic.FINITE : FinishingLogic.INFINITE;
+                    final Boundedness boundedness =
+                            bounded ? Boundedness.BOUNDED : Boundedness.CONTINUOUS_UNBOUNDED;
                     if (acceptedPartitionFilterFields == null
                             || acceptedPartitionFilterFields.isEmpty()) {
                         Collection<RowData> values2 = convertToRowData(converter);
-                        return SourceProvider.of(new ValuesSource(values2, serializer));
+                        return SourceProvider.of(
+                                new ValuesSource(finishingLogic, boundedness, values2, serializer));
                     } else {
                         Map<Map<String, String>, Collection<RowData>> partitionValues =
                                 convertToPartitionedRowData(converter);
                         DynamicFilteringValuesSource source =
                                 new DynamicFilteringValuesSource(
-                                        partitionValues, serializer, acceptedPartitionFilterFields);
+                                        finishingLogic,
+                                        boundedness,
+                                        partitionValues,
+                                        serializer,
+                                        acceptedPartitionFilterFields);
                         return SourceProvider.of(source);
                     }
                 default:
@@ -1042,6 +1068,7 @@ public final class TestValuesTableFactory
                     producedDataType,
                     changelogMode,
                     bounded,
+                    finite,
                     runtimeSource,
                     failingSource,
                     data,
@@ -1386,6 +1413,7 @@ public final class TestValuesTableFactory
                 DataType producedDataType,
                 ChangelogMode changelogMode,
                 boolean bounded,
+                boolean finite,
                 String runtimeSource,
                 boolean failingSource,
                 Map<Map<String, String>, Collection<Row>> data,
@@ -1403,6 +1431,7 @@ public final class TestValuesTableFactory
                     producedDataType,
                     changelogMode,
                     bounded,
+                    finite,
                     runtimeSource,
                     failingSource,
                     data,
@@ -1424,6 +1453,7 @@ public final class TestValuesTableFactory
                     producedDataType,
                     changelogMode,
                     bounded,
+                    finite,
                     runtimeSource,
                     failingSource,
                     data,
@@ -1464,6 +1494,7 @@ public final class TestValuesTableFactory
         private TestValuesScanTableSourceWithWatermarkPushDown(
                 DataType producedDataType,
                 ChangelogMode changelogMode,
+                boolean finite,
                 String runtimeSource,
                 boolean failingSource,
                 Map<Map<String, String>, Collection<Row>> data,
@@ -1482,6 +1513,7 @@ public final class TestValuesTableFactory
                     producedDataType,
                     changelogMode,
                     false,
+                    finite,
                     runtimeSource,
                     failingSource,
                     data,
@@ -1534,6 +1566,7 @@ public final class TestValuesTableFactory
                     new TestValuesScanTableSourceWithWatermarkPushDown(
                             producedDataType,
                             changelogMode,
+                            finite,
                             runtimeSource,
                             failingSource,
                             data,
@@ -1575,6 +1608,7 @@ public final class TestValuesTableFactory
                 DataType producedDataType,
                 ChangelogMode changelogMode,
                 boolean bounded,
+                boolean finite,
                 String runtimeSource,
                 boolean failingSource,
                 Map<Map<String, String>, Collection<Row>> data,
@@ -1597,6 +1631,7 @@ public final class TestValuesTableFactory
                     producedDataType,
                     changelogMode,
                     bounded,
+                    finite,
                     runtimeSource,
                     failingSource,
                     data,
@@ -1781,6 +1816,7 @@ public final class TestValuesTableFactory
                     producedDataType,
                     changelogMode,
                     bounded,
+                    finite,
                     runtimeSource,
                     failingSource,
                     data,

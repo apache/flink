@@ -20,6 +20,7 @@ package org.apache.flink.connector.source.split;
 
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.connector.source.DynamicFilteringValuesSource;
+import org.apache.flink.connector.source.FinishingLogic;
 
 import java.util.Map;
 
@@ -27,13 +28,24 @@ import java.util.Map;
 public class ValuesSourcePartitionSplit implements SourceSplit {
 
     private final Map<String, String> partition;
+    private final boolean isInfinite;
 
     public ValuesSourcePartitionSplit(Map<String, String> partition) {
+        this(partition, FinishingLogic.FINITE);
+    }
+
+    public ValuesSourcePartitionSplit(
+            Map<String, String> partition, FinishingLogic finishingLogic) {
         this.partition = partition;
+        this.isInfinite = finishingLogic == FinishingLogic.INFINITE;
     }
 
     public Map<String, String> getPartition() {
         return partition;
+    }
+
+    public boolean isInfinite() {
+        return isInfinite;
     }
 
     @Override

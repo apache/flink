@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.source.split;
 
+import org.apache.flink.connector.source.FinishingLogic;
 import org.apache.flink.connector.source.ValuesSource;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
@@ -39,6 +40,7 @@ public class ValuesSourceSplitSerializer implements SimpleVersionedSerializer<Va
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 DataOutputStream out = new DataOutputStream(baos)) {
             out.writeInt(split.getIndex());
+            out.writeBoolean(split.isInfinite());
             out.flush();
             return baos.toByteArray();
         }
@@ -49,7 +51,9 @@ public class ValuesSourceSplitSerializer implements SimpleVersionedSerializer<Va
         try (ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
                 DataInputStream in = new DataInputStream(bais)) {
             int index = in.readInt();
-            return new ValuesSourceSplit(index);
+            final boolean isInfinite = in.readBoolean();
+            return new ValuesSourceSplit(
+                    index, isInfinite ? FinishingLogic.INFINITE : FinishingLogic.FINITE);
         }
     }
 }

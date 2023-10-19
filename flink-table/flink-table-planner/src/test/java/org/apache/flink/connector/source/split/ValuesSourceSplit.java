@@ -19,15 +19,26 @@
 package org.apache.flink.connector.source.split;
 
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.connector.source.FinishingLogic;
 import org.apache.flink.connector.source.ValuesSource;
 
 /** The split of the {@link ValuesSource}. */
 public class ValuesSourceSplit implements SourceSplit {
 
     private final int index;
+    private final boolean isInfinite;
 
     public ValuesSourceSplit(int index) {
+        this(index, FinishingLogic.FINITE);
+    }
+
+    public ValuesSourceSplit(int index, FinishingLogic finishingLogic) {
         this.index = index;
+        this.isInfinite = finishingLogic == FinishingLogic.INFINITE;
+    }
+
+    public boolean isInfinite() {
+        return isInfinite;
     }
 
     public int getIndex() {

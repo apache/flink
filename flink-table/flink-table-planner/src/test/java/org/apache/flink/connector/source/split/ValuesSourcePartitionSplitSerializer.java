@@ -19,6 +19,7 @@
 package org.apache.flink.connector.source.split;
 
 import org.apache.flink.connector.source.DynamicFilteringValuesSource;
+import org.apache.flink.connector.source.FinishingLogic;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -50,6 +51,7 @@ public class ValuesSourcePartitionSplitSerializer
                 out.writeUTF(entry.getKey());
                 out.writeUTF(entry.getValue());
             }
+            out.writeBoolean(split.isInfinite());
             out.flush();
             return baos.toByteArray();
         }
@@ -68,7 +70,11 @@ public class ValuesSourcePartitionSplitSerializer
                 String value = in.readUTF();
                 partition.put(key, value);
             }
-            ValuesSourcePartitionSplit split = new ValuesSourcePartitionSplit(partition);
+            final boolean isInfinite = in.readBoolean();
+            ValuesSourcePartitionSplit split =
+                    new ValuesSourcePartitionSplit(
+                            partition,
+                            isInfinite ? FinishingLogic.INFINITE : FinishingLogic.FINITE);
             Preconditions.checkArgument(split.splitId().equals(splitId));
             return split;
         }
