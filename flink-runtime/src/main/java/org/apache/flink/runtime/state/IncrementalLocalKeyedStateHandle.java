@@ -32,22 +32,11 @@ import java.util.UUID;
  * DirectoryStateHandle} that represents the directory of the native RocksDB snapshot, the key
  * groups, and a stream state handle for Flink's state meta data file.
  */
-public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
-        implements IncrementalKeyedStateHandle {
+public class IncrementalLocalKeyedStateHandle extends AbstractIncrementalStateHandle {
 
     private static final long serialVersionUID = 1L;
 
-    /** Id of the checkpoint that created this state handle. */
-    @Nonnegative private final long checkpointId;
-
-    /** UUID to identify the backend which created this state handle. */
-    @Nonnull private final UUID backendIdentifier;
-
-    /** Handle to Flink's state meta data. */
-    @Nonnull private final StreamStateHandle metaDataState;
-
-    /** All shared state handles and the corresponding localPath used by the checkpoint. */
-    @Nonnull private final List<HandleAndLocalPath> sharedState;
+    private final DirectoryStateHandle directoryStateHandle;
 
     public IncrementalLocalKeyedStateHandle(
             @Nonnull UUID backendIdentifier,
@@ -57,21 +46,14 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
             @Nonnull StreamStateHandle metaDataState,
             @Nonnull List<HandleAndLocalPath> sharedState) {
 
-        super(directoryStateHandle, keyGroupRange);
-        this.backendIdentifier = backendIdentifier;
-        this.checkpointId = checkpointId;
-        this.metaDataState = metaDataState;
-        this.sharedState = new ArrayList<>(sharedState);
-    }
-
-    @Nonnull
-    public StreamStateHandle getMetaDataState() {
-        return metaDataState;
-    }
-
-    @Override
-    public long getCheckpointId() {
-        return checkpointId;
+        super(
+                backendIdentifier,
+                keyGroupRange,
+                checkpointId,
+                new ArrayList<>(sharedState),
+                metaDataState,
+                StateHandleID.randomStateHandleId());
+        this.directoryStateHandle = directoryStateHandle;
     }
 
     @Override
@@ -81,20 +63,8 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
                 checkpointId,
                 getDirectoryStateHandle(),
                 getKeyGroupRange(),
-                getMetaDataState(),
+                getMetaDataStateHandle(),
                 getSharedStateHandles());
-    }
-
-    @Override
-    @Nonnull
-    public UUID getBackendIdentifier() {
-        return backendIdentifier;
-    }
-
-    @Override
-    @Nonnull
-    public List<HandleAndLocalPath> getSharedStateHandles() {
-        return sharedState;
     }
 
     @Override
@@ -111,7 +81,7 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
 
         IncrementalLocalKeyedStateHandle that = (IncrementalLocalKeyedStateHandle) o;
 
-        return getMetaDataState().equals(that.getMetaDataState());
+        return getMetaDataStateHandle().equals(that.getMetaDataStateHandle());
     }
 
     @Override
@@ -120,13 +90,13 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
         Exception collectedEx = null;
 
         try {
-            super.discardState();
+            directoryStateHandle.discardState();
         } catch (Exception e) {
             collectedEx = e;
         }
 
         try {
-            metaDataState.discardState();
+            metaStateHandle.discardState();
         } catch (Exception e) {
             collectedEx = ExceptionUtils.firstOrSuppressed(e, collectedEx);
         }
@@ -138,13 +108,14 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
 
     @Override
     public long getStateSize() {
-        return super.getStateSize() + metaDataState.getStateSize();
+        return directoryStateHandle.getStateSize() + metaStateHandle.getStateSize();
     }
 
     @Override
     public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + getMetaDataState().hashCode();
+        int result = directoryStateHandle.hashCode();
+        result = 31 * result + getKeyGroupRange().hashCode();
+        result = 31 * result + getMetaDataStateHandle().hashCode();
         return result;
     }
 
@@ -152,8 +123,28 @@ public class IncrementalLocalKeyedStateHandle extends DirectoryKeyedStateHandle
     public String toString() {
         return "IncrementalLocalKeyedStateHandle{"
                 + "metaDataState="
-                + metaDataState
+                + metaStateHandle
                 + "} "
-                + super.toString();
+                + "DirectoryKeyedStateHandle{"
+                + "directoryStateHandle="
+                + directoryStateHandle
+                + ", keyGroupRange="
+                + keyGroupRange
+                + '}';
+    }
+
+    @Override
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
+        // Nothing to do, this is for local use only.
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        return directoryStateHandle.getStateSize();
+    }
+
+    @Nonnull
+    public DirectoryStateHandle getDirectoryStateHandle() {
+        return directoryStateHandle;
     }
 }

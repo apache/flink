@@ -2979,7 +2979,7 @@ class CheckpointCoordinatorTest {
                                         handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
                             }
 
-                            verify(incrementalKeyedStateHandle.getMetaStateHandle(), never())
+                            verify(incrementalKeyedStateHandle.getMetaDataStateHandle(), never())
                                     .discardState();
                         }
 

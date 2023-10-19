@@ -341,7 +341,7 @@ public abstract class MetadataV2V3SerializerBase {
             dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
             dos.writeLong(incrementalKeyedStateHandle.getCheckpointedSize());
 
-            serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaStateHandle(), dos);
+            serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaDataStateHandle(), dos);
 
             serializeHandleAndLocalPathList(incrementalKeyedStateHandle.getSharedState(), dos);
             serializeHandleAndLocalPathList(incrementalKeyedStateHandle.getPrivateState(), dos);
