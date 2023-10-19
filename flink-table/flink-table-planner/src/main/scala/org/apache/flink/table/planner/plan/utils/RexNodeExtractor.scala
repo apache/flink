@@ -36,6 +36,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.YearMonthIntervalType
 import org.apache.flink.util.Preconditions
 
+import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.{SqlFunction, SqlKind, SqlPostfixOperator}
@@ -488,6 +489,9 @@ class RexNodeToExpressionConverter(
       case DECIMAL =>
         // convert to BigDecimal
         literal.getValueAs(classOf[java.math.BigDecimal])
+
+      case BINARY | VARBINARY =>
+        literal.getValueAs(classOf[Array[Byte]])
 
       case _ =>
         literal.getValue
