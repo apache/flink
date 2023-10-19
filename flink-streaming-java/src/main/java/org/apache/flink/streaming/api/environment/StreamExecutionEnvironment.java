@@ -1278,13 +1278,7 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     public <OUT> DataStreamSource<OUT> fromCollection(
             Collection<OUT> data, TypeInformation<OUT> typeInfo) {
         Preconditions.checkNotNull(data, "Collection must not be null");
-
-        // must not have null elements and mixed elements
-        FromElementsFunction.checkCollection(data, typeInfo.getTypeClass());
-
-        SourceFunction<OUT> function = new FromElementsFunction<>(data);
-        return addSource(function, "Collection Source", typeInfo, Boundedness.BOUNDED)
-                .setParallelism(1);
+        return fromData(data, typeInfo);
     }
 
     private <OUT> DataStreamSource<OUT> fromData(

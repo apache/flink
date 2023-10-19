@@ -150,7 +150,8 @@ public class DataGeneratorSource<OUT>
         this.sourceReaderFactory = checkNotNull(sourceReaderFactory);
         this.generatorFunction = checkNotNull(generatorFunction);
         this.typeInfo = checkNotNull(typeInfo);
-        this.numberSource = new NumberSequenceSource(0, count - 1);
+        long to = count > 0 ? count - 1 : 0; // a noop source (0 elements) is used in Table tests
+        this.numberSource = new NumberSequenceSource(0, to);
         ClosureCleaner.clean(
                 generatorFunction, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
         ClosureCleaner.clean(

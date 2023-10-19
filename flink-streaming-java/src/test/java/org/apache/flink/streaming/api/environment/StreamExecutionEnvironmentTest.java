@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -202,7 +201,7 @@ class StreamExecutionEnvironmentTest {
         assertThat(getSourceFromDataSourceTyped(src3)).isInstanceOf(DataGeneratorSource.class);
 
         DataStreamSource<Long> src4 = env.fromCollection(list);
-        assertThat(getFunctionFromDataSource(src4)).isInstanceOf(FromElementsFunction.class);
+        assertThat(getSourceFromDataSourceTyped(src4)).isInstanceOf(DataGeneratorSource.class);
     }
 
     /** Verifies that the API method doesn't throw and creates a source of the expected type. */

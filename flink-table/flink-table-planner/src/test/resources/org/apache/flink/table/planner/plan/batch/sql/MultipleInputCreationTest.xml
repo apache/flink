@@ -16,17 +16,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testAvoidIncludingCalcAfterNonChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+	<TestCase name="testAvoidIncludingCalcAfterNonChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM x
   LEFT JOIN y ON x.a = y.d
   LEFT JOIN t ON x.a = t.a
   WHERE x.b > 10
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7], a0=[$8], b0=[$9], c0=[$10])
 +- LogicalFilter(condition=[>($1, 10)])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -35,9 +35,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7],
       :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, c, nx, d, e, f, ny, a0, b0, c0], build=[right])\n:- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, b, c, nx, d, e, f, ny], build=[right])\n:  :- [#2] Calc(select=[a, b, c, nx], where=[(b > 10)])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
@@ -46,19 +46,19 @@ MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 +- Exchange(distribution=[broadcast])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testAvoidIncludingCalcAfterNonChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testAvoidIncludingCalcAfterNonChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM x
   LEFT JOIN y ON x.a = y.d
   LEFT JOIN t ON x.a = t.a
   WHERE x.b > 10
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7], a0=[$8], b0=[$9], c0=[$10])
 +- LogicalFilter(condition=[>($1, 10)])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -67,9 +67,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7],
       :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, c, nx, d, e, f, ny, a0, b0, c0], build=[right])\n:- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, b, c, nx, d, e, f, ny], build=[right])\n:  :- [#2] Calc(select=[a, b, c, nx], where=[(b > 10)])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
@@ -78,19 +78,19 @@ MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 +- Exchange(distribution=[broadcast])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testAvoidIncludingCalcAfterNonChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testAvoidIncludingCalcAfterNonChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM x
   LEFT JOIN y ON x.a = y.d
   LEFT JOIN t ON x.a = t.a
   WHERE x.b > 10
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7], a0=[$8], b0=[$9], c0=[$10])
 +- LogicalFilter(condition=[>($1, 10)])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -99,9 +99,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7],
       :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, c, nx, d, e, f, ny, a0, b0, c0], build=[right])\n:- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, b, c, nx, d, e, f, ny], build=[right])\n:  :- [#2] Calc(select=[a, b, c, nx], where=[(b > 10)])\n:  +- [#3] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
@@ -110,19 +110,19 @@ MultipleInput(readOrder=[0,1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 +- Exchange(distribution=[broadcast])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testIncludeCalcForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testIncludeCalcForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM chainable
   LEFT JOIN y ON chainable.a = y.d
   LEFT JOIN t ON chainable.a = t.a
   WHERE chainable.a > 10
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4], a0=[$5], b=[$6], c=[$7])
 +- LogicalFilter(condition=[>($0, 10)])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
@@ -131,9 +131,9 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4], a0=[$5], b=[$6], c=[$7])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, d, e, f, ny, a0, b, c], build=[right])\n:- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:  :- Calc(select=[a], where=[(a > 10)])\n:  :  +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[a, b, c], where=[(a > 10)])
@@ -143,11 +143,11 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 +- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testAvoidIncludingSingleton[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testAvoidIncludingSingleton[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT COUNT(*) AS cnt FROM z),
   T2 AS (
@@ -157,9 +157,9 @@ WITH
       (SELECT a FROM t FULL JOIN T1 ON t.a > T1.cnt))
 SELECT a FROM T2 LEFT JOIN z ON T2.a = z.g
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -176,9 +176,9 @@ LogicalProject(a=[$0])
    :              +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(g, h, i, nz)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(g, h, i, nz)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a])
 +- MultipleInput(readOrder=[0,1,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = g)], select=[a, g], build=[right])\n:- Union(all=[true], union=[a])\n:  :- Calc(select=[a])\n:  :  +- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[left])\n:  :     :- [#3] Exchange(distribution=[broadcast])\n:  :     +- [#4] Calc(select=[d])\n:  +- [#2] Calc(select=[a])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
@@ -200,11 +200,11 @@ Calc(select=[a])
    +- Calc(select=[d])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testAvoidIncludingSingleton[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testAvoidIncludingSingleton[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT COUNT(*) AS cnt FROM z),
   T2 AS (
@@ -214,9 +214,9 @@ WITH
       (SELECT a FROM t FULL JOIN T1 ON t.a > T1.cnt))
 SELECT a FROM T2 LEFT JOIN z ON T2.a = z.g
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -233,9 +233,9 @@ LogicalProject(a=[$0])
    :              +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(g, h, i, nz)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(g, h, i, nz)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a])
 +- MultipleInput(readOrder=[0,1,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = g)], select=[a, g], build=[right])\n:- Union(all=[true], union=[a])\n:  :- Calc(select=[a])\n:  :  +- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[left])\n:  :     :- [#3] Exchange(distribution=[broadcast])\n:  :     +- [#4] Calc(select=[d])\n:  +- [#2] Calc(select=[a])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
@@ -257,11 +257,11 @@ Calc(select=[a])
    +- Calc(select=[d])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testAvoidIncludingSingleton[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testAvoidIncludingSingleton[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT COUNT(*) AS cnt FROM z),
   T2 AS (
@@ -271,9 +271,9 @@ WITH
       (SELECT a FROM t FULL JOIN T1 ON t.a > T1.cnt))
 SELECT a FROM T2 LEFT JOIN z ON T2.a = z.g
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -290,9 +290,9 @@ LogicalProject(a=[$0])
    :              +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(g, h, i, nz)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, z, source: [TestTableSource(g, h, i, nz)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a])
 +- MultipleInput(readOrder=[0,1,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = g)], select=[a, g], build=[right])\n:- Union(all=[true], union=[a])\n:  :- Calc(select=[a])\n:  :  +- NestedLoopJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[left])\n:  :     :- [#3] Exchange(distribution=[broadcast])\n:  :     +- [#4] Calc(select=[d])\n:  +- [#2] Calc(select=[a])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
@@ -314,18 +314,18 @@ Calc(select=[a])
    +- Calc(select=[d])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testAvoidIncludingUnionFromInputSide[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testAvoidIncludingUnionFromInputSide[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM
   (SELECT a FROM (SELECT a FROM x) UNION ALL (SELECT a FROM t)) T1
   LEFT JOIN y ON T1.a = y.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -336,30 +336,28 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])
-:- Union(all=[true], union=[a])
-:  :- Calc(select=[a])
-:  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
-:  +- Calc(select=[a])
-:     +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
-+- Exchange(distribution=[broadcast])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] Calc(select=[a])\n:  +- Calc(select=[a])\n:     +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])\n+- [#1] Exchange(distribution=[broadcast])\n])
+:- Exchange(distribution=[broadcast])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
+:- Calc(select=[a])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
++- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testAvoidIncludingUnionFromInputSide[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testAvoidIncludingUnionFromInputSide[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM
   (SELECT a FROM (SELECT a FROM x) UNION ALL (SELECT a FROM t)) T1
   LEFT JOIN y ON T1.a = y.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -370,30 +368,28 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])
-:- Union(all=[true], union=[a])
-:  :- Calc(select=[a])
-:  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
-:  +- Calc(select=[a])
-:     +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
-+- Exchange(distribution=[broadcast])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] Calc(select=[a])\n:  +- Calc(select=[a])\n:     +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])\n+- [#1] Exchange(distribution=[broadcast])\n])
+:- Exchange(distribution=[broadcast])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
+:- Calc(select=[a])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
++- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testAvoidIncludingUnionFromInputSide[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testAvoidIncludingUnionFromInputSide[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM
   (SELECT a FROM (SELECT a FROM x) UNION ALL (SELECT a FROM t)) T1
   LEFT JOIN y ON T1.a = y.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -404,32 +400,30 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])
-:- Union(all=[true], union=[a])
-:  :- Calc(select=[a])
-:  :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
-:  +- Calc(select=[a])
-:     +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
-+- Exchange(distribution=[broadcast])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] Calc(select=[a])\n:  +- Calc(select=[a])\n:     +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])\n+- [#1] Exchange(distribution=[broadcast])\n])
+:- Exchange(distribution=[broadcast])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
+:- Calc(select=[a])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
++- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testBasicMultipleInput[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testBasicMultipleInput[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM
   (SELECT a FROM x INNER JOIN y ON x.a = y.d) T1
   INNER JOIN
   (SELECT d FROM y INNER JOIN t ON y.d = t.a) T2
   ON T1.a = T2.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
    :- LogicalProject(a=[$0])
@@ -441,9 +435,9 @@ LogicalProject(a=[$0], d=[$1])
          :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
          +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[2,1,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])\n:- Calc(select=[a])\n:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])\n:     :- [#1] Exchange(distribution=[hash[a]])\n:     +- [#2] Exchange(distribution=[hash[d]])\n+- Calc(select=[d])\n   +- HashJoin(joinType=[InnerJoin], where=[(d = a)], select=[d, a], build=[right])\n      :- [#2] Exchange(distribution=[hash[d]])\n      +- [#4] Exchange(distribution=[hash[a]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a])
@@ -456,20 +450,20 @@ MultipleInput(readOrder=[2,1,1,0], members=[\nHashJoin(joinType=[InnerJoin], whe
    +- Calc(select=[a])
       +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testBasicMultipleInput[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testBasicMultipleInput[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM
   (SELECT a FROM x INNER JOIN y ON x.a = y.d) T1
   INNER JOIN
   (SELECT d FROM y INNER JOIN t ON y.d = t.a) T2
   ON T1.a = T2.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
    :- LogicalProject(a=[$0])
@@ -481,9 +475,9 @@ LogicalProject(a=[$0], d=[$1])
          :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
          +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[2,1,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])\n:- Calc(select=[a])\n:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])\n:     :- [#1] Exchange(distribution=[hash[a]])\n:     +- [#2] Exchange(distribution=[hash[d]])\n+- Calc(select=[d])\n   +- HashJoin(joinType=[InnerJoin], where=[(d = a)], select=[d, a], build=[right])\n      :- [#2] Exchange(distribution=[hash[d]])\n      +- [#4] Exchange(distribution=[hash[a]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a])
@@ -496,11 +490,11 @@ MultipleInput(readOrder=[2,1,1,0], members=[\nHashJoin(joinType=[InnerJoin], whe
    +- Calc(select=[a])
       +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCleanUpMultipleInputWithOneMember[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testCleanUpMultipleInputWithOneMember[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT a FROM x INNER JOIN y ON x.a = y.d)
 SELECT * FROM
@@ -508,9 +502,9 @@ SELECT * FROM
   UNION ALL
   (SELECT a, b FROM x)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], EXPR$1=[$1])
 :  +- LogicalProject(a=[$0], EXPR$1=[+($0, 1)])
@@ -521,9 +515,9 @@ LogicalUnion(all=[true])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Union(all=[true], union=[a, EXPR$1])
 :- Calc(select=[a, CAST((a + 1) AS BIGINT) AS EXPR$1])
 :  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])
@@ -536,11 +530,11 @@ Union(all=[true], union=[a, EXPR$1])
 +- Calc(select=[a, b])
    +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCleanUpMultipleInputWithOneMember[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testCleanUpMultipleInputWithOneMember[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT a FROM x INNER JOIN y ON x.a = y.d)
 SELECT * FROM
@@ -548,9 +542,9 @@ SELECT * FROM
   UNION ALL
   (SELECT a, b FROM x)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], EXPR$1=[$1])
 :  +- LogicalProject(a=[$0], EXPR$1=[+($0, 1)])
@@ -561,9 +555,9 @@ LogicalUnion(all=[true])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Union(all=[true], union=[a, EXPR$1])
 :- Calc(select=[a, CAST((a + 1) AS BIGINT) AS EXPR$1])
 :  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])
@@ -576,11 +570,11 @@ Union(all=[true], union=[a, EXPR$1])
 +- Calc(select=[a, b])
    +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCleanUpMultipleInputWithOneMember[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testCleanUpMultipleInputWithOneMember[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT a FROM x INNER JOIN y ON x.a = y.d)
 SELECT * FROM
@@ -588,9 +582,9 @@ SELECT * FROM
   UNION ALL
   (SELECT a, b FROM x)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], EXPR$1=[$1])
 :  +- LogicalProject(a=[$0], EXPR$1=[+($0, 1)])
@@ -601,9 +595,9 @@ LogicalUnion(all=[true])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Union(all=[true], union=[a, EXPR$1])
 :- Calc(select=[a, CAST((a + 1) AS BIGINT) AS EXPR$1])
 :  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])
@@ -616,19 +610,19 @@ Union(all=[true], union=[a, EXPR$1])
 +- Calc(select=[a, b])
    +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 WITH T1 AS (
   SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
   FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
 SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9])
 +- LogicalFilter(condition=[AND(>($0, 0), =($9, 0))])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -639,9 +633,9 @@ LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9]
                :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a, b, a0, b0, c, nx, k, CAST(0 AS BIGINT) AS v])
 +- MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = k)], select=[a, b, a0, b0, c, nx, k], build=[right])\n:- [#1] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n+- Calc(select=[a, b, c, nx, a0 AS k])\n   +- HashJoin(joinType=[InnerJoin], where=[((a = a0) AND ((b + b0) = 0))], select=[a, b, c, nx, a0, b0], build=[right])\n      :- [#2] Exchange(distribution=[hash[a]])\n      +- [#3] Exchange(distribution=[hash[a]])\n])
    :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
@@ -653,19 +647,19 @@ Calc(select=[a, b, a0, b0, c, nx, k, CAST(0 AS BIGINT) AS v])
    +- Exchange(distribution=[hash[a]])
       +- Reused(reference_id=[2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH T1 AS (
   SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
   FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
 SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9])
 +- LogicalFilter(condition=[AND(>($0, 0), =($9, 0))])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -676,9 +670,9 @@ LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9]
                :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a, b, a0, b0, c, nx, k, CAST(0 AS BIGINT) AS v])
 +- MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = k)], select=[a, b, a0, b0, c, nx, k], build=[right])\n:- [#1] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n+- Calc(select=[a, b, c, nx, a0 AS k])\n   +- HashJoin(joinType=[InnerJoin], where=[((a = a0) AND ((b + b0) = 0))], select=[a, b, c, nx, a0, b0], build=[right])\n      :- [#2] Exchange(distribution=[hash[a]])\n      +- [#3] Exchange(distribution=[hash[a]])\n])
    :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
@@ -690,19 +684,19 @@ Calc(select=[a, b, a0, b0, c, nx, k, CAST(0 AS BIGINT) AS v])
    +- Exchange(distribution=[hash[a]])
       +- Reused(reference_id=[2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testDeadlockCausedByExchangeInAncestor[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH T1 AS (
   SELECT x1.*, x2.a AS k, (x1.b + x2.b) AS v
   FROM x x1 LEFT JOIN x x2 ON x1.a = x2.a WHERE x2.a > 0)
 SELECT x.a, x.b, T1.* FROM x LEFT JOIN T1 ON x.a = T1.k WHERE x.a > 0 AND T1.v = 0
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9])
 +- LogicalFilter(condition=[AND(>($0, 0), =($9, 0))])
    +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
@@ -713,9 +707,9 @@ LogicalProject(a=[$0], b=[$1], a0=[$4], b0=[$5], c=[$6], nx=[$7], k=[$8], v=[$9]
                :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a, b, a0, b0, c, nx, k, CAST(0 AS BIGINT) AS v])
 +- MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = k)], select=[a, b, a0, b0, c, nx, k], build=[right])\n:- [#1] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n+- Calc(select=[a, b, c, nx, a0 AS k])\n   +- HashJoin(joinType=[InnerJoin], where=[((a = a0) AND ((b + b0) = 0))], select=[a, b, c, nx, a0, b0], build=[right])\n      :- [#2] Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])\n      +- [#3] Exchange(distribution=[hash[a]])\n])
    :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
@@ -727,18 +721,18 @@ Calc(select=[a, b, a0, b0, c, nx, k, CAST(0 AS BIGINT) AS v])
    +- Exchange(distribution=[hash[a]])
       +- Reused(reference_id=[2])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM x
   INNER JOIN y ON x.a = y.d
   INNER JOIN t ON x.a = t.a
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7], a0=[$8], b0=[$9], c0=[$10])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
@@ -746,9 +740,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7],
    :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, nx, d, e, f, ny, a0, b0, c0])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, nx, d, e, f, ny])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[hash[a]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
@@ -757,20 +751,20 @@ MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = a0)], s
 +- Exchange(distribution=[hash[d]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testBasicMultipleInput[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testBasicMultipleInput[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM
   (SELECT a FROM x INNER JOIN y ON x.a = y.d) T1
   INNER JOIN
   (SELECT d FROM y INNER JOIN t ON y.d = t.a) T2
   ON T1.a = T2.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
    :- LogicalProject(a=[$0])
@@ -782,9 +776,9 @@ LogicalProject(a=[$0], d=[$1])
          :- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
          +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[2,1,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])\n:- Calc(select=[a])\n:  +- HashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[right])\n:     :- [#1] Exchange(distribution=[hash[a]])\n:     +- [#2] Exchange(distribution=[hash[d]])\n+- Calc(select=[d])\n   +- HashJoin(joinType=[InnerJoin], where=[(d = a)], select=[d, a], build=[right])\n      :- [#2] Exchange(distribution=[hash[d]])\n      +- [#4] Exchange(distribution=[hash[a]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- Calc(select=[a])
@@ -797,19 +791,19 @@ MultipleInput(readOrder=[2,1,1,0], members=[\nHashJoin(joinType=[InnerJoin], whe
    +- Calc(select=[a])
       +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testIncludeCalcForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testIncludeCalcForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM chainable
   LEFT JOIN y ON chainable.a = y.d
   LEFT JOIN t ON chainable.a = t.a
   WHERE chainable.a > 10
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4], a0=[$5], b=[$6], c=[$7])
 +- LogicalFilter(condition=[>($0, 10)])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
@@ -818,9 +812,9 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4], a0=[$5], b=[$6], c=[$7])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, d, e, f, ny, a0, b, c], build=[right])\n:- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:  :- Calc(select=[a], where=[(a > 10)])\n:  :  +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[a, b, c], where=[(a > 10)])
@@ -830,19 +824,19 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 +- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testIncludeCalcForChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testIncludeCalcForChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM chainable
   LEFT JOIN y ON chainable.a = y.d
   LEFT JOIN t ON chainable.a = t.a
   WHERE chainable.a > 10
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4], a0=[$5], b=[$6], c=[$7])
 +- LogicalFilter(condition=[>($0, 10)])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
@@ -851,9 +845,9 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4], a0=[$5], b=[$6], c=[$7])
       :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, d, e, f, ny, a0, b, c], build=[right])\n:- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:  :- Calc(select=[a], where=[(a > 10)])\n:  :  +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- [#2] Exchange(distribution=[broadcast])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[a, b, c], where=[(a > 10)])
@@ -863,18 +857,18 @@ MultipleInput(readOrder=[0,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJo
 :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 +- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testIncludeUnionForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testIncludeUnionForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM
   (SELECT a FROM (SELECT a FROM chainable) UNION ALL (SELECT a FROM t)) T1
   LEFT JOIN y ON T1.a = y.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -885,28 +879,27 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- [#3] Calc(select=[a])\n+- [#1] Exchange(distribution=[broadcast])\n])
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- Calc(select=[a])\n:     +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
-+- Calc(select=[a])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
++- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testIncludeUnionForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testIncludeUnionForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM
   (SELECT a FROM (SELECT a FROM chainable) UNION ALL (SELECT a FROM t)) T1
   LEFT JOIN y ON T1.a = y.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -917,28 +910,27 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- [#3] Calc(select=[a])\n+- [#1] Exchange(distribution=[broadcast])\n])
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- Calc(select=[a])\n:     +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
-+- Calc(select=[a])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
++- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testIncludeUnionForChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testIncludeUnionForChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM
   (SELECT a FROM (SELECT a FROM chainable) UNION ALL (SELECT a FROM t)) T1
   LEFT JOIN y ON T1.a = y.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -949,21 +941,20 @@ LogicalProject(a=[$0], d=[$1], e=[$2], f=[$3], ny=[$4])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, t]])
    +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- [#3] Calc(select=[a])\n+- [#1] Exchange(distribution=[broadcast])\n])
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d, e, f, ny], build=[right])\n:- Union(all=[true], union=[a])\n:  :- [#2] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:  +- Calc(select=[a])\n:     +- [#3] BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
-+- Calc(select=[a])
-   +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
++- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJoinWithAggAsProbe[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinWithAggAsProbe[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 WITH T AS (SELECT a, d FROM x INNER JOIN y ON x.a = y.d)
 SELECT * FROM
   (SELECT a, COUNT(*) AS cnt FROM T GROUP BY a) T1
@@ -971,9 +962,9 @@ SELECT * FROM
   (SELECT d, SUM(a) AS sm FROM T GROUP BY d) T2
   ON T1.a = T2.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], cnt=[$1], d=[$2], sm=[$3])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
    :- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -989,9 +980,9 @@ LogicalProject(a=[$0], cnt=[$1], d=[$2], sm=[$3])
                :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- HashAggregate(isMerge=[false], groupBy=[a], select=[a, COUNT(*) AS cnt])
@@ -1010,11 +1001,11 @@ HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], buil
       +- Exchange(distribution=[keep_input_as_is[hash[d]]])
          +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJoinWithAggAsProbe[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinWithAggAsProbe[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH T AS (SELECT a, d FROM x INNER JOIN y ON x.a = y.d)
 SELECT * FROM
   (SELECT a, COUNT(*) AS cnt FROM T GROUP BY a) T1
@@ -1022,9 +1013,9 @@ SELECT * FROM
   (SELECT d, SUM(a) AS sm FROM T GROUP BY d) T2
   ON T1.a = T2.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], cnt=[$1], d=[$2], sm=[$3])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
    :- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -1040,9 +1031,9 @@ LogicalProject(a=[$0], cnt=[$1], d=[$2], sm=[$3])
                :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- HashAggregate(isMerge=[false], groupBy=[a], select=[a, COUNT(*) AS cnt])
@@ -1061,11 +1052,11 @@ HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], buil
       +- Exchange(distribution=[keep_input_as_is[hash[d]]])
          +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJoinWithAggAsProbe[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testJoinWithAggAsProbe[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH T AS (SELECT a, d FROM x INNER JOIN y ON x.a = y.d)
 SELECT * FROM
   (SELECT a, COUNT(*) AS cnt FROM T GROUP BY a) T1
@@ -1073,9 +1064,9 @@ SELECT * FROM
   (SELECT d, SUM(a) AS sm FROM T GROUP BY d) T2
   ON T1.a = T2.d
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], cnt=[$1], d=[$2], sm=[$3])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
    :- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -1091,9 +1082,9 @@ LogicalProject(a=[$0], cnt=[$1], d=[$2], sm=[$3])
                :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
                +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], build=[right])
 :- Exchange(distribution=[hash[a]])
 :  +- HashAggregate(isMerge=[false], groupBy=[a], select=[a, COUNT(*) AS cnt])
@@ -1112,74 +1103,74 @@ HashJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, cnt, d, sm], buil
       +- Exchange(distribution=[keep_input_as_is[hash[d]]])
          +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testKeepMultipleInputWithOneMemberForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testKeepMultipleInputWithOneMemberForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], a0=[$1], b=[$2], c=[$3], nx=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, chainable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, a0, b, c, nx], build=[right])\n:- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n+- [#2] Exchange(distribution=[broadcast])\n])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
 +- Exchange(distribution=[broadcast])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testKeepMultipleInputWithOneMemberForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testKeepMultipleInputWithOneMemberForChainableSource[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], a0=[$1], b=[$2], c=[$3], nx=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, chainable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, a0, b, c, nx], build=[right])\n:- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n+- [#2] Exchange(distribution=[broadcast])\n])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
 +- Exchange(distribution=[broadcast])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testKeepMultipleInputWithOneMemberForChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testKeepMultipleInputWithOneMemberForChainableSource[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], a0=[$1], b=[$2], c=[$3], nx=[$4])
 +- LogicalJoin(condition=[=($0, $1)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, chainable]])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[1,0], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, a0, b, c, nx], build=[right])\n:- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n+- [#2] Exchange(distribution=[broadcast])\n])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])
 +- Exchange(distribution=[broadcast])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testKeepUsefulUnion[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testKeepUsefulUnion[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT chainable.a AS a FROM chainable LEFT JOIN x ON chainable.a = x.a),
   T2 AS (SELECT chainable.a AS a FROM chainable LEFT JOIN y ON chainable.a = y.d)
@@ -1188,9 +1179,9 @@ SELECT * FROM
   UNION ALL
   (SELECT a FROM T2)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0])
 :  +- LogicalProject(a=[$0])
@@ -1204,9 +1195,9 @@ LogicalUnion(all=[true])
          :- LogicalTableScan(table=[[default_catalog, default_database, chainable]])
          +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a])\n:- Calc(select=[a])\n:  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, a0], build=[right])\n:     :- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:     +- [#2] Exchange(distribution=[broadcast])\n+- Calc(select=[a])\n   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d], build=[right])\n      :- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n      +- [#4] Exchange(distribution=[broadcast])\n])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])(reuse_id=[1])
 :- Exchange(distribution=[broadcast])
@@ -1217,11 +1208,11 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a])\n:- C
    +- Calc(select=[d])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testKeepUsefulUnion[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testKeepUsefulUnion[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT chainable.a AS a FROM chainable LEFT JOIN x ON chainable.a = x.a),
   T2 AS (SELECT chainable.a AS a FROM chainable LEFT JOIN y ON chainable.a = y.d)
@@ -1230,9 +1221,9 @@ SELECT * FROM
   UNION ALL
   (SELECT a FROM T2)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0])
 :  +- LogicalProject(a=[$0])
@@ -1246,9 +1237,9 @@ LogicalUnion(all=[true])
          :- LogicalTableScan(table=[[default_catalog, default_database, chainable]])
          +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a])\n:- Calc(select=[a])\n:  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, a0], build=[right])\n:     :- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:     +- [#2] Exchange(distribution=[broadcast])\n+- Calc(select=[a])\n   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d], build=[right])\n      :- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n      +- [#4] Exchange(distribution=[broadcast])\n])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])(reuse_id=[1])
 :- Exchange(distribution=[broadcast])
@@ -1259,11 +1250,11 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a])\n:- C
    +- Calc(select=[d])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testManyMultipleInputs[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testManyMultipleInputs[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (
     SELECT a, ny, nz FROM x
@@ -1284,9 +1275,9 @@ SELECT * FROM
   UNION ALL
   (SELECT y.e, sd, sy, sz FROM T5 LEFT JOIN y ON T5.b = y.e)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(b=[$0], sd=[$1], sy=[$2], sz=[$3])
 :  +- LogicalProject(b=[$5], sd=[$1], sy=[$2], sz=[$3])
@@ -1322,9 +1313,9 @@ LogicalUnion(all=[true])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, t]])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,0,1,1], members=[\nUnion(all=[true], union=[b, sd, sy, sz])\n:- Calc(select=[b0 AS b, sd, sy, sz])\n:  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = b0)], select=[b, sd, sy, sz, b0], build=[right])\n:     :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n:     :  +- [#3] Exchange(distribution=[hash[b]])\n:     +- [#1] Exchange(distribution=[broadcast])\n+- Calc(select=[e, sd, sy, sz])\n   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, sd, sy, sz, e], build=[right])\n      :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n      :  +- [#4] Exchange(distribution=[hash[b]])\n      +- [#2] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[b])
@@ -1359,11 +1350,11 @@ MultipleInput(readOrder=[0,0,1,1], members=[\nUnion(all=[true], union=[b, sd, sy
             :- Reused(reference_id=[3])
             +- Reused(reference_id=[4])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testManyMultipleInputs[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testManyMultipleInputs[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (
     SELECT a, ny, nz FROM x
@@ -1384,9 +1375,9 @@ SELECT * FROM
   UNION ALL
   (SELECT y.e, sd, sy, sz FROM T5 LEFT JOIN y ON T5.b = y.e)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(b=[$0], sd=[$1], sy=[$2], sz=[$3])
 :  +- LogicalProject(b=[$5], sd=[$1], sy=[$2], sz=[$3])
@@ -1422,9 +1413,9 @@ LogicalUnion(all=[true])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, t]])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,0,1,1], members=[\nUnion(all=[true], union=[b, sd, sy, sz])\n:- Calc(select=[b0 AS b, sd, sy, sz])\n:  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = b0)], select=[b, sd, sy, sz, b0], build=[right])\n:     :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n:     :  +- [#3] Exchange(distribution=[hash[b]])\n:     +- [#1] Exchange(distribution=[broadcast])\n+- Calc(select=[e, sd, sy, sz])\n   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, sd, sy, sz, e], build=[right])\n      :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n      :  +- [#4] Exchange(distribution=[hash[b]])\n      +- [#2] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[b])
@@ -1459,11 +1450,11 @@ MultipleInput(readOrder=[0,0,1,1], members=[\nUnion(all=[true], union=[b, sd, sy
             :- Reused(reference_id=[3])
             +- Reused(reference_id=[4])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testManyMultipleInputs[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testManyMultipleInputs[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (
     SELECT a, ny, nz FROM x
@@ -1484,9 +1475,9 @@ SELECT * FROM
   UNION ALL
   (SELECT y.e, sd, sy, sz FROM T5 LEFT JOIN y ON T5.b = y.e)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(b=[$0], sd=[$1], sy=[$2], sz=[$3])
 :  +- LogicalProject(b=[$5], sd=[$1], sy=[$2], sz=[$3])
@@ -1522,9 +1513,9 @@ LogicalUnion(all=[true])
       :           +- LogicalTableScan(table=[[default_catalog, default_database, t]])
       +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,0,1,1], members=[\nUnion(all=[true], union=[b, sd, sy, sz])\n:- Calc(select=[b0 AS b, sd, sy, sz])\n:  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = b0)], select=[b, sd, sy, sz, b0], build=[right])\n:     :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n:     :  +- [#3] Exchange(distribution=[hash[b]])\n:     +- [#1] Exchange(distribution=[broadcast])\n+- Calc(select=[e, sd, sy, sz])\n   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, sd, sy, sz, e], build=[right])\n      :- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS sd, Final_SUM(sum$1) AS sy, Final_SUM(sum$2) AS sz])\n      :  +- [#4] Exchange(distribution=[hash[b]])\n      +- [#2] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[b])
@@ -1559,11 +1550,11 @@ MultipleInput(readOrder=[0,0,1,1], members=[\nUnion(all=[true], union=[b, sd, sy
             :- Reused(reference_id=[3])
             +- Reused(reference_id=[4])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRelatedInputsWithAgg[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRelatedInputsWithAgg[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT x.a AS a, y.d AS b FROM y LEFT JOIN x ON y.d = x.a),
   T2 AS (
@@ -1573,9 +1564,9 @@ WITH
       (SELECT COUNT(x.a) AS a, x.b AS b FROM x GROUP BY x.b))
 SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
 +- LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
@@ -1593,9 +1584,9 @@ LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], a0=[CAST($0):BIGINT])
          +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a, b, a0, b0, c])
 +- MultipleInput(readOrder=[0,1,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a00)], select=[a, b, a0, b0, c, a00], build=[right])\n:- Union(all=[true], union=[a, b])\n:  :- Calc(select=[CAST(a AS BIGINT) AS a, CAST(d AS BIGINT) AS b])\n:  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, a], build=[right])\n:  :     :- [#2] Calc(select=[d])\n:  :     +- [#3] Exchange(distribution=[broadcast])\n:  +- Calc(select=[CAST(a AS BIGINT) AS a, b])\n:     +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS a])\n:        +- [#4] Exchange(distribution=[hash[b]])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
@@ -1611,11 +1602,11 @@ Calc(select=[a, b, a0, b0, c])
          +- Calc(select=[b, a])
             +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testKeepUsefulUnion[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testKeepUsefulUnion[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT chainable.a AS a FROM chainable LEFT JOIN x ON chainable.a = x.a),
   T2 AS (SELECT chainable.a AS a FROM chainable LEFT JOIN y ON chainable.a = y.d)
@@ -1624,9 +1615,9 @@ SELECT * FROM
   UNION ALL
   (SELECT a FROM T2)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0])
 :  +- LogicalProject(a=[$0])
@@ -1640,9 +1631,9 @@ LogicalUnion(all=[true])
          :- LogicalTableScan(table=[[default_catalog, default_database, chainable]])
          +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a])\n:- Calc(select=[a])\n:  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, a0], build=[right])\n:     :- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n:     +- [#2] Exchange(distribution=[broadcast])\n+- Calc(select=[a])\n   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = d)], select=[a, d], build=[right])\n      :- [#1] BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])\n      +- [#4] Exchange(distribution=[broadcast])\n])
 :- BoundedStreamScan(table=[[default_catalog, default_database, chainable]], fields=[a])(reuse_id=[1])
 :- Exchange(distribution=[broadcast])
@@ -1653,18 +1644,18 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a])\n:- C
    +- Calc(select=[d])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM x
   INNER JOIN y ON x.a = y.d
   INNER JOIN t ON x.a = t.a
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7], a0=[$8], b0=[$9], c0=[$10])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
@@ -1672,9 +1663,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7],
    :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, nx, d, e, f, ny, a0, b0, c0])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, nx, d, e, f, ny])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[hash[a]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
@@ -1683,18 +1674,18 @@ MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = a0)], s
 +- Exchange(distribution=[hash[d]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testNoPriorityConstraint[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 SELECT * FROM x
   INNER JOIN y ON x.a = y.d
   INNER JOIN t ON x.a = t.a
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7], a0=[$8], b0=[$9], c0=[$10])
 +- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
    :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
@@ -1702,9 +1693,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2], nx=[$3], d=[$4], e=[$5], f=[$6], ny=[$7],
    :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, nx, d, e, f, ny, a0, b0, c0])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, nx, d, e, f, ny])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[d]])\n+- [#1] Exchange(distribution=[hash[a]])\n])
 :- Exchange(distribution=[hash[a]])
 :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
@@ -1713,11 +1704,11 @@ MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(a = a0)], s
 +- Exchange(distribution=[hash[d]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRelatedInputs[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRelatedInputs[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT x.a AS a, y.d AS b FROM y LEFT JOIN x ON y.d = x.a),
   T2 AS (
@@ -1727,9 +1718,9 @@ WITH
       (SELECT x.a AS a, x.b AS b FROM x))
 SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -1743,9 +1734,9 @@ LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,1,2,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, a0, b0, c], build=[right])\n:- Union(all=[true], union=[a, b])\n:  :- Calc(select=[a, CAST(d AS BIGINT) AS b])\n:  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, a], build=[right])\n:  :     :- [#3] Calc(select=[d])\n:  :     +- [#4] Exchange(distribution=[broadcast])\n:  +- [#2] Calc(select=[a, b])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
@@ -1757,11 +1748,11 @@ MultipleInput(readOrder=[0,1,2,1], members=[\nNestedLoopJoin(joinType=[LeftOuter
    +- Calc(select=[a])
       +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRelatedInputs[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRelatedInputs[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT x.a AS a, y.d AS b FROM y LEFT JOIN x ON y.d = x.a),
   T2 AS (
@@ -1771,9 +1762,9 @@ WITH
       (SELECT x.a AS a, x.b AS b FROM x))
 SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -1787,9 +1778,9 @@ LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,1,2,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, a0, b0, c], build=[right])\n:- Union(all=[true], union=[a, b])\n:  :- Calc(select=[a, CAST(d AS BIGINT) AS b])\n:  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, a], build=[right])\n:  :     :- [#3] Calc(select=[d])\n:  :     +- [#4] Exchange(distribution=[broadcast])\n:  +- [#2] Calc(select=[a, b])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
@@ -1801,11 +1792,11 @@ MultipleInput(readOrder=[0,1,2,1], members=[\nNestedLoopJoin(joinType=[LeftOuter
    +- Calc(select=[a])
       +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRemoveRedundantUnion[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRemoveRedundantUnion[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT COUNT(*) AS cnt FROM x GROUP BY a),
   T2 AS (SELECT COUNT(*) AS cnt FROM y GROUP BY d),
@@ -1816,9 +1807,9 @@ SELECT cnt FROM
   UNION ALL
   (SELECT cnt FROM (SELECT cnt FROM T3) UNION ALL (SELECT cnt FROM T4))
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(cnt=[$0])
 :  +- LogicalUnion(all=[true])
@@ -1846,9 +1837,9 @@ LogicalUnion(all=[true])
             :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
             +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Union(all=[true], union=[cnt])
 :- Union(all=[true], union=[cnt])
 :  :- Calc(select=[CAST(cnt AS BIGINT) AS cnt])
@@ -1875,11 +1866,11 @@ Union(all=[true], union=[cnt])
       +- Calc(select=[e])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRelatedInputs[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRelatedInputs[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT x.a AS a, y.d AS b FROM y LEFT JOIN x ON y.d = x.a),
   T2 AS (
@@ -1889,9 +1880,9 @@ WITH
       (SELECT x.a AS a, x.b AS b FROM x))
 SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
 +- LogicalJoin(condition=[=($0, $2)], joinType=[left])
    :- LogicalUnion(all=[true])
@@ -1905,9 +1896,9 @@ LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 MultipleInput(readOrder=[0,1,2,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a0)], select=[a, b, a0, b0, c], build=[right])\n:- Union(all=[true], union=[a, b])\n:  :- Calc(select=[a, CAST(d AS BIGINT) AS b])\n:  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, a], build=[right])\n:  :     :- [#3] Calc(select=[d])\n:  :     +- [#4] Exchange(distribution=[broadcast])\n:  +- [#2] Calc(select=[a, b])\n+- [#1] Exchange(distribution=[broadcast])\n])
 :- Exchange(distribution=[broadcast])
 :  +- BoundedStreamScan(table=[[default_catalog, default_database, t]], fields=[a, b, c])
@@ -1919,11 +1910,11 @@ MultipleInput(readOrder=[0,1,2,1], members=[\nNestedLoopJoin(joinType=[LeftOuter
    +- Calc(select=[a])
       +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRelatedInputsWithAgg[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRelatedInputsWithAgg[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT x.a AS a, y.d AS b FROM y LEFT JOIN x ON y.d = x.a),
   T2 AS (
@@ -1933,9 +1924,9 @@ WITH
       (SELECT COUNT(x.a) AS a, x.b AS b FROM x GROUP BY x.b))
 SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
 +- LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
@@ -1953,9 +1944,9 @@ LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], a0=[CAST($0):BIGINT])
          +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a, b, a0, b0, c])
 +- MultipleInput(readOrder=[0,2,1,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a00)], select=[a, b, a0, b0, c, a00], build=[right])\n:- Union(all=[true], union=[a, b])\n:  :- Calc(select=[CAST(a AS BIGINT) AS a, CAST(d AS BIGINT) AS b])\n:  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, a], build=[right])\n:  :     :- [#2] Calc(select=[d])\n:  :     +- [#3] Exchange(distribution=[broadcast])\n:  +- Calc(select=[CAST(a AS BIGINT) AS a, b])\n:     +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS a])\n:        +- [#4] Exchange(distribution=[hash[b]])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
@@ -1971,11 +1962,11 @@ Calc(select=[a, b, a0, b0, c])
          +- Calc(select=[b, a])
             +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRemoveOneInputOperatorFromRoot[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRemoveOneInputOperatorFromRoot[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: AdaptiveBatch]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT a FROM x INNER JOIN y ON x.a = y.d),
   T2 AS (SELECT b FROM x INNER JOIN y ON x.b = y.e)
@@ -1984,9 +1975,9 @@ SELECT * FROM
   UNION ALL
   (SELECT a, b FROM x)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], b=[$1])
 :  +- LogicalProject(a=[$0], b=[$1])
@@ -2004,9 +1995,9 @@ LogicalUnion(all=[true])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[a, b])
 :  +- MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[LeftOuterJoin], where=[(a0 = b)], select=[a, a0, b], build=[right])\n:- [#1] Exchange(distribution=[hash[a0]])\n+- Calc(select=[b])\n   +- HashJoin(joinType=[InnerJoin], where=[(b = e)], select=[b, e], build=[right])\n      :- [#2] Exchange(distribution=[hash[b]])\n      +- [#3] Exchange(distribution=[hash[e]])\n])
@@ -2028,11 +2019,11 @@ Union(all=[true], union=[a, b])
 +- Calc(select=[a, b])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRelatedInputsWithAgg[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRelatedInputsWithAgg[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT x.a AS a, y.d AS b FROM y LEFT JOIN x ON y.d = x.a),
   T2 AS (
@@ -2042,9 +2033,9 @@ WITH
       (SELECT COUNT(x.a) AS a, x.b AS b FROM x GROUP BY x.b))
 SELECT * FROM T2 LEFT JOIN t ON T2.a = t.a
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
 +- LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
    +- LogicalJoin(condition=[=($0, $5)], joinType=[left])
@@ -2062,9 +2053,9 @@ LogicalProject(a=[$0], b=[$1], a0=[$2], b0=[$3], c=[$4])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], a0=[CAST($0):BIGINT])
          +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Calc(select=[a, b, a0, b0, c])
 +- MultipleInput(readOrder=[0,1,0,1], members=[\nNestedLoopJoin(joinType=[LeftOuterJoin], where=[(a = a00)], select=[a, b, a0, b0, c, a00], build=[right])\n:- Union(all=[true], union=[a, b])\n:  :- Calc(select=[CAST(a AS BIGINT) AS a, CAST(d AS BIGINT) AS b])\n:  :  +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[(d = a)], select=[d, a], build=[right])\n:  :     :- [#2] Calc(select=[d])\n:  :     +- [#3] Exchange(distribution=[broadcast])\n:  +- Calc(select=[CAST(a AS BIGINT) AS a, b])\n:     +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS a])\n:        +- [#4] Exchange(distribution=[hash[b]])\n+- [#1] Exchange(distribution=[broadcast])\n])
    :- Exchange(distribution=[broadcast])
@@ -2080,11 +2071,11 @@ Calc(select=[a, b, a0, b0, c])
          +- Calc(select=[b, a])
             +- Reused(reference_id=[1])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRemoveOneInputOperatorFromRoot[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRemoveOneInputOperatorFromRoot[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT a FROM x INNER JOIN y ON x.a = y.d),
   T2 AS (SELECT b FROM x INNER JOIN y ON x.b = y.e)
@@ -2093,9 +2084,9 @@ SELECT * FROM
   UNION ALL
   (SELECT a, b FROM x)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], b=[$1])
 :  +- LogicalProject(a=[$0], b=[$1])
@@ -2113,9 +2104,9 @@ LogicalUnion(all=[true])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[a, b])
 :  +- MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[LeftOuterJoin], where=[(a0 = b)], select=[a, a0, b], build=[right])\n:- [#1] Exchange(distribution=[hash[a0]])\n+- Calc(select=[b])\n   +- HashJoin(joinType=[InnerJoin], where=[(b = e)], select=[b, e], build=[right])\n      :- [#2] Exchange(distribution=[hash[b]])\n      +- [#3] Exchange(distribution=[hash[e]])\n])
@@ -2137,11 +2128,11 @@ Union(all=[true], union=[a, b])
 +- Calc(select=[a, b])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRemoveRedundantUnion[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRemoveRedundantUnion[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT COUNT(*) AS cnt FROM x GROUP BY a),
   T2 AS (SELECT COUNT(*) AS cnt FROM y GROUP BY d),
@@ -2152,9 +2143,9 @@ SELECT cnt FROM
   UNION ALL
   (SELECT cnt FROM (SELECT cnt FROM T3) UNION ALL (SELECT cnt FROM T4))
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(cnt=[$0])
 :  +- LogicalUnion(all=[true])
@@ -2182,9 +2173,9 @@ LogicalUnion(all=[true])
             :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
             +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Union(all=[true], union=[cnt])
 :- Union(all=[true], union=[cnt])
 :  :- Calc(select=[CAST(cnt AS BIGINT) AS cnt])
@@ -2211,11 +2202,11 @@ Union(all=[true], union=[cnt])
       +- Calc(select=[e])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRemoveOneInputOperatorFromRoot[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRemoveOneInputOperatorFromRoot[shuffleMode: ALL_EXCHANGES_BLOCKING, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT a FROM x INNER JOIN y ON x.a = y.d),
   T2 AS (SELECT b FROM x INNER JOIN y ON x.b = y.e)
@@ -2224,9 +2215,9 @@ SELECT * FROM
   UNION ALL
   (SELECT a, b FROM x)
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(a=[$0], b=[$1])
 :  +- LogicalProject(a=[$0], b=[$1])
@@ -2244,9 +2235,9 @@ LogicalUnion(all=[true])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Union(all=[true], union=[a, b])
 :- Calc(select=[a, b])
 :  +- MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[LeftOuterJoin], where=[(a0 = b)], select=[a, a0, b], build=[right])\n:- [#1] Exchange(distribution=[hash[a0]])\n+- Calc(select=[b])\n   +- HashJoin(joinType=[InnerJoin], where=[(b = e)], select=[b, e], build=[right])\n      :- [#2] Exchange(distribution=[hash[b]])\n      +- [#3] Exchange(distribution=[hash[e]])\n])
@@ -2268,11 +2259,11 @@ Union(all=[true], union=[a, b])
 +- Calc(select=[a, b])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]], fields=[a, b, c, nx])
 ]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRemoveRedundantUnion[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
-    <Resource name="sql">
-      <![CDATA[
+		</Resource>
+	</TestCase>
+	<TestCase name="testRemoveRedundantUnion[shuffleMode: ALL_EXCHANGES_PIPELINED, schedulerType: Default]">
+		<Resource name="sql">
+			<![CDATA[
 WITH
   T1 AS (SELECT COUNT(*) AS cnt FROM x GROUP BY a),
   T2 AS (SELECT COUNT(*) AS cnt FROM y GROUP BY d),
@@ -2283,9 +2274,9 @@ SELECT cnt FROM
   UNION ALL
   (SELECT cnt FROM (SELECT cnt FROM T3) UNION ALL (SELECT cnt FROM T4))
 ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(cnt=[$0])
 :  +- LogicalUnion(all=[true])
@@ -2313,9 +2304,9 @@ LogicalUnion(all=[true])
             :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c, nx)]]])
             +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]])
 ]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
 Union(all=[true], union=[cnt])
 :- Union(all=[true], union=[cnt])
 :  :- Calc(select=[CAST(cnt AS BIGINT) AS cnt])
@@ -2342,6 +2333,6 @@ Union(all=[true], union=[cnt])
       +- Calc(select=[e])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f, ny)]]], fields=[d, e, f, ny])
 ]]>
-    </Resource>
-  </TestCase>
+		</Resource>
+	</TestCase>
 </Root>
