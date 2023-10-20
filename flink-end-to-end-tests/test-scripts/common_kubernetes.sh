@@ -35,7 +35,6 @@ function setup_kubernetes_for_linux {
     else
         local arch='amd64'
     fi
-
     # Download kubectl, which is a requirement for using minikube.
     if ! [ -x "$(command -v kubectl)" ]; then
         echo "Installing kubectl ..."
@@ -43,10 +42,10 @@ function setup_kubernetes_for_linux {
         curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/$arch/kubectl && \
             chmod +x kubectl && sudo mv kubectl /usr/local/bin/
     fi
-
     # Download minikube when it is not installed beforehand.
     if [ -x "$(command -v minikube)" ] && [[ "$(minikube version | grep -c $MINIKUBE_VERSION)" == "0" ]]; then
-      remove_old_minikube_version
+      echo "Removing any already installed minikube binaries ..."
+      sudo rm "$(which minikube)"
     fi
 
     if ! [ -x "$(command -v minikube)" ]; then
@@ -264,11 +263,6 @@ function get_host_machine_address {
     else
         echo $(hostname --ip-address)
     fi
-}
-
-function remove_old_minikube_version {
-    echo "Removing any already installed minikube binaries ..."
-    sudo rm "$(which minikube)"
 }
 
 on_exit cleanup
