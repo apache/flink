@@ -52,11 +52,11 @@ function setup_kubernetes_for_linux {
     if ! [ -x "$(command -v minikube)" ]; then
       echo "Installing minikube $MINIKUBE_VERSION ..."
       download_minikube_url="https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube-linux-$arch"
-      download_minikube_command="curl -Lo minikube ${download_minikube_url} && chmod +x minikube && sudo mv minikube /usr/bin/minikube"
-      if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "${download_minikube_command}"; then
+      if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "curl -Lo minikube ${download_minikube_url}"; then
         echo "Could not download minikube. Aborting..."
         exit 1
       fi
+      chmod +x minikube && sudo mv minikube /usr/bin/minikube
     fi
 
     # conntrack is required for minikube 1.9 and later
