@@ -377,8 +377,11 @@ object ScalarOperatorGens {
     val canEqual = isInteroperable(left.resultType, right.resultType)
 
     if (isCharacterString(left.resultType) && isCharacterString(right.resultType)) {
-      generateOperatorIfNotNull(ctx, resultType, left, right)(
-        (leftTerm, rightTerm) => s"${if (nonEq) "!" else ""}$leftTerm.equals($rightTerm)")
+      wrapExpressionIfNonEq(
+        nonEq,
+        generateOperatorIfNotNull(ctx, resultType, left, right)(
+          (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"),
+        resultType)
     }
     // numeric types
     else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
@@ -438,60 +441,56 @@ object ScalarOperatorGens {
            |  ${left.resultTerm}.ensureMaterialized($ser);
            |  ${right.resultTerm}.ensureMaterialized($ser);
            |  $resultTerm =
-           |    ${if (nonEq) "!" else ""}${left.resultTerm}.getBinarySection().
+           |    ${left.resultTerm}.getBinarySection().
            |    equals(${right.resultTerm}.getBinarySection());
            |}
            |""".stripMargin
-      GeneratedExpression(resultTerm, nullTerm, code, resultType)
+      wrapExpressionIfNonEq(
+        nonEq,
+        GeneratedExpression(resultTerm, nullTerm, code, resultType),
+        resultType
+      )
     }
     // support date/time/timestamp equalTo string.
     // for performance, we cast literal string to literal time.
-    else if (isTimePoint(left.resultType) && isCharacterString(right.resultType)) {
-      if (right.literal) {
-        generateEqualAndNonEqual(
-          ctx,
-          left,
-          generateCastLiteral(ctx, right, left.resultType),
-          operator,
-          resultType)
-      } else {
-        generateEqualAndNonEqual(
-          ctx,
-          left,
-          generateCast(ctx, right, left.resultType, nullOnFailure = true),
-          operator,
-          resultType)
-      }
-    } else if (isTimePoint(right.resultType) && isCharacterString(left.resultType)) {
-      if (left.literal) {
-        generateEqualAndNonEqual(
-          ctx,
-          generateCastLiteral(ctx, left, right.resultType),
-          right,
-          operator,
-          resultType)
-      } else {
-        generateEqualAndNonEqual(
-          ctx,
-          generateCast(ctx, left, right.resultType, nullOnFailure = true),
-          right,
-          operator,
-          resultType)
-      }
+    else if (
+      (isTimePoint(left.resultType) && isCharacterString(right.resultType)) || (isTimePoint(
+        right.resultType) && isCharacterString(left.resultType))
+    ) {
+      val (newLeft, newRight) =
+        if (isTimePoint(left.resultType)) (left, right)
+        else (right, left)
+      generateEqualAndNonEqual(
+        ctx,
+        newLeft,
+        if (newRight.literal) {
+          generateCastLiteral(ctx, newRight, newLeft.resultType)
+        } else {
+          generateCast(ctx, newRight, newLeft.resultType, nullOnFailure = true)
+        },
+        operator,
+        resultType
+      )
     }
     // non comparable types
     else {
-      generateOperatorIfNotNull(ctx, resultType, left, right) {
-        if (isReference(left.resultType)) {
-          (leftTerm, rightTerm) => s"${if (nonEq) "!" else ""}$leftTerm.equals($rightTerm)"
-        } else if (isReference(right.resultType)) {
-          (leftTerm, rightTerm) => s"${if (nonEq) "!" else ""}$rightTerm.equals($leftTerm)"
-        } else {
-          throw new CodeGenException(
-            s"Incomparable types: ${left.resultType} and " +
-              s"${right.resultType}")
-        }
+      val (newLeft, newRight) = if (isReference(left.resultType)) {
+        (left, right)
+      } else if (isReference(right.resultType)) {
+        (right, left)
+      } else {
+        throw new CodeGenException(
+          s"Incomparable types: ${left.resultType} and " +
+            s"${right.resultType}")
       }
+
+      wrapExpressionIfNonEq(
+        nonEq,
+        generateOperatorIfNotNull(ctx, resultType, newLeft, newRight) {
+          (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
+        },
+        resultType
+      )
     }
   }
 
