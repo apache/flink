@@ -116,7 +116,7 @@ public class HsSubpartitionConsumer
         }
         // notify outside of lock to avoid deadlock
         if (notifyDownStream) {
-            availabilityListener.notifyDataAvailable();
+            availabilityListener.notifyDataAvailable(this);
         }
     }
 

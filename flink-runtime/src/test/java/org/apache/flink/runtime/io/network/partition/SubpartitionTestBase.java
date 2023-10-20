@@ -43,7 +43,7 @@ abstract class SubpartitionTestBase {
         final ResultSubpartition subpartition = createSubpartition();
         subpartition.release();
 
-        assertThatThrownBy(() -> subpartition.createReadView(() -> {}))
+        assertThatThrownBy(() -> subpartition.createReadView((ResultSubpartitionView view) -> {}))
                 .isInstanceOf(IllegalStateException.class);
     }
 

@@ -122,7 +122,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 
             // next buffer is null indicates the end of partition
             if (nextBuffer != null) {
-                availabilityListener.notifyDataAvailable();
+                availabilityListener.notifyDataAvailable(this);
             }
         }
     }

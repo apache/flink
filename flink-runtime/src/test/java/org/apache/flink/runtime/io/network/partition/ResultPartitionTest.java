@@ -123,7 +123,8 @@ class ResultPartitionTest {
         // times
         for (int x = 0; x < 2; x++) {
             ResultSubpartitionView subpartitionView1 =
-                    partition.createSubpartitionView(new ResultSubpartitionIndexSet(0), () -> {});
+                    partition.createSubpartitionView(
+                            new ResultSubpartitionIndexSet(0), (ResultSubpartitionView view) -> {});
             subpartitionView1.releaseAllResources();
 
             // partition should not be released on consumption
@@ -492,7 +493,8 @@ class ResultPartitionTest {
         resultPartition.setup();
         // emulate BufferDebloater - and suggest small buffer size
         resultPartition
-                .createSubpartitionView(new ResultSubpartitionIndexSet(0), () -> {})
+                .createSubpartitionView(
+                        new ResultSubpartitionIndexSet(0), (ResultSubpartitionView view) -> {})
                 .notifyNewBufferSize(1);
         // need to insert two records: the 1st one expands the buffer regardless of back-pressure
         resultPartition.emitRecord(ByteBuffer.allocate(recordSize), 0);

@@ -604,7 +604,7 @@ class SortMergeResultPartitionTest {
         private int numNotifications;
 
         @Override
-        public synchronized void notifyDataAvailable() {
+        public synchronized void notifyDataAvailable(ResultSubpartitionView view) {
             if (numNotifications == 0) {
                 notifyAll();
             }
