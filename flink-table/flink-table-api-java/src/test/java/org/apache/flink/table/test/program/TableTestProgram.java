@@ -114,6 +114,7 @@ public class TableTestProgram {
      *
      * <p>The identifier is necessary to (ideally globally) identify the test program in outputs.
      * For example, a runner for plan tests can create directories and use the name as file names.
+     * The identifier must start with the name of the exec node under testing.
      *
      * <p>The description should give more context and should start with a verb and "s" suffix.
      *
