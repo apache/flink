@@ -131,7 +131,7 @@ public class FileSink<IN>
         implements StatefulSink<IN, FileWriterBucketState>,
                 TwoPhaseCommittingSink<IN, FileSinkCommittable>,
                 WithCompatibleState,
-                WithPreCommitTopology<IN, FileSinkCommittable>,
+                WithPreCommitTopology<FileSinkCommittable, FileSinkCommittable>,
                 SupportsConcurrentExecutionAttempts {
 
     private final BucketsBuilder<IN, ? extends BucketsBuilder<IN, ?>> bucketsBuilder;
@@ -181,6 +181,12 @@ public class FileSink<IN>
             // IOException.
             throw new FlinkRuntimeException("Could not create committable serializer.", e);
         }
+    }
+
+    @Override
+    public SimpleVersionedSerializer<FileSinkCommittable> getWriteResultSerializer() {
+        // This is the same in this case
+        return getCommittableSerializer();
     }
 
     @Override

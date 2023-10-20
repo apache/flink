@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.connector.sink2;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 /**
@@ -32,16 +32,18 @@ import org.apache.flink.streaming.api.datastream.DataStream;
  * unexpected side-effects.
  */
 @Experimental
-public interface WithPreCommitTopology<InputT, CommT>
-        extends TwoPhaseCommittingSink<InputT, CommT> {
+public interface WithPreCommitTopology<WriteResultT, CommitterInputT> {
+
+    /** Returns the serializer of the write result type. */
+    SimpleVersionedSerializer<WriteResultT> getWriteResultSerializer();
 
     /**
      * Intercepts and modifies the committables sent on checkpoint or at end of input. Implementers
      * need to ensure to modify all {@link CommittableMessage}s appropriately.
      *
-     * @param committables the stream of committables.
+     * @param writeResults the stream of committables.
      * @return the custom topology before {@link Committer}.
      */
-    DataStream<CommittableMessage<CommT>> addPreCommitTopology(
-            DataStream<CommittableMessage<CommT>> committables);
+    DataStream<CommittableMessage<CommitterInputT>> addPreCommitTopology(
+            DataStream<CommittableMessage<WriteResultT>> writeResults);
 }

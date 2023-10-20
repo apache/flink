@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
@@ -33,9 +34,10 @@ import java.io.IOException;
 /** A test sink that expands into a simple subgraph. Do not use in runtime. */
 public class TestExpandingSink
         implements Sink<Integer>,
+                TwoPhaseCommittingSink<Integer, Integer>,
                 WithPreWriteTopology<Integer>,
                 WithPreCommitTopology<Integer, Integer>,
-                WithPostCommitTopology<Integer, Integer> {
+                WithPostCommitTopology<Integer> {
 
     @Override
     public void addPostCommitTopology(DataStream<CommittableMessage<Integer>> committables) {
@@ -46,6 +48,11 @@ public class TestExpandingSink
     public DataStream<CommittableMessage<Integer>> addPreCommitTopology(
             DataStream<CommittableMessage<Integer>> committables) {
         return committables.map(value -> value).returns(committables.getType());
+    }
+
+    @Override
+    public SimpleVersionedSerializer<Integer> getWriteResultSerializer() {
+        return null;
     }
 
     @Override

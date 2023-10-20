@@ -205,7 +205,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
 
     private static class TestSinkV2WithPostCommitTopology<InputT>
             extends TestSinkV2TwoPhaseCommittingSink<InputT>
-            implements WithPostCommitTopology<InputT, String> {
+            implements WithPostCommitTopology<String> {
         public TestSinkV2WithPostCommitTopology(
                 DefaultSinkWriter<InputT> writer,
                 SimpleVersionedSerializer<String> committableSerializer,

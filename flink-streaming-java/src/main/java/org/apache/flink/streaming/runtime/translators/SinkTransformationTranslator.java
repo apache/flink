@@ -25,6 +25,7 @@ import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSinkWithPreCommitTopology;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
@@ -44,6 +45,7 @@ import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -144,8 +146,10 @@ public class SinkTransformationTranslator<Input, Output>
                                 sink instanceof SupportsConcurrentExecutionAttempts);
             }
 
-            if (sink instanceof TwoPhaseCommittingSink) {
-                addCommittingTopology(sink, prewritten);
+            if (sink instanceof WithPreCommitTopology) {
+                addCommittingWithPreCommitTopology(sink, prewritten);
+            } else if (sink instanceof TwoPhaseCommittingSink) {
+                addCommittingWithoutPreCommitTopology(sink, prewritten);
             } else {
                 adjustTransformations(
                         prewritten,
@@ -173,13 +177,11 @@ public class SinkTransformationTranslator<Input, Output>
             }
         }
 
-        private <CommT> void addCommittingTopology(Sink<T> sink, DataStream<T> inputStream) {
-            TwoPhaseCommittingSink<T, CommT> committingSink =
-                    (TwoPhaseCommittingSink<T, CommT>) sink;
-            TypeInformation<CommittableMessage<CommT>> typeInformation =
-                    CommittableMessageTypeInfo.of(committingSink::getCommittableSerializer);
-
-            DataStream<CommittableMessage<CommT>> written =
+        private <WriterT> DataStream<CommittableMessage<WriterT>> addWriter(
+                Sink<T> sink,
+                DataStream<T> inputStream,
+                TypeInformation<CommittableMessage<WriterT>> typeInformation) {
+            DataStream<CommittableMessage<WriterT>> written =
                     adjustTransformations(
                             inputStream,
                             input ->
@@ -190,28 +192,22 @@ public class SinkTransformationTranslator<Input, Output>
                             false,
                             sink instanceof SupportsConcurrentExecutionAttempts);
 
-            DataStream<CommittableMessage<CommT>> precommitted = addFailOverRegion(written);
+            return addFailOverRegion(written);
+        }
 
-            if (sink instanceof WithPreCommitTopology) {
-                precommitted =
-                        adjustTransformations(
-                                precommitted,
-                                ((WithPreCommitTopology<T, CommT>) sink)::addPreCommitTopology,
-                                true,
-                                false);
-            }
-
+        private <CommT> void addCommitAndPostCommit(
+                TwoPhaseCommittingSinkWithPreCommitTopology<T, ?, CommT> sink,
+                DataStream<CommittableMessage<CommT>> committable,
+                TypeInformation<CommittableMessage<CommT>> typeInformation) {
             DataStream<CommittableMessage<CommT>> committed =
                     adjustTransformations(
-                            precommitted,
+                            committable,
                             pc ->
                                     pc.transform(
                                             COMMITTER_NAME,
                                             typeInformation,
                                             new CommitterOperatorFactory<>(
-                                                    committingSink,
-                                                    isBatchMode,
-                                                    isCheckpointingEnabled)),
+                                                    sink, isBatchMode, isCheckpointingEnabled)),
                             false,
                             false);
 
@@ -220,12 +216,52 @@ public class SinkTransformationTranslator<Input, Output>
                 adjustTransformations(
                         postcommitted,
                         pc -> {
-                            ((WithPostCommitTopology<T, CommT>) sink).addPostCommitTopology(pc);
+                            ((WithPostCommitTopology<CommT>) sink).addPostCommitTopology(pc);
                             return null;
                         },
                         true,
                         false);
             }
+        }
+
+        private <CommT> void addCommittingWithoutPreCommitTopology(
+                Sink<T> sink, DataStream<T> inputStream) {
+            TwoPhaseCommittingSinkWithPreCommitTopology<T, ?, CommT> committingSink =
+                    (TwoPhaseCommittingSinkWithPreCommitTopology<T, ?, CommT>) sink;
+            TypeInformation<CommittableMessage<CommT>> typeInformation =
+                    CommittableMessageTypeInfo.of(committingSink::getCommittableSerializer);
+
+            DataStream<CommittableMessage<CommT>> committable =
+                    addWriter(sink, inputStream, typeInformation);
+
+            addCommitAndPostCommit(committingSink, committable, typeInformation);
+        }
+
+        private <CommT, WriterT> void addCommittingWithPreCommitTopology(
+                Sink<T> sink, DataStream<T> inputStream) {
+            Preconditions.checkArgument(
+                    sink instanceof TwoPhaseCommittingSinkWithPreCommitTopology,
+                    "Sink should implement TwoPhaseCommittingSinkWithPreCommitTopology to apply WithPreCommitTopology transformation");
+            TwoPhaseCommittingSinkWithPreCommitTopology<T, WriterT, CommT> committingSink =
+                    (TwoPhaseCommittingSinkWithPreCommitTopology<T, WriterT, CommT>) sink;
+            WithPreCommitTopology<WriterT, CommT> preCommitTopology =
+                    (WithPreCommitTopology<WriterT, CommT>) sink;
+            TypeInformation<CommittableMessage<WriterT>> writeResultTypeInformation =
+                    CommittableMessageTypeInfo.of(preCommitTopology::getWriteResultSerializer);
+            TypeInformation<CommittableMessage<CommT>> committableTypeInformation =
+                    CommittableMessageTypeInfo.of(committingSink::getCommittableSerializer);
+
+            DataStream<CommittableMessage<WriterT>> writerResult =
+                    addWriter(sink, inputStream, writeResultTypeInformation);
+
+            DataStream<CommittableMessage<CommT>> precommitted =
+                    adjustTransformations(
+                            writerResult,
+                            ((WithPreCommitTopology<WriterT, CommT>) sink)::addPreCommitTopology,
+                            true,
+                            false);
+
+            addCommitAndPostCommit(committingSink, precommitted, committableTypeInformation);
         }
 
         /**

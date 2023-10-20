@@ -32,7 +32,7 @@ import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
 import org.apache.flink.api.connector.sink2.StatefulSink.WithCompatibleState;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSinkWithPreCommitTopology.PrecommittingSinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
@@ -357,7 +357,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     }
 
     private class GlobalCommittingSinkAdapter extends TwoPhaseCommittingSinkAdapter
-            implements WithPostCommitTopology<InputT, CommT> {
+            implements WithPostCommitTopology<CommT> {
 
         @Override
         public void addPostCommitTopology(DataStream<CommittableMessage<CommT>> committables) {
@@ -390,8 +390,7 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
     }
 
     private class StatefulGlobalTwoPhaseCommittingSinkAdapter
-            extends StatefulTwoPhaseCommittingSinkAdapter
-            implements WithPostCommitTopology<InputT, CommT> {
+            extends StatefulTwoPhaseCommittingSinkAdapter implements WithPostCommitTopology<CommT> {
         GlobalCommittingSinkAdapter globalCommittingSinkAdapter = new GlobalCommittingSinkAdapter();
 
         @Override

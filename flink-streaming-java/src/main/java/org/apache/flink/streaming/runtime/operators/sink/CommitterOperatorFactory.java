@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSinkWithPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
@@ -41,12 +41,12 @@ public final class CommitterOperatorFactory<CommT>
         implements OneInputStreamOperatorFactory<
                 CommittableMessage<CommT>, CommittableMessage<CommT>> {
 
-    private final TwoPhaseCommittingSink<?, CommT> sink;
+    private final TwoPhaseCommittingSinkWithPreCommitTopology<?, ?, CommT> sink;
     private final boolean isBatchMode;
     private final boolean isCheckpointingEnabled;
 
     public CommitterOperatorFactory(
-            TwoPhaseCommittingSink<?, CommT> sink,
+            TwoPhaseCommittingSinkWithPreCommitTopology<?, ?, CommT> sink,
             boolean isBatchMode,
             boolean isCheckpointingEnabled) {
         this.sink = checkNotNull(sink);

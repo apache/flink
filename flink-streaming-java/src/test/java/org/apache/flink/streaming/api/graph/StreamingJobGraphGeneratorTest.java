@@ -36,6 +36,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSinkWithPreCommitTopology;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.mocks.MockSource;
@@ -115,6 +116,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLoggerExtension;
 
+import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableSet;
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
 
 import org.assertj.core.api.Assertions;
@@ -140,6 +142,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.POINTWISE;
 import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.areOperatorsChainable;
@@ -2224,6 +2227,59 @@ class StreamingJobGraphGeneratorTest {
                 new TestingOutputFormatSupportConcurrentExecutionAttempts<>(), true);
     }
 
+    @Test
+    void testTwoPhaseCommitSinkWithPostCommitTopology() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        source.rebalance()
+                .sinkTo(new TestSinkWithSupportsConcurrentExecutionAttempts())
+                .name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        Set<String> vertexNames =
+                StreamSupport.stream(jobGraph.getVertices().spliterator(), false)
+                        .map(v -> v.getName())
+                        .collect(Collectors.toSet());
+        assertThat(vertexNames)
+                .isEqualTo(
+                        ImmutableSet.of(
+                                "sink: Writer",
+                                "sink: pre-committer",
+                                "sink: Committer",
+                                "sink: pre-writer",
+                                "sink: post-committer",
+                                "Source: source"));
+    }
+
+    @Test
+    void testTwoPhaseCommitSinkWithoutPostCommitTopology() {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        source.rebalance().sinkTo(new TestSinkWithoutPreCommitTopology()).name("sink");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+        Set<String> vertexNames =
+                StreamSupport.stream(jobGraph.getVertices().spliterator(), false)
+                        .map(v -> v.getName())
+                        .collect(Collectors.toSet());
+        assertThat(vertexNames)
+                .isEqualTo(
+                        ImmutableSet.of(
+                                "sink: Writer",
+                                "sink: Committer",
+                                "sink: pre-writer",
+                                "sink: post-committer",
+                                "Source: source"));
+    }
+
     private static void testWhetherOutputFormatSupportsConcurrentExecutionAttempts(
             OutputFormat<Integer> outputFormat, boolean isSupported) {
         final StreamExecutionEnvironment env =
@@ -2318,10 +2374,93 @@ class StreamingJobGraphGeneratorTest {
 
     private static class TestSinkWithSupportsConcurrentExecutionAttempts
             implements SupportsConcurrentExecutionAttempts,
+                    TwoPhaseCommittingSinkWithPreCommitTopology<Integer, Integer, Void>,
+                    WithPreWriteTopology<Integer>,
+                    WithPreCommitTopology<Integer, Integer>,
+                    WithPostCommitTopology<Void> {
+
+        @Override
+        public PrecommittingSinkWriter<Integer, Integer> createWriter(InitContext context)
+                throws IOException {
+            return new PrecommittingSinkWriter<Integer, Integer>() {
+                @Override
+                public Collection<Integer> prepareCommit()
+                        throws IOException, InterruptedException {
+                    return null;
+                }
+
+                @Override
+                public void write(Integer element, Context context)
+                        throws IOException, InterruptedException {}
+
+                @Override
+                public void flush(boolean endOfInput) throws IOException, InterruptedException {}
+
+                @Override
+                public void close() throws Exception {}
+            };
+        }
+
+        @Override
+        public Committer<Void> createCommitter(CommitterInitContext context) throws IOException {
+            return new VoidCommitter();
+        }
+
+        @Override
+        public SimpleVersionedSerializer<Void> getCommittableSerializer() {
+            return new VoidSerializer();
+        }
+
+        @Override
+        public SimpleVersionedSerializer<Integer> getWriteResultSerializer() {
+            return new SimpleVersionedSerializer<Integer>() {
+                @Override
+                public int getVersion() {
+                    return 0;
+                }
+
+                @Override
+                public byte[] serialize(Integer obj) throws IOException {
+                    return new byte[0];
+                }
+
+                @Override
+                public Integer deserialize(int version, byte[] serialized) throws IOException {
+                    return null;
+                }
+            };
+        }
+
+        @Override
+        public void addPostCommitTopology(DataStream<CommittableMessage<Void>> committables) {
+            committables
+                    .map(v -> v)
+                    .name("post-committer")
+                    .returns(CommittableMessageTypeInfo.noOutput())
+                    .rebalance();
+        }
+
+        @Override
+        public DataStream<CommittableMessage<Integer>> addPreCommitTopology(
+                DataStream<CommittableMessage<Integer>> committables) {
+            return committables
+                    .map(v -> v)
+                    .name("pre-committer")
+                    .returns(CommittableMessageTypeInfo.of(() -> null))
+                    .rebalance();
+        }
+
+        @Override
+        public DataStream<Integer> addPreWriteTopology(DataStream<Integer> inputDataStream) {
+            return inputDataStream.map(v -> v).name("pre-writer").rebalance();
+        }
+    }
+
+    private static class TestSinkWithoutPreCommitTopology
+            implements SupportsConcurrentExecutionAttempts,
                     TwoPhaseCommittingSink<Integer, Void>,
                     WithPreWriteTopology<Integer>,
-                    WithPreCommitTopology<Integer, Void>,
-                    WithPostCommitTopology<Integer, Void> {
+                    WithPostCommitTopology<Void> {
 
         @Override
         public PrecommittingSinkWriter<Integer, Void> createWriter(InitContext context)
@@ -2346,34 +2485,12 @@ class StreamingJobGraphGeneratorTest {
 
         @Override
         public Committer<Void> createCommitter(CommitterInitContext context) throws IOException {
-            return new Committer<Void>() {
-                @Override
-                public void commit(Collection<CommitRequest<Void>> committables)
-                        throws IOException, InterruptedException {}
-
-                @Override
-                public void close() throws Exception {}
-            };
+            return new VoidCommitter();
         }
 
         @Override
         public SimpleVersionedSerializer<Void> getCommittableSerializer() {
-            return new SimpleVersionedSerializer<Void>() {
-                @Override
-                public int getVersion() {
-                    return 0;
-                }
-
-                @Override
-                public byte[] serialize(Void obj) throws IOException {
-                    return new byte[0];
-                }
-
-                @Override
-                public Void deserialize(int version, byte[] serialized) throws IOException {
-                    return null;
-                }
-            };
+            return new VoidSerializer();
         }
 
         @Override
@@ -2386,18 +2503,34 @@ class StreamingJobGraphGeneratorTest {
         }
 
         @Override
-        public DataStream<CommittableMessage<Void>> addPreCommitTopology(
-                DataStream<CommittableMessage<Void>> committables) {
-            return committables
-                    .map(v -> v)
-                    .name("pre-committer")
-                    .returns(CommittableMessageTypeInfo.noOutput())
-                    .rebalance();
+        public DataStream<Integer> addPreWriteTopology(DataStream<Integer> inputDataStream) {
+            return inputDataStream.map(v -> v).name("pre-writer").rebalance();
+        }
+    }
+
+    private static class VoidCommitter implements Committer<Void> {
+        @Override
+        public void commit(Collection<CommitRequest<Void>> committables)
+                throws IOException, InterruptedException {}
+
+        @Override
+        public void close() throws Exception {}
+    }
+
+    private static class VoidSerializer implements SimpleVersionedSerializer<Void> {
+        @Override
+        public int getVersion() {
+            return 0;
         }
 
         @Override
-        public DataStream<Integer> addPreWriteTopology(DataStream<Integer> inputDataStream) {
-            return inputDataStream.map(v -> v).name("pre-writer").rebalance();
+        public byte[] serialize(Void obj) throws IOException {
+            return new byte[0];
+        }
+
+        @Override
+        public Void deserialize(int version, byte[] serialized) throws IOException {
+            return null;
         }
     }
 

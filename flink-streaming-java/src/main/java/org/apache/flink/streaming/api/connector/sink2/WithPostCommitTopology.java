@@ -20,7 +20,6 @@ package org.apache.flink.streaming.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink2.Committer;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 /**
@@ -30,8 +29,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
  * unexpected side-effects.
  */
 @Experimental
-public interface WithPostCommitTopology<InputT, CommT>
-        extends TwoPhaseCommittingSink<InputT, CommT> {
+public interface WithPostCommitTopology<CommT> {
 
     /**
      * Adds a custom post-commit topology where all committables can be processed.
