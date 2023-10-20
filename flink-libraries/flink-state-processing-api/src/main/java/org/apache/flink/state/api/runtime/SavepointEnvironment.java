@@ -112,6 +112,8 @@ public class SavepointEnvironment implements Environment {
 
     private final ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
 
+    private final CheckpointExpiredThreadDumper threadDumper;
+
     private SavepointEnvironment(
             RuntimeContext ctx,
             Configuration configuration,
@@ -319,7 +321,7 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public CheckpointExpiredThreadDumper getCheckpointExpiredThreadDumper() {
-        throw new UnsupportedOperationException(ERROR_MSG);
+        return threadDumper;
     }
 
     @Override
