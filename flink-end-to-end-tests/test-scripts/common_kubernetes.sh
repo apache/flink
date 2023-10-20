@@ -54,7 +54,7 @@ function setup_kubernetes_for_linux {
           chmod +x minikube && sudo mv minikube /usr/bin/minikube
     fi
 
-    # Install the latest version, avoid none driver of minikube in the future
+    # Install the latest version, avoid none driver of minikube
     if ! [ -x "$(command -v minikube)" ]; then
       echo "Installing latest version minikube ..."
       curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-$arch && \
