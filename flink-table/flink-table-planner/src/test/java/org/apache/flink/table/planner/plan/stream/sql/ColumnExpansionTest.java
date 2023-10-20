@@ -260,6 +260,31 @@ public class ColumnExpansionTest {
                 "agg");
     }
 
+    @Test
+    public void testExplicitTableWithinTableFunctionWithInsertIntoNamedColumns() {
+        tableEnv.getConfig()
+                .set(
+                        TABLE_COLUMN_EXPANSION_STRATEGY,
+                        Collections.singletonList(EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS));
+
+        tableEnv.executeSql(
+                "CREATE TABLE sink (\n"
+                        + "  a STRING,\n"
+                        + "  c BIGINT\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',"
+                        + " 'sink-insert-only' = 'false'"
+                        + ")");
+
+        // Test case for FLINK-33327, we can not assert column names of an INSERT INTO query. Make
+        // sure the query can be planned.
+        tableEnv.explainSql(
+                "INSERT INTO sink(a, c) "
+                        + "SELECT t3_s, COUNT(t3_i) FROM "
+                        + " TABLE(TUMBLE(TABLE t3, DESCRIPTOR(t3_m_virtual), INTERVAL '1' MINUTE)) "
+                        + "GROUP BY t3_s;");
+    }
+
     private void assertColumnNames(String sql, String... columnNames) {
         assertThat(tableEnv.sqlQuery(sql).getResolvedSchema().getColumnNames())
                 .containsExactly(columnNames);
