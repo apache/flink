@@ -47,12 +47,15 @@ import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -74,6 +77,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -88,6 +92,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.spy;
@@ -423,6 +429,55 @@ public class CheckpointCoordinatorTestingUtils {
                 generateByteStreamStateHandle(serializedDataWithOffsets.f0);
 
         return new KeyGroupsStateHandle(keyGroupRangeOffsets, allSerializedStatesHandle);
+    }
+
+    public static Tuple2<List<StateObject>, OperatorSubtaskState>
+            generateSampleOperatorSubtaskState() throws IOException {
+        JobVertexID jobVertexID = new JobVertexID();
+        int index = 0;
+        Random random = new Random();
+        OperatorStateHandle managedOpHandle =
+                generatePartitionableStateHandle(jobVertexID, index, 2, 8, false);
+        OperatorStateHandle rawOpHandle =
+                generatePartitionableStateHandle(jobVertexID, index, 2, 8, true);
+        KeyedStateHandle managedKeyedHandle =
+                generateKeyGroupState(jobVertexID, new KeyGroupRange(0, random.nextInt(12)), false);
+        KeyedStateHandle rawKeyedHandle =
+                generateKeyGroupState(jobVertexID, new KeyGroupRange(0, random.nextInt(10)), true);
+        InputChannelStateHandle inputChannelStateHandle =
+                createNewInputChannelStateHandle(3, random);
+        ResultSubpartitionStateHandle resultSubpartitionStateHandle =
+                createNewResultSubpartitionStateHandle(3, random);
+        OperatorSubtaskState operatorSubtaskState =
+                OperatorSubtaskState.builder()
+                        .setManagedOperatorState(managedOpHandle)
+                        .setRawOperatorState(rawOpHandle)
+                        .setManagedKeyedState(managedKeyedHandle)
+                        .setRawKeyedState(rawKeyedHandle)
+                        .setInputChannelState(
+                                StateObjectCollection.singleton(inputChannelStateHandle))
+                        .setResultSubpartitionState(
+                                StateObjectCollection.singleton(resultSubpartitionStateHandle))
+                        .setInputRescalingDescriptor(
+                                InflightDataRescalingDescriptorUtil.rescalingDescriptor(
+                                        new int[1],
+                                        new RescaleMappings[0],
+                                        Collections.singleton(1)))
+                        .setOutputRescalingDescriptor(
+                                InflightDataRescalingDescriptorUtil.rescalingDescriptor(
+                                        new int[1],
+                                        new RescaleMappings[0],
+                                        Collections.singleton(2)))
+                        .build();
+        return new Tuple2<>(
+                Arrays.asList(
+                        managedOpHandle,
+                        rawOpHandle,
+                        managedKeyedHandle,
+                        rawKeyedHandle,
+                        inputChannelStateHandle,
+                        resultSubpartitionStateHandle),
+                operatorSubtaskState);
     }
 
     public static TaskStateSnapshot createSnapshotWithUnionListState(
