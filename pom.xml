@@ -720,7 +720,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-compress</artifactId>
-				<version>1.21</version>
+				<version>1.24.0</version>
 				<exclusions>
 					<exclusion>
 						<!-- Causes unnecessary dependency convergence errors; see MENFORCER-437 -->
