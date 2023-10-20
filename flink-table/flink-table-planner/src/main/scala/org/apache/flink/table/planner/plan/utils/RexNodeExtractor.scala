@@ -504,7 +504,7 @@ class RexNodeToExpressionConverter(
         literal.getValueAs(classOf[java.math.BigDecimal])
 
       case BINARY | VARBINARY =>
-        literal.getValueAs(classOf[ByteString]).getBytes
+        literal.getValueAs(classOf[Array[Byte]])
 
       case _ =>
         literal.getValue
