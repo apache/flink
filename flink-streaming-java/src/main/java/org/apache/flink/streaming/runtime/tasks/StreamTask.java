@@ -477,15 +477,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
             this.checkpointExpiredThreadDumper =
                     environment.getCheckpointExpiredThreadDumper() == null
+                                    || configuration
+                                            .getConfiguration()
+                                            .get(
+                                                    ExecutionCheckpointingOptions
+                                                            .ENABLE_THREAD_DUMP_WHEN_CHECKPOINT_TIMEOUT)
                             ? null
                             : new CheckpointExpiredThreadDumperWrapper(
                                     environment.getCheckpointExpiredThreadDumper(),
                                     environment.getJobID(),
                                     configuration
                                             .getConfiguration()
-                                            .get(
-                                                    ExecutionCheckpointingOptions
-                                                            .THREAD_DUMP_LOG_LEVEL_WHEN_CHECKPOINT_TIMEOUT),
+                                            .get(ClusterOptions.THREAD_DUMP_LOG_LEVEL),
                                     configuration
                                             .getConfiguration()
                                             .get(ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH));

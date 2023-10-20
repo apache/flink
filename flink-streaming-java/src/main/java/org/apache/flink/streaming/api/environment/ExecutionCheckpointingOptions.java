@@ -26,15 +26,14 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
-import org.apache.flink.runtime.state.CheckpointExpiredThreadDumper;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import java.time.Duration;
 
+import static org.apache.flink.configuration.ClusterOptions.THREAD_DUMP_LOG_LEVEL;
 import static org.apache.flink.configuration.ClusterOptions.THREAD_DUMP_STACKTRACE_MAX_DEPTH;
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
-import static org.apache.flink.runtime.state.CheckpointExpiredThreadDumper.ThreadDumpLogLevel;
 
 /**
  * Execution {@link ConfigOption} for configuring checkpointing related parameters.
@@ -318,27 +317,22 @@ public class ExecutionCheckpointingOptions {
                                     + "It can reduce the number of small files when enable unaligned checkpoint. "
                                     + "Each subtask will create a new channel state file when this is configured to 1.");
 
-    public static final ConfigOption<ThreadDumpLogLevel>
-            THREAD_DUMP_LOG_LEVEL_WHEN_CHECKPOINT_TIMEOUT =
-                    key("execution.checkpointing.thread-dump-log-level-when-checkpoint-timeout")
-                            .enumType(ThreadDumpLogLevel.class)
-                            .defaultValue(ThreadDumpLogLevel.DEBUG)
-                            .withDescription(
-                                    Description.builder()
-                                            .text(
-                                                    "When a checkpoint is notified expired, the task manager could "
-                                                            + "produce a thread dump to log for debugging purpose. "
-                                                            + "This flag defines the log level of this thread dump. "
-                                                            + "Only 'ERROR', 'WARN', 'INFO', 'DEBUG'(default), 'TRACE' "
-                                                            + "and 'OFF' are supported. The logger name of the dumper "
-                                                            + "is '%s', user could specify logger configuration of it.",
-                                                    TextElement.code(
-                                                            CheckpointExpiredThreadDumper.class
-                                                                    .getName()))
-                                            .linebreak()
-                                            .text(
-                                                    "The stack length of thread dump can be configured by %s.",
-                                                    TextElement.code(
-                                                            THREAD_DUMP_STACKTRACE_MAX_DEPTH.key()))
-                                            .build());
+    public static final ConfigOption<Boolean> ENABLE_THREAD_DUMP_WHEN_CHECKPOINT_TIMEOUT =
+            key("execution.checkpointing.thread-dump-when-checkpoint-expired.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "When a checkpoint is notified expired, the task manager could "
+                                                    + "produce a thread dump to log for debugging purpose. "
+                                                    + "This flag enables this thread dump.")
+                                    .linebreak()
+                                    .text(
+                                            "The log level of this thread dump can be specified by %s, "
+                                                    + "and the stack length of thread dump can be configured by %s.",
+                                            TextElement.code(THREAD_DUMP_LOG_LEVEL.key()),
+                                            TextElement.code(
+                                                    THREAD_DUMP_STACKTRACE_MAX_DEPTH.key()))
+                                    .build());
 }

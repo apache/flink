@@ -134,7 +134,27 @@ public class ClusterOptions {
                     .intType()
                     .defaultValue(50)
                     .withDescription(
-                            "The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.");
+                            "The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed or logged.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
+    public static final ConfigOption<ThreadDumpLogLevel> THREAD_DUMP_LOG_LEVEL =
+            key("cluster.thread-dump.log-level")
+                    .enumType(ThreadDumpLogLevel.class)
+                    .defaultValue(ThreadDumpLogLevel.DEBUG)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "When a checkpoint is notified expired, the task manager could "
+                                                    + "produce a thread dump to log for debugging purpose. "
+                                                    + "This flag defines the log level of the thread dump. "
+                                                    + "Only 'ERROR', 'WARN', 'INFO', 'DEBUG'(default), 'TRACE' "
+                                                    + "and 'OFF' are supported.")
+                                    .linebreak()
+                                    .text(
+                                            "The stack length of thread dump can be configured by %s.",
+                                            TextElement.code(
+                                                    THREAD_DUMP_STACKTRACE_MAX_DEPTH.key()))
+                                    .build());
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     @Documentation.ExcludeFromDocumentation("Hidden for deprecated")
@@ -251,5 +271,18 @@ public class ClusterOptions {
     public enum UncaughtExceptionHandleMode {
         LOG,
         FAIL
+    }
+
+    /**
+     * Defines the log level of the thread dump of executors. @see
+     * ClusterOptions#THREAD_DUMP_LOG_LEVEL.
+     */
+    public enum ThreadDumpLogLevel {
+        ERROR,
+        WARN,
+        INFO,
+        DEBUG,
+        TRACE,
+        OFF
     }
 }

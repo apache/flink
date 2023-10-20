@@ -26,7 +26,7 @@ import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.junit.Test;
 
-import static org.apache.flink.runtime.state.CheckpointExpiredThreadDumper.ThreadDumpLogLevel;
+import static org.apache.flink.configuration.ClusterOptions.ThreadDumpLogLevel;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link CheckpointExpiredThreadDumper}. */

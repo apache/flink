@@ -20,7 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.state.CheckpointExpiredThreadDumper;
 
-import static org.apache.flink.runtime.state.CheckpointExpiredThreadDumper.ThreadDumpLogLevel;
+import static org.apache.flink.configuration.ClusterOptions.ThreadDumpLogLevel;
 
 /**
  * A wrapper that encapsulates the dumper worker and some job-related data and configuration,

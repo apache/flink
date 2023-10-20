@@ -30,6 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import static org.apache.flink.configuration.ClusterOptions.ThreadDumpLogLevel;
+
 /**
  * A worker that can print thread dump to log when checkpoint aborted. There is a throttling
  * strategy that it can only output once for each job and each checkpoint abortion.
@@ -38,19 +40,6 @@ import java.util.function.Consumer;
 public class CheckpointExpiredThreadDumper {
 
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointExpiredThreadDumper.class);
-
-    /**
-     * When a checkpoint is notified timeout, the task manager could produce a thread dump to log
-     * for debugging purpose. This enum defines the log level of this thread dump.
-     */
-    public enum ThreadDumpLogLevel {
-        ERROR,
-        WARN,
-        INFO,
-        DEBUG,
-        TRACE,
-        OFF
-    }
 
     /** A map records the last dumped checkpoint for each job. */
     private final ConcurrentHashMap<JobID, Long> jobIdLastDumpCheckpointIdMap;
