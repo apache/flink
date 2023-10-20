@@ -109,6 +109,19 @@ public class CheckpointingOptions {
                     .defaultValue(1)
                     .withDescription("The maximum number of completed checkpoints to retain.");
 
+    /* Option whether to clean individual checkpoint's operatorstates in parallel. If enabled,
+     * operator states are discarded in parallel using the ExecutorService passed to the cleaner.
+     * This speeds up checkpoints cleaning, but adds load to the IO.
+     */
+    @Documentation.Section(Documentation.Sections.COMMON_STATE_BACKENDS)
+    public static final ConfigOption<Boolean> CLEANER_PARALLEL_MODE =
+            ConfigOptions.key("state.checkpoint.cleaner.parallel-mode")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Option whether to discard a checkpoint's states in parallel using"
+                                    + " the ExecutorService passed into the cleaner");
+
     /** @deprecated Checkpoints are always asynchronous. */
     @Deprecated
     public static final ConfigOption<Boolean> ASYNC_SNAPSHOTS =

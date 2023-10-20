@@ -194,22 +194,27 @@ public class OperatorSubtaskState implements CompositeStateHandle {
         return outputRescalingDescriptor;
     }
 
+    public List<StateObject> getDiscardables() {
+        List<StateObject> toDispose =
+                new ArrayList<>(
+                        managedOperatorState.size()
+                                + rawOperatorState.size()
+                                + managedKeyedState.size()
+                                + rawKeyedState.size()
+                                + inputChannelState.size()
+                                + resultSubpartitionState.size());
+        toDispose.addAll(managedOperatorState);
+        toDispose.addAll(rawOperatorState);
+        toDispose.addAll(managedKeyedState);
+        toDispose.addAll(rawKeyedState);
+        toDispose.addAll(collectUniqueDelegates(inputChannelState, resultSubpartitionState));
+        return toDispose;
+    }
+
     @Override
     public void discardState() {
         try {
-            List<StateObject> toDispose =
-                    new ArrayList<>(
-                            managedOperatorState.size()
-                                    + rawOperatorState.size()
-                                    + managedKeyedState.size()
-                                    + rawKeyedState.size()
-                                    + inputChannelState.size()
-                                    + resultSubpartitionState.size());
-            toDispose.addAll(managedOperatorState);
-            toDispose.addAll(rawOperatorState);
-            toDispose.addAll(managedKeyedState);
-            toDispose.addAll(rawKeyedState);
-            toDispose.addAll(collectUniqueDelegates(inputChannelState, resultSubpartitionState));
+            List<StateObject> toDispose = getDiscardables();
             StateUtil.bestEffortDiscardAllStateObjects(toDispose);
         } catch (Exception e) {
             LOG.warn("Error while discarding operator states.", e);
