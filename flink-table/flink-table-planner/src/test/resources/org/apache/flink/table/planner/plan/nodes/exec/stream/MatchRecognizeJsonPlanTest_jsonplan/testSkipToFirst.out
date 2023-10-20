@@ -37,8 +37,8 @@
           },
           "partitionKeys" : [ ],
           "options" : {
-            "connector" : "values",
-            "bounded" : "false"
+            "bounded" : "false",
+            "connector" : "values"
           }
         }
       }
@@ -246,7 +246,28 @@
         }
       },
       "measures" : {
-        "startTime" : {
+        "Final_Temp" : {
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "A",
+              "inputIndex" : 1,
+              "type" : "INT"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "INT"
+          } ],
+          "type" : "INT"
+        },
+        "Initial_Temp" : {
           "kind" : "CALL",
           "syntax" : "PREFIX",
           "internalName" : "$FINAL$1",
@@ -254,28 +275,18 @@
             "kind" : "CALL",
             "internalName" : "$FIRST$1",
             "operands" : [ {
-              "kind" : "CALL",
-              "syntax" : "SPECIAL",
-              "internalName" : "$CAST$1",
-              "operands" : [ {
-                "kind" : "PATTERN_INPUT_REF",
-                "alpha" : "A",
-                "inputIndex" : 2,
-                "type" : {
-                  "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-                  "precision" : 3,
-                  "kind" : "ROWTIME"
-                }
-              } ],
-              "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "A",
+              "inputIndex" : 1,
+              "type" : "INT"
             }, {
               "kind" : "LITERAL",
               "value" : 0,
               "type" : "INT NOT NULL"
             } ],
-            "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+            "type" : "INT"
           } ],
-          "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+          "type" : "INT"
         },
         "endTime" : {
           "kind" : "CALL",
@@ -308,7 +319,7 @@
           } ],
           "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
         },
-        "Initial_Temp" : {
+        "startTime" : {
           "kind" : "CALL",
           "syntax" : "PREFIX",
           "internalName" : "$FINAL$1",
@@ -316,39 +327,28 @@
             "kind" : "CALL",
             "internalName" : "$FIRST$1",
             "operands" : [ {
-              "kind" : "PATTERN_INPUT_REF",
-              "alpha" : "A",
-              "inputIndex" : 1,
-              "type" : "INT"
+              "kind" : "CALL",
+              "syntax" : "SPECIAL",
+              "internalName" : "$CAST$1",
+              "operands" : [ {
+                "kind" : "PATTERN_INPUT_REF",
+                "alpha" : "A",
+                "inputIndex" : 2,
+                "type" : {
+                  "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                  "precision" : 3,
+                  "kind" : "ROWTIME"
+                }
+              } ],
+              "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
             }, {
               "kind" : "LITERAL",
               "value" : 0,
               "type" : "INT NOT NULL"
             } ],
-            "type" : "INT"
+            "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
           } ],
-          "type" : "INT"
-        },
-        "Final_Temp" : {
-          "kind" : "CALL",
-          "syntax" : "PREFIX",
-          "internalName" : "$FINAL$1",
-          "operands" : [ {
-            "kind" : "CALL",
-            "internalName" : "$LAST$1",
-            "operands" : [ {
-              "kind" : "PATTERN_INPUT_REF",
-              "alpha" : "A",
-              "inputIndex" : 1,
-              "type" : "INT"
-            }, {
-              "kind" : "LITERAL",
-              "value" : 0,
-              "type" : "INT NOT NULL"
-            } ],
-            "type" : "INT"
-          } ],
-          "type" : "INT"
+          "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
         }
       },
       "after" : {
@@ -420,9 +420,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "connector" : "values",
             "sink-insert-only" : "false",
-            "table-sink-class" : "DEFAULT",
-            "connector" : "values"
+            "table-sink-class" : "DEFAULT"
           }
         }
       }

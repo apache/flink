@@ -80,8 +80,8 @@
           },
           "partitionKeys" : [ ],
           "options" : {
-            "connector" : "values",
-            "bounded" : "false"
+            "bounded" : "false",
+            "connector" : "values"
           }
         }
       }
@@ -293,8 +293,8 @@
             },
             "partitionKeys" : [ ],
             "options" : {
-              "connector" : "values",
-              "bounded" : "false"
+              "bounded" : "false",
+              "connector" : "values"
             }
           }
         }
@@ -381,8 +381,8 @@
           },
           "partitionKeys" : [ ],
           "options" : {
-            "sink-insert-only" : "false",
-            "connector" : "values"
+            "connector" : "values",
+            "sink-insert-only" : "false"
           }
         }
       }
