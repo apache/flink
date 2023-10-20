@@ -37,7 +37,7 @@ class NettyConnectionWriterTest {
         int bufferNumber = 10;
         NettyPayloadManager nettyPayloadManager = new NettyPayloadManager();
         NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(nettyPayloadManager, () -> {});
+                new NettyConnectionWriterImpl(nettyPayloadManager);
         writeBufferToWriter(bufferNumber, nettyConnectionWriter);
         assertThat(nettyPayloadManager.getBacklog()).isEqualTo(bufferNumber);
         assertThat(nettyConnectionWriter.numQueuedPayloads()).isEqualTo(bufferNumber);
@@ -47,19 +47,19 @@ class NettyConnectionWriterTest {
     @Test
     void testGetNettyConnectionId() {
         NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(new NettyPayloadManager(), () -> {});
+                new NettyConnectionWriterImpl(new NettyPayloadManager());
         assertThat(nettyConnectionWriter.getNettyConnectionId()).isNotNull();
     }
 
     @Test
     void testNotifyAvailable() {
         CompletableFuture<Void> notifier = new CompletableFuture<>();
-        NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(
-                        new NettyPayloadManager(),
-                        () -> {
-                            notifier.complete(null);
-                        });
+        NettyConnectionWriterImpl nettyConnectionWriter =
+                new NettyConnectionWriterImpl(new NettyPayloadManager());
+        nettyConnectionWriter.registerAvailabilityListener(
+                () -> {
+                    notifier.complete(null);
+                });
         nettyConnectionWriter.notifyAvailable();
         assertThat(notifier).isDone();
     }
@@ -68,7 +68,7 @@ class NettyConnectionWriterTest {
     void testClose() {
         int bufferNumber = 10;
         NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(new NettyPayloadManager(), () -> {});
+                new NettyConnectionWriterImpl(new NettyPayloadManager());
         writeBufferToWriter(bufferNumber, nettyConnectionWriter);
         nettyConnectionWriter.close(null);
         assertThat(nettyConnectionWriter.numQueuedPayloads()).isZero();
@@ -83,7 +83,7 @@ class NettyConnectionWriterTest {
     void testGetNumQueuedBufferPayloads() {
         NettyPayloadManager nettyPayloadManager = new NettyPayloadManager();
         NettyConnectionWriter nettyConnectionWriter =
-                new NettyConnectionWriterImpl(nettyPayloadManager, () -> {});
+                new NettyConnectionWriterImpl(nettyPayloadManager);
         nettyConnectionWriter.writeNettyPayload(NettyPayload.newSegment(0));
         writeBufferToWriter(3, nettyConnectionWriter);
         nettyConnectionWriter.writeNettyPayload(NettyPayload.newSegment(2));

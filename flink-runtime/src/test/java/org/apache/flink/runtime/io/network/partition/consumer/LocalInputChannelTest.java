@@ -520,7 +520,8 @@ class LocalInputChannelTest {
                         PartitionTestUtils.createPartition(
                                 ResultPartitionType.PIPELINED, NoOpFileChannelManager.INSTANCE);
         ResultSubpartition subpartition = parent.getAllPartitions()[0];
-        ResultSubpartitionView subpartitionView = subpartition.createReadView(() -> {});
+        ResultSubpartitionView subpartitionView =
+                subpartition.createReadView((ResultSubpartitionView view) -> {});
 
         TestingResultPartitionManager partitionManager =
                 new TestingResultPartitionManager(subpartitionView);
@@ -558,7 +559,8 @@ class LocalInputChannelTest {
                         PartitionTestUtils.createPartition(
                                 ResultPartitionType.PIPELINED, NoOpFileChannelManager.INSTANCE);
         ResultSubpartition subpartition = parent.getAllPartitions()[0];
-        ResultSubpartitionView subpartitionView = subpartition.createReadView(() -> {});
+        ResultSubpartitionView subpartitionView =
+                subpartition.createReadView((ResultSubpartitionView view) -> {});
 
         TestingResultPartitionManager partitionManager =
                 new TestingResultPartitionManager(subpartitionView);
@@ -611,11 +613,13 @@ class LocalInputChannelTest {
         LocalInputChannel channel0 =
                 createLocalInputChannel(
                         new SingleInputGateBuilder().build(),
-                        new TestingResultPartitionManager(subpartition0.createReadView(() -> {})));
+                        new TestingResultPartitionManager(
+                                subpartition0.createReadView((ResultSubpartitionView view) -> {})));
         LocalInputChannel channel1 =
                 createLocalInputChannel(
                         new SingleInputGateBuilder().build(),
-                        new TestingResultPartitionManager(subpartition1.createReadView(() -> {})));
+                        new TestingResultPartitionManager(
+                                subpartition1.createReadView((ResultSubpartitionView view) -> {})));
 
         channel0.requestSubpartitions();
         channel1.requestSubpartitions();

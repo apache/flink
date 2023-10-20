@@ -122,19 +122,25 @@ public class TieredStorageNettyServiceImpl implements TieredStorageNettyService 
         }
         List<NettyPayloadManager> nettyPayloadManagers = new ArrayList<>();
         List<NettyConnectionId> nettyConnectionIds = new ArrayList<>();
-        for (NettyServiceProducer serviceProducer : serviceProducers) {
+        List<NettyConnectionWriterImpl> writers = new ArrayList<>();
+        for (int i = 0; i < serviceProducers.size(); i++) {
             NettyPayloadManager nettyPayloadManager = new NettyPayloadManager();
-            NettyConnectionWriterImpl writer =
-                    new NettyConnectionWriterImpl(nettyPayloadManager, availabilityListener);
-            serviceProducer.connectionEstablished(subpartitionId, writer);
+            NettyConnectionWriterImpl writer = new NettyConnectionWriterImpl(nettyPayloadManager);
             nettyConnectionIds.add(writer.getNettyConnectionId());
             nettyPayloadManagers.add(nettyPayloadManager);
+            writers.add(writer);
         }
-        return new TieredStorageResultSubpartitionView(
-                availabilityListener,
-                nettyPayloadManagers,
-                nettyConnectionIds,
-                registeredServiceProducers.get(partitionId));
+        ResultSubpartitionView result =
+                new TieredStorageResultSubpartitionView(
+                        availabilityListener,
+                        nettyPayloadManagers,
+                        nettyConnectionIds,
+                        registeredServiceProducers.get(partitionId));
+        for (int i = 0; i < writers.size(); i++) {
+            writers.get(i).registerAvailabilityListener(result::notifyDataAvailable);
+            serviceProducers.get(i).connectionEstablished(subpartitionId, writers.get(i));
+        }
+        return result;
     }
 
     /**
