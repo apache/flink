@@ -22,12 +22,15 @@ import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
 
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayDeque;
+import java.util.UUID;
 
 /** Tests for the combination of {@link DataOutputSerializer} and {@link DataInputDeserializer}. */
 public class DataInputOutputSerializerTest {
@@ -118,5 +121,30 @@ public class DataInputOutputSerializerTest {
         }
 
         reference.clear();
+    }
+
+    @Test
+    public void testWriteBytes() {
+        DataOutputSerializer serializer = new DataOutputSerializer(1);
+        String givenStr = "Hello, World!";
+
+        Assertions.assertThatCode(() -> serializer.writeBytes(givenStr)).doesNotThrowAnyException();
+
+        ByteBuffer wrote = serializer.wrapAsByteBuffer();
+        String actual = Charset.defaultCharset().decode(wrote).toString();
+        Assertions.assertThat(actual).isEqualTo(givenStr);
+    }
+
+    @Test
+    public void testWriteBytesRandomly() {
+        DataOutputSerializer serializer = new DataOutputSerializer(1);
+        String randomStr = UUID.randomUUID().toString();
+
+        Assertions.assertThatCode(() -> serializer.writeBytes(randomStr))
+                .doesNotThrowAnyException();
+
+        ByteBuffer wrote = serializer.wrapAsByteBuffer();
+        String actual = Charset.defaultCharset().decode(wrote).toString();
+        Assertions.assertThat(actual).isEqualTo(randomStr);
     }
 }
