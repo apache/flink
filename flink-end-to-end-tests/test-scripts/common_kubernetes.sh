@@ -51,7 +51,7 @@ function setup_kubernetes_for_linux {
     if ! [ -x "$(command -v minikube)" ]; then
       echo "Installing minikube $MINIKUBE_VERSION ..."
       download_minikube_url="https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube-linux-$arch"
-      if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "curl -Lo minikube --fail ${download_minikube_url}"; then
+      if ! retry_times ${MINIKUBE_START_RETRIES} ${MINIKUBE_START_BACKOFF} "curl --fail -Lo minikube ${download_minikube_url}"; then
         echo "ERROR: Could not download minikube. Aborting..."
         exit 1
       fi
