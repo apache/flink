@@ -126,6 +126,11 @@ under the License.
 		<flink.shaded.jackson.version>2.14.2</flink.shaded.jackson.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
 		<target.java.version>1.8</target.java.version>
+		<target.java.version.upperbound>1.8.1</target.java.version.upperbound>
+		<!-- build release with this version of mvn -->
+		<release.maven.version>3.8.6</release.maven.version>
+		<!-- enforce at least mvn version 3.1.1 (see FLINK-12447) -->
+		<minimum.maven.version>3.1.1</minimum.maven.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
 		<!-- Overwrite default values from parent pom.
@@ -1365,7 +1370,7 @@ under the License.
 				</property>
 			</activation>
 			<properties>
-				<target.java.version>1.8</target.java.version>
+				<target.java.version>${target.java.version}</target.java.version>
 			</properties>
 			<build>
 				<plugins>
@@ -1397,10 +1402,10 @@ under the License.
 										<!-- versions for certain build tools are enforced to match the CI setup -->
 										<!-- the rules below should stay in sync with Flink Release wiki documentation and the CI scripts -->
 										<requireMavenVersion>
-											<version>[3.8.6]</version>
+											<version>[${release.maven.version}]</version>
 										</requireMavenVersion>
 										<requireJavaVersion>
-											<version>[1.8.0,1.8.1)</version>
+											<version>[${target.java.version},${target.java.version.upperbound})</version>
 										</requireJavaVersion>
 									</rules>
 								</configuration>
@@ -1799,7 +1804,7 @@ under the License.
 							<rules>
 								<requireMavenVersion>
 									<!-- enforce at least mvn version 3.1.1 (see FLINK-12447) -->
-									<version>[3.1.1,)</version>
+									<version>[${minimum.maven.version},)</version>
 								</requireMavenVersion>
 								<requireJavaVersion>
 									<version>${target.java.version}</version>
