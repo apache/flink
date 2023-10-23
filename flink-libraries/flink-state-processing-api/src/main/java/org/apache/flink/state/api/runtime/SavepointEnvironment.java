@@ -141,6 +141,7 @@ public class SavepointEnvironment implements Environment {
 
         this.userCodeClassLoader = UserCodeClassLoaderRuntimeContextAdapter.from(ctx);
         this.channelStateExecutorFactory = new ChannelStateWriteRequestExecutorFactory(jobID);
+        this.threadDumper = new CheckpointExpiredThreadDumper();
     }
 
     @Override
