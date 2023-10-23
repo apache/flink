@@ -334,6 +334,12 @@ if [ -z "${FLINK_ENV_JAVA_OPTS}" ]; then
 
     # Remove leading and ending double quotes (if present) of value
     FLINK_ENV_JAVA_OPTS="-XX:+IgnoreUnrecognizedVMOptions $( echo "${FLINK_ENV_JAVA_OPTS}" | sed -e 's/^"//'  -e 's/"$//' )"
+
+    JAVA_SPEC_VERSION=`"${JAVA_RUN}" -XshowSettings:properties 2>&1 | grep "java.specification.version = " | cut -d "=" -f 2 |  tr -d '[:space:]'`
+    if [ "$JAVA_SPEC_VERSION" -ge "21" ]; then
+      # set security manager property to allow calls to System.setSecurityManager() at runtime
+      FLINK_ENV_JAVA_OPTS="$FLINK_ENV_JAVA_OPTS -Djava.security.manager=allow"
+    fi
 fi
 
 if [ -z "${FLINK_ENV_JAVA_OPTS_JM}" ]; then
