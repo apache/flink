@@ -168,6 +168,20 @@ class WindowTableFunctionTest extends TableTestBase {
   }
 
   @Test
+  def testTumbleTVFWithNamedParams(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(
+        |   DATA => TABLE MyTable,
+        |   TIMECOL => DESCRIPTOR(rowtime),
+        |   SIZE => INTERVAL '15' MINUTE,
+        |   `OFFSET` => INTERVAL '5' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
   def testHopTVFWithOffset(): Unit = {
     val sql =
       """
@@ -195,6 +209,20 @@ class WindowTableFunctionTest extends TableTestBase {
         |    INTERVAL '1' MINUTE,
         |    INTERVAL '15' MINUTE,
         |    INTERVAL '-5' MINUTE))
+        |""".stripMargin
+    util.verifyRelPlan(sql)
+  }
+
+  @Test
+  def testHopTVFWithNamedParams(): Unit = {
+    val sql =
+      """
+        |SELECT *
+        |FROM TABLE(TUMBLE(
+        |   DATA => TABLE MyTable,
+        |   TIMECOL => DESCRIPTOR(rowtime),
+        |   SIZE => INTERVAL '15' MINUTE,
+        |   `OFFSET` => INTERVAL '5' MINUTE))
         |""".stripMargin
     util.verifyRelPlan(sql)
   }
@@ -230,4 +258,5 @@ class WindowTableFunctionTest extends TableTestBase {
         |""".stripMargin
     util.verifyRelPlan(sql)
   }
+
 }
