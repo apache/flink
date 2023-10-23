@@ -146,7 +146,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Djdk11 -Djdk17"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12 -Djdk11 -Djdk17 -Pjava17-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 17
