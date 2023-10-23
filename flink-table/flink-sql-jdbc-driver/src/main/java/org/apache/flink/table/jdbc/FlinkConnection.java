@@ -29,6 +29,7 @@ import javax.annotation.concurrent.NotThreadSafe;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.SQLClientInfoException;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
@@ -81,6 +82,11 @@ public class FlinkConnection extends BaseConnection {
         final Statement statement = new FlinkStatement(this);
         statements.add(statement);
         return statement;
+    }
+
+    @Override
+    public PreparedStatement prepareStatement(String sql) throws SQLException {
+        return new FlinkPreparedStatement(this, sql);
     }
 
     // TODO We currently do not support this, but we can't throw a SQLException here because we want
