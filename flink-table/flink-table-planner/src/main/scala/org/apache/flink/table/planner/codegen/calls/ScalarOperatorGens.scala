@@ -377,11 +377,8 @@ object ScalarOperatorGens {
     val canEqual = isInteroperable(left.resultType, right.resultType)
 
     if (isCharacterString(left.resultType) && isCharacterString(right.resultType)) {
-      wrapExpressionIfNonEq(
-        nonEq,
-        generateOperatorIfNotNull(ctx, resultType, left, right)(
-          (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"),
-        resultType)
+      generateOperatorIfNotNull(ctx, resultType, left, right)(
+        (leftTerm, rightTerm) => s"${if (nonEq) "!" else ""}$leftTerm.equals($rightTerm)")
     }
     // numeric types
     else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
@@ -441,15 +438,11 @@ object ScalarOperatorGens {
            |  ${left.resultTerm}.ensureMaterialized($ser);
            |  ${right.resultTerm}.ensureMaterialized($ser);
            |  $resultTerm =
-           |    ${left.resultTerm}.getBinarySection().
+           |    ${if (nonEq) "!" else ""}${left.resultTerm}.getBinarySection().
            |    equals(${right.resultTerm}.getBinarySection());
            |}
            |""".stripMargin
-      wrapExpressionIfNonEq(
-        nonEq,
-        GeneratedExpression(resultTerm, nullTerm, code, resultType),
-        resultType
-      )
+      GeneratedExpression(resultTerm, nullTerm, code, resultType)
     }
     // support date/time/timestamp equalTo string.
     // for performance, we cast literal string to literal time.
@@ -483,14 +476,9 @@ object ScalarOperatorGens {
           s"Incomparable types: ${left.resultType} and " +
             s"${right.resultType}")
       }
-
-      wrapExpressionIfNonEq(
-        nonEq,
-        generateOperatorIfNotNull(ctx, resultType, newLeft, newRight) {
-          (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
-        },
-        resultType
-      )
+      generateOperatorIfNotNull(ctx, resultType, newLeft, newRight) {
+        (leftTerm, rightTerm) => s"${if (nonEq) "!" else ""}$leftTerm.equals($rightTerm)"
+      }
     }
   }
 

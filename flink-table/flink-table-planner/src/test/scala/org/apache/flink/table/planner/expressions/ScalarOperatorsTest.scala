@@ -429,6 +429,29 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("NOT(ROW('abc', 'def') = f30)", "FALSE")
     testSqlApi("NOT(ROW('abc', 'xyz') = f30)", "TRUE")
     testSqlApi("NOT(CAST(NULL AS ROW<f0 STRING, f1 STRING>) = f30)", "NULL")
+
+    // time interval, comparable
+    testSqlApi("f31 = f33", "TRUE")
+    testSqlApi("f31 = f32", "FALSE")
+    testSqlApi("f31 = NULL", "NULL")
+    testSqlApi("f31 = f34", "NULL")
+    testSqlApi("f31 = CAST(NULL AS INTERVAL DAY)", "NULL")
+    testSqlApi("f33 = f31", "TRUE")
+    testSqlApi("f32 = f31", "FALSE")
+    testSqlApi("NULL = f31", "NULL")
+    testSqlApi("f34 = f31", "NULL")
+    testSqlApi("CAST(NULL AS INTERVAL DAY) = f31", "NULL")
+
+    testSqlApi("NOT(f31 = f33)", "FALSE")
+    testSqlApi("NOT(f31 = f32)", "TRUE")
+    testSqlApi("NOT(f31 = NULL)", "NULL")
+    testSqlApi("NOT(f31 = f34)", "NULL")
+    testSqlApi("NOT(f31 = CAST(NULL AS INTERVAL DAY))", "NULL")
+    testSqlApi("NOT(f33 = f31)", "FALSE")
+    testSqlApi("NOT(f32 = f31)", "TRUE")
+    testSqlApi("NOT(NULL = f31)", "NULL")
+    testSqlApi("NOT(f34 = f31)", "NULL")
+    testSqlApi("NOT(CAST(NULL AS INTERVAL DAY) = f31)", "NULL")
   }
 
   @Test

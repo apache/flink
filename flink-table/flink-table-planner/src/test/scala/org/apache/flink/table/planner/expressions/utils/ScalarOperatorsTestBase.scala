@@ -25,14 +25,14 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.types.Row
 
-import java.time.DayOfWeek
+import java.time.{DayOfWeek, Duration}
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 
 abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
 
   override def testData: Row = {
-    val testData = new Row(31)
+    val testData = new Row(35)
     testData.setField(0, 1: Byte)
     testData.setField(1, 1: Short)
     testData.setField(2, 1)
@@ -68,6 +68,10 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
     testData.setField(28, DayOfWeek.MONDAY)
     testData.setField(29, DayOfWeek.SUNDAY)
     testData.setField(30, Row.of("abc", "def"))
+    testData.setField(31, Duration.ofDays(2))
+    testData.setField(32, Duration.ofDays(3))
+    testData.setField(33, Duration.ofDays(2))
+    testData.setField(34, null)
     testData
   }
 
@@ -111,7 +115,11 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
         "f30",
         DataTypes.ROW(
           DataTypes.FIELD("f0", DataTypes.STRING()),
-          DataTypes.FIELD("f1", DataTypes.STRING())))
+          DataTypes.FIELD("f1", DataTypes.STRING()))),
+      DataTypes.FIELD("f31", DataTypes.INTERVAL(DataTypes.DAY)),
+      DataTypes.FIELD("f32", DataTypes.INTERVAL(DataTypes.DAY)),
+      DataTypes.FIELD("f33", DataTypes.INTERVAL(DataTypes.DAY)),
+      DataTypes.FIELD("f34", DataTypes.INTERVAL(DataTypes.DAY))
     )
   }
 

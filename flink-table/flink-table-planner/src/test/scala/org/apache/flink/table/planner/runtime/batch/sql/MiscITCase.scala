@@ -32,6 +32,8 @@ import org.apache.flink.types.Row
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.{BeforeEach, Test}
 
+import java.time.DayOfWeek
+
 /** Misc tests. */
 class MiscITCase extends BatchTestBase {
 
@@ -623,7 +625,35 @@ class MiscITCase extends BatchTestBase {
   }
 
   @Test
-  def testMultisetEqualAndNotEqual(): Unit = {
+  def testEqualAndNotEqual(): Unit = {
+    checkQuery(
+      Seq(("aa", "aa"), ("aa", "bb"), ("aa", null)),
+      "SELECT COUNT(*) FROM Table1 WHERE SUBSTR(f0, 2, 1) <> SUBSTR(f1, 2, 1)",
+      Seq(Tuple1(1))
+    )
+    checkQuery(
+      Seq(("aa", "aa"), ("aa", "bb"), ("aa", null)),
+      "SELECT COUNT(*) FROM Table1 WHERE SUBSTR(f0, 2, 1) = SUBSTR(f1, 2, 1)",
+      Seq(Tuple1(1))
+    )
+
+    checkQuery(
+      Seq(
+        (DayOfWeek.SUNDAY, DayOfWeek.SUNDAY),
+        (DayOfWeek.SUNDAY, DayOfWeek.MONDAY),
+        (DayOfWeek.SUNDAY, null)),
+      "SELECT COUNT(*) FROM Table1 WHERE f0 = f1",
+      Seq(Tuple1(1))
+    )
+    checkQuery(
+      Seq(
+        (DayOfWeek.SUNDAY, DayOfWeek.SUNDAY),
+        (DayOfWeek.SUNDAY, DayOfWeek.MONDAY),
+        (DayOfWeek.SUNDAY, null)),
+      "SELECT COUNT(*) FROM Table1 WHERE f0 <> f1",
+      Seq(Tuple1(1))
+    )
+
     checkQuery(
       Seq(("b", 1), ("a", 1), ("b", 1)),
       "SELECT t1.ms = t2.ms FROM " +
