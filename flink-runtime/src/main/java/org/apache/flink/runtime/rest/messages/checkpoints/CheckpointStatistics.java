@@ -41,6 +41,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import io.swagger.v3.oas.annotations.media.DiscriminatorMapping;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import javax.annotation.Nullable;
 
 import java.util.Collection;
@@ -64,6 +67,19 @@ import java.util.Objects;
             value = CheckpointStatistics.PendingCheckpointStatistics.class,
             name = "in_progress")
 })
+@Schema(
+        discriminatorProperty = "className",
+        discriminatorMapping = {
+            @DiscriminatorMapping(
+                    value = "completed",
+                    schema = CheckpointStatistics.CompletedCheckpointStatistics.class),
+            @DiscriminatorMapping(
+                    value = "failed",
+                    schema = CheckpointStatistics.FailedCheckpointStatistics.class),
+            @DiscriminatorMapping(
+                    value = "in_progress",
+                    schema = CheckpointStatistics.PendingCheckpointStatistics.class),
+        })
 public class CheckpointStatistics implements ResponseBody {
 
     public static final String FIELD_NAME_ID = "id";
