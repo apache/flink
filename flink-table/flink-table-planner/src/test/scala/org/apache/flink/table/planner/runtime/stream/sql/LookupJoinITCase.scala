@@ -217,7 +217,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
 
   @TestTemplate
   def testJoinTemporalTableWithUdfFilter(): Unit = {
-    tEnv.createTemporarySystemFunction("add", new TestAddWithOpen)
+    tEnv.createTemporaryFunction("add", new TestAddWithOpen)
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
@@ -426,9 +426,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
 
   @TestTemplate
   def testLeftJoinTemporalTableWithUdfPreFilter(): Unit = {
-    tEnv.createTemporarySystemFunction("add", new TestAddWithOpen)
-    // use the new api when FLINK-32986 is resolved
-    // tEnv.createTemporaryFunction("add", classOf[TestAddWithOpen])
+    tEnv.createTemporaryFunction("add", new TestAddWithOpen)
 
     // 'add(T.id, 2) > 4' is equal to 'T.id > 2', here we are testing a udf
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T LEFT JOIN user_table " +

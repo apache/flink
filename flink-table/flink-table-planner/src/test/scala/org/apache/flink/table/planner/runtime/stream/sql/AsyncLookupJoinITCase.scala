@@ -278,7 +278,7 @@ class AsyncLookupJoinITCase(
 
   @TestTemplate
   def testAsyncJoinTemporalTableWithUdfFilter(): Unit = {
-    tEnv.createTemporarySystemFunction("add", new TestAddWithOpen)
+    tEnv.createTemporaryFunction("add", new TestAddWithOpen)
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
