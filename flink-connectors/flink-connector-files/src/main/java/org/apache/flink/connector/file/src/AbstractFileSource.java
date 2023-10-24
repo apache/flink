@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
+import org.apache.flink.connector.file.src.assigners.FixedFileSplitAssigner;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connector.file.src.impl.ContinuousFileSplitEnumerator;
 import org.apache.flink.connector.file.src.impl.FileSourceReader;
@@ -194,6 +195,10 @@ public abstract class AbstractFileSource<T, SplitT extends FileSourceSplit>
                 (SplitEnumeratorContext<FileSourceSplit>) context;
 
         final FileSplitAssigner splitAssigner = assignerFactory.create(splits);
+        if (splitAssigner instanceof FixedFileSplitAssigner) {
+            ((FixedFileSplitAssigner) splitAssigner)
+                    .setTaskParallelism(context.currentParallelism());
+        }
 
         if (continuousEnumerationSettings == null) {
             // bounded case
