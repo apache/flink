@@ -114,7 +114,7 @@ public class ValuesSource implements Source<RowData, ValuesSourceSplit, NoOpEnum
     public SplitEnumerator<ValuesSourceSplit, NoOpEnumState> restoreEnumerator(
             SplitEnumeratorContext<ValuesSourceSplit> enumContext, NoOpEnumState checkpoint)
             throws Exception {
-        throw new UnsupportedOperationException("Unsupported now.");
+        return createEnumerator(enumContext);
     }
 
     @Override

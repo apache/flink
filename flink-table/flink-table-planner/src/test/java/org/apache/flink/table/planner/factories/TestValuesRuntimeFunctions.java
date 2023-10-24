@@ -71,6 +71,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.RESOURCE_COUNTER;
@@ -92,6 +93,10 @@ final class TestValuesRuntimeFunctions {
     private static final Map<String, Map<Integer, List<Row>>> globalRetractResult = new HashMap<>();
     // [table_name, [watermark]]
     private static final Map<String, List<Watermark>> watermarkHistory = new HashMap<>();
+
+    // [table_name, [List[observer]]
+    private static final Map<String, List<BiConsumer<Integer, List<Row>>>>
+            localRawResultsObservers = new HashMap<>();
 
     static List<String> getRawResultsAsStrings(String tableName) {
         return getRawResults(tableName).stream()
@@ -160,6 +165,11 @@ final class TestValuesRuntimeFunctions {
             }
         }
         return Collections.emptyList();
+    }
+
+    static void registerLocalRawResultsObserver(
+            String tableName, BiConsumer<Integer, List<Row>> observer) {
+        localRawResultsObservers.computeIfAbsent(tableName, n -> new ArrayList<>()).add(observer);
     }
 
     static void clearResults() {
@@ -347,6 +357,17 @@ final class TestValuesRuntimeFunctions {
                 rawResultState.update(localRawResult);
             }
         }
+
+        protected void addLocalRawResult(Row row) {
+            localRawResult.add(row);
+            Optional.ofNullable(localRawResultsObservers.get(tableName))
+                    .orElse(Collections.emptyList())
+                    .forEach(
+                            c ->
+                                    c.accept(
+                                            getRuntimeContext().getIndexOfThisSubtask(),
+                                            localRawResult));
+        }
     }
 
     static class AppendingSinkFunction extends AbstractExactlyOnceSink {
@@ -376,7 +397,7 @@ final class TestValuesRuntimeFunctions {
                     }
                 }
                 synchronized (LOCK) {
-                    localRawResult.add((Row) converter.toExternal(value));
+                    addLocalRawResult((Row) converter.toExternal(value));
                 }
             } else {
                 throw new RuntimeException(
@@ -436,7 +457,7 @@ final class TestValuesRuntimeFunctions {
             assertThat(row).isNotNull();
 
             synchronized (LOCK) {
-                localRawResult.add(row);
+                addLocalRawResult(row);
 
                 Row key = Row.project(row, keyIndices);
                 key.setKind(RowKind.INSERT);
@@ -538,7 +559,7 @@ final class TestValuesRuntimeFunctions {
             Row row = (Row) converter.toExternal(value);
             assertThat(row).isNotNull();
             synchronized (LOCK) {
-                localRawResult.add(row);
+                addLocalRawResult(row);
                 final Row retractRow = Row.copy(row);
                 retractRow.setKind(RowKind.INSERT);
                 if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
@@ -590,6 +611,13 @@ final class TestValuesRuntimeFunctions {
                 assertThat(row).isNotNull();
                 synchronized (LOCK) {
                     localRawResult.add(row);
+                    Optional.ofNullable(localRawResultsObservers.get(tableName))
+                            .orElse(Collections.emptyList())
+                            .forEach(
+                                    c ->
+                                            c.accept(
+                                                    getRuntimeContext().getIndexOfThisSubtask(),
+                                                    localRawResult));
                 }
             } else {
                 throw new RuntimeException(

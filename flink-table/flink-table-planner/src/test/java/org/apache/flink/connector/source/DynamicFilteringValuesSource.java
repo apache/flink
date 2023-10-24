@@ -120,8 +120,9 @@ public class DynamicFilteringValuesSource
 
     @Override
     public SplitEnumerator<ValuesSourcePartitionSplit, NoOpEnumState> restoreEnumerator(
-            SplitEnumeratorContext<ValuesSourcePartitionSplit> context, NoOpEnumState checkpoint) {
-        throw new UnsupportedOperationException("Unsupported now.");
+            SplitEnumeratorContext<ValuesSourcePartitionSplit> context, NoOpEnumState checkpoint)
+            throws Exception {
+        return createEnumerator(context);
     }
 
     @Override

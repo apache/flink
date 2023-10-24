@@ -148,6 +148,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -265,6 +266,18 @@ public final class TestValuesTableFactory
      */
     public static List<Row> getResults(String tableName) {
         return TestValuesRuntimeFunctions.getResults(tableName);
+    }
+
+    /**
+     * Registers an observer for a table that gets notified of each incoming raw data for every
+     * subtask. It gets all rows seen so far, by a given task.
+     *
+     * @param tableName the table name of the registered table sink.
+     * @param observer the observer to be notified
+     */
+    public static void registerLocalRawResultsObserver(
+            String tableName, BiConsumer<Integer, List<Row>> observer) {
+        TestValuesRuntimeFunctions.registerLocalRawResultsObserver(tableName, observer);
     }
 
     public static List<Watermark> getWatermarkOutput(String tableName) {
