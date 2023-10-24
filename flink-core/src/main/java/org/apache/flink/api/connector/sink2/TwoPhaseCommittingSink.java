@@ -19,14 +19,12 @@
 package org.apache.flink.api.connector.sink2;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.OptionalLong;
 
 /**
  * A {@link Sink} for exactly-once semantics using a two-phase commit protocol. The {@link Sink}
@@ -100,39 +98,9 @@ public interface TwoPhaseCommittingSink<InputT, CommT> extends Sink<InputT> {
 
     /** The interface exposes some runtime info for creating a {@link Committer}. */
     @PublicEvolving
-    interface CommitterInitContext {
-        /**
-         * The first checkpoint id when an application is started and not recovered from a
-         * previously taken checkpoint or savepoint.
-         */
-        long INITIAL_CHECKPOINT_ID = 1;
-
-        /** @return The id of task where the committer is running. */
-        int getSubtaskId();
-
-        /** @return The number of parallel committer tasks. */
-        int getNumberOfParallelSubtasks();
-
-        /**
-         * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
-         *
-         * @return Attempt number of the subtask.
-         */
-        int getAttemptNumber();
+    interface CommitterInitContext extends org.apache.flink.api.connector.sink2.InitContext {
 
         /** @return The metric group this committer belongs to. */
         SinkCommitterMetricGroup metricGroup();
-
-        /**
-         * Returns id of the restored checkpoint, if state was restored from the snapshot of a
-         * previous execution.
-         */
-        OptionalLong getRestoredCheckpointId();
-
-        /**
-         * The ID of the current job. Note that Job ID can change in particular upon manual restart.
-         * The returned ID should NOT be used for any job management tasks.
-         */
-        JobID getJobId();
     }
 }

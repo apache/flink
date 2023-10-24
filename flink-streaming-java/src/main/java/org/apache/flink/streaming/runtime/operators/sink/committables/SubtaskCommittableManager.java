@@ -87,6 +87,7 @@ class SubtaskCommittableManager<CommT> {
     void add(CommT committable) {
         checkState(requests.size() < numExpectedCommittables, "Already received all committables.");
         requests.add(new CommitRequestImpl<>(committable, metricGroup));
+        metricGroup.getNumCommittablesTotalCounter().inc();
     }
 
     /**

@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
@@ -224,51 +223,22 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
         return new CommitterInitContextImp(getRuntimeContext(), metricGroup, restoredCheckpointId);
     }
 
-    private static class CommitterInitContextImp implements CommitterInitContext {
+    private static class CommitterInitContextImp extends InitContextBase
+            implements CommitterInitContext {
 
         private final SinkCommitterMetricGroup metricGroup;
-
-        private final OptionalLong restoredCheckpointId;
-
-        private final StreamingRuntimeContext runtimeContext;
 
         public CommitterInitContextImp(
                 StreamingRuntimeContext runtimeContext,
                 SinkCommitterMetricGroup metricGroup,
                 OptionalLong restoredCheckpointId) {
-            this.runtimeContext = checkNotNull(runtimeContext);
+            super(runtimeContext, restoredCheckpointId);
             this.metricGroup = checkNotNull(metricGroup);
-            this.restoredCheckpointId = restoredCheckpointId;
-        }
-
-        @Override
-        public int getNumberOfParallelSubtasks() {
-            return runtimeContext.getNumberOfParallelSubtasks();
-        }
-
-        @Override
-        public int getAttemptNumber() {
-            return runtimeContext.getAttemptNumber();
-        }
-
-        @Override
-        public int getSubtaskId() {
-            return runtimeContext.getIndexOfThisSubtask();
         }
 
         @Override
         public SinkCommitterMetricGroup metricGroup() {
             return metricGroup;
-        }
-
-        @Override
-        public OptionalLong getRestoredCheckpointId() {
-            return restoredCheckpointId;
-        }
-
-        @Override
-        public JobID getJobId() {
-            return runtimeContext.getJobId();
         }
     }
 }

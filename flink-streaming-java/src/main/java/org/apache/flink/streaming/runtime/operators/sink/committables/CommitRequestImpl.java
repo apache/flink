@@ -39,10 +39,6 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
         this.committable = committable;
         this.metricGroup = metricGroup;
         state = CommitRequestState.RECEIVED;
-
-        // Currently only the SubtaskCommittableManager uses this constructor to create a new
-        // CommitRequestImpl, so we can increment the metrics here
-        metricGroup.getNumCommittablesTotalCounter().inc();
     }
 
     protected CommitRequestImpl(
