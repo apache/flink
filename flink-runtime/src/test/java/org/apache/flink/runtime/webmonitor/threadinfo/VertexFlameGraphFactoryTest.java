@@ -79,7 +79,7 @@ class VertexFlameGraphFactoryTest {
                                                     && value.endsWith("$Lambda$0/0")
                                             || javaVersion.compareTo("21") < 0
                                                     && value.endsWith("$Lambda$0/0x0")
-                                            || value.endsWith("$$Lambda0/0");
+                                            || value.endsWith("$$Lambda0/0x0");
                                 }
                             });
         }
