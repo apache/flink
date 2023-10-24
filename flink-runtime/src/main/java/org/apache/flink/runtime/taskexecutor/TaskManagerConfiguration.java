@@ -51,7 +51,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
     private final String[] tmpDirectories;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     private final Time slotTimeout;
 
@@ -79,7 +79,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
             ResourceProfile defaultSlotResourceProfile,
             ResourceProfile totalResourceProfile,
             String[] tmpDirectories,
-            Time rpcTimeout,
+            Duration rpcTimeout,
             Time slotTimeout,
             @Nullable Duration maxRegistrationDuration,
             Configuration configuration,
@@ -121,7 +121,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
         return totalResourceProfile;
     }
 
-    public Time getRpcTimeout() {
+    public Duration getRpcTimeout() {
         return rpcTimeout;
     }
 
@@ -195,8 +195,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
         final String[] tmpDirPaths = ConfigurationUtils.parseTempDirectories(configuration);
 
-        final Time rpcTimeout =
-                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
+        final Duration rpcTimeout = configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION);
 
         LOG.debug("Messages have a max timeout of " + rpcTimeout);
 
