@@ -1470,7 +1470,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         getResourceID(),
                         taskExecutorRegistrationId,
                         taskSlotTable.createSlotReport(getResourceID()),
-                        taskManagerConfiguration.getRpcTimeout());
+                        Time.fromDuration(taskManagerConfiguration.getRpcTimeout()));
 
         slotReportResponseFuture.whenCompleteAsync(
                 (acknowledge, throwable) -> {
@@ -1610,7 +1610,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     jobMasterGateway.offerSlots(
                             getResourceID(),
                             reservedSlots,
-                            taskManagerConfiguration.getRpcTimeout());
+                            Time.fromDuration(taskManagerConfiguration.getRpcTimeout()));
 
             acceptedSlotsFuture.whenCompleteAsync(
                     handleAcceptedSlotOffers(
