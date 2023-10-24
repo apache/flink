@@ -1774,6 +1774,10 @@ components:
           format: int64
       discriminator:
         propertyName: className
+        mapping:
+          completed: '#/components/schemas/CompletedCheckpointStatistics'
+          failed: '#/components/schemas/FailedCheckpointStatistics'
+          in_progress: '#/components/schemas/PendingCheckpointStatistics'
     CheckpointStatisticsSummary:
       type: object
       properties:
@@ -2854,6 +2858,9 @@ components:
           type: string
       discriminator:
         propertyName: className
+        mapping:
+          completed: '#/components/schemas/CompletedSubtaskCheckpointStatistics'
+          pending: '#/components/schemas/PendingSubtaskCheckpointStatistics'
     SubtaskExecutionAttemptAccumulatorsInfo:
       type: object
       properties:
