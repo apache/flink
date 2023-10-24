@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
@@ -53,7 +52,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
     private final Duration rpcTimeout;
 
-    private final Time slotTimeout;
+    private final Duration slotTimeout;
 
     // null indicates an infinite duration
     @Nullable private final Duration maxRegistrationDuration;
@@ -80,7 +79,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
             ResourceProfile totalResourceProfile,
             String[] tmpDirectories,
             Duration rpcTimeout,
-            Time slotTimeout,
+            Duration slotTimeout,
             @Nullable Duration maxRegistrationDuration,
             Configuration configuration,
             boolean exitJvmOnOutOfMemory,
@@ -125,7 +124,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
         return rpcTimeout;
     }
 
-    public Time getSlotTimeout() {
+    public Duration getSlotTimeout() {
         return slotTimeout;
     }
 
@@ -199,8 +198,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
         LOG.debug("Messages have a max timeout of " + rpcTimeout);
 
-        final Time slotTimeout =
-                Time.milliseconds(configuration.get(TaskManagerOptions.SLOT_TIMEOUT).toMillis());
+        final Duration slotTimeout = configuration.get(TaskManagerOptions.SLOT_TIMEOUT);
 
         Duration finiteRegistrationDuration;
         try {
