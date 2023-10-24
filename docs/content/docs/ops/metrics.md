@@ -1,6 +1,6 @@
 ---
 title: "Metrics"
-weight: 6
+weight: 5
 type: docs
 aliases:
   - /ops/metrics.html
