@@ -70,6 +70,7 @@ import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -124,7 +125,7 @@ class TaskExecutorSubmissionTest {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
-            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
 
             taskRunningFuture.get();
@@ -153,7 +154,7 @@ class TaskExecutorSubmissionTest {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable taskSlotTable = env.getTaskSlotTable();
 
-            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
 
             assertThatFuture(tmGateway.submitTask(tdd, env.getJobMasterId(), timeout))
                     .eventuallyFailsWith(ExecutionException.class)
@@ -189,11 +190,11 @@ class TaskExecutorSubmissionTest {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
-            taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd1, env.getJobMasterId(), timeout).get();
             task1RunningFuture.get();
 
-            taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd2, env.getJobMasterId(), timeout).get();
             task2RunningFuture.get();
 
@@ -248,11 +249,11 @@ class TaskExecutorSubmissionTest {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
-            taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd1, env.getJobMasterId(), timeout).get();
             task1RunningFuture.get();
 
-            taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd2, env.getJobMasterId(), timeout).get();
             task2RunningFuture.get();
 
@@ -308,11 +309,11 @@ class TaskExecutorSubmissionTest {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
-            taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd1, jobMasterId, timeout).get();
             task1RunningFuture.get();
 
-            taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd2, jobMasterId, timeout).get();
             task2RunningFuture.get();
 
@@ -387,11 +388,11 @@ class TaskExecutorSubmissionTest {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
-            taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(0, jobId, tdd1.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd1, jobMasterId, timeout).get();
             task1RunningFuture.get();
 
-            taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(1, jobId, tdd2.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd2, jobMasterId, timeout).get();
             task2RunningFuture.get();
 
@@ -443,7 +444,7 @@ class TaskExecutorSubmissionTest {
                 TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
                 TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
-                taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
+                taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
                 tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
                 taskRunningFuture.get();
 
@@ -478,7 +479,7 @@ class TaskExecutorSubmissionTest {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
-            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
             taskRunningFuture.get();
 
@@ -536,7 +537,7 @@ class TaskExecutorSubmissionTest {
             TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
             TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
-            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
+            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
             tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
             taskRunningFuture.get();
 
