@@ -626,34 +626,42 @@ class MiscITCase extends BatchTestBase {
 
   @Test
   def testEqualAndNotEqual(): Unit = {
+    // character string
     checkQuery(
-      Seq(("aa", "aa"), ("aa", "bb"), ("aa", null)),
-      "SELECT COUNT(*) FROM Table1 WHERE SUBSTR(f0, 2, 1) <> SUBSTR(f1, 2, 1)",
+      Seq((null, 2), ("b", 1)),
+      "SELECT f1 FROM Table1 WHERE f0 <> 'a'",
       Seq(Tuple1(1))
     )
     checkQuery(
       Seq(("aa", "aa"), ("aa", "bb"), ("aa", null)),
-      "SELECT COUNT(*) FROM Table1 WHERE SUBSTR(f0, 2, 1) = SUBSTR(f1, 2, 1)",
-      Seq(Tuple1(1))
+      "SELECT * FROM Table1 WHERE SUBSTR(f0, 2, 1) <> SUBSTR(f1, 2, 1)",
+      Seq(("aa", "bb"))
+    )
+    checkQuery(
+      Seq(("aa", "aa"), ("aa", "bb"), ("aa", null)),
+      "SELECT * FROM Table1 WHERE SUBSTR(f0, 2, 1) = SUBSTR(f1, 2, 1)",
+      Seq(("aa", "aa"))
     )
 
+    // raw
     checkQuery(
       Seq(
         (DayOfWeek.SUNDAY, DayOfWeek.SUNDAY),
         (DayOfWeek.SUNDAY, DayOfWeek.MONDAY),
         (DayOfWeek.SUNDAY, null)),
-      "SELECT COUNT(*) FROM Table1 WHERE f0 = f1",
-      Seq(Tuple1(1))
+      "SELECT * FROM Table1 WHERE f0 = f1",
+      Seq((DayOfWeek.SUNDAY, DayOfWeek.SUNDAY))
     )
     checkQuery(
       Seq(
         (DayOfWeek.SUNDAY, DayOfWeek.SUNDAY),
         (DayOfWeek.SUNDAY, DayOfWeek.MONDAY),
         (DayOfWeek.SUNDAY, null)),
-      "SELECT COUNT(*) FROM Table1 WHERE f0 <> f1",
-      Seq(Tuple1(1))
+      "SELECT * FROM Table1 WHERE f0 <> f1",
+      Seq((DayOfWeek.SUNDAY, DayOfWeek.MONDAY))
     )
 
+    // multiset
     checkQuery(
       Seq(("b", 1), ("a", 1), ("b", 1)),
       "SELECT t1.ms = t2.ms FROM " +
