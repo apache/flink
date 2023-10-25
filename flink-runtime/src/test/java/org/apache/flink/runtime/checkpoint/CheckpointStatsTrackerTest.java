@@ -168,7 +168,8 @@ class CheckpointStatsTrackerTest {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         123,
-                        null);
+                        null,
+                        42);
         tracker.reportRestoredCheckpoint(restored);
 
         CheckpointStatsSnapshot snapshot = tracker.createSnapshot();
@@ -268,7 +269,8 @@ class CheckpointStatsTrackerTest {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         12,
-                        null));
+                        null,
+                        42));
 
         CheckpointStatsSnapshot snapshot4 = tracker.createSnapshot();
         assertThat(snapshot4).isNotEqualTo(snapshot3);
@@ -529,7 +531,8 @@ class CheckpointStatsTrackerTest {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         restoreTimestamp,
-                        null);
+                        null,
+                        42);
         stats.reportRestoredCheckpoint(restored);
 
         assertThat(numCheckpoints.getValue()).isEqualTo(2);
