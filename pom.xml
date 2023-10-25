@@ -1199,7 +1199,7 @@ under the License.
 							</configuration>
 						</plugin>
 						<plugin>
-							<groupId>io.github.zentol.japicmp</groupId>
+							<groupId>com.github.siom79.japicmp</groupId>
 							<artifactId>japicmp-maven-plugin</artifactId>
 							<configuration>
 								<skip>true</skip>
@@ -1470,7 +1470,7 @@ under the License.
 
 			<plugin>
 				<!-- activate API compatibility checks -->
-				<groupId>io.github.zentol.japicmp</groupId>
+				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
 			</plugin>
 
@@ -2240,9 +2240,9 @@ under the License.
 
 				<!-- Configuration for the binary compatibility checker -->
 				<plugin>
-					<groupId>io.github.zentol.japicmp</groupId>
+					<groupId>com.github.siom79.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.17.1.1_m325</version>
+					<version>0.17.1</version>
 					<configuration>
 						<oldVersion>
 							<dependency>
