@@ -127,7 +127,7 @@ public class SinkV2MetricsITCase extends TestLogger {
 
     @Test
     public void testCommitterMetrics() throws Exception {
-        final int NUM_COMMITTABLES = 7;
+        final int numCommittables = 7;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // make sure all parallel instances have processed the same amount of records before
@@ -137,7 +137,7 @@ public class SinkV2MetricsITCase extends TestLogger {
         SharedReference<CyclicBarrier> afterBarrier =
                 sharedObjects.add(new CyclicBarrier(env.getParallelism() + 1));
 
-        env.fromSequence(0, NUM_COMMITTABLES - 1)
+        env.fromSequence(0, numCommittables - 1)
                 .returns(BasicTypeInfo.LONG_TYPE_INFO)
                 .sinkTo(
                         TestSinkV2.<Long>newBuilder()
