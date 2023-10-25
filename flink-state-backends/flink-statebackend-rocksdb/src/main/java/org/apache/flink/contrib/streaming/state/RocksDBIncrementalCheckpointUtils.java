@@ -175,14 +175,14 @@ public class RocksDBIncrementalCheckpointUtils {
      * @return The best candidate or null if no candidate was a good fit.
      */
     @Nullable
-    public static KeyedStateHandle chooseTheBestStateHandleForInitial(
-            @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
+    public static <T extends KeyedStateHandle> T chooseTheBestStateHandleForInitial(
+            @Nonnull Collection<T> restoreStateHandles,
             @Nonnull KeyGroupRange targetKeyGroupRange,
             double overlapFractionThreshold) {
 
-        KeyedStateHandle bestStateHandle = null;
+        T bestStateHandle = null;
         Score bestScore = Score.MIN;
-        for (KeyedStateHandle rawStateHandle : restoreStateHandles) {
+        for (T rawStateHandle : restoreStateHandles) {
             Score handleScore =
                     stateHandleEvaluator(
                             rawStateHandle, targetKeyGroupRange, overlapFractionThreshold);
