@@ -43,8 +43,8 @@ import org.junit.jupiter.api.Test;
 import java.io.EOFException;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** */
 class ChannelViewsTest {
@@ -137,16 +137,7 @@ class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-
-            int k1 = rec.f0;
-            String v1 = rec.f1;
-
-            int k2 = readRec.f0;
-            String v2 = readRec.f1;
-
-            assertThat(k1 == k2 && v1.equals(v2))
-                    .withFailMessage("The re-generated and the read record do not match.")
-                    .isTrue();
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         this.memoryManager.release(inView.close());
@@ -191,13 +182,7 @@ class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_LONG; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-            final int k1 = rec.f0;
-            final String v1 = rec.f1;
-            final int k2 = readRec.f0;
-            final String v2 = readRec.f1;
-            assertThat(k1 == k2 && v1.equals(v2))
-                    .withFailMessage("The re-generated and the read record do not match.")
-                    .isTrue();
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         this.memoryManager.release(inView.close());
@@ -242,13 +227,7 @@ class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-            final int k1 = rec.f0;
-            final String v1 = rec.f1;
-            final int k2 = readRec.f0;
-            final String v2 = readRec.f1;
-            assertThat(k1 == k2 && v1.equals(v2))
-                    .withFailMessage("The re-generated and the read record do not match.")
-                    .isTrue();
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         generator.next(rec);
@@ -297,16 +276,7 @@ class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-
-            int k1 = rec.f0;
-            String v1 = rec.f1;
-
-            int k2 = readRec.f0;
-            String v2 = readRec.f1;
-
-            assertThat(k1 == k2 && v1.equals(v2))
-                    .withFailMessage("The re-generated and the read record do not match.")
-                    .isTrue();
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         this.memoryManager.release(inView.close());
@@ -350,16 +320,7 @@ class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-
-            int k1 = rec.f0;
-            String v1 = rec.f1;
-
-            int k2 = readRec.f0;
-            String v2 = readRec.f1;
-
-            assertThat(k1 == k2 && v1.equals(v2))
-                    .withFailMessage("The re-generated and the read record do not match.")
-                    .isTrue();
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         this.memoryManager.release(inView.close());
@@ -404,19 +365,26 @@ class ChannelViewsTest {
         for (int i = 0; i < NUM_PAIRS_SHORT / 2; i++) {
             generator.next(rec);
             serializer.deserialize(readRec, inView);
-
-            int k1 = rec.f0;
-            String v1 = rec.f1;
-
-            int k2 = readRec.f0;
-            String v2 = readRec.f1;
-
-            assertThat(k1 == k2 && v1.equals(v2))
-                    .withFailMessage("The re-generated and the read record do not match.")
-                    .isTrue();
+            assertReadRecordMatchRegenerated(readRec, rec);
         }
 
         this.memoryManager.release(inView.close());
         reader.deleteChannel();
+    }
+
+    private static void assertReadRecordMatchRegenerated(
+            Tuple2<Integer, String> readRec, Tuple2<Integer, String> rec) {
+        int k1 = rec.f0;
+        String v1 = rec.f1;
+
+        int k2 = readRec.f0;
+        String v2 = readRec.f1;
+
+        assertThat(k2)
+                .withFailMessage("The re-generated and the read record do not match.")
+                .isEqualTo(k1);
+        assertThat(v2)
+                .withFailMessage("The re-generated and the read record do not match.")
+                .isEqualTo(v1);
     }
 }

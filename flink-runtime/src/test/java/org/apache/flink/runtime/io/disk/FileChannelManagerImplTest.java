@@ -61,36 +61,38 @@ class FileChannelManagerImplTest {
                 TempDirUtils.newFolder(temporaryFolder).getAbsoluteFile().getAbsolutePath();
         String directory2 =
                 TempDirUtils.newFolder(temporaryFolder).getAbsoluteFile().getAbsolutePath();
-        FileChannelManager fileChannelManager =
-                new FileChannelManagerImpl(new String[] {directory1, directory2}, "test");
 
-        int numChannelIDs = 100000;
-        AtomicInteger counter1 = new AtomicInteger();
-        AtomicInteger counter2 = new AtomicInteger();
+        try (FileChannelManager fileChannelManager =
+                new FileChannelManagerImpl(new String[] {directory1, directory2}, "test")) {
+            int numChannelIDs = 100000;
+            AtomicInteger counter1 = new AtomicInteger();
+            AtomicInteger counter2 = new AtomicInteger();
 
-        int numThreads = 10;
-        Thread[] threads = new Thread[numThreads];
-        for (int i = 0; i < numThreads; ++i) {
-            threads[i] =
-                    new Thread(
-                            () -> {
-                                for (int j = 0; j < numChannelIDs; ++j) {
-                                    FileIOChannel.ID channelID = fileChannelManager.createChannel();
-                                    if (channelID.getPath().startsWith(directory1)) {
-                                        counter1.incrementAndGet();
-                                    } else {
-                                        counter2.incrementAndGet();
+            int numThreads = 10;
+            Thread[] threads = new Thread[numThreads];
+            for (int i = 0; i < numThreads; ++i) {
+                threads[i] =
+                        new Thread(
+                                () -> {
+                                    for (int j = 0; j < numChannelIDs; ++j) {
+                                        FileIOChannel.ID channelID =
+                                                fileChannelManager.createChannel();
+                                        if (channelID.getPath().startsWith(directory1)) {
+                                            counter1.incrementAndGet();
+                                        } else {
+                                            counter2.incrementAndGet();
+                                        }
                                     }
-                                }
-                            });
-            threads[i].start();
-        }
+                                });
+                threads[i].start();
+            }
 
-        for (int i = 0; i < numThreads; ++i) {
-            threads[i].join();
-        }
+            for (int i = 0; i < numThreads; ++i) {
+                threads[i].join();
+            }
 
-        assertThat(counter2).hasValue(counter1.get());
+            assertThat(counter2).hasValue(counter1.get());
+        }
     }
 
     @Test

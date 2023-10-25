@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -53,22 +52,22 @@ class IOManagerTest {
             for (int i = 0; i < 3 * tempDirs.length; i++) {
                 FileIOChannel.ID id = enumerator.next();
 
-                File path = id.getPathFile();
-                Files.createFile(id.getPathFile().toPath());
+                File pathFile = id.getPathFile();
+                Files.createFile(pathFile.toPath());
 
-                assertThat(path)
+                assertThat(pathFile)
                         .withFailMessage("Channel IDs must name an absolute path.")
                         .isAbsolute();
-                assertThat(path)
+                assertThat(pathFile)
                         .withFailMessage("Channel IDs must name a file, not a directory.")
                         .isFile();
 
-                assertThat(path.getParentFile().getParentFile().getParentFile())
+                assertThat(pathFile.getParentFile().getParentFile().getParentFile())
                         .withFailMessage("Path is not in the temp directory.")
                         .isEqualTo(tempPath);
 
                 for (int k = 0; k < tempDirs.length; k++) {
-                    if (path.getParentFile().getParent().equals(tempDirs[k])) {
+                    if (pathFile.getParentFile().getParent().equals(tempDirs[k])) {
                         counters[k]++;
                     }
                 }
@@ -107,19 +106,19 @@ class IOManagerTest {
         }
 
         @Override
-        public BufferFileWriter createBufferFileWriter(ID channelID) throws IOException {
+        public BufferFileWriter createBufferFileWriter(ID channelID) {
             throw new UnsupportedOperationException();
         }
 
         @Override
         public BufferFileReader createBufferFileReader(
-                ID channelID, RequestDoneCallback<Buffer> callback) throws IOException {
+                ID channelID, RequestDoneCallback<Buffer> callback) {
             throw new UnsupportedOperationException();
         }
 
         @Override
         public BufferFileSegmentReader createBufferFileSegmentReader(
-                ID channelID, RequestDoneCallback<FileSegment> callback) throws IOException {
+                ID channelID, RequestDoneCallback<FileSegment> callback) {
             throw new UnsupportedOperationException();
         }
 
