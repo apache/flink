@@ -157,7 +157,8 @@ class BroadcastRecordWriterTest {
         assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isEqualTo(2);
     }
 
-    public void closeConsumer(ResultSubpartitionView view, int expectedSize) throws IOException {
+    private static void closeConsumer(ResultSubpartitionView view, int expectedSize)
+            throws IOException {
         Buffer buffer = view.getNextBuffer().buffer();
         assertThat(buffer.getSize()).isEqualTo(expectedSize);
         buffer.recycleBuffer();
