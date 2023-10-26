@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -758,6 +759,38 @@ public class Configuration extends ExecutionConfig.GlobalJobParameters
                 ret.put(entry.getKey(), ConfigurationUtils.convertToString(entry.getValue()));
             }
             return ret;
+        }
+    }
+
+    /**
+     * Convert Config into a {@code Map<String, String>} representation.
+     *
+     * <p>NOTE: This method is extracted from the {@link Configuration#toMap} method and should be
+     * called when Config needs to be written to a file.
+     *
+     * <p>The reason we need this instead of continuing to use toMap is because the legacy parser
+     * only requires escaping values of type List or Map to String, and this escaping will not
+     * confuse users whether it happens internally or when writing to a file.
+     *
+     * <p>However, the standard YAML parser need escape the ConfigOption value from String to
+     * String, such as '*', and we expect this escaping between String to String only occur when
+     * writing to and reading from standard YAML files to avoid confusing users.
+     */
+    @Internal
+    public Map<String, String> toFileWritableMap() {
+        if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            return toMap();
+        } else {
+            synchronized (this.confData) {
+                Map<String, String> ret =
+                        CollectionUtil.newHashMapWithExpectedSize(this.confData.size());
+                for (Map.Entry<String, Object> entry : confData.entrySet()) {
+                    // Because some character in standard yaml should be escaped by quotes, such as
+                    // '*', here we should wrap the value by Yaml pattern
+                    ret.put(entry.getKey(), YamlParserUtils.toYAMLString(entry.getValue()));
+                }
+                return ret;
+            }
         }
     }
 

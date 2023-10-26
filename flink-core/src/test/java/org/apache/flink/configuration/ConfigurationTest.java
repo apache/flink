@@ -18,15 +18,21 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.assertj.core.api.Assertions;
 import org.assertj.core.data.Offset;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +46,17 @@ import static org.junit.jupiter.api.Assertions.fail;
  * This class contains test for the configuration package. In particular, the serialization of
  * {@link Configuration} objects is tested.
  */
-class ConfigurationTest {
+@ExtendWith(ParameterizedTestExtension.class)
+public class ConfigurationTest {
+
+    @Parameter public String flinkConfFileName;
+
+    @Parameters(name = "flinkConfFileName: {0}")
+    public static Collection<String> parameters() {
+        return Arrays.asList(
+                GlobalConfiguration.FLINK_CONF_FILENAME,
+                GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
+    }
 
     private static final ConfigOption<String> STRING_OPTION =
             ConfigOptions.key("test-string-key").stringType().noDefaultValue();
@@ -65,8 +81,13 @@ class ConfigurationTest {
 
     private static final String MAP_PROPERTY_2 = MAP_OPTION.key() + ".prop2";
 
+    @BeforeEach
+    void beforeEach() {
+        GlobalConfiguration.setFlinkConfFileName(flinkConfFileName);
+    }
+
     /** This test checks the serialization/deserialization of configuration objects. */
-    @Test
+    @TestTemplate
     void testConfigurationSerializationAndGetters() {
         try {
             final Configuration orig = new Configuration();
@@ -100,7 +121,7 @@ class ConfigurationTest {
         }
     }
 
-    @Test
+    @TestTemplate
     void testCopyConstructor() {
         try {
             final String key = "theKey";
@@ -118,7 +139,7 @@ class ConfigurationTest {
         }
     }
 
-    @Test
+    @TestTemplate
     void testOptionWithDefault() {
         Configuration cfg = new Configuration();
         cfg.setInteger("int-key", 11);
@@ -153,7 +174,7 @@ class ConfigurationTest {
         assertThat("87").isEqualTo(cfg.getValue(intOption));
     }
 
-    @Test
+    @TestTemplate
     void testOptionWithNoDefault() {
         Configuration cfg = new Configuration();
         cfg.setInteger("int-key", 11);
@@ -177,7 +198,7 @@ class ConfigurationTest {
         assertThat("override").isEqualTo(cfg.getString(stringOption, "override"));
     }
 
-    @Test
+    @TestTemplate
     void testDeprecatedKeys() {
         Configuration cfg = new Configuration();
         cfg.setInteger("the-key", 11);
@@ -214,7 +235,7 @@ class ConfigurationTest {
         assertThat(-1).isEqualTo(cfg.getInteger(notContained));
     }
 
-    @Test
+    @TestTemplate
     void testFallbackKeys() {
         Configuration cfg = new Configuration();
         cfg.setInteger("the-key", 11);
@@ -251,7 +272,7 @@ class ConfigurationTest {
         assertThat(-1).isEqualTo(cfg.getInteger(notContained));
     }
 
-    @Test
+    @TestTemplate
     void testFallbackAndDeprecatedKeys() {
         final ConfigOption<Integer> fallback =
                 ConfigOptions.key("fallback").intType().defaultValue(-1);
@@ -290,7 +311,7 @@ class ConfigurationTest {
         assertThat(deprecatedAndFallBackConfig.getInteger(reversedMainOption)).isOne();
     }
 
-    @Test
+    @TestTemplate
     void testRemove() {
         Configuration cfg = new Configuration();
         cfg.setInteger("a", 1);
@@ -316,7 +337,7 @@ class ConfigurationTest {
                 .as("Expected 'unexistedOption' is not removed");
     }
 
-    @Test
+    @TestTemplate
     void testRemoveKey() {
         Configuration cfg = new Configuration();
         String key1 = "a.b";
@@ -335,7 +356,7 @@ class ConfigurationTest {
         assertThat(cfg.keySet()).containsExactlyInAnyOrder("e.f");
     }
 
-    @Test
+    @TestTemplate
     void testShouldParseValidStringToEnum() {
         final Configuration configuration = new Configuration();
         configuration.setString(STRING_OPTION.key(), TestEnum.VALUE1.toString());
@@ -344,7 +365,7 @@ class ConfigurationTest {
         assertThat(TestEnum.VALUE1).isEqualTo(parsedEnumValue);
     }
 
-    @Test
+    @TestTemplate
     void testShouldParseValidStringToEnumIgnoringCase() {
         final Configuration configuration = new Configuration();
         configuration.setString(STRING_OPTION.key(), TestEnum.VALUE1.toString().toLowerCase());
@@ -353,7 +374,7 @@ class ConfigurationTest {
         assertThat(TestEnum.VALUE1).isEqualTo(parsedEnumValue);
     }
 
-    @Test
+    @TestTemplate
     void testThrowsExceptionIfTryingToParseInvalidStringForEnum() {
         final Configuration configuration = new Configuration();
         final String invalidValueForTestEnum = "InvalidValueForTestEnum";
@@ -373,13 +394,15 @@ class ConfigurationTest {
         }
     }
 
-    @Test
+    @TestTemplate
     void testToMap() {
         final Configuration configuration = new Configuration();
         final String listValues = "value1;value2;value3";
+        final String yamlListValues = "[value1, value2, value3]";
         configuration.set(LIST_STRING_OPTION, Arrays.asList(listValues.split(";")));
 
         final String mapValues = "key1:value1,key2:value2";
+        final String yamlMapValues = "{key1: value1, key2: value2}";
         configuration.set(
                 MAP_OPTION,
                 Arrays.stream(mapValues.split(","))
@@ -388,12 +411,57 @@ class ConfigurationTest {
         final Duration duration = Duration.ofMillis(3000);
         configuration.set(DURATION_OPTION, duration);
 
-        assertThat(listValues).isEqualTo(configuration.toMap().get(LIST_STRING_OPTION.key()));
-        assertThat(mapValues).isEqualTo(configuration.toMap().get(MAP_OPTION.key()));
+        if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            assertThat(listValues).isEqualTo(configuration.toMap().get(LIST_STRING_OPTION.key()));
+            assertThat(mapValues).isEqualTo(configuration.toMap().get(MAP_OPTION.key()));
+        } else {
+            assertThat(yamlListValues)
+                    .isEqualTo(configuration.toMap().get(LIST_STRING_OPTION.key()));
+            assertThat(yamlMapValues).isEqualTo(configuration.toMap().get(MAP_OPTION.key()));
+        }
         assertThat("3 s").isEqualTo(configuration.toMap().get(DURATION_OPTION.key()));
     }
 
-    @Test
+    @TestTemplate
+    void testToFileWritableMap() {
+        final Configuration configuration = new Configuration();
+        final String listValues = "value1;value2;value3";
+        final String yamlListValues = "[value1, value2, value3]";
+        configuration.set(LIST_STRING_OPTION, Arrays.asList(listValues.split(";")));
+
+        final String mapValues = "key1:value1,key2:value2";
+        final String yamlMapValues = "{key1: value1, key2: value2}";
+        configuration.set(
+                MAP_OPTION,
+                Arrays.stream(mapValues.split(","))
+                        .collect(Collectors.toMap(e -> e.split(":")[0], e -> e.split(":")[1])));
+
+        final Duration duration = Duration.ofMillis(3000);
+        configuration.set(DURATION_OPTION, duration);
+
+        final String strValues = "*";
+        final String yamlStrValues = "'*'";
+        configuration.set(STRING_OPTION, strValues);
+
+        if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            assertThat(listValues)
+                    .isEqualTo(configuration.toFileWritableMap().get(LIST_STRING_OPTION.key()));
+            assertThat(mapValues)
+                    .isEqualTo(configuration.toFileWritableMap().get(MAP_OPTION.key()));
+            assertThat(strValues)
+                    .isEqualTo(configuration.toFileWritableMap().get(STRING_OPTION.key()));
+        } else {
+            assertThat(yamlListValues)
+                    .isEqualTo(configuration.toFileWritableMap().get(LIST_STRING_OPTION.key()));
+            assertThat(yamlMapValues)
+                    .isEqualTo(configuration.toFileWritableMap().get(MAP_OPTION.key()));
+            assertThat(yamlStrValues)
+                    .isEqualTo(configuration.toFileWritableMap().get(STRING_OPTION.key()));
+        }
+        assertThat("3 s").isEqualTo(configuration.toMap().get(DURATION_OPTION.key()));
+    }
+
+    @TestTemplate
     void testMapNotContained() {
         final Configuration cfg = new Configuration();
 
@@ -401,7 +469,7 @@ class ConfigurationTest {
         assertThat(cfg.contains(MAP_OPTION)).isFalse();
     }
 
-    @Test
+    @TestTemplate
     void testMapWithPrefix() {
         final Configuration cfg = new Configuration();
         cfg.setString(MAP_PROPERTY_1, "value1");
@@ -411,7 +479,7 @@ class ConfigurationTest {
         assertThat(cfg.contains(MAP_OPTION)).isTrue();
     }
 
-    @Test
+    @TestTemplate
     void testMapWithoutPrefix() {
         final Configuration cfg = new Configuration();
         cfg.set(MAP_OPTION, PROPERTIES_MAP);
@@ -420,7 +488,7 @@ class ConfigurationTest {
         assertThat(cfg.contains(MAP_OPTION)).isTrue();
     }
 
-    @Test
+    @TestTemplate
     void testMapNonPrefixHasPrecedence() {
         final Configuration cfg = new Configuration();
         cfg.set(MAP_OPTION, PROPERTIES_MAP);
@@ -432,7 +500,7 @@ class ConfigurationTest {
         assertThat(cfg.containsKey(MAP_PROPERTY_1)).isTrue();
     }
 
-    @Test
+    @TestTemplate
     void testMapThatOverwritesPrefix() {
         final Configuration cfg = new Configuration();
         cfg.setString(MAP_PROPERTY_1, "value1");
@@ -444,7 +512,7 @@ class ConfigurationTest {
         assertThat(cfg.containsKey(MAP_PROPERTY_1)).isFalse();
     }
 
-    @Test
+    @TestTemplate
     void testMapRemovePrefix() {
         final Configuration cfg = new Configuration();
         cfg.setString(MAP_PROPERTY_1, "value1");
@@ -456,7 +524,7 @@ class ConfigurationTest {
         assertThat(cfg.containsKey(MAP_PROPERTY_2)).isFalse();
     }
 
-    @Test
+    @TestTemplate
     void testListParserErrorDoesNotLeakSensitiveData() {
         ConfigOption<List<String>> secret =
                 ConfigOptions.key("secret").stringType().asList().noDefaultValue();
@@ -475,7 +543,7 @@ class ConfigurationTest {
                                         .doesNotContain("secret_value"));
     }
 
-    @Test
+    @TestTemplate
     void testMapParserErrorDoesNotLeakSensitiveData() {
         ConfigOption<Map<String, String>> secret =
                 ConfigOptions.key("secret").mapType().noDefaultValue();

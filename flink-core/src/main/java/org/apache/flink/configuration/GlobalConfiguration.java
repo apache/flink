@@ -19,6 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -31,6 +32,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.apache.flink.configuration.YamlParserUtils.toConfigurationDataString;
 
 /**
  * Global configuration object for Flink. Similar to Java properties configuration objects it
@@ -41,7 +46,14 @@ public final class GlobalConfiguration {
 
     private static final Logger LOG = LoggerFactory.getLogger(GlobalConfiguration.class);
 
-    public static final String FLINK_CONF_FILENAME = "flink-conf.yaml";
+    public static final String LEGACY_FLINK_CONF_FILENAME = "flink-conf.yaml";
+
+    public static final String FLINK_CONF_FILENAME = "config.yaml";
+
+    private static String confFileName = LEGACY_FLINK_CONF_FILENAME;
+
+    // key separator character
+    private static final String KEY_SEPARATOR = ".";
 
     // the keys whose values should be hidden
     private static final String[] SENSITIVE_KEYS =
@@ -131,18 +143,32 @@ public final class GlobalConfiguration {
         }
 
         // get Flink yaml configuration file
-        final File yamlConfigFile = new File(confDirFile, FLINK_CONF_FILENAME);
+        File yamlConfigFile = new File(confDirFile, LEGACY_FLINK_CONF_FILENAME);
+        Configuration configuration;
 
         if (!yamlConfigFile.exists()) {
-            throw new IllegalConfigurationException(
-                    "The Flink config file '"
-                            + yamlConfigFile
-                            + "' ("
-                            + yamlConfigFile.getAbsolutePath()
-                            + ") does not exist.");
+            yamlConfigFile = new File(confDirFile, FLINK_CONF_FILENAME);
+            if (!yamlConfigFile.exists()) {
+                throw new IllegalConfigurationException(
+                        "The Flink config file '"
+                                + yamlConfigFile
+                                + "' ("
+                                + yamlConfigFile.getAbsolutePath()
+                                + ") does not exist.");
+            } else {
+                confFileName = FLINK_CONF_FILENAME;
+                LOG.info(
+                        "Using standard YAML parser to load flink configuration file from {}.",
+                        yamlConfigFile.getAbsolutePath());
+                configuration = loadYAMLResource(yamlConfigFile);
+            }
+        } else {
+            confFileName = LEGACY_FLINK_CONF_FILENAME;
+            LOG.info(
+                    "Using legacy YAML parser to load flink configuration file from {}.",
+                    yamlConfigFile.getAbsolutePath());
+            configuration = loadLegacyYAMLResource(yamlConfigFile);
         }
-
-        Configuration configuration = loadYAMLResource(yamlConfigFile);
 
         logConfiguration("Loading", configuration);
 
@@ -186,7 +212,7 @@ public final class GlobalConfiguration {
      * @param file the YAML file to read from
      * @see <a href="http://www.yaml.org/spec/1.2/spec.html">YAML 1.2 specification</a>
      */
-    private static Configuration loadYAMLResource(File file) {
+    private static Configuration loadLegacyYAMLResource(File file) {
         final Configuration config = new Configuration();
 
         try (BufferedReader reader =
@@ -239,6 +265,102 @@ public final class GlobalConfiguration {
         return config;
     }
 
+    public static String getFlinkConfFilename() {
+        return Preconditions.checkNotNull(confFileName);
+    }
+
+    public static boolean isLoadLegacyFlinkConfFile() {
+        return getFlinkConfFilename().equals(LEGACY_FLINK_CONF_FILENAME);
+    }
+
+    /**
+     * Flattens a nested configuration map to be only one level deep.
+     *
+     * <p>Nested keys are concatinated using the {@code KEY_SEPARATOR} character. So that:
+     *
+     * <pre>
+     * keyA:
+     *   keyB:
+     *     keyC: "hello"
+     *     keyD: "world"
+     * </pre>
+     *
+     * <p>becomes:
+     *
+     * <pre>
+     * keyA.keyB.keyC: "hello"
+     * keyA.keyB.keyD: "world"
+     * </pre>
+     *
+     * @param config an arbitrarily nested config map
+     * @param keyPrefix The string to prefix the keys in the current config level
+     * @return A flattened, 1 level deep map
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> flatten(Map<String, Object> config, String keyPrefix) {
+        final Map<String, String> flattenedMap = new HashMap<>();
+
+        if (config == null) {
+            return flattenedMap;
+        }
+
+        config.forEach(
+                (key, value) -> {
+                    String flattenedKey = keyPrefix + key;
+                    if (value instanceof Map) {
+                        Map<String, Object> e = (Map<String, Object>) value;
+                        flattenedMap.putAll(flatten(e, flattenedKey + KEY_SEPARATOR));
+                    } else {
+                        flattenedMap.put(flattenedKey, toConfigurationDataString(value));
+                    }
+                });
+
+        return flattenedMap;
+    }
+
+    private static Map<String, String> flatten(Map<String, Object> config) {
+        // Since we start flattening from the root, keys should not be prefixed with anything.
+        return flatten(config, "");
+    }
+
+    /**
+     * Loads a YAML-file of key-value pairs.
+     *
+     * <p>Keys can be expressed either as nested keys or as {@literal KEY_SEPARATOR} seperated keys.
+     * For example, the following configurations are equivalent:
+     *
+     * <pre>
+     * jobmanager.rpc.address: localhost # network address for communication with the job manager
+     * jobmanager.rpc.port   : 6123      # network port to connect to for communication with the job manager
+     * taskmanager.rpc.port  : 6122      # network port the task manager expects incoming IPC connections
+     * </pre>
+     *
+     * <pre>
+     * jobmanager:
+     *     rpc:
+     *         address: localhost # network address for communication with the job manager
+     *         port: 6123         # network port to connect to for communication with the job manager
+     * taskmanager:
+     *     rpc:
+     *         port: 6122         # network port the task manager expects incoming IPC connections
+     * </pre>
+     *
+     * @param file the YAML file to read from
+     * @see <a href="http://www.yaml.org/spec/1.2/spec.html">YAML 1.2 specification</a>
+     */
+    private static Configuration loadYAMLResource(File file) {
+        final Configuration config = new Configuration();
+
+        try {
+            Map<String, String> configDocument = flatten(YamlParserUtils.loadYamlFile(file));
+            configDocument.forEach(config::setString);
+
+            return config;
+        } catch (Exception e) {
+            throw new RuntimeException("Error parsing YAML configuration.", e);
+        }
+    }
+
     /**
      * Check whether the key is a hidden key.
      *
@@ -253,5 +375,10 @@ public final class GlobalConfiguration {
             }
         }
         return false;
+    }
+
+    @VisibleForTesting
+    public static void setFlinkConfFileName(String fileName) {
+        confFileName = fileName;
     }
 }

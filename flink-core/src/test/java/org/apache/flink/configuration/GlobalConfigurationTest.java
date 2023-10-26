@@ -18,13 +18,23 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.ExceptionUtils;
+
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,69 +44,99 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * This class contains tests for the global configuration (parsing configuration directory
  * information).
  */
-class GlobalConfigurationTest {
+@ExtendWith(ParameterizedTestExtension.class)
+public class GlobalConfigurationTest {
+    @Parameter public String flinkConfFileName;
+
+    @Parameters(name = "flinkConfFileName: {0}")
+    public static Collection<String> parameters() {
+        return Arrays.asList(
+                GlobalConfiguration.FLINK_CONF_FILENAME,
+                GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
+    }
 
     @TempDir private File tmpDir;
 
     @Test
     void testConfigurationYAML() {
-        File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+        File confFile = new File(tmpDir, GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
 
-        try {
-            try (final PrintWriter pw = new PrintWriter(confFile)) {
+        try (final PrintWriter pw = new PrintWriter(confFile)) {
 
-                pw.println("###########################"); // should be skipped
-                pw.println("# Some : comments : to skip"); // should be skipped
-                pw.println("###########################"); // should be skipped
-                pw.println("mykey1: myvalue1"); // OK, simple correct case
-                pw.println("mykey2       : myvalue2"); // OK, whitespace before colon is correct
-                pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
-                pw.println(" some nonsense without colon and whitespace separator"); // SKIP
-                pw.println(" :  "); // SKIP
-                pw.println("   "); // SKIP (silently)
-                pw.println(" "); // SKIP (silently)
-                pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
-                pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
-                pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
-                pw.println("mykey7: "); // SKIP, no value provided
-                pw.println(": myvalue8"); // SKIP, no key provided
+            pw.println("###########################"); // should be skipped
+            pw.println("# Some : comments : to skip"); // should be skipped
+            pw.println("###########################"); // should be skipped
+            pw.println("mykey1: myvalue1"); // OK, simple correct case
+            pw.println("mykey2       : myvalue2"); // OK, whitespace before colon is correct
+            pw.println("mykey3:myvalue3"); // SKIP, missing white space after colon
+            pw.println(" some nonsense without colon and whitespace separator"); // SKIP
+            pw.println(" :  "); // SKIP
+            pw.println("   "); // SKIP (silently)
+            pw.println(" "); // SKIP (silently)
+            pw.println("mykey4: myvalue4# some comments"); // OK, skip comments only
+            pw.println("   mykey5    :    myvalue5    "); // OK, trim unnecessary whitespace
+            pw.println("mykey6: my: value6"); // OK, only use first ': ' as separator
+            pw.println("mykey7: "); // SKIP, no value provided
+            pw.println(": myvalue8"); // SKIP, no key provided
 
-                pw.println("mykey9: myvalue9"); // OK
-                pw.println("mykey9: myvalue10"); // OK, overwrite last value
+            pw.println("mykey9: myvalue9"); // OK
+            pw.println("mykey9: myvalue10"); // OK, overwrite last value
 
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-
-            Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
-
-            // all distinct keys from confFile1 + confFile2 key
-            assertThat(conf.keySet()).hasSize(6);
-
-            // keys 1, 2, 4, 5, 6, 7, 8 should be OK and match the expected values
-            assertThat(conf.getString("mykey1", null)).isEqualTo("myvalue1");
-            assertThat(conf.getString("mykey1", null)).isEqualTo("myvalue1");
-            assertThat(conf.getString("mykey2", null)).isEqualTo("myvalue2");
-            assertThat(conf.getString("mykey3", "null")).isEqualTo("null");
-            assertThat(conf.getString("mykey4", null)).isEqualTo("myvalue4");
-            assertThat(conf.getString("mykey5", null)).isEqualTo("myvalue5");
-            assertThat(conf.getString("mykey6", null)).isEqualTo("my: value6");
-            assertThat(conf.getString("mykey7", "null")).isEqualTo("null");
-            assertThat(conf.getString("mykey8", "null")).isEqualTo("null");
-            assertThat(conf.getString("mykey9", null)).isEqualTo("myvalue10");
-        } finally {
-            confFile.delete();
-            tmpDir.delete();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
+
+        Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
+
+        // all distinct keys from confFile1 + confFile2 key
+        assertThat(conf.keySet()).hasSize(6);
+
+        // keys 1, 2, 4, 5, 6, 7, 8 should be OK and match the expected values
+        assertThat(conf.getString("mykey1", null)).isEqualTo("myvalue1");
+        assertThat(conf.getString("mykey1", null)).isEqualTo("myvalue1");
+        assertThat(conf.getString("mykey2", null)).isEqualTo("myvalue2");
+        assertThat(conf.getString("mykey3", "null")).isEqualTo("null");
+        assertThat(conf.getString("mykey4", null)).isEqualTo("myvalue4");
+        assertThat(conf.getString("mykey5", null)).isEqualTo("myvalue5");
+        assertThat(conf.getString("mykey6", null)).isEqualTo("my: value6");
+        assertThat(conf.getString("mykey7", "null")).isEqualTo("null");
+        assertThat(conf.getString("mykey8", "null")).isEqualTo("null");
+        assertThat(conf.getString("mykey9", null)).isEqualTo("myvalue10");
     }
 
     @Test
+    void testConfigurationWithStandardYAML() {
+        File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+
+        try (final PrintWriter pw = new PrintWriter(confFile)) {
+
+            pw.println("###########################"); // should be skipped
+            pw.println("# Some : comments : to skip"); // should be skipped
+            pw.println("###########################"); // should be skipped
+            pw.println("mykey1: "); // OK, simple correct case
+            pw.println("    mykey2       : myvalue2"); // OK, whitespace before colon is correct
+            pw.println("    mykey3       : myvalue3"); // OK, whitespace before colon is correct
+            pw.println("mykey4: myvalue4"); // OK, missing white space after colon is correct
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
+
+        assertThat(conf.keySet()).hasSize(3);
+
+        assertThat(conf.getString("mykey1.mykey2", null)).isEqualTo("myvalue2");
+        assertThat(conf.getString("mykey1.mykey3", null)).isEqualTo("myvalue3");
+        assertThat(conf.getString("mykey4", null)).isEqualTo("myvalue4");
+    }
+
+    @TestTemplate
     void testFailIfNull() {
         assertThatThrownBy(() -> GlobalConfiguration.loadConfiguration((String) null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
+    @TestTemplate
     void testFailIfNotLoaded() {
         assertThatThrownBy(
                         () ->
@@ -105,25 +145,37 @@ class GlobalConfigurationTest {
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
-    @Test
+    @TestTemplate
     void testInvalidConfiguration() {
         assertThatThrownBy(() -> GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath()))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
-    @Test
-    // We allow malformed YAML files
+    @TestTemplate
     void testInvalidYamlFile() throws IOException {
-        final File confFile = new File(tmpDir.getPath(), GlobalConfiguration.FLINK_CONF_FILENAME);
+        final File confFile = new File(tmpDir.getPath(), flinkConfFileName);
 
         try (PrintWriter pw = new PrintWriter(confFile)) {
             pw.append("invalid");
         }
 
-        assertThat(GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath())).isNotNull();
+        if (flinkConfFileName.equals(GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME)) {
+            // We allow malformed YAML files if loaded legacy flink conf
+            assertThat(GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath())).isNotNull();
+        } else {
+            // We do not allow malformed YAML files if loaded standard yaml
+            assertThatThrownBy(
+                            () -> GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath()))
+                    .isInstanceOf(RuntimeException.class)
+                    .satisfies(
+                            e ->
+                                    Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                            .contains(
+                                                    "java.lang.String cannot be cast to java.util.Map"));
+        }
     }
 
-    @Test
+    @TestTemplate
     public void testHiddenKey() {
         assertThat(GlobalConfiguration.isSensitive("password123")).isTrue();
         assertThat(GlobalConfiguration.isSensitive("123pasSword")).isTrue();

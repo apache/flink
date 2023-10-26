@@ -320,6 +320,23 @@ public final class DelegatingConfiguration extends Configuration {
     }
 
     @Override
+    public Map<String, String> toFileWritableMap() {
+        if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            return toMap();
+        } else {
+            Map<String, String> map = backingConfig.toFileWritableMap();
+            Map<String, String> prefixed = new HashMap<>();
+            for (Map.Entry<String, String> entry : map.entrySet()) {
+                if (entry.getKey().startsWith(prefix)) {
+                    String keyWithoutPrefix = entry.getKey().substring(prefix.length());
+                    prefixed.put(keyWithoutPrefix, YamlParserUtils.toYAMLString(entry.getValue()));
+                }
+            }
+            return prefixed;
+        }
+    }
+
+    @Override
     public <T> boolean removeConfig(ConfigOption<T> configOption) {
         return backingConfig.removeConfig(configOption);
     }

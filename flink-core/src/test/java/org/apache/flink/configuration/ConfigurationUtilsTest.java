@@ -18,12 +18,19 @@
 
 package org.apache.flink.configuration;
 
-import org.junit.jupiter.api.Test;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -36,9 +43,24 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link ConfigurationUtils}. */
-class ConfigurationUtilsTest {
+@ExtendWith(ParameterizedTestExtension.class)
+public class ConfigurationUtilsTest {
 
-    @Test
+    @Parameter public String flinkConfFileName;
+
+    @Parameters(name = "flinkConfFileName: {0}")
+    public static Collection<String> parameters() {
+        return Arrays.asList(
+                GlobalConfiguration.FLINK_CONF_FILENAME,
+                GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
+    }
+
+    @BeforeEach
+    void beforeEach() {
+        GlobalConfiguration.setFlinkConfFileName(flinkConfFileName);
+    }
+
+    @TestTemplate
     void testPropertiesToConfiguration() {
         final Properties properties = new Properties();
         final int entries = 10;
@@ -56,7 +78,7 @@ class ConfigurationUtilsTest {
         assertThat(configuration.toMap()).hasSize(properties.size());
     }
 
-    @Test
+    @TestTemplate
     void testHideSensitiveValues() {
         final Map<String, String> keyValuePairs = new HashMap<>();
         keyValuePairs.put("foobar", "barfoo");
@@ -77,7 +99,7 @@ class ConfigurationUtilsTest {
         assertThat(hiddenSensitiveValues).isEqualTo(expectedKeyValuePairs);
     }
 
-    @Test
+    @TestTemplate
     void testGetPrefixedKeyValuePairs() {
         final String prefix = "test.prefix.";
         final Map<String, String> expectedKeyValuePairs =
@@ -97,7 +119,7 @@ class ConfigurationUtilsTest {
         assertThat(resultKeyValuePairs).isEqualTo(expectedKeyValuePairs);
     }
 
-    @Test
+    @TestTemplate
     void testConvertToString() {
         // String
         assertThat(ConfigurationUtils.convertToString("Simple String")).isEqualTo("Simple String");
@@ -114,18 +136,27 @@ class ConfigurationUtilsTest {
         listElements.add("Test;String");
         listElements.add(Duration.ZERO);
         listElements.add(42);
-        assertThat(ConfigurationUtils.convertToString(listElements))
-                .isEqualTo("'Test;String';0 ms;42");
-
+        if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            assertThat("'Test;String';0 ms;42")
+                    .isEqualTo(ConfigurationUtils.convertToString(listElements));
+        } else {
+            assertThat("[Test;String, 0 ms, 42]")
+                    .isEqualTo(ConfigurationUtils.convertToString(listElements));
+        }
         // Map
         Map<Object, Object> mapElements = new HashMap<>();
         mapElements.put("A:,B", "C:,D");
         mapElements.put(10, 20);
-        assertThat(ConfigurationUtils.convertToString(mapElements))
-                .isEqualTo("'''A:,B'':''C:,D''',10:20");
+        if (GlobalConfiguration.isLoadLegacyFlinkConfFile()) {
+            assertThat("'''A:,B'':''C:,D''',10:20")
+                    .isEqualTo(ConfigurationUtils.convertToString(mapElements));
+        } else {
+            assertThat("{'A:,B': 'C:,D', 10: 20}")
+                    .isEqualTo(ConfigurationUtils.convertToString(mapElements));
+        }
     }
 
-    @Test
+    @TestTemplate
     void testRandomTempDirectorySelection() {
         final Configuration configuration = new Configuration();
         final StringBuilder tempDirectories = new StringBuilder();
