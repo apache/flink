@@ -45,6 +45,6 @@ class SortLimitJsonPlanITCase extends JsonPlanTestBase {
         compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Arrays.asList("+I[1, a, 5]", "+I[2, a, 6]", "+I[3, b, 7]");
-        assertResult(expected, TestValuesTableFactory.getResults("result"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("result"));
     }
 }

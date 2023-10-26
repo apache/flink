@@ -66,7 +66,7 @@ class MatchRecognizeJsonPlanITCase extends JsonPlanTestBase {
         compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Collections.singletonList("+I[6, 7, 8]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
@@ -104,6 +104,6 @@ class MatchRecognizeJsonPlanITCase extends JsonPlanTestBase {
         compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Collections.singletonList("+I[19, 13, null]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 }

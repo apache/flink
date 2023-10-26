@@ -48,7 +48,7 @@ class RankJsonPlanITCase extends JsonPlanTestBase {
         compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Arrays.asList("+I[1, a, 1]", "+I[3, b, 1]", "+I[5, c, 1]");
-        assertResult(expected, TestValuesTableFactory.getResults("result"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("result"));
     }
 
     @Test
@@ -70,6 +70,6 @@ class RankJsonPlanITCase extends JsonPlanTestBase {
         List<String> expected =
                 Arrays.asList(
                         "+I[book, 1, 1]", "+I[book, 2, 2]", "+I[fruit, 4, 1]", "+I[fruit, 3, 2]");
-        assertResult(expected, TestValuesTableFactory.getResults("result1"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("result1"));
     }
 }

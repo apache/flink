@@ -75,7 +75,7 @@ class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
                         "+I[5, 33, 10]",
                         "+I[5, 46, 10]",
                         "+I[5, 60, 10]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
@@ -120,7 +120,7 @@ class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
                         "+I[Hello, 4, null]",
                         "+I[Hello, 5, null]",
                         "+I[Hello, 6, null]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
@@ -197,6 +197,6 @@ class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
                         "+I[Hello World, 18, 1, 1, 7]",
                         "+I[Hello World, 8, 2, 2, 15]",
                         "+I[Hello World, 20, 1, 1, 20]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 }

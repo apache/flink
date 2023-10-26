@@ -117,7 +117,7 @@ class CodeSplitITCase extends BatchTestBase {
     for (i <- 0 until 100) {
       expected.add(s"+I[${Range(0, 100).map(_ => s"$i").mkString(", ")}]")
     }
-    assertThatIterable(TestValuesTableFactory.getResults("test_many_values"))
+    assertThatIterable(TestValuesTableFactory.getResultsAsStrings("test_many_values"))
       .containsExactlyElementsOf(expected)
   }
 

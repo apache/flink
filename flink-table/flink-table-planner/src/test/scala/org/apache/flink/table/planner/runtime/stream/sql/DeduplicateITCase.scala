@@ -198,7 +198,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getRawResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getRawResultsAsStrings("rowtime_sink")
 
     val expected = List(
       "+I(1,1,Hi,1970-01-01T00:00:00.001)",
@@ -237,7 +237,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getRawResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getRawResultsAsStrings("rowtime_sink")
 
     val expected = List(
       "+I(1,1,Hi,1970-01-01T00:00:00.001)",
@@ -279,7 +279,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getResultsAsStrings("rowtime_sink")
     val expected = List("6")
     assertEquals(expected.sorted, rawResult.sorted)
   }
@@ -306,7 +306,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getRawResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getRawResultsAsStrings("rowtime_sink")
 
     val expected = List(
       "+I(1,1,Hi,1970-01-01T00:00:00.001)",
@@ -349,7 +349,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getRawResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getRawResultsAsStrings("rowtime_sink")
 
     val expected = List(
       "+I(1,1,Hi,1970-01-01T00:00:00.001)",
@@ -393,7 +393,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
     """.stripMargin
 
     tEnv.executeSql(sql).await()
-    val rawResult = TestValuesTableFactory.getResults("rowtime_sink")
+    val rawResult = TestValuesTableFactory.getResultsAsStrings("rowtime_sink")
     val expected = List("6")
     assertEquals(expected.sorted, rawResult.sorted)
   }

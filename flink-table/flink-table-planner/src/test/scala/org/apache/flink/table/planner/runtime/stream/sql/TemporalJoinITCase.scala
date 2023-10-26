@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.factories.TestValuesTableFactory.{getResults, registerData}
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.{getResultsAsStrings, registerData}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.utils.LegacyRowResource
@@ -477,7 +477,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -495,7 +495,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -513,7 +513,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
     val expected = List(
       "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
       "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02")
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -532,7 +532,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
       "5,RMB,40,2020-08-16T00:03,null,null"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -553,7 +553,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
       "5,RMB,40,2020-08-16T00:03,null,null"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -574,7 +574,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
       "5,RMB,40,2020-08-16T00:03,null,null"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -592,7 +592,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "3,RMB,40,2020-08-15T00:03,702,2020-08-15T00:00:04",
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -609,7 +609,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "2,US Dollar,18,2020-08-16T00:03,106,2020-08-16T00:02",
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -625,7 +625,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -663,7 +663,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01,118,2020-08-16T00:01",
       "5,RMB,40,2020-08-16T00:03,null,null,null,null"
     )
-    assertEquals(expected.sorted, getResults("rowtime_sink1").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_sink1").sorted)
   }
 
   @Test
@@ -683,7 +683,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "4,Euro,14,2020-08-16T00:04,114,2020-08-15T00:00:01",
       "5,RMB,40,2020-08-16T00:03,702,2020-08-15T00:00:04"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -703,7 +703,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
       "5,RMB,40,2020-08-16T00:03,702,2020-08-15T00:00:04"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -723,7 +723,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "4,Euro,14,2020-08-16T00:04,null,null",
       "5,RMB,40,2020-08-16T00:03,null,null"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   @Test
@@ -750,7 +750,7 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       "4,Euro,14,2020-08-16T00:04,118,2020-08-16T00:01",
       "5,RMB,40,2020-08-16T00:03,702,2020-08-15T00:00:04"
     )
-    assertEquals(expected.sorted, getResults("rowtime_default_sink").sorted)
+    assertEquals(expected.sorted, getResultsAsStrings("rowtime_default_sink").sorted)
   }
 
   private def createSinkTable(tableName: String, columns: Option[String]): Unit = {

@@ -61,6 +61,6 @@ class UnionJsonPlanITCase extends JsonPlanTestBase {
                         "+I[5, c, 9]",
                         "+I[3, b, 7]" // a=3 need to be doubled
                         );
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 }

@@ -81,7 +81,7 @@ class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "GROUP BY name, TUMBLE(rowtime, INTERVAL '5' SECOND)")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[a, 2020-10-10T00:00, 2020-10-10T00:00:05, 4, 10, 2]",
@@ -104,7 +104,7 @@ class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "GROUP BY name, HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '10' SECOND)")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[a, 1]",
@@ -132,7 +132,7 @@ class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "GROUP BY name, Session(rowtime, INTERVAL '3' SECOND)")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[a, 1]", "+I[a, 4]", "+I[b, 1]", "+I[b, 1]", "+I[b, 2]", "+I[null, 1]"),

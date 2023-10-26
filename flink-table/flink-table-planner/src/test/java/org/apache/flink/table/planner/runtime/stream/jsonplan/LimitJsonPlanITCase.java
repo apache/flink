@@ -45,6 +45,6 @@ class LimitJsonPlanITCase extends JsonPlanTestBase {
         compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Arrays.asList("+I[2, a, 6]", "+I[4, b, 8]", "+I[6, c, 10]");
-        assertResult(expected, TestValuesTableFactory.getResults("result"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("result"));
     }
 }

@@ -48,7 +48,7 @@ class TemporalSortJsonITCase extends JsonPlanTestBase {
 
         assertResult(
                 Arrays.asList("+I[1]", "+I[2]", "+I[3]"),
-                TestValuesTableFactory.getResults("MySink"));
+                TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
@@ -78,7 +78,7 @@ class TemporalSortJsonITCase extends JsonPlanTestBase {
                         "insert into MySink SELECT `int` FROM MyTable order by rowtime, `double`")
                 .await();
 
-        assertThat(TestValuesTableFactory.getResults("MySink"))
+        assertThat(TestValuesTableFactory.getResultsAsStrings("MySink"))
                 .isEqualTo(
                         Arrays.asList(
                                 "+I[1]", "+I[2]", "+I[2]", "+I[5]", "+I[6]", "+I[3]", "+I[3]",
