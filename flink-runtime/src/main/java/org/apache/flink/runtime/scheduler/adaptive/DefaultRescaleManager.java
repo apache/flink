@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -47,8 +48,12 @@ import java.util.function.Supplier;
  *       available (its lower threshold is defined by (@code scalingIntervalMax}).
  * </ol>
  *
+ * <p>Thread-safety: This class is not implemented in a thread-safe manner and relies on the fact
+ * that any method call happens within a single thread.
+ *
  * @see Executing
  */
+@NotThreadSafe
 public class DefaultRescaleManager implements RescaleManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultRescaleManager.class);
@@ -116,37 +121,21 @@ public class DefaultRescaleManager implements RescaleManager {
 
     @Override
     public void onChange() {
-        runInContextMainThread(
-                () -> {
-                    if (this.triggerFuture.isDone()) {
-                        this.triggerFuture =
-                                scheduleOperationWithTrigger(this::evaluateChangeEvent);
-                    }
-                });
+        if (this.triggerFuture.isDone()) {
+            this.triggerFuture = scheduleOperationWithTrigger(this::evaluateChangeEvent);
+        }
     }
 
     @Override
     public void onTrigger() {
-        runInContextMainThread(
-                () -> {
-                    if (!this.triggerFuture.isDone()) {
-                        this.triggerFuture.complete(null);
-                        LOG.debug(
-                                "A rescale trigger event was observed causing the rescale verification logic to be initiated.");
-                    } else {
-                        LOG.debug(
-                                "A rescale trigger event was observed outside of a rescale cycle. No action taken.");
-                    }
-                });
-    }
-
-    /**
-     * Runs the {@code callback} in the context's main thread by scheduling the operation with no
-     * delay. This method should be used for internal state changes that might be triggered from
-     * outside the context's main thread.
-     */
-    private void runInContextMainThread(Runnable callback) {
-        rescaleContext.scheduleOperation(callback, Duration.ZERO);
+        if (!this.triggerFuture.isDone()) {
+            this.triggerFuture.complete(null);
+            LOG.debug(
+                    "A rescale trigger event was observed causing the rescale verification logic to be initiated.");
+        } else {
+            LOG.debug(
+                    "A rescale trigger event was observed outside of a rescale cycle. No action taken.");
+        }
     }
 
     private void evaluateChangeEvent() {
