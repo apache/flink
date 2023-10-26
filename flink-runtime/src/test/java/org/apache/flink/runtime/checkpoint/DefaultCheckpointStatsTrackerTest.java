@@ -46,6 +46,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonMap;
@@ -237,6 +239,71 @@ class DefaultCheckpointStatsTrackerTest {
         assertThat(snapshot.getHistory().getLatestFailedCheckpoint().getCheckpointId())
                 .isEqualTo(failed.getCheckpointId());
         assertThat(snapshot.getLatestRestoredCheckpoint()).isEqualTo(restored);
+    }
+
+    @Test
+    void testCheckpointStatsListenerOnCompletedCheckpoint() {
+        testCheckpointStatsListener(
+                (checkpointStatsTracker, pendingCheckpointStats) ->
+                        checkpointStatsTracker.reportCompletedCheckpoint(
+                                pendingCheckpointStats.toCompletedCheckpointStats(
+                                        "random-external-pointer")),
+                1,
+                0);
+    }
+
+    @Test
+    void testCheckpointStatsListenerOnFailedCheckpoint() {
+        testCheckpointStatsListener(
+                (checkpointStatsTracker, pendingCheckpointStats) ->
+                        checkpointStatsTracker.reportFailedCheckpoint(
+                                pendingCheckpointStats.toFailedCheckpoint(
+                                        System.currentTimeMillis(), null)),
+                0,
+                1);
+    }
+
+    private void testCheckpointStatsListener(
+            BiConsumer<CheckpointStatsTracker, PendingCheckpointStats> testCodeCallback,
+            int expectedOnCompletedCheckpointCount,
+            int expectedOnFailedCheckpointCount) {
+        final AtomicInteger onCompletedCheckpointCount = new AtomicInteger();
+        final AtomicInteger onFailedCheckpointCount = new AtomicInteger();
+        final CheckpointStatsListener listener =
+                new CheckpointStatsListener() {
+                    @Override
+                    public void onCompletedCheckpoint() {
+                        onCompletedCheckpointCount.incrementAndGet();
+                    }
+
+                    @Override
+                    public void onFailedCheckpoint() {
+                        onFailedCheckpointCount.incrementAndGet();
+                    }
+                };
+
+        final CheckpointStatsTracker statsTracker =
+                new DefaultCheckpointStatsTracker(
+                        10,
+                        UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
+                        listener);
+
+        // "factory" code to enable the instantiation of test data based on a PendingCheckpointStats
+        // instance
+        final JobVertexID jobVertexID = new JobVertexID();
+        final PendingCheckpointStats pending =
+                statsTracker.reportPendingCheckpoint(
+                        0,
+                        1,
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        singletonMap(jobVertexID, 1));
+        pending.reportSubtaskStats(jobVertexID, createSubtaskStats(0));
+
+        testCodeCallback.accept(statsTracker, pending);
+
+        assertThat(onCompletedCheckpointCount).hasValue(expectedOnCompletedCheckpointCount);
+        assertThat(onFailedCheckpointCount).hasValue(expectedOnFailedCheckpointCount);
     }
 
     /** Tests that snapshots are only created if a new snapshot has been reported or updated. */

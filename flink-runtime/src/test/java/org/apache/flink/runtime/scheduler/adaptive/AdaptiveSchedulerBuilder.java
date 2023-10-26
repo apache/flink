@@ -23,7 +23,10 @@ import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsListener;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
+import org.apache.flink.runtime.checkpoint.DefaultCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
@@ -52,6 +55,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /** Builder for {@link AdaptiveScheduler}. */
@@ -88,6 +92,17 @@ public class AdaptiveSchedulerBuilder {
     private long initializationTimestamp = System.currentTimeMillis();
 
     @Nullable private SlotAllocator slotAllocator;
+
+    /**
+     * {@code null} indicates that the default factory will be used based on the set configuration.
+     */
+    @Nullable private RescaleManager.Factory rescaleManagerFactory = null;
+
+    private BiFunction<JobManagerJobMetricGroup, CheckpointStatsListener, CheckpointStatsTracker>
+            checkpointStatsTrackerFactory =
+                    (metricGroup, checkpointStatsListener) ->
+                            new DefaultCheckpointStatsTracker(
+                                    10, metricGroup, checkpointStatsListener);
 
     public AdaptiveSchedulerBuilder(
             final JobGraph jobGraph,
@@ -206,6 +221,23 @@ public class AdaptiveSchedulerBuilder {
         return this;
     }
 
+    public AdaptiveSchedulerBuilder setRescaleManagerFactory(
+            @Nullable RescaleManager.Factory rescaleManagerFactory) {
+        this.rescaleManagerFactory = rescaleManagerFactory;
+        return this;
+    }
+
+    public AdaptiveSchedulerBuilder setCheckpointStatsTrackerFactory(
+            @Nullable
+                    BiFunction<
+                                    JobManagerJobMetricGroup,
+                                    CheckpointStatsListener,
+                                    CheckpointStatsTracker>
+                            checkpointStatsTrackerFactory) {
+        this.checkpointStatsTrackerFactory = checkpointStatsTrackerFactory;
+        return this;
+    }
+
     public AdaptiveScheduler build() throws Exception {
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
@@ -220,8 +252,14 @@ public class AdaptiveSchedulerBuilder {
                         shuffleMaster,
                         partitionTracker);
 
+        final AdaptiveScheduler.Settings settings =
+                AdaptiveScheduler.Settings.of(jobMasterConfiguration);
         return new AdaptiveScheduler(
-                AdaptiveScheduler.Settings.of(jobMasterConfiguration),
+                settings,
+                rescaleManagerFactory == null
+                        ? DefaultRescaleManager.Factory.fromSettings(settings)
+                        : rescaleManagerFactory,
+                checkpointStatsTrackerFactory,
                 jobGraph,
                 jobResourceRequirements,
                 jobMasterConfiguration,
