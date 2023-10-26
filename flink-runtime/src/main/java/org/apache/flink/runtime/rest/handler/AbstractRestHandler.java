@@ -56,6 +56,10 @@ public abstract class AbstractRestHandler<
                 M extends MessageParameters>
         extends AbstractHandler<T, R, M> {
 
+    static {
+        System.out.println("Entered static block for AbstractRestHandler");
+    }
+
     private final MessageHeaders<R, P, M> messageHeaders;
 
     protected AbstractRestHandler(
@@ -64,7 +68,9 @@ public abstract class AbstractRestHandler<
             Map<String, String> responseHeaders,
             MessageHeaders<R, P, M> messageHeaders) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+        System.out.println("In constructor for AbstractRestHandler");
         this.messageHeaders = Preconditions.checkNotNull(messageHeaders);
+        System.out.println("Exiting constructor for AbstractRestHandler");
     }
 
     public MessageHeaders<R, P, M> getMessageHeaders() {
