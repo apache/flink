@@ -16,29 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskexecutor;
+package org.apache.flink.runtime.util;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
-
-/** Non op implement of {@link ShuffleDescriptorsCache}. */
-public class NoOpShuffleDescriptorsCache implements ShuffleDescriptorsCache {
-
-    public static final NoOpShuffleDescriptorsCache INSTANCE = new NoOpShuffleDescriptorsCache();
+/** Non op implement of {@link GroupCache}. */
+public class NoOpGroupCache<G, K, V> implements GroupCache<G, K, V> {
 
     @Override
     public void clear() {}
 
     @Override
-    public ShuffleDescriptorGroup get(PermanentBlobKey blobKey) {
+    public V get(G group, K key) {
         return null;
     }
 
     @Override
-    public void put(
-            JobID jobId, PermanentBlobKey blobKey, ShuffleDescriptorGroup shuffleDescriptorGroup) {}
+    public void put(G group, K key, V value) {}
 
     @Override
-    public void clearCacheForJob(JobID jobId) {}
+    public void clearCacheForGroup(G group) {}
 }
