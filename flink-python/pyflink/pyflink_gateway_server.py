@@ -42,8 +42,24 @@ def on_windows():
     return platform.system() == "Windows"
 
 
-def read_from_config(key, default_value, flink_conf_file):
+def read_from_config(key, default_value, flink_conf_directory):
+    import yaml
     value = default_value
+    # try to find flink-conf.yaml file in flink_conf_directory
+    flink_conf_file = os.path.join(flink_conf_directory, "flink-conf.yaml")
+    if not os.path.isfile(flink_conf_file):
+        # if flink-conf.yaml is not found, try to use config.yaml instead
+        flink_conf_file = os.path.join(flink_conf_directory, "config.yaml")
+        if not os.path.isfile(flink_conf_file):
+            # if neither file exists, return default_value
+            return default_value
+        else:
+            # if config.yaml is found, use YAML parser to read values
+            with open(os.path.realpath(flink_conf_file), "r") as f:
+                config = yaml.safe_load(f)
+                value = config.get(key, default_value)
+                return value
+
     # get the realpath of tainted path value to avoid CWE22 problem that constructs a path or URI
     # using the tainted value and might allow an attacker to access, modify, or test the existence
     # of critical or sensitive files.
@@ -63,8 +79,8 @@ def read_from_config(key, default_value, flink_conf_file):
 def find_java_executable():
     java_executable = "java.exe" if on_windows() else "java"
     flink_home = _find_flink_home()
-    flink_conf_file = os.path.join(flink_home, "conf", "flink-conf.yaml")
-    java_home = read_from_config(KEY_ENV_JAVA_HOME, None, flink_conf_file)
+    flink_conf_directory = os.path.join(flink_home, "conf")
+    java_home = read_from_config(KEY_ENV_JAVA_HOME, None, flink_conf_directory)
 
     if java_home is None and "JAVA_HOME" in os.environ:
         java_home = os.environ["JAVA_HOME"]
@@ -119,13 +135,12 @@ def construct_log_settings(env):
 
     flink_home = os.path.realpath(_find_flink_home())
     flink_conf_dir = env['FLINK_CONF_DIR']
-    flink_conf_file = os.path.join(env['FLINK_CONF_DIR'], "flink-conf.yaml")
 
     if "FLINK_LOG_DIR" in env:
         flink_log_dir = env["FLINK_LOG_DIR"]
     else:
         flink_log_dir = read_from_config(
-            KEY_ENV_LOG_DIR, os.path.join(flink_home, "log"), flink_conf_file)
+            KEY_ENV_LOG_DIR, os.path.join(flink_home, "log"), env['FLINK_CONF_DIR'])
 
     if "LOG4J_PROPERTIES" in env:
         log4j_properties = env["LOG4J_PROPERTIES"]
@@ -155,13 +170,12 @@ def construct_log_settings(env):
 
 
 def get_jvm_opts(env):
-    flink_conf_file = os.path.join(env['FLINK_CONF_DIR'], "flink-conf.yaml")
     jvm_opts = env.get(
         'FLINK_ENV_JAVA_OPTS',
         read_from_config(
             KEY_ENV_JAVA_OPTS,
-            read_from_config(KEY_ENV_JAVA_OPTS_DEPRECATED, "", flink_conf_file),
-            flink_conf_file))
+            read_from_config(KEY_ENV_JAVA_OPTS_DEPRECATED, "", env['FLINK_CONF_DIR']),
+            env['FLINK_CONF_DIR']))
 
     # Remove leading and ending double quotes (if present) of value
     jvm_opts = jvm_opts.strip("\"")
@@ -191,8 +205,6 @@ def construct_flink_classpath(env):
 
 
 def construct_hadoop_classpath(env):
-    flink_conf_file = os.path.join(env['FLINK_CONF_DIR'], "flink-conf.yaml")
-
     hadoop_conf_dir = ""
     if 'HADOOP_CONF_DIR' not in env and 'HADOOP_CLASSPATH' not in env:
         if os.path.isdir("/etc/hadoop/conf"):
@@ -209,11 +221,11 @@ def construct_hadoop_classpath(env):
     return os.pathsep.join(
         [env.get("HADOOP_CLASSPATH", ""),
          env.get("YARN_CONF_DIR",
-                 read_from_config(KEY_ENV_YARN_CONF_DIR, "", flink_conf_file)),
+                 read_from_config(KEY_ENV_YARN_CONF_DIR, "", env['FLINK_CONF_DIR'])),
          env.get("HADOOP_CONF_DIR",
-                 read_from_config(KEY_ENV_HADOOP_CONF_DIR, hadoop_conf_dir, flink_conf_file)),
+                 read_from_config(KEY_ENV_HADOOP_CONF_DIR, hadoop_conf_dir, env['FLINK_CONF_DIR'])),
          env.get("HBASE_CONF_DIR",
-                 read_from_config(KEY_ENV_HBASE_CONF_DIR, hbase_conf_dir, flink_conf_file))])
+                 read_from_config(KEY_ENV_HBASE_CONF_DIR, hbase_conf_dir, env['FLINK_CONF_DIR']))])
 
 
 def construct_test_classpath():

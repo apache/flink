@@ -62,7 +62,7 @@ class TableSourceITCase extends StreamingTestBase {
                        |  price DOUBLE
                        |) WITH (
                        |  'connector' = 'values',
-                       |  'filterable-fields' = 'amount',
+                       |  'filterable-fields' = '[amount]',
                        |  'data-id' = '$filterableTableDataId',
                        |  'bounded' = 'false'
                        |)
@@ -83,7 +83,7 @@ class TableSourceITCase extends StreamingTestBase {
          |  'connector' = 'values',
          |  'data-id' = '$metadataTableDataId',
          |  'bounded' = 'false',
-         |  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
+         |  'readable-metadata' = '{metadata_1: INT, metadata_2: STRING, metadata_3: BIGINT}'
          |)
          |""".stripMargin)
     val nestedTableDataId = TestValuesTableFactory.registerData(TestData.deepNestedRow)
@@ -101,7 +101,7 @@ class TableSourceITCase extends StreamingTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'nested-projection-supported' = 'true',
-         |  'filterable-fields' = '`nested.value`;`nestedItem.deepMap`;`nestedItem.deepArray`',
+         |  'filterable-fields' = '[\"`nested.value`\",\"`nestedItem.deepMap`\",\"`nestedItem.deepArray`\"]',
          |  'data-id' = '$nestedTableDataId',
          |  'bounded' = 'true'
          |)

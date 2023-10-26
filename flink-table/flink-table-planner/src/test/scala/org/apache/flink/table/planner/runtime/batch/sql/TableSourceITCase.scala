@@ -58,7 +58,7 @@ class TableSourceITCase extends BatchTestBase {
                        |) WITH (
                        |  'connector' = 'values',
                        |  'data-id' = '$filterableTableDataId',
-                       |  'filterable-fields' = 'amount',
+                       |  'filterable-fields' = '[amount]',
                        |  'bounded' = 'true'
                        |)
                        |""".stripMargin)
@@ -77,7 +77,7 @@ class TableSourceITCase extends BatchTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'nested-projection-supported' = 'true',
-         |  'filterable-fields' = '`nested.value`;`nestedItem.deepMap`;`nestedItem.deepArray`',
+         |  'filterable-fields' = '[\"`nested.value`\",\"`nestedItem.deepMap`\",\"`nestedItem.deepArray`\"]',
          |  'data-id' = '$nestedTableDataId',
          |  'bounded' = 'true'
          |)

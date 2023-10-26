@@ -1065,7 +1065,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // write out configuration file
         File tmpConfigurationFile = null;
         try {
-            tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
+            tmpConfigurationFile = File.createTempFile(appId + "-config.yaml", null);
 
             // remove localhost bind hosts as they render production clusters unusable
             removeLocalhostBindHostSetting(configuration, JobManagerOptions.BIND_HOST);
@@ -1075,7 +1075,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
             BootstrapTools.writeConfiguration(configuration, tmpConfigurationFile);
 
-            String flinkConfigKey = "flink-conf.yaml";
+            String flinkConfigKey = "config.yaml";
             fileUploader.registerSingleLocalResource(
                     flinkConfigKey,
                     new Path(tmpConfigurationFile.getAbsolutePath()),
@@ -1083,7 +1083,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                     LocalResourceType.FILE,
                     true,
                     true);
-            classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
+            classPathBuilder.append("config.yaml").append(File.pathSeparator);
         } finally {
             if (tmpConfigurationFile != null && !tmpConfigurationFile.delete()) {
                 LOG.warn("Fail to delete temporary file {}.", tmpConfigurationFile.toPath());

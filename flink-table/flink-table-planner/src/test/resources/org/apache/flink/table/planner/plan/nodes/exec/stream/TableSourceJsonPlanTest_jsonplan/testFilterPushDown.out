@@ -23,7 +23,7 @@
           "partitionKeys" : [ ],
           "options" : {
             "connector" : "values",
-            "filterable-fields" : "a",
+            "filterable-fields" : "[a]",
             "bounded" : "false"
           }
         }

@@ -201,7 +201,8 @@ class TaskExecutorResourceUtilsTest {
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, NETWORK);
         configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MANAGED);
         configuration.setString(
-                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), EXTERNAL_RESOURCE_NAME);
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(),
+                "[" + EXTERNAL_RESOURCE_NAME + "]");
         configuration.setString(
                 ExternalResourceOptions.getAmountConfigOptionForResource(EXTERNAL_RESOURCE_NAME),
                 String.valueOf(EXTERNAL_RESOURCE_AMOUNT));

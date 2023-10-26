@@ -97,7 +97,7 @@ public class PushPartitionIntoTableSourceScanRuleTest
 
         if (sourceFetchPartitions()) {
             String partitionString =
-                    "part1:A,part2:1;part1:A,part2:2;part1:B,part2:3;part1:C,part2:1";
+                    "[\"part1:A,part2:1\", \"part1:A,part2:2\", \"part1:B,part2:3\", \"part1:C,part2:1\"]";
             util().tableEnv().executeSql(String.format(ddlTemp, partitionString));
             util().tableEnv().executeSql(String.format(ddlTempWithVirtualColumn, partitionString));
         } else {
@@ -106,8 +106,8 @@ public class PushPartitionIntoTableSourceScanRuleTest
             util().tableEnv().registerCatalog("test_catalog", catalog);
             util().tableEnv().useCatalog("test_catalog");
             // register table without partitions
-            util().tableEnv().executeSql(String.format(ddlTemp, ""));
-            util().tableEnv().executeSql(String.format(ddlTempWithVirtualColumn, ""));
+            util().tableEnv().executeSql(String.format(ddlTemp, "[]"));
+            util().tableEnv().executeSql(String.format(ddlTempWithVirtualColumn, "[]"));
             ObjectPath mytablePath = ObjectPath.fromString("test_database.MyTable");
             ObjectPath virtualTablePath = ObjectPath.fromString("test_database.VirtualTable");
             // partition map

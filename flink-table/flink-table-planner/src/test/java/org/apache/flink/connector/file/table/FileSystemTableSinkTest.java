@@ -173,7 +173,7 @@ public class FileSystemTableSinkTest {
                         + "'sink.partition-commit.delay'='0s',"
                         + "'sink.partition-commit.policy.kind'='custom',"
                         + "'sink.partition-commit.policy.class'='%s',"
-                        + "'sink.partition-commit.policy.class.parameters'='test1;test2'"
+                        + "'sink.partition-commit.policy.class.parameters'='[test1, test2]'"
                         + ")";
         ddl = String.format(ddl, outputTable, customPartitionCommitPolicyClassName);
         tEnv.executeSql(ddl);

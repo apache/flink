@@ -592,7 +592,7 @@ class JoinTest extends TableTestBase {
                                | with (
                                | 'connector' = 'values',
                                | 'bounded' = 'false',
-                               | 'partition-list' = 'b1:1'
+                               | 'partition-list' = '[b1:1]'
                                |)
                                |""".stripMargin)
     util.tableEnv.executeSql("""
@@ -603,7 +603,7 @@ class JoinTest extends TableTestBase {
                                | with (
                                | 'connector' = 'values',
                                | 'bounded' = 'false',
-                               | 'partition-list' = 'b2:2'
+                               | 'partition-list' = '[b2:2]'
                                |)
                                |""".stripMargin)
     // partition 'b2 = 3' not exists.

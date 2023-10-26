@@ -314,7 +314,10 @@ class ReporterSetupTest {
                 .set(MetricOptions.REPORTER_FACTORY_CLASS, TestReporterFactory.class.getName())
                 .setString(
                         MetricOptions.REPORTER_ADDITIONAL_VARIABLES.key(),
-                        String.join(",", tag1 + ":" + tagValue1, tag2 + ":" + tagValue2));
+                        "{"
+                                + String.join(
+                                        ", ", tag1 + ": " + tagValue1, tag2 + ": " + tagValue2)
+                                + "}");
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 

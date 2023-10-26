@@ -288,7 +288,7 @@ public class FlinkImageBuilder {
 
     private Path createTemporaryFlinkConfFile(Configuration finalConfiguration, Path tempDirectory)
             throws IOException {
-        // Create a temporary flink-conf.yaml file and write merged configurations into it
+        // Create a temporary config.yaml file and write merged configurations into it
         Path flinkConfFile = tempDirectory.resolve(GlobalConfiguration.FLINK_CONF_FILENAME);
         Files.write(
                 flinkConfFile,

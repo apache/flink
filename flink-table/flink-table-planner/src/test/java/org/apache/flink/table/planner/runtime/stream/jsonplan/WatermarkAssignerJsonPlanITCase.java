@@ -82,7 +82,7 @@ class WatermarkAssignerJsonPlanITCase extends JsonPlanTestBase {
                 new HashMap<String, String>() {
                     {
                         put("enable-watermark-push-down", "true");
-                        put("readable-metadata", "ts:timestamp(3)");
+                        put("readable-metadata", "{ts: timestamp(3)}");
                     }
                 });
 
@@ -116,7 +116,7 @@ class WatermarkAssignerJsonPlanITCase extends JsonPlanTestBase {
                 new HashMap<String, String>() {
                     {
                         put("enable-watermark-push-down", "true");
-                        put("readable-metadata", "ts:timestamp(3)");
+                        put("readable-metadata", "{ts: timestamp(3)}");
                     }
                 });
 

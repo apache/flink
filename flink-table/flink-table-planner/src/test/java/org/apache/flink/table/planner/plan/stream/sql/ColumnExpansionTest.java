@@ -52,7 +52,7 @@ public class ColumnExpansionTest {
                         + "  t1_m_aliased STRING METADATA FROM 'k2'\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'readable-metadata' = 't1_m_virtual:INT,k1:STRING,t1_m_default:INT,k2:STRING'\n"
+                        + " 'readable-metadata' = '{t1_m_virtual: INT, k1: STRING, t1_m_default: INT, k2: STRING}'\n"
                         + ")");
 
         tableEnv.executeSql(
@@ -65,7 +65,7 @@ public class ColumnExpansionTest {
                         + "  t2_m_aliased STRING METADATA FROM 'k2'\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'readable-metadata' = 't2_m_virtual:INT,k1:STRING,t2_m_default:INT,k2:STRING'\n"
+                        + " 'readable-metadata' = '{t2_m_virtual: INT, k1: STRING, t2_m_default: INT, k2: STRING}'\n"
                         + ")");
 
         tableEnv.executeSql(
@@ -76,7 +76,7 @@ public class ColumnExpansionTest {
                         + "  WATERMARK FOR t3_m_virtual AS t3_m_virtual - INTERVAL '1' SECOND\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'readable-metadata' = 't3_m_virtual:TIMESTAMP_LTZ(3)'\n"
+                        + " 'readable-metadata' = '{t3_m_virtual: TIMESTAMP_LTZ(3)}'\n"
                         + ")");
 
         tableEnv.getConfig().set(TABLE_COLUMN_EXPANSION_STRATEGY, Collections.emptyList());

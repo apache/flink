@@ -67,7 +67,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "  price double\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'amount',\n"
+                        + " 'filterable-fields' = '[amount]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl1);
@@ -81,7 +81,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "  price double\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'amount',\n"
+                        + " 'filterable-fields' = '[amount]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
 
@@ -97,7 +97,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "  testMap Map<string, string>\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = '`deepNested.nested1.value`;`deepNestedWith..nested..value`;`deepNestedWith..nested.``name`;',"
+                        + " 'filterable-fields' = '[\"`deepNested.nested1.value`\",\"`deepNestedWith..nested..value`\",\"`deepNestedWith..nested.``name`\"]',"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl3);
@@ -115,7 +115,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "   WATERMARK FOR `Timestamp` AS `Timestamp`\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'Result_Mid_data_map;',"
+                        + " 'filterable-fields' = '[Result_Mid_data_map]',"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl4);
@@ -129,7 +129,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + "  b STRING\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'a;b',\n"
+                        + " 'filterable-fields' = '[a, b]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl);
@@ -145,7 +145,7 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
                         + " 'bounded' = 'true',\n"
-                        + " 'filterable-fields' = 'a;b',\n"
+                        + " 'filterable-fields' = '[a, b]',\n"
                         + " 'disable-lookup' = 'true'"
                         + ")";
         util.tableEnv().executeSql(ddl);

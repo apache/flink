@@ -311,7 +311,7 @@ abstract class JoinTestBase extends TableTestBase {
                                | with (
                                | 'connector' = 'values',
                                | 'bounded' = 'true',
-                               | 'partition-list' = 'b1:1'
+                               | 'partition-list' = '[b1:1]'
                                |)
                                |""".stripMargin)
     util.tableEnv.executeSql("""
@@ -322,7 +322,7 @@ abstract class JoinTestBase extends TableTestBase {
                                | with (
                                | 'connector' = 'values',
                                | 'bounded' = 'true',
-                               | 'partition-list' = 'b2:2'
+                               | 'partition-list' = '[b2:2]'
                                |)
                                |""".stripMargin)
     // partition 'b2 = 3' not exists.

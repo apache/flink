@@ -112,7 +112,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
                 sourceSchema,
                 new HashMap<String, String>() {
                     {
-                        put("readable-metadata", "m:STRING");
+                        put("readable-metadata", "{m: STRING}");
                     }
                 });
 
@@ -167,7 +167,7 @@ public class TableCsvFormatITCase extends AbstractTestBase {
                 sourceSchema,
                 new HashMap<String, String>() {
                     {
-                        put("partition-list", "p:1;p:2");
+                        put("partition-list", "[p:1, p:2]");
                     }
                 },
                 "p");
@@ -244,10 +244,10 @@ public class TableCsvFormatITCase extends AbstractTestBase {
                 sourceSchema,
                 new HashMap<String, String>() {
                     {
-                        put("readable-metadata", "a:INT");
-                        put("filterable-fields", "a");
+                        put("readable-metadata", "{a: INT}");
+                        put("filterable-fields", "[a]");
                         put("enable-watermark-push-down", "true");
-                        put("partition-list", "b:1;b:2;b:3;b:4;b:5;b:6");
+                        put("partition-list", "[b:1, b:2, b:3, b:4, b:5, b:6]");
                     }
                 },
                 "b");

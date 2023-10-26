@@ -50,7 +50,7 @@ public final class GlobalConfiguration {
 
     public static final String FLINK_CONF_FILENAME = "config.yaml";
 
-    private static String confFileName = LEGACY_FLINK_CONF_FILENAME;
+    private static String confFileName = FLINK_CONF_FILENAME;
 
     // key separator character
     private static final String KEY_SEPARATOR = ".";

@@ -204,7 +204,7 @@ class DefaultMetricFilterTest {
 
         configuration.set(MetricOptions.REPORTER_EXCLUDES, Arrays.asList("*:*:*"));
         configuration.setString(
-                MetricOptions.REPORTER_EXCLUDES.key(), "*:foo,bar:meter;*:foo,bar:gauge");
+                MetricOptions.REPORTER_EXCLUDES.key(), "['*:foo,bar:meter', '*:foo,bar:gauge']");
 
         final MetricFilter metricFilter = DefaultMetricFilter.fromConfiguration(configuration);
 

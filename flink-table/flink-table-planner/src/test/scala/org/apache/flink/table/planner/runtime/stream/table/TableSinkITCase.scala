@@ -676,7 +676,7 @@ class TableSinkITCase extends StreamingTestBase {
                        |) WITH (
                        |  'connector' = 'values',
                        |  'data-id' = '$dataId',
-                       |  'readable-metadata' = 'metadata_1:INT'
+                       |  'readable-metadata' = '{metadata_1: INT}'
                        |)
                        |""".stripMargin)
     tEnv.executeSql(
@@ -688,8 +688,8 @@ class TableSinkITCase extends StreamingTestBase {
          |  num STRING METADATA FROM 'metadata_2'
          |) WITH (
          |  'connector' = 'values',
-         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:INT, metadata_3:BIGINT',
-         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:INT'
+         |  'readable-metadata' = '{metadata_1: STRING, metadata_2: INT, metadata_3: BIGINT}',
+         |  'writable-metadata' = '{metadata_1: STRING, metadata_2: INT}'
          |)
          |""".stripMargin)
 
@@ -1260,7 +1260,7 @@ class TableSinkITCase extends StreamingTestBase {
       .executeInsert(
         TableDescriptor
           .forConnector("values")
-          .option("writable-metadata", "m1:INT")
+          .option("writable-metadata", "{m1: INT}")
           .schema(
             Schema
               .newBuilder()
@@ -1332,7 +1332,7 @@ class TableSinkITCase extends StreamingTestBase {
       .addInsert(
         TableDescriptor
           .forConnector("values")
-          .option("writable-metadata", "m1:INT")
+          .option("writable-metadata", "{m1: INT}")
           .schema(
             Schema
               .newBuilder()

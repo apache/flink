@@ -111,7 +111,8 @@ class EnvironmentTest {
         assertThat(env1.getCatalogManager().getCatalogModificationListeners().isEmpty()).isTrue();
 
         configuration.setString(
-                TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS.key(), "factory1;factory2");
+                TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS.key(),
+                "[factory1, factory2]");
         TableEnvironmentImpl env2 =
                 (TableEnvironmentImpl)
                         TableEnvironment.create(
@@ -140,7 +141,8 @@ class EnvironmentTest {
         assertThat(env1.getCatalogManager().getCatalogModificationListeners().isEmpty()).isTrue();
 
         configuration.setString(
-                TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS.key(), "factory1;factory2");
+                TableConfigOptions.TABLE_CATALOG_MODIFICATION_LISTENERS.key(),
+                "[factory1, factory2]");
         StreamTableEnvironmentImpl env2 =
                 (StreamTableEnvironmentImpl)
                         StreamTableEnvironment.create(

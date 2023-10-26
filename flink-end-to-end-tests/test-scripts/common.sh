@@ -51,6 +51,11 @@ cd $TEST_ROOT
 
 source "${TEST_INFRA_DIR}/common_utils.sh"
 
+if [[ -z "${FLINK_CONF_DIR:-}" ]]; then
+    FLINK_CONF_DIR="$FLINK_DIR/conf"
+fi
+. "${FLINK_DIR}"/bin/flatten-config.sh "${FLINK_CONF_DIR}" "${FLINK_DIR}/bin" "${FLINK_DIR}/lib"
+
 NODENAME=${NODENAME:-"localhost"}
 
 # REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
@@ -143,14 +148,14 @@ function swap_planner_scala_with_planner_loader() {
 
 function delete_config_key() {
     local config_key=$1
-    sed -i -e "/^${config_key}: /d" ${FLINK_DIR}/conf/flink-conf.yaml
+    sed -i -e "/^${config_key}: /d" "${FLINK_DIR}/conf/config.yaml"
 }
 
 function set_config_key() {
     local config_key=$1
     local value=$2
     delete_config_key ${config_key}
-    echo "$config_key: $value" >> $FLINK_DIR/conf/flink-conf.yaml
+    echo "$config_key: $value" >> "${FLINK_DIR}/conf/config.yaml"
 }
 
 function create_ha_config() {
@@ -166,7 +171,7 @@ function create_ha_config() {
     # This must have all the masters to be used in HA.
     echo "localhost:8081" > ${FLINK_DIR}/conf/masters
 
-    # then move on to create the flink-conf.yaml
+    # then move on to create the config.yaml
     #==============================================================================
     # Common
     #==============================================================================
@@ -688,7 +693,7 @@ function setup_flink_slf4j_metric_reporter() {
   METRIC_NAME_PATTERN="${1:-"*"}"
   set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
   set_config_key "metrics.reporter.slf4j.interval" "1 SECONDS"
-  set_config_key "metrics.reporter.slf4j.filter.includes" "*:${METRIC_NAME_PATTERN}"
+  set_config_key "metrics.reporter.slf4j.filter.includes" "['*:${METRIC_NAME_PATTERN}']"
 }
 
 function get_job_exceptions {

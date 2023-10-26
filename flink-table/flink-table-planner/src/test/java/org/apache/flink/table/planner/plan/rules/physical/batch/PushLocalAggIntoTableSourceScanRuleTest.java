@@ -50,7 +50,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
                         + "  type STRING\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'id;type',\n"
+                        + " 'filterable-fields' = '[id, type]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl);
@@ -67,8 +67,8 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
                         + "  PRIMARY KEY (`id`) NOT ENFORCED\n"
                         + ") WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'id;type',\n"
-                        + " 'readable-metadata' = 'metadata_1:BIGINT, metadata_2:STRING',\n"
+                        + " 'filterable-fields' = '[id, type]',\n"
+                        + " 'readable-metadata' = '{metadata_1: BIGINT, metadata_2: STRING}',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl2);
@@ -84,8 +84,8 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
                         + ") PARTITIONED BY (type)\n"
                         + "WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'id;type',\n"
-                        + " 'partition-list' = 'type:a;type:b',\n"
+                        + " 'filterable-fields' = '[id, type]',\n"
+                        + " 'partition-list' = '[type:a, type:b]',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";
         util.tableEnv().executeSql(ddl3);
@@ -101,7 +101,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
                         + ")\n"
                         + "WITH (\n"
                         + " 'connector' = 'values',\n"
-                        + " 'filterable-fields' = 'id;type',\n"
+                        + " 'filterable-fields' = '[id, type]',\n"
                         + " 'enable-projection-push-down' = 'false',\n"
                         + " 'bounded' = 'true'\n"
                         + ")";

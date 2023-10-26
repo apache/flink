@@ -93,8 +93,8 @@ class TableScanTest extends TableTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'bounded' = 'false',
-         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN, metadata_3:BIGINT',
-         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN'
+         |  'readable-metadata' = '{metadata_1: STRING, metadata_2: BOOLEAN, metadata_3: BIGINT}',
+         |  'writable-metadata' = '{metadata_1: STRING, metadata_2: BOOLEAN}'
          |)
        """.stripMargin)
     util.verifyExecPlan("SELECT * FROM MetadataTable")
@@ -112,7 +112,7 @@ class TableScanTest extends TableTestBase {
                      |) WITH (
                      |  'connector' = 'values',
                      |  'bounded' = 'false',
-                     |  'readable-metadata' = 'timestamp:TIMESTAMP(0), other:STRING'
+                     |  'readable-metadata' = '{timestamp: TIMESTAMP(0), other: STRING}'
                      |)
        """.stripMargin)
     util.verifyExecPlan("SELECT * FROM MetadataTable")
@@ -132,8 +132,8 @@ class TableScanTest extends TableTestBase {
          |) WITH (
          |  'connector' = 'values',
          |  'bounded' = 'false',
-         |  'readable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN, metadata_3:BIGINT',
-         |  'writable-metadata' = 'metadata_1:STRING, metadata_2:BOOLEAN'
+         |  'readable-metadata' = '{metadata_1: STRING, metadata_2: BOOLEAN, metadata_3: BIGINT}',
+         |  'writable-metadata' = '{metadata_1: STRING, metadata_2: BOOLEAN}'
          |)
        """.stripMargin)
     util.verifyExecPlan("SELECT `b`, `other_metadata` FROM MetadataTable")

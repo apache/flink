@@ -268,7 +268,8 @@ public class WorkerResourceSpecTest extends TestLogger {
     public void testCreateFromTaskExecutorProcessSpec() {
         final Configuration config = new Configuration();
         config.setString(
-                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(), EXTERNAL_RESOURCE_NAME);
+                ExternalResourceOptions.EXTERNAL_RESOURCE_LIST.key(),
+                "[" + EXTERNAL_RESOURCE_NAME + "]");
         config.setLong(
                 ExternalResourceOptions.getAmountConfigOptionForResource(EXTERNAL_RESOURCE_NAME),
                 1);

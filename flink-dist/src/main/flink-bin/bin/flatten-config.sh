@@ -17,22 +17,22 @@
 # limitations under the License.
 ################################################################################
 
-USAGE="Usage: runExtractLoggingOutputs.sh <input>"
-
-INPUT="$1"
-
-if [[ -z "${INPUT}" ]]; then
-  echo "$USAGE"
-  exit 1
+# Check the number of input parameters
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 FLINK_CONF_DIR FLINK_BIN_DIR FLINK_LIB_DIR [args]"
+    exit 1
 fi
 
-bin=`dirname "$0"`
-bin=`cd "$bin"; pwd`
+# Add the path to the bash-java-utils script
+source "$2"/bash-java-utils.sh
 
-FLINK_CONF_DIR=${bin}/../../main/resources
-FLINK_TARGET_DIR=${bin}/../../../target
-FLINK_DIST_JAR=`find $FLINK_TARGET_DIR -name 'flink-dist*.jar'`
+ARGS=("${@:1}")
+result=$(parseConfigurationAndExportLogs "${ARGS[@]}")
 
-. ${bin}/../../main/flink-bin/bin/bash-java-utils.sh > /dev/null
+CONF_FILE="$1/flink-conf.yaml"
+if [ ! -e "$1/flink-conf.yaml" ]; then
+  CONF_FILE="$1/config.yaml"
+fi;
 
-extractLoggingOutputs "${INPUT}"
+# Output the result
+echo "${result}" > "$CONF_FILE";

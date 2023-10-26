@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EnvSecretsDecoratorTest extends KubernetesJobManagerTestBase {
 
     private static final String ENV_NAME = "MY_FOO";
-    private static final String ENV_SERCET_KEY = "env:MY_FOO,secret:foo,key:key_foo";
+    private static final String ENV_SERCET_KEY = "[{env: MY_FOO, secret: foo, key: key_foo}]";
 
     private EnvSecretsDecorator envSecretsDecorator;
 

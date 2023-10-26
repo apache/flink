@@ -88,7 +88,7 @@ public class TableSinkJsonPlanTest extends TableTestBase {
                         + "  m varchar METADATA\n"
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
-                        + "  'writable-metadata' = 'm:STRING')";
+                        + "  'writable-metadata' = '{m: STRING}')";
         tEnv.executeSql(sinkTableDdl);
         util.verifyJsonPlan("insert into MySink select * from MyTable");
     }

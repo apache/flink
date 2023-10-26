@@ -82,8 +82,8 @@ public class DynamicFilteringTest extends TableTestBase {
                                 + " 'connector' = 'values',\n"
                                 + " 'disable-lookup' = 'true',\n"
                                 + " 'runtime-source' = 'NewSource',\n"
-                                + " 'partition-list' = 'p1:1;p1:2;p1:3',\n"
-                                + " 'dynamic-filtering-fields' = 'p1;b1',\n"
+                                + " 'partition-list' = '[p1:1, p1:2, p1:3]',\n"
+                                + " 'dynamic-filtering-fields' = '[p1, b1]',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
 
@@ -98,8 +98,8 @@ public class DynamicFilteringTest extends TableTestBase {
                                 + " 'connector' = 'values',\n"
                                 + " 'disable-lookup' = 'true',\n"
                                 + " 'runtime-source' = 'NewSource',\n"
-                                + " 'partition-list' = 'p1:1;p1:2;p1:3',\n"
-                                + " 'dynamic-filtering-fields' = 'p2',\n"
+                                + " 'partition-list' = '[p1:1, p1:2, p1:3]',\n"
+                                + " 'dynamic-filtering-fields' = '[p2]',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");
 
@@ -131,8 +131,8 @@ public class DynamicFilteringTest extends TableTestBase {
                                 + "  WITH (\n"
                                 + " 'connector' = 'values',\n"
                                 + " 'runtime-source' = 'SourceFunction',\n"
-                                + " 'partition-list' = 'p1:1;p1:2;p1:3',\n"
-                                + " 'dynamic-filtering-fields' = 'p1',\n"
+                                + " 'partition-list' = '[p1:1, p1:2, p1:3]',\n"
+                                + " 'dynamic-filtering-fields' = '[p1]',\n"
                                 + " 'disable-lookup' = 'true',\n"
                                 + " 'bounded' = 'true'\n"
                                 + ")");

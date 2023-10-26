@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -67,6 +68,10 @@ public class BashJavaUtils {
                 return getTmResourceParams(configuration);
             case GET_JM_RESOURCE_PARAMS:
                 return getJmResourceParams(configuration);
+            case GET_FLINK_CONFIGURATION:
+                return configuration.toFileWritableMap().entrySet().stream()
+                        .map(entry -> entry.getKey() + ": " + entry.getValue())
+                        .collect(Collectors.toList());
             default:
                 // unexpected, Command#valueOf should fail if a unknown command is passed in
                 throw new RuntimeException("Unexpected, something is wrong.");
@@ -175,6 +180,8 @@ public class BashJavaUtils {
         GET_TM_RESOURCE_PARAMS,
 
         /** Get JVM parameters and dynamic configs of job manager resources. */
-        GET_JM_RESOURCE_PARAMS
+        GET_JM_RESOURCE_PARAMS,
+
+        GET_FLINK_CONFIGURATION
     }
 }

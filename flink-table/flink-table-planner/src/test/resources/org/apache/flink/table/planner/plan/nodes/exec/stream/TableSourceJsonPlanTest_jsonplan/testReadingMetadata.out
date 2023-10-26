@@ -28,7 +28,7 @@
           "partitionKeys" : [ ],
           "options" : {
             "connector" : "values",
-            "readable-metadata" : "m:STRING",
+            "readable-metadata" : "{m: STRING}",
             "bounded" : "false"
           }
         }
