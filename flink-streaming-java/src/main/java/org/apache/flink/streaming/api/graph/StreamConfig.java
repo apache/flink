@@ -83,7 +83,7 @@ public class StreamConfig implements Serializable {
      * Introduce serializedUdfClassName to avoid unnecessarily heavy {@link
      * #getStreamOperatorFactory}.
      */
-    public static final String SERIALIZED_UDF_CLASS_NAME = "serializedUdfClassName";
+    public static final String SERIALIZED_UDF_CLASS = "serializedUdfClass";
 
     private static final String NUMBER_OF_OUTPUTS = "numberOfOutputs";
     private static final String NUMBER_OF_NETWORK_INPUTS = "numberOfNetworkInputs";
@@ -374,7 +374,7 @@ public class StreamConfig implements Serializable {
     public void setStreamOperatorFactory(StreamOperatorFactory<?> factory) {
         if (factory != null) {
             toBeSerializedConfigObjects.put(SERIALIZED_UDF, factory);
-            config.setString(SERIALIZED_UDF_CLASS_NAME, factory.getClass().getName());
+            toBeSerializedConfigObjects.put(SERIALIZED_UDF_CLASS, factory.getClass());
         }
     }
 
@@ -406,8 +406,13 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public String getStreamOperatorFactoryClassName() {
-        return config.getString(SERIALIZED_UDF_CLASS_NAME, null);
+    public <T extends StreamOperatorFactory<?>> Class<T> getStreamOperatorFactoryClass(
+            ClassLoader cl) {
+        try {
+            return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZED_UDF_CLASS, cl);
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate serialized udf class.", e);
+        }
     }
 
     public void setIterationId(String iterationId) {
@@ -768,7 +773,7 @@ public class StreamConfig implements Serializable {
 
         try {
             builder.append("\nOperator: ")
-                    .append(getStreamOperatorFactory(cl).getClass().getSimpleName());
+                    .append(getStreamOperatorFactoryClass(cl).getSimpleName());
         } catch (Exception e) {
             builder.append("\nOperator: Missing");
         }
