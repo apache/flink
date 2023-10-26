@@ -39,7 +39,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -68,10 +67,10 @@ public class SinkV2MetricsITCase extends TestLogger {
     private static final int DEFAULT_PARALLELISM = 4;
 
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-    private static final InMemoryReporter reporter = InMemoryReporter.createWithRetainedMetrics();
+    private final InMemoryReporter reporter = InMemoryReporter.createWithRetainedMetrics();
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+    @Rule
+    public final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
