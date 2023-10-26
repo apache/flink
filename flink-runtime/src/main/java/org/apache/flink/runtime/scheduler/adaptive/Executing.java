@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsListener;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -52,17 +53,21 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /** State which represents a running job with an {@link ExecutionGraph} and assigned slots. */
 class Executing extends StateWithExecutionGraph
-        implements ResourceListener, RescaleManager.Context {
+        implements ResourceListener, RescaleManager.Context, CheckpointStatsListener {
 
     private final Context context;
 
     private final RescalingController sufficientResourcesController;
     private final RescalingController desiredResourcesController;
     private final RescaleManager rescaleManager;
+    private final int rescaleOnFailedCheckpointCount;
+    // null indicates that there was no change event observed, yet
+    @Nullable private AtomicInteger failedCheckpointCountdown;
 
     Executing(
             ExecutionGraph executionGraph,
@@ -74,6 +79,7 @@ class Executing extends StateWithExecutionGraph
             List<ExceptionHistoryEntry> failureCollection,
             RescaleManager.Factory rescaleManagerFactory,
             int minParallelismChangeForRescale,
+            int rescaleOnFailedCheckpointCount,
             Instant lastRescale) {
         super(
                 context,
@@ -92,10 +98,22 @@ class Executing extends StateWithExecutionGraph
                 new EnforceMinimalIncreaseRescalingController(minParallelismChangeForRescale);
         this.rescaleManager = rescaleManagerFactory.create(this, lastRescale);
 
+        Preconditions.checkArgument(
+                rescaleOnFailedCheckpointCount > 0,
+                "The rescaleOnFailedCheckpointCount should be larger than 0.");
+        this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
+        this.failedCheckpointCountdown = null;
+
         deploy();
 
         // check if new resources have come available in the meantime
-        context.runIfState(this, this::evaluateRescaling, Duration.ZERO);
+        context.runIfState(
+                this,
+                () -> {
+                    rescaleManager.onChange();
+                    rescaleManager.onTrigger();
+                },
+                Duration.ZERO);
     }
 
     @Override
@@ -194,17 +212,38 @@ class Executing extends StateWithExecutionGraph
 
     @Override
     public void onNewResourcesAvailable() {
-        evaluateRescaling();
+        rescaleManager.onChange();
+        initializeFailedCheckpointCountdownIfUnset();
     }
 
     @Override
     public void onNewResourceRequirements() {
-        evaluateRescaling();
+        rescaleManager.onChange();
+        initializeFailedCheckpointCountdownIfUnset();
     }
 
-    private void evaluateRescaling() {
-        rescaleManager.onChange();
+    @Override
+    public void onCompletedCheckpoint() {
+        triggerPotentialRescale();
+    }
+
+    @Override
+    public void onFailedCheckpoint() {
+        if (this.failedCheckpointCountdown != null
+                && this.failedCheckpointCountdown.decrementAndGet() <= 0) {
+            triggerPotentialRescale();
+        }
+    }
+
+    private void triggerPotentialRescale() {
         rescaleManager.onTrigger();
+        this.failedCheckpointCountdown = null;
+    }
+
+    private void initializeFailedCheckpointCountdownIfUnset() {
+        if (failedCheckpointCountdown == null) {
+            this.failedCheckpointCountdown = new AtomicInteger(this.rescaleOnFailedCheckpointCount);
+        }
     }
 
     CompletableFuture<String> stopWithSavepoint(
@@ -285,6 +324,7 @@ class Executing extends StateWithExecutionGraph
         private final List<ExceptionHistoryEntry> failureCollection;
         private final RescaleManager.Factory rescaleManagerFactory;
         private final int minParallelismChangeForRescale;
+        private final int rescaleOnFailedCheckpointCount;
 
         Factory(
                 ExecutionGraph executionGraph,
@@ -295,7 +335,8 @@ class Executing extends StateWithExecutionGraph
                 ClassLoader userCodeClassLoader,
                 List<ExceptionHistoryEntry> failureCollection,
                 RescaleManager.Factory rescaleManagerFactory,
-                int minParallelismChangeForRescale) {
+                int minParallelismChangeForRescale,
+                int rescaleOnFailedCheckpointCount) {
             this.context = context;
             this.log = log;
             this.executionGraph = executionGraph;
@@ -305,6 +346,7 @@ class Executing extends StateWithExecutionGraph
             this.failureCollection = failureCollection;
             this.rescaleManagerFactory = rescaleManagerFactory;
             this.minParallelismChangeForRescale = minParallelismChangeForRescale;
+            this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
         }
 
         public Class<Executing> getStateClass() {
@@ -322,6 +364,7 @@ class Executing extends StateWithExecutionGraph
                     failureCollection,
                     rescaleManagerFactory,
                     minParallelismChangeForRescale,
+                    rescaleOnFailedCheckpointCount,
                     Instant.now());
         }
     }

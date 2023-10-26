@@ -20,6 +20,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.util.ConfigurationException;
 
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class DefaultRescaleManagerTest {
 
     @Test
-    void testProperConfiguration() {
+    void testProperConfiguration() throws ConfigurationException {
         final Duration scalingIntervalMin = Duration.ofMillis(1337);
         final Duration scalingIntervalMax = Duration.ofMillis(7331);
         final Duration maximumDelayForRescaleTrigger = Duration.ofMillis(4242);
