@@ -210,9 +210,11 @@ public class FlinkImageBuilder {
 
             final Path log4jPropertiesFile = createTemporaryLog4jPropertiesFile(tempDirectory);
             // Copy flink-conf.yaml into image
+            // NOTE: Before we change the default conf file in the flink-dist to 'config.yaml', we
+            // need to use the legacy flink conf file 'flink-conf.yaml' here.
             filesToCopy.put(
                     flinkConfFile,
-                    Paths.get(flinkHome, "conf", GlobalConfiguration.FLINK_CONF_FILENAME));
+                    Paths.get(flinkHome, "conf", GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME));
             filesToCopy.put(
                     log4jPropertiesFile, Paths.get(flinkHome, "conf", LOG4J_PROPERTIES_FILENAME));
 
@@ -291,7 +293,9 @@ public class FlinkImageBuilder {
     private Path createTemporaryFlinkConfFile(Configuration finalConfiguration, Path tempDirectory)
             throws IOException {
         // Create a temporary flink-conf.yaml file and write merged configurations into it
-        Path flinkConfFile = tempDirectory.resolve(GlobalConfiguration.FLINK_CONF_FILENAME);
+        // NOTE: Before we change the default conf file in the flink-dist to 'config.yaml', we
+        // need to use the legacy flink conf file 'flink-conf.yaml' here.
+        Path flinkConfFile = tempDirectory.resolve(GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
         Files.write(
                 flinkConfFile,
                 finalConfiguration.toFileWritableMap().entrySet().stream()

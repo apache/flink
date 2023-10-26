@@ -112,10 +112,17 @@ public class ConfigurationUtils {
     }
 
     /**
-     * Parses a string as a map of strings. The expected format of the map is:
+     * Parses a string as a map of strings. The expected format of the map to be parsed` by FLINK
+     * parser is:
      *
      * <pre>
      * key1:value1,key2:value2
+     * </pre>
+     *
+     * <p>The expected format of the map to be parsed by standard YAML parser is:
+     *
+     * <pre>
+     * {key1: value1, key2: value2}
      * </pre>
      *
      * <p>Parts of the string can be escaped by wrapping with single or double quotes.
@@ -124,13 +131,7 @@ public class ConfigurationUtils {
      * @return parsed map
      */
     public static Map<String, String> parseMap(String stringSerializedMap) {
-        return StructuredOptionsSplitter.splitEscaped(stringSerializedMap, ',').stream()
-                .map(p -> StructuredOptionsSplitter.splitEscaped(p, ':'))
-                .collect(
-                        Collectors.toMap(
-                                arr -> arr.get(0), // key name
-                                arr -> arr.get(1) // value
-                                ));
+        return convertToProperties(stringSerializedMap, GlobalConfiguration.isStandardYaml());
     }
 
     public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {

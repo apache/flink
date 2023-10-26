@@ -18,6 +18,9 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.util.ExceptionUtils;
+
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -25,6 +28,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,8 +45,8 @@ class GlobalConfigurationTest {
     @TempDir private File tmpDir;
 
     @Test
-    void testConfigurationYAML() {
-        File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+    void testConfigurationWithLegacyYAML() {
+        File confFile = new File(tmpDir, GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
 
         try {
             try (final PrintWriter pw = new PrintWriter(confFile)) {
@@ -85,9 +91,62 @@ class GlobalConfigurationTest {
             assertThat(conf.getString("mykey8", "null")).isEqualTo("null");
             assertThat(conf.getString("mykey9", null)).isEqualTo("myvalue10");
         } finally {
+            // Clear the standard yaml flag to avoid impact to other cases.
+            GlobalConfiguration.setStandardYaml(true);
             confFile.delete();
             tmpDir.delete();
         }
+    }
+
+    @Test
+    void testConfigurationWithStandardYAML() {
+        File confFile = new File(tmpDir, GlobalConfiguration.FLINK_CONF_FILENAME);
+
+        try (final PrintWriter pw = new PrintWriter(confFile)) {
+            pw.println("Key1: ");
+            pw.println("    Key2: v1");
+            pw.println("    Key3: 'v2'");
+            pw.println("Key4: 1");
+            pw.println("Key5: '1'");
+            pw.println("Key6: '*'");
+            pw.println("Key7: true");
+            pw.println("Key8: 'true'");
+            pw.println("Key9: [a, b, '*', 1, '2',  true, 'true']");
+            pw.println("Key10: {k1: v1, k2: '2', k3: 3}");
+            pw.println("Key11: [{k1: v1, k2: '2', k3: 3}, {k4: true}]");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        Configuration conf = GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath());
+
+        assertThat(conf.keySet()).hasSize(12);
+
+        assertThat(conf.get(ConfigOptions.key("Key1.Key2").stringType().noDefaultValue()))
+                .isEqualTo("v1");
+        assertThat(conf.get(ConfigOptions.key("Key1.Key3").stringType().noDefaultValue()))
+                .isEqualTo("v2");
+        assertThat(conf.get(ConfigOptions.key("Key4").intType().noDefaultValue())).isOne();
+        assertThat(conf.get(ConfigOptions.key("Key5").stringType().noDefaultValue()))
+                .isEqualTo("1");
+        assertThat(conf.get(ConfigOptions.key("Key6").stringType().noDefaultValue()))
+                .isEqualTo("*");
+        assertThat(conf.get(ConfigOptions.key("Key7").booleanType().noDefaultValue())).isTrue();
+        assertThat(conf.get(ConfigOptions.key("Key8").stringType().noDefaultValue()))
+                .isEqualTo("true");
+        assertThat(conf.get(ConfigOptions.key("Key9").stringType().asList().noDefaultValue()))
+                .isEqualTo(Arrays.asList("a", "b", "*", "1", "2", "true", "true"));
+
+        Map<String, String> map = new HashMap<>();
+        map.put("k1", "v1");
+        map.put("k2", "2");
+        map.put("k3", "3");
+        assertThat(conf.get(ConfigOptions.key("Key10").mapType().noDefaultValue())).isEqualTo(map);
+
+        Map<String, String> map2 = new HashMap<>();
+        map2.put("k4", "true");
+        assertThat(conf.get(ConfigOptions.key("Key11").mapType().asList().noDefaultValue()))
+                .isEqualTo(Arrays.asList(map, map2));
     }
 
     @Test
@@ -112,15 +171,37 @@ class GlobalConfigurationTest {
     }
 
     @Test
-    // We allow malformed YAML files
-    void testInvalidYamlFile() throws IOException {
-        final File confFile = new File(tmpDir.getPath(), GlobalConfiguration.FLINK_CONF_FILENAME);
+    // We allow malformed YAML files if loaded legacy flink conf
+    void testInvalidLegacyYamlFile() throws IOException {
+        final File confFile =
+                new File(tmpDir.getPath(), GlobalConfiguration.LEGACY_FLINK_CONF_FILENAME);
 
         try (PrintWriter pw = new PrintWriter(confFile)) {
             pw.append("invalid");
         }
 
         assertThat(GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath())).isNotNull();
+        // Clear the standard yaml flag to avoid impact to other cases.
+        GlobalConfiguration.setStandardYaml(true);
+    }
+
+    @Test
+    // We do not allow malformed YAML files if loaded standard yaml
+    void testInvalidStandardYamlFile() throws IOException {
+        final File confFile = new File(tmpDir.getPath(), GlobalConfiguration.FLINK_CONF_FILENAME);
+
+        try (PrintWriter pw = new PrintWriter(confFile)) {
+            pw.append("invalid");
+        }
+
+        // We do not allow malformed YAML files if loaded standard yaml
+        assertThatThrownBy(() -> GlobalConfiguration.loadConfiguration(tmpDir.getAbsolutePath()))
+                .isInstanceOf(RuntimeException.class)
+                .satisfies(
+                        e ->
+                                Assertions.assertThat(ExceptionUtils.stringifyException(e))
+                                        .contains(
+                                                "java.lang.String cannot be cast to java.util.Map"));
     }
 
     @Test

@@ -35,6 +35,7 @@ import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -1065,7 +1066,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         // write out configuration file
         File tmpConfigurationFile = null;
         try {
-            tmpConfigurationFile = File.createTempFile(appId + "-flink-conf.yaml", null);
+            String flinkConfigFileName = GlobalConfiguration.getFlinkConfFilename();
+            tmpConfigurationFile = File.createTempFile(appId + "-" + flinkConfigFileName, null);
 
             // remove localhost bind hosts as they render production clusters unusable
             removeLocalhostBindHostSetting(configuration, JobManagerOptions.BIND_HOST);
@@ -1075,15 +1077,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
             BootstrapTools.writeConfiguration(configuration, tmpConfigurationFile);
 
-            String flinkConfigKey = "flink-conf.yaml";
             fileUploader.registerSingleLocalResource(
-                    flinkConfigKey,
+                    flinkConfigFileName,
                     new Path(tmpConfigurationFile.getAbsolutePath()),
                     "",
                     LocalResourceType.FILE,
                     true,
                     true);
-            classPathBuilder.append("flink-conf.yaml").append(File.pathSeparator);
+            classPathBuilder.append(flinkConfigFileName).append(File.pathSeparator);
         } finally {
             if (tmpConfigurationFile != null && !tmpConfigurationFile.delete()) {
                 LOG.warn("Fail to delete temporary file {}.", tmpConfigurationFile.toPath());
