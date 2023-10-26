@@ -73,14 +73,16 @@ import java.util.AbstractList;
  * <p>Once Flink applies same logic for both table api and sql, this first changes should be
  * removed.
  *
- * <p>2. It uses PEEK_FIELDS_NO_EXPAND with a nested struct type (Flink [[RowType]]).
+ * <p>2. It uses {@link StructKind#PEEK_FIELDS_NO_EXPAND} with a nested struct type (Flink [[{@link
+ * org.apache.flink.table.types.logical.RowType}]]).
  *
- * <p>See more at {@code LogicalRelDataTypeConverter} and {@code FlinkTypeFactory}.
+ * <p>See more at {@link org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverter} and
+ * {@link org.apache.flink.table.planner.calcite.FlinkTypeFactory}.
  *
  * <p>Changed lines
  *
  * <ol>
- *   <li>Line 103 ~ 134
+ *   <li>Line 106 ~ 137
  * </ol>
  */
 public class SqlRowOperator extends SqlSpecialOperator {
