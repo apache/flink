@@ -98,10 +98,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
         }
     }
 
-    /** Serialized job information or <tt>null</tt> if offloaded. */
+    /** Serialized job information if non-offloaded or <tt>PermanentBlobKey</tt> if offloaded. */
     private MaybeOffloaded<JobInformation> serializedJobInformation;
 
-    /** Serialized task information or <tt>null</tt> if offloaded. */
+    /** Serialized task information if non-offloaded or <tt>PermanentBlobKey</tt> if offloaded. */
     private MaybeOffloaded<TaskInformation> serializedTaskInformation;
 
     /**
@@ -283,10 +283,6 @@ public final class TaskDeploymentDescriptor implements Serializable {
             inputGate.tryLoadAndDeserializeShuffleDescriptors(
                     blobService, jobId, shuffleDescriptorsCache);
         }
-
-        // make sure that the serialized job and task information fields are filled
-        Preconditions.checkNotNull(serializedJobInformation);
-        Preconditions.checkNotNull(serializedTaskInformation);
     }
 
     @Override
