@@ -201,6 +201,8 @@ public class TaskManagerServicesBuilder {
                 libraryCacheManager,
                 slotAllocationSnapshotPersistenceService,
                 sharedResources,
+                new NoOpGroupCache<>(),
+                new NoOpGroupCache<>(),
                 new NoOpGroupCache<>());
     }
 }

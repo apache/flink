@@ -29,6 +29,8 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.Shuff
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -95,6 +97,8 @@ public class TaskManagerServices {
     private final LibraryCacheManager libraryCacheManager;
     private final SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
     private final SharedResources sharedResources;
+    private final GroupCache<JobID, PermanentBlobKey, JobInformation> jobInformationCache;
+    private final GroupCache<JobID, PermanentBlobKey, TaskInformation> taskInformationCache;
     private final GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup>
             shuffleDescriptorsCache;
 
@@ -117,6 +121,8 @@ public class TaskManagerServices {
             LibraryCacheManager libraryCacheManager,
             SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService,
             SharedResources sharedResources,
+            GroupCache<JobID, PermanentBlobKey, JobInformation> jobInformationCache,
+            GroupCache<JobID, PermanentBlobKey, TaskInformation> taskInformationCache,
             GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> shuffleDescriptorsCache) {
 
         this.unresolvedTaskManagerLocation =
@@ -139,6 +145,8 @@ public class TaskManagerServices {
         this.libraryCacheManager = Preconditions.checkNotNull(libraryCacheManager);
         this.slotAllocationSnapshotPersistenceService = slotAllocationSnapshotPersistenceService;
         this.sharedResources = Preconditions.checkNotNull(sharedResources);
+        this.jobInformationCache = jobInformationCache;
+        this.taskInformationCache = taskInformationCache;
         this.shuffleDescriptorsCache = Preconditions.checkNotNull(shuffleDescriptorsCache);
     }
 
@@ -212,6 +220,14 @@ public class TaskManagerServices {
 
     public SharedResources getSharedResources() {
         return sharedResources;
+    }
+
+    public GroupCache<JobID, PermanentBlobKey, JobInformation> getJobInformationCache() {
+        return jobInformationCache;
+    }
+
+    public GroupCache<JobID, PermanentBlobKey, TaskInformation> getTaskInformationCache() {
+        return taskInformationCache;
     }
 
     public GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> getShuffleDescriptorCache() {
@@ -415,6 +431,11 @@ public class TaskManagerServices {
                     NoOpSlotAllocationSnapshotPersistenceService.INSTANCE;
         }
 
+        final GroupCache<JobID, PermanentBlobKey, JobInformation> jobInformationCache =
+                new DefaultGroupCache.Factory<JobID, PermanentBlobKey, JobInformation>().create();
+        final GroupCache<JobID, PermanentBlobKey, TaskInformation> taskInformationCache =
+                new DefaultGroupCache.Factory<JobID, PermanentBlobKey, TaskInformation>().create();
+
         final GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> shuffleDescriptorsCache =
                 new DefaultGroupCache.Factory<JobID, PermanentBlobKey, ShuffleDescriptorGroup>()
                         .create();
@@ -438,6 +459,8 @@ public class TaskManagerServices {
                 libraryCacheManager,
                 slotAllocationSnapshotPersistenceService,
                 new SharedResources(),
+                jobInformationCache,
+                taskInformationCache,
                 shuffleDescriptorsCache);
     }
 

@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 /**
  * Container class for operator/task specific information which are stored at the {@link
@@ -87,5 +88,44 @@ public class TaskInformation implements Serializable {
 
     public Configuration getTaskConfiguration() {
         return taskConfiguration;
+    }
+
+    public TaskInformation deepCopy() {
+        return new TaskInformation(
+                getJobVertexId(),
+                getTaskName(),
+                getNumberOfSubtasks(),
+                getMaxNumberOfSubtasks(),
+                getInvokableClassName(),
+                // Return the new Configuration to avoid shared conf being changed.
+                new Configuration(getTaskConfiguration()));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TaskInformation that = (TaskInformation) o;
+        return numberOfSubtasks == that.numberOfSubtasks
+                && maxNumberOfSubtasks == that.maxNumberOfSubtasks
+                && Objects.equals(jobVertexId, that.jobVertexId)
+                && Objects.equals(taskName, that.taskName)
+                && Objects.equals(invokableClassName, that.invokableClassName)
+                && Objects.equals(taskConfiguration, that.taskConfiguration);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                jobVertexId,
+                taskName,
+                numberOfSubtasks,
+                maxNumberOfSubtasks,
+                invokableClassName,
+                taskConfiguration);
     }
 }
