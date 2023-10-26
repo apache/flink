@@ -36,8 +36,10 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.InitializationStatus;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
@@ -113,6 +115,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
@@ -143,6 +146,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.TaskManagerOptions.BUFFER_DEBLOAT_PERIOD;
+import static org.apache.flink.runtime.metrics.MetricNames.GATE_RESTORE_DURATION;
+import static org.apache.flink.runtime.metrics.MetricNames.INITIALIZE_STATE_DURATION;
+import static org.apache.flink.runtime.metrics.MetricNames.MAILBOX_START_DURATION;
+import static org.apache.flink.runtime.metrics.MetricNames.READ_OUTPUT_DATA_DURATION;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
@@ -314,6 +321,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     private boolean shouldInterruptOnCancel = true;
 
     @Nullable private final AvailabilityProvider changelogWriterAvailabilityProvider;
+
+    private long initializeStateEndTs;
 
     // ------------------------------------------------------------------------
 
@@ -730,57 +739,87 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         getEnvironment().getMetricGroup().getIOMetricGroup().markTaskInitializationStarted();
         LOG.debug("Initializing {}.", getName());
 
-        operatorChain =
-                getEnvironment().getTaskStateManager().isTaskDeployedAsFinished()
-                        ? new FinishedOperatorChain<>(this, recordWriter)
-                        : new RegularOperatorChain<>(this, recordWriter);
-        mainOperator = operatorChain.getMainOperator();
+        SubTaskInitializationMetricsBuilder initializationMetrics =
+                new SubTaskInitializationMetricsBuilder(
+                        SystemClock.getInstance().absoluteTimeMillis());
+        try {
+            operatorChain =
+                    getEnvironment().getTaskStateManager().isTaskDeployedAsFinished()
+                            ? new FinishedOperatorChain<>(this, recordWriter)
+                            : new RegularOperatorChain<>(this, recordWriter);
+            mainOperator = operatorChain.getMainOperator();
 
-        getEnvironment()
-                .getTaskStateManager()
-                .getRestoreCheckpointId()
-                .ifPresent(restoreId -> latestReportCheckpointId = restoreId);
+            getEnvironment()
+                    .getTaskStateManager()
+                    .getRestoreCheckpointId()
+                    .ifPresent(restoreId -> latestReportCheckpointId = restoreId);
 
-        // task specific initialization
-        init();
-        configuration.clearInitialConfigs();
+            // task specific initialization
+            init();
+            configuration.clearInitialConfigs();
 
-        // save the work of reloading state, etc, if the task is already canceled
-        ensureNotCanceled();
+            // save the work of reloading state, etc, if the task is already canceled
+            ensureNotCanceled();
 
-        // -------- Invoke --------
-        LOG.debug("Invoking {}", getName());
+            // -------- Invoke --------
+            LOG.debug("Invoking {}", getName());
 
-        // we need to make sure that any triggers scheduled in open() cannot be
-        // executed before all operators are opened
-        CompletableFuture<Void> allGatesRecoveredFuture = actionExecutor.call(this::restoreGates);
+            // we need to make sure that any triggers scheduled in open() cannot be
+            // executed before all operators are opened
+            CompletableFuture<Void> allGatesRecoveredFuture =
+                    actionExecutor.call(() -> restoreStateAndGates(initializationMetrics));
 
-        // Run mailbox until all gates will be recovered.
-        mailboxProcessor.runMailboxLoop();
+            // Run mailbox until all gates will be recovered.
+            mailboxProcessor.runMailboxLoop();
 
-        ensureNotCanceled();
+            initializationMetrics.addDurationMetric(
+                    GATE_RESTORE_DURATION,
+                    SystemClock.getInstance().absoluteTimeMillis() - initializeStateEndTs);
 
-        checkState(
-                allGatesRecoveredFuture.isDone(),
-                "Mailbox loop interrupted before recovery was finished.");
+            ensureNotCanceled();
 
-        // we recovered all the gates, we can close the channel IO executor as it is no longer
-        // needed
-        channelIOExecutor.shutdown();
+            checkState(
+                    allGatesRecoveredFuture.isDone(),
+                    "Mailbox loop interrupted before recovery was finished.");
 
-        isRunning = true;
-        isRestoring = false;
+            // we recovered all the gates, we can close the channel IO executor as it is no longer
+            // needed
+            channelIOExecutor.shutdown();
+
+            isRunning = true;
+            isRestoring = false;
+            initializationMetrics.setStatus(InitializationStatus.COMPLETED);
+        } finally {
+            environment
+                    .getTaskStateManager()
+                    .reportInitializationMetrics(initializationMetrics.build());
+        }
     }
 
-    private CompletableFuture<Void> restoreGates() throws Exception {
+    private CompletableFuture<Void> restoreStateAndGates(
+            SubTaskInitializationMetricsBuilder initializationMetrics) throws Exception {
+
+        long mailboxStartTs = SystemClock.getInstance().absoluteTimeMillis();
+        initializationMetrics.addDurationMetric(
+                MAILBOX_START_DURATION,
+                mailboxStartTs - initializationMetrics.getInitializationStartTs());
+
         SequentialChannelStateReader reader =
                 getEnvironment().getTaskStateManager().getSequentialChannelStateReader();
         reader.readOutputData(
                 getEnvironment().getAllWriters(), !configuration.isGraphContainingLoops());
 
+        long readOutputDataTs = SystemClock.getInstance().absoluteTimeMillis();
+        initializationMetrics.addDurationMetric(
+                READ_OUTPUT_DATA_DURATION, readOutputDataTs - mailboxStartTs);
+
         operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
 
+        initializeStateEndTs = SystemClock.getInstance().absoluteTimeMillis();
+        initializationMetrics.addDurationMetric(
+                INITIALIZE_STATE_DURATION, initializeStateEndTs - readOutputDataTs);
         IndexedInputGate[] inputGates = getEnvironment().getAllInputGates();
+
         channelIOExecutor.execute(
                 () -> {
                     try {
