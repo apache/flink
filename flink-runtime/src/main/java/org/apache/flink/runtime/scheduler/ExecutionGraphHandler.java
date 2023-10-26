@@ -79,7 +79,22 @@ public class ExecutionGraphHandler {
     }
 
     public void reportInitializationMetrics(SubTaskInitializationMetrics initializationMetrics) {
-        // TODO: implement reporting initialization metrics
+        if (executionGraph.getCheckpointStatsTracker() == null) {
+            // TODO: Consider to support reporting initialization stats without checkpointing
+            log.debug(
+                    "Ignoring reportInitializationMetrics if checkpoint coordinator is not present");
+            return;
+        }
+        ioExecutor.execute(
+                () -> {
+                    try {
+                        executionGraph
+                                .getCheckpointStatsTracker()
+                                .reportInitializationMetrics(initializationMetrics);
+                    } catch (Exception t) {
+                        log.warn("Error while reportInitializationMetrics", t);
+                    }
+                });
     }
 
     public void acknowledgeCheckpoint(
