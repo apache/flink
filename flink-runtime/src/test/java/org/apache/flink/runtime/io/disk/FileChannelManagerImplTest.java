@@ -21,26 +21,25 @@ package org.apache.flink.runtime.io.disk;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.testutils.TestJvmProcess;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.ShutdownHookUtil;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests the logic of {@link FileChannelManagerImpl}. */
-public class FileChannelManagerImplTest extends TestLogger {
+class FileChannelManagerImplTest {
     private static final Logger LOG = LoggerFactory.getLogger(FileChannelManagerImplTest.class);
 
     private static final String DIR_NAME_PREFIX = "manager-test";
@@ -54,63 +53,68 @@ public class FileChannelManagerImplTest extends TestLogger {
 
     private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10);
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private Path temporaryFolder;
 
     @Test
-    public void testFairness() throws Exception {
-        String directory1 = temporaryFolder.newFolder().getAbsoluteFile().getAbsolutePath();
-        String directory2 = temporaryFolder.newFolder().getAbsoluteFile().getAbsolutePath();
-        FileChannelManager fileChannelManager =
-                new FileChannelManagerImpl(new String[] {directory1, directory2}, "test");
+    void testFairness() throws Exception {
+        String directory1 =
+                TempDirUtils.newFolder(temporaryFolder).getAbsoluteFile().getAbsolutePath();
+        String directory2 =
+                TempDirUtils.newFolder(temporaryFolder).getAbsoluteFile().getAbsolutePath();
 
-        int numChannelIDs = 100000;
-        AtomicInteger counter1 = new AtomicInteger();
-        AtomicInteger counter2 = new AtomicInteger();
+        try (FileChannelManager fileChannelManager =
+                new FileChannelManagerImpl(new String[] {directory1, directory2}, "test")) {
+            int numChannelIDs = 100000;
+            AtomicInteger counter1 = new AtomicInteger();
+            AtomicInteger counter2 = new AtomicInteger();
 
-        int numThreads = 10;
-        Thread[] threads = new Thread[numThreads];
-        for (int i = 0; i < numThreads; ++i) {
-            threads[i] =
-                    new Thread(
-                            () -> {
-                                for (int j = 0; j < numChannelIDs; ++j) {
-                                    FileIOChannel.ID channelID = fileChannelManager.createChannel();
-                                    if (channelID.getPath().startsWith(directory1)) {
-                                        counter1.incrementAndGet();
-                                    } else {
-                                        counter2.incrementAndGet();
+            int numThreads = 10;
+            Thread[] threads = new Thread[numThreads];
+            for (int i = 0; i < numThreads; ++i) {
+                threads[i] =
+                        new Thread(
+                                () -> {
+                                    for (int j = 0; j < numChannelIDs; ++j) {
+                                        FileIOChannel.ID channelID =
+                                                fileChannelManager.createChannel();
+                                        if (channelID.getPath().startsWith(directory1)) {
+                                            counter1.incrementAndGet();
+                                        } else {
+                                            counter2.incrementAndGet();
+                                        }
                                     }
-                                }
-                            });
-            threads[i].start();
-        }
+                                });
+                threads[i].start();
+            }
 
-        for (int i = 0; i < numThreads; ++i) {
-            threads[i].join();
-        }
+            for (int i = 0; i < numThreads; ++i) {
+                threads[i].join();
+            }
 
-        assertEquals(counter1.get(), counter2.get());
+            assertThat(counter2).hasValue(counter1.get());
+        }
     }
 
     @Test
-    public void testDirectoriesCleanupOnKillWithoutCallerHook() throws Exception {
+    void testDirectoriesCleanupOnKillWithoutCallerHook() throws Exception {
         testDirectoriesCleanupOnKill(false);
     }
 
     @Test
-    public void testDirectoriesCleanupOnKillWithCallerHook() throws Exception {
+    void testDirectoriesCleanupOnKillWithCallerHook() throws Exception {
         testDirectoriesCleanupOnKill(true);
     }
 
     private void testDirectoriesCleanupOnKill(boolean callerHasHook) throws Exception {
-        assumeTrue(
-                OperatingSystem.isLinux()
-                        || OperatingSystem.isFreeBSD()
-                        || OperatingSystem.isSolaris()
-                        || OperatingSystem.isMac());
+        assumeThat(
+                        OperatingSystem.isLinux()
+                                || OperatingSystem.isFreeBSD()
+                                || OperatingSystem.isSolaris()
+                                || OperatingSystem.isMac())
+                .isTrue();
 
-        File fileChannelDir = temporaryFolder.newFolder();
-        File signalDir = temporaryFolder.newFolder();
+        File fileChannelDir = TempDirUtils.newFolder(temporaryFolder);
+        File signalDir = TempDirUtils.newFolder(temporaryFolder);
         File signalFile = new File(signalDir.getAbsolutePath(), SIGNAL_FILE_FOR_KILLING);
 
         FileChannelManagerTestProcess fileChannelManagerTestProcess =
@@ -130,24 +134,27 @@ public class FileChannelManagerImplTest extends TestLogger {
                     Runtime.getRuntime()
                             .exec("kill " + fileChannelManagerTestProcess.getProcessId());
             kill.waitFor();
-            assertEquals("Failed to send SIG_TERM to process", 0, kill.exitValue());
+            assertThat(kill.exitValue())
+                    .withFailMessage("Failed to send SIG_TERM to process")
+                    .isZero();
 
             Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
             while (fileChannelManagerTestProcess.isAlive() && deadline.hasTimeLeft()) {
                 Thread.sleep(100);
             }
 
-            assertFalse(
-                    "The file channel manager test process does not terminate in time, its output is: \n"
-                            + fileChannelManagerTestProcess.getProcessOutput(),
-                    fileChannelManagerTestProcess.isAlive());
+            assertThat(fileChannelManagerTestProcess.isAlive())
+                    .withFailMessage(
+                            "The file channel manager test process does not terminate in time, its output is: \n%s",
+                            fileChannelManagerTestProcess.getProcessOutput())
+                    .isFalse();
 
             // Checks if the directories are cleared.
-            assertFalse(
-                    "The file channel manager test process does not remove the tmp shuffle directories after termination, "
-                            + "its output is \n"
-                            + fileChannelManagerTestProcess.getProcessOutput(),
-                    fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX));
+            assertThat(fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX))
+                    .withFailMessage(
+                            "The file channel manager test process does not remove the tmp shuffle directories after termination, its output is \n%s",
+                            fileChannelManagerTestProcess.getProcessOutput())
+                    .isFalse();
         } finally {
             fileChannelManagerTestProcess.destroy();
         }
@@ -189,7 +196,7 @@ public class FileChannelManagerImplTest extends TestLogger {
     }
 
     /** The entry point class to test the file channel manager cleanup with shutdown hook. */
-    public static class FileChannelManagerCleanupRunner {
+    private static class FileChannelManagerCleanupRunner {
 
         public static void main(String[] args) throws Exception {
             boolean callerHasHook = Boolean.parseBoolean(args[0]);
