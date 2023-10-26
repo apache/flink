@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -198,6 +199,10 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                             ExecutionAttemptID executionAttemptID,
                             long checkpointId,
                             CheckpointException checkpointException) {}
+
+                    @Override
+                    public void reportInitializationMetrics(
+                            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
                 };
 
         JobID jobID = new JobID();

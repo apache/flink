@@ -206,7 +206,7 @@ class CheckpointCoordinatorTest {
         testReportStatsAfterFailure(
                 1L,
                 (coordinator, execution, metrics) -> {
-                    coordinator.reportStats(1L, execution.getAttemptId(), metrics);
+                    coordinator.reportCheckpointMetrics(1L, execution.getAttemptId(), metrics);
                     return null;
                 });
     }

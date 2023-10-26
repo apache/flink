@@ -287,6 +287,12 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
         throw new UnsupportedOperationException();
     }
 
+    @Nullable
+    @Override
+    public CheckpointStatsTracker getCheckpointStatsTracker() {
+        throw new UnsupportedOperationException();
+    }
+
     @Override
     public KvStateLocationRegistry getKvStateLocationRegistry() {
         throw new UnsupportedOperationException();

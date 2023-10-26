@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -74,7 +75,11 @@ public class ExecutionGraphHandler {
             ExecutionAttemptID attemptId, long id, CheckpointMetrics metrics) {
         processCheckpointCoordinatorMessage(
                 "ReportCheckpointStats",
-                coordinator -> coordinator.reportStats(id, attemptId, metrics));
+                coordinator -> coordinator.reportCheckpointMetrics(id, attemptId, metrics));
+    }
+
+    public void reportInitializationMetrics(SubTaskInitializationMetrics initializationMetrics) {
+        // TODO: implement reporting initialization metrics
     }
 
     public void acknowledgeCheckpoint(

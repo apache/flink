@@ -28,6 +28,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -155,6 +156,9 @@ public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
             CheckpointMetrics checkpointMetrics);
 
     void declineCheckpoint(DeclineCheckpoint decline);
+
+    void reportInitializationMetrics(
+            JobID jobId, SubTaskInitializationMetrics initializationMetrics);
 
     CompletableFuture<String> stopWithSavepoint(
             String targetDirectory, boolean terminate, SavepointFormatType formatType);
