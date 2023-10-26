@@ -735,10 +735,10 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         // submits all source-to-sink pipelines
         testResult(env.fromElements(3, 4, 5), 3, 4, 5);
 
-        assertThat(TestValuesTableFactory.getResults("OutputTable1"))
+        assertThat(TestValuesTableFactory.getResultsAsStrings("OutputTable1"))
                 .containsExactlyInAnyOrder("+I[1, a]", "+I[2, b]");
 
-        assertThat(TestValuesTableFactory.getResults("OutputTable2"))
+        assertThat(TestValuesTableFactory.getResultsAsStrings("OutputTable2"))
                 .containsExactlyInAnyOrder("+I[1]", "+I[2]", "+I[3]");
     }
 

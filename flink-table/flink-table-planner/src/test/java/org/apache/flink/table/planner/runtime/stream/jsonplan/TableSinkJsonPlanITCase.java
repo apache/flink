@@ -68,7 +68,7 @@ class TableSinkJsonPlanITCase extends JsonPlanTestBase {
 
         compileSqlAndExecutePlan("insert into MySink select * from MyTable").await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList("+I[1, 1, hi]", "+I[2, 1, hello]", "+I[3, 2, hello world]"), result);
     }

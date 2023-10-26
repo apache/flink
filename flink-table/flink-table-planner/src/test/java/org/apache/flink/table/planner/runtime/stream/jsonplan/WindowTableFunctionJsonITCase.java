@@ -90,7 +90,7 @@ class WindowTableFunctionJsonITCase extends JsonPlanTestBase {
                                 + "FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[2020-10-10 00:00:01, 1, 1.0, 1.0, 1.11, Hi, a, 2020-10-10 00:00:01.000, 2020-10-10T00:00, 2020-10-10T00:00:05, 2020-10-10T00:00:04.999]",

@@ -65,7 +65,7 @@ class IntervalJoinJsonPlanITCase extends JsonPlanTestBase {
                         "+I[1, HiHi, Hi6]",
                         "+I[1, HiHi, Hi8]",
                         "+I[2, HeHe, Hi5]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
@@ -112,6 +112,6 @@ class IntervalJoinJsonPlanITCase extends JsonPlanTestBase {
                         "+I[1, HiHi, Hi2]",
                         "+I[1, HiHi, Hi3]",
                         "+I[2, HeHe, Hi5]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 }

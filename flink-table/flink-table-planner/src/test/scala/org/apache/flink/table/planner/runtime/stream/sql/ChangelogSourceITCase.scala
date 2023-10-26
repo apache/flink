@@ -115,13 +115,13 @@ class ChangelogSourceITCase(
       "user1,Tom,tom123@gmail.com,8.10,16.20",
       "user3,Bailey,bailey@qq.com,9.99,19.98",
       "user4,Tina,tina@gmail.com,11.30,22.60")
-    assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)
+    assertEquals(expected.sorted, TestValuesTableFactory.getResultsAsStrings("user_sink").sorted)
 
     sourceMode match {
       // verify the update_before messages haven been filtered when scanning changelog source
       // the CHANGELOG_SOURCE has I,UA,UB,D but no primary key, so we can not omit UB
       case CHANGELOG_SOURCE_WITH_EVENTS_DUPLICATE =>
-        val rawResult = TestValuesTableFactory.getRawResults("user_sink")
+        val rawResult = TestValuesTableFactory.getRawResultsAsStrings("user_sink")
         val hasUB = rawResult.exists(r => r.startsWith("-U"))
         assertFalse(
           s"Sink result shouldn't contain UPDATE_BEFORE, but is:\n ${rawResult.mkString("\n")}",
@@ -173,7 +173,7 @@ class ChangelogSourceITCase(
     tEnv.executeSql(dml).await()
 
     val expected = Seq("ALL,3,29.39,tom123@gmail.com")
-    assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)
+    assertEquals(expected.sorted, TestValuesTableFactory.getResultsAsStrings("user_sink").sorted)
   }
 
   @Test
@@ -202,7 +202,7 @@ class ChangelogSourceITCase(
 
     val expected =
       Seq("16.20,1,tom123@gmail.com", "19.98,1,bailey@qq.com", "22.60,1,tina@gmail.com")
-    assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)
+    assertEquals(expected.sorted, TestValuesTableFactory.getResultsAsStrings("user_sink").sorted)
   }
 
   @Test
@@ -233,7 +233,7 @@ class ChangelogSourceITCase(
 
     val expected =
       Seq("user3,Bailey,bailey@qq.com,9.99,19.98", "user4,Tina,tina@gmail.com,11.30,22.60")
-    assertEquals(expected.sorted, TestValuesTableFactory.getResults("user_sink").sorted)
+    assertEquals(expected.sorted, TestValuesTableFactory.getResultsAsStrings("user_sink").sorted)
   }
 
   @Test

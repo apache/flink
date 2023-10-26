@@ -119,7 +119,7 @@ class WindowJoinJsonITCase extends JsonPlanTestBase {
                                 + "ON L.window_start = R.window_start AND L.window_end = R.window_end AND L.name = R.name")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[b, 2020-10-10T00:00:05, 2020-10-10T00:00:10, 2, 2]",
