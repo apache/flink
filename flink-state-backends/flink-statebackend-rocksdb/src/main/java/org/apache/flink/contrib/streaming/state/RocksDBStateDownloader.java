@@ -19,11 +19,13 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.state.StateBackend.CustomInitializationMetrics;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -39,10 +41,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.runtime.metrics.MetricNames.DOWNLOAD_STATE_DURATION;
+
 /** Help class for downloading RocksDB state files. */
 public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
-    public RocksDBStateDownloader(int restoringThreadNum) {
+
+    private final CustomInitializationMetrics customInitializationMetrics;
+
+    public RocksDBStateDownloader(
+            int restoringThreadNum, CustomInitializationMetrics customInitializationMetrics) {
         super(restoringThreadNum);
+        this.customInitializationMetrics = customInitializationMetrics;
     }
 
     /**
@@ -61,11 +70,15 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
         // Make sure we also react to external close signals.
         closeableRegistry.registerCloseable(internalCloser);
         try {
+            long startTimeMs = SystemClock.getInstance().relativeTimeMillis();
             List<CompletableFuture<Void>> futures =
                     transferAllStateDataToDirectoryAsync(downloadRequests, internalCloser)
                             .collect(Collectors.toList());
             // Wait until either all futures completed successfully or one failed exceptionally.
             FutureUtils.completeAll(futures).get();
+            customInitializationMetrics.addMetric(
+                    DOWNLOAD_STATE_DURATION,
+                    SystemClock.getInstance().relativeTimeMillis() - startTimeMs);
         } catch (Exception e) {
             downloadRequests.stream()
                     .map(StateHandleDownloadSpec::getDownloadDestination)

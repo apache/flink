@@ -68,6 +68,7 @@ public class MetricNames {
     public static final String READ_OUTPUT_DATA_DURATION = "ReadOutputDataDurationMs";
     public static final String INITIALIZE_STATE_DURATION = "InitializeStateDurationMs";
     public static final String GATE_RESTORE_DURATION = "GateRestoreDurationMs";
+    public static final String DOWNLOAD_STATE_DURATION = "DownloadStateDurationMs";
 
     public static final String START_WORKER_FAILURE_RATE = "startWorkFailure" + SUFFIX_RATE;
 

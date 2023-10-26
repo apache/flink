@@ -193,6 +193,7 @@ public class StateBackendBenchmarkUtils {
                         ttlTimeProvider,
                         LatencyTrackingStateConfig.disabled(),
                         new UnregisteredMetricsGroup(),
+                        (key, value) -> {},
                         Collections.emptyList(),
                         AbstractStateBackend.getCompressionDecorator(executionConfig),
                         new CloseableRegistry());
