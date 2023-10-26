@@ -300,6 +300,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final ThreadInfoSampleService threadInfoSampleService;
 
+    private final GroupCache<JobID, PermanentBlobKey, JobInformation> jobInformationCache;
+    private final GroupCache<JobID, PermanentBlobKey, TaskInformation> taskInformationCache;
     private final GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup>
             shuffleDescriptorsCache;
 
@@ -378,6 +380,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 taskExecutorServices.getSlotAllocationSnapshotPersistenceService();
 
         this.sharedResources = taskExecutorServices.getSharedResources();
+        this.jobInformationCache = taskExecutorServices.getJobInformationCache();
+        this.taskInformationCache = taskExecutorServices.getTaskInformationCache();
         this.shuffleDescriptorsCache = taskExecutorServices.getShuffleDescriptorCache();
     }
 
@@ -508,6 +512,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         changelogStoragesManager.shutdown();
         channelStateExecutorFactoryManager.shutdown();
 
+        jobInformationCache.clear();
+        taskInformationCache.clear();
         shuffleDescriptorsCache.clear();
 
         Preconditions.checkState(jobTable.isEmpty());
@@ -672,7 +678,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             // re-integrate offloaded data and deserialize shuffle descriptors
             try {
                 tdd.loadBigData(
-                        taskExecutorBlobService.getPermanentBlobService(), shuffleDescriptorsCache);
+                        taskExecutorBlobService.getPermanentBlobService(),
+                        jobInformationCache,
+                        taskInformationCache,
+                        shuffleDescriptorsCache);
             } catch (IOException | ClassNotFoundException e) {
                 throw new TaskSubmissionException(
                         "Could not re-integrate offloaded TaskDeploymentDescriptor data.", e);
@@ -682,12 +691,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             final JobInformation jobInformation;
             final TaskInformation taskInformation;
             try {
-                jobInformation =
-                        tdd.getSerializedJobInformation()
-                                .deserializeValue(getClass().getClassLoader());
-                taskInformation =
-                        tdd.getSerializedTaskInformation()
-                                .deserializeValue(getClass().getClassLoader());
+                jobInformation = tdd.getJobInformation();
+                taskInformation = tdd.getTaskInformation();
             } catch (IOException | ClassNotFoundException e) {
                 throw new TaskSubmissionException(
                         "Could not deserialize the job or task information.", e);
@@ -1907,6 +1912,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         changelogStoragesManager.releaseResourcesForJob(jobId);
         currentSlotOfferPerJob.remove(jobId);
         channelStateExecutorFactoryManager.releaseResourcesForJob(jobId);
+        jobInformationCache.clearCacheForGroup(jobId);
+        taskInformationCache.clearCacheForGroup(jobId);
         shuffleDescriptorsCache.clearCacheForGroup(jobId);
         fileMergingManager.releaseMergingSnapshotManagerForJob(jobId);
     }

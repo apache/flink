@@ -179,7 +179,11 @@ class DefaultExecutionGraphDeploymentTest {
         taskManagerGateway.setSubmitConsumer(
                 FunctionUtils.uncheckedConsumer(
                         taskDeploymentDescriptor -> {
-                            taskDeploymentDescriptor.loadBigData(blobCache, new NoOpGroupCache<>());
+                            taskDeploymentDescriptor.loadBigData(
+                                    blobCache,
+                                    new NoOpGroupCache<>(),
+                                    new NoOpGroupCache<>(),
+                                    new NoOpGroupCache<>());
                             tdd.complete(taskDeploymentDescriptor);
                         }));
 
@@ -202,10 +206,8 @@ class DefaultExecutionGraphDeploymentTest {
         TaskDeploymentDescriptor descr = tdd.get();
         assertThat(descr).isNotNull();
 
-        JobInformation jobInformation =
-                descr.getSerializedJobInformation().deserializeValue(getClass().getClassLoader());
-        TaskInformation taskInformation =
-                descr.getSerializedTaskInformation().deserializeValue(getClass().getClassLoader());
+        JobInformation jobInformation = descr.getJobInformation();
+        TaskInformation taskInformation = descr.getTaskInformation();
 
         assertThat(descr.getJobId()).isEqualTo(jobId);
         assertThat(jobInformation.getJobId()).isEqualTo(jobId);
