@@ -9,3 +9,4 @@ See bundled license files for details.
 
 - org.jline:jline-terminal:3.23.0
 - org.jline:jline-reader:3.23.0
+- org.jline:jline-native:3.23.0
