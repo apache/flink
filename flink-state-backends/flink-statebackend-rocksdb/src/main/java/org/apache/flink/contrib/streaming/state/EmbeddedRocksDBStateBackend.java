@@ -457,6 +457,7 @@ public class EmbeddedRocksDBStateBackend extends AbstractManagedMemoryStateBacke
                                 parameters.getTtlTimeProvider(),
                                 latencyTrackingStateConfig,
                                 parameters.getMetricGroup(),
+                                parameters.getCustomInitializationMetrics(),
                                 parameters.getStateHandles(),
                                 keyGroupCompressionDecorator,
                                 parameters.getCancelStreamRegistry())

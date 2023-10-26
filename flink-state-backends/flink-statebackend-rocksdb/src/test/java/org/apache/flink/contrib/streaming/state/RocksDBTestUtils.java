@@ -76,6 +76,7 @@ public final class RocksDBTestUtils {
                 TtlTimeProvider.DEFAULT,
                 LatencyTrackingStateConfig.disabled(),
                 new UnregisteredMetricsGroup(),
+                (key, value) -> {},
                 Collections.emptyList(),
                 UncompressedStreamCompressionDecorator.INSTANCE,
                 new CloseableRegistry());
