@@ -37,6 +37,7 @@ import org.apache.flink.runtime.blocklist.BlocklistUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -585,6 +586,12 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         schedulerNG.reportCheckpointMetrics(
                 jobID, executionAttemptID, checkpointId, checkpointMetrics);
+    }
+
+    @Override
+    public void reportInitializationMetrics(
+            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {
+        schedulerNG.reportInitializationMetrics(jobId, initializationMetrics);
     }
 
     // TODO: This method needs a leader session ID

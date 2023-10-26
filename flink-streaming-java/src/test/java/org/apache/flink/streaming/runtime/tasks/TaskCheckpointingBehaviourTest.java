@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -283,6 +284,10 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
             declinedLatch.trigger();
         }
+
+        @Override
+        public void reportInitializationMetrics(
+                JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
 
         public OneShotLatch getDeclinedLatch() {
             return declinedLatch;

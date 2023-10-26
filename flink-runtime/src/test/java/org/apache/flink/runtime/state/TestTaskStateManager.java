@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptor;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
@@ -153,6 +154,10 @@ public class TestTaskStateManager implements TaskStateManager {
             CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {
         reportedCheckpointId = checkpointMetaData.getCheckpointId();
     }
+
+    @Override
+    public void reportInitializationMetrics(
+            SubTaskInitializationMetrics subTaskInitializationMetrics) {}
 
     @Override
     public boolean isTaskDeployedAsFinished() {

@@ -31,6 +31,7 @@ import org.apache.flink.runtime.blocklist.BlockedNode;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -488,6 +489,10 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             ExecutionAttemptID executionAttemptID,
             long checkpointId,
             CheckpointMetrics checkpointMetrics) {}
+
+    @Override
+    public void reportInitializationMetrics(
+            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {}
 
     @Override
     public JobMasterId getFencingToken() {

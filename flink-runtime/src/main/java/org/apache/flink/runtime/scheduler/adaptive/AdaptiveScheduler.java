@@ -43,6 +43,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -756,6 +757,16 @@ public class AdaptiveScheduler
                 StateWithExecutionGraph.class,
                 stateWithExecutionGraph -> stateWithExecutionGraph.declineCheckpoint(decline),
                 "declineCheckpoint");
+    }
+
+    @Override
+    public void reportInitializationMetrics(
+            JobID jobId, SubTaskInitializationMetrics initializationMetrics) {
+        state.tryRun(
+                StateWithExecutionGraph.class,
+                stateWithExecutionGraph ->
+                        stateWithExecutionGraph.reportInitializationMetrics(initializationMetrics),
+                "reportCheckpointMetrics");
     }
 
     @Override

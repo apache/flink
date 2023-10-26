@@ -28,6 +28,7 @@ import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
@@ -235,6 +236,10 @@ abstract class StateWithExecutionGraph implements State {
             CheckpointMetrics checkpointMetrics) {
         executionGraphHandler.reportCheckpointMetrics(
                 executionAttemptID, checkpointId, checkpointMetrics);
+    }
+
+    void reportInitializationMetrics(SubTaskInitializationMetrics initializationMetrics) {
+        executionGraphHandler.reportInitializationMetrics(initializationMetrics);
     }
 
     void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {

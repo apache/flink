@@ -260,7 +260,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
      * Checkpoint stats tracker separate from the coordinator in order to be available after
      * archiving.
      */
-    private CheckpointStatsTracker checkpointStatsTracker;
+    @Nullable private CheckpointStatsTracker checkpointStatsTracker;
 
     // ------ Fields that are only relevant for archived execution graphs ------------
     @Nullable private String stateBackendName;
@@ -541,6 +541,12 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     @Nullable
     public CheckpointCoordinator getCheckpointCoordinator() {
         return checkpointCoordinator;
+    }
+
+    @Nullable
+    @Override
+    public CheckpointStatsTracker getCheckpointStatsTracker() {
+        return checkpointStatsTracker;
     }
 
     @Override
