@@ -75,6 +75,14 @@ class YamlParserUtilsTest {
     }
 
     @Test
+    void testLoadEmptyYamlFile() throws Exception {
+        File confFile = new File(tmpDir, "test.yaml");
+        confFile.createNewFile();
+
+        assertThat(YamlParserUtils.loadYamlFile(confFile)).isEmpty();
+    }
+
+    @Test
     void testLoadYamlFile_InvalidYAMLSyntaxException() {
         File confFile = new File(tmpDir, "invalid.yaml");
         try (final PrintWriter pw = new PrintWriter(confFile)) {
