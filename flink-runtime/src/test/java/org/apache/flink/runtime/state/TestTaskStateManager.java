@@ -60,10 +60,10 @@ public class TestTaskStateManager implements TaskStateManager {
     private long reportedCheckpointId;
     private long notifiedCompletedCheckpointId;
     private long notifiedAbortedCheckpointId;
+    private Optional<SubTaskInitializationMetrics> reportedInitializationMetrics = Optional.empty();
 
     private final JobID jobId;
     private final ExecutionAttemptID executionAttemptID;
-
     private final Map<Long, TaskStateSnapshot> jobManagerTaskStateSnapshotsByCheckpointId;
     private final Map<Long, TaskStateSnapshot> taskManagerTaskStateSnapshotsByCheckpointId;
     private final CheckpointResponder checkpointResponder;
@@ -157,7 +157,9 @@ public class TestTaskStateManager implements TaskStateManager {
 
     @Override
     public void reportInitializationMetrics(
-            SubTaskInitializationMetrics subTaskInitializationMetrics) {}
+            SubTaskInitializationMetrics subTaskInitializationMetrics) {
+        reportedInitializationMetrics = Optional.of(subTaskInitializationMetrics);
+    }
 
     @Override
     public boolean isTaskDeployedAsFinished() {
@@ -268,6 +270,10 @@ public class TestTaskStateManager implements TaskStateManager {
 
     public JobID getJobId() {
         return jobId;
+    }
+
+    public Optional<SubTaskInitializationMetrics> getReportedInitializationMetrics() {
+        return reportedInitializationMetrics;
     }
 
     public ExecutionAttemptID getExecutionAttemptID() {
