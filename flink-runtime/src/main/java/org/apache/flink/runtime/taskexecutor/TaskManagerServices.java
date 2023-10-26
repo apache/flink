@@ -18,11 +18,14 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
@@ -48,6 +51,8 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTableImpl;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.runtime.util.DefaultGroupCache;
+import org.apache.flink.runtime.util.GroupCache;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -89,7 +94,8 @@ public class TaskManagerServices {
     private final LibraryCacheManager libraryCacheManager;
     private final SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
     private final SharedResources sharedResources;
-    private final ShuffleDescriptorsCache shuffleDescriptorsCache;
+    private final GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup>
+            shuffleDescriptorsCache;
 
     TaskManagerServices(
             UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
@@ -110,7 +116,7 @@ public class TaskManagerServices {
             LibraryCacheManager libraryCacheManager,
             SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService,
             SharedResources sharedResources,
-            ShuffleDescriptorsCache shuffleDescriptorsCache) {
+            GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> shuffleDescriptorsCache) {
 
         this.unresolvedTaskManagerLocation =
                 Preconditions.checkNotNull(unresolvedTaskManagerLocation);
@@ -207,7 +213,7 @@ public class TaskManagerServices {
         return sharedResources;
     }
 
-    public ShuffleDescriptorsCache getShuffleDescriptorCache() {
+    public GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> getShuffleDescriptorCache() {
         return shuffleDescriptorsCache;
     }
 
@@ -405,8 +411,9 @@ public class TaskManagerServices {
                     NoOpSlotAllocationSnapshotPersistenceService.INSTANCE;
         }
 
-        final ShuffleDescriptorsCache shuffleDescriptorsCache =
-                new DefaultShuffleDescriptorsCache.Factory().create();
+        final GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> shuffleDescriptorsCache =
+                new DefaultGroupCache.Factory<JobID, PermanentBlobKey, ShuffleDescriptorGroup>()
+                        .create();
 
         return new TaskManagerServices(
                 unresolvedTaskManagerLocation,

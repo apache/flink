@@ -23,10 +23,11 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
-import org.apache.flink.runtime.taskexecutor.ShuffleDescriptorsCache;
+import org.apache.flink.runtime.util.GroupCache;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -242,7 +243,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
      */
     public void loadBigData(
             @Nullable PermanentBlobService blobService,
-            ShuffleDescriptorsCache shuffleDescriptorsCache)
+            GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> shuffleDescriptorsCache)
             throws IOException, ClassNotFoundException {
 
         // re-integrate offloaded job info from blob
