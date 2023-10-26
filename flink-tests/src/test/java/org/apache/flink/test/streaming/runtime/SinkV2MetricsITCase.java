@@ -46,8 +46,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatCounter;
@@ -70,7 +71,7 @@ public class SinkV2MetricsITCase extends TestLogger {
     private final InMemoryReporter reporter = InMemoryReporter.createWithRetainedMetrics();
 
     @Rule
-    public final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+    public final MiniClusterWithClientResource miniClusterResource =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
@@ -129,18 +130,17 @@ public class SinkV2MetricsITCase extends TestLogger {
         final int numCommittables = 7;
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        // make sure all parallel instances have processed the same amount of records before
-        // validating metrics
-        SharedReference<CyclicBarrier> beforeBarrier =
-                sharedObjects.add(new CyclicBarrier(env.getParallelism() + 1));
-        SharedReference<CyclicBarrier> afterBarrier =
-                sharedObjects.add(new CyclicBarrier(env.getParallelism() + 1));
+        // make sure all parallel instances have processed the records once before validating
+        // metrics
+        SharedReference<CountDownLatch> beforeLatch =
+                sharedObjects.add(new CountDownLatch(numCommittables));
+        SharedReference<CountDownLatch> afterLatch = sharedObjects.add(new CountDownLatch(1));
 
         env.fromSequence(0, numCommittables - 1)
                 .returns(BasicTypeInfo.LONG_TYPE_INFO)
                 .sinkTo(
                         TestSinkV2.<Long>newBuilder()
-                                .setCommitter(new MetricCommitter(beforeBarrier, afterBarrier))
+                                .setCommitter(new MetricCommitter(beforeLatch, afterLatch))
                                 .setCommittableSerializer(TestSinkV2.StringSerializer.INSTANCE)
                                 .build())
                 .name(TEST_SINK_NAME);
@@ -149,7 +149,7 @@ public class SinkV2MetricsITCase extends TestLogger {
 
         // Run until every committer finished with 1 commit round - everything should be retried and
         // pending
-        beforeBarrier.get().await();
+        beforeLatch.get().await();
         assertSinkCommitterMetrics(
                 jobId,
                 env.getParallelism(),
@@ -160,7 +160,7 @@ public class SinkV2MetricsITCase extends TestLogger {
                         MetricNames.SUCCESSFUL_COMMITTABLES, 0L,
                         MetricNames.TOTAL_COMMITTABLES, 7L,
                         MetricNames.PENDING_COMMITTABLES, 7L));
-        afterBarrier.get().await();
+        afterLatch.get().countDown();
 
         // Run until finished
         jobClient.getJobExecutionResult().get();
@@ -286,31 +286,36 @@ public class SinkV2MetricsITCase extends TestLogger {
 
     private static class MetricCommitter extends TestSinkV2.DefaultCommitter {
         private int counter = 0;
-        private SharedReference<CyclicBarrier> beforeBarrier;
-        private SharedReference<CyclicBarrier> afterBarrier;
+        private SharedReference<CountDownLatch> beforeLatch;
+        private SharedReference<CountDownLatch> afterLatch;
 
         MetricCommitter(
-                SharedReference<CyclicBarrier> beforeBarrier,
-                SharedReference<CyclicBarrier> afterBarrier) {
-            this.beforeBarrier = beforeBarrier;
-            this.afterBarrier = afterBarrier;
+                SharedReference<CountDownLatch> beforeLatch,
+                SharedReference<CountDownLatch> afterLatch) {
+            this.beforeLatch = beforeLatch;
+            this.afterLatch = afterLatch;
             this.counter = 0;
         }
 
         @Override
         public void commit(Collection<CommitRequest<String>> committables) {
             if (counter == 0) {
+                System.err.println(
+                        "Committables arrived "
+                                + Thread.currentThread().getName()
+                                + " "
+                                + committables.stream()
+                                        .map(c -> c.getCommittable())
+                                        .collect(Collectors.toList()));
                 committables.forEach(c -> c.retryLater());
             } else {
                 if (counter == 1) {
                     // Wait for metrics check before continue
                     try {
-                        beforeBarrier.get().await();
-                        afterBarrier.get().await();
+                        committables.forEach(any -> beforeLatch.get().countDown());
+                        afterLatch.get().await();
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        throw new RuntimeException(e);
-                    } catch (BrokenBarrierException e) {
                         throw new RuntimeException(e);
                     }
                 }
