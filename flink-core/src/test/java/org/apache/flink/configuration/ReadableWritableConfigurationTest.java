@@ -19,11 +19,13 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -52,9 +54,10 @@ import static org.junit.Assert.assertThat;
  *       ReadableConfig#getOptional(ConfigOption)}.
  * </ol>
  */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class ReadableWritableConfigurationTest {
-    @Parameterized.Parameters(name = "{0}")
+
+    @Parameters(name = "{0}")
     public static Collection<TestSpec<?>> getSpecs() {
         return Arrays.asList(
                 new TestSpec<>(ConfigOptions.key("int").intType().defaultValue(-1))
@@ -135,9 +138,9 @@ public class ReadableWritableConfigurationTest {
         return entries.stream().collect(Collectors.toMap(t -> t.f0, t -> t.f1));
     }
 
-    @Parameterized.Parameter public TestSpec<?> testSpec;
+    @Parameter public TestSpec<?> testSpec;
 
-    @Test
+    @TestTemplate
     public void testGetOptionalFromObject() {
         Configuration configuration = new Configuration();
         testSpec.setValue(configuration);
@@ -146,7 +149,7 @@ public class ReadableWritableConfigurationTest {
         assertThat(optional.get(), equalTo(testSpec.getValue()));
     }
 
-    @Test
+    @TestTemplate
     public void testGetOptionalFromString() {
         ConfigOption<?> option = testSpec.getOption();
         Configuration configuration = new Configuration();
@@ -156,7 +159,7 @@ public class ReadableWritableConfigurationTest {
         assertThat(optional.get(), equalTo(testSpec.getValue()));
     }
 
-    @Test
+    @TestTemplate
     public void testGetDefaultValue() {
         Configuration configuration = new Configuration();
 
@@ -165,7 +168,7 @@ public class ReadableWritableConfigurationTest {
         assertThat(value, equalTo(option.defaultValue()));
     }
 
-    @Test
+    @TestTemplate
     @SuppressWarnings("unchecked")
     public void testGetOptionalDefaultValueOverride() {
         ReadableConfig configuration = new Configuration();
