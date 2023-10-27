@@ -172,13 +172,6 @@ final class TestValuesRuntimeFunctions {
         localRawResultsObservers.computeIfAbsent(tableName, n -> new ArrayList<>()).add(observer);
     }
 
-    private static void notifyRawResultsObservers(
-            String tableName, int subtaskId, List<Row> localRawResult) {
-        Optional.ofNullable(localRawResultsObservers.get(tableName))
-                .orElse(Collections.emptyList())
-                .forEach(c -> c.accept(subtaskId, localRawResult));
-    }
-
     static void clearResults() {
         synchronized (LOCK) {
             globalRawResult.clear();
@@ -364,6 +357,17 @@ final class TestValuesRuntimeFunctions {
                 rawResultState.update(localRawResult);
             }
         }
+
+        protected void addLocalRawResult(Row row) {
+            localRawResult.add(row);
+            Optional.ofNullable(localRawResultsObservers.get(tableName))
+                    .orElse(Collections.emptyList())
+                    .forEach(
+                            c ->
+                                    c.accept(
+                                            getRuntimeContext().getIndexOfThisSubtask(),
+                                            localRawResult));
+        }
     }
 
     static class AppendingSinkFunction extends AbstractExactlyOnceSink {
@@ -393,9 +397,7 @@ final class TestValuesRuntimeFunctions {
                     }
                 }
                 synchronized (LOCK) {
-                    localRawResult.add((Row) converter.toExternal(value));
-                    notifyRawResultsObservers(
-                            tableName, getRuntimeContext().getIndexOfThisSubtask(), localRawResult);
+                    addLocalRawResult((Row) converter.toExternal(value));
                 }
             } else {
                 throw new RuntimeException(
@@ -455,10 +457,7 @@ final class TestValuesRuntimeFunctions {
             assertThat(row).isNotNull();
 
             synchronized (LOCK) {
-                localRawResult.add(row);
-
-                notifyRawResultsObservers(
-                        tableName, getRuntimeContext().getIndexOfThisSubtask(), localRawResult);
+                addLocalRawResult(row);
 
                 Row key = Row.project(row, keyIndices);
                 key.setKind(RowKind.INSERT);
@@ -560,9 +559,7 @@ final class TestValuesRuntimeFunctions {
             Row row = (Row) converter.toExternal(value);
             assertThat(row).isNotNull();
             synchronized (LOCK) {
-                localRawResult.add(row);
-                notifyRawResultsObservers(
-                        tableName, getRuntimeContext().getIndexOfThisSubtask(), localRawResult);
+                addLocalRawResult(row);
                 final Row retractRow = Row.copy(row);
                 retractRow.setKind(RowKind.INSERT);
                 if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
@@ -614,8 +611,13 @@ final class TestValuesRuntimeFunctions {
                 assertThat(row).isNotNull();
                 synchronized (LOCK) {
                     localRawResult.add(row);
-                    notifyRawResultsObservers(
-                            tableName, getRuntimeContext().getIndexOfThisSubtask(), localRawResult);
+                    Optional.ofNullable(localRawResultsObservers.get(tableName))
+                            .orElse(Collections.emptyList())
+                            .forEach(
+                                    c ->
+                                            c.accept(
+                                                    getRuntimeContext().getIndexOfThisSubtask(),
+                                                    localRawResult));
                 }
             } else {
                 throw new RuntimeException(
