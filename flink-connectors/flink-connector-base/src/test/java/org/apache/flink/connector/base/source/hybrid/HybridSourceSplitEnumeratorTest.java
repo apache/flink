@@ -271,6 +271,7 @@ public class HybridSourceSplitEnumeratorTest {
 
         assertThat(getCurrentSourceIndex(enumerator)).isEqualTo(0);
         enumerator.handleSourceEvent(SUBTASK0, new SourceReaderFinishedEvent(0));
+        assertThat(getCurrentSourceIndex(enumerator)).isEqualTo(0);
         enumerator.handleSourceEvent(SUBTASK1, new SourceReaderFinishedEvent(0));
         assertThat(getCurrentSourceIndex(enumerator))
                 .as("all reader finished source-0")
