@@ -33,7 +33,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandlerAdapter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.stubbing.Answer;
 
 import java.util.Optional;
@@ -43,17 +43,17 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class ServerTransportErrorHandlingTest {
+class ServerTransportErrorHandlingTest {
 
     /** Verifies remote closes trigger the release of all resources. */
     @Test
-    public void testRemoteClose() throws Exception {
+    void testRemoteClose() throws Exception {
         final TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
 
         final CountDownLatch sync = new CountDownLatch(1);
@@ -103,12 +103,12 @@ public class ServerTransportErrorHandlingTest {
                             new ResultPartitionID(), 0, new InputChannelID(), Integer.MAX_VALUE));
 
             // Wait for the notification
-            if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
-                fail(
-                        "Timed out after waiting for "
-                                + TestingUtils.TESTING_DURATION.toMillis()
-                                + " ms to be notified about released partition.");
-            }
+            assertThat(sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS))
+                    .withFailMessage(
+                            "Timed out after waiting for "
+                                    + TestingUtils.TESTING_DURATION.toMillis()
+                                    + " ms to be notified about released partition.")
+                    .isTrue();
         } finally {
             shutdown(serverAndClient);
         }

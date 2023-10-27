@@ -370,7 +370,7 @@ class ClientTransportErrorHandlingTest {
     // Helpers
     // ---------------------------------------------------------------------------------------------
 
-    private EmbeddedChannel createEmbeddedChannel() {
+    private static EmbeddedChannel createEmbeddedChannel() {
         NettyProtocol protocol =
                 new NettyProtocol(
                         mock(ResultPartitionProvider.class), mock(TaskEventDispatcher.class));
@@ -378,7 +378,7 @@ class ClientTransportErrorHandlingTest {
         return new EmbeddedChannel(protocol.getClientChannelHandlers());
     }
 
-    private RemoteInputChannel addInputChannel(NetworkClientHandler clientHandler)
+    private static RemoteInputChannel addInputChannel(NetworkClientHandler clientHandler)
             throws IOException {
         RemoteInputChannel rich = createRemoteInputChannel();
         clientHandler.addInputChannel(rich);
@@ -386,13 +386,13 @@ class ClientTransportErrorHandlingTest {
         return rich;
     }
 
-    private NetworkClientHandler getClientHandler(Channel ch) {
+    private static NetworkClientHandler getClientHandler(Channel ch) {
         NetworkClientHandler networkClientHandler = ch.pipeline().get(NetworkClientHandler.class);
         networkClientHandler.setConnectionId(CONNECTION_ID);
         return networkClientHandler;
     }
 
-    private RemoteInputChannel createRemoteInputChannel() {
+    private static RemoteInputChannel createRemoteInputChannel() {
         return when(mock(RemoteInputChannel.class).getInputChannelId())
                 .thenReturn(new InputChannelID())
                 .getMock();
