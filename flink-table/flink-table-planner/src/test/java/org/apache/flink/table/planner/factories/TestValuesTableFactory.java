@@ -974,7 +974,7 @@ public final class TestValuesTableFactory
                 case "SourceFunction":
                     try {
                         checkArgument(
-                                terminating != TerminatingLogic.FINITE,
+                                terminating == TerminatingLogic.FINITE,
                                 "Values Source doesn't support infinite SourceFunction.");
                         Collection<RowData> values = convertToRowData(converter);
                         final SourceFunction<RowData> sourceFunction;
@@ -995,7 +995,7 @@ public final class TestValuesTableFactory
                             !failingSource,
                             "Values InputFormat Source doesn't support as failing source.");
                     checkArgument(
-                            terminating != TerminatingLogic.FINITE,
+                            terminating == TerminatingLogic.FINITE,
                             "Values Source doesn't support infinite InputFormat.");
                     Collection<RowData> values = convertToRowData(converter);
                     return InputFormatProvider.of(new CollectionInputFormat<>(values, serializer));
@@ -1004,7 +1004,7 @@ public final class TestValuesTableFactory
                             !failingSource,
                             "Values DataStream Source doesn't support as failing source.");
                     checkArgument(
-                            terminating != TerminatingLogic.FINITE,
+                            terminating == TerminatingLogic.FINITE,
                             "Values Source doesn't support infinite DataStream.");
                     try {
                         Collection<RowData> values2 = convertToRowData(converter);
