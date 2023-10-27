@@ -95,43 +95,12 @@ public class IncrementalLocalKeyedStateHandle extends AbstractIncrementalStateHa
     }
 
     @Override
-    public int hashCode() {
-        int result = directoryStateHandle.hashCode();
-        result = 31 * result + getKeyGroupRange().hashCode();
-        result = 31 * result + getMetaDataStateHandle().hashCode();
-        return result;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        if (!super.equals(o)) {
-            return false;
-        }
-
-        IncrementalLocalKeyedStateHandle that = (IncrementalLocalKeyedStateHandle) o;
-
-        return getKeyGroupRange().equals(that.keyGroupRange)
-                && getMetaDataStateHandle().equals(that.getMetaDataStateHandle());
-    }
-
-    @Override
     public String toString() {
         return "IncrementalLocalKeyedStateHandle{"
-                + "metaDataState="
-                + metaStateHandle
-                + "} "
-                + "DirectoryKeyedStateHandle{"
                 + "directoryStateHandle="
                 + directoryStateHandle
-                + ", keyGroupRange="
-                + keyGroupRange
-                + '}';
+                + "} "
+                + super.toString();
     }
 
     @Override
