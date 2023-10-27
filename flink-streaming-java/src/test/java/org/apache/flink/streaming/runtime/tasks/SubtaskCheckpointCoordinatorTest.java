@@ -44,6 +44,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
@@ -72,7 +73,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -389,10 +389,15 @@ public class SubtaskCheckpointCoordinatorTest {
         StreamConfig streamConfig = testHarness.getStreamConfig();
         streamConfig.setStreamOperator(new MapOperator());
 
-        testHarness.invoke();
-        testHarness.waitForTaskRunning();
-
-        MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+        StreamMockEnvironment mockEnvironment =
+                new StreamMockEnvironment(
+                        testHarness.jobConfig,
+                        testHarness.taskConfig,
+                        testHarness.executionConfig,
+                        testHarness.memorySize,
+                        new MockInputSplitProvider(),
+                        testHarness.bufferSize,
+                        testHarness.taskStateManager);
 
         try (SubtaskCheckpointCoordinator subtaskCheckpointCoordinator =
                 new MockSubtaskCheckpointCoordinatorBuilder()
@@ -404,13 +409,14 @@ public class SubtaskCheckpointCoordinatorTest {
             ResultPartitionWriter resultPartitionWriter =
                     new RecordOrEventCollectingResultPartitionWriter<>(
                             recordOrEvents, stringStreamElementSerializer);
-            mockEnvironment.addOutputs(Collections.singletonList(resultPartitionWriter));
+            mockEnvironment.addOutput(resultPartitionWriter);
+
+            testHarness.invoke(mockEnvironment);
+            testHarness.waitForTaskRunning();
 
             OneInputStreamTask<String, String> task = testHarness.getTask();
             OperatorChain<String, OneInputStreamOperator<String, String>> operatorChain =
-                    new RegularOperatorChain<>(
-                            task,
-                            StreamTask.createRecordWriterDelegate(streamConfig, mockEnvironment));
+                    task.operatorChain;
             long checkpointId = 42L;
             // notify checkpoint aborted before execution.
             subtaskCheckpointCoordinator.notifyCheckpointAborted(
