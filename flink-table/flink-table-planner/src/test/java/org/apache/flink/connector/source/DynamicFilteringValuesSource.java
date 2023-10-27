@@ -52,21 +52,21 @@ public class DynamicFilteringValuesSource
         implements Source<RowData, ValuesSourcePartitionSplit, NoOpEnumState> {
 
     private final TypeSerializer<RowData> serializer;
-    private final FinishingLogic finishingLogic;
+    private final TerminatingLogic terminatingLogic;
     private final Boundedness boundedness;
     private Map<Map<String, String>, byte[]> serializedElements;
     private Map<Map<String, String>, Integer> counts;
     private final List<String> dynamicFilteringFields;
 
     public DynamicFilteringValuesSource(
-            FinishingLogic finishingLogic,
+            TerminatingLogic terminatingLogic,
             Boundedness boundedness,
             Map<Map<String, String>, Collection<RowData>> elements,
             TypeSerializer<RowData> serializer,
             List<String> dynamicFilteringFields) {
         this.serializer = serializer;
         this.dynamicFilteringFields = dynamicFilteringFields;
-        this.finishingLogic = finishingLogic;
+        this.terminatingLogic = terminatingLogic;
         this.boundedness = boundedness;
         serializeElements(serializer, elements);
     }
@@ -115,7 +115,7 @@ public class DynamicFilteringValuesSource
                         .map(ValuesSourcePartitionSplit::new)
                         .collect(Collectors.toList());
         return new DynamicFilteringValuesSourceEnumerator(
-                context, finishingLogic, splits, dynamicFilteringFields);
+                context, terminatingLogic, splits, dynamicFilteringFields);
     }
 
     @Override

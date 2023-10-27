@@ -20,11 +20,26 @@ package org.apache.flink.connector.source;
 
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
 /**
- * Tells sources created from {@link TestValuesTableFactory} how they should behave after producing
- * all data.
+ * Tells sources created from {@link TestValuesTableFactory} how they should behave after they
+ * produced all data. It is separate from 'bounded', because even if a source is unbounded it can
+ * stop producing records and shutdown.
  */
-public enum FinishingLogic {
+public enum TerminatingLogic {
     INFINITE,
     FINITE;
+
+    public static TerminatingLogic readFrom(DataInputStream in) throws IOException {
+        final boolean isInfinite = in.readBoolean();
+        return isInfinite ? TerminatingLogic.INFINITE : TerminatingLogic.FINITE;
+    }
+
+    public static void writeTo(DataOutputStream out, TerminatingLogic terminatingLogic)
+            throws IOException {
+        out.writeBoolean(terminatingLogic == TerminatingLogic.INFINITE);
+    }
 }

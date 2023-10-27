@@ -21,7 +21,7 @@ package org.apache.flink.connector.source.enumerator;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.connector.source.FinishingLogic;
+import org.apache.flink.connector.source.TerminatingLogic;
 import org.apache.flink.connector.source.split.ValuesSourcePartitionSplit;
 import org.apache.flink.table.connector.source.DynamicFilteringData;
 import org.apache.flink.table.connector.source.DynamicFilteringEvent;
@@ -49,18 +49,18 @@ public class DynamicFilteringValuesSourceEnumerator
     private final SplitEnumeratorContext<ValuesSourcePartitionSplit> context;
     private final List<ValuesSourcePartitionSplit> allSplits;
     private final List<String> dynamicFilteringFields;
-    private final FinishingLogic finishingLogic;
+    private final TerminatingLogic terminatingLogic;
     private transient boolean receivedDynamicFilteringEvent;
     private transient List<ValuesSourcePartitionSplit> remainingSplits;
 
     public DynamicFilteringValuesSourceEnumerator(
             SplitEnumeratorContext<ValuesSourcePartitionSplit> context,
-            FinishingLogic finishingLogic,
+            TerminatingLogic terminatingLogic,
             List<ValuesSourcePartitionSplit> allSplits,
             List<String> dynamicFilteringFields) {
         this.context = context;
         this.allSplits = allSplits;
-        this.finishingLogic = finishingLogic;
+        this.terminatingLogic = terminatingLogic;
         this.dynamicFilteringFields = dynamicFilteringFields;
     }
 
@@ -73,10 +73,10 @@ public class DynamicFilteringValuesSourceEnumerator
             throw new IllegalStateException("DynamicFilteringEvent has not receive");
         }
         if (remainingSplits.isEmpty()) {
-            if (finishingLogic == FinishingLogic.INFINITE) {
+            if (terminatingLogic == TerminatingLogic.INFINITE) {
                 context.assignSplit(
                         new ValuesSourcePartitionSplit(
-                                Collections.emptyMap(), FinishingLogic.INFINITE),
+                                Collections.emptyMap(), TerminatingLogic.INFINITE),
                         subtaskId);
             } else {
                 context.signalNoMoreSplits(subtaskId);
