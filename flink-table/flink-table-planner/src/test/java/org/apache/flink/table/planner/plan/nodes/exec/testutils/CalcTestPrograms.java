@@ -35,7 +35,7 @@ public class CalcTestPrograms {
                     .setupTableSink("sink_t")
                     .withSchema("a BIGINT", "b DOUBLE")
                     .withValuesBeforeRestore(Row.of(421L, 42.0))
-                    .withValuesAfterRestore(Row.of(421L, 42.0), Row.of(422L, 42.1))
+                    .withValuesAfterRestore(Row.of(422L, 42.1))
                     .complete()
                     .runSql("INSERT INTO sink_t SELECT a + 1, b FROM t")
                     .build();

@@ -41,8 +41,8 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.test.program.TableTestProgramRunner;
 import org.apache.flink.table.test.program.TestStep.TestKind;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.types.Row;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,7 +63,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -110,7 +109,8 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     private Stream<Arguments> createSpecs() {
         return getAllMetadata().stream()
                 .flatMap(
-                        metadata -> supportedPrograms().stream().map(p -> Arguments.of(metadata, p)));
+                        metadata ->
+                                supportedPrograms().stream().map(p -> Arguments.of(metadata, p)));
     }
 
     /**
@@ -147,8 +147,9 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                     tableName,
                     (integer, strings) -> {
                         final boolean shouldTakeSavepoint =
-                                sinkTestStep.expectedBeforeRestore.test(
-                                        TestValuesTableFactory.getRawResults(tableName));
+                                CollectionUtils.isEqualCollection(
+                                        TestValuesTableFactory.getRawResultsAsStrings(tableName),
+                                        sinkTestStep.getExpectedBeforeRestoreAsStrings());
                         if (shouldTakeSavepoint) {
                             future.complete(null);
                         }
@@ -185,7 +186,9 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         final EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
         final SavepointRestoreSettings restoreSettings =
                 SavepointRestoreSettings.forPath(
-                        getSavepointPath(program, metadata).toString(), false, RestoreMode.NO_CLAIM);
+                        getSavepointPath(program, metadata).toString(),
+                        false,
+                        RestoreMode.NO_CLAIM);
         SavepointRestoreSettings.toConfiguration(restoreSettings, settings.getConfiguration());
         final TableEnvironment tEnv = TableEnvironment.create(settings);
         tEnv.getConfig()
@@ -214,8 +217,14 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 tEnv.loadPlan(PlanReference.fromFile(getPlanPath(program, metadata)));
         compiledPlan.execute().await();
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-            assertThat(TestValuesTableFactory.getRawResults(sinkTestStep.name))
-                    .matches(l -> sinkTestStep.expectedAfterRestore.test((List<Row>) l));
+            assertThat(TestValuesTableFactory.getRawResultsAsStrings(sinkTestStep.name))
+                    .containsExactlyInAnyOrder(
+                            Stream.concat(
+                                            sinkTestStep.getExpectedBeforeRestoreAsStrings()
+                                                    .stream(),
+                                            sinkTestStep.getExpectedAfterRestoreAsStrings()
+                                                    .stream())
+                                    .toArray(String[]::new));
         }
     }
 
@@ -231,9 +240,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     private String getTestResourceDirectory(TableTestProgram program, ExecNodeMetadata metadata) {
         return String.format(
                 "%s/src/test/resources/restore-tests/%s_%d/%s",
-                System.getProperty("user.dir"),
-                metadata.name(),
-                metadata.version(),
-                program.id);
+                System.getProperty("user.dir"), metadata.name(), metadata.version(), program.id);
     }
 }
