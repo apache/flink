@@ -19,16 +19,19 @@ package org.apache.flink.metrics.datadog;
 
 /** The data center to connect to. */
 enum DataCenter {
-    US("com"),
-    EU("eu");
+    US1("https://app.datadoghq.com"),
+    US3("https://us3.datadoghq.com"),
+    US5("https://us5.datadoghq.com"),
+    EU1("https://app.datadoghq.eu"),
+    US1_FED("https://app.ddog-gov.com"),
+    AP1("https://ap1.datadoghq.com");
+    private final String url;
 
-    private final String domain;
-
-    DataCenter(String domain) {
-        this.domain = domain;
+    DataCenter(String url) {
+        this.url = url;
     }
 
-    public String getDomain() {
-        return domain;
+    public String getUrl() {
+        return url;
     }
 }
