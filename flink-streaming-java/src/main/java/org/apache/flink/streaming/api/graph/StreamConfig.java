@@ -52,6 +52,7 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -150,6 +151,13 @@ public class StreamConfig implements Serializable {
             new HashMap<>();
     private final transient CompletableFuture<StreamConfig> serializationFuture =
             new CompletableFuture<>();
+
+    /**
+     * In order to release memory during processing data, some keys are removed in {@link
+     * #clearInitialConfigs()}. Recording these keys here to prevent they are accessed after
+     * removing.
+     */
+    private final Set<String> removedKeys = new HashSet<>();
 
     public StreamConfig(Configuration config) {
         this.config = config;
@@ -386,6 +394,9 @@ public class StreamConfig implements Serializable {
 
     public <T extends StreamOperatorFactory<?>> T getStreamOperatorFactory(ClassLoader cl) {
         try {
+            checkState(
+                    !removedKeys.contains(SERIALIZED_UDF),
+                    String.format("%s has been removed.", SERIALIZED_UDF));
             return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZED_UDF, cl);
         } catch (ClassNotFoundException e) {
             String classLoaderInfo = ClassLoaderUtil.getUserCodeClassLoaderInfo(cl);
@@ -584,6 +595,9 @@ public class StreamConfig implements Serializable {
 
     public Map<Integer, StreamConfig> getTransitiveChainedTaskConfigs(ClassLoader cl) {
         try {
+            checkState(
+                    !removedKeys.contains(CHAINED_TASK_CONFIG),
+                    String.format("%s has been removed.", CHAINED_TASK_CONFIG));
             Map<Integer, StreamConfig> confs =
                     InstantiationUtil.readObjectFromConfig(this.config, CHAINED_TASK_CONFIG, cl);
             return confs == null ? new HashMap<Integer, StreamConfig>() : confs;
@@ -793,6 +807,23 @@ public class StreamConfig implements Serializable {
 
     public boolean isGraphContainingLoops() {
         return config.getBoolean(GRAPH_CONTAINING_LOOPS, false);
+    }
+
+    /**
+     * In general, we don't clear any configuration. However, the {@link #SERIALIZED_UDF} may be
+     * very large when operator includes some large objects, the SERIALIZED_UDF is used to create a
+     * StreamOperator and usually only needs to be called once. {@link #CHAINED_TASK_CONFIG} may be
+     * large as well due to the StreamConfig of all non-head operators in OperatorChain will be
+     * serialized and stored in CHAINED_TASK_CONFIG. They can be cleared to reduce the memory after
+     * StreamTask is initialized. If so, TM will have more memory during running. See FLINK-33315
+     * and FLINK-33317 for more information.
+     */
+    public void clearInitialConfigs() {
+        removedKeys.add(SERIALIZED_UDF);
+        config.removeKey(SERIALIZED_UDF);
+
+        removedKeys.add(CHAINED_TASK_CONFIG);
+        config.removeKey(CHAINED_TASK_CONFIG);
     }
 
     /**
