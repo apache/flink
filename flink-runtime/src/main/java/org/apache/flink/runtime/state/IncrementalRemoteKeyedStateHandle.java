@@ -306,75 +306,16 @@ public class IncrementalRemoteKeyedStateHandle extends AbstractIncrementalStateH
                 stateHandleId);
     }
 
-    /**
-     * This method is should only be called in tests! This should never serve as key in a hash map.
-     */
-    @VisibleForTesting
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-
-        IncrementalRemoteKeyedStateHandle that = (IncrementalRemoteKeyedStateHandle) o;
-
-        if (!getStateHandleId().equals(that.getStateHandleId())) {
-            return false;
-        }
-        if (getCheckpointId() != that.getCheckpointId()) {
-            return false;
-        }
-        if (!getBackendIdentifier().equals(that.getBackendIdentifier())) {
-            return false;
-        }
-        if (!getKeyGroupRange().equals(that.getKeyGroupRange())) {
-            return false;
-        }
-        if (!getSharedState().equals(that.getSharedState())) {
-            return false;
-        }
-        if (!getPrivateState().equals(that.getPrivateState())) {
-            return false;
-        }
-        return getMetaDataStateHandle().equals(that.getMetaDataStateHandle());
-    }
-
-    /** This method should only be called in tests! This should never serve as key in a hash map. */
-    @VisibleForTesting
-    @Override
-    public int hashCode() {
-        int result = getBackendIdentifier().hashCode();
-        result = 31 * result + getKeyGroupRange().hashCode();
-        result = 31 * result + (int) (getCheckpointId() ^ (getCheckpointId() >>> 32));
-        result = 31 * result + getSharedState().hashCode();
-        result = 31 * result + getPrivateState().hashCode();
-        result = 31 * result + getMetaDataStateHandle().hashCode();
-        result = 31 * result + getStateHandleId().hashCode();
-        return result;
-    }
-
     @Override
     public String toString() {
         return "IncrementalRemoteKeyedStateHandle{"
-                + "backendIdentifier="
-                + backendIdentifier
-                + ", stateHandleId="
-                + stateHandleId
-                + ", keyGroupRange="
-                + keyGroupRange
-                + ", checkpointId="
-                + checkpointId
-                + ", sharedState="
-                + sharedState
-                + ", privateState="
+                + "privateState="
                 + privateState
-                + ", metaStateHandle="
-                + metaStateHandle
+                + ", persistedSizeOfThisCheckpoint="
+                + persistedSizeOfThisCheckpoint
                 + ", registered="
                 + (sharedStateRegistry != null)
-                + '}';
+                + "} "
+                + super.toString();
     }
 }

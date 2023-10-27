@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import javax.annotation.Nonnull;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /** Abstract superclass for all {@link IncrementalKeyedStateHandle}. */
@@ -102,5 +103,40 @@ public abstract class AbstractIncrementalStateHandle implements IncrementalKeyed
                         getKeyGroupRange().getIntersection(keyGroupRange))
                 ? null
                 : this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        AbstractIncrementalStateHandle that = (AbstractIncrementalStateHandle) o;
+        return Objects.equals(stateHandleId, that.stateHandleId);
+    }
+
+    @Override
+    public int hashCode() {
+        return stateHandleId.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return "AbstractIncrementalStateHandle{"
+                + "checkpointId="
+                + checkpointId
+                + ", backendIdentifier="
+                + backendIdentifier
+                + ", keyGroupRange="
+                + keyGroupRange
+                + ", sharedState="
+                + sharedState
+                + ", metaStateHandle="
+                + metaStateHandle
+                + ", stateHandleId="
+                + stateHandleId
+                + '}';
     }
 }
