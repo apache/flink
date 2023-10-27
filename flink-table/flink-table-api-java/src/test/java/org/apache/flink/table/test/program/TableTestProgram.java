@@ -28,15 +28,12 @@ import org.apache.flink.table.test.program.TestStep.TestKind;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.commons.collections.CollectionUtils;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -378,8 +375,11 @@ public class TableTestProgram {
     /** Builder pattern for {@link SinkTestStep}. */
     public static class SinkBuilder extends TableBuilder<SinkBuilder> {
 
-        private Predicate<List<Row>> expectedBeforeRestore;
-        private Predicate<List<Row>> expectedAfterRestore;
+        private List<Row> expectedBeforeRestore;
+        private List<Row> expectedAfterRestore;
+
+        private List<String> expectedBeforeRestoreStrings;
+        private List<String> expectedAfterRestoreStrings;
 
         private SinkBuilder(String name, List<TestStep> targetSteps, Builder rootBuilder) {
             super(name, targetSteps, rootBuilder);
@@ -394,44 +394,23 @@ public class TableTestProgram {
         }
 
         public SinkBuilder withValuesBeforeRestore(Row... expectedRows) {
-            this.expectedBeforeRestore = equalIgnoringOrder(expectedRows);
+            this.expectedBeforeRestore = Arrays.asList(expectedRows);
             return this;
         }
 
         public SinkBuilder withValuesBeforeRestore(String... expectedRows) {
-            this.expectedBeforeRestore = equalIgnoringOrder(expectedRows);
+            this.expectedBeforeRestoreStrings = Arrays.asList(expectedRows);
             return this;
         }
 
         public SinkBuilder withValuesAfterRestore(Row... expectedRows) {
-            this.expectedAfterRestore = equalIgnoringOrder(expectedRows);
+            this.expectedAfterRestore = Arrays.asList(expectedRows);
             return this;
         }
 
         public SinkBuilder withValuesAfterRestore(String... expectedRows) {
-            this.expectedAfterRestore = equalIgnoringOrder(expectedRows);
+            this.expectedAfterRestoreStrings = Arrays.asList(expectedRows);
             return this;
-        }
-
-        private static Predicate<List<Row>> equalIgnoringOrder(Row... expectedRows) {
-            return (actualRows) -> {
-                if (actualRows.size() != expectedRows.length) {
-                    return false;
-                }
-                return CollectionUtils.isEqualCollection(actualRows, Arrays.asList(expectedRows));
-            };
-        }
-
-        private static Predicate<List<Row>> equalIgnoringOrder(String... expectedRows) {
-            return (actualRows) -> {
-                if (actualRows.size() != expectedRows.length) {
-                    return false;
-                }
-                final List<String> actualRowsString =
-                        actualRows.stream().map(Row::toString).collect(Collectors.toList());
-                return CollectionUtils.isEqualCollection(
-                        actualRowsString, Arrays.asList(expectedRows));
-            };
         }
 
         public Builder complete() {
@@ -442,7 +421,9 @@ public class TableTestProgram {
                             partitionKeys,
                             options,
                             expectedBeforeRestore,
-                            expectedAfterRestore));
+                            expectedAfterRestore,
+                            expectedBeforeRestoreStrings,
+                            expectedAfterRestoreStrings));
             return rootBuilder;
         }
     }

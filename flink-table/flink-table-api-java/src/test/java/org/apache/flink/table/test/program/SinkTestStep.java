@@ -24,31 +24,69 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /** Test step for creating a table sink. */
 public final class SinkTestStep extends TableTestStep {
 
-    public final @Nullable Predicate<List<Row>> expectedBeforeRestore;
-    public final @Nullable Predicate<List<Row>> expectedAfterRestore;
+    public final @Nullable List<Row> expectedBeforeRestore;
+    public final @Nullable List<Row> expectedAfterRestore;
+    public final @Nullable List<String> expectedBeforeRestoreStrings;
+    public final @Nullable List<String> expectedAfterRestoreStrings;
 
     SinkTestStep(
             String name,
             List<String> schemaComponents,
             List<String> partitionKeys,
             Map<String, String> options,
-            @Nullable Predicate<List<Row>> expectedBeforeRestore,
-            @Nullable Predicate<List<Row>> expectedAfterRestore) {
+            @Nullable List<Row> expectedBeforeRestore,
+            @Nullable List<Row> expectedAfterRestore,
+            @Nullable List<String> expectedBeforeRestoreStrings,
+            @Nullable List<String> expectedAfterRestoreStrings) {
         super(name, schemaComponents, partitionKeys, options);
+        if (expectedBeforeRestore != null && expectedAfterRestoreStrings != null) {
+            throw new IllegalArgumentException(
+                    "You can not mix Row/String representation in before/after restore data.");
+        }
+        if (expectedBeforeRestoreStrings != null && expectedAfterRestore != null) {
+            throw new IllegalArgumentException(
+                    "You can not mix Row/String representation in before/after restore data.");
+        }
         this.expectedBeforeRestore = expectedBeforeRestore;
         this.expectedAfterRestore = expectedAfterRestore;
+        this.expectedBeforeRestoreStrings = expectedBeforeRestoreStrings;
+        this.expectedAfterRestoreStrings = expectedAfterRestoreStrings;
+    }
+
+    public List<String> getExpectedBeforeRestoreAsStrings() {
+        if (expectedBeforeRestoreStrings != null) {
+            return expectedBeforeRestoreStrings;
+        }
+
+        if (expectedBeforeRestore != null) {
+            return expectedBeforeRestore.stream().map(Row::toString).collect(Collectors.toList());
+        }
+
+        return null;
+    }
+
+    public List<String> getExpectedAfterRestoreAsStrings() {
+        if (expectedAfterRestoreStrings != null) {
+            return expectedAfterRestoreStrings;
+        }
+
+        if (expectedAfterRestore != null) {
+            return expectedAfterRestore.stream().map(Row::toString).collect(Collectors.toList());
+        }
+
+        return null;
     }
 
     @Override
     public TestKind getKind() {
-        return expectedBeforeRestore == null
+        return expectedBeforeRestore == null && expectedBeforeRestoreStrings == null
                 ? TestKind.SINK_WITHOUT_DATA
-                : expectedAfterRestore == null
+                : expectedAfterRestore == null && expectedAfterRestoreStrings == null
                         ? TestKind.SINK_WITH_DATA
                         : TestKind.SINK_WITH_RESTORE_DATA;
     }
