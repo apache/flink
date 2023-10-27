@@ -28,16 +28,17 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.util.GroupCache;
-import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.file.Files;
 import java.util.List;
 
 /**
@@ -281,7 +282,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
                 // enters a terminal state)
                 jobInformation =
                         InstantiationUtil.deserializeObject(
-                                FileUtils.readAllBytes(dataFile.toPath()),
+                                new BufferedInputStream(Files.newInputStream(dataFile.toPath())),
                                 getClass().getClassLoader());
                 jobInformationCache.put(jobId, jobInfoKey, jobInformation);
             }
@@ -303,7 +304,7 @@ public final class TaskDeploymentDescriptor implements Serializable {
                 // enters a terminal state)
                 taskInformation =
                         InstantiationUtil.deserializeObject(
-                                FileUtils.readAllBytes(dataFile.toPath()),
+                                new BufferedInputStream(Files.newInputStream(dataFile.toPath())),
                                 getClass().getClassLoader());
                 taskInformationCache.put(jobId, taskInfoKey, taskInformation);
             }
