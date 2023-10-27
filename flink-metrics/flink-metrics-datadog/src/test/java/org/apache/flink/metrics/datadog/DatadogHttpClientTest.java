@@ -47,7 +47,7 @@ class DatadogHttpClientTest {
     private static final String HOST = "localhost";
     private static final String METRIC = "testMetric";
 
-    private static final String URL = DataCenter.US1.getUrl();
+    private static final String URL = "https://app.datadoghq.com";
     private static final ObjectMapper MAPPER;
 
     static {
