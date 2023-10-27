@@ -99,20 +99,18 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
 
     private @TempDir Path tmpDir;
 
-    private List<Integer> getVersions() {
-        return ExecNodeMetadataUtil.extractMetadataFromAnnotation(execNodeUnderTest).stream()
-                .map(ExecNodeMetadata::version)
-                .collect(Collectors.toList());
+    private List<ExecNodeMetadata> getAllMetadata() {
+        return ExecNodeMetadataUtil.extractMetadataFromAnnotation(execNodeUnderTest);
     }
 
-    private int getCurrentVersion() {
-        return ExecNodeMetadataUtil.latestAnnotation(execNodeUnderTest).version();
+    private ExecNodeMetadata getLatestMetadata() {
+        return ExecNodeMetadataUtil.latestAnnotation(execNodeUnderTest);
     }
 
     private Stream<Arguments> createSpecs() {
-        return getVersions().stream()
+        return getAllMetadata().stream()
                 .flatMap(
-                        version -> supportedPrograms().stream().map(p -> Arguments.of(version, p)));
+                        metadata -> supportedPrograms().stream().map(p -> Arguments.of(metadata, p)));
     }
 
     /**
@@ -165,7 +163,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         final SqlTestStep sqlTestStep = program.getRunSqlTestStep();
 
         final CompiledPlan compiledPlan = tEnv.compilePlanSql(sqlTestStep.sql);
-        compiledPlan.writeToFile(getPlanPath(program, getCurrentVersion()));
+        compiledPlan.writeToFile(getPlanPath(program, getLatestMetadata()));
 
         final TableResult tableResult = compiledPlan.execute();
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
@@ -176,18 +174,18 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                         .get();
         CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
         final Path savepointPath = Paths.get(new URI(savepoint));
-        final Path savepointDirPath = getSavepointPath(program, getCurrentVersion());
+        final Path savepointDirPath = getSavepointPath(program, getLatestMetadata());
         Files.createDirectories(savepointDirPath);
         Files.move(savepointPath, savepointDirPath, StandardCopyOption.ATOMIC_MOVE);
     }
 
     @ParameterizedTest
     @MethodSource("createSpecs")
-    void testRestore(int version, TableTestProgram program) throws Exception {
+    void testRestore(ExecNodeMetadata metadata, TableTestProgram program) throws Exception {
         final EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
         final SavepointRestoreSettings restoreSettings =
                 SavepointRestoreSettings.forPath(
-                        getSavepointPath(program, version).toString(), false, RestoreMode.NO_CLAIM);
+                        getSavepointPath(program, metadata).toString(), false, RestoreMode.NO_CLAIM);
         SavepointRestoreSettings.toConfiguration(restoreSettings, settings.getConfiguration());
         final TableEnvironment tEnv = TableEnvironment.create(settings);
         tEnv.getConfig()
@@ -213,7 +211,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         }
 
         final CompiledPlan compiledPlan =
-                tEnv.loadPlan(PlanReference.fromFile(getPlanPath(program, version)));
+                tEnv.loadPlan(PlanReference.fromFile(getPlanPath(program, metadata)));
         compiledPlan.execute().await();
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
             assertThat(TestValuesTableFactory.getRawResults(sinkTestStep.name))
@@ -221,20 +219,21 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         }
     }
 
-    private Path getPlanPath(TableTestProgram program, int version) {
+    private Path getPlanPath(TableTestProgram program, ExecNodeMetadata metadata) {
         return Paths.get(
-                getTestResourceDirectory(program, version) + "/plan/" + program.id + ".json");
+                getTestResourceDirectory(program, metadata) + "/plan/" + program.id + ".json");
     }
 
-    private Path getSavepointPath(TableTestProgram program, int version) {
-        return Paths.get(getTestResourceDirectory(program, version) + "/savepoint/");
+    private Path getSavepointPath(TableTestProgram program, ExecNodeMetadata metadata) {
+        return Paths.get(getTestResourceDirectory(program, metadata) + "/savepoint/");
     }
 
-    private String getTestResourceDirectory(TableTestProgram program, int version) {
-        return System.getProperty("user.dir")
-                + "/src/test/resources/restore-tests/"
-                + program.id
-                + "-"
-                + version;
+    private String getTestResourceDirectory(TableTestProgram program, ExecNodeMetadata metadata) {
+        return String.format(
+                "%s/src/test/resources/restore-tests/%s_%d/%s",
+                System.getProperty("user.dir"),
+                metadata.name(),
+                metadata.version(),
+                program.id);
     }
 }
