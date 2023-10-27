@@ -26,7 +26,7 @@ import org.apache.flink.types.Row;
 public class CalcTestPrograms {
 
     static final TableTestProgram SIMPLE_CALC =
-            TableTestProgram.of("simple-calc", "validates basic calc node")
+            TableTestProgram.of("calc-simple", "validates basic calc node")
                     .setupTableSource("t")
                     .withSchema("a BIGINT", "b DOUBLE")
                     .withValuesBeforeRestore(Row.of(420L, 42.0))
