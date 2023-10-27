@@ -40,10 +40,12 @@ import org.apache.flink.table.test.program.SqlTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.test.program.TableTestProgramRunner;
 import org.apache.flink.table.test.program.TestStep.TestKind;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -70,7 +72,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Base class for implementing restore tests for {@link ExecNode}.You can generate json compiled
  * plan and a savepoint for the latest node version by running {@link
  * RestoreTestBase#generateTestSetupFiles(TableTestProgram)} which is disabled by default.
+ *
+ * <p><b>Note:</b> The test base uses {@link TableConfigOptions.CatalogPlanCompilation#SCHEMA}
+ * because it needs to adjust source and sink properties before and after the restore. Therefore,
+ * the test base can not be used for testing storing table options in the compiled plan.
  */
+@ExtendWith(MiniClusterExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class RestoreTestBase implements TableTestProgramRunner {
 
@@ -118,12 +125,16 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     public void generateTestSetupFiles(TableTestProgram program) throws Exception {
         final TableEnvironment tEnv =
                 TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        tEnv.getConfig()
+                .set(
+                        TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS,
+                        TableConfigOptions.CatalogPlanCompilation.SCHEMA);
         for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
             final String id = TestValuesTableFactory.registerData(sourceTestStep.dataBeforeRestore);
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("data-id", id);
-            options.put("finite", "false");
+            options.put("terminating", "false");
             options.put("disable-lookup", "true");
             options.put("runtime-source", "NewSource");
             sourceTestStep.apply(tEnv, options);
@@ -137,10 +148,10 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             TestValuesTableFactory.registerLocalRawResultsObserver(
                     tableName,
                     (integer, strings) -> {
-                        final boolean canTakeSavepoint =
+                        final boolean shouldTakeSavepoint =
                                 sinkTestStep.expectedBeforeRestore.test(
                                         TestValuesTableFactory.getRawResults(tableName));
-                        if (canTakeSavepoint) {
+                        if (shouldTakeSavepoint) {
                             future.complete(null);
                         }
                     });

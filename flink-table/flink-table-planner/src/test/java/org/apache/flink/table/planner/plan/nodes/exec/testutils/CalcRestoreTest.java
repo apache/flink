@@ -33,6 +33,6 @@ public class CalcRestoreTest extends RestoreTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return Collections.singletonList(CalcTestProgram.SIMPLE_CALC);
+        return Collections.singletonList(CalcTestPrograms.SIMPLE_CALC);
     }
 }

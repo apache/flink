@@ -23,11 +23,10 @@ import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecCalc}. */
-public class CalcTestProgram {
+public class CalcTestPrograms {
 
     static final TableTestProgram SIMPLE_CALC =
-            TableTestProgram.of("simple-calc", "Simple calc with sources and sinks")
-                    .runSql("INSERT INTO sink_t SELECT a + 1, b FROM t")
+            TableTestProgram.of("simple-calc", "validates basic calc node")
                     .setupTableSource("t")
                     .withSchema("a BIGINT", "b DOUBLE")
                     .withValuesBeforeRestore(Row.of(420L, 42.0))
@@ -38,5 +37,6 @@ public class CalcTestProgram {
                     .withValuesBeforeRestore(Row.of(421L, 42.0))
                     .withValuesAfterRestore(Row.of(421L, 42.0), Row.of(422L, 42.1))
                     .complete()
+                    .runSql("INSERT INTO sink_t SELECT a + 1, b FROM t")
                     .build();
 }

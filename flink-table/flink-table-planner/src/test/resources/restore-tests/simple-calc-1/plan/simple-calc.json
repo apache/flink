@@ -17,14 +17,7 @@
             } ],
             "watermarkSpecs" : [ ]
           },
-          "partitionKeys" : [ ],
-          "options" : {
-            "data-id" : "1",
-            "disable-lookup" : "true",
-            "connector" : "values",
-            "runtime-source" : "NewSource",
-            "finite" : "false"
-          }
+          "partitionKeys" : [ ]
         }
       }
     },
@@ -87,12 +80,7 @@
             } ],
             "watermarkSpecs" : [ ]
           },
-          "partitionKeys" : [ ],
-          "options" : {
-            "sink-insert-only" : "false",
-            "disable-lookup" : "true",
-            "connector" : "values"
-          }
+          "partitionKeys" : [ ]
         }
       }
     },
