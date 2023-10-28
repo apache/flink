@@ -507,7 +507,7 @@ SHOW CURRENT CATALOG
 ## SHOW DATABASES
 
 ```sql
-SHOW DATABASES
+SHOW DATABASES [ ( FROM | IN ) catalog_name] [ [NOT] (LIKE | ILIKE) <sql_like_pattern> ]
 ```
 
 展示当前 catalog 中所有的 database。

@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
@@ -228,6 +230,32 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
     }
 
     @Test
+    void testShowDatabases() {
+        final String sql1 = "SHOW DATABASES";
+        assertShowDatabases(sql1, sql1);
+
+        String sql = "show databases from db1 not like 'f%'";
+        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 NOT LIKE 'f%'");
+
+        sql = "show databases from db1 not ilike 'f%'";
+        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 NOT ILIKE 'f%'");
+
+        sql = "show databases from db1 like 'f%'";
+        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 LIKE 'f%'");
+
+        sql = "show databases from db1 ilike 'f%'";
+        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1 ILIKE 'f%'");
+
+        sql = "show databases in db1";
+        assertShowDatabases(sql, "SHOW DATABASES FROM/IN db1");
+
+        assertThatThrownBy(() -> parse("show databases in db.t"))
+                .isInstanceOf(SqlParserException.class)
+                .hasMessage(
+                        "SQL parse failed. Show databases from/in identifier [ db.t ] format error, catalog must be a single part identifier.");
+    }
+
+    @Test
     void testShowProcedures() {
         String sql = "SHOW procedures from cat1.db1 not like 't%'";
         assertShowProcedures(sql, "SHOW PROCEDURES FROM cat1.db1 NOT LIKE t%");
@@ -378,6 +406,13 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
 
         assertThat(showFunctionsOperation.getFunctionScope()).isEqualTo(expectedScope);
         assertThat(showFunctionsOperation.asSummaryString()).isEqualTo(expectedSummary);
+    }
+
+    private void assertShowDatabases(String sql, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(ShowDatabasesOperation.class);
+        final ShowDatabasesOperation showDatabasesOperation = (ShowDatabasesOperation) operation;
+        assertThat(showDatabasesOperation.asSummaryString()).isEqualTo(expectedSummary);
     }
 
     private void assertShowProcedures(String sql, String expectedSummary) {

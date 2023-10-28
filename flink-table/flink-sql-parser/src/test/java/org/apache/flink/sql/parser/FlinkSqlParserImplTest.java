@@ -124,6 +124,31 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testShowDataBases() {
         sql("show databases").ok("SHOW DATABASES");
+
+        sql("show databases like '%'").ok("SHOW DATABASES LIKE '%'");
+        sql("show databases not like '%'").ok("SHOW DATABASES NOT LIKE '%'");
+
+        sql("show databases from c1").ok("SHOW DATABASES FROM `C1`");
+        sql("show databases in c1").ok("SHOW DATABASES IN `C1`");
+
+        sql("show databases from c1 like '%'").ok("SHOW DATABASES FROM `C1` LIKE '%'");
+        sql("show databases from c1 ilike '%'").ok("SHOW DATABASES FROM `C1` ILIKE '%'");
+        sql("show databases in c1 like '%'").ok("SHOW DATABASES IN `C1` LIKE '%'");
+        sql("show databases in c1 ilike '%'").ok("SHOW DATABASES IN `C1` ILIKE '%'");
+
+        sql("show databases from c1 not like '%'").ok("SHOW DATABASES FROM `C1` NOT LIKE '%'");
+        sql("show databases from c1 not ilike '%'").ok("SHOW DATABASES FROM `C1` NOT ILIKE '%'");
+        sql("show databases in c1 not like '%'").ok("SHOW DATABASES IN `C1` NOT LIKE '%'");
+        sql("show databases in c1 not ilike '%'").ok("SHOW DATABASES IN `C1` NOT ILIKE '%'");
+
+        sql("show databases ^likes^")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 16.\n.*");
+        sql("show databases not ^likes^")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 20" + ".\n" + ".*");
+        sql("show databases ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 16.\n.*");
+        sql("show databases not ^ilikes^")
+                .fails("(?s).*Encountered \"ilikes\" at line 1, column 20" + ".\n" + ".*");
     }
 
     @Test
