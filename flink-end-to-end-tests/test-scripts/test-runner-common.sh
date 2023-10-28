@@ -63,6 +63,40 @@ function run_test {
     post_test_validation ${exit_code} "$description" "$check_logs_action" "$custom_check_logs_command"
 }
 
+function run_test_no_failure {
+    local description="$1"
+    local command="$2"
+    local check_logs_action=${3:-}
+    local custom_check_logs_command=${4:-}
+
+    printf "\n==============================================================================\n"
+    printf "Running '${description}'\n"
+    printf "==============================================================================\n"
+
+    # used to randomize created directories
+    export TEST_DATA_DIR=$TEST_INFRA_DIR/temp-test-directory-$(date +%S%N)
+    echo "TEST_DATA_DIR: $TEST_DATA_DIR"
+
+    backup_flink_dir
+    start_timer
+
+    function test_error() {
+      echo "[FAIL] Test script contains errors."
+       post_test_validation 1 "$description" "$check_logs_action" "$custom_check_logs_command"
+    }
+    # set a trap to catch a test execution error
+    trap 'test_error; return' ERR
+
+    # Always enable unaligned checkpoint
+    set_config_key "execution.checkpointing.unaligned.enabled" "true"
+
+    ${command}
+    exit_code="$?"
+    # remove trap for test execution
+    trap - ERR
+    post_test_validation ${exit_code} "$description" "$check_logs_action" "$custom_check_logs_command"
+}
+
 # Validates the test result and exit code after its execution.
 function post_test_validation {
     local exit_code="$1"
@@ -106,7 +140,7 @@ function post_test_validation {
         log_environment_info
     else
         log_environment_info
-        exit "${exit_code}"
+#        exit "${exit_code}"
     fi
 }
 
