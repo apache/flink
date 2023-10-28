@@ -110,6 +110,70 @@ show databases;
 2 rows in set
 !ok
 
+create database db2;
+[INFO] Execute statement succeed.
+!info
+
+show databases like 'db%';
++---------------+
+| database name |
++---------------+
+|           db1 |
+|           db2 |
++---------------+
+2 rows in set
+!ok
+
+show databases ilike 'db%';
++---------------+
+| database name |
++---------------+
+|           db1 |
+|           db2 |
++---------------+
+2 rows in set
+!ok
+
+show databases like 'db1%';
++---------------+
+| database name |
++---------------+
+|           db1 |
++---------------+
+1 row in set
+!ok
+
+show databases ilike 'db1%';
++---------------+
+| database name |
++---------------+
+|           db1 |
++---------------+
+1 row in set
+!ok
+
+show databases like 'db2%';
++---------------+
+| database name |
++---------------+
+|           db2 |
++---------------+
+1 row in set
+!ok
+
+show databases ilike 'db2%';
++---------------+
+| database name |
++---------------+
+|           db2 |
++---------------+
+1 row in set
+!ok
+
+drop database db2;
+[INFO] Execute statement succeed.
+!info
+
 show current database;
 +-----------------------+
 | current database name |
@@ -152,6 +216,101 @@ show databases;
 +---------------+
 3 rows in set
 !ok
+
+create catalog `c0` with ('type'='generic_in_memory');
+[INFO] Execute statement succeed.
+!info
+
+create database c0.db0a;
+[INFO] Execute statement succeed.
+!info
+
+create database c0.db0b;
+[INFO] Execute statement succeed.
+!info
+
+show databases from c0;
++---------------+
+| database name |
++---------------+
+|          db0a |
+|          db0b |
+|       default |
++---------------+
+3 rows in set
+!ok
+
+show databases from c0 like 'db0a%';
++---------------+
+| database name |
++---------------+
+|          db0a |
++---------------+
+1 row in set
+!ok
+
+show databases from c0 ilike 'db0a%';
++---------------+
+| database name |
++---------------+
+|          db0a |
++---------------+
+1 row in set
+!ok
+
+show databases from c0 not like 'db0a%';
++---------------+
+| database name |
++---------------+
+|          db0b |
+|       default |
++---------------+
+2 rows in set
+!ok
+
+show databases from c0 not ilike 'db0a%';
++---------------+
+| database name |
++---------------+
+|          db0b |
+|       default |
++---------------+
+2 rows in set
+!ok
+
+show databases from c0 like 'db%';
++---------------+
+| database name |
++---------------+
+|          db0a |
+|          db0b |
++---------------+
+2 rows in set
+!ok
+
+show databases from c0 ilike 'db%';
++---------------+
+| database name |
++---------------+
+|          db0a |
+|          db0b |
++---------------+
+2 rows in set
+!ok
+
+show databases in c0.t;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.sql.parser.impl.ParseException: Show databases from/in identifier [ c0.t ] format error, catalog must be a single part identifier.
+!error
+
+drop catalog `c0`;
+[INFO] Execute statement succeed.
+!info
+
+show databases from c0;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Catalog c0 does not exist
+!error
 
 drop database if exists db2;
 [INFO] Execute statement succeed.

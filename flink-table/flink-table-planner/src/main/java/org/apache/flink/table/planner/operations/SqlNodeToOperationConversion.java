@@ -69,7 +69,6 @@ import org.apache.flink.sql.parser.dql.SqlShowCreateTable;
 import org.apache.flink.sql.parser.dql.SqlShowCreateView;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentDatabase;
-import org.apache.flink.sql.parser.dql.SqlShowDatabases;
 import org.apache.flink.sql.parser.dql.SqlShowJars;
 import org.apache.flink.sql.parser.dql.SqlShowJobs;
 import org.apache.flink.sql.parser.dql.SqlShowModules;
@@ -131,7 +130,6 @@ import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
 import org.apache.flink.table.operations.ShowCurrentDatabaseOperation;
-import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
@@ -300,8 +298,6 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertDropDatabase((SqlDropDatabase) validated));
         } else if (validated instanceof SqlAlterDatabase) {
             return Optional.of(converter.convertAlterDatabase((SqlAlterDatabase) validated));
-        } else if (validated instanceof SqlShowDatabases) {
-            return Optional.of(converter.convertShowDatabases((SqlShowDatabases) validated));
         } else if (validated instanceof SqlShowCurrentDatabase) {
             return Optional.of(
                     converter.convertShowCurrentDatabase((SqlShowCurrentDatabase) validated));
@@ -894,11 +890,6 @@ public class SqlNodeToOperationConversion {
     /** Convert SHOW CURRENT CATALOG statement. */
     private Operation convertShowCurrentCatalog(SqlShowCurrentCatalog sqlShowCurrentCatalog) {
         return new ShowCurrentCatalogOperation();
-    }
-
-    /** Convert SHOW DATABASES statement. */
-    private Operation convertShowDatabases(SqlShowDatabases sqlShowDatabases) {
-        return new ShowDatabasesOperation();
     }
 
     /** Convert SHOW CURRENT DATABASE statement. */
