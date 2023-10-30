@@ -71,7 +71,7 @@ public class YamlParserUtils {
                         loaderOptions);
     }
 
-    public static Map<String, Object> loadYamlFile(File file) throws Exception {
+    public static synchronized Map<String, Object> loadYamlFile(File file) throws Exception {
         try (FileInputStream inputStream = new FileInputStream((file))) {
             return yaml.load(inputStream);
         } catch (FileNotFoundException e) {
@@ -119,10 +119,10 @@ public class YamlParserUtils {
      * @param value The value to be converted.
      * @return The string representation of the value in YAML syntax.
      */
-    public static String toYAMLString(Object value) {
+    public static synchronized String toYAMLString(Object value) {
         try {
             String output = yaml.dump(value);
-            /// remove the line break
+            // remove the line break
             String linebreak = dumperOptions.getLineBreak().getString();
             if (output.endsWith(linebreak)) {
                 output = output.substring(0, output.length() - linebreak.length());
@@ -133,7 +133,7 @@ public class YamlParserUtils {
         }
     }
 
-    public static <T> T convertToObject(String value, Class<T> type) {
+    public static synchronized <T> T convertToObject(String value, Class<T> type) {
         try {
             return yaml.loadAs(value, type);
         } catch (MarkedYAMLException exception) {
