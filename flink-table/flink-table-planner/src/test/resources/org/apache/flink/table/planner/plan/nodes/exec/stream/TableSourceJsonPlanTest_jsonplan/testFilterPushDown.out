@@ -22,9 +22,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "bounded" : "false",
             "connector" : "values",
-            "filterable-fields" : "a",
-            "bounded" : "false"
+            "filterable-fields" : "a"
           }
         }
       },

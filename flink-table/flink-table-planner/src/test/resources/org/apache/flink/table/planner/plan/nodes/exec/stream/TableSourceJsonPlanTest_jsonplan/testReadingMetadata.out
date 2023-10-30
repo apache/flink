@@ -27,9 +27,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "bounded" : "false",
             "connector" : "values",
-            "readable-metadata" : "m:STRING",
-            "bounded" : "false"
+            "readable-metadata" : "m:STRING"
           }
         }
       },

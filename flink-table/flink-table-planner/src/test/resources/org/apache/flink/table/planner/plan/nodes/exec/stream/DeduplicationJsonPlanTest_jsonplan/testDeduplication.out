@@ -42,9 +42,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
-            "disable-lookup" : "true",
+            "bounded" : "false",
             "connector" : "values",
-            "bounded" : "false"
+            "disable-lookup" : "true"
           }
         }
       }
