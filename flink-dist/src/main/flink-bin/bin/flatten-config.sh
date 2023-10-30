@@ -29,6 +29,12 @@ source "$2"/bash-java-utils.sh
 ARGS=("${@:1}")
 result=$(parseConfigurationAndExportLogs "${ARGS[@]}")
 
+if [[ $? -ne 0 ]]; then
+  echo "[ERROR] Could not flatten configurations properly, the result is :"
+  echo "$result"
+  exit 1
+fi
+
 CONF_FILE="$1/flink-conf.yaml"
 if [ ! -e "$1/flink-conf.yaml" ]; then
   CONF_FILE="$1/config.yaml"

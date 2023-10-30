@@ -40,11 +40,13 @@ manglePathList() {
 
 findFlinkDistJar() {
     local FLINK_DIST
-    local FLINK_LIB_DIR
+    local LIB_DIR
     if [[ -n "$1" ]]; then
-        FLINK_LIB_DIR="$1"
+       LIB_DIR="$1"
+    else
+       LIB_DIR="$FLINK_LIB_DIR"
     fi
-    FLINK_DIST="$(find "$FLINK_LIB_DIR" -name 'flink-dist*.jar')"
+    FLINK_DIST="$(find "$LIB_DIR" -name 'flink-dist*.jar')"
     local FLINK_DIST_COUNT
     FLINK_DIST_COUNT="$(echo "$FLINK_DIST" | wc -l)"
 
