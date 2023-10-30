@@ -21,20 +21,25 @@ package org.apache.flink.table.planner.hint;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgumentsRule;
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.BiRel;
+import org.apache.calcite.rel.RelHomogeneousShuttle;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttleImpl;
+import org.apache.calcite.rel.hint.HintStrategyTable;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSnapshot;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.rex.RexSubQuery;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +47,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /** Utility class for Flink hints. */
@@ -188,19 +195,10 @@ public abstract class FlinkHints {
         return root.accept(new CapitalizeJoinHintShuttle());
     }
 
-    private static class CapitalizeJoinHintShuttle extends RelShuttleImpl {
+    private static class CapitalizeJoinHintShuttle extends JoinHintRelShuttle {
 
         @Override
-        public RelNode visit(LogicalCorrelate correlate) {
-            return visitBiRel(correlate);
-        }
-
-        @Override
-        public RelNode visit(LogicalJoin join) {
-            return visitBiRel(join);
-        }
-
-        private RelNode visitBiRel(BiRel biRel) {
+        protected RelNode visitBiRel(BiRel biRel) {
             Hintable hBiRel = (Hintable) biRel;
             AtomicBoolean changed = new AtomicBoolean(false);
             List<RelHint> hintsWithCapitalJoinHints =
@@ -232,6 +230,114 @@ public abstract class FlinkHints {
             } else {
                 return super.visit(biRel);
             }
+        }
+    }
+
+    /** Resolve the RelNode of the sub query in the node and return a new node. */
+    public static RelNode resolveSubQuery(RelNode node, Function<RelNode, RelNode> resolver) {
+        if (node instanceof LogicalProject) {
+            LogicalProject project = (LogicalProject) node;
+            List<RexNode> newProjects = resolveSubQuery(project::getProjects, resolver);
+            return project.copy(
+                    project.getTraitSet(), project.getInput(), newProjects, project.getRowType());
+
+        } else if (node instanceof LogicalFilter) {
+            LogicalFilter filter = (LogicalFilter) node;
+            RexNode newCondition =
+                    resolveSubQuery(
+                                    () -> Collections.singletonList(filter.getCondition()),
+                                    resolver)
+                            .get(0);
+            return filter.copy(filter.getTraitSet(), filter.getInput(), newCondition);
+        } else if (node instanceof LogicalJoin) {
+            LogicalJoin join = (LogicalJoin) node;
+            RexNode newCondition =
+                    resolveSubQuery(() -> Collections.singletonList(join.getCondition()), resolver)
+                            .get(0);
+            return join.copy(
+                    join.getTraitSet(),
+                    newCondition,
+                    join.getLeft(),
+                    join.getRight(),
+                    join.getJoinType(),
+                    join.isSemiJoinDone());
+        } else {
+            return node;
+        }
+    }
+
+    /** Resolve the RelNode of the sub query in conditions. */
+    private static List<RexNode> resolveSubQuery(
+            Supplier<List<RexNode>> conditionSupplier, Function<RelNode, RelNode> resolver) {
+        return conditionSupplier.get().stream()
+                .map(
+                        rexNode ->
+                                rexNode.accept(
+                                        new RexShuttle() {
+                                            @Override
+                                            public RexNode visitSubQuery(RexSubQuery subQuery) {
+                                                RelNode oldRel = subQuery.rel;
+                                                RelNode newRel = resolver.apply(oldRel);
+                                                RexSubQuery newSubQuery = subQuery.clone(newRel);
+                                                return super.visitSubQuery(newSubQuery);
+                                            }
+                                        }))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Clear the join hints and lookup hints on some nodes where these hints should not be attached.
+     */
+    public static RelNode clearJoinLookupHintsOnUnmatchedNodes(RelNode root) {
+        return root.accept(
+                new ClearJoinLookupHintsOnUnmatchedNodesShuttle(
+                        root.getCluster().getHintStrategies()));
+    }
+
+    /**
+     * Clear the invalid join hints and lookup hints in the unmatched nodes. For example, a join
+     * hint may be attached in the Project node at first. After accepting this shuttle, the join
+     * hint in the Project node will be clear.
+     *
+     * <p>See more at {@code FlinkHintStrategies}.
+     *
+     * <p>Tips, hints about view and alias will not be cleared.
+     */
+    private static class ClearJoinLookupHintsOnUnmatchedNodesShuttle extends RelHomogeneousShuttle {
+
+        private final HintStrategyTable hintStrategyTable;
+
+        public ClearJoinLookupHintsOnUnmatchedNodesShuttle(HintStrategyTable hintStrategyTable) {
+            this.hintStrategyTable = hintStrategyTable;
+        }
+
+        @Override
+        public RelNode visit(RelNode other) {
+            if (FlinkRelOptUtil.containsSubQuery(other)) {
+                other = resolveSubQuery(other, relNode -> relNode.accept(this));
+            }
+
+            if (other instanceof Hintable) {
+                List<RelHint> originHints = ((Hintable) other).getHints();
+                List<RelHint> joinLookupHints =
+                        originHints.stream()
+                                .filter(
+                                        h ->
+                                                JoinStrategy.isJoinStrategy(h.hintName)
+                                                        || JoinStrategy.isLookupHint(h.hintName))
+                                .collect(Collectors.toList());
+
+                List<RelHint> remainHints = new ArrayList<>(originHints);
+                remainHints.removeAll(joinLookupHints);
+
+                List<RelHint> hintsCanApply = hintStrategyTable.apply(joinLookupHints, other);
+                if (hintsCanApply.size() != joinLookupHints.size()) {
+                    hintsCanApply.addAll(remainHints);
+                    other = ((Hintable) other).withHints(hintsCanApply);
+                }
+            }
+
+            return super.visit(other);
         }
     }
 }

@@ -21,7 +21,24 @@ package org.apache.flink.table.planner.hint;
 import java.util.List;
 import java.util.Locale;
 
-/** Currently available join strategies and corresponding join hint names. */
+/**
+ * Currently available join strategies and corresponding join hint names.
+ *
+ * <p>The current process about join hint is following:
+ *
+ * <ol>
+ *   <li>resolve the propagation about the join hints by calcite
+ *       <ol>
+ *         <li>propagate the join hints from sink to source and in sub-query
+ *         <li>capitalize join hint to let all join hints in upper case
+ *         <li>clear the join hints that are propagated into query block wrongly
+ *         <li>clear the join hints that attaches in the unmatched nodes such as Project
+ *       </ol>
+ *   <li>validate the join hints and replace the table name in hints with LEFT or RIGHT
+ *   <li>clear the query block alias from sink to source
+ *   <li>consume join hints in some rules
+ * </ol>
+ */
 public enum JoinStrategy {
     /**
      * Instructs the optimizer to use broadcast hash join strategy. If both sides are specified in
