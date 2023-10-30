@@ -63,10 +63,16 @@
             <td>The shutdown timeout for cluster services like executors in milliseconds.</td>
         </tr>
         <tr>
+            <td><h5>cluster.thread-dump.log-level</h5></td>
+            <td style="word-wrap: break-word;">DEBUG</td>
+            <td><p>Enum</p></td>
+            <td>When a checkpoint is notified expired, the task manager could produce a thread dump to log for debugging purpose. This flag defines the log level of the thread dump. Only 'ERROR', 'WARN', 'INFO', 'DEBUG'(default), 'TRACE' and 'OFF' are supported.<br />The stack length of thread dump can be configured by <code class="highlighter-rouge">cluster.thread-dump.stacktrace-max-depth</code>.<br /><br />Possible values:<ul><li>"ERROR"</li><li>"WARN"</li><li>"INFO"</li><li>"DEBUG"</li><li>"TRACE"</li><li>"OFF"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>cluster.thread-dump.stacktrace-max-depth</h5></td>
             <td style="word-wrap: break-word;">50</td>
             <td>Integer</td>
-            <td>The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.</td>
+            <td>The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed or logged.</td>
         </tr>
         <tr>
             <td><h5>cluster.uncaught-exception-handling</h5></td>
