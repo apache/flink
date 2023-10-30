@@ -259,6 +259,7 @@ public class HybridSourceSplitEnumerator
         if (currentEnumerator != null) {
             try {
                 currentEnumerator.close();
+                finishedReaders.clear();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -304,7 +305,6 @@ public class HybridSourceSplitEnumerator
         LOG.info("Starting enumerator for sourceIndex={}", currentSourceIndex);
         context.setIsProcessingBacklog(currentSourceIndex < sources.size() - 1);
         currentEnumerator.start();
-        finishedReaders.clear();
     }
 
     /**
