@@ -1826,14 +1826,25 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("at")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            sequence(
+                                    or(
+                                            logical(LogicalTypeRoot.ARRAY),
+                                            logical(LogicalTypeRoot.MAP)),
+                                    InputTypeStrategies.ITEM_AT_INDEX))
+                    .outputTypeStrategy(SpecificTypeStrategies.ITEM_AT)
                     .build();
 
     public static final BuiltInFunctionDefinition CARDINALITY =
             BuiltInFunctionDefinition.newBuilder()
                     .name("cardinality")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            sequence(
+                                    or(
+                                            logical(LogicalTypeFamily.COLLECTION),
+                                            logical(LogicalTypeRoot.MAP))))
+                    .outputTypeStrategy(nullableIfArgs(TypeStrategies.explicit(DataTypes.INT())))
                     .build();
 
     public static final BuiltInFunctionDefinition ARRAY =
@@ -1848,7 +1859,8 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("element")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeRoot.ARRAY)))
+                    .outputTypeStrategy(forceNullable(SpecificTypeStrategies.ARRAY_ELEMENT))
                     .build();
 
     public static final BuiltInFunctionDefinition MAP =
