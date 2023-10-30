@@ -259,6 +259,7 @@ public class HybridSourceSplitEnumerator
         if (currentEnumerator != null) {
             try {
                 currentEnumerator.close();
+                finishedReaders.clear();
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
