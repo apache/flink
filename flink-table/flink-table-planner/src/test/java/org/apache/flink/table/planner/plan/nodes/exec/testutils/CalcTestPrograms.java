@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
+import org.apache.flink.table.test.program.SinkTestStep;
+import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
@@ -27,16 +29,18 @@ public class CalcTestPrograms {
 
     static final TableTestProgram SIMPLE_CALC =
             TableTestProgram.of("calc-simple", "validates basic calc node")
-                    .setupTableSource("t")
-                    .withSchema("a BIGINT", "b DOUBLE")
-                    .withValuesBeforeRestore(Row.of(420L, 42.0))
-                    .withValuesAfterRestore(Row.of(421L, 42.1))
-                    .complete()
-                    .setupTableSink("sink_t")
-                    .withSchema("a BIGINT", "b DOUBLE")
-                    .withValuesBeforeRestore(Row.of(421L, 42.0))
-                    .withValuesAfterRestore(Row.of(422L, 42.1))
-                    .complete()
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("a BIGINT", "b DOUBLE")
+                                    .producedBeforeRestore(Row.of(420L, 42.0))
+                                    .producedAfterRestore(Row.of(421L, 42.1))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a BIGINT", "b DOUBLE")
+                                    .consumedBeforeRestore(Row.of(421L, 42.0))
+                                    .consumedAfterRestore(Row.of(422L, 42.1))
+                                    .build())
                     .runSql("INSERT INTO sink_t SELECT a + 1, b FROM t")
                     .build();
 }

@@ -18,9 +18,13 @@
 
 package org.apache.flink.table.test.program;
 
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -69,5 +73,62 @@ public abstract class TableTestStep implements TestStep {
                                 .collect(Collectors.joining(",\n")));
 
         return env.executeSql(createTable);
+    }
+
+    /** Builder pattern for {@link SourceTestStep} and {@link SinkTestStep}. */
+    @SuppressWarnings("unchecked")
+    protected abstract static class AbstractBuilder<
+            SpecificBuilder extends AbstractBuilder<SpecificBuilder>> {
+
+        protected final String name;
+
+        protected final List<String> schemaComponents = new ArrayList<>();
+        protected final List<String> partitionKeys = new ArrayList<>();
+        protected final Map<String, String> options = new HashMap<>();
+
+        protected AbstractBuilder(String name) {
+            this.name = name;
+        }
+
+        /**
+         * Define the schema like you would in SQL e.g. "my_col INT", "PRIMARY KEY (uid) NOT
+         * ENFORCED", or "WATERMARK FOR ts AS ts".
+         */
+        public SpecificBuilder addSchema(String... schemaComponents) {
+            this.schemaComponents.addAll(Arrays.asList(schemaComponents));
+            return (SpecificBuilder) this;
+        }
+
+        /**
+         * Unless the test requires a very specific configuration, try to avoid calling this method
+         * and fill in options later via {@link TableTestStep#apply(TableEnvironment, Map)}.
+         */
+        public SpecificBuilder addOptions(Map<String, String> options) {
+            this.options.putAll(options);
+            return (SpecificBuilder) this;
+        }
+
+        /**
+         * Unless the test requires a very specific configuration, try to avoid calling this method
+         * and fill in options later via {@link TableTestStep#apply(TableEnvironment, Map)}.
+         */
+        public SpecificBuilder addOption(String key, String value) {
+            this.options.put(key, value);
+            return (SpecificBuilder) this;
+        }
+
+        /**
+         * Unless the test requires a very specific configuration, try to avoid calling this method
+         * and fill in options later via {@link TableTestStep#apply(TableEnvironment, Map)}.
+         */
+        public <T> SpecificBuilder addOption(ConfigOption<T> option, String value) {
+            this.options.put(option.key(), ConfigurationUtils.convertValue(value, String.class));
+            return (SpecificBuilder) this;
+        }
+
+        public SpecificBuilder addPartitionKeys(String... partitionKeys) {
+            this.partitionKeys.addAll(Arrays.asList(partitionKeys));
+            return (SpecificBuilder) this;
+        }
     }
 }

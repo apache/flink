@@ -22,6 +22,7 @@ import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -58,6 +59,11 @@ public final class SinkTestStep extends TableTestStep {
         this.expectedAfterRestoreStrings = expectedAfterRestoreStrings;
     }
 
+    /** Builder for creating a {@link SinkTestStep}. */
+    public static SinkTestStep.Builder newBuilder(String name) {
+        return new SinkTestStep.Builder(name);
+    }
+
     public List<String> getExpectedBeforeRestoreAsStrings() {
         if (expectedBeforeRestoreStrings != null) {
             return expectedBeforeRestoreStrings;
@@ -89,5 +95,59 @@ public final class SinkTestStep extends TableTestStep {
                 : expectedAfterRestore == null && expectedAfterRestoreStrings == null
                         ? TestKind.SINK_WITH_DATA
                         : TestKind.SINK_WITH_RESTORE_DATA;
+    }
+
+    /** Builder pattern for {@link SinkTestStep}. */
+    public static final class Builder extends AbstractBuilder<Builder> {
+
+        private List<Row> expectedBeforeRestore;
+        private List<Row> expectedAfterRestore;
+
+        private List<String> expectedBeforeRestoreStrings;
+        private List<String> expectedAfterRestoreStrings;
+
+        private Builder(String name) {
+            super(name);
+        }
+
+        public Builder consumedValues(Row... expectedRows) {
+            return consumedBeforeRestore(expectedRows);
+        }
+
+        public Builder consumedValues(String... expectedRows) {
+            return consumedBeforeRestore(expectedRows);
+        }
+
+        public Builder consumedBeforeRestore(Row... expectedRows) {
+            this.expectedBeforeRestore = Arrays.asList(expectedRows);
+            return this;
+        }
+
+        public Builder consumedBeforeRestore(String... expectedRows) {
+            this.expectedBeforeRestoreStrings = Arrays.asList(expectedRows);
+            return this;
+        }
+
+        public Builder consumedAfterRestore(Row... expectedRows) {
+            this.expectedAfterRestore = Arrays.asList(expectedRows);
+            return this;
+        }
+
+        public Builder consumedAfterRestore(String... expectedRows) {
+            this.expectedAfterRestoreStrings = Arrays.asList(expectedRows);
+            return this;
+        }
+
+        public SinkTestStep build() {
+            return new SinkTestStep(
+                    name,
+                    schemaComponents,
+                    partitionKeys,
+                    options,
+                    expectedBeforeRestore,
+                    expectedAfterRestore,
+                    expectedBeforeRestoreStrings,
+                    expectedAfterRestoreStrings);
+        }
     }
 }

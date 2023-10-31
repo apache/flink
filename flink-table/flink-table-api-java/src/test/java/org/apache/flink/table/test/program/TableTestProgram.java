@@ -19,21 +19,16 @@
 package org.apache.flink.table.test.program;
 
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.test.program.FunctionTestStep.FunctionBehavior;
 import org.apache.flink.table.test.program.FunctionTestStep.FunctionPersistence;
 import org.apache.flink.table.test.program.TestStep.TestKind;
-import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -250,14 +245,24 @@ public class TableTestProgram {
             return this;
         }
 
-        /** Setup step for building a table source. */
-        public SourceBuilder setupTableSource(String name) {
-            return new SourceBuilder(name, setupSteps, this);
+        /**
+         * Setup step for a table source.
+         *
+         * <p>Use {@link SourceTestStep.Builder} to construct this step.
+         */
+        public Builder setupTableSource(SourceTestStep sourceTestStep) {
+            setupSteps.add(sourceTestStep);
+            return this;
         }
 
-        /** Setup step for building a table sink. */
-        public SinkBuilder setupTableSink(String name) {
-            return new SinkBuilder(name, setupSteps, this);
+        /**
+         * Setup step for a table sink.
+         *
+         * <p>Use {@link SinkTestStep.Builder} to construct this step.
+         */
+        public Builder setupTableSink(SinkTestStep sinkTestStep) {
+            setupSteps.add(sinkTestStep);
+            return this;
         }
 
         /** Run step for executing SQL. */
@@ -267,188 +272,13 @@ public class TableTestProgram {
         }
 
         /** Run step for executing a statement set. */
-        public StatementSetBuilder runStatementSet() {
-            return new StatementSetBuilder(runSteps, this);
+        public Builder runStatementSet(String... sql) {
+            this.runSteps.add(new StatementSetTestStep(Arrays.asList(sql)));
+            return this;
         }
 
         public TableTestProgram build() {
             return new TableTestProgram(id, description, setupSteps, runSteps);
-        }
-    }
-
-    /** Builder pattern for {@link SourceTestStep} and {@link SinkTestStep}. */
-    @SuppressWarnings("unchecked")
-    private static class TableBuilder<SpecificBuilder extends TableBuilder<SpecificBuilder>> {
-
-        protected final String name;
-        protected final List<TestStep> targetSteps;
-        protected final Builder rootBuilder;
-
-        protected final List<String> schemaComponents = new ArrayList<>();
-        protected final List<String> partitionKeys = new ArrayList<>();
-        protected final Map<String, String> options = new HashMap<>();
-
-        private TableBuilder(String name, List<TestStep> targetSteps, Builder rootBuilder) {
-            this.name = name;
-            this.targetSteps = targetSteps;
-            this.rootBuilder = rootBuilder;
-        }
-
-        /**
-         * Define the schema like you would in SQL e.g. "my_col INT", "PRIMARY KEY (uid) NOT
-         * ENFORCED", or "WATERMARK FOR ts AS ts".
-         */
-        public SpecificBuilder withSchema(String... schemaComponents) {
-            this.schemaComponents.addAll(Arrays.asList(schemaComponents));
-            return (SpecificBuilder) this;
-        }
-
-        /**
-         * Unless the test requires a very specific configuration, try to avoid calling this method
-         * and fill in options later via {@link TableTestStep#apply(TableEnvironment, Map)}.
-         */
-        public SpecificBuilder withOptions(Map<String, String> options) {
-            this.options.putAll(options);
-            return (SpecificBuilder) this;
-        }
-
-        /**
-         * Unless the test requires a very specific configuration, try to avoid calling this method
-         * and fill in options later via {@link TableTestStep#apply(TableEnvironment, Map)}.
-         */
-        public SpecificBuilder withOption(String key, String value) {
-            this.options.put(key, value);
-            return (SpecificBuilder) this;
-        }
-
-        /**
-         * Unless the test requires a very specific configuration, try to avoid calling this method
-         * and fill in options later via {@link TableTestStep#apply(TableEnvironment, Map)}.
-         */
-        public <T> SpecificBuilder withOption(ConfigOption<T> option, String value) {
-            this.options.put(option.key(), ConfigurationUtils.convertValue(value, String.class));
-            return (SpecificBuilder) this;
-        }
-
-        public SpecificBuilder withPartitionKeys(String... partitionKeys) {
-            this.partitionKeys.addAll(Arrays.asList(partitionKeys));
-            return (SpecificBuilder) this;
-        }
-    }
-
-    /** Builder pattern for {@link SourceTestStep}. */
-    public static class SourceBuilder extends TableBuilder<SourceBuilder> {
-
-        private final List<Row> dataBeforeRestore = new ArrayList<>();
-        private final List<Row> dataAfterRestore = new ArrayList<>();
-
-        private SourceBuilder(String name, List<TestStep> targetSteps, Builder rootBuilder) {
-            super(name, targetSteps, rootBuilder);
-        }
-
-        public SourceBuilder withValues(Row... data) {
-            return withValuesBeforeRestore(data);
-        }
-
-        public SourceBuilder withValuesBeforeRestore(Row... data) {
-            this.dataBeforeRestore.addAll(Arrays.asList(data));
-            return this;
-        }
-
-        public SourceBuilder withValuesAfterRestore(Row... data) {
-            this.dataAfterRestore.addAll(Arrays.asList(data));
-            return this;
-        }
-
-        public Builder complete() {
-            targetSteps.add(
-                    new SourceTestStep(
-                            name,
-                            schemaComponents,
-                            partitionKeys,
-                            options,
-                            dataBeforeRestore,
-                            dataAfterRestore));
-            return rootBuilder;
-        }
-    }
-
-    /** Builder pattern for {@link SinkTestStep}. */
-    public static class SinkBuilder extends TableBuilder<SinkBuilder> {
-
-        private List<Row> expectedBeforeRestore;
-        private List<Row> expectedAfterRestore;
-
-        private List<String> expectedBeforeRestoreStrings;
-        private List<String> expectedAfterRestoreStrings;
-
-        private SinkBuilder(String name, List<TestStep> targetSteps, Builder rootBuilder) {
-            super(name, targetSteps, rootBuilder);
-        }
-
-        public SinkBuilder withExpectedValues(Row... expectedRows) {
-            return withValuesBeforeRestore(expectedRows);
-        }
-
-        public SinkBuilder withExpectedValues(String... expectedRows) {
-            return withValuesBeforeRestore(expectedRows);
-        }
-
-        public SinkBuilder withValuesBeforeRestore(Row... expectedRows) {
-            this.expectedBeforeRestore = Arrays.asList(expectedRows);
-            return this;
-        }
-
-        public SinkBuilder withValuesBeforeRestore(String... expectedRows) {
-            this.expectedBeforeRestoreStrings = Arrays.asList(expectedRows);
-            return this;
-        }
-
-        public SinkBuilder withValuesAfterRestore(Row... expectedRows) {
-            this.expectedAfterRestore = Arrays.asList(expectedRows);
-            return this;
-        }
-
-        public SinkBuilder withValuesAfterRestore(String... expectedRows) {
-            this.expectedAfterRestoreStrings = Arrays.asList(expectedRows);
-            return this;
-        }
-
-        public Builder complete() {
-            targetSteps.add(
-                    new SinkTestStep(
-                            name,
-                            schemaComponents,
-                            partitionKeys,
-                            options,
-                            expectedBeforeRestore,
-                            expectedAfterRestore,
-                            expectedBeforeRestoreStrings,
-                            expectedAfterRestoreStrings));
-            return rootBuilder;
-        }
-    }
-
-    /** Builder pattern for {@link StatementSetTestStep}. */
-    public static class StatementSetBuilder {
-
-        private final List<TestStep> targetSteps;
-        private final Builder rootBuilder;
-        private final List<String> statements = new ArrayList<>();
-
-        private StatementSetBuilder(List<TestStep> targetSteps, Builder rootBuilder) {
-            this.targetSteps = targetSteps;
-            this.rootBuilder = rootBuilder;
-        }
-
-        public StatementSetBuilder withSql(String sql) {
-            this.statements.add(sql);
-            return this;
-        }
-
-        public Builder complete() {
-            this.targetSteps.add(new StatementSetTestStep(statements));
-            return rootBuilder;
         }
     }
 }

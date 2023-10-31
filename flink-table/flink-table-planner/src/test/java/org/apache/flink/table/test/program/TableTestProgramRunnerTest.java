@@ -97,14 +97,16 @@ public class TableTestProgramRunnerTest {
     void testTableStep() {
         final TableTestProgram program =
                 TableTestProgram.of(ID, DESCRIPTION)
-                        .setupTableSource("MyTableSource")
-                        .withSchema("i INT")
-                        .withOption("connector", "datagen")
-                        .complete()
-                        .setupTableSource("MyTableSink")
-                        .withSchema("i INT")
-                        .withOption("connector", "blackhole")
-                        .complete()
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("MyTableSource")
+                                        .addSchema("i INT")
+                                        .addOption("connector", "datagen")
+                                        .build())
+                        .setupTableSink(
+                                SinkTestStep.newBuilder("MyTableSink")
+                                        .addSchema("i INT")
+                                        .addOption("connector", "blackhole")
+                                        .build())
                         .build();
 
         assertThat(program.setupSteps).hasSize(2);
@@ -127,8 +129,7 @@ public class TableTestProgramRunnerTest {
                         "CREATE TABLE `default_catalog`.`default_database`.`MyTableSink` (\n"
                                 + "  `i` INT\n"
                                 + ") WITH (\n"
-                                + "  'connector' = 'blackhole',\n"
-                                + "  'number-of-rows' = '3'\n"
+                                + "  'connector' = 'blackhole'\n"
                                 + ")\n");
     }
 
