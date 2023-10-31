@@ -49,7 +49,7 @@ function verify_num_occurences_in_logs() {
     local text="$2"
     local expected_no="$3"
 
-    local actual_no=$(grep -r --include "*${log_pattern}*.log*" -e "${text}" "$FLINK_LOG_DIR/" | cut -d ":" -f 1 | sed "s/\.[0-9]\{1,\}$//g" | uniq | wc -l)
+    local actual_no=$(grep -r --include "*${log_pattern}*.log*" -e "${text}" "$FLINK_LOG_DIR/" | cut -d ":" -f 1 | sed "s/\.[0-9]\{1,\}$//g" | sort -u | wc -l)
     [[ "${expected_no}" -eq "${actual_no}" ]]
 }
 
