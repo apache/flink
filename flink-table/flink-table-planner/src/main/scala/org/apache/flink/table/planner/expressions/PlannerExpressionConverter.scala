@@ -69,14 +69,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     // special case: requires individual handling of child expressions
     func match {
 
-      case REINTERPRET_CAST =>
-        assert(children.size == 3)
-        return Reinterpret(
-          children.head.accept(this),
-          fromDataTypeToTypeInfo(children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType),
-          getValue[Boolean](children(2).accept(this))
-        )
-
       case WINDOW_START =>
         assert(children.size == 1)
         val windowReference = translateWindowReference(children.head)

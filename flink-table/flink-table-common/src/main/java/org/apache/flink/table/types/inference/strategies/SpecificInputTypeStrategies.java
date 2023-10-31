@@ -50,6 +50,8 @@ public final class SpecificInputTypeStrategies {
     /** See {@link CastInputTypeStrategy}. */
     public static final InputTypeStrategy CAST = new CastInputTypeStrategy();
 
+    public static final InputTypeStrategy REINTERPRET_CAST = new ReinterpretCastInputTypeStrategy();
+
     /** See {@link MapInputTypeStrategy}. */
     public static final InputTypeStrategy MAP = new MapInputTypeStrategy();
 
