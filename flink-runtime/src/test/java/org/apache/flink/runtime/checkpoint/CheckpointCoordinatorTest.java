@@ -2867,7 +2867,8 @@ class CheckpointCoordinatorTest {
         StandaloneCompletedCheckpointStore store = new StandaloneCompletedCheckpointStore(1);
 
         // set up the coordinator and validate the initial state
-        CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
+        CheckpointStatsTracker tracker =
+                new CheckpointStatsTracker(10, new UnregisteredMetricsGroup());
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
                         .setCompletedCheckpointStore(store)
@@ -2878,7 +2879,7 @@ class CheckpointCoordinatorTest {
         store.addCheckpointAndSubsumeOldestOne(
                 new CompletedCheckpoint(
                         new JobID(),
-                        0,
+                        42,
                         0,
                         0,
                         Collections.<OperatorID, OperatorState>emptyMap(),
@@ -2895,7 +2896,8 @@ class CheckpointCoordinatorTest {
                                 Collections.emptySet(), true))
                 .isTrue();
 
-        verify(tracker, times(1)).reportRestoredCheckpoint(any(RestoredCheckpointStats.class));
+        assertThat(tracker.createSnapshot().getLatestRestoredCheckpoint().getCheckpointId())
+                .isEqualTo(42);
     }
 
     @Test
