@@ -299,24 +299,6 @@ public abstract class InputChannel {
         return false;
     }
 
-    /**
-     * The remote task manager creates partition request listener and returns {@link
-     * PartitionNotFoundException} until the listener is timeout, so the backoff should add the
-     * timeout milliseconds if it exists.
-     *
-     * @param timeoutMS The timeout milliseconds that the partition request listener timeout
-     * @return <code>true</code>, iff the operation was successful. Otherwise, <code>false</code>.
-     */
-    protected boolean increaseBackoff(int timeoutMS) {
-        if (timeoutMS > 0) {
-            currentBackoff += timeoutMS;
-            return currentBackoff < 2 * maxBackoff;
-        }
-
-        // Backoff is disabled
-        return false;
-    }
-
     // ------------------------------------------------------------------------
     // Metric related method
     // ------------------------------------------------------------------------

@@ -77,14 +77,12 @@ class ResultPartitionManagerTest extends TestLogger {
         PartitionRequestListener partitionRequestListener =
                 TestingPartitionRequestListener.newBuilder().build();
         assertThat(
-                        partitionManager
-                                .createSubpartitionViewOrRegisterListener(
-                                        partition.getPartitionId(),
-                                        0,
-                                        new NoOpBufferAvailablityListener(),
-                                        partitionRequestListener)
-                                .isPresent())
-                .isTrue();
+                        partitionManager.createSubpartitionViewOrRegisterListener(
+                                partition.getPartitionId(),
+                                0,
+                                new NoOpBufferAvailablityListener(),
+                                partitionRequestListener))
+                .isPresent();
         assertThat(partitionManager.getListenerManagers().isEmpty()).isTrue();
     }
 
@@ -114,14 +112,12 @@ class ResultPartitionManagerTest extends TestLogger {
                                         .build())
                         .build();
         assertThat(
-                        partitionManager
-                                .createSubpartitionViewOrRegisterListener(
-                                        partition.getPartitionId(),
-                                        0,
-                                        new NoOpBufferAvailablityListener(),
-                                        partitionRequestListener)
-                                .isPresent())
-                .isFalse();
+                        partitionManager.createSubpartitionViewOrRegisterListener(
+                                partition.getPartitionId(),
+                                0,
+                                new NoOpBufferAvailablityListener(),
+                                partitionRequestListener))
+                .isNotPresent();
         assertThat(partitionManager.getListenerManagers()).hasSize(1);
 
         // Check if the partition request listener is registered.

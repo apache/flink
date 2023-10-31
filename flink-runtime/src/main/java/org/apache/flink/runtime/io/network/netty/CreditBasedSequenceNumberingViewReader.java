@@ -92,7 +92,7 @@ class CreditBasedSequenceNumberingViewReader
         synchronized (requestLock) {
             checkState(subpartitionView == null, "Subpartition already requested");
             checkState(
-                    partitionRequestListener == null, "Partition request notifier already created");
+                    partitionRequestListener == null, "Partition request listener already created");
             partitionRequestListener =
                     new NettyPartitionRequestListener(
                             partitionProvider, this, subPartitionIndex, resultPartitionId);
