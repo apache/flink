@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
 /** Restore tests for {@link StreamExecCalc}. */
@@ -33,6 +33,13 @@ public class CalcRestoreTest extends RestoreTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return Collections.singletonList(CalcTestPrograms.SIMPLE_CALC);
+        return Arrays.asList(
+                CalcTestPrograms.SIMPLE_CALC,
+                CalcTestPrograms.CALC_FILTER,
+                CalcTestPrograms.CALC_FILTER_PUSHDOWN,
+                CalcTestPrograms.CALC_PROJECT_PUSHDOWN,
+                CalcTestPrograms.CALC_SARG,
+                CalcTestPrograms.CALC_UDF_SIMPLE,
+                CalcTestPrograms.CALC_UDF_COMPLEX);
     }
 }

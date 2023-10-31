@@ -103,6 +103,11 @@ public class TableTestProgram {
         this.runSteps = runSteps;
     }
 
+    @Override
+    public String toString() {
+        return id;
+    }
+
     /**
      * Entrypoint for a {@link TableTestProgram} that forces an identifier and description of the
      * test program.
