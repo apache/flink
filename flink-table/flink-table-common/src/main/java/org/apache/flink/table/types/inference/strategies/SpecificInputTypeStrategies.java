@@ -28,6 +28,7 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.TimestampKind;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
@@ -58,6 +59,11 @@ public final class SpecificInputTypeStrategies {
     /** See {@link CurrentWatermarkInputTypeStrategy}. */
     public static final InputTypeStrategy CURRENT_WATERMARK =
             new CurrentWatermarkInputTypeStrategy();
+
+    /** See {@link WindowTimeIndictorInputTypeStrategy}. */
+    public static InputTypeStrategy windowTimeIndicator(TimestampKind timestampKind) {
+        return new WindowTimeIndictorInputTypeStrategy(timestampKind);
+    }
 
     /** Argument type representing all types supported in a JSON context. */
     public static final ArgumentTypeStrategy JSON_ARGUMENT =

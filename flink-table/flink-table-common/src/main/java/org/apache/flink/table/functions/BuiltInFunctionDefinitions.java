@@ -36,11 +36,14 @@ import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
+import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
@@ -2018,14 +2021,22 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("proctime")
                     .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            SpecificInputTypeStrategies.windowTimeIndicator(TimestampKind.PROCTIME))
+                    .outputTypeStrategy(
+                            explicit(
+                                    TypeConversions.fromLogicalToDataType(
+                                            new LocalZonedTimestampType(
+                                                    false, TimestampKind.PROCTIME, 3))))
                     .build();
 
     public static final BuiltInFunctionDefinition ROWTIME =
             BuiltInFunctionDefinition.newBuilder()
                     .name("rowtime")
                     .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            SpecificInputTypeStrategies.windowTimeIndicator(TimestampKind.ROWTIME))
+                    .outputTypeStrategy(SpecificTypeStrategies.ROWTIME)
                     .build();
 
     public static final BuiltInFunctionDefinition CURRENT_WATERMARK =
