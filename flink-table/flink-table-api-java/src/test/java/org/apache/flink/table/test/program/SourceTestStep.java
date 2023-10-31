@@ -20,6 +20,8 @@ package org.apache.flink.table.test.program;
 
 import org.apache.flink.types.Row;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +43,11 @@ public final class SourceTestStep extends TableTestStep {
         this.dataAfterRestore = dataAfterRestore;
     }
 
+    /** Builder for creating a {@link SourceTestStep}. */
+    public static Builder newBuilder(String name) {
+        return new Builder(name);
+    }
+
     @Override
     public TestKind getKind() {
         return dataBeforeRestore.isEmpty()
@@ -48,5 +55,40 @@ public final class SourceTestStep extends TableTestStep {
                 : dataAfterRestore.isEmpty()
                         ? TestKind.SOURCE_WITH_DATA
                         : TestKind.SOURCE_WITH_RESTORE_DATA;
+    }
+
+    /** Builder pattern for {@link SourceTestStep}. */
+    public static final class Builder extends AbstractBuilder<Builder> {
+
+        private final List<Row> dataBeforeRestore = new ArrayList<>();
+        private final List<Row> dataAfterRestore = new ArrayList<>();
+
+        private Builder(String name) {
+            super(name);
+        }
+
+        public Builder producedValues(Row... data) {
+            return producedBeforeRestore(data);
+        }
+
+        public Builder producedBeforeRestore(Row... data) {
+            this.dataBeforeRestore.addAll(Arrays.asList(data));
+            return this;
+        }
+
+        public Builder producedAfterRestore(Row... data) {
+            this.dataAfterRestore.addAll(Arrays.asList(data));
+            return this;
+        }
+
+        public SourceTestStep build() {
+            return new SourceTestStep(
+                    name,
+                    schemaComponents,
+                    partitionKeys,
+                    options,
+                    dataBeforeRestore,
+                    dataAfterRestore);
+        }
     }
 }
