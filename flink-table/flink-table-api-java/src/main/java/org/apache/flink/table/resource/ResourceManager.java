@@ -73,6 +73,8 @@ public class ResourceManager implements Closeable {
     /** Resource infos for functions. */
     private final Map<ResourceUri, ResourceCounter> functionResourceInfos;
 
+    private final boolean cleanLocalResource;
+
     protected final Map<ResourceUri, URL> resourceInfos;
     protected final MutableURLClassLoader userClassLoader;
 
@@ -89,17 +91,22 @@ public class ResourceManager implements Closeable {
                         config.get(TableConfigOptions.RESOURCES_DOWNLOAD_DIR),
                         String.format("flink-table-%s", UUID.randomUUID())),
                 new HashMap<>(),
-                userClassLoader);
+                new HashMap<>(),
+                userClassLoader,
+                true);
     }
 
-    protected ResourceManager(
+    private ResourceManager(
             Path localResourceDir,
             Map<ResourceUri, URL> resourceInfos,
-            MutableURLClassLoader userClassLoader) {
+            Map<ResourceUri, ResourceCounter> functionResourceInfos,
+            MutableURLClassLoader userClassLoader,
+            boolean cleanLocalResource) {
         this.localResourceDir = localResourceDir;
-        this.functionResourceInfos = new HashMap<>();
+        this.functionResourceInfos = functionResourceInfos;
         this.resourceInfos = resourceInfos;
         this.userClassLoader = userClassLoader;
+        this.cleanLocalResource = cleanLocalResource;
     }
 
     /**
@@ -242,7 +249,12 @@ public class ResourceManager implements Closeable {
     }
 
     public ResourceManager copy() {
-        return new ResourceManager(localResourceDir, new HashMap<>(resourceInfos), userClassLoader);
+        return new ResourceManager(
+                localResourceDir,
+                new HashMap<>(resourceInfos),
+                new HashMap<>(functionResourceInfos),
+                userClassLoader.copy(),
+                false);
     }
 
     @Override
@@ -258,14 +270,17 @@ public class ResourceManager implements Closeable {
             exception = e;
         }
 
-        FileSystem fileSystem = FileSystem.getLocalFileSystem();
-        try {
-            if (fileSystem.exists(localResourceDir)) {
-                fileSystem.delete(localResourceDir, true);
+        if (cleanLocalResource) {
+            FileSystem fileSystem = FileSystem.getLocalFileSystem();
+            try {
+                if (fileSystem.exists(localResourceDir)) {
+                    fileSystem.delete(localResourceDir, true);
+                }
+            } catch (IOException ioe) {
+                LOG.debug(
+                        String.format("Error while delete directory [%s].", localResourceDir), ioe);
+                exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
             }
-        } catch (IOException ioe) {
-            LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), ioe);
-            exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
         }
 
         if (exception != null) {

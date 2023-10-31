@@ -432,6 +432,25 @@ public class ResourceManagerTest {
     }
 
     @Test
+    void testCloseCopiedResourceManager() throws Exception {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, udfJar.getPath());
+        resourceManager.declareFunctionResources(Collections.singleton(resourceUri));
+        resourceManager.registerJarResources(Collections.singletonList(resourceUri));
+        assertThat(resourceManager.functionResourceInfos().size()).isEqualTo(1);
+        assertThat(resourceManager.resourceInfos.size()).isEqualTo(1);
+
+        ResourceManager copiedResourceManager = resourceManager.copy();
+        assertThat(copiedResourceManager.functionResourceInfos().size()).isEqualTo(1);
+        assertThat(copiedResourceManager.resourceInfos.size()).isEqualTo(1);
+        copiedResourceManager.close();
+        assertThat(copiedResourceManager.functionResourceInfos().size()).isEqualTo(0);
+        assertThat(copiedResourceManager.resourceInfos.size()).isEqualTo(0);
+
+        assertThat(resourceManager.functionResourceInfos().size()).isEqualTo(1);
+        assertThat(resourceManager.resourceInfos.size()).isEqualTo(1);
+    }
+
+    @Test
     public void testCloseResourceManagerCleanDownloadedResources() throws Exception {
         resourceManager.close();
         FileSystem fileSystem = FileSystem.getLocalFileSystem();

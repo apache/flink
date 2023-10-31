@@ -193,7 +193,8 @@ public class OperationExecutor {
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
         // Instantiate the TableEnvironment lazily
-        TableEnvironmentInternal tableEnv = getTableEnvironment();
+        ResourceManager resourceManager = sessionContext.getSessionState().resourceManager.copy();
+        TableEnvironmentInternal tableEnv = getTableEnvironment(resourceManager);
         List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
         if (parsedOperations.size() > 1) {
             throw new UnsupportedOperationException(
@@ -207,14 +208,15 @@ public class OperationExecutor {
             try {
                 SqlGatewayStreamExecutionEnvironment.setAsContext(
                         sessionContext.getUserClassloader());
-                return executeOperation(tableEnv, handle, op);
+                return executeOperation(tableEnv, handle, op).withResourceManager(resourceManager);
             } finally {
                 SqlGatewayStreamExecutionEnvironment.unsetAsContext();
             }
         } else {
             return sessionContext.isStatementSetState()
                     ? executeOperationInStatementSetState(tableEnv, handle, op)
-                    : executeOperation(tableEnv, handle, op);
+                            .withResourceManager(resourceManager)
+                    : executeOperation(tableEnv, handle, op).withResourceManager(resourceManager);
         }
     }
 
@@ -325,6 +327,10 @@ public class OperationExecutor {
     // --------------------------------------------------------------------------------------------
 
     public TableEnvironmentInternal getTableEnvironment() {
+        return getTableEnvironment(sessionContext.getSessionState().resourceManager);
+    }
+
+    public TableEnvironmentInternal getTableEnvironment(ResourceManager resourceManager) {
         // checks the value of RUNTIME_MODE
         Configuration operationConfig = sessionContext.getSessionConf().clone();
         operationConfig.addAll(executionConfig);
@@ -345,7 +351,6 @@ public class OperationExecutor {
 
         final Executor executor =
                 lookupExecutor(streamExecEnv, sessionContext.getUserClassloader());
-        ResourceManager resourceManager = sessionContext.getSessionState().resourceManager.copy();
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
