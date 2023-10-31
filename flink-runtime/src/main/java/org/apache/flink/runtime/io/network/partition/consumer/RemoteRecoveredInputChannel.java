@@ -34,6 +34,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
     private final ConnectionID connectionId;
     private final ConnectionManager connectionManager;
+    private final int partitionRequestListenerTimeout;
 
     RemoteRecoveredInputChannel(
             SingleInputGate inputGate,
@@ -44,6 +45,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
             ConnectionManager connectionManager,
             int initialBackOff,
             int maxBackoff,
+            int partitionRequestListenerTimeout,
             int networkBuffersPerChannel,
             InputChannelMetrics metrics) {
         super(
@@ -59,6 +61,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
 
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
+        this.partitionRequestListenerTimeout = partitionRequestListenerTimeout;
     }
 
     @Override
@@ -73,6 +76,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
                         connectionManager,
                         initialBackoff,
                         maxBackoff,
+                        partitionRequestListenerTimeout,
                         networkBuffersPerChannel,
                         numBytesIn,
                         numBuffersIn,

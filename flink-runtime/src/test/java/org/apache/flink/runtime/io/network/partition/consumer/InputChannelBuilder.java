@@ -52,6 +52,7 @@ public class InputChannelBuilder {
     private ConnectionManager connectionManager = new TestingConnectionManager();
     private int initialBackoff = 0;
     private int maxBackoff = 0;
+    private int partitionRequestListenerTimeout = 0;
     private int networkBuffersPerChannel = 2;
     private InputChannelMetrics metrics =
             InputChannelTestUtils.newUnregisteredInputChannelMetrics();
@@ -100,6 +101,12 @@ public class InputChannelBuilder {
         return this;
     }
 
+    public InputChannelBuilder setPartitionRequestListenerTimeout(
+            int partitionRequestListenerTimeout) {
+        this.partitionRequestListenerTimeout = partitionRequestListenerTimeout;
+        return this;
+    }
+
     public InputChannelBuilder setNetworkBuffersPerChannel(int networkBuffersPerChannel) {
         this.networkBuffersPerChannel = networkBuffersPerChannel;
         return this;
@@ -136,6 +143,7 @@ public class InputChannelBuilder {
                         connectionManager,
                         initialBackoff,
                         maxBackoff,
+                        partitionRequestListenerTimeout,
                         networkBuffersPerChannel,
                         metrics);
         channel.setChannelStateWriter(stateWriter);
@@ -167,6 +175,7 @@ public class InputChannelBuilder {
                 connectionManager,
                 initialBackoff,
                 maxBackoff,
+                partitionRequestListenerTimeout,
                 networkBuffersPerChannel,
                 metrics.getNumBytesInRemoteCounter(),
                 metrics.getNumBuffersInRemoteCounter(),
@@ -201,6 +210,7 @@ public class InputChannelBuilder {
                         connectionManager,
                         initialBackoff,
                         maxBackoff,
+                        partitionRequestListenerTimeout,
                         networkBuffersPerChannel,
                         metrics);
         channel.setChannelStateWriter(stateWriter);
