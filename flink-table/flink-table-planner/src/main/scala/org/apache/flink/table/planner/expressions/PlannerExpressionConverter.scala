@@ -147,46 +147,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             assert(args.size == 1)
             Collect(args.head)
 
-          case EXTRACT =>
-            assert(args.size == 2)
-            Extract(args.head, args.last)
-
-          case CURRENT_DATE =>
-            assert(args.isEmpty)
-            CurrentDate()
-
-          case CURRENT_TIME =>
-            assert(args.isEmpty)
-            CurrentTime()
-
-          case CURRENT_TIMESTAMP =>
-            assert(args.isEmpty)
-            CurrentTimestamp()
-
-          case LOCAL_TIME =>
-            assert(args.isEmpty)
-            LocalTime()
-
-          case LOCAL_TIMESTAMP =>
-            assert(args.isEmpty)
-            LocalTimestamp()
-
-          case TEMPORAL_OVERLAPS =>
-            assert(args.size == 4)
-            TemporalOverlaps(args.head, args(1), args(2), args.last)
-
-          case DATE_FORMAT =>
-            assert(args.size == 2)
-            DateFormat(args.head, args.last)
-
-          case TIMESTAMP_DIFF =>
-            assert(args.size == 3)
-            TimestampDiff(args.head, args(1), args.last)
-
-          case TO_TIMESTAMP_LTZ =>
-            assert(args.size == 2)
-            ToTimestampLtz(args.head, args.last)
-
           case AT =>
             assert(args.size == 2)
             ItemAt(args.head, args.last)
