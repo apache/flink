@@ -72,7 +72,8 @@ function setup_kubernetes_for_linux {
     local cri_dockerd_archive cri_dockerd_binary
     cri_dockerd_archive="cri-dockerd-${CRI_DOCKERD_VERSION}.${arch}.tgz"
     cri_dockerd_binary="cri-dockerd"
-    retry_download "https://github.com/Mirantis/cri-dockerd/releases/download/v${CRI_DOCKERD_VERSION}/${cri_dockerd_archive}"    tar xzvf $cri_dockerd_archive "cri-dockerd/${cri_dockerd_binary}" --strip-components=1
+    retry_download "https://github.com/Mirantis/cri-dockerd/releases/download/v${CRI_DOCKERD_VERSION}/${cri_dockerd_archive}"
+    tar xzvf $cri_dockerd_archive "cri-dockerd/${cri_dockerd_binary}" --strip-components=1
     sudo install -o root -g root -m 0755 "${cri_dockerd_binary}" "/usr/local/bin/${cri_dockerd_binary}"
     rm ${cri_dockerd_binary}
 
