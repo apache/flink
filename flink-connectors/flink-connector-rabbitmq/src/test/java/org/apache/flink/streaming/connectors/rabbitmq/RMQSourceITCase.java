@@ -88,7 +88,8 @@ public class RMQSourceITCase {
     public static final RabbitMQContainer RMQ_CONTAINER =
             new RabbitMQContainer(DockerImageName.parse(DockerImageVersions.RABBITMQ))
                     .withExposedPorts(RABBITMQ_PORT)
-                    .withLogConsumer(LOG_CONSUMER);
+                    .withLogConsumer(LOG_CONSUMER)
+                    .withStartupAttempts(3);
 
     @Before
     public void setUp() throws Exception {
