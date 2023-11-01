@@ -65,7 +65,6 @@ function setup_kubernetes_for_linux {
     crictl_archive="crictl-$CRICTL_VERSION-linux-${arch}.tar.gz"
     download_crictl_url="https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/${crictl_archive}"
     retry_download "${download_crictl_url}"
-
     sudo tar zxvf ${crictl_archive} -C /usr/local/bin
     rm -f ${crictl_archive}
 
