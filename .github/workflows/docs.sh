@@ -33,6 +33,8 @@ tar -zxvf $HUGO_ARTIFACT -C /usr/local/bin
 git submodule update --init --recursive
 # Setup the external documentation modules
 cd docs
+# workaround for a git security patch
+git config --global --add safe.directory /root/flink
 source setup_docs.sh
 cd ..
 # Build the docs
