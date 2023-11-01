@@ -326,3 +326,23 @@ Received a total of 2 rows
 SHOW JARS;
 Empty set
 !ok
+
+# Show all users functions which should not add function jars to session resource manager
+show user functions;
++---------------+
+| function name |
++---------------+
+|        func11 |
+|         func3 |
+|         func4 |
+| temp_upperudf |
+|      tmp_func |
+|      upperudf |
++---------------+
+6 rows in set
+!ok
+
+# Show functions will not affect the session in sql gateway
+SHOW JARS;
+Empty set
+!ok
