@@ -69,9 +69,11 @@ public class ResourceManager implements Closeable {
     private static final String JAR_SUFFIX = "jar";
     private static final String FILE_SCHEME = "file";
 
-    private final Path localResourceDir;
+    protected final Path localResourceDir;
     /** Resource infos for functions. */
     private final Map<ResourceUri, ResourceCounter> functionResourceInfos;
+
+    private final boolean cleanLocalResource;
 
     protected final Map<ResourceUri, URL> resourceInfos;
     protected final MutableURLClassLoader userClassLoader;
@@ -84,13 +86,27 @@ public class ResourceManager implements Closeable {
     }
 
     public ResourceManager(ReadableConfig config, MutableURLClassLoader userClassLoader) {
-        this.localResourceDir =
+        this(
                 new Path(
                         config.get(TableConfigOptions.RESOURCES_DOWNLOAD_DIR),
-                        String.format("flink-table-%s", UUID.randomUUID()));
-        this.functionResourceInfos = new HashMap<>();
-        this.resourceInfos = new HashMap<>();
+                        String.format("flink-table-%s", UUID.randomUUID())),
+                new HashMap<>(),
+                new HashMap<>(),
+                userClassLoader,
+                true);
+    }
+
+    private ResourceManager(
+            Path localResourceDir,
+            Map<ResourceUri, URL> resourceInfos,
+            Map<ResourceUri, ResourceCounter> functionResourceInfos,
+            MutableURLClassLoader userClassLoader,
+            boolean cleanLocalResource) {
+        this.localResourceDir = localResourceDir;
+        this.functionResourceInfos = functionResourceInfos;
+        this.resourceInfos = resourceInfos;
         this.userClassLoader = userClassLoader;
+        this.cleanLocalResource = cleanLocalResource;
     }
 
     /**
@@ -232,6 +248,15 @@ public class ResourceManager implements Closeable {
         tableConfig.set(PipelineOptions.JARS, new ArrayList<>(jarFiles));
     }
 
+    public ResourceManager copy() {
+        return new ResourceManager(
+                localResourceDir,
+                new HashMap<>(resourceInfos),
+                new HashMap<>(functionResourceInfos),
+                userClassLoader.copy(),
+                false);
+    }
+
     @Override
     public void close() throws IOException {
         resourceInfos.clear();
@@ -245,14 +270,17 @@ public class ResourceManager implements Closeable {
             exception = e;
         }
 
-        FileSystem fileSystem = FileSystem.getLocalFileSystem();
-        try {
-            if (fileSystem.exists(localResourceDir)) {
-                fileSystem.delete(localResourceDir, true);
+        if (cleanLocalResource) {
+            FileSystem fileSystem = FileSystem.getLocalFileSystem();
+            try {
+                if (fileSystem.exists(localResourceDir)) {
+                    fileSystem.delete(localResourceDir, true);
+                }
+            } catch (IOException ioe) {
+                LOG.debug(
+                        String.format("Error while delete directory [%s].", localResourceDir), ioe);
+                exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
             }
-        } catch (IOException ioe) {
-            LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), ioe);
-            exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
         }
 
         if (exception != null) {
