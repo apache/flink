@@ -1,11 +1,11 @@
 # Apache Flink
 
-Apache Flink is an open source stream processing framework with powerful stream- and batch-processing capabilities.
+Apache Flink is an open-source stream processing framework with powerful stream and batch processing capabilities.
 
 Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 
-### Features
+## Features
 
 * A streaming-first runtime that supports both batch processing and data streaming programs
 
@@ -15,9 +15,9 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 * Support for *event time* and *out-of-order* processing in the DataStream API, based on the *Dataflow Model*
 
-* Flexible windowing (time, count, sessions, custom triggers) across different time semantics (event time, processing time)
+* Flexible windowing (time, count, sessions, user-defined triggers) across different time semantics (event time, processing time)
 
-* Fault-tolerance with *exactly-once* processing guarantees
+* Fault-tolerance with *exactly-once* processing guarantee
 
 * Natural back-pressure in streaming programs
 
@@ -32,7 +32,7 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 * Integration with YARN, HDFS, HBase, and other components of the Apache Hadoop ecosystem
 
 
-### Streaming Example
+## Streaming Example
 ```scala
 case class WordWithCount(word: String, count: Long)
 
@@ -47,7 +47,7 @@ val windowCounts = text.flatMap { w => w.split("\\s") }
 windowCounts.print()
 ```
 
-### Batch Example
+## Batch Example
 ```scala
 case class WordWithCount(word: String, count: Long)
 
@@ -63,7 +63,7 @@ counts.writeAsCsv(outputPath)
 
 
 
-## Building Apache Flink from Source
+## Building Apache Flink from source code
 
 Prerequisites for building Flink:
 
@@ -111,7 +111,7 @@ due to version incompatibilities with the bundled Scala version in Scala IDE 4.4
 
 Don’t hesitate to ask!
 
-Contact the developers and community on the [mailing lists](https://flink.apache.org/community.html#mailing-lists) if you need any help.
+Contact the developers and the community on the [mailing lists](https://flink.apache.org/community.html#mailing-lists) if you need any help.
 
 [Open an issue](https://issues.apache.org/jira/browse/FLINK) if you find a bug in Flink.
 
@@ -125,11 +125,11 @@ or in the `docs/` directory of the source code.
 ## Fork and Contribute
 
 This is an active open-source project. We are always open to people who want to use the system or contribute to it.
-Contact us if you are looking for implementation tasks that fit your skills.
+Contact us if you are looking for implementation tasks that match your skills.
 This article describes [how to contribute to Apache Flink](https://flink.apache.org/contributing/how-to-contribute.html).
 
 
 ## About
 
-Apache Flink is an open source project of The Apache Software Foundation (ASF).
+Apache Flink is an open source project of the Apache Software Foundation (ASF).
 The Apache Flink project originated from the [Stratosphere](http://stratosphere.eu) research project.
