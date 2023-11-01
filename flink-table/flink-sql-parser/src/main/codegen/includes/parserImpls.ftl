@@ -1335,7 +1335,7 @@ SqlNode RichSqlInsert() :
             }
         }
     ]
-    source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
+    source = RichOrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
         return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, table, source,
             columnList, partitionList);
     }
@@ -1396,7 +1396,7 @@ SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
         }
     ]
     <AS>
-    query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    query = RichOrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
         return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment, null);
     }
@@ -2323,5 +2323,871 @@ SqlNode SqlAnalyzeTable():
 
     {
         return new SqlAnalyzeTable(s.end(this), tableName, partitionSpec, columns, allColumns);
+    }
+}
+
+
+/**
+ * Parses either a row expression or a query expression with an optional
+ * ORDER BY.
+ *
+ * <p>Postgres syntax for limit:
+ *
+ * <blockquote><pre>
+ *    [ LIMIT { count | ALL } ]
+ *    [ OFFSET start ]</pre>
+ * </blockquote>
+ *
+ * <p>MySQL syntax for limit:
+ *
+ * <blockquote><pre>
+ *    [ LIMIT { count | start, count } ]</pre>
+ * </blockquote>
+ *
+ * <p>SQL:2008 syntax for limit:
+ *
+ * <blockquote><pre>
+ *    [ OFFSET start { ROW | ROWS } ]
+ *    [ FETCH { FIRST | NEXT } [ count ] { ROW | ROWS } ONLY ]</pre>
+ * </blockquote>
+ */
+SqlNode RichOrderedQueryOrExpr(ExprContext exprContext) :
+{
+    SqlNode e;
+    SqlNodeList orderBy = null;
+    SqlNode start = null;
+    SqlNode count = null;
+}
+{
+    (
+        e = RichQueryOrExpr(exprContext)
+    )
+    [
+        // use the syntactic type of the expression we just parsed
+        // to decide whether ORDER BY makes sense
+        orderBy = OrderBy(e.isA(SqlKind.QUERY))
+    ]
+    [
+        // Postgres-style syntax. "LIMIT ... OFFSET ..."
+        <LIMIT>
+        (
+            // MySQL-style syntax. "LIMIT start, count"
+            LOOKAHEAD(2)
+            start = UnsignedNumericLiteralOrParam()
+            <COMMA> count = UnsignedNumericLiteralOrParam() {
+                if (!this.conformance.isLimitStartCountAllowed()) {
+                    throw SqlUtil.newContextException(getPos(), RESOURCE.limitStartCountNotAllowed());
+                }
+            }
+        |
+            count = UnsignedNumericLiteralOrParam()
+        |
+            <ALL>
+        )
+    ]
+    [
+        // ROW or ROWS is required in SQL:2008 but we make it optional
+        // because it is not present in Postgres-style syntax.
+        // If you specify both LIMIT start and OFFSET, OFFSET wins.
+        <OFFSET> start = UnsignedNumericLiteralOrParam() [ <ROW> | <ROWS> ]
+    ]
+    [
+        // SQL:2008-style syntax. "OFFSET ... FETCH ...".
+        // If you specify both LIMIT and FETCH, FETCH wins.
+        <FETCH> ( <FIRST> | <NEXT> ) count = UnsignedNumericLiteralOrParam()
+        ( <ROW> | <ROWS> ) <ONLY>
+    ]
+    {
+        if (orderBy != null || start != null || count != null) {
+            if (orderBy == null) {
+                orderBy = SqlNodeList.EMPTY;
+            }
+            e = new SqlOrderBy(getPos(), e, orderBy, start, count);
+
+        }
+        return e;
+    }
+}
+/**
+ * Parses either a row expression or a query expression without ORDER BY.
+ */
+SqlNode RichQueryOrExpr(ExprContext exprContext) :
+{
+    SqlNodeList withList = null;
+    SqlNode e;
+    SqlOperator op;
+    SqlParserPos pos;
+    SqlParserPos withPos;
+    List<Object> list;
+}
+{
+    [
+        withList = WithList()
+    ]
+    e = RichLeafQueryOrExpr(exprContext) {
+        list = startList(e);
+    }
+    (
+        {
+            if (!e.isA(SqlKind.QUERY)) {
+                // whoops, expression we just parsed wasn't a query,
+                // but we're about to see something like UNION, so
+                // force an exception retroactively
+                checkNonQueryExpression(ExprContext.ACCEPT_QUERY);
+            }
+        }
+        op = BinaryQueryOperator() {
+            // ensure a query is legal in this context
+            pos = getPos();
+            checkQueryExpression(exprContext);
+
+        }
+        e = RichLeafQueryOrExpr(ExprContext.ACCEPT_QUERY) {
+            list.add(new SqlParserUtil.ToTreeListItem(op, pos));
+            list.add(e);
+        }
+    )*
+    {
+        e = SqlParserUtil.toTree(list);
+        if (withList != null) {
+            e = new SqlWith(withList.getParserPosition(), withList, e);
+        }
+        return e;
+    }
+}
+
+/**
+ * Parses either a row expression, a leaf query expression, or
+ * a parenthesized expression of any kind.
+ */
+SqlNode RichLeafQueryOrExpr(ExprContext exprContext) :
+{
+    SqlNode e;
+}
+{
+    e = Expression(exprContext) { return e; }
+|
+    e = RichLeafQuery(exprContext) { return e; }
+}
+
+/**
+ * Parses a leaf in a query expression (SELECT, VALUES or TABLE).
+ */
+SqlNode RichLeafQuery(ExprContext exprContext) :
+{
+    SqlNode e;
+}
+{
+    {
+        // ensure a query is legal in this context
+        checkQueryExpression(exprContext);
+    }
+    e = RichSqlSelect() { return e; }
+|
+    e = TableConstructor() { return e; }
+|
+    e = ExplicitTable(getPos()) { return e; }
+}
+/**
+ * Parses a leaf SELECT expression without ORDER BY.
+ */
+SqlSelect RichSqlSelect() :
+{
+    final List<SqlLiteral> keywords = new ArrayList<SqlLiteral>();
+    final SqlNodeList keywordList;
+    List<SqlNode> selectList;
+    final SqlNode fromClause;
+    final SqlNode where;
+    final SqlNodeList groupBy;
+    final SqlNode having;
+    final SqlNodeList windowDecls;
+    final List<SqlNode> hints = new ArrayList<SqlNode>();
+    final Span s;
+}
+{
+    <SELECT>
+    {
+        s = span();
+    }
+    [
+        <HINT_BEG>
+        CommaSeparatedSqlHints(hints)
+        <COMMENT_END>
+    ]
+    SqlSelectKeywords(keywords)
+    (
+        <STREAM> {
+            keywords.add(SqlSelectKeyword.STREAM.symbol(getPos()));
+        }
+    )?
+    (
+        <DISTINCT> {
+            keywords.add(SqlSelectKeyword.DISTINCT.symbol(getPos()));
+        }
+    |   <ALL> {
+            keywords.add(SqlSelectKeyword.ALL.symbol(getPos()));
+        }
+    )?
+    {
+        keywordList = new SqlNodeList(keywords, s.addAll(keywords).pos());
+    }
+    selectList = SelectList()
+    (
+        <FROM> fromClause = RichFromClause()
+        where = WhereOpt()
+        groupBy = GroupByOpt()
+        having = HavingOpt()
+        windowDecls = WindowOpt()
+    |
+        E() {
+            fromClause = null;
+            where = null;
+            groupBy = null;
+            having = null;
+            windowDecls = null;
+        }
+    )
+    {
+        return new SqlSelect(s.end(this), keywordList,
+            new SqlNodeList(selectList, Span.of(selectList).pos()),
+            fromClause, where, groupBy, having, windowDecls, null, null, null,
+            new SqlNodeList(hints, getPos()));
+    }
+}
+
+// TODO jvs 15-Nov-2003:  SQL standard allows parentheses in the FROM list for
+// building up non-linear join trees (e.g. OUTER JOIN two tables, and then INNER
+// JOIN the result).  Also note that aliases on parenthesized FROM expressions
+// "hide" all table names inside the parentheses (without aliases, they're
+// visible).
+//
+// We allow CROSS JOIN to have a join condition, even though that is not valid
+// SQL; the validator will catch it.
+/**
+ * Parses the FROM clause for a SELECT.
+ *
+ * <p>FROM is mandatory in standard SQL, optional in dialects such as MySQL,
+ * PostgreSQL. The parser allows SELECT without FROM, but the validator fails
+ * if conformance is, say, STRICT_2003.
+ */
+SqlNode RichFromClause() :
+{
+    SqlNode e, e2, condition;
+    SqlLiteral natural, joinType, joinConditionType;
+    SqlNodeList list;
+    SqlParserPos pos;
+}
+{
+    e = RichTableRef()
+    (
+        LOOKAHEAD(2)
+        (
+            // Decide whether to read a JOIN clause or a comma, or to quit having
+            // seen a single entry FROM clause like 'FROM emps'. See comments
+            // elsewhere regarding <COMMA> lookahead.
+            //
+            // And LOOKAHEAD(3) is needed here rather than a LOOKAHEAD(2). Because currently JavaCC
+            // calculates minimum lookahead count incorrectly for choice that contains zero size
+            // child. For instance, with the generated code, "LOOKAHEAD(2, Natural(), JoinType())"
+            // returns true immediately if it sees a single "<CROSS>" token. Where we expect
+            // the lookahead succeeds after "<CROSS> <APPLY>".
+            //
+            // For more information about the issue, see https://github.com/javacc/javacc/issues/86
+            LOOKAHEAD(3)
+            natural = Natural()
+            joinType = JoinType()
+            e2 = RichTableRef()
+            (
+                <ON> {
+                    joinConditionType = JoinConditionType.ON.symbol(getPos());
+                }
+                condition = Expression(ExprContext.ACCEPT_SUB_QUERY) {
+                    e = new SqlJoin(joinType.getParserPosition(),
+                        e,
+                        natural,
+                        joinType,
+                        e2,
+                        joinConditionType,
+                        condition);
+                }
+            |
+                <USING> {
+                    joinConditionType = JoinConditionType.USING.symbol(getPos());
+                }
+                list = ParenthesizedSimpleIdentifierList() {
+                    e = new SqlJoin(joinType.getParserPosition(),
+                        e,
+                        natural,
+                        joinType,
+                        e2,
+                        joinConditionType,
+                        new SqlNodeList(list.getList(), Span.of(joinConditionType).end(this)));
+                }
+            |
+                {
+                    e = new SqlJoin(joinType.getParserPosition(),
+                        e,
+                        natural,
+                        joinType,
+                        e2,
+                        JoinConditionType.NONE.symbol(joinType.getParserPosition()),
+                        null);
+                }
+            )
+        |
+            // NOTE jvs 6-Feb-2004:  See comments at top of file for why
+            // hint is necessary here.  I had to use this special semantic
+            // lookahead form to get JavaCC to shut up, which makes
+            // me even more uneasy.
+            //LOOKAHEAD({true})
+            <COMMA> { joinType = JoinType.COMMA.symbol(getPos()); }
+            e2 = RichTableRef() {
+                e = new SqlJoin(joinType.getParserPosition(),
+                    e,
+                    SqlLiteral.createBoolean(false, joinType.getParserPosition()),
+                    joinType,
+                    e2,
+                    JoinConditionType.NONE.symbol(SqlParserPos.ZERO),
+                    null);
+            }
+        |
+            <CROSS> { joinType = JoinType.CROSS.symbol(getPos()); } <APPLY>
+            e2 = RichTableRef2(true) {
+                if (!this.conformance.isApplyAllowed()) {
+                    throw SqlUtil.newContextException(getPos(), RESOURCE.applyNotAllowed());
+                }
+                e = new SqlJoin(joinType.getParserPosition(),
+                    e,
+                    SqlLiteral.createBoolean(false, joinType.getParserPosition()),
+                    joinType,
+                    e2,
+                    JoinConditionType.NONE.symbol(SqlParserPos.ZERO),
+                    null);
+            }
+        |
+            <OUTER> { joinType = JoinType.LEFT.symbol(getPos()); } <APPLY>
+            e2 = RichTableRef2(true) {
+                if (!this.conformance.isApplyAllowed()) {
+                    throw SqlUtil.newContextException(getPos(), RESOURCE.applyNotAllowed());
+                }
+                e = new SqlJoin(joinType.getParserPosition(),
+                    e,
+                    SqlLiteral.createBoolean(false, joinType.getParserPosition()),
+                    joinType,
+                    e2,
+                    JoinConditionType.ON.symbol(SqlParserPos.ZERO),
+                    SqlLiteral.createBoolean(true, joinType.getParserPosition()));
+            }
+        )
+    )*
+    {
+        return e;
+    }
+}
+/**
+ * Parses a parenthesized query or single row expression.
+ */
+SqlNode RichParenthesizedExpression(ExprContext exprContext) :
+{
+    SqlNode e;
+}
+{
+    <LPAREN>
+    {
+        // we've now seen left paren, so queries inside should
+        // be allowed as sub-queries
+        switch (exprContext) {
+        case ACCEPT_SUB_QUERY:
+            exprContext = ExprContext.ACCEPT_NONCURSOR;
+            break;
+        case ACCEPT_CURSOR:
+            exprContext = ExprContext.ACCEPT_ALL;
+            break;
+        }
+    }
+    e = RichOrderedQueryOrExpr(exprContext)
+    <RPAREN>
+    {
+        return e;
+    }
+}
+/**
+ * Parses a table reference in a FROM clause, not lateral unless LATERAL
+ * is explicitly specified.
+ */
+SqlNode RichTableRef() :
+{
+    final SqlNode e;
+}
+{
+    e = RichTableRef2(false) { return e; }
+}
+
+/**
+ * Parses a table reference in a FROM clause.
+ */
+SqlNode RichTableRef2(boolean lateral) :
+{
+    SqlNode tableRef;
+    final SqlNode over;
+    final SqlNode snapshot;
+    final SqlNode match;
+    SqlNodeList extendList = null;
+    final SqlIdentifier alias;
+    final Span s, s2;
+    SqlNodeList args;
+    SqlNode sample;
+    boolean isBernoulli;
+    SqlNumericLiteral samplePercentage;
+    boolean isRepeatable = false;
+    int repeatableSeed = 0;
+    SqlNodeList columnAliasList = null;
+    SqlUnnestOperator unnestOp = SqlStdOperatorTable.UNNEST;
+}
+{
+    (
+        LOOKAHEAD(2)
+        tableRef = TableRefWithHintsOpt()
+        [
+            [ <EXTEND> ]
+            extendList = ExtendList() {
+                tableRef = extend(tableRef, extendList);
+            }
+        ]
+        over = TableOverOpt() {
+            if (over != null) {
+                tableRef = SqlStdOperatorTable.OVER.createCall(
+                    getPos(), tableRef, over);
+            }
+        }
+        [
+            tableRef = Snapshot(tableRef)
+        ]
+        [
+            tableRef = RichMatchRecognize(tableRef)
+        ]
+    |
+        LOOKAHEAD(2)
+        [ <LATERAL> { lateral = true; } ]
+        tableRef = RichParenthesizedExpression(ExprContext.ACCEPT_QUERY)
+        over = TableOverOpt()
+        {
+            if (over != null) {
+                tableRef = SqlStdOperatorTable.OVER.createCall(
+                    getPos(), tableRef, over);
+            }
+            if (lateral) {
+                tableRef = SqlStdOperatorTable.LATERAL.createCall(
+                    getPos(), tableRef);
+            }
+        }
+        [
+            tableRef = RichMatchRecognize(tableRef)
+        ]
+    |
+        <UNNEST> { s = span(); }
+        args = ParenthesizedQueryOrCommaList(ExprContext.ACCEPT_SUB_QUERY)
+        [
+            <WITH> <ORDINALITY> {
+                unnestOp = SqlStdOperatorTable.UNNEST_WITH_ORDINALITY;
+            }
+        ]
+        {
+            tableRef = unnestOp.createCall(s.end(this), args.toArray());
+        }
+    |
+        [<LATERAL> { lateral = true; } ]
+        <TABLE> { s = span(); } <LPAREN>
+        tableRef = TableFunctionCall(s.pos())
+        <RPAREN>
+        {
+            if (lateral) {
+                tableRef = SqlStdOperatorTable.LATERAL.createCall(
+                    s.end(this), tableRef);
+            }
+        }
+    |
+        tableRef = ExtendedTableRef()
+    )
+    [
+        tableRef = Pivot(tableRef)
+    ]
+    [
+        [ <AS> ] alias = SimpleIdentifier()
+        [ columnAliasList = ParenthesizedSimpleIdentifierList() ]
+        {
+            if (columnAliasList == null) {
+                tableRef = SqlStdOperatorTable.AS.createCall(
+                    Span.of(tableRef).end(this), tableRef, alias);
+            } else {
+                List<SqlNode> idList = new ArrayList<SqlNode>();
+                idList.add(tableRef);
+                idList.add(alias);
+                idList.addAll(columnAliasList.getList());
+                tableRef = SqlStdOperatorTable.AS.createCall(
+                    Span.of(tableRef).end(this), idList);
+            }
+        }
+    ]
+    [
+        <TABLESAMPLE> { s2 = span(); }
+        (
+            <SUBSTITUTE> <LPAREN> sample = StringLiteral() <RPAREN>
+            {
+                String sampleName =
+                    SqlLiteral.unchain(sample).getValueAs(String.class);
+                SqlSampleSpec sampleSpec = SqlSampleSpec.createNamed(sampleName);
+                final SqlLiteral sampleLiteral =
+                    SqlLiteral.createSample(sampleSpec, s2.end(this));
+                tableRef = SqlStdOperatorTable.TABLESAMPLE.createCall(
+                    s2.add(tableRef).end(this), tableRef, sampleLiteral);
+            }
+        |
+            (
+                <BERNOULLI>
+                {
+                    isBernoulli = true;
+                }
+            |
+                <SYSTEM>
+                {
+                    isBernoulli = false;
+                }
+            )
+            <LPAREN> samplePercentage = UnsignedNumericLiteral() <RPAREN>
+            [
+                <REPEATABLE> <LPAREN> repeatableSeed = IntLiteral() <RPAREN>
+                {
+                    isRepeatable = true;
+                }
+            ]
+            {
+                final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100L);
+                BigDecimal rate = samplePercentage.bigDecimalValue();
+                if (rate.compareTo(BigDecimal.ZERO) < 0
+                    || rate.compareTo(ONE_HUNDRED) > 0)
+                {
+                    throw SqlUtil.newContextException(getPos(), RESOURCE.invalidSampleSize());
+                }
+
+                // Treat TABLESAMPLE(0) and TABLESAMPLE(100) as no table
+                // sampling at all.  Not strictly correct: TABLESAMPLE(0)
+                // should produce no output, but it simplifies implementation
+                // to know that some amount of sampling will occur.
+                // In practice values less than ~1E-43% are treated as 0.0 and
+                // values greater than ~99.999997% are treated as 1.0
+                float fRate = rate.divide(ONE_HUNDRED).floatValue();
+                if (fRate > 0.0f && fRate < 1.0f) {
+                    SqlSampleSpec tableSampleSpec =
+                    isRepeatable
+                        ? SqlSampleSpec.createTableSample(
+                            isBernoulli, fRate, repeatableSeed)
+                        : SqlSampleSpec.createTableSample(isBernoulli, fRate);
+
+                    SqlLiteral tableSampleLiteral =
+                        SqlLiteral.createSample(tableSampleSpec, s2.end(this));
+                    tableRef = SqlStdOperatorTable.TABLESAMPLE.createCall(
+                        s2.end(this), tableRef, tableSampleLiteral);
+                }
+            }
+        )
+    ]
+    {
+        return tableRef;
+    }
+}
+
+/**
+ * Parses a MATCH_RECOGNIZE clause following a table expression.
+ */
+SqlMatchRecognize RichMatchRecognize(SqlNode tableRef) :
+{
+    final Span s, s0, s1, s2;
+    SqlNodeList measureList = SqlNodeList.EMPTY;
+    SqlNodeList partitionList = SqlNodeList.EMPTY;
+    SqlNodeList orderList = SqlNodeList.EMPTY;
+    SqlNode pattern;
+    SqlLiteral interval;
+    SqlNodeList patternDefList;
+    final SqlNode after;
+    SqlParserPos pos;
+    final SqlNode var;
+    final SqlLiteral rowsPerMatch;
+    SqlNodeList subsetList = SqlNodeList.EMPTY;
+    SqlLiteral isStrictStarts = SqlLiteral.createBoolean(false, getPos());
+    SqlLiteral isStrictEnds = SqlLiteral.createBoolean(false, getPos());
+}
+{
+    <MATCH_RECOGNIZE> { s = span(); } <LPAREN>
+    [
+        <PARTITION> { s2 = span(); } <BY>
+        partitionList = ExpressionCommaList(s2, ExprContext.ACCEPT_NON_QUERY)
+    ]
+    [
+        orderList = OrderBy(true)
+    ]
+    [
+        <MEASURES>
+        measureList = MeasureColumnCommaList(span())
+    ]
+    (
+        <ONE> { s0 = span(); } <ROW> <PER> <MATCH> {
+            rowsPerMatch = SqlMatchRecognize.RowsPerMatchOption.ONE_ROW.symbol(s0.end(this));
+        }
+    |
+        <ALL> { s0 = span(); } <ROWS> <PER> <MATCH> {
+            rowsPerMatch = SqlMatchRecognize.RowsPerMatchOption.ALL_ROWS.symbol(s0.end(this));
+        }
+    |
+        {
+            rowsPerMatch = null;
+        }
+    )
+    (
+        <AFTER> { s1 = span(); } <MATCH> <SKIP_>
+        (
+            <TO>
+            (
+                LOOKAHEAD(2)
+                <NEXT> <ROW> {
+                    after = SqlMatchRecognize.AfterOption.SKIP_TO_NEXT_ROW
+                        .symbol(s1.end(this));
+                }
+            |
+                LOOKAHEAD(2)
+                <FIRST> var = SimpleIdentifier() {
+                    after = SqlMatchRecognize.SKIP_TO_FIRST.createCall(
+                        s1.end(var), var);
+                }
+            |
+                // This "LOOKAHEAD({true})" is a workaround for Babel.
+                // Because of babel parser uses option "LOOKAHEAD=2" globally,
+                // JavaCC generates something like "LOOKAHEAD(2, [<LAST>] SimpleIdentifier())"
+                // here. But the correct LOOKAHEAD should be
+                // "LOOKAHEAD(2, [ LOOKAHEAD(2, <LAST> SimpleIdentifier()) <LAST> ]
+                // SimpleIdentifier())" which have the syntactic lookahead for <LAST> considered.
+                //
+                // Overall LOOKAHEAD({true}) is even better as this is the last branch in the
+                // choice.
+                LOOKAHEAD({true})
+                [ LOOKAHEAD(2, <LAST> SimpleIdentifier()) <LAST> ] var = SimpleIdentifier() {
+                    after = SqlMatchRecognize.SKIP_TO_LAST.createCall(
+                        s1.end(var), var);
+                }
+            )
+        |
+            <PAST> <LAST> <ROW> {
+                 after = SqlMatchRecognize.AfterOption.SKIP_PAST_LAST_ROW
+                     .symbol(s1.end(this));
+            }
+        )
+    |
+        { after = null; }
+    )
+    <PATTERN>
+    <LPAREN>
+    (
+        <CARET> { isStrictStarts = SqlLiteral.createBoolean(true, getPos()); }
+    |
+        { isStrictStarts = SqlLiteral.createBoolean(false, getPos()); }
+    )
+    pattern = RichPatternExpression()
+    (
+        <DOLLAR> { isStrictEnds = SqlLiteral.createBoolean(true, getPos()); }
+    |
+        { isStrictEnds = SqlLiteral.createBoolean(false, getPos()); }
+    )
+    <RPAREN>
+    (
+        <WITHIN> interval = IntervalLiteral()
+    |
+        { interval = null; }
+    )
+    [
+        <SUBSET>
+        subsetList = SubsetDefinitionCommaList(span())
+    ]
+    <DEFINE>
+    patternDefList = PatternDefinitionCommaList(span())
+    <RPAREN> {
+        return new SqlMatchRecognize(s.end(this), tableRef,
+            pattern, isStrictStarts, isStrictEnds, patternDefList, measureList,
+            after, subsetList, rowsPerMatch, partitionList, orderList, interval);
+    }
+}
+
+SqlNode RichPatternExpression() :
+{
+    SqlNode left;
+    SqlNode right;
+}
+{
+    left = RichPatternTerm()
+    (
+        <VERTICAL_BAR>
+        right = RichPatternTerm() {
+            left = SqlStdOperatorTable.PATTERN_ALTER.createCall(
+                Span.of(left).end(right), left, right);
+        }
+    )*
+    {
+        return left;
+    }
+}
+
+SqlNode RichPatternTerm() :
+{
+    SqlNode left;
+    SqlNode right;
+}
+{
+    left = RichPatternFactor()
+    (
+        right = RichPatternFactor() {
+            left = SqlStdOperatorTable.PATTERN_CONCAT.createCall(
+                Span.of(left).end(right), left, right);
+        }
+    )*
+    {
+        return left;
+    }
+}
+
+SqlNode RichPatternFactor() :
+{
+    SqlNode e;
+    SqlNode extra;
+    SqlLiteral startNum = null;
+    SqlLiteral endNum = null;
+    SqlLiteral reluctant = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
+}
+{
+    e = RichPatternPrimary()
+    [
+        LOOKAHEAD(1)
+        (
+            <STAR> {
+                startNum = SqlLiteral.createExactNumeric("0", SqlParserPos.ZERO);
+                endNum = SqlLiteral.createExactNumeric("-1", SqlParserPos.ZERO);
+            }
+        |
+            <PLUS> {
+                startNum = SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO);
+                endNum = SqlLiteral.createExactNumeric("-1", SqlParserPos.ZERO);
+            }
+        |
+            <HOOK> {
+                startNum = SqlLiteral.createExactNumeric("0", SqlParserPos.ZERO);
+                endNum = SqlLiteral.createExactNumeric("1", SqlParserPos.ZERO);
+            }
+        |
+            <LBRACE>
+            (
+                startNum = UnsignedNumericLiteral() { endNum = startNum; }
+                [
+                    <COMMA> {
+                        endNum = SqlLiteral.createExactNumeric("-1", SqlParserPos.ZERO);
+                    }
+                    [
+                        endNum = UnsignedNumericLiteral()
+                    ]
+                ]
+                <RBRACE>
+            |
+                {
+                    startNum = SqlLiteral.createExactNumeric("-1", SqlParserPos.ZERO);
+                }
+                <COMMA>
+                endNum = UnsignedNumericLiteral()
+                <RBRACE>
+            |
+                <MINUS> extra = RichPatternExpression() <MINUS> <RBRACE> {
+                    extra = SqlStdOperatorTable.PATTERN_EXCLUDE.createCall(
+                        Span.of(extra).end(this), extra);
+                    e = SqlStdOperatorTable.PATTERN_CONCAT.createCall(
+                        Span.of(e).end(this), e, extra);
+                    return e;
+                }
+            )
+        //----- FLINK MODIFICATION BEGIN -----
+        // Extend negative event semantics with the operator "[^ ]"
+        |
+            <LBRACKET> <CARET> extra = RichPatternExpression() <RBRACKET> {
+                    extra = SqlOperatorPattern.PATTERN_NEGATIVE.createCall(
+                        Span.of(extra).end(this), extra);
+                    e = SqlStdOperatorTable.PATTERN_CONCAT.createCall(
+                        Span.of(e).end(this), e, extra);
+                    return e;
+                }
+            // ----- FLINK MODIFICATION END -----
+        )
+        [
+            <HOOK>
+            {
+                if (startNum.intValue(true) != endNum.intValue(true)) {
+                    reluctant = SqlLiteral.createBoolean(true, SqlParserPos.ZERO);
+                }
+            }
+        ]
+    ]
+    {
+        if (startNum == null) {
+            return e;
+        } else {
+            return SqlStdOperatorTable.PATTERN_QUANTIFIER.createCall(
+                span().end(e), e, startNum, endNum, reluctant);
+        }
+    }
+}
+
+SqlNode RichPatternPrimary() :
+{
+    final Span s;
+    SqlNode e;
+    List<SqlNode> eList;
+}
+{
+    (
+        e = SimpleIdentifier()
+    |
+        <LPAREN> e = RichPatternExpression() <RPAREN>
+    |
+        <LBRACE> { s = span(); }
+        <MINUS> e = RichPatternExpression()
+        <MINUS> <RBRACE> {
+            e = SqlStdOperatorTable.PATTERN_EXCLUDE.createCall(s.end(this), e);
+        }
+    //----- FLINK MODIFICATION BEGIN -----
+    // Extend negative event semantics with the operator "[^ ]"
+    |
+        <LBRACKET> { s = span(); }
+        <CARET> e = RichPatternExpression()
+        <RBRACKET> {
+            e = SqlOperatorPattern.PATTERN_NEGATIVE.createCall(s.end(this), e);
+        }
+    // ----- FLINK MODIFICATION END -----
+    |
+        (
+            <PERMUTE> { s = span(); }
+            <LPAREN>
+            e = RichPatternExpression() {
+                eList = new ArrayList<SqlNode>();
+                eList.add(e);
+            }
+            (
+                <COMMA>
+                e = RichPatternExpression()
+                {
+                    eList.add(e);
+                }
+            )*
+            <RPAREN> {
+                e = SqlStdOperatorTable.PATTERN_PERMUTE.createCall(
+                    s.end(this), eList);
+            }
+        )
+    )
+    {
+        return e;
     }
 }

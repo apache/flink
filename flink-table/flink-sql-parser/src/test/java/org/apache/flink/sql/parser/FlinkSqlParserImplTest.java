@@ -1950,6 +1950,18 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                         "CREATE TABLE AS SELECT syntax does not support to create partitioned table yet."));
     }
 
+    @Test
+    void testSelectList4() {
+        sql("select ^from^ emp").fails("(?s).*Encountered \"from emp\" at line .*");
+    }
+
+    @Test
+    void testMinusIsReserved() {
+        sql("select ^minus^ from t").fails("(?s).*Encountered \"minus from\" at .*");
+        sql("select ^minus^ select").fails("(?s).*Encountered \"minus select\" at .*");
+        sql("select * from t as ^minus^ where x < y").fails("(?s).*Encountered \"minus\" at .*");
+    }
+
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
         return new TypeSafeDiagnosingMatcher<SqlNode>() {
             @Override
