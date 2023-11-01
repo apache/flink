@@ -184,8 +184,6 @@ public class OperationExecutor {
             return callSetOperation(tableEnv, handle, (SetOperation) op);
         } else if (op instanceof ResetOperation) {
             return callResetOperation(handle, (ResetOperation) op);
-        } else if (op instanceof AddJarOperation) {
-            return callExecutableOperation(handle, (ExecutableOperation) op);
         } else {
             return callOperation(tableEnv, handle, op);
         }
