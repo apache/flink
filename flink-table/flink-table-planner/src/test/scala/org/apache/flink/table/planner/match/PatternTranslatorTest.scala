@@ -436,6 +436,72 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
   }
 
   @Test
+  def testNegativeSupported(): Unit = {
+    verifyPattern(
+      """MATCH_RECOGNIZE (
+        |   ORDER BY proctime
+        |   MEASURES
+        |     A.f0 AS aF0
+        |   PATTERN (A [^ B])
+        |   DEFINE
+        |     A AS A.f0 = 1
+        |)""".stripMargin,
+      Pattern
+        .begin("A", skipToNext())
+        .notNext("B")
+    )
+
+    verifyPattern(
+      """MATCH_RECOGNIZE (
+        |   ORDER BY proctime
+        |   MEASURES
+        |     A.f0 AS aF0
+        |   PATTERN (A {- B*? -} [^C]) within INTERVAL '20' seconds
+        |   DEFINE
+        |     A AS A.f0 = 1
+        |)""".stripMargin,
+      Pattern
+        .begin("A", skipToNext())
+        .notFollowedBy("C")
+        .within(Time.seconds(20))
+    )
+  }
+
+  @Test
+  def testNegativeNotSupported(): Unit = {
+    thrown.expectMessage("Currently, CEP doesn't support [^ ] patterns has quantifier.")
+    thrown.expect(classOf[TableException])
+
+    verifyPattern(
+      """MATCH_RECOGNIZE (
+        |   ORDER BY proctime
+        |   MEASURES
+        |     A.f0 AS aF0
+        |   PATTERN (A [^ B*] C)
+        |   DEFINE
+        |     A AS A.f0 = 1
+        |)""".stripMargin,
+      null
+    )
+
+    thrown.expectMessage("Currently, CEP doesn't support [^ ] patterns at the beginning.")
+    thrown.expect(classOf[TableException])
+
+    verifyPattern(
+      """MATCH_RECOGNIZE (
+        |   ORDER BY proctime
+        |   MEASURES
+        |     A.f0 AS aF0
+        |   PATTERN ([^ B] A)
+        |   DEFINE
+        |     A AS A.f0 = 1
+        |)""".stripMargin,
+      null
+    )
+
+  }
+
+  @Test
   def testAlternationsAreNotSupported(): Unit = {
     thrown.expectMessage("Currently, CEP doesn't support branching patterns.")
     thrown.expect(classOf[TableException])

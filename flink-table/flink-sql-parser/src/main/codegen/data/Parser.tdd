@@ -111,6 +111,7 @@
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance"
     "org.apache.flink.sql.parser.SqlProperty"
     "org.apache.flink.sql.parser.SqlPartitionSpecProperty"
+    "org.apache.flink.sql.parser.SqlOperatorPattern"
     "org.apache.calcite.sql.SqlAlienSystemTypeNameSpec"
     "org.apache.calcite.sql.SqlCreate"
     "org.apache.calcite.sql.SqlDrop"
@@ -557,6 +558,7 @@
     "SqlSet()"
     "SqlReset()"
     "SqlAnalyzeTable()"
+    "RichOrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)"
   ]
 
   # List of methods for parsing custom literals.
