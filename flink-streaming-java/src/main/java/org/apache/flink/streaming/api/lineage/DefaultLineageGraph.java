@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.lineage;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,17 +46,17 @@ public class DefaultLineageGraph implements LineageGraph {
 
     @Override
     public List<SourceLineageVertex> sources() {
-        return sources;
+        return Collections.unmodifiableList(sources);
     }
 
     @Override
     public List<LineageVertex> sinks() {
-        return sinks;
+        return Collections.unmodifiableList(sinks);
     }
 
     @Override
     public List<LineageEdge> relations() {
-        return lineageEdges;
+        return Collections.unmodifiableList(lineageEdges);
     }
 
     public static LineageGraphBuilder builder() {

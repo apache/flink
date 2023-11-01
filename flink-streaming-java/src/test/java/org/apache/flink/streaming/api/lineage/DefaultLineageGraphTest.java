@@ -22,14 +22,13 @@ import org.apache.flink.api.connector.source.Boundedness;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Testing for lineage graph. */
-class LineageGraphTest {
+class DefaultLineageGraphTest {
     @Test
     void testLineageGraph() {
         SourceLineageVertex source1 = new TestingSourceLineageVertex("source1");
@@ -45,8 +44,8 @@ class LineageGraphTest {
                                 new TestingLineageEdge(source3, sink1),
                                 new TestingLineageEdge(source1, sink2))
                         .build();
-        assertThat(lineageGraph.sources()).isEqualTo(Arrays.asList(source1, source2, source3));
-        assertThat(lineageGraph.sinks()).isEqualTo(Arrays.asList(sink1, sink2));
+        assertThat(lineageGraph.sources()).containsExactlyInAnyOrder(source1, source2, source3);
+        assertThat(lineageGraph.sinks()).containsExactlyInAnyOrder(sink1, sink2);
         assertThat(lineageGraph.relations().size()).isEqualTo(4);
     }
 
