@@ -142,8 +142,10 @@ public class PartitionedFile {
                 target.put(indexEntryCache.get((int) indexEntryOffset + i));
             }
         } else {
-            indexFile.position(indexEntryOffset);
-            BufferReaderWriterUtil.readByteBufferFully(indexFile, target);
+            synchronized (indexFilePath) {
+                indexFile.position(indexEntryOffset);
+                BufferReaderWriterUtil.readByteBufferFully(indexFile, target);
+            }
         }
         target.flip();
     }

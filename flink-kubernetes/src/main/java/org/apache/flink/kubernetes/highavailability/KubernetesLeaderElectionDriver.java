@@ -44,8 +44,8 @@ import java.util.concurrent.ExecutorService;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
-import static org.apache.flink.kubernetes.utils.KubernetesUtils.checkConfigMaps;
 import static org.apache.flink.kubernetes.utils.KubernetesUtils.getLeaderInformationFromConfigMap;
+import static org.apache.flink.kubernetes.utils.KubernetesUtils.getOnlyConfigMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -216,7 +216,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
         @Override
         public void onModified(List<KubernetesConfigMap> configMaps) {
             // We should only receive events for the watched ConfigMap
-            final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
+            final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
 
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
                 leaderElectionEventHandler.onLeaderInformationChange(
@@ -226,7 +226,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
         @Override
         public void onDeleted(List<KubernetesConfigMap> configMaps) {
-            final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
+            final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
             // The ConfigMap is deleted externally.
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
                 fatalErrorHandler.onFatalError(
@@ -237,7 +237,7 @@ public class KubernetesLeaderElectionDriver implements LeaderElectionDriver {
 
         @Override
         public void onError(List<KubernetesConfigMap> configMaps) {
-            final KubernetesConfigMap configMap = checkConfigMaps(configMaps, configMapName);
+            final KubernetesConfigMap configMap = getOnlyConfigMap(configMaps, configMapName);
             if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
                 fatalErrorHandler.onFatalError(
                         new LeaderElectionException(

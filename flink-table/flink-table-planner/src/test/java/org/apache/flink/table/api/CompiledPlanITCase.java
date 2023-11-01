@@ -33,6 +33,7 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -258,7 +259,8 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         TableResult tableResult =
                 tableEnv.executeSql(
                         String.format(
-                                "COMPILE PLAN '%s' FOR INSERT INTO sink SELECT * FROM src",
+                                "COMPILE PLAN '%s' FOR INSERT INTO sink "
+                                        + "SELECT IF(a > b, a, b) AS a, b + 1 AS b, SUBSTR(c, 1, 4) AS c FROM src WHERE a > 10",
                                 planPath));
 
         assertThat(tableResult).isEqualTo(TableResultInternal.TABLE_RESULT_OK);
@@ -271,6 +273,11 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
                                         "COMPILE PLAN '%s' FOR INSERT INTO sink SELECT a + 1, b + 1, CONCAT(c, '-something') FROM src",
                                         planPath)))
                 .isEqualTo(TableResultInternal.TABLE_RESULT_OK);
+        assertThat(
+                        TableTestUtil.isValidJson(
+                                FileUtils.readFileToString(
+                                        planPath.toFile(), StandardCharsets.UTF_8)))
+                .isTrue();
 
         tableEnv.executeSql(String.format("EXECUTE PLAN '%s'", planPath)).await();
 

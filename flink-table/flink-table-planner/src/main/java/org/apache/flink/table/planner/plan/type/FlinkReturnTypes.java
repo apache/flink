@@ -31,8 +31,12 @@ import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
+import org.apache.calcite.sql.type.SqlTypeUtil;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Type inference in Flink. */
 public class FlinkReturnTypes {
@@ -115,11 +119,36 @@ public class FlinkReturnTypes {
     public static final SqlReturnTypeInference ROUND_FUNCTION_NULLABLE =
             ReturnTypes.cascade(ROUND_FUNCTION, SqlTypeTransforms.TO_NULLABLE);
 
-    public static final SqlReturnTypeInference NUMERIC_FROM_ARG1_DEFAULT1 =
-            new NumericOrDefaultReturnTypeInference(1, 1);
-
-    public static final SqlReturnTypeInference NUMERIC_FROM_ARG1_DEFAULT1_NULLABLE =
-            ReturnTypes.cascade(NUMERIC_FROM_ARG1_DEFAULT1, SqlTypeTransforms.TO_NULLABLE);
+    /**
+     * Determine the return type of IF functions with arguments that has the least restrictive (eg:
+     * numeric, character, binary). The return type is the type of the argument with the largest
+     * range. We start to consider the arguments from the first one. If one of the arguments is not
+     * of the type that has the least restrictive (eg: numeric, character, binary), we return the
+     * type of the first argument instead.
+     */
+    public static final SqlReturnTypeInference IF_NULLABLE =
+            ReturnTypes.cascade(
+                    new SqlReturnTypeInference() {
+                        @Override
+                        public @Nullable RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+                            int nOperands = opBinding.getOperandCount();
+                            List<RelDataType> types = new ArrayList<>();
+                            for (int i = 1; i < nOperands; i++) {
+                                RelDataType type = opBinding.getOperandType(i);
+                                // the RelDataTypeFactory.leastRestrictive() will check that all
+                                // types are identical.
+                                if (SqlTypeUtil.isNumeric(type)
+                                        || SqlTypeUtil.isCharacter(type)
+                                        || SqlTypeUtil.isBinary(type)) {
+                                    types.add(type);
+                                } else {
+                                    return opBinding.getOperandType(1);
+                                }
+                            }
+                            return opBinding.getTypeFactory().leastRestrictive(types);
+                        }
+                    },
+                    SqlTypeTransforms.TO_NULLABLE);
 
     public static final SqlReturnTypeInference STR_MAP_NULLABLE =
             ReturnTypes.explicit(

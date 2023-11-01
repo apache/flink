@@ -98,6 +98,10 @@ public class KafkaEnumeratorTest {
             assertThat(context.getOneTimeCallables())
                     .as("A one time partition discovery callable should have been scheduled")
                     .hasSize(1);
+
+            // enumerator just start noMoreNewPartitionSplits will be false
+            assertThat((Boolean) Whitebox.getInternalState(enumerator, "noMoreNewPartitionSplits"))
+                    .isFalse();
         }
     }
 
@@ -115,6 +119,10 @@ public class KafkaEnumeratorTest {
             assertThat(context.getPeriodicCallables())
                     .as("A periodic partition discovery callable should have been scheduled")
                     .hasSize(1);
+
+            // enumerator just start noMoreNewPartitionSplits will be false
+            assertThat((Boolean) Whitebox.getInternalState(enumerator, "noMoreNewPartitionSplits"))
+                    .isFalse();
         }
     }
 
@@ -163,6 +171,78 @@ public class KafkaEnumeratorTest {
             registerReader(context, enumerator, READER1);
             verifyLastReadersAssignments(
                     context, Collections.singleton(READER1), PRE_EXISTING_TOPICS, 2);
+        }
+    }
+
+    @Test
+    public void testRunWithDiscoverPartitionsOnceToCheckNoMoreSplit() throws Throwable {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(context, DISABLE_PERIODIC_PARTITION_DISCOVERY)) {
+
+            // Start the enumerator and it should schedule a one time task to discover and assign
+            // partitions.
+            enumerator.start();
+            assertThat(context.getOneTimeCallables())
+                    .as("A one time partition discovery callable should have been scheduled")
+                    .hasSize(1);
+            assertThat(context.getPeriodicCallables()).isEmpty();
+            // Run the partition discover callable and check the partition assignment.
+            runOneTimePartitionDiscovery(context);
+
+            // enumerator noMoreNewPartitionSplits first will be false, when execute
+            // handlePartitionSplitChanges will be set true
+            assertThat((Boolean) Whitebox.getInternalState(enumerator, "noMoreNewPartitionSplits"))
+                    .isTrue();
+        }
+    }
+
+    @Test
+    public void testRunWithPeriodicPartitionDiscoveryOnceToCheckNoMoreSplit() throws Throwable {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                KafkaSourceEnumerator enumerator =
+                        createEnumerator(context, ENABLE_PERIODIC_PARTITION_DISCOVERY)) {
+
+            // Start the enumerator and it should schedule a one time task to discover and assign
+            // partitions.
+            enumerator.start();
+            assertThat(context.getOneTimeCallables()).isEmpty();
+            assertThat(context.getPeriodicCallables())
+                    .as("A periodic partition discovery callable should have been scheduled")
+                    .hasSize(1);
+            // Run the partition discover callable and check the partition assignment.
+            runPeriodicPartitionDiscovery(context);
+
+            // enumerator noMoreNewPartitionSplits first will be false, even when execute
+            // handlePartitionSplitChanges it still be false
+            assertThat((Boolean) Whitebox.getInternalState(enumerator, "noMoreNewPartitionSplits"))
+                    .isFalse();
+        }
+    }
+
+    @Test
+    public void testRunWithDiscoverPartitionsOnceWithZeroMsToCheckNoMoreSplit() throws Throwable {
+        try (MockSplitEnumeratorContext<KafkaPartitionSplit> context =
+                        new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
+                // set partitionDiscoveryIntervalMs = 0
+                KafkaSourceEnumerator enumerator = createEnumerator(context, 0L)) {
+
+            // Start the enumerator, and it should schedule a one time task to discover and assign
+            // partitions.
+            enumerator.start();
+            assertThat(context.getOneTimeCallables())
+                    .as("A one time partition discovery callable should have been scheduled")
+                    .hasSize(1);
+            assertThat(context.getPeriodicCallables()).isEmpty();
+            // Run the partition discover callable and check the partition assignment.
+            runOneTimePartitionDiscovery(context);
+
+            // enumerator noMoreNewPartitionSplits first will be false, when execute
+            // handlePartitionSplitChanges will be set true
+            assertThat((Boolean) Whitebox.getInternalState(enumerator, "noMoreNewPartitionSplits"))
+                    .isTrue();
         }
     }
 
@@ -261,7 +341,7 @@ public class KafkaEnumeratorTest {
                 KafkaSourceEnumerator enumerator =
                         createEnumerator(
                                 context2,
-                                ENABLE_PERIODIC_PARTITION_DISCOVERY,
+                                ENABLE_PERIODIC_PARTITION_DISCOVERY ? 1 : -1,
                                 PRE_EXISTING_TOPICS,
                                 preexistingAssignments,
                                 new Properties())) {
@@ -290,7 +370,7 @@ public class KafkaEnumeratorTest {
                 KafkaSourceEnumerator enumerator =
                         createEnumerator(
                                 context,
-                                ENABLE_PERIODIC_PARTITION_DISCOVERY,
+                                ENABLE_PERIODIC_PARTITION_DISCOVERY ? 1 : -1,
                                 PRE_EXISTING_TOPICS,
                                 Collections.emptySet(),
                                 properties)) {
@@ -405,6 +485,12 @@ public class KafkaEnumeratorTest {
 
     private KafkaSourceEnumerator createEnumerator(
             MockSplitEnumeratorContext<KafkaPartitionSplit> enumContext,
+            long partitionDiscoveryIntervalMs) {
+        return createEnumerator(enumContext, partitionDiscoveryIntervalMs, EXCLUDE_DYNAMIC_TOPIC);
+    }
+
+    private KafkaSourceEnumerator createEnumerator(
+            MockSplitEnumeratorContext<KafkaPartitionSplit> enumContext,
             boolean enablePeriodicPartitionDiscovery,
             boolean includeDynamicTopic) {
         List<String> topics = new ArrayList<>(PRE_EXISTING_TOPICS);
@@ -413,7 +499,23 @@ public class KafkaEnumeratorTest {
         }
         return createEnumerator(
                 enumContext,
-                enablePeriodicPartitionDiscovery,
+                enablePeriodicPartitionDiscovery ? 1 : -1,
+                topics,
+                Collections.emptySet(),
+                new Properties());
+    }
+
+    private KafkaSourceEnumerator createEnumerator(
+            MockSplitEnumeratorContext<KafkaPartitionSplit> enumContext,
+            long partitionDiscoveryIntervalMs,
+            boolean includeDynamicTopic) {
+        List<String> topics = new ArrayList<>(PRE_EXISTING_TOPICS);
+        if (includeDynamicTopic) {
+            topics.add(DYNAMIC_TOPIC_NAME);
+        }
+        return createEnumerator(
+                enumContext,
+                partitionDiscoveryIntervalMs,
                 topics,
                 Collections.emptySet(),
                 new Properties());
@@ -425,7 +527,7 @@ public class KafkaEnumeratorTest {
      */
     private KafkaSourceEnumerator createEnumerator(
             MockSplitEnumeratorContext<KafkaPartitionSplit> enumContext,
-            boolean enablePeriodicPartitionDiscovery,
+            long partitionDiscoveryIntervalMs,
             Collection<String> topicsToSubscribe,
             Set<TopicPartition> assignedPartitions,
             Properties overrideProperties) {
@@ -442,10 +544,9 @@ public class KafkaEnumeratorTest {
         Properties props =
                 new Properties(KafkaSourceTestEnv.getConsumerProperties(StringDeserializer.class));
         KafkaSourceEnumerator.deepCopyProperties(overrideProperties, props);
-        String partitionDiscoverInterval = enablePeriodicPartitionDiscovery ? "1" : "-1";
         props.setProperty(
                 KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(),
-                partitionDiscoverInterval);
+                String.valueOf(partitionDiscoveryIntervalMs));
 
         return new KafkaSourceEnumerator(
                 subscriber,
@@ -556,25 +657,6 @@ public class KafkaEnumeratorTest {
         // Initialize offsets for discovered partitions
         if (!context.getOneTimeCallables().isEmpty()) {
             context.runNextOneTimeCallable();
-        }
-    }
-
-    // -------------- private class ----------------
-
-    private static class BlockingClosingContext
-            extends MockSplitEnumeratorContext<KafkaPartitionSplit> {
-
-        public BlockingClosingContext(int parallelism) {
-            super(parallelism);
-        }
-
-        @Override
-        public void close() {
-            try {
-                Thread.sleep(Long.MAX_VALUE);
-            } catch (InterruptedException e) {
-                // let it go.
-            }
         }
     }
 }

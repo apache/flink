@@ -95,7 +95,7 @@ public class DefaultSchedulerBuilder {
     private JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
     private ExecutionDeployer.Factory executionDeployerFactory =
             new DefaultExecutionDeployer.Factory();
-    private VertexParallelismDecider vertexParallelismDecider = (ignored) -> 0;
+    private VertexParallelismDecider vertexParallelismDecider = (ignoredA, ignoredB, ignoredC) -> 0;
     private int defaultMaxParallelism =
             JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.defaultValue();
     private BlocklistOperations blocklistOperations = ignore -> {};

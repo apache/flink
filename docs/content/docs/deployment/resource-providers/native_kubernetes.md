@@ -39,6 +39,10 @@ Kubernetes is a popular container-orchestration system for automating computer a
 Flink's native Kubernetes integration allows you to directly deploy Flink on a running Kubernetes cluster.
 Moreover, Flink is able to dynamically allocate and de-allocate TaskManagers depending on the required resources because it can directly talk to Kubernetes.
 
+Apache Flink also provides a Kubernetes operator for managing Flink clusters on Kubernetes. It supports both standalone and native deployment mode and greatly simplifies deployment, configuration and the life cycle management of Flink resources on Kubernetes.
+
+For more information, please refer to the [Flink Kubernetes Operator documentation](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/docs/concepts/overview/)
+
 ### Preparation
 
 The *Getting Started* section assumes a running Kubernetes cluster fulfilling the following requirements:

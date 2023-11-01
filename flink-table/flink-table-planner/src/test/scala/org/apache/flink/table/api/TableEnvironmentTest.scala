@@ -770,6 +770,12 @@ class TableEnvironmentTest {
     assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
     assertEquals("my_catalog", tableEnv.getCurrentCatalog)
 
+    assertThatThrownBy(() => tableEnv.executeSql("DROP CATALOG my_catalog"))
+      .isInstanceOf(classOf[ValidationException])
+      .hasRootCauseMessage("Cannot drop a catalog which is currently in use.")
+
+    tableEnv.executeSql("USE CATALOG default_catalog")
+
     val tableResult3 = tableEnv.executeSql("DROP CATALOG my_catalog")
     assertEquals(ResultKind.SUCCESS, tableResult3.getResultKind)
     assertFalse(tableEnv.getCatalog("my_catalog").isPresent)

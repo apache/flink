@@ -136,7 +136,8 @@ public class EmbeddedPythonWindowOperator<K, IN, OUT, W extends Window>
     @Override
     public <T> DataStreamPythonFunctionOperator<T> copy(
             DataStreamPythonFunctionInfo pythonFunctionInfo, TypeInformation<T> outputTypeInfo) {
-        return null;
+        return new EmbeddedPythonWindowOperator<>(
+                config, pythonFunctionInfo, getInputTypeInfo(), outputTypeInfo, windowSerializer);
     }
 
     private void invokeUserFunction(InternalTimer<K, W> timer) throws Exception {

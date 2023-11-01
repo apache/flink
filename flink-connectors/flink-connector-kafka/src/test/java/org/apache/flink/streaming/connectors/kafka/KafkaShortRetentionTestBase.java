@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.Properties;
+import java.util.UUID;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
 
@@ -128,7 +129,7 @@ public class KafkaShortRetentionTestBase implements Serializable {
     private static boolean stopProducer = false;
 
     public void runAutoOffsetResetTest() throws Exception {
-        final String topic = "auto-offset-reset-test";
+        final String topic = "auto-offset-reset-test-" + UUID.randomUUID();
 
         final int parallelism = 1;
         final int elementsPerPartition = 50000;

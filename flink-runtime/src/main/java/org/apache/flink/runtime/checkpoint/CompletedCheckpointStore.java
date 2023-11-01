@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,16 @@ public interface CompletedCheckpointStore {
      *
      * <p>Only a bounded number of checkpoints is kept. When exceeding the maximum number of
      * retained checkpoints, the oldest one will be discarded.
+     *
+     * <p>After <a href="https://issues.apache.org/jira/browse/FLINK-24611">FLINK-24611</a>, {@link
+     * SharedStateRegistry#unregisterUnusedState} should be called here to subsume unused state.
+     * <font color="#FF0000"><strong>Note</strong></font>, the {@link CompletedCheckpoint} passed to
+     * {@link SharedStateRegistry#registerAllAfterRestored} or {@link
+     * SharedStateRegistryFactory#create} must be the same object as the input parameter, otherwise
+     * the state may be deleted by mistake.
+     *
+     * <p>After <a href="https://issues.apache.org/jira/browse/FLINK-25872">FLINK-25872</a>, {@link
+     * CheckpointsCleaner#cleanSubsumedCheckpoints} should be called explicitly here.
      *
      * @return the subsumed oldest completed checkpoint if possible, return null if no checkpoint
      *     needs to be discarded on subsume.
@@ -81,7 +92,8 @@ public interface CompletedCheckpointStore {
      * Shuts down the store.
      *
      * <p>The job status is forwarded and used to decide whether state should actually be discarded
-     * or kept.
+     * or kept. {@link SharedStateRegistry#unregisterUnusedState} and {@link
+     * CheckpointsCleaner#cleanSubsumedCheckpoints} should be called here to subsume unused state.
      *
      * @param jobStatus Job state on shut down
      * @param checkpointsCleaner that will cleanup completed checkpoints if needed

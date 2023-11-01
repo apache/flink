@@ -61,7 +61,9 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
         sink_table_ddl = f"""
             CREATE TABLE {sink_table}(
                 a TINYINT,
-                b FLOAT,c ROW<a INT, b INT>
+                b FLOAT,
+                c ROW<a INT, b INT>,
+                d STRING
             ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
@@ -74,14 +76,21 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
                             [DataTypes.FIELD("a", DataTypes.INT()),
                              DataTypes.FIELD("b", DataTypes.INT())]),
                         func_type="pandas")
+
+        @udaf(result_type=DataTypes.STRING(), func_type="pandas")
+        def multiply_udaf(a, b):
+            return len(a) * b[0]
+
         t.group_by(t.a) \
-            .select(t.a, mean_udaf(add(t.b)), max_udaf(substract(t.c))) \
+            .select(t.a, mean_udaf(add(t.b)), max_udaf(substract(t.c)), multiply_udaf(t.b, 'abc')) \
             .execute_insert(sink_table) \
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(
             actual,
-            ["+I[1, 6.0, +I[5, 2]]", "+I[2, 3.0, +I[3, 2]]", "+I[3, 3.0, +I[2, 2]]"])
+            ["+I[1, 6.0, +I[5, 2], abcabcabc]",
+             "+I[2, 3.0, +I[3, 2], abcabc]",
+             "+I[3, 3.0, +I[2, 2], abc]"])
 
     def test_group_aggregate_without_keys(self):
         t = self.t_env.from_elements(

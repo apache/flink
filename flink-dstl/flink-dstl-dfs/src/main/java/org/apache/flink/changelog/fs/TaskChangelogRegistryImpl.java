@@ -20,6 +20,7 @@ package org.apache.flink.changelog.fs;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,10 +28,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executor;
 
 @Internal
@@ -38,7 +36,7 @@ import java.util.concurrent.Executor;
 class TaskChangelogRegistryImpl implements TaskChangelogRegistry {
     private static final Logger LOG = LoggerFactory.getLogger(TaskChangelogRegistryImpl.class);
 
-    private final Map<PhysicalStateHandleID, Set<UUID>> entries = new ConcurrentHashMap<>();
+    private final Map<PhysicalStateHandleID, Long> entries = new ConcurrentHashMap<>();
     private final Executor executor;
 
     public TaskChangelogRegistryImpl(Executor executor) {
@@ -46,12 +44,13 @@ class TaskChangelogRegistryImpl implements TaskChangelogRegistry {
     }
 
     @Override
-    public void startTracking(StreamStateHandle handle, Set<UUID> backendIDs) {
+    public void startTracking(StreamStateHandle handle, long refCount) {
+        Preconditions.checkState(refCount > 0, "Initial refCount of state must larger than zero");
         LOG.debug(
                 "start tracking state, key: {}, state: {}",
                 handle.getStreamStateHandleID(),
                 handle);
-        entries.put(handle.getStreamStateHandleID(), new CopyOnWriteArraySet<>(backendIDs));
+        entries.put(handle.getStreamStateHandleID(), refCount);
     }
 
     @Override
@@ -62,19 +61,30 @@ class TaskChangelogRegistryImpl implements TaskChangelogRegistry {
     }
 
     @Override
-    public void notUsed(StreamStateHandle handle, UUID backendId) {
+    public void release(StreamStateHandle handle) {
         PhysicalStateHandleID key = handle.getStreamStateHandleID();
-        LOG.debug("backend {} not using state, key: {}, state: {}", backendId, key, handle);
-        Set<UUID> backends = entries.get(key);
-        if (backends == null) {
-            LOG.warn("backend {} was not using state, key: {}, state: {}", backendId, key, handle);
-            return;
-        }
-        backends.remove(backendId);
-        if (backends.isEmpty() && entries.remove(key) != null) {
-            LOG.debug("state is not used by any backend, schedule discard: {}/{}", key, handle);
-            scheduleDiscard(handle);
-        }
+        LOG.debug("state reference count decreased by one, key: {}, state: {}", key, handle);
+
+        entries.compute(
+                key,
+                (handleID, refCount) -> {
+                    if (refCount == null) {
+                        LOG.warn("state is not in tracking, key: {}, state: {}", key, handle);
+                        return null;
+                    }
+
+                    long newRefCount = refCount - 1;
+                    if (newRefCount == 0) {
+                        LOG.debug(
+                                "state is not used by any backend, schedule discard: {}/{}",
+                                key,
+                                handle);
+                        scheduleDiscard(handle);
+                        return null;
+                    } else {
+                        return newRefCount;
+                    }
+                });
     }
 
     private void scheduleDiscard(StreamStateHandle handle) {

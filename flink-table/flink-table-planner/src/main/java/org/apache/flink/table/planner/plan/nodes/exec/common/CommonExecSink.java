@@ -79,6 +79,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -206,7 +207,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         runtimeProvider,
                         rowtimeFieldIndex,
                         sinkParallelism,
-                        config);
+                        config,
+                        classLoader);
     }
 
     /**
@@ -460,87 +462,92 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             SinkRuntimeProvider runtimeProvider,
             int rowtimeFieldIndex,
             int sinkParallelism,
-            ExecNodeConfig config) {
-        TransformationMetadata sinkMeta = createTransformationMeta(SINK_TRANSFORMATION, config);
-        if (runtimeProvider instanceof DataStreamSinkProvider) {
-            Transformation<RowData> sinkTransformation =
-                    applyRowtimeTransformation(
-                            inputTransform, rowtimeFieldIndex, sinkParallelism, config);
-            final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
-            final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
-            return provider.consumeDataStream(createProviderContext(config), dataStream)
-                    .getTransformation();
-        } else if (runtimeProvider instanceof TransformationSinkProvider) {
-            final TransformationSinkProvider provider =
-                    (TransformationSinkProvider) runtimeProvider;
-            return provider.createTransformation(
-                    new TransformationSinkProvider.Context() {
-                        @Override
-                        public Transformation<RowData> getInputTransformation() {
-                            return inputTransform;
-                        }
+            ExecNodeConfig config,
+            ClassLoader classLoader) {
+        try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
 
-                        @Override
-                        public int getRowtimeIndex() {
-                            return rowtimeFieldIndex;
-                        }
+            TransformationMetadata sinkMeta = createTransformationMeta(SINK_TRANSFORMATION, config);
+            if (runtimeProvider instanceof DataStreamSinkProvider) {
+                Transformation<RowData> sinkTransformation =
+                        applyRowtimeTransformation(
+                                inputTransform, rowtimeFieldIndex, sinkParallelism, config);
+                final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
+                final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
+                return provider.consumeDataStream(createProviderContext(config), dataStream)
+                        .getTransformation();
+            } else if (runtimeProvider instanceof TransformationSinkProvider) {
+                final TransformationSinkProvider provider =
+                        (TransformationSinkProvider) runtimeProvider;
+                return provider.createTransformation(
+                        new TransformationSinkProvider.Context() {
+                            @Override
+                            public Transformation<RowData> getInputTransformation() {
+                                return inputTransform;
+                            }
 
-                        @Override
-                        public Optional<String> generateUid(String name) {
-                            return createProviderContext(config).generateUid(name);
-                        }
-                    });
-        } else if (runtimeProvider instanceof SinkFunctionProvider) {
-            final SinkFunction<RowData> sinkFunction =
-                    ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
-            return createSinkFunctionTransformation(
-                    sinkFunction,
-                    env,
-                    inputTransform,
-                    rowtimeFieldIndex,
-                    sinkMeta,
-                    sinkParallelism);
-        } else if (runtimeProvider instanceof OutputFormatProvider) {
-            OutputFormat<RowData> outputFormat =
-                    ((OutputFormatProvider) runtimeProvider).createOutputFormat();
-            final SinkFunction<RowData> sinkFunction = new OutputFormatSinkFunction<>(outputFormat);
-            return createSinkFunctionTransformation(
-                    sinkFunction,
-                    env,
-                    inputTransform,
-                    rowtimeFieldIndex,
-                    sinkMeta,
-                    sinkParallelism);
-        } else if (runtimeProvider instanceof SinkProvider) {
-            Transformation<RowData> sinkTransformation =
-                    applyRowtimeTransformation(
-                            inputTransform, rowtimeFieldIndex, sinkParallelism, config);
-            final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
-            final Transformation<?> transformation =
-                    DataStreamSink.forSinkV1(
-                                    dataStream,
-                                    ((SinkProvider) runtimeProvider).createSink(),
-                                    CustomSinkOperatorUidHashes.DEFAULT)
-                            .getTransformation();
-            transformation.setParallelism(sinkParallelism);
-            sinkMeta.fill(transformation);
-            return transformation;
-        } else if (runtimeProvider instanceof SinkV2Provider) {
-            Transformation<RowData> sinkTransformation =
-                    applyRowtimeTransformation(
-                            inputTransform, rowtimeFieldIndex, sinkParallelism, config);
-            final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
-            final Transformation<?> transformation =
-                    DataStreamSink.forSink(
-                                    dataStream,
-                                    ((SinkV2Provider) runtimeProvider).createSink(),
-                                    CustomSinkOperatorUidHashes.DEFAULT)
-                            .getTransformation();
-            transformation.setParallelism(sinkParallelism);
-            sinkMeta.fill(transformation);
-            return transformation;
-        } else {
-            throw new TableException("Unsupported sink runtime provider.");
+                            @Override
+                            public int getRowtimeIndex() {
+                                return rowtimeFieldIndex;
+                            }
+
+                            @Override
+                            public Optional<String> generateUid(String name) {
+                                return createProviderContext(config).generateUid(name);
+                            }
+                        });
+            } else if (runtimeProvider instanceof SinkFunctionProvider) {
+                final SinkFunction<RowData> sinkFunction =
+                        ((SinkFunctionProvider) runtimeProvider).createSinkFunction();
+                return createSinkFunctionTransformation(
+                        sinkFunction,
+                        env,
+                        inputTransform,
+                        rowtimeFieldIndex,
+                        sinkMeta,
+                        sinkParallelism);
+            } else if (runtimeProvider instanceof OutputFormatProvider) {
+                OutputFormat<RowData> outputFormat =
+                        ((OutputFormatProvider) runtimeProvider).createOutputFormat();
+                final SinkFunction<RowData> sinkFunction =
+                        new OutputFormatSinkFunction<>(outputFormat);
+                return createSinkFunctionTransformation(
+                        sinkFunction,
+                        env,
+                        inputTransform,
+                        rowtimeFieldIndex,
+                        sinkMeta,
+                        sinkParallelism);
+            } else if (runtimeProvider instanceof SinkProvider) {
+                Transformation<RowData> sinkTransformation =
+                        applyRowtimeTransformation(
+                                inputTransform, rowtimeFieldIndex, sinkParallelism, config);
+                final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
+                final Transformation<?> transformation =
+                        DataStreamSink.forSinkV1(
+                                        dataStream,
+                                        ((SinkProvider) runtimeProvider).createSink(),
+                                        CustomSinkOperatorUidHashes.DEFAULT)
+                                .getTransformation();
+                transformation.setParallelism(sinkParallelism);
+                sinkMeta.fill(transformation);
+                return transformation;
+            } else if (runtimeProvider instanceof SinkV2Provider) {
+                Transformation<RowData> sinkTransformation =
+                        applyRowtimeTransformation(
+                                inputTransform, rowtimeFieldIndex, sinkParallelism, config);
+                final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
+                final Transformation<?> transformation =
+                        DataStreamSink.forSink(
+                                        dataStream,
+                                        ((SinkV2Provider) runtimeProvider).createSink(),
+                                        CustomSinkOperatorUidHashes.DEFAULT)
+                                .getTransformation();
+                transformation.setParallelism(sinkParallelism);
+                sinkMeta.fill(transformation);
+                return transformation;
+            } else {
+                throw new TableException("Unsupported sink runtime provider.");
+            }
         }
     }
 

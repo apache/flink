@@ -26,6 +26,7 @@ import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
+import org.apache.flink.api.connector.source.SupportsIntermediateNoMoreSplits;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
@@ -59,7 +60,10 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.shutdownExecutorForcefully;
@@ -87,7 +91,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @Internal
 public class SourceCoordinatorContext<SplitT extends SourceSplit>
-        implements SplitEnumeratorContext<SplitT>, AutoCloseable {
+        implements SplitEnumeratorContext<SplitT>, SupportsIntermediateNoMoreSplits, AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinatorContext.class);
 
@@ -218,8 +222,20 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 String.format("Failed to send event %s to subtask %d", event, subtaskId));
     }
 
-    ScheduledExecutorService getCoordinatorExecutor() {
-        return coordinatorExecutor;
+    void sendEventToSourceOperatorIfTaskReady(int subtaskId, OperatorEvent event) {
+        checkSubtaskIndex(subtaskId);
+
+        callInCoordinatorThread(
+                () -> {
+                    final OperatorCoordinator.SubtaskGateway gateway =
+                            subtaskGateways.getOnlyGatewayAndNotCheckReady(subtaskId);
+                    if (gateway != null) {
+                        gateway.sendEvent(event);
+                    }
+
+                    return null;
+                },
+                String.format("Failed to send event %s to subtask %d", event, subtaskId));
     }
 
     @Override
@@ -290,6 +306,19 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     }
 
     @Override
+    public void signalIntermediateNoMoreSplits(int subtask) {
+        checkSubtaskIndex(subtask);
+
+        // It's an intermediate noMoreSplit event, notify subtask to deal with this event.
+        callInCoordinatorThread(
+                () -> {
+                    signalNoMoreSplitsToAttempts(subtask);
+                    return null;
+                },
+                "Failed to send 'IntermediateNoMoreSplits' to reader " + subtask);
+    }
+
+    @Override
     public <T> void callAsync(
             Callable<T> callable,
             BiConsumer<T, Throwable> handler,
@@ -323,6 +352,11 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         // Close quietly so the closing sequence will be executed completely.
         shutdownExecutorForcefully(workerExecutor, Duration.ofNanos(Long.MAX_VALUE));
         shutdownExecutorForcefully(coordinatorExecutor, Duration.ofNanos(Long.MAX_VALUE));
+    }
+
+    @VisibleForTesting
+    boolean isClosed() {
+        return closed;
     }
 
     // --------- Package private additional methods for the SourceCoordinator ------------
@@ -442,6 +476,28 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     OperatorCoordinator.Context getCoordinatorContext() {
         return operatorCoordinatorContext;
+    }
+
+    // ---------------- Executor methods to avoid use coordinatorExecutor directly -----------------
+
+    Future<?> submitTask(Runnable task) {
+        return coordinatorExecutor.submit(task);
+    }
+
+    /** To avoid period task lost, we should handle the potential exception throw by task. */
+    ScheduledFuture<?> schedulePeriodTask(
+            Runnable command, long initDelay, long period, TimeUnit unit) {
+        return coordinatorExecutor.scheduleAtFixedRate(
+                () -> {
+                    try {
+                        command.run();
+                    } catch (Throwable t) {
+                        handleUncaughtExceptionFromAsyncCall(t);
+                    }
+                },
+                initDelay,
+                period,
+                unit);
     }
 
     // ---------------- private helper methods -----------------
@@ -594,6 +650,15 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                     subtaskIndex);
 
             return Iterables.getOnlyElement(gateways[subtaskIndex].values());
+        }
+
+        private OperatorCoordinator.SubtaskGateway getOnlyGatewayAndNotCheckReady(
+                int subtaskIndex) {
+            if (gateways[subtaskIndex].size() > 0) {
+                return Iterables.getOnlyElement(gateways[subtaskIndex].values());
+            } else {
+                return null;
+            }
         }
 
         private OperatorCoordinator.SubtaskGateway getGatewayAndCheckReady(

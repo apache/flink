@@ -85,17 +85,29 @@ class CliFrontendInfoTest extends CliFrontendTestBase {
     }
 
     @Test
-    void testShowExecutionPlanWithParallelism() {
+    void testShowExecutionPlanWithCliOptionParallelism() throws Exception {
+        final String[] parameters = {
+            "-p", "17", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"
+        };
+        testShowExecutionPlanWithParallelism(parameters, 17);
+    }
+
+    @Test
+    void testShowExecutionPlanWithDynamicPropertiesParallelism() throws Exception {
+        final String[] parameters = {
+            "-Dparallelism.default=15", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"
+        };
+        testShowExecutionPlanWithParallelism(parameters, 15);
+    }
+
+    void testShowExecutionPlanWithParallelism(String[] parameters, int expectedParallelism) {
         replaceStdOut();
         try {
-            String[] parameters = {
-                "-p", "17", CliFrontendTestUtils.getTestJarPath(), "--arg", "suffix"
-            };
             Configuration configuration = getConfiguration();
             CliFrontend testFrontend =
                     new CliFrontend(configuration, Collections.singletonList(getCli()));
             testFrontend.info(parameters);
-            assertThat(buffer.toString()).contains("\"parallelism\" : 17");
+            assertThat(buffer.toString()).contains("\"parallelism\" : " + expectedParallelism);
         } catch (Exception e) {
             e.printStackTrace();
             fail("Program caused an exception: " + e.getMessage());

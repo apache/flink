@@ -73,7 +73,7 @@ public class ConnectionUtilsTest {
         Thread socketServerThread;
         try (ServerSocket socket = new ServerSocket(0, 1, loopbackAddress)) {
             // Make sure that the thread will eventually die even if something else goes wrong
-            socket.setSoTimeout(10_000);
+            socket.setSoTimeout(0);
             socketServerThread =
                     new Thread(
                             new Runnable() {

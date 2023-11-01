@@ -418,6 +418,7 @@ Use format `debezium-avro-confluent` to interpret Debezium Avro messages and for
 </table>
 
 {{< /tab >}}
+{{< /tabs >}}
 
 Caveats
 ----------------

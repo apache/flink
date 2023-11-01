@@ -53,7 +53,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
@@ -519,7 +518,6 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     }
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Timeout(value = 60)
     @Test
     void testDetachedPerJobYarnCluster(@TempDir File tempDir) throws Exception {
         runTest(
@@ -536,7 +534,6 @@ class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     }
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Timeout(value = 60)
     @Test
     void testDetachedPerJobYarnClusterWithStreamingJob(@TempDir File tempDir) throws Exception {
         runTest(

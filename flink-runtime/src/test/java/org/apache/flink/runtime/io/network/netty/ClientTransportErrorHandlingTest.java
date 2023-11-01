@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.NetworkClientHandler;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
@@ -40,11 +41,12 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOutboundHandlerAda
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -52,11 +54,8 @@ import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.connect;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.createConfig;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.initServerAndClient;
 import static org.apache.flink.runtime.io.network.netty.NettyTestUtil.shutdown;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.doAnswer;
@@ -67,14 +66,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class ClientTransportErrorHandlingTest {
+class ClientTransportErrorHandlingTest {
+    private static final ConnectionID CONNECTION_ID =
+            new ConnectionID(ResourceID.generate(), new InetSocketAddress("localhost", 0), 0);
 
     /**
      * Verifies that failed client requests via {@link PartitionRequestClient} are correctly
      * attributed to the respective {@link RemoteInputChannel}.
      */
     @Test
-    public void testExceptionOnWrite() throws Exception {
+    void testExceptionOnWrite() throws Exception {
 
         NettyProtocol protocol =
                 new NettyProtocol(
@@ -116,10 +117,7 @@ public class ClientTransportErrorHandlingTest {
 
         PartitionRequestClient requestClient =
                 new NettyPartitionRequestClient(
-                        ch,
-                        handler,
-                        mock(ConnectionID.class),
-                        mock(PartitionRequestClientFactory.class));
+                        ch, handler, CONNECTION_ID, mock(PartitionRequestClientFactory.class));
 
         // Create input channels
         RemoteInputChannel[] rich =
@@ -146,14 +144,13 @@ public class ClientTransportErrorHandlingTest {
 
         // Second request is *not* successful
         requestClient.requestSubpartition(new ResultPartitionID(), 0, rich[1], 0);
-
         // Wait for the notification and it could confirm all the request operations are done
-        if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
-            fail(
-                    "Timed out after waiting for "
-                            + TestingUtils.TESTING_DURATION.toMillis()
-                            + " ms to be notified about the channel error.");
-        }
+        assertThat(sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS))
+                .withFailMessage(
+                        "Timed out after waiting for "
+                                + TestingUtils.TESTING_DURATION.toMillis()
+                                + " ms to be notified about the channel error.")
+                .isTrue();
 
         // Only the second channel should be notified about the error
         verify(rich[0], times(0)).onError(any(LocalTransportException.class));
@@ -166,7 +163,7 @@ public class ClientTransportErrorHandlingTest {
      * RemoteTransportException} instances.
      */
     @Test
-    public void testWrappingOfRemoteErrorMessage() throws Exception {
+    void testWrappingOfRemoteErrorMessage() throws Exception {
         EmbeddedChannel ch = createEmbeddedChannel();
 
         NetworkClientHandler handler = getClientHandler(ch);
@@ -187,14 +184,12 @@ public class ClientTransportErrorHandlingTest {
                                 new RuntimeException("Expected test exception"),
                                 rich[0].getInputChannelId()));
 
-        try {
-            // Exception should not reach end of pipeline...
-            ch.checkException();
-        } catch (Exception e) {
-            fail(
-                    "The exception reached the end of the pipeline and "
-                            + "was not handled correctly by the last handler.");
-        }
+        // Exception should not reach end of pipeline...
+        assertThatNoException()
+                .describedAs(
+                        "The exception reached the end of the pipeline and "
+                                + "was not handled correctly by the last handler.")
+                .isThrownBy(ch::checkException);
 
         verify(rich[0], times(1)).onError(isA(RemoteTransportException.class));
         verify(rich[1], never()).onError(any(Throwable.class));
@@ -205,14 +200,12 @@ public class ClientTransportErrorHandlingTest {
                         new NettyMessage.ErrorResponse(
                                 new RuntimeException("Expected test exception")));
 
-        try {
-            // Exception should not reach end of pipeline...
-            ch.checkException();
-        } catch (Exception e) {
-            fail(
-                    "The exception reached the end of the pipeline and "
-                            + "was not handled correctly by the last handler.");
-        }
+        // Exception should not reach end of pipeline...
+        assertThatNoException()
+                .describedAs(
+                        "The exception reached the end of the pipeline and "
+                                + "was not handled correctly by the last handler.")
+                .isThrownBy(ch::checkException);
 
         verify(rich[0], times(2)).onError(isA(RemoteTransportException.class));
         verify(rich[1], times(1)).onError(isA(RemoteTransportException.class));
@@ -223,7 +216,7 @@ public class ClientTransportErrorHandlingTest {
      * RemoteTransportException}.
      */
     @Test
-    public void testExceptionOnRemoteClose() throws Exception {
+    void testExceptionOnRemoteClose() throws Exception {
 
         NettyProtocol protocol =
                 new NettyProtocol(
@@ -275,12 +268,12 @@ public class ClientTransportErrorHandlingTest {
         ch.writeAndFlush(Unpooled.buffer().writerIndex(16));
 
         // Wait for the notification
-        if (!sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS)) {
-            fail(
-                    "Timed out after waiting for "
-                            + TestingUtils.TESTING_DURATION.toMillis()
-                            + " ms to be notified about remote connection close.");
-        }
+        assertThat(sync.await(TestingUtils.TESTING_DURATION.toMillis(), TimeUnit.MILLISECONDS))
+                .withFailMessage(
+                        "Timed out after waiting for "
+                                + TestingUtils.TESTING_DURATION.toMillis()
+                                + " ms to be notified about remote connection close.")
+                .isTrue();
 
         // All the registered channels should be notified.
         for (RemoteInputChannel r : rich) {
@@ -292,7 +285,7 @@ public class ClientTransportErrorHandlingTest {
 
     /** Verifies that fired Exceptions are handled correctly by the pipeline. */
     @Test
-    public void testExceptionCaught() throws Exception {
+    void testExceptionCaught() throws Exception {
         EmbeddedChannel ch = createEmbeddedChannel();
 
         NetworkClientHandler handler = getClientHandler(ch);
@@ -308,14 +301,12 @@ public class ClientTransportErrorHandlingTest {
 
         ch.pipeline().fireExceptionCaught(new Exception());
 
-        try {
-            // Exception should not reach end of pipeline...
-            ch.checkException();
-        } catch (Exception e) {
-            fail(
-                    "The exception reached the end of the pipeline and "
-                            + "was not handled correctly by the last handler.");
-        }
+        // Exception should not reach end of pipeline...
+        assertThatNoException()
+                .describedAs(
+                        "The exception reached the end of the pipeline and "
+                                + "was not handled correctly by the last handler.")
+                .isThrownBy(ch::checkException);
 
         // ...but all the registered channels should be notified.
         for (RemoteInputChannel r : rich) {
@@ -328,7 +319,7 @@ public class ClientTransportErrorHandlingTest {
      * instance of {@link RemoteTransportException}.
      */
     @Test
-    public void testConnectionResetByPeer() throws Throwable {
+    void testConnectionResetByPeer() throws Throwable {
         EmbeddedChannel ch = createEmbeddedChannel();
 
         NetworkClientHandler handler = getClientHandler(ch);
@@ -345,13 +336,13 @@ public class ClientTransportErrorHandlingTest {
                                 Throwable cause = (Throwable) invocation.getArguments()[0];
 
                                 try {
-                                    assertEquals(RemoteTransportException.class, cause.getClass());
-                                    assertNotEquals("Connection reset by peer", cause.getMessage());
+                                    assertThat(cause).isInstanceOf(RemoteTransportException.class);
+                                    assertThat(cause)
+                                            .hasMessageNotContaining("Connection reset by peer");
 
-                                    assertEquals(IOException.class, cause.getCause().getClass());
-                                    assertEquals(
-                                            "Connection reset by peer",
-                                            cause.getCause().getMessage());
+                                    assertThat(cause.getCause()).isInstanceOf(IOException.class);
+                                    assertThat(cause.getCause())
+                                            .hasMessage("Connection reset by peer");
                                 } catch (Throwable t) {
                                     error[0] = t;
                                 }
@@ -364,12 +355,12 @@ public class ClientTransportErrorHandlingTest {
 
         ch.pipeline().fireExceptionCaught(new IOException("Connection reset by peer"));
 
-        assertNull(error[0]);
+        assertThat(error[0]).isNull();
     }
 
     /** Verifies that the channel is closed if there is an error *during* error notification. */
     @Test
-    public void testChannelClosedOnExceptionDuringErrorNotification() throws Exception {
+    void testChannelClosedOnExceptionDuringErrorNotification() throws Exception {
         EmbeddedChannel ch = createEmbeddedChannel();
 
         NetworkClientHandler handler = getClientHandler(ch);
@@ -382,7 +373,7 @@ public class ClientTransportErrorHandlingTest {
 
         ch.pipeline().fireExceptionCaught(new Exception());
 
-        assertFalse(ch.isActive());
+        assertThat(ch.isActive()).isFalse();
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -406,7 +397,9 @@ public class ClientTransportErrorHandlingTest {
     }
 
     private NetworkClientHandler getClientHandler(Channel ch) {
-        return ch.pipeline().get(NetworkClientHandler.class);
+        NetworkClientHandler networkClientHandler = ch.pipeline().get(NetworkClientHandler.class);
+        networkClientHandler.setConnectionId(CONNECTION_ID);
+        return networkClientHandler;
     }
 
     private RemoteInputChannel createRemoteInputChannel() {

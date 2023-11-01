@@ -505,7 +505,7 @@ when the record is emitted downstream.
 
 ## Kafka SourceFunction
 {{< hint warning >}}
-`FlinkKafkaConsumer` is deprecated and will be removed with Flink 1.15, please use `KafkaSource` instead.
+`FlinkKafkaConsumer` is deprecated and will be removed with Flink 1.17, please use `KafkaSource` instead.
 {{< /hint >}}
 
 For older references you can look at the Flink 1.13 <a href="https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/connectors/datastream/kafka/#kafka-sourcefunction">documentation</a>.

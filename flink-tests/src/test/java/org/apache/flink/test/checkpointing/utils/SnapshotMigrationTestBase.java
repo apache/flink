@@ -269,6 +269,11 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
 
         ClusterClient<?> client = miniClusterResource.getClusterClient();
 
+        // TODO [FLINK-29802] Remove this after ChangelogStateBackend supports native savepoint.
+        if (snapshotType == SnapshotType.SAVEPOINT_NATIVE) {
+            env.enableChangelogStateBackend(false);
+        }
+
         // Submit the job
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 

@@ -18,17 +18,16 @@
 
 package org.apache.flink.testutils.junit;
 
-import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
-
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.AfterClass;
+import org.junit.Rule;
+import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the RetryOnException annotation. */
-@ExtendWith(RetryExtension.class)
-class RetryOnExceptionTest {
+/** Tests for the {@link RetryOnException} annotation on JUnit4 {@link RetryRule}. */
+public class RetryOnExceptionTest {
+
+    @Rule public RetryRule retryRule = new RetryRule();
 
     private static final int NUMBER_OF_RUNS = 3;
 
@@ -40,41 +39,41 @@ class RetryOnExceptionTest {
 
     private static int runsForPassAfterOneFailure = 0;
 
-    @AfterAll
+    @AfterClass
     public static void verify() {
         assertThat(runsForTestWithMatchingException).isEqualTo(NUMBER_OF_RUNS + 1);
         assertThat(runsForTestWithSubclassException).isEqualTo(NUMBER_OF_RUNS + 1);
-        assertThat(runsForSuccessfulTest).isEqualTo(1);
+        assertThat(runsForSuccessfulTest).isOne();
         assertThat(runsForPassAfterOneFailure).isEqualTo(2);
     }
 
-    @TestTemplate
+    @Test
     @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-    void testSuccessfulTest() {
+    public void testSuccessfulTest() {
         runsForSuccessfulTest++;
     }
 
-    @TestTemplate
+    @Test
     @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-    void testMatchingException() {
+    public void testMatchingException() {
         runsForTestWithMatchingException++;
         if (runsForTestWithMatchingException <= NUMBER_OF_RUNS) {
             throw new IllegalArgumentException();
         }
     }
 
-    @TestTemplate
+    @Test
     @RetryOnException(times = NUMBER_OF_RUNS, exception = RuntimeException.class)
-    void testSubclassException() {
+    public void testSubclassException() {
         runsForTestWithSubclassException++;
         if (runsForTestWithSubclassException <= NUMBER_OF_RUNS) {
             throw new IllegalArgumentException();
         }
     }
 
-    @TestTemplate
+    @Test
     @RetryOnException(times = NUMBER_OF_RUNS, exception = IllegalArgumentException.class)
-    void testPassAfterOneFailure() {
+    public void testPassAfterOneFailure() {
         runsForPassAfterOneFailure++;
         if (runsForPassAfterOneFailure == 1) {
             throw new IllegalArgumentException();

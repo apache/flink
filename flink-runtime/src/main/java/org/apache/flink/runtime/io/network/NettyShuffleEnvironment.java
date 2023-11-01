@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -250,6 +251,9 @@ public class NettyShuffleEnvironment
 
             MetricGroup networkInputGroup = ownerContext.getInputGroup();
 
+            InputChannelMetrics inputChannelMetrics =
+                    new InputChannelMetrics(networkInputGroup, ownerContext.getParentGroup());
+
             SingleInputGate[] inputGates =
                     new SingleInputGate[inputGateDeploymentDescriptors.size()];
             for (int gateIndex = 0; gateIndex < inputGates.length; gateIndex++) {
@@ -257,7 +261,11 @@ public class NettyShuffleEnvironment
                         inputGateDeploymentDescriptors.get(gateIndex);
                 SingleInputGate inputGate =
                         singleInputGateFactory.create(
-                                ownerContext, gateIndex, igdd, partitionProducerStateProvider);
+                                ownerContext,
+                                gateIndex,
+                                igdd,
+                                partitionProducerStateProvider,
+                                inputChannelMetrics);
                 InputGateID id =
                         new InputGateID(
                                 igdd.getConsumedResultId(), ownerContext.getExecutionAttemptID());

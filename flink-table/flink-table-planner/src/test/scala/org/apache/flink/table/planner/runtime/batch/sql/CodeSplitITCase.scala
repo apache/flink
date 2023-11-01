@@ -120,6 +120,65 @@ class CodeSplitITCase extends BatchTestBase {
     Assert.assertEquals(expected, TestValuesTableFactory.getResults("test_many_values"))
   }
 
+  /**
+   * This tests replicates a production query that was causing FLINK-27246. The generated code
+   * contains long WHILE statements followed by nested IF/ELSE statements which original CodeSplit
+   * logic was unable to rewrite causing compilation error on processElement(..) and endInput()
+   * methods being to big.
+   */
+  @Test
+  def testManyAggregationsWithGroupBy(): Unit = {
+
+    tEnv.getConfig.set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Int.box(4000))
+    tEnv.getConfig.set(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, Int.box(10000))
+
+    tEnv
+      .executeSql(
+        s"""
+           |CREATE TABLE test_many_values (
+           |`ID` INT,
+           |${Range.inclusive(1, 250).map(i => s"  a_$i INT").mkString(",\n")}
+           |) WITH (
+           |  'connector' = 'datagen',
+           |  'number-of-rows' = '10',
+           |  'fields.ID.kind' = 'sequence',
+           |  'fields.ID.start' = '1',
+           |  'fields.ID.end' = '10',
+           |${Range.inclusive(1, 250).map(i => s"  'fields.a_$i.kind' = 'sequence'").mkString(",\n")},
+           |${Range.inclusive(1, 250).map(i => s"  'fields.a_$i.start' = '1'").mkString(",\n")},
+           |${Range.inclusive(1, 250).map(i => s"  'fields.a_$i.end' = '10'").mkString(",\n")}
+           |)
+           |""".stripMargin
+      )
+      .await()
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |${Range.inclusive(1, 250).map(i => s"  SUM(a_$i) as a_$i").mkString(",\n")}
+         |    FROM `test_many_values` T1
+         |    GROUP BY ID ORDER BY a_1;
+         |""".stripMargin
+
+    val table = parseQuery(sqlQuery)
+    val result = executeQuery(table)
+
+    // The result table should contain 250 columns from a_1 to a_250 and 10 rows with values from 1 to 10.
+    Assert.assertEquals(10, result.size)
+    for (rowNumber <- result.indices) {
+      val row = result(rowNumber)
+      Assert.assertEquals(250, row.getArity)
+      for (j <- 1 to 250) {
+        // column value starts from 1 and ends at 10.
+        val expectedRowValue = rowNumber + 1
+        Assert.assertEquals(
+          "Invalid value for row %d and column a_%d.".format(rowNumber, j),
+          expectedRowValue,
+          row.getField("a_" + j))
+      }
+    }
+  }
+
   @Test
   def testManyIns(): Unit = {
     val sql = new StringBuilder("SELECT a FROM SmallTable3 WHERE a IN (")

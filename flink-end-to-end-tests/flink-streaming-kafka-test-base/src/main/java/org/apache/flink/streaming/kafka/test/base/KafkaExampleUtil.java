@@ -27,7 +27,7 @@ public class KafkaExampleUtil {
     public static StreamExecutionEnvironment prepareExecutionEnv(ParameterTool parameterTool)
             throws Exception {
 
-        if (parameterTool.getNumberOfParameters() < 5) {
+        if (parameterTool.getNumberOfParameters() < 4) {
             System.out.println(
                     "Missing parameters!\n"
                             + "Usage: Kafka --input-topic <topic> --output-topic <topic> "

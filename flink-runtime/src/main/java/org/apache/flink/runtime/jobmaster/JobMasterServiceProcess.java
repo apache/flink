@@ -24,6 +24,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nonnull;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /** JobMasterServiceProcess is responsible for running a {@link JobMasterService}. */
@@ -32,6 +33,9 @@ public interface JobMasterServiceProcess extends AutoCloseableAsync {
     static JobMasterServiceProcess waitingForLeadership() {
         return WaitingForLeadership.INSTANCE;
     }
+
+    /** The leader session id of this process. */
+    UUID getLeaderSessionId();
 
     /** True iff the {@link JobMasterService} has been initialized and is running. */
     boolean isInitializedAndRunning();
@@ -60,6 +64,11 @@ public interface JobMasterServiceProcess extends AutoCloseableAsync {
         @Override
         public CompletableFuture<Void> closeAsync() {
             return FutureUtils.completedVoidFuture();
+        }
+
+        @Override
+        public UUID getLeaderSessionId() {
+            throw new UnsupportedOperationException("Still waiting for the leadership.");
         }
 
         @Override

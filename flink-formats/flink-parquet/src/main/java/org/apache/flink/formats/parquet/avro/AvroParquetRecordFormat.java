@@ -24,15 +24,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.formats.parquet.ParquetInputFile;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
-import org.apache.parquet.io.DelegatingSeekableInputStream;
 import org.apache.parquet.io.InputFile;
-import org.apache.parquet.io.SeekableInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +69,7 @@ class AvroParquetRecordFormat<E> implements StreamFormat<E> {
      *
      * <p>Several wrapper classes haven be created to Flink abstraction become compatible with the
      * parquet abstraction. Please refer to the inner classes {@link AvroParquetRecordReader},
-     * {@link ParquetInputFile}, {@link FSDataInputStreamAdapter} for details.
+     * {@link ParquetInputFile}, {@code FSDataInputStreamAdapter} for details.
      */
     @Override
     public Reader<E> createReader(
@@ -186,55 +185,6 @@ class AvroParquetRecordFormat<E> implements StreamFormat<E> {
 
         private void incrementPosition() {
             skipCount++;
-        }
-    }
-
-    /**
-     * Parquet {@link InputFile} implementation, {@link #newStream()} call will delegate to Flink
-     * {@link FSDataInputStream}.
-     */
-    private static class ParquetInputFile implements InputFile {
-
-        private final FSDataInputStream inputStream;
-        private final long length;
-
-        private ParquetInputFile(FSDataInputStream inputStream, long length) {
-            this.inputStream = inputStream;
-            this.length = length;
-        }
-
-        @Override
-        public long getLength() {
-            return length;
-        }
-
-        @Override
-        public SeekableInputStream newStream() {
-            return new FSDataInputStreamAdapter(inputStream);
-        }
-    }
-
-    /**
-     * Adapter which makes {@link FSDataInputStream} become compatible with parquet {@link
-     * SeekableInputStream}.
-     */
-    private static class FSDataInputStreamAdapter extends DelegatingSeekableInputStream {
-
-        private final FSDataInputStream inputStream;
-
-        private FSDataInputStreamAdapter(FSDataInputStream inputStream) {
-            super(inputStream);
-            this.inputStream = inputStream;
-        }
-
-        @Override
-        public long getPos() throws IOException {
-            return inputStream.getPos();
-        }
-
-        @Override
-        public void seek(long newPos) throws IOException {
-            inputStream.seek(newPos);
         }
     }
 }

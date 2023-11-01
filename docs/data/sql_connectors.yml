@@ -128,10 +128,10 @@ elastic:
     versions:
         - version: 6.x
           maven: flink-connector-elasticsearch6
-          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6/$version/flink-sql-connector-elasticsearch6-$version.jar
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch6/3.0.0-1.16/flink-sql-connector-elasticsearch6-3.0.0-1.16.jar
         - version: 7.x and later versions
           maven: flink-connector-elasticsearch7
-          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7/$version/flink-sql-connector-elasticsearch7-$version.jar
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-elasticsearch7/3.0.0-1.16/flink-sql-connector-elasticsearch7-3.0.0-1.16.jar
 
 hbase:
     name: HBase
@@ -167,16 +167,28 @@ upsert-kafka:
           sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$version/flink-sql-connector-kafka-$version.jar
 
 kinesis:
-    name: Kinesis
+    name: Amazon Kinesis Data Streams
     category: connector
-    maven: flink-connector-kinesis
-    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis/$version/flink-sql-connector-kinesis-$version.jar
+    versions:
+        - version: 4.0.0
+          maven: flink-connector-kinesis
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kinesis/4.1.0-1.16/flink-sql-connector-kinesis-4.1.0-1.16.jar
 
-aws-kinesis-firehose:
-  name: AWS Kinesis Firehose
-  category: connector
-  maven: flink-connector-kinesis-firehose
-  sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-aws-kinesis-firehose/$version/flink-sql-connector-aws-kinesis-firehose-$version.jar
+firehose:
+    name: Amazon Kinesis Data Firehose
+    category: connector
+    versions:
+        - version: 4.0.0
+          maven: flink-connector-aws-kinesis-firehose
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-aws-kinesis-firehose/4.1.0-1.16/flink-sql-connector-aws-kinesis-firehose-4.1.0-1.16.jar
+
+dynamodb:
+    name: Amazon DynamoDB
+    category: connector
+    versions:
+        - version: 4.0.0
+          maven: flink-connector-dynamodb
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-dynamodb/4.1.0-1.16/flink-sql-connector-dynamodb-4.1.0-1.16.jar
 
 pulsar:
     name: Pulsar
@@ -189,3 +201,17 @@ rabbitmq:
     category: connector
     maven: flink-connector-rabbitmq
     sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-rabbitmq/$version/flink-sql-connector-rabbitmq-$version.jar
+
+opensearch:
+    name: Opensearch
+    category: connector
+    versions:
+        - version: 1.0.0
+          maven: flink-connector-opensearch
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-opensearch/1.0.0-1.16/flink-sql-connector-opensearch-1.0.0-1.16.jar
+
+mongodb:
+    name: MongoDB
+    category: connector
+    maven: flink-connector-mongodb
+    sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-mongodb/1.0.0-1.16/flink-sql-connector-mongodb-1.0.0-1.16.jar

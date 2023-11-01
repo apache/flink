@@ -88,7 +88,8 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
     public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
         final String name =
                 this.useLogicalIdentifier
-                        ? ((LogicalScopeProvider) group)
+                        ? "flink."
+                                + ((LogicalScopeProvider) group)
                                         .getLogicalScope(CharacterFilter.NO_OP_FILTER)
                                 + "."
                                 + metricName

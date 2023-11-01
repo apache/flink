@@ -1,0 +1,26 @@
+{
+    a[0] += b[1];
+    b[1] += a[1];
+    if (a.length < 100) {
+      while (counter > 0) {
+          myFun_whileBody0_0(a, b);
+          if (a[0] > 0) {
+              myFun_whileBody0_0_ifBody0(a, b);
+          } else {
+             myFun_whileBody0_0_ifBody1(a, b);
+          }
+          counter--;
+      }
+
+      a[2] += b[2];
+      b[3] += a[3];
+    } else {
+      while (counter < 100) {
+          b[4] = b[4]++;
+          counter++;
+      }
+    }
+
+    a[5] += b[5];
+    b[6] += a[6];
+}

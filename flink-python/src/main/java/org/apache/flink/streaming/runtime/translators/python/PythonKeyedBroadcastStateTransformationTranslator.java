@@ -20,14 +20,17 @@ package org.apache.flink.streaming.runtime.translators.python;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonBatchKeyedCoBroadcastProcessOperator;
 import org.apache.flink.streaming.api.operators.python.embedded.EmbeddedPythonKeyedCoProcessOperator;
 import org.apache.flink.streaming.api.operators.python.process.ExternalPythonBatchKeyedCoBroadcastProcessOperator;
 import org.apache.flink.streaming.api.operators.python.process.ExternalPythonKeyedCoProcessOperator;
+import org.apache.flink.streaming.api.transformations.python.DelegateOperatorTransformation;
 import org.apache.flink.streaming.api.transformations.python.PythonKeyedBroadcastStateTransformation;
 import org.apache.flink.streaming.runtime.translators.AbstractTwoInputTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.BatchExecutionUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -53,7 +56,7 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
 
         Configuration config = transformation.getConfiguration();
 
-        StreamOperator<OUT> operator;
+        AbstractPythonFunctionOperator<OUT> operator;
 
         if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
             operator =
@@ -73,15 +76,26 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
                             transformation.getOutputType());
         }
 
-        return translateInternal(
-                transformation,
-                transformation.getRegularInput(),
-                transformation.getBroadcastInput(),
-                SimpleOperatorFactory.of(operator),
-                transformation.getStateKeyType(),
-                transformation.getKeySelector(),
-                null,
-                context);
+        DelegateOperatorTransformation.configureOperator(transformation, operator);
+
+        Collection<Integer> result =
+                translateInternal(
+                        transformation,
+                        transformation.getRegularInput(),
+                        transformation.getBroadcastInput(),
+                        SimpleOperatorFactory.of(operator),
+                        transformation.getStateKeyType(),
+                        transformation.getKeySelector(),
+                        null,
+                        context);
+
+        BatchExecutionUtils.applyBatchExecutionSettings(
+                transformation.getId(),
+                context,
+                StreamConfig.InputRequirement.SORTED,
+                StreamConfig.InputRequirement.PASS_THROUGH);
+
+        return result;
     }
 
     @Override
@@ -92,7 +106,7 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
 
         Configuration config = transformation.getConfiguration();
 
-        StreamOperator<OUT> operator;
+        AbstractPythonFunctionOperator<OUT> operator;
 
         if (config.get(PythonOptions.PYTHON_EXECUTION_MODE).equals("thread")) {
             operator =
@@ -112,6 +126,8 @@ public class PythonKeyedBroadcastStateTransformationTranslator<OUT>
                             transformation.getBroadcastInput().getOutputType(),
                             transformation.getOutputType());
         }
+
+        DelegateOperatorTransformation.configureOperator(transformation, operator);
 
         return translateInternal(
                 transformation,

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -43,16 +44,24 @@ public class ConnectionID implements Serializable {
 
     private final int connectionIndex;
 
+    private final ResourceID resourceID;
+
     public ConnectionID(TaskManagerLocation connectionInfo, int connectionIndex) {
         this(
+                connectionInfo.getResourceID(),
                 new InetSocketAddress(connectionInfo.address(), connectionInfo.dataPort()),
                 connectionIndex);
     }
 
-    public ConnectionID(InetSocketAddress address, int connectionIndex) {
+    public ConnectionID(ResourceID resourceID, InetSocketAddress address, int connectionIndex) {
+        this.resourceID = checkNotNull(resourceID);
         this.address = checkNotNull(address);
         checkArgument(connectionIndex >= 0);
         this.connectionIndex = connectionIndex;
+    }
+
+    public ResourceID getResourceID() {
+        return resourceID;
     }
 
     public InetSocketAddress getAddress() {
@@ -75,15 +84,14 @@ public class ConnectionID implements Serializable {
         }
 
         final ConnectionID ra = (ConnectionID) other;
-        if (!ra.getAddress().equals(address) || ra.getConnectionIndex() != connectionIndex) {
-            return false;
-        }
-
-        return true;
+        return ra.getAddress().equals(address)
+                && ra.getConnectionIndex() == connectionIndex
+                && ra.getResourceID().equals(resourceID);
     }
 
     @Override
     public String toString() {
-        return address + " [" + connectionIndex + "]";
+        return String.format(
+                "%s (%s) [%s]", address, resourceID.getStringWithMetadata(), connectionIndex);
     }
 }

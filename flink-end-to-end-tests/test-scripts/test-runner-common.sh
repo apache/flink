@@ -26,12 +26,14 @@ export FLINK_VERSION=$(MVN_RUN_VERBOSE=false run_mvn --file ${END_TO_END_DIR}/po
 # Arguments:
 #   $1: description of the test
 #   $2: command to execute
-#   $3: check logs for erors & exceptions
+#   $3: check logs action
+#   $4: the command to check the log, if $3 is "custom_check_exceptions"
 #######################################
 function run_test {
     local description="$1"
     local command="$2"
-    local skip_check_exceptions=${3:-}
+    local check_logs_action=${3:-}
+    local custom_check_logs_command=${4:-}
 
     printf "\n==============================================================================\n"
     printf "Running '${description}'\n"
@@ -46,7 +48,7 @@ function run_test {
 
     function test_error() {
       echo "[FAIL] Test script contains errors."
-      post_test_validation 1 "$description" "$skip_check_exceptions"
+      post_test_validation 1 "$description" "$check_logs_action" "$custom_check_logs_command"
     }
     # set a trap to catch a test execution error
     trap 'test_error' ERR
@@ -58,23 +60,28 @@ function run_test {
     exit_code="$?"
     # remove trap for test execution
     trap - ERR
-    post_test_validation ${exit_code} "$description" "$skip_check_exceptions"
+    post_test_validation ${exit_code} "$description" "$check_logs_action" "$custom_check_logs_command"
 }
 
 # Validates the test result and exit code after its execution.
 function post_test_validation {
     local exit_code="$1"
     local description="$2"
-    local skip_check_exceptions="$3"
+    local check_logs_action="$3"
+    local custom_check_logs_command="$4"
 
     local time_elapsed=$(end_timer)
 
-    if [[ "${skip_check_exceptions}" != "skip_check_exceptions" ]]; then
+    if [[ "${check_logs_action}" == "skip_check_exceptions" ]]; then
+        echo "Checking of logs skipped."
+    elif [[ "${check_logs_action}" == "custom_check_exceptions" ]]; then
+        echo "Custom exception checking of logs."
+        ${custom_check_logs_command}
+        EXIT_CODE="$?"
+    else
         check_logs_for_errors
         check_logs_for_exceptions
         check_logs_for_non_empty_out_files
-    else
-        echo "Checking of logs skipped."
     fi
 
     # Investigate exit_code for failures of test executable as well as EXIT_CODE for failures of the test.

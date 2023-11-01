@@ -57,65 +57,65 @@ def convert_to_python_obj(data, type_info):
         return convert_to_python_obj(data, type_info._type_info)
     else:
         gateway = get_gateway()
-        pickle_bytes = gateway.jvm.PythonBridgeUtils. \
+        pickled_bytes = gateway.jvm.PythonBridgeUtils. \
             getPickledBytesFromJavaObject(data, type_info.get_java_type_info())
-        if isinstance(type_info, RowTypeInfo) or isinstance(type_info, TupleTypeInfo):
-            field_data = zip(list(pickle_bytes[1:]), type_info.get_field_types())
-            fields = []
-            for data, field_type in field_data:
-                if len(data) == 0:
-                    fields.append(None)
-                else:
-                    fields.append(pickled_bytes_to_python_converter(data, field_type))
-            if isinstance(type_info, RowTypeInfo):
-                return Row.of_kind(RowKind(int.from_bytes(pickle_bytes[0], 'little')), *fields)
-            else:
-                return tuple(fields)
-        else:
-            return pickled_bytes_to_python_converter(pickle_bytes, type_info)
+        return pickled_bytes_to_python_obj(pickled_bytes, type_info)
 
 
-def pickled_bytes_to_python_converter(data, field_type):
-    if isinstance(field_type, RowTypeInfo):
+def pickled_bytes_to_python_obj(data, type_info):
+    if isinstance(type_info, RowTypeInfo):
         row_kind = RowKind(int.from_bytes(data[0], 'little'))
-        data = zip(list(data[1:]), field_type.get_field_types())
+        field_data_with_types = zip(list(data[1:]), type_info.get_field_types())
         fields = []
-        for d, d_type in data:
-            fields.append(pickled_bytes_to_python_converter(d, d_type))
+        for field_data, field_type in field_data_with_types:
+            if len(field_data) == 0:
+                fields.append(None)
+            else:
+                fields.append(pickled_bytes_to_python_obj(field_data, field_type))
         row = Row.of_kind(row_kind, *fields)
+        row.set_field_names(type_info.get_field_names())
         return row
+    elif isinstance(type_info, TupleTypeInfo):
+        field_data_with_types = zip(data, type_info.get_field_types())
+        fields = []
+        for field_data, field_type in field_data_with_types:
+            if len(field_data) == 0:
+                fields.append(None)
+            else:
+                fields.append(pickled_bytes_to_python_obj(field_data, field_type))
+        return tuple(fields)
     else:
         data = pickle.loads(data)
-        if field_type == Types.SQL_TIME():
+        if type_info == Types.SQL_TIME():
             seconds, microseconds = divmod(data, 10 ** 6)
             minutes, seconds = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
             return datetime.time(hours, minutes, seconds, microseconds)
-        elif field_type == Types.SQL_DATE():
-            return field_type.from_internal_type(data)
-        elif field_type == Types.SQL_TIMESTAMP():
-            return field_type.from_internal_type(int(data.timestamp() * 10 ** 6))
-        elif field_type == Types.FLOAT():
-            return field_type.from_internal_type(ast.literal_eval(data))
-        elif isinstance(field_type,
+        elif type_info == Types.SQL_DATE():
+            return type_info.from_internal_type(data)
+        elif type_info == Types.SQL_TIMESTAMP():
+            return type_info.from_internal_type(int(data.timestamp() * 10 ** 6))
+        elif type_info == Types.FLOAT():
+            return type_info.from_internal_type(ast.literal_eval(data))
+        elif isinstance(type_info,
                         (BasicArrayTypeInfo, PrimitiveArrayTypeInfo, ObjectArrayTypeInfo)):
-            element_type = field_type._element_type
+            element_type = type_info._element_type
             elements = []
             for element_bytes in data:
-                elements.append(pickled_bytes_to_python_converter(element_bytes, element_type))
+                elements.append(pickled_bytes_to_python_obj(element_bytes, element_type))
             return elements
-        elif isinstance(field_type, MapTypeInfo):
-            key_type = field_type._key_type_info
-            value_type = field_type._value_type_info
+        elif isinstance(type_info, MapTypeInfo):
+            key_type = type_info._key_type_info
+            value_type = type_info._value_type_info
             zip_kv = zip(data[0], data[1])
-            return dict((pickled_bytes_to_python_converter(k, key_type),
-                         pickled_bytes_to_python_converter(v, value_type))
+            return dict((pickled_bytes_to_python_obj(k, key_type),
+                         pickled_bytes_to_python_obj(v, value_type))
                         for k, v in zip_kv)
-        elif isinstance(field_type, ListTypeInfo):
-            element_type = field_type.elem_type
+        elif isinstance(type_info, ListTypeInfo):
+            element_type = type_info.elem_type
             elements = []
             for element_bytes in data:
-                elements.append(pickled_bytes_to_python_converter(element_bytes, element_type))
+                elements.append(pickled_bytes_to_python_obj(element_bytes, element_type))
             return elements
         else:
-            return field_type.from_internal_type(data)
+            return type_info.from_internal_type(data)

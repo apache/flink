@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout;
 
+import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.SubscriptionErrorKinesisV2;
@@ -29,9 +30,13 @@ import org.junit.rules.ExpectedException;
 import software.amazon.awssdk.services.kinesis.model.StartingPosition;
 
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT;
-import static org.junit.Assert.assertFalse;
+import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.INCOMPLETE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link FanOutShardSubscriber}. */
 public class FanOutShardSubscriberTest {
@@ -52,7 +57,8 @@ public class FanOutShardSubscriberTest {
                         "consumerArn",
                         "shardId",
                         errorKinesisV2,
-                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT);
+                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT,
+                        () -> true);
 
         software.amazon.awssdk.services.kinesis.model.StartingPosition startingPosition =
                 software.amazon.awssdk.services.kinesis.model.StartingPosition.builder().build();
@@ -73,7 +79,8 @@ public class FanOutShardSubscriberTest {
                         "consumerArn",
                         "shardId",
                         errorKinesisV2,
-                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT);
+                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT,
+                        () -> true);
 
         software.amazon.awssdk.services.kinesis.model.StartingPosition startingPosition =
                 software.amazon.awssdk.services.kinesis.model.StartingPosition.builder().build();
@@ -93,7 +100,8 @@ public class FanOutShardSubscriberTest {
                         "consumerArn",
                         "shardId",
                         errorKinesisV2,
-                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT);
+                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT,
+                        () -> true);
 
         software.amazon.awssdk.services.kinesis.model.StartingPosition startingPosition =
                 software.amazon.awssdk.services.kinesis.model.StartingPosition.builder().build();
@@ -115,7 +123,8 @@ public class FanOutShardSubscriberTest {
                         "consumerArn",
                         "shardId",
                         errorKinesisV2,
-                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT);
+                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT,
+                        () -> true);
 
         StartingPosition startingPosition = StartingPosition.builder().build();
         subscriber.subscribeToShardAndConsumeRecords(startingPosition, event -> {});
@@ -131,13 +140,14 @@ public class FanOutShardSubscriberTest {
                         "consumerArn",
                         "shardId",
                         errorKinesisV2,
-                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT);
+                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT,
+                        () -> true);
 
         StartingPosition startingPosition = StartingPosition.builder().build();
-        boolean result =
+        RecordPublisherRunResult result =
                 subscriber.subscribeToShardAndConsumeRecords(startingPosition, event -> {});
 
-        assertFalse(result);
+        assertThat(result).isEqualTo(INCOMPLETE);
     }
 
     @Test
@@ -149,7 +159,8 @@ public class FanOutShardSubscriberTest {
                 FakeKinesisFanOutBehavioursFactory.failsToAcquireSubscription();
 
         FanOutShardSubscriber subscriber =
-                new FanOutShardSubscriber("consumerArn", "shardId", kinesis, Duration.ofMillis(1));
+                new FanOutShardSubscriber(
+                        "consumerArn", "shardId", kinesis, Duration.ofMillis(1), () -> true);
 
         StartingPosition startingPosition = StartingPosition.builder().build();
         subscriber.subscribeToShardAndConsumeRecords(startingPosition, event -> {});
@@ -169,7 +180,8 @@ public class FanOutShardSubscriberTest {
                         "shardId",
                         kinesis,
                         DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT,
-                        Duration.ofMillis(100));
+                        Duration.ofMillis(100),
+                        () -> true);
 
         StartingPosition startingPosition = StartingPosition.builder().build();
         subscriber.subscribeToShardAndConsumeRecords(
@@ -181,5 +193,38 @@ public class FanOutShardSubscriberTest {
                         e.printStackTrace();
                     }
                 });
+    }
+
+    @Test
+    public void testCancelExitsGracefully() throws Exception {
+        FakeKinesisFanOutBehavioursFactory.AbstractSingleShardFanOutKinesisV2 unboundedStream =
+                FakeKinesisFanOutBehavioursFactory.boundedShard().withBatchCount(128).build();
+
+        AtomicBoolean run = new AtomicBoolean(true);
+
+        FanOutShardSubscriber subscriber =
+                new FanOutShardSubscriber(
+                        "consumerArn",
+                        "shardId",
+                        unboundedStream,
+                        DEFAULT_SUBSCRIBE_TO_SHARD_TIMEOUT,
+                        run::get);
+
+        final AtomicInteger batches = new AtomicInteger(0);
+
+        subscriber.subscribeToShardAndConsumeRecords(
+                StartingPosition.builder().build(),
+                event -> {
+                    batches.incrementAndGet();
+
+                    if (batches.get() == 8) {
+                        // Set running to false, this will cancel record consumption
+                        run.set(false);
+                    }
+                });
+
+        // Since we are setting run=false in the above callback
+        // we expect 8/128 batches to be received
+        assertEquals(8, batches.get());
     }
 }

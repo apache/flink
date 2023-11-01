@@ -19,6 +19,7 @@
 package org.apache.flink.util;
 
 import org.apache.flink.core.security.FlinkSecurityManager;
+import org.apache.flink.util.concurrent.ThreadUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +44,7 @@ public final class FatalExitExceptionHandler implements Thread.UncaughtException
                     "FATAL: Thread '{}' produced an uncaught exception. Stopping the process...",
                     t.getName(),
                     e);
+            ThreadUtils.errorLogThreadDump(LOG);
         } finally {
             FlinkSecurityManager.forceProcessExit(EXIT_CODE);
         }

@@ -103,6 +103,9 @@ public abstract class AfterMatchSkipStrategy implements Serializable {
             Collection<Map<String, List<EventId>>> matchedResult,
             SharedBufferAccessor<?> sharedBufferAccessor)
             throws Exception {
+        if (!isSkipStrategy()) {
+            return;
+        }
 
         EventId pruningId = getPruningId(matchedResult);
         if (pruningId != null) {

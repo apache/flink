@@ -86,7 +86,7 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
             IOManager ioManager,
             boolean objectReuse,
             double managedMemoryFraction,
-            Configuration jobConfiguration,
+            Configuration taskManagerConfiguration,
             TaskInvokable containingTask,
             ExecutionConfig executionConfig) {
         try {
@@ -115,12 +115,13 @@ public final class SortingDataInput<T, K> implements StreamTaskInput<T> {
                             .memoryFraction(managedMemoryFraction)
                             .enableSpilling(
                                     ioManager,
-                                    jobConfiguration.get(AlgorithmOptions.SORT_SPILLING_THRESHOLD))
+                                    taskManagerConfiguration.get(
+                                            AlgorithmOptions.SORT_SPILLING_THRESHOLD))
                             .maxNumFileHandles(
-                                    jobConfiguration.get(AlgorithmOptions.SPILLING_MAX_FAN))
+                                    taskManagerConfiguration.get(AlgorithmOptions.SPILLING_MAX_FAN))
                             .objectReuse(objectReuse)
                             .largeRecords(
-                                    jobConfiguration.get(
+                                    taskManagerConfiguration.get(
                                             AlgorithmOptions.USE_LARGE_RECORDS_HANDLER))
                             .build();
         } catch (MemoryAllocationException e) {

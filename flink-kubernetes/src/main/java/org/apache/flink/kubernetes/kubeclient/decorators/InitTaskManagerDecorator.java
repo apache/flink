@@ -46,8 +46,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.API_VERSION;
-import static org.apache.flink.kubernetes.utils.Constants.DNS_PLOICY_DEFAULT;
-import static org.apache.flink.kubernetes.utils.Constants.DNS_PLOICY_HOSTNETWORK;
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_NODE_ID;
 import static org.apache.flink.kubernetes.utils.Constants.POD_NODE_ID_FIELD_PATH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -76,6 +74,12 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                         kubernetesTaskManagerParameters.getServiceAccount(),
                         KubernetesUtils.getServiceAccount(flinkPod),
                         "service account");
+
+        final String dnsPolicy =
+                KubernetesUtils.resolveDNSPolicy(
+                        flinkPod.getPodWithoutMainContainer().getSpec().getDnsPolicy(),
+                        kubernetesTaskManagerParameters.isHostNetworkEnabled());
+
         if (flinkPod.getPodWithoutMainContainer().getSpec().getRestartPolicy() != null) {
             logger.info(
                     "The restart policy of TaskManager pod will be overwritten to 'never' "
@@ -91,10 +95,7 @@ public class InitTaskManagerDecorator extends AbstractKubernetesStepDecorator {
                 .withServiceAccountName(serviceAccountName)
                 .withRestartPolicy(Constants.RESTART_POLICY_OF_NEVER)
                 .withHostNetwork(kubernetesTaskManagerParameters.isHostNetworkEnabled())
-                .withDnsPolicy(
-                        kubernetesTaskManagerParameters.isHostNetworkEnabled()
-                                ? DNS_PLOICY_HOSTNETWORK
-                                : DNS_PLOICY_DEFAULT)
+                .withDnsPolicy(dnsPolicy)
                 .endSpec();
 
         // Merge fields

@@ -45,7 +45,6 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.bootstrap.ServerBootstrap;
@@ -245,7 +244,7 @@ public class ClientTest extends TestLogger {
 
     /** Tests that a request to an unavailable host is failed with ConnectException. */
     @Test
-    public void testRequestUnavailableHost() throws Exception {
+    public void testRequestUnavailableHost() {
         AtomicKvStateRequestStats stats = new AtomicKvStateRequestStats();
 
         MessageSerializer<KvStateInternalRequest, KvStateResponse> serializer =
@@ -255,13 +254,13 @@ public class ClientTest extends TestLogger {
 
         Client<KvStateInternalRequest, KvStateResponse> client = null;
 
-        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+        try {
             client = new Client<>("Test Client", 1, serializer, stats);
 
-            int availablePort = port.getPort();
-
+            // Since no real servers are created based on the server address, the given fixed port
+            // is enough.
             InetSocketAddress serverAddress =
-                    new InetSocketAddress(InetAddress.getLocalHost(), availablePort);
+                    new InetSocketAddress("flink-qs-client-test-unavailable-host", 12345);
 
             KvStateInternalRequest request =
                     new KvStateInternalRequest(new KvStateID(), new byte[0]);

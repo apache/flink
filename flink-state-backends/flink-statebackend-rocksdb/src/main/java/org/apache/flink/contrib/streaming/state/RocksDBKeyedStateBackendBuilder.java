@@ -166,7 +166,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
         this.columnFamilyOptionsFactory = Preconditions.checkNotNull(columnFamilyOptionsFactory);
         this.optionsContainer = optionsContainer;
         this.instanceBasePath = instanceBasePath;
-        this.instanceRocksDBPath = new File(instanceBasePath, DB_INSTANCE_DIR_STRING);
+        this.instanceRocksDBPath = getInstanceRocksDBPath(instanceBasePath);
         this.metricGroup = metricGroup;
         this.enableIncrementalCheckpointing = false;
         this.nativeMetricOptions = new RocksDBNativeMetricOptions();
@@ -262,6 +262,10 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
             double overlapFractionThreshold) {
         this.overlapFractionThreshold = overlapFractionThreshold;
         return this;
+    }
+
+    public static File getInstanceRocksDBPath(File instanceBasePath) {
+        return new File(instanceBasePath, DB_INSTANCE_DIR_STRING);
     }
 
     private static void checkAndCreateDirectory(File directory) throws IOException {

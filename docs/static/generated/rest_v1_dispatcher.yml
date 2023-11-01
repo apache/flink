@@ -271,9 +271,6 @@ paths:
             application/json:
               schema:
                 type: array
-                properties:
-                  empty:
-                    type: boolean
                 items:
                   $ref: '#/components/schemas/ConfigurationInfoEntry'
   /jobmanager/environment:
@@ -657,14 +654,11 @@ paths:
             application/json:
               schema:
                 type: array
-                properties:
-                  empty:
-                    type: boolean
                 items:
                   $ref: '#/components/schemas/ConfigurationInfoEntry'
   /jobs/{jobid}/jobmanager/environment:
     get:
-      description: Returns the jobmanager's environment variables of a specific job.
+      description: Returns the jobmanager's environment of a specific job.
       operationId: getJobManagerJobEnvironment
       parameters:
       - name: jobid
@@ -2262,9 +2256,6 @@ components:
             $ref: '#/components/schemas/UserAccumulator'
     ConfigurationInfo:
       type: array
-      properties:
-        empty:
-          type: boolean
       items:
         $ref: '#/components/schemas/ConfigurationInfoEntry'
     Type:
@@ -3041,10 +3032,6 @@ components:
     EnvironmentInfo:
       type: object
       properties:
-        environment:
-          type: array
-          items:
-            $ref: '#/components/schemas/EnvironmentVariableItem'
         jvm:
           $ref: '#/components/schemas/JVMInfo'
         classpath:
@@ -3075,13 +3062,6 @@ components:
       type: object
       properties:
         id:
-          type: string
-        value:
-          type: string
-    EnvironmentVariableItem:
-      type: object
-      properties:
-        key:
           type: string
         value:
           type: string

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.AbstractBroadcastStateTransformation;
 
 import java.util.List;
@@ -34,10 +35,12 @@ import java.util.List;
  */
 @Internal
 public class PythonBroadcastStateTransformation<IN1, IN2, OUT>
-        extends AbstractBroadcastStateTransformation<IN1, IN2, OUT> {
+        extends AbstractBroadcastStateTransformation<IN1, IN2, OUT>
+        implements DelegateOperatorTransformation<OUT> {
 
     private final Configuration configuration;
     private final DataStreamPythonFunctionInfo dataStreamPythonFunctionInfo;
+    private final SimpleOperatorFactory<OUT> delegateOperatorFactory;
 
     public PythonBroadcastStateTransformation(
             String name,
@@ -57,6 +60,7 @@ public class PythonBroadcastStateTransformation<IN1, IN2, OUT>
                 parallelism);
         this.configuration = configuration;
         this.dataStreamPythonFunctionInfo = dataStreamPythonFunctionInfo;
+        this.delegateOperatorFactory = SimpleOperatorFactory.of(new DelegateOperator<>());
         updateManagedMemoryStateBackendUseCase(false);
     }
 
@@ -66,5 +70,9 @@ public class PythonBroadcastStateTransformation<IN1, IN2, OUT>
 
     public DataStreamPythonFunctionInfo getDataStreamPythonFunctionInfo() {
         return dataStreamPythonFunctionInfo;
+    }
+
+    public SimpleOperatorFactory<OUT> getOperatorFactory() {
+        return delegateOperatorFactory;
     }
 }

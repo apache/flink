@@ -33,6 +33,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
@@ -46,11 +47,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.scheduler.adaptivebatch.DefaultVertexParallelismDeciderTest.createDecider;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AdaptiveBatchScheduler}. */
@@ -58,6 +62,7 @@ class AdaptiveBatchSchedulerTest {
 
     private static final int SOURCE_PARALLELISM_1 = 6;
     private static final int SOURCE_PARALLELISM_2 = 4;
+    private static final long PARTITION_BYTES = 100L;
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -122,17 +127,77 @@ class AdaptiveBatchSchedulerTest {
         assertThat(sink.getParallelism()).isEqualTo(SOURCE_PARALLELISM_1);
     }
 
+    @Test
+    void testUserConfiguredMaxParallelismIsLargerThanGlobalMaxParallelism() throws Exception {
+        testUserConfiguredMaxParallelism(1, 32, 128, 1L, 32);
+    }
+
+    @Test
+    void testUserConfiguredMaxParallelismIsSmallerThanGlobalMaxParallelism() throws Exception {
+        testUserConfiguredMaxParallelism(1, 128, 32, 1L, 32);
+    }
+
+    @Test
+    void testUserConfiguredMaxParallelismIsSmallerThanGlobalMinParallelism() throws Exception {
+        testUserConfiguredMaxParallelism(16, 128, 8, 400L, 8);
+    }
+
+    @Test
+    void testUserConfiguredMaxParallelismIsSmallerThanGlobalDefaultSourceParallelism()
+            throws Exception {
+        final JobVertex source = createJobVertex("source", -1);
+        source.setMaxParallelism(8);
+
+        SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph(new JobID(), "test job", source),
+                        createDecider(1, 128, 1L, 32),
+                        128);
+
+        scheduler.startScheduling();
+
+        // check source's parallelism
+        assertThat(source.getParallelism()).isEqualTo(8);
+    }
+
+    void testUserConfiguredMaxParallelism(
+            int globalMinParallelism,
+            int globalMaxParallelism,
+            int userConfiguredMaxParallelism,
+            long dataVolumePerTask,
+            int expectedParallelism)
+            throws Exception {
+        final JobVertex source = createJobVertex("source", 8);
+        final JobVertex sink = createJobVertex("sink", -1);
+        sink.setMaxParallelism(userConfiguredMaxParallelism);
+
+        sink.connectNewDataSetAsInput(
+                source, DistributionPattern.POINTWISE, ResultPartitionType.BLOCKING);
+
+        SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph(new JobID(), "test job", source, sink),
+                        createDecider(
+                                globalMinParallelism, globalMaxParallelism, dataVolumePerTask, 10),
+                        globalMaxParallelism);
+
+        scheduler.startScheduling();
+        transitionExecutionsState(scheduler, ExecutionState.FINISHED, source);
+
+        // check sink's parallelism
+        assertThat(sink.getParallelism()).isEqualTo(expectedParallelism);
+    }
+
     /** Transit the state of all executions. */
     public static void transitionExecutionsState(
             final SchedulerBase scheduler, final ExecutionState state, List<Execution> executions) {
         for (Execution execution : executions) {
+            final IOMetrics ioMetrics = new IOMetrics(0, 0, 0, 0, 0, 0, 0);
+            ioMetrics
+                    .getNumBytesProducedOfPartitions()
+                    .putAll(createResultPartitionBytesForExecution(execution));
             scheduler.updateTaskExecutionState(
-                    new TaskExecutionState(
-                            execution.getAttemptId(),
-                            state,
-                            null,
-                            null,
-                            new IOMetrics(0, 0, 0, 0, 0, 0, 0)));
+                    new TaskExecutionState(execution.getAttemptId(), state, null, null, ioMetrics));
         }
     }
 
@@ -146,6 +211,19 @@ class AdaptiveBatchSchedulerTest {
                         .map(ExecutionVertex::getCurrentExecutionAttempt)
                         .collect(Collectors.toList());
         transitionExecutionsState(scheduler, state, executions);
+    }
+
+    static Map<IntermediateResultPartitionID, Long> createResultPartitionBytesForExecution(
+            Execution execution) {
+        Map<IntermediateResultPartitionID, Long> partitionBytes = new HashMap<>();
+        execution
+                .getVertex()
+                .getProducedPartitions()
+                .forEach(
+                        (partitionId, partition) -> {
+                            partitionBytes.put(partitionId, PARTITION_BYTES);
+                        });
+        return partitionBytes;
     }
 
     public JobVertex createJobVertex(String jobVertexName, int parallelism) {
@@ -172,14 +250,24 @@ class AdaptiveBatchSchedulerTest {
     }
 
     public SchedulerBase createScheduler(JobGraph jobGraph) throws Exception {
+        return createScheduler(
+                jobGraph,
+                (ignoredA, ignoredB, ignoredC) -> 10,
+                JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.defaultValue());
+    }
+
+    private SchedulerBase createScheduler(
+            JobGraph jobGraph,
+            VertexParallelismDecider vertexParallelismDecider,
+            int defaultMaxParallelism)
+            throws Exception {
         Configuration configuration = new Configuration();
         configuration.set(
                 JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
-
         return new DefaultSchedulerBuilder(
                         jobGraph, mainThreadExecutor, EXECUTOR_RESOURCE.getExecutor())
-                .setJobMasterConfiguration(configuration)
-                .setVertexParallelismDecider((ignored) -> 10)
+                .setVertexParallelismDecider(vertexParallelismDecider)
+                .setDefaultMaxParallelism(defaultMaxParallelism)
                 .buildAdaptiveBatchJobScheduler();
     }
 }

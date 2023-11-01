@@ -355,7 +355,7 @@ class SpeculativeSchedulerTest {
                 ComponentMainThreadExecutorServiceAdapter.forMainThread();
         final SpeculativeScheduler scheduler =
                 createSchedulerBuilder(jobGraph, mainThreadExecutor)
-                        .setVertexParallelismDecider(ignore -> 3)
+                        .setVertexParallelismDecider((ignoreA, ignoredB, ignoredC) -> 3)
                         .buildSpeculativeScheduler();
         mainThreadExecutor.execute(scheduler::startScheduling);
 

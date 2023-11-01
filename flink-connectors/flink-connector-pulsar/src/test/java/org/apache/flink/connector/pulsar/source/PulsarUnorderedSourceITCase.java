@@ -32,12 +32,14 @@ import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 
 /**
  * Unit test class for {@link PulsarSource}. Used for {@link SubscriptionType#Shared} subscription.
  */
 @Tag("org.apache.flink.testutils.junit.FailsOnJava11")
+@Disabled("FLINK-30351")
 public class PulsarUnorderedSourceITCase extends UnorderedSourceTestSuiteBase<String> {
 
     // Defines test environment on Flink MiniCluster

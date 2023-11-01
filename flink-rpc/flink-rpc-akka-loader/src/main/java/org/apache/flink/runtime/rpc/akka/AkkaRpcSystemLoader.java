@@ -23,6 +23,7 @@ import org.apache.flink.core.classloading.SubmoduleClassLoader;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcSystemLoader;
 import org.apache.flink.runtime.rpc.exceptions.RpcLoaderException;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 
 import java.io.IOException;
@@ -55,7 +56,7 @@ public class AkkaRpcSystemLoader implements RpcSystemLoader {
             final ClassLoader flinkClassLoader = RpcSystem.class.getClassLoader();
 
             final Path tmpDirectory = Paths.get(ConfigurationUtils.parseTempDirectories(config)[0]);
-            Files.createDirectories(tmpDirectory);
+            Files.createDirectories(FileUtils.getTargetPathIfContainsSymbolicPath(tmpDirectory));
             final Path tempFile =
                     Files.createFile(
                             tmpDirectory.resolve("flink-rpc-akka_" + UUID.randomUUID() + ".jar"));

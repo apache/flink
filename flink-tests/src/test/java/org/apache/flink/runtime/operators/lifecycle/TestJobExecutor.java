@@ -164,22 +164,23 @@ public class TestJobExecutor {
     }
 
     private void handleFailoverTimeout(TimeoutException e) throws Exception {
+        JobStatus jobStatus = miniClusterResource.getClusterClient().getJobStatus(jobID).get();
         String message =
                 String.format(
                         "Unable to failover the job: %s; job status: %s",
-                        e.getMessage(),
-                        miniClusterResource.getClusterClient().getJobStatus(jobID).get());
-        Optional<SerializedThrowable> throwable =
-                miniClusterResource
-                        .getClusterClient()
-                        .requestJobResult(jobID)
-                        .get()
-                        .getSerializedThrowable();
-        if (throwable.isPresent()) {
-            throw new RuntimeException(message, throwable.get());
-        } else {
-            throw new RuntimeException(message);
+                        e.getMessage(), jobStatus);
+        if (jobStatus.isGloballyTerminalState()) {
+            Optional<SerializedThrowable> throwable =
+                    miniClusterResource
+                            .getClusterClient()
+                            .requestJobResult(jobID)
+                            .get()
+                            .getSerializedThrowable();
+            if (throwable.isPresent()) {
+                throw new RuntimeException(message, throwable.get());
+            }
         }
+        throw new RuntimeException(message);
     }
 
     public TestJobExecutor sendBroadcastCommand(TestCommand command, TestCommandScope scope) {

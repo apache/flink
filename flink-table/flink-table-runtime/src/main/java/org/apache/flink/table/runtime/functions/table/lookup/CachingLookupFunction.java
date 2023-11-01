@@ -20,7 +20,6 @@ package org.apache.flink.table.runtime.functions.table.lookup;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.groups.CacheMetricGroup;
@@ -106,13 +105,11 @@ public class CachingLookupFunction extends LookupFunction {
             cacheMetricGroup.loadCounter(loadCounter);
             numLoadFailuresCounter = new SimpleCounter();
             cacheMetricGroup.numLoadFailuresCounter(numLoadFailuresCounter);
+        } else {
+            initializeFullCache(((LookupFullCache) cache), context);
         }
         // Initialize cache and the delegating function
         cache.open(cacheMetricGroup);
-        if (cache instanceof LookupFullCache) {
-            // TODO add Configuration into FunctionContext
-            ((LookupFullCache) cache).open(new Configuration());
-        }
         if (delegate != null) {
             delegate.open(context);
         }
@@ -181,5 +178,9 @@ public class CachingLookupFunction extends LookupFunction {
             cacheMetricGroup.latestLoadTimeGauge(() -> latestLoadTime);
         }
         latestLoadTime = loadTime;
+    }
+
+    private void initializeFullCache(LookupFullCache lookupFullCache, FunctionContext context) {
+        lookupFullCache.setUserCodeClassLoader(context.getUserCodeClassLoader());
     }
 }

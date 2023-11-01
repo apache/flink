@@ -25,7 +25,7 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -159,7 +159,7 @@ class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilityTestBa
                                                     checkpointIDCounter
                                                             .shutdown(JobStatus.FINISHED)
                                                             .get())
-                                    .satisfies(anyCauseMatches(CompletionException.class));
+                                    .satisfies(anyCauseMatches(ExecutionException.class));
 
                             // fixing the internal issue should make the shutdown succeed again
                             KubernetesUtils.createConfigMapIfItDoesNotExist(

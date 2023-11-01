@@ -27,6 +27,9 @@ import org.apache.flink.table.runtime.keyselector.GenericRowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.types.RowKind;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,14 +40,13 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * InputSplit}.
  */
 public class InputSplitCacheLoadTask implements Runnable {
+    private static final Logger LOG = LoggerFactory.getLogger(InputSplitCacheLoadTask.class);
 
     private final ConcurrentHashMap<RowData, Collection<RowData>> cache;
     private final GenericRowDataKeySelector keySelector;
     private final RowDataSerializer cacheEntriesSerializer;
     private final InputFormat<RowData, InputSplit> inputFormat;
     private final InputSplit inputSplit;
-
-    private volatile boolean isRunning = true;
 
     public InputSplitCacheLoadTask(
             ConcurrentHashMap<RowData, Collection<RowData>> cache,
@@ -68,7 +70,7 @@ public class InputSplitCacheLoadTask implements Runnable {
             }
             inputFormat.open(inputSplit);
             RowData nextElement = new BinaryRowData(cacheEntriesSerializer.getArity());
-            while (isRunning && !inputFormat.reachedEnd() && !Thread.interrupted()) {
+            while (!inputFormat.reachedEnd() && !Thread.currentThread().isInterrupted()) {
                 nextElement = inputFormat.nextRecord(nextElement);
                 if (nextElement != null) {
                     if (nextElement.getRowKind() != RowKind.INSERT) {
@@ -103,14 +105,9 @@ public class InputSplitCacheLoadTask implements Runnable {
                     ((RichInputFormat<?, ?>) inputFormat).closeInputFormat();
                 }
             } catch (IOException e) {
-                // can't do try-with-resources
-                throw new RuntimeException("Failed to close InputFormat.", e);
+                LOG.error("Failed to close InputFormat.", e);
             }
         }
-    }
-
-    public void stopRunning() {
-        isRunning = false;
     }
 
     private static boolean hasNoNulls(RowData keys) {

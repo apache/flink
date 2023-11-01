@@ -47,6 +47,9 @@ public class FanOutRecordPublisherFactory implements RecordPublisherFactory {
      */
     private final KinesisProxyV2Interface kinesisProxy;
 
+    /** A flag to indicate whether the FanOutRecordPublisherFactory has been closed. */
+    private boolean closed = false;
+
     /**
      * Instantiate a factory responsible for creating {@link FanOutRecordPublisher}.
      *
@@ -89,11 +92,13 @@ public class FanOutRecordPublisherFactory implements RecordPublisherFactory {
                 streamShardHandle,
                 kinesisProxy,
                 configuration,
-                BACKOFF);
+                BACKOFF,
+                () -> !closed);
     }
 
     @Override
     public void close() {
+        closed = true;
         kinesisProxy.close();
     }
 }

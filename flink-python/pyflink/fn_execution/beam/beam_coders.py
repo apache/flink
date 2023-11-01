@@ -20,14 +20,15 @@ from apache_beam.coders.coders import FastCoder, LengthPrefixCoder
 from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
 
+from pyflink import fn_execution
 from pyflink.fn_execution.coders import LengthPrefixBaseCoder
 from pyflink.fn_execution.flink_fn_execution_pb2 import CoderInfoDescriptor
 
-try:
+if fn_execution.PYFLINK_CYTHON_ENABLED:
     from pyflink.fn_execution.beam import beam_coder_impl_fast as beam_coder_impl
     from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkFieldCoderBeamWrapper
     from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
-except ImportError:
+else:
     from pyflink.fn_execution.beam import beam_coder_impl_slow as beam_coder_impl
     from pyflink.fn_execution.beam.beam_coder_impl_slow import FlinkFieldCoderBeamWrapper
     from pyflink.fn_execution.beam.beam_coder_impl_slow import FlinkLengthPrefixCoderBeamWrapper

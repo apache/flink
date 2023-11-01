@@ -26,7 +26,6 @@ import org.apache.flink.types.Row;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -42,8 +41,7 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testSystemFuncByObject()
-            throws ExecutionException, InterruptedException, IOException {
+    public void testSystemFuncByObject() throws ExecutionException, InterruptedException {
         tableEnv.createTemporarySystemFunction(
                 "STRING_SPLIT", new JavaUserDefinedTableFunctions.StringSplit());
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
@@ -55,8 +53,7 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testSystemFuncByClass()
-            throws ExecutionException, InterruptedException, IOException {
+    public void testSystemFuncByClass() throws ExecutionException, InterruptedException {
         tableEnv.createTemporarySystemFunction(
                 "STRING_SPLIT", JavaUserDefinedTableFunctions.StringSplit.class);
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
@@ -68,8 +65,7 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testTemporaryFuncByObject()
-            throws ExecutionException, InterruptedException, IOException {
+    public void testTemporaryFuncByObject() throws ExecutionException, InterruptedException {
         tableEnv.createTemporaryFunction(
                 "STRING_SPLIT", new JavaUserDefinedTableFunctions.StringSplit());
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
@@ -81,8 +77,7 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testTemporaryFuncByClass()
-            throws ExecutionException, InterruptedException, IOException {
+    public void testTemporaryFuncByClass() throws ExecutionException, InterruptedException {
         tableEnv.createTemporaryFunction(
                 "STRING_SPLIT", JavaUserDefinedTableFunctions.StringSplit.class);
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
@@ -94,7 +89,7 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testFilter() throws ExecutionException, InterruptedException, IOException {
+    public void testFilter() throws ExecutionException, InterruptedException {
         tableEnv.createTemporarySystemFunction(
                 "STRING_SPLIT", new JavaUserDefinedTableFunctions.StringSplit());
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
@@ -104,6 +99,21 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
                         + "where try_cast(v as int) > 0";
         compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]");
+        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+    }
+
+    @Test
+    public void testUnnest() throws ExecutionException, InterruptedException {
+        List<Row> data =
+                Collections.singletonList(
+                        Row.of("Bob", new Row[] {Row.of("1"), Row.of("2"), Row.of("3")}));
+        createTestValuesSourceTable(
+                "MyNestedTable", data, "name STRING", "arr ARRAY<ROW<nested STRING>>");
+        createTestValuesSinkTable("MySink", "name STRING", "nested STRING");
+        String query =
+                "INSERT INTO MySink SELECT name, nested FROM MyNestedTable CROSS JOIN UNNEST(arr) AS t (nested)";
+        compileSqlAndExecutePlan(query).await();
+        List<String> expected = Arrays.asList("+I[Bob, 1]", "+I[Bob, 2]", "+I[Bob, 3]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
 }

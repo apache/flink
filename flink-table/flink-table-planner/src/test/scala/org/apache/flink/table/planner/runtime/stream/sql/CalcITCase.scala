@@ -46,7 +46,6 @@ import java.time.Instant
 import java.util
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
 class CalcITCase extends StreamingTestBase {
 
@@ -365,6 +364,31 @@ class CalcITCase extends StreamingTestBase {
     val expected = Stream.range(3, 200).map(_.toString).mkString(",")
     assertEquals(sink.getAppendResults.size, TestData.smallTupleData3.size)
     sink.getAppendResults.foreach(result => assertEquals(expected, result))
+  }
+
+  @Test
+  def testIfFunction(): Unit = {
+    val testDataId = TestValuesTableFactory.registerData(TestData.data1)
+    val ddl =
+      s"""
+         |CREATE TABLE t (
+         |  a int,
+         |  b varchar,
+         |  c int
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$testDataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin
+    tEnv.executeSql(ddl)
+    val expected = List("false,1", "false,2", "false,3", "true,4", "true,5", "true,6")
+    val actual = tEnv
+      .executeSql("SELECT IF(a > 3, 'true', 'false'), a from t")
+      .collect()
+      .map(r => r.toString)
+      .toList
+    assertEquals(expected.sorted, actual.sorted)
   }
 
   @Test
@@ -713,5 +737,36 @@ class CalcITCase extends StreamingTestBase {
     tEnv.useDatabase("db1")
     val result2 = tEnv.sqlQuery("SELECT CURRENT_DATABASE()").execute().collect().toList
     assertEquals(Seq(row(tEnv.getCurrentDatabase)), result2)
+  }
+
+  @Test
+  def testLikeWithConditionContainsDoubleQuotationMark(): Unit = {
+    val rows = Seq(row(42, "abc"), row(2, "cbc\"ddd"))
+    val dataId = TestValuesTableFactory.registerData(rows)
+
+    val ddl =
+      s"""
+         |CREATE TABLE MyTable (
+         |  a int,
+         |  b string
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$dataId',
+         |  'bounded' = 'true'
+         |)
+       """.stripMargin
+    tEnv.executeSql(ddl)
+
+    val result = tEnv
+      .sqlQuery("""
+                  | SELECT * FROM MyTable WHERE b LIKE '%"%'
+                  |""".stripMargin)
+      .toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("2,cbc\"ddd")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

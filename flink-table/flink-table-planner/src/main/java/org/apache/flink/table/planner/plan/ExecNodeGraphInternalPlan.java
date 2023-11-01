@@ -79,6 +79,7 @@ public class ExecNodeGraphInternalPlan implements InternalPlan {
                     file.toPath(),
                     serializedPlan.getBytes(StandardCharsets.UTF_8),
                     StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE);
         } catch (IOException e) {
             throw new TableException("Cannot write the compiled plan to file '" + file + "'.", e);

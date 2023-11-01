@@ -108,10 +108,10 @@ public class HiveTableSource
 
     // Remaining partition specs after partition pruning is performed. Null if pruning is not pushed
     // down.
-    @Nullable private List<Map<String, String>> remainingPartitions = null;
-    @Nullable private List<String> dynamicFilterPartitionKeys = null;
+    @Nullable protected List<Map<String, String>> remainingPartitions = null;
+    @Nullable protected List<String> dynamicFilterPartitionKeys = null;
     protected int[] projectedFields;
-    private Long limit = null;
+    protected Long limit = null;
 
     public HiveTableSource(
             JobConf jobConf,

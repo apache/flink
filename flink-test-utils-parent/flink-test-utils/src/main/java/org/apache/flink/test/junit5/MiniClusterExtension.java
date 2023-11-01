@@ -24,6 +24,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.MiniClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -250,15 +251,20 @@ public final class MiniClusterExtension
     // Implementation
 
     private void registerEnv(InternalMiniClusterExtension internalMiniClusterExtension) {
+        final Configuration configuration =
+                internalMiniClusterExtension.getMiniCluster().getConfiguration();
+
+        final int defaultParallelism =
+                configuration
+                        .getOptional(CoreOptions.DEFAULT_PARALLELISM)
+                        .orElse(internalMiniClusterExtension.getNumberSlots());
+
         TestEnvironment executionEnvironment =
                 new TestEnvironment(
-                        internalMiniClusterExtension.getMiniCluster(),
-                        internalMiniClusterExtension.getNumberSlots(),
-                        false);
+                        internalMiniClusterExtension.getMiniCluster(), defaultParallelism, false);
         executionEnvironment.setAsContext();
         TestStreamEnvironment.setAsContext(
-                internalMiniClusterExtension.getMiniCluster(),
-                internalMiniClusterExtension.getNumberSlots());
+                internalMiniClusterExtension.getMiniCluster(), defaultParallelism);
     }
 
     private void unregisterEnv(InternalMiniClusterExtension internalMiniClusterExtension) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.util.concurrent;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
@@ -1209,12 +1210,34 @@ public class FutureUtils {
     public static void handleUncaughtException(
             CompletableFuture<?> completableFuture,
             Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+        handleUncaughtException(
+                completableFuture, uncaughtExceptionHandler, FatalExitExceptionHandler.INSTANCE);
+    }
+
+    @VisibleForTesting
+    static void handleUncaughtException(
+            CompletableFuture<?> completableFuture,
+            Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
+            Thread.UncaughtExceptionHandler fatalErrorHandler) {
         checkNotNull(completableFuture)
                 .whenComplete(
                         (ignored, throwable) -> {
                             if (throwable != null) {
-                                uncaughtExceptionHandler.uncaughtException(
-                                        Thread.currentThread(), throwable);
+                                final Thread currentThread = Thread.currentThread();
+                                try {
+                                    uncaughtExceptionHandler.uncaughtException(
+                                            currentThread, throwable);
+                                } catch (Throwable t) {
+                                    final RuntimeException errorHandlerException =
+                                            new IllegalStateException(
+                                                    "An error occurred while executing the error handling for a "
+                                                            + throwable.getClass().getSimpleName()
+                                                            + ".",
+                                                    t);
+                                    errorHandlerException.addSuppressed(throwable);
+                                    fatalErrorHandler.uncaughtException(
+                                            currentThread, errorHandlerException);
+                                }
                             }
                         });
     }

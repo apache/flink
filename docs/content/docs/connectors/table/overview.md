@@ -61,15 +61,33 @@ Flink natively support various connectors. The following tables list all availab
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
+      <td><a href="{{< ref "docs/connectors/table/opensearch" >}}">Opensearch</a></td>
+      <td>1.x & 2.x</td>
+      <td>Not supported</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
       <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a></td>
       <td>0.10+</td>
       <td>Unbounded Scan</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     <tr>
+      <td><a href="{{< ref "docs/connectors/table/dynamodb" >}}">Amazon DynamoDB</a></td>
+      <td></td>
+      <td>Not supported</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
       <td><a href="{{< ref "docs/connectors/table/kinesis" >}}">Amazon Kinesis Data Streams</a></td>
       <td></td>
       <td>Unbounded Scan</td>
+      <td>Streaming Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/firehose" >}}">Amazon Kinesis Data Firehose</a></td>
+      <td></td>
+      <td>Not supported</td>
       <td>Streaming Sink</td>
     </tr>
     <tr>
@@ -88,6 +106,12 @@ Flink natively support various connectors. The following tables list all availab
       <td><a href="{{< ref "docs/connectors/table/hive/overview" >}}">Apache Hive</a></td>
       <td><a href="{{< ref "docs/connectors/table/hive/overview" >}}#supported-hive-versions">Supported Versions</a></td>
       <td>Unbounded Scan, Bounded Scan, Lookup</td>
+      <td>Streaming Sink, Batch Sink</td>
+    </tr>
+    <tr>
+      <td><a href="{{< ref "docs/connectors/table/mongodb" >}}">MongoDB</a></td>
+      <td></td>
+      <td>Bounded Scan, Lookup</td>
       <td>Streaming Sink, Batch Sink</td>
     </tr>
     </tbody>

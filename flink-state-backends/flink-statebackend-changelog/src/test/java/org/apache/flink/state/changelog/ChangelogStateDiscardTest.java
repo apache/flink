@@ -69,9 +69,10 @@ import java.util.stream.Collectors;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.summingLong;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
 import static org.apache.flink.changelog.fs.StateChangeUploadScheduler.directScheduler;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.state.SnapshotResult.empty;
@@ -376,7 +377,10 @@ public class ChangelogStateDiscardTest {
             // todo: make the contract more explicit or extract common code
             Map<UploadTask, Map<StateChangeSet, Tuple2<Long, Long>>> taskOffsets =
                     tasks.stream().collect(toMap(identity(), this::mapOffsets));
-            tasks.forEach(task -> startTracking(registry, handle, task));
+
+            long refCount = tasks.stream().flatMap(t -> t.getChangeSets().stream()).count();
+            registry.startTracking(handle, refCount);
+
             return new UploadTasksResult(taskOffsets, handle);
         }
 
@@ -420,32 +424,39 @@ public class ChangelogStateDiscardTest {
          */
         public List<UploadResult> completeUploads(
                 Function<UploadTask, List<UploadResult>> resultsProvider) {
+
             List<UploadResult> allResults = new ArrayList<>();
+            List<Tuple2<UploadTask, List<UploadResult>>> taskResults = new ArrayList<>();
             uploads.forEach(
                     task -> {
                         List<UploadResult> results = resultsProvider.apply(task);
-                        for (UploadResult result : results) {
-                            startTracking(registry, result.getStreamStateHandle(), task);
-                        }
+                        taskResults.add(Tuple2.of(task, results));
                         allResults.addAll(results);
+                    });
+
+            Map<StreamStateHandle, Long> stateHandleAndRefCounts =
+                    allResults.stream()
+                            .collect(
+                                    groupingBy(
+                                            UploadResult::getStreamStateHandle,
+                                            summingLong(x -> 1L)));
+            stateHandleAndRefCounts.forEach(
+                    (handle, refCount) -> registry.startTracking(handle, refCount));
+
+            taskResults.forEach(
+                    taskResult -> {
+                        UploadTask task = taskResult.f0;
+                        List<UploadResult> results = taskResult.f1;
                         task.complete(results);
                         checkState(task.isFinished());
                     });
+
             uploads.clear();
             return allResults;
         }
 
         @Override
         public void close() {}
-    }
-
-    private static void startTracking(
-            TaskChangelogRegistry registry,
-            StreamStateHandle streamStateHandle,
-            UploadTask upload) {
-        registry.startTracking(
-                streamStateHandle,
-                upload.getChangeSets().stream().map(StateChangeSet::getLogId).collect(toSet()));
     }
 
     private static void materialize(

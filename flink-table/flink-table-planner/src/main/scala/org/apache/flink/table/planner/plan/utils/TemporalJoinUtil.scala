@@ -284,7 +284,7 @@ object TemporalJoinUtil {
     val visitor = new RexVisitorImpl[Unit](true) {
       override def visitCall(call: RexCall): Unit = {
         if (
-          isRowTimeTemporalTableJoinCon(call) ||
+          TemporalTableJoinUtil.isRowTimeTemporalTableJoinCondition(call) ||
           isRowTimeTemporalFunctionJoinCon(call)
         ) {
           rowtimeJoin = true
@@ -295,11 +295,6 @@ object TemporalJoinUtil {
     }
     nonEquiJoinRex.accept(visitor)
     rowtimeJoin
-  }
-
-  def isRowTimeTemporalTableJoinCon(rexCall: RexCall): Boolean = {
-    // (LEFT_TIME_ATTRIBUTE, RIGHT_TIME_ATTRIBUTE, LEFT_KEY, RIGHT_KEY, PRIMARY_KEY)
-    rexCall.getOperator == TEMPORAL_JOIN_CONDITION && rexCall.operands.length == 5
   }
 
   def isRowTimeTemporalFunctionJoinCon(rexCall: RexCall): Boolean = {

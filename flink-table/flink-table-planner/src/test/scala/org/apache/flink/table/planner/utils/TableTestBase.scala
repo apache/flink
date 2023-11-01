@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.ExecutionOptions
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParseException
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode
 import org.apache.flink.streaming.api.{environment, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -48,8 +49,9 @@ import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.operations.{InternalDataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeContext, ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
+import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
@@ -84,6 +86,7 @@ import java.io.{File, IOException}
 import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.time.Duration
+import java.util.Collections
 
 /** Test base for testing Table API / SQL plans. */
 abstract class TableTestBase {
@@ -1638,6 +1641,15 @@ object TableTestUtil {
     planner.translateToRel(modifyOperation)
   }
 
+  /** Convert a sql query to a ExecNodeGraph. */
+  def toExecNodeGraph(tEnv: TableEnvironment, sqlQuery: String): ExecNodeGraph = {
+    val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    val optimizedRel =
+      planner.optimize(toRelNode(tEnv.sqlQuery(sqlQuery))).asInstanceOf[FlinkPhysicalRel]
+    val generator = new ExecNodeGraphGenerator
+    generator.generate(Collections.singletonList(optimizedRel), false)
+  }
+
   def createTemporaryView[T](
       tEnv: TableEnvironment,
       name: String,
@@ -1719,6 +1731,19 @@ object TableTestUtil {
     val parser = objectMapper.getFactory.createParser(json)
     val jsonNode: JsonNode = parser.readValueAsTree[JsonNode]
     jsonNode.toPrettyString
+  }
+
+  @throws[IOException]
+  def isValidJson(json: String): Boolean = {
+    try {
+      val parser = objectMapper.getFactory.createParser(json)
+      while (parser.nextToken() != null) {
+        // Do nothing, just parse the JSON string
+      }
+      true
+    } catch {
+      case _: JsonParseException => false
+    }
   }
 
   /**

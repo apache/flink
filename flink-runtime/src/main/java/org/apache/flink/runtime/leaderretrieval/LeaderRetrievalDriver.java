@@ -25,8 +25,4 @@ package org.apache.flink.runtime.leaderretrieval;
  * <p><strong>Important</strong>: The {@link LeaderRetrievalDriver} could not guarantee that there
  * is no {@link LeaderRetrievalEventHandler} callbacks happen after {@link #close()}.
  */
-public interface LeaderRetrievalDriver {
-
-    /** Close the services used for leader retrieval. */
-    void close() throws Exception;
-}
+public interface LeaderRetrievalDriver extends AutoCloseable {}

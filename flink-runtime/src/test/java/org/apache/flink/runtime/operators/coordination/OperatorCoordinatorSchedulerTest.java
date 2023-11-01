@@ -89,6 +89,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
@@ -365,6 +366,26 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failGlobalAndRestart(scheduler, new TestException());
 
+        assertThat(coordinator.getLastRestoredCheckpointState())
+                .as("coordinator should have null restored state")
+                .isEqualTo(TestingOperatorCoordinator.NULL_RESTORE_VALUE);
+        assertThat(coordinator.getLastRestoredCheckpointId())
+                .isEqualTo(OperatorCoordinator.NO_CHECKPOINT);
+    }
+
+    @Test
+    public void testGlobalFailureTwiceWillNotResetToCheckpointTwice() throws Exception {
+        final DefaultScheduler scheduler = createSchedulerAndDeployTasks();
+        final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
+        AtomicInteger resetToCheckpointCounter = new AtomicInteger(0);
+        coordinator.setResetToCheckpointConsumer(
+                (ignore1, ignore2) -> resetToCheckpointCounter.incrementAndGet());
+
+        // fail global twice.
+        scheduler.handleGlobalFailure(new TestException());
+        failGlobalAndRestart(scheduler, new TestException());
+
+        assertThat(resetToCheckpointCounter.get()).isEqualTo(1);
         assertThat(coordinator.getLastRestoredCheckpointState())
                 .as("coordinator should have null restored state")
                 .isEqualTo(TestingOperatorCoordinator.NULL_RESTORE_VALUE);

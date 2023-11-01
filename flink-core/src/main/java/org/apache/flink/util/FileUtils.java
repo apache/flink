@@ -649,6 +649,29 @@ public final class FileUtils {
     }
 
     /**
+     * Get a target path(the path that replaced symbolic links with linked path) if the original
+     * path contains symbolic path, return the original path otherwise.
+     *
+     * @param path the original path.
+     * @return the path that replaced symbolic links with real path.
+     */
+    public static java.nio.file.Path getTargetPathIfContainsSymbolicPath(java.nio.file.Path path)
+            throws IOException {
+        java.nio.file.Path targetPath = path;
+        java.nio.file.Path suffixPath = Paths.get("");
+        while (path != null && path.getFileName() != null) {
+            if (Files.isSymbolicLink(path)) {
+                java.nio.file.Path linkedPath = path.toRealPath();
+                targetPath = Paths.get(linkedPath.toString(), suffixPath.toString());
+                break;
+            }
+            suffixPath = Paths.get(path.getFileName().toString(), suffixPath.toString());
+            path = path.getParent();
+        }
+        return targetPath;
+    }
+
+    /**
      * Converts the given {@link java.nio.file.Path} into a file {@link URL}. The resulting url is
      * relative iff the given path is relative.
      *

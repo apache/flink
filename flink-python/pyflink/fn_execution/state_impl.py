@@ -302,8 +302,9 @@ class CachedMapState(LRUCache):
         self._cached_keys = set()
 
         def on_evict(key, value):
-            self._cached_keys.remove(key)
-            self._all_data_cached = False
+            if value[0]:
+                self._cached_keys.remove(key)
+                self._all_data_cached = False
 
         self.set_on_evict(on_evict)
 

@@ -45,4 +45,9 @@ class SharedTestCommandDispatcher implements TestCommandDispatcher {
     public void broadcast(TestCommand testCommand, TestCommandScope scope) {
         ref.get().broadcast(testCommand, scope);
     }
+
+    @Override
+    public void unsubscribe(String operatorID, CommandExecutor commandExecutor) {
+        ref.get().unsubscribe(operatorID, commandExecutor);
+    }
 }

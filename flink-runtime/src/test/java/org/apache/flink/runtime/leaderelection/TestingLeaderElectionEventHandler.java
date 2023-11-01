@@ -31,13 +31,15 @@ import java.util.function.Consumer;
  * testing purposes.
  */
 public class TestingLeaderElectionEventHandler extends TestingLeaderBase
-        implements LeaderElectionEventHandler {
+        implements LeaderElectionEventHandler, AutoCloseable {
 
     private final Object lock = new Object();
 
     private final String leaderAddress;
 
     private final OneShotLatch initializationLatch;
+
+    private final Consumer<LeaderInformation> leaderInformationConsumer;
 
     @Nullable private LeaderElectionDriver initializedLeaderElectionDriver = null;
 
@@ -48,6 +50,14 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
     public TestingLeaderElectionEventHandler(String leaderAddress) {
         this.leaderAddress = leaderAddress;
         this.initializationLatch = new OneShotLatch();
+        this.leaderInformationConsumer = (ignore) -> {};
+    }
+
+    public TestingLeaderElectionEventHandler(
+            String leaderAddress, Consumer<LeaderInformation> leaderInformationConsumer) {
+        this.leaderAddress = leaderAddress;
+        this.initializationLatch = new OneShotLatch();
+        this.leaderInformationConsumer = leaderInformationConsumer;
     }
 
     public void init(LeaderElectionDriver leaderElectionDriver) {
@@ -98,6 +108,7 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
                 () ->
                         waitForInitialization(
                                 leaderElectionDriver -> {
+                                    leaderInformationConsumer.accept(leaderInformation);
                                     if (confirmedLeaderInformation.getLeaderSessionID() != null
                                             && !this.confirmedLeaderInformation.equals(
                                                     leaderInformation)) {
@@ -124,6 +135,7 @@ public class TestingLeaderElectionEventHandler extends TestingLeaderBase
         }
     }
 
+    @Override
     public void close() {
         synchronized (lock) {
             running = false;

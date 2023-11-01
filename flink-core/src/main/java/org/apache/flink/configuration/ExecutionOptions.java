@@ -92,10 +92,22 @@ public class ExecutionOptions {
                     .withDescription(
                             "Tells if we should use compression for the state snapshot data or not");
 
+    public static final ConfigOption<Boolean> BUFFER_TIMEOUT_ENABLED =
+            ConfigOptions.key("execution.buffer-timeout.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "If disabled, the config execution.buffer-timeout.interval will not take effect and the flushing will be triggered only when the output "
+                                                    + "buffer is full thus maximizing throughput")
+                                    .build());
+
     public static final ConfigOption<Duration> BUFFER_TIMEOUT =
-            ConfigOptions.key("execution.buffer-timeout")
+            ConfigOptions.key("execution.buffer-timeout.interval")
                     .durationType()
                     .defaultValue(Duration.ofMillis(100))
+                    .withDeprecatedKeys("execution.buffer-timeout")
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -109,8 +121,10 @@ public class ExecutionOptions {
                                                     FLUSH_AFTER_EVERY_RECORD
                                                             + " triggers flushing after every record thus minimizing latency"),
                                             text(
-                                                    DISABLED_NETWORK_BUFFER_TIMEOUT
-                                                            + " ms triggers flushing only when the output buffer is full thus maximizing "
+                                                    "If the config "
+                                                            + BUFFER_TIMEOUT_ENABLED.key()
+                                                            + " is false,"
+                                                            + " trigger flushing only when the output buffer is full thus maximizing "
                                                             + "throughput"))
                                     .build());
 

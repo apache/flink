@@ -40,6 +40,7 @@ import java.util.concurrent.ScheduledFuture;
 import static org.apache.flink.python.PythonOptions.MAX_BUNDLE_SIZE;
 import static org.apache.flink.python.PythonOptions.MAX_BUNDLE_TIME_MILLS;
 import static org.apache.flink.python.PythonOptions.PYTHON_METRIC_ENABLED;
+import static org.apache.flink.python.PythonOptions.PYTHON_SYSTEMENV_ENABLED;
 import static org.apache.flink.streaming.api.utils.ClassLeakCleaner.cleanUpLeakingClasses;
 import static org.apache.flink.streaming.api.utils.PythonOperatorUtils.inBatchExecutionMode;
 
@@ -50,6 +51,8 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     private static final long serialVersionUID = 1L;
 
     protected final Configuration config;
+
+    protected transient boolean systemEnvEnabled;
 
     /** Max number of elements to include in a bundle. */
     protected transient int maxBundleSize;
@@ -77,6 +80,7 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
     @Override
     public void open() throws Exception {
         try {
+            this.systemEnvEnabled = config.get(PYTHON_SYSTEMENV_ENABLED);
             this.maxBundleSize = config.get(MAX_BUNDLE_SIZE);
             if (this.maxBundleSize <= 0) {
                 this.maxBundleSize = MAX_BUNDLE_SIZE.defaultValue();
@@ -181,17 +185,13 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
         // gives better throughput due to the bundle not getting cut on
         // every watermark. So we have implemented 2) below.
 
-        // advance the watermark and do not emit watermark to downstream operators
-        if (getTimeServiceManager().isPresent()) {
-            getTimeServiceManager().get().advanceWatermark(mark);
-        }
-
         if (mark.getTimestamp() == Long.MAX_VALUE) {
             invokeFinishBundle();
             processElementsOfCurrentKeyIfNeeded(null);
             advanceWatermark(mark);
             output.emitWatermark(mark);
         } else if (isBundleFinished()) {
+            advanceWatermark(mark);
             output.emitWatermark(mark);
         } else {
             // It is not safe to advance the output watermark yet, so add a hold on the current
@@ -199,6 +199,11 @@ public abstract class AbstractPythonFunctionOperator<OUT> extends AbstractStream
             bundleFinishedCallback =
                     () -> {
                         try {
+                            // avoid invoking bundleFinishedCallback repeatedly in advanceWatermark
+                            // which will invoke finishBundle(which will finally invoke
+                            // bundleFinishedCallback)
+                            bundleFinishedCallback = null;
+
                             advanceWatermark(mark);
                             // at this point the bundle is finished, allow the watermark to pass
                             output.emitWatermark(mark);

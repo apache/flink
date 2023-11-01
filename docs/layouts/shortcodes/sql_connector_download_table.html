@@ -1,0 +1,65 @@
+{{/*
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+  
+    http://www.apache.org/licenses/LICENSE-2.0
+  
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+  */}}
+  {{/* 
+    Generates an XML snippet for the SQL connector download table. 
+    IMPORTANT: the whitespace is relevant. Do not change without looking at the 
+    rendered documentation. 
+  */}}
+  {{ $name := .Get 0 }}
+  {{ $connector := index .Site.Data $name }}
+  {{ $connector_version := $connector.version  }}
+  {{ $flink_version := .Site.Params.VersionTitle }}
+  {{ $full_version := printf "%s-%s" $connector_version $flink_version }}
+  
+  {{ $path := .Page.Path }}
+  
+  {{ $hash := md5 now }}
+  
+  {{ if $.Site.Params.IsStable }}
+  <table style="display:table;margin-left:auto;margin-right:auto" id="download-table">
+    <thead>
+      <th style="text-align:left">Maven dependency</th>
+      <th style="text-align:left">SQL Client</th>
+    </thead>
+    <tbody>
+      {{ range $connector.variants }}
+      <tr>
+        <td style="text-align: left">
+          <div id="{{ $hash }}" onclick="selectTextAndCopy('{{ $hash }}')"class="highlight">
+<pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&ltdependency&gt</span>
+  <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
+  <span class="nt">&ltartifactId&gt</span>{{- .maven -}}<span class="nt">&lt/artifactId&gt</span>
+  <span class="nt">&ltversion&gt</span>{{- $full_version -}}<span class="nt">&lt/version&gt</span>
+<span class="nt">&lt/dependency&gt</span></code></pre></div>
+          <div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">
+            Copied to clipboard!
+          </div> 
+        </td>
+        <td style="text-align: left">
+          <a href="{{ replace .sql_url "$full_version" $full_version}}">Download</a>
+        </td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+  {{ else }}
+  Only available for stable versions.
+  {{ end }}
+
+  

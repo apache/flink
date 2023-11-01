@@ -57,7 +57,6 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE;
 
@@ -67,7 +66,6 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSinkExternalContext.class);
 
     private static final String TOPIC_NAME_PREFIX = "kafka-single-topic";
-    private static final long DEFAULT_TIMEOUT = 30L;
     private static final int RANDOM_STRING_MAX_LENGTH = 50;
     private static final int NUM_RECORDS_UPPER_BOUND = 500;
     private static final int NUM_RECORDS_LOWER_BOUND = 100;
@@ -100,10 +98,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
                 replicationFactor);
         NewTopic newTopic = new NewTopic(topicName, numPartitions, replicationFactor);
         try {
-            kafkaAdminClient
-                    .createTopics(Collections.singletonList(newTopic))
-                    .all()
-                    .get(DEFAULT_TIMEOUT, TimeUnit.SECONDS);
+            kafkaAdminClient.createTopics(Collections.singletonList(newTopic)).all().get();
         } catch (Exception e) {
             throw new RuntimeException(String.format("Cannot create topic '%s'", topicName), e);
         }
@@ -112,10 +107,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
     private void deleteTopic(String topicName) {
         LOG.debug("Deleting Kafka topic {}", topicName);
         try {
-            kafkaAdminClient
-                    .deleteTopics(Collections.singletonList(topicName))
-                    .all()
-                    .get(DEFAULT_TIMEOUT, TimeUnit.SECONDS);
+            kafkaAdminClient.deleteTopics(Collections.singletonList(topicName)).all().get();
         } catch (Exception e) {
             if (ExceptionUtils.getRootCause(e) instanceof UnknownTopicOrPartitionException) {
                 throw new RuntimeException(

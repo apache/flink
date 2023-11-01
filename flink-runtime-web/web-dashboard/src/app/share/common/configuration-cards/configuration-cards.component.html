@@ -23,13 +23,6 @@
   ></flink-table-display>
 </nz-card>
 
-<nz-card nzType="inner" nzTitle="Environment" [nzLoading]="loading">
-  <flink-table-display
-    *ngIf="environmentInfo && environmentInfo.environment.length; else noDataTemplate"
-    [listOfData]="environmentInfo.environment"
-  ></flink-table-display>
-</nz-card>
-
 <nz-card nzType="inner" nzTitle="JVM" [nzLoading]="loading">
   <flink-table-display
     *ngIf="environmentInfo; else noDataTemplate"

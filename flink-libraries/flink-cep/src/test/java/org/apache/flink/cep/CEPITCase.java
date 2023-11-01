@@ -18,6 +18,9 @@
 
 package org.apache.flink.cep;
 
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -29,6 +32,7 @@ import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.WithinType;
+import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.cep.pattern.conditions.RichIterativeCondition;
 import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.configuration.Configuration;
@@ -41,6 +45,7 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -1241,5 +1246,77 @@ public class CEPITCase extends AbstractTestBase {
                         });
 
         env.execute();
+    }
+
+    @Test
+    public void testPartialMatchTimeoutOutputCompletedMatch() throws Exception {
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
+
+        // (Event, timestamp)
+        DataStream<Event> input =
+                env.fromElements(
+                                Tuple2.of(new Event(1, "start", 1.0), 0L),
+                                Tuple2.of(new Event(2, "start", 2.0), 1L),
+                                Tuple2.of(new Event(3, "start", 3.0), 2L),
+                                Tuple2.of(new Event(4, "start", 4.0), 3L),
+                                Tuple2.of(new Event(5, "end", 5.0), 4L))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<Tuple2<Event, Long>>forBoundedOutOfOrderness(
+                                                Duration.ofMillis(5))
+                                        .withTimestampAssigner(
+                                                TimestampAssignerSupplier.of(
+                                                        (SerializableTimestampAssigner<
+                                                                        Tuple2<Event, Long>>)
+                                                                (element, recordTimestamp) ->
+                                                                        element.f1)))
+                        .map((MapFunction<Tuple2<Event, Long>, Event>) value -> value.f0);
+
+        Pattern<Event, ?> pattern =
+                Pattern.<Event>begin("start", AfterMatchSkipStrategy.skipPastLastEvent())
+                        .where(
+                                new SimpleCondition<Event>() {
+                                    @Override
+                                    public boolean filter(Event value) {
+                                        return value.getName().equals("start");
+                                    }
+                                })
+                        .oneOrMore()
+                        .consecutive()
+                        .greedy()
+                        .followedBy("middle")
+                        .where(
+                                new IterativeCondition<Event>() {
+                                    @Override
+                                    public boolean filter(Event value, Context<Event> ctx)
+                                            throws Exception {
+                                        int count = 0;
+                                        for (Event ignored : ctx.getEventsForPattern("start")) {
+                                            count++;
+                                        }
+                                        if (count > 2) {
+                                            return value.getName().equals("middle");
+                                        } else {
+                                            return value.getName().equals("end");
+                                        }
+                                    }
+                                })
+                        .within(Time.milliseconds(100L));
+
+        DataStream<String> result =
+                CEP.pattern(input, pattern)
+                        .select(
+                                (PatternSelectFunction<Event, String>)
+                                        pattern1 ->
+                                                pattern1.get("start").get(0).getId()
+                                                        + ","
+                                                        + pattern1.get("middle").get(0).getId());
+
+        List<String> resultList = new ArrayList<>();
+        try (CloseableIterator<String> iterator = result.executeAndCollect()) {
+            iterator.forEachRemaining(resultList::add);
+        }
+        resultList.sort(String::compareTo);
+        assertEquals(Arrays.asList("3,5"), resultList);
     }
 }

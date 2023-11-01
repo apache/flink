@@ -55,6 +55,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.arrayContaining;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.emptyArray;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
@@ -812,6 +813,39 @@ public class FutureUtilsTest extends TestLogger {
         assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(false));
         future.completeExceptionally(new FlinkException("barfoo"));
         assertThat(uncaughtExceptionHandler.hasBeenCalled(), is(true));
+    }
+
+    /**
+     * Tests the behavior of {@link FutureUtils#handleUncaughtException(CompletableFuture,
+     * Thread.UncaughtExceptionHandler)} with a custom fallback exception handler to avoid
+     * triggering {@code System.exit}.
+     */
+    @Test
+    public void testHandleUncaughtExceptionWithBuggyErrorHandlingCode() {
+        final Exception actualProductionCodeError =
+                new Exception(
+                        "Actual production code error that should be caught by the error handler.");
+
+        final RuntimeException errorHandlingException =
+                new RuntimeException("Expected test error in error handling code.");
+        final Thread.UncaughtExceptionHandler buggyActualExceptionHandler =
+                (thread, ignoredActualException) -> {
+                    throw errorHandlingException;
+                };
+
+        final AtomicReference<Throwable> caughtErrorHandlingException = new AtomicReference<>();
+        final Thread.UncaughtExceptionHandler fallbackExceptionHandler =
+                (thread, errorHandlingEx) -> caughtErrorHandlingException.set(errorHandlingEx);
+
+        FutureUtils.handleUncaughtException(
+                FutureUtils.completedExceptionally(actualProductionCodeError),
+                buggyActualExceptionHandler,
+                fallbackExceptionHandler);
+
+        final Throwable actualError = caughtErrorHandlingException.get();
+        assertThat(actualError, instanceOf(IllegalStateException.class));
+        assertThat(actualError.getCause(), is(errorHandlingException));
+        assertThat(actualError.getSuppressed(), arrayContaining(actualProductionCodeError));
     }
 
     private static class TestingUncaughtExceptionHandler

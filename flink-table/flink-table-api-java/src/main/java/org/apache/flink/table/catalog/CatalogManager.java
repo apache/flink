@@ -226,6 +226,9 @@ public final class CatalogManager {
                 "Catalog name cannot be null or empty.");
 
         if (catalogs.containsKey(catalogName)) {
+            if (currentCatalogName.equals(catalogName)) {
+                throw new CatalogException("Cannot drop a catalog which is currently in use.");
+            }
             Catalog catalog = catalogs.remove(catalogName);
             catalog.close();
         } else if (!ignoreIfNotExists) {

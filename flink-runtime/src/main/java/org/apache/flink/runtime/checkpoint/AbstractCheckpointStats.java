@@ -99,6 +99,9 @@ public abstract class AbstractCheckpointStats implements Serializable {
     /** @return the total number of persisted bytes during the checkpoint. */
     public abstract long getPersistedData();
 
+    /** @return whether the checkpoint is unaligned. */
+    public abstract boolean isUnalignedCheckpoint();
+
     /**
      * Returns the latest acknowledged subtask stats or <code>null</code> if none was acknowledged
      * yet.

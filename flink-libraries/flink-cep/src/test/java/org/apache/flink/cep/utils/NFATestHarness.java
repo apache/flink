@@ -100,7 +100,12 @@ public final class NFATestHarness {
             throws Exception {
         try (SharedBufferAccessor<Event> sharedBufferAccessor = sharedBuffer.getAccessor()) {
             Collection<Map<String, List<Event>>> pendingMatches =
-                    nfa.advanceTime(sharedBufferAccessor, nfaState, inputEvent.getTimestamp()).f0;
+                    nfa.advanceTime(
+                                    sharedBufferAccessor,
+                                    nfaState,
+                                    inputEvent.getTimestamp(),
+                                    afterMatchSkipStrategy)
+                            .f0;
             Collection<Map<String, List<Event>>> matchedPatterns =
                     nfa.process(
                             sharedBufferAccessor,

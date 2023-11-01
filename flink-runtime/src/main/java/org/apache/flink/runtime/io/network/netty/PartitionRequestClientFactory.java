@@ -80,6 +80,7 @@ class PartitionRequestClientFactory {
         // We map the input ConnectionID to a new value to restrict the number of tcp connections
         connectionId =
                 new ConnectionID(
+                        connectionId.getResourceID(),
                         connectionId.getAddress(),
                         connectionId.getConnectionIndex() % maxNumberOfConnections);
         while (true) {
@@ -164,6 +165,9 @@ class PartitionRequestClientFactory {
             throw new RemoteTransportException(
                     "Connecting to remote task manager '"
                             + connectionId.getAddress()
+                            + " [ "
+                            + connectionId.getResourceID().getStringWithMetadata()
+                            + " ] "
                             + "' has failed. This might indicate that the remote task "
                             + "manager has been lost.",
                     connectionId.getAddress(),

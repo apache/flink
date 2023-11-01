@@ -161,23 +161,28 @@ class ChangelogStreamHandleReaderWithCache implements ChangelogStreamHandleReade
 
     private DataInputStream wrapStream(Path dfsPath, FileInputStream fin) {
         return new DataInputStream(new BufferedInputStream(fin)) {
+            private boolean closed = false;
+
             @Override
             public void close() throws IOException {
-                try {
-                    super.close();
-                } finally {
-                    cache.computeIfPresent(
-                            dfsPath,
-                            (key, value) -> {
-                                value.release();
-                                if (value.getReferenceCounter() == NO_USING_REF_COUNT) {
-                                    cacheCleanScheduler.schedule(
-                                            () -> cleanCacheFile(dfsPath),
-                                            cacheIdleMillis,
-                                            TimeUnit.MILLISECONDS);
-                                }
-                                return value;
-                            });
+                if (!closed) {
+                    closed = true;
+                    try {
+                        super.close();
+                    } finally {
+                        cache.computeIfPresent(
+                                dfsPath,
+                                (key, value) -> {
+                                    value.release();
+                                    if (value.getReferenceCounter() == NO_USING_REF_COUNT) {
+                                        cacheCleanScheduler.schedule(
+                                                () -> cleanCacheFile(dfsPath),
+                                                cacheIdleMillis,
+                                                TimeUnit.MILLISECONDS);
+                                    }
+                                    return value;
+                                });
+                    }
                 }
             }
         };

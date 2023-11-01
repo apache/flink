@@ -54,7 +54,7 @@ public class BatchShuffleReadBufferPool {
      * Memory size in bytes can be allocated from this buffer pool for a single request (4M is for
      * better sequential read).
      */
-    private static final int NUM_BYTES_PER_REQUEST = 4 * 1024 * 1024;
+    public static final int NUM_BYTES_PER_REQUEST = 4 * 1024 * 1024;
 
     /**
      * Wait for at most 2 seconds before return if there is no enough available buffers currently.

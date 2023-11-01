@@ -19,6 +19,7 @@
 package org.apache.flink.table.gateway.api.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,7 @@ public class ThreadUtils {
                 poolQueueSize,
                 keepAliveMs,
                 TimeUnit.MILLISECONDS,
-                new SynchronousQueue<>());
+                new SynchronousQueue<>(),
+                new ExecutorThreadFactory(threadPoolName));
     }
 }

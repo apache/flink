@@ -51,6 +51,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema.flinkSchema;
+import static org.apache.pulsar.client.api.Schema.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for using PulsarSink writing to a Pulsar cluster. */
@@ -104,6 +105,7 @@ class PulsarSinkITCase {
             // A random topic with partition 4.
             String topic = randomAlphabetic(8);
             operator().createTopic(topic, 4);
+            operator().createSchema(topic, STRING);
             int counts = ThreadLocalRandom.current().nextInt(100, 200);
 
             ControlSource source =

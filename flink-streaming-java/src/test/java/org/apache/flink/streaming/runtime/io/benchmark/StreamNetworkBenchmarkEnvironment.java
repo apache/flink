@@ -51,6 +51,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.newUnregisteredInputChannelMetrics;
 import static org.apache.flink.util.ExceptionUtils.suppressExceptions;
 
 /**
@@ -274,7 +275,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
                                 taskMetricGroup),
                         gateIndex,
                         gateDescriptor,
-                        SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER);
+                        SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
+                        newUnregisteredInputChannelMetrics());
 
         return new InputGateWithMetrics(singleGate, new SimpleCounter());
     }

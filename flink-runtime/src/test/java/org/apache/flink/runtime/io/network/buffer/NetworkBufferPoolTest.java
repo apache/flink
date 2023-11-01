@@ -330,7 +330,7 @@ public class NetworkBufferPoolTest extends TestLogger {
         try (CloseableRegistry closeableRegistry = new CloseableRegistry()) {
             NetworkBufferPool globalPool = new NetworkBufferPool(0, 128);
             closeableRegistry.registerCloseable(globalPool::destroy);
-            assertEquals(0, globalPool.getRequestedSegmentsUsage());
+            assertEquals(0, globalPool.getEstimatedRequestedSegmentsUsage());
         }
     }
 
@@ -342,21 +342,21 @@ public class NetworkBufferPoolTest extends TestLogger {
 
             BufferPool bufferPool1 = globalPool.createBufferPool(10, 20);
 
-            assertEquals(20, globalPool.getNumberOfRequestedMemorySegments());
-            assertEquals(40, globalPool.getRequestedSegmentsUsage());
+            assertEquals(20, globalPool.getEstimatedNumberOfRequestedMemorySegments());
+            assertEquals(40, globalPool.getEstimatedRequestedSegmentsUsage());
             assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
 
             closeableRegistry.registerCloseable(
                     (globalPool.createBufferPool(5, Integer.MAX_VALUE))::lazyDestroy);
 
-            assertEquals(30, globalPool.getNumberOfRequestedMemorySegments());
-            assertEquals(60, globalPool.getRequestedSegmentsUsage());
+            assertEquals(30, globalPool.getEstimatedNumberOfRequestedMemorySegments());
+            assertEquals(60, globalPool.getEstimatedRequestedSegmentsUsage());
             assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
 
             closeableRegistry.registerCloseable((globalPool.createBufferPool(10, 30))::lazyDestroy);
 
-            assertEquals(60, globalPool.getNumberOfRequestedMemorySegments());
-            assertEquals(120, globalPool.getRequestedSegmentsUsage());
+            assertEquals(60, globalPool.getEstimatedNumberOfRequestedMemorySegments());
+            assertEquals(120, globalPool.getEstimatedRequestedSegmentsUsage());
             assertThat(
                     globalPool.getUsageWarning(),
                     equalTo(
@@ -372,8 +372,8 @@ public class NetworkBufferPoolTest extends TestLogger {
 
             BufferPool bufferPool2 = globalPool.createBufferPool(10, 20);
 
-            assertEquals(80, globalPool.getNumberOfRequestedMemorySegments());
-            assertEquals(160, globalPool.getRequestedSegmentsUsage());
+            assertEquals(80, globalPool.getEstimatedNumberOfRequestedMemorySegments());
+            assertEquals(160, globalPool.getEstimatedRequestedSegmentsUsage());
             assertThat(
                     globalPool.getUsageWarning(),
                     equalTo(
@@ -389,9 +389,9 @@ public class NetworkBufferPoolTest extends TestLogger {
             bufferPool2.lazyDestroy();
             bufferPool1.lazyDestroy();
 
-            assertEquals(40, globalPool.getNumberOfRequestedMemorySegments());
-            assertEquals(40 * 128, globalPool.getRequestedMemory());
-            assertEquals(80, globalPool.getRequestedSegmentsUsage());
+            assertEquals(40, globalPool.getEstimatedNumberOfRequestedMemorySegments());
+            assertEquals(40 * 128, globalPool.getEstimatedRequestedMemory());
+            assertEquals(80, globalPool.getEstimatedRequestedSegmentsUsage());
             assertThat(
                     globalPool.getUsageWarning(),
                     equalTo(Optional.of("Memory usage [80%] went back to normal")));

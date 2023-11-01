@@ -66,9 +66,10 @@ public class ShuffleDescriptorTest extends TestLogger {
                             jobID, localPartitionId, consumerResourceID);
 
             ResultPartitionID remotePartitionId = new ResultPartitionID();
+            ResourceID remoteResourceID = ResourceID.generate();
             ResultPartitionDeploymentDescriptor remotePartition =
                     createResultPartitionDeploymentDescriptor(
-                            jobID, remotePartitionId, ResourceID.generate());
+                            jobID, remotePartitionId, remoteResourceID);
 
             ResultPartitionID unknownPartitionId = new ResultPartitionID();
 
@@ -118,7 +119,15 @@ public class ShuffleDescriptorTest extends TestLogger {
                         remotePartitionId);
                 nettyShuffleDescriptor = (NettyShuffleDescriptor) remoteShuffleDescriptor;
                 assertThat(nettyShuffleDescriptor.isLocalTo(consumerResourceID), is(false));
-                assertThat(nettyShuffleDescriptor.getConnectionId(), is(STUB_CONNECTION_ID));
+                assertThat(
+                        nettyShuffleDescriptor.getConnectionId().getAddress(),
+                        is(STUB_CONNECTION_ID.getAddress()));
+                assertThat(
+                        nettyShuffleDescriptor.getConnectionId().getConnectionIndex(),
+                        is(STUB_CONNECTION_ID.getConnectionIndex()));
+                assertThat(
+                        nettyShuffleDescriptor.getConnectionId().getResourceID(),
+                        is(remoteResourceID));
             } else {
                 // Unknown (lazy deployment allowed)
                 verifyShuffleDescriptor(

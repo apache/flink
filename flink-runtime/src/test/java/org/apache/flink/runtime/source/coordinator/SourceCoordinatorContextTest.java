@@ -96,7 +96,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         // Assign splits to the readers.
         SplitsAssignment<MockSourceSplit> splitsAssignment = getSplitsAssignment(2, 0);
         if (fromCoordinatorExecutor) {
-            coordinatorExecutor.submit(() -> context.assignSplits(splitsAssignment)).get();
+            context.submitTask(() -> context.assignSplits(splitsAssignment)).get();
         } else {
             context.assignSplits(splitsAssignment);
         }
@@ -141,9 +141,7 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         verifyException(
                 () -> {
                     if (fromCoordinatorExecutor) {
-                        coordinatorExecutor
-                                .submit(() -> context.assignSplits(splitsAssignment))
-                                .get();
+                        context.submitTask(() -> context.assignSplits(splitsAssignment)).get();
                     } else {
                         context.assignSplits(splitsAssignment);
                     }
@@ -163,7 +161,8 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                 new SourceCoordinatorContext<>(
                         coordinatorExecutorWithExceptionHandler,
                         manualWorkerExecutor,
-                        coordinatorThreadFactory,
+                        new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
+                                coordinatorThreadName, operatorCoordinatorContext),
                         operatorCoordinatorContext,
                         new MockSourceSplitSerializer(),
                         splitSplitAssignmentTracker,
@@ -221,6 +220,26 @@ class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
 
         assertThat(expectedError.get()).isInstanceOf(InterruptedException.class);
         assertThat(operatorCoordinatorContext.isJobFailed()).isFalse();
+    }
+
+    @Test
+    void testSupportsIntermediateNoMoreSplits() throws Exception {
+        sourceReady();
+        registerReaders();
+
+        SplitsAssignment<MockSourceSplit> splitsAssignment = getSplitsAssignment(2, 0);
+        context.assignSplits(splitsAssignment);
+        context.signalIntermediateNoMoreSplits(0);
+        context.signalIntermediateNoMoreSplits(1);
+        assertThat(context.hasNoMoreSplits(0)).isFalse();
+        assertThat(context.hasNoMoreSplits(1)).isFalse();
+        assertThat(context.hasNoMoreSplits(2)).isFalse();
+
+        context.signalNoMoreSplits(0);
+        context.signalNoMoreSplits(1);
+        assertThat(context.hasNoMoreSplits(0)).isTrue();
+        assertThat(context.hasNoMoreSplits(1)).isTrue();
+        assertThat(context.hasNoMoreSplits(2)).isFalse();
     }
 
     // ------------------------

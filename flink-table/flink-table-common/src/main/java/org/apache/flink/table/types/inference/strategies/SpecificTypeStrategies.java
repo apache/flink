@@ -31,6 +31,9 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 @Internal
 public final class SpecificTypeStrategies {
 
+    /** See {@link UnusedTypeStrategy}. */
+    public static final TypeStrategy UNUSED = new UnusedTypeStrategy();
+
     /** See {@link RowTypeStrategy}. */
     public static final TypeStrategy ROW = new RowTypeStrategy();
 

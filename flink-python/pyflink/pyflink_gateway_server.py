@@ -261,7 +261,7 @@ def launch_gateway_server_process(env, args):
             signal.signal(signal.SIGINT, signal.SIG_IGN)
         preexec_fn = preexec_func
     return Popen(list(filter(lambda c: len(c) != 0, command)),
-                 stdin=PIPE, preexec_fn=preexec_fn, env=env)
+                 stdin=PIPE, stderr=PIPE, preexec_fn=preexec_fn, env=env)
 
 
 if __name__ == "__main__":

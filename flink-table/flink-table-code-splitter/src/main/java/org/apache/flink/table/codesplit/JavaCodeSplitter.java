@@ -52,7 +52,7 @@ public class JavaCodeSplitter {
         return Optional.ofNullable(
                         new DeclarationRewriter(returnValueRewrittenCode, maxMethodLength)
                                 .rewrite())
-                .map(text -> new IfStatementRewriter(text, maxMethodLength).rewrite())
+                .map(text -> new BlockStatementRewriter(text, maxMethodLength).rewrite())
                 .map(text -> new FunctionSplitter(text, maxMethodLength).rewrite())
                 .map(text -> new MemberFieldRewriter(text, maxClassMemberCount).rewrite())
                 .orElse(code);

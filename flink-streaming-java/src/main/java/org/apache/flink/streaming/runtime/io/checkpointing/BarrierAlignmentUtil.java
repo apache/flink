@@ -47,8 +47,8 @@ public class BarrierAlignmentUtil {
                     timerService.registerTimer(
                             timerService.getCurrentProcessingTime() + delay.toMillis(),
                             timestamp ->
-                                    mailboxExecutor.submit(
-                                            callable,
+                                    mailboxExecutor.execute(
+                                            () -> callable.call(),
                                             "Execute checkpoint barrier handler delayed action"));
             return () -> scheduledFuture.cancel(false);
         };

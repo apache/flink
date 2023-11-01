@@ -86,9 +86,6 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
     /** Cached handle to the file system for file operations. */
     private final FileSystem filesystem;
 
-    /** Whether the file system dynamically injects entropy into the file paths. */
-    private final boolean entropyInjecting;
-
     private final FsCheckpointStateToolset privateStateToolset;
 
     private final FsCheckpointStateToolset sharedStateToolset;
@@ -135,7 +132,6 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
         this.sharedStateDirectory = checkNotNull(sharedStateDirectory);
         this.fileStateThreshold = fileStateSizeThreshold;
         this.writeBufferSize = writeBufferSize;
-        this.entropyInjecting = EntropyInjector.isEntropyInjecting(fileSystem);
         if (fileSystem instanceof DuplicatingFileSystem) {
             final DuplicatingFileSystem duplicatingFileSystem = (DuplicatingFileSystem) fileSystem;
             this.privateStateToolset =
@@ -156,6 +152,8 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
         Path target = getTargetPath(scope);
         int bufferSize = Math.max(writeBufferSize, fileStateThreshold);
 
+        // Whether the file system dynamically injects entropy into the file paths.
+        final boolean entropyInjecting = EntropyInjector.isEntropyInjecting(filesystem, target);
         final boolean absolutePath = entropyInjecting || scope == CheckpointedStateScope.SHARED;
         return new FsCheckpointStateOutputStream(
                 target, filesystem, bufferSize, fileStateThreshold, !absolutePath);

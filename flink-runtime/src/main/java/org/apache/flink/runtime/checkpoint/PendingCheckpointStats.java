@@ -56,6 +56,8 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 
     private volatile long currentPersistedData;
 
+    private volatile boolean unalignedCheckpoint;
+
     /** Stats of the latest acknowledged subtask. */
     private volatile SubtaskStateStats latestAcknowledgedSubtask;
 
@@ -110,6 +112,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
                 0,
                 0,
                 0,
+                false,
                 null);
     }
 
@@ -124,6 +127,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
             long currentStateSize,
             long processedData,
             long persistedData,
+            boolean unalignedCheckpoint,
             @Nullable SubtaskStateStats latestAcknowledgedSubtask) {
 
         super(checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
@@ -131,6 +135,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
         this.currentStateSize = currentStateSize;
         this.currentProcessedData = processedData;
         this.currentPersistedData = persistedData;
+        this.unalignedCheckpoint = unalignedCheckpoint;
         this.latestAcknowledgedSubtask = latestAcknowledgedSubtask;
         this.currentNumAcknowledgedSubtasks = acknowledgedSubtaskCount;
     }
@@ -163,6 +168,11 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
     @Override
     public long getPersistedData() {
         return currentPersistedData;
+    }
+
+    @Override
+    public boolean isUnalignedCheckpoint() {
+        return unalignedCheckpoint;
     }
 
     @Override
@@ -202,6 +212,9 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
             if (persistedData > 0) {
                 currentPersistedData += persistedData;
             }
+
+            unalignedCheckpoint |= subtask.getUnalignedCheckpoint();
+
             return true;
         } else {
             return false;
@@ -220,6 +233,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
                 currentStateSize,
                 currentProcessedData,
                 currentPersistedData,
+                unalignedCheckpoint,
                 latestAcknowledgedSubtask,
                 externalPointer);
     }
@@ -242,6 +256,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
                 currentStateSize,
                 currentProcessedData,
                 currentPersistedData,
+                unalignedCheckpoint,
                 failureTimestamp,
                 latestAcknowledgedSubtask,
                 cause);

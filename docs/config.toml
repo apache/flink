@@ -34,7 +34,7 @@ pygmentsUseClasses = true
   # we change the version for the complete docs when forking of a release branch
   # etc.
   # The full version string as referenced in Maven (e.g. 1.2.1)
-  Version = "1.16.0"
+  Version = "1.16.2"
 
   # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
   # release this should be the same as the regular version
@@ -112,7 +112,7 @@ pygmentsUseClasses = true
 
 [module]
 [[module.imports]]
-  path = 'github.com/apache/flink-connector-elasticsearch/docs'
+  path = 'connectors'
 [[module.imports.mounts]]
   source = 'content'
   target = 'content'
@@ -121,3 +121,6 @@ pygmentsUseClasses = true
   source = 'content.zh'
   target = 'content'
   lang = 'zh'
+[[module.imports.mounts]]
+  source = 'data'
+  target = 'data'

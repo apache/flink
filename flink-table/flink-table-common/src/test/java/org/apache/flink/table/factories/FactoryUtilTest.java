@@ -21,6 +21,7 @@ package org.apache.flink.table.factories;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
@@ -33,12 +34,15 @@ import org.apache.flink.table.factories.TestFormatFactory.DecodingFormatMock;
 import org.apache.flink.table.factories.TestFormatFactory.EncodingFormatMock;
 import org.apache.flink.table.factories.utils.FactoryMocks;
 import org.apache.flink.testutils.ClassLoaderUtils;
+import org.apache.flink.util.FlinkUserCodeClassLoaders;
+import org.apache.flink.util.MutableURLClassLoader;
 
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -666,6 +670,22 @@ class FactoryUtilTest {
                 .map(f -> f.getClass().getName())
                 .doesNotContain(subInterfaceImplementationName)
                 .contains(serializationSchemaImplementationName);
+    }
+
+    @Test
+    void testDiscoverFactoryFromClosedClassLoader() throws Exception {
+        MutableURLClassLoader classLoader =
+                FlinkUserCodeClassLoaders.create(
+                        new URL[0], FactoryUtilTest.class.getClassLoader(), new Configuration());
+        classLoader.close();
+        assertThatThrownBy(() -> FactoryUtil.discoverFactory(classLoader, Factory.class, "test"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                IllegalStateException.class,
+                                "Trying to access closed classloader. Please check if you store classloaders directly "
+                                        + "or indirectly in static fields. If the stacktrace suggests that the leak occurs in a third "
+                                        + "party library and cannot be fixed immediately, you can disable this check with the "
+                                        + "configuration 'classloader.check-leaked-classloader'"));
     }
 
     // --------------------------------------------------------------------------------------------

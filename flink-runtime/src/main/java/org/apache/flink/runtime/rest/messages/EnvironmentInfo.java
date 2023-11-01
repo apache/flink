@@ -23,7 +23,6 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -31,14 +30,9 @@ import java.util.Objects;
 /** The response of environment info. */
 public class EnvironmentInfo implements ResponseBody {
 
-    private static final String FIELD_NAME_ENVIRONMENT_INFO = "environment";
-
     private static final String FIELD_NAME_JVM_INFO = "jvm";
 
     private static final String FIELD_NAME_CLASSPATH = "classpath";
-
-    @JsonProperty(FIELD_NAME_ENVIRONMENT_INFO)
-    private final List<EnvironmentVariableItem> environmentVariables;
 
     @JsonProperty(FIELD_NAME_JVM_INFO)
     private final JVMInfo jvmInfo;
@@ -48,11 +42,8 @@ public class EnvironmentInfo implements ResponseBody {
 
     @JsonCreator
     public EnvironmentInfo(
-            @JsonProperty(FIELD_NAME_ENVIRONMENT_INFO)
-                    List<EnvironmentVariableItem> environmentVariables,
             @JsonProperty(FIELD_NAME_JVM_INFO) JVMInfo jvmInfo,
             @JsonProperty(FIELD_NAME_CLASSPATH) List<String> classpath) {
-        this.environmentVariables = environmentVariables;
         this.jvmInfo = jvmInfo;
         this.classpath = classpath;
     }
@@ -66,66 +57,17 @@ public class EnvironmentInfo implements ResponseBody {
             return false;
         }
         EnvironmentInfo that = (EnvironmentInfo) o;
-        return environmentVariables.equals(that.environmentVariables)
-                && jvmInfo.equals(that.jvmInfo)
-                && classpath.equals(that.classpath);
+        return jvmInfo.equals(that.jvmInfo) && classpath.equals(that.classpath);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(environmentVariables, jvmInfo, classpath);
+        return Objects.hash(jvmInfo, classpath);
     }
 
     public static EnvironmentInfo create() {
-        List<EnvironmentVariableItem> environmentVariableItems = new ArrayList<>();
-        System.getenv()
-                .forEach(
-                        (key, value) ->
-                                environmentVariableItems.add(
-                                        new EnvironmentVariableItem(key, value)));
-
         return new EnvironmentInfo(
-                environmentVariableItems,
-                JVMInfo.create(),
-                Arrays.asList(System.getProperty("java.class.path").split(":")));
-    }
-
-    /** A single key-value pair entry in the {@link EnvironmentInfo} response. */
-    private static class EnvironmentVariableItem {
-        private static final String FIELD_NAME_KEY = "key";
-
-        private static final String FIELD_NAME_VALUE = "value";
-
-        @JsonProperty(FIELD_NAME_KEY)
-        private final String key;
-
-        @JsonProperty(FIELD_NAME_VALUE)
-        private final String value;
-
-        @JsonCreator
-        public EnvironmentVariableItem(
-                @JsonProperty(FIELD_NAME_KEY) String key,
-                @JsonProperty(FIELD_NAME_VALUE) String value) {
-            this.key = key;
-            this.value = value;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            EnvironmentVariableItem that = (EnvironmentVariableItem) o;
-            return key.equals(that.key) && value.equals(that.value);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(key, value);
-        }
+                JVMInfo.create(), Arrays.asList(System.getProperty("java.class.path").split(":")));
     }
 
     /** JVM information. */

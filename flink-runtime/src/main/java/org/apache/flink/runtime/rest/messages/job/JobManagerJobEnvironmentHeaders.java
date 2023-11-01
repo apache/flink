@@ -75,6 +75,6 @@ public class JobManagerJobEnvironmentHeaders
 
     @Override
     public String getDescription() {
-        return "Returns the jobmanager's environment variables of a specific job.";
+        return "Returns the jobmanager's environment of a specific job.";
     }
 }

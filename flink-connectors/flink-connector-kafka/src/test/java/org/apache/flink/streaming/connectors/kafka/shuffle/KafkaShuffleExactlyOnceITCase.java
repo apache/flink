@@ -31,6 +31,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
+import java.util.UUID;
+
 import static org.apache.flink.streaming.api.TimeCharacteristic.EventTime;
 import static org.apache.flink.streaming.api.TimeCharacteristic.IngestionTime;
 import static org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime;
@@ -110,7 +112,7 @@ public class KafkaShuffleExactlyOnceITCase extends KafkaShuffleTestBase {
     private void testKafkaShuffleFailureRecovery(
             int numElementsPerProducer, TimeCharacteristic timeCharacteristic) throws Exception {
 
-        String topic = topic("failure_recovery", timeCharacteristic);
+        String topic = topic("failure_recovery-" + UUID.randomUUID(), timeCharacteristic);
         final int numberOfPartitions = 1;
         final int producerParallelism = 1;
         final int failAfterElements = numElementsPerProducer * numberOfPartitions * 2 / 3;
@@ -150,7 +152,7 @@ public class KafkaShuffleExactlyOnceITCase extends KafkaShuffleTestBase {
      */
     private void testAssignedToPartitionFailureRecovery(
             int numElementsPerProducer, TimeCharacteristic timeCharacteristic) throws Exception {
-        String topic = topic("partition_failure_recovery", timeCharacteristic);
+        String topic = topic("partition_failure_recovery-" + UUID.randomUUID(), timeCharacteristic);
         final int numberOfPartitions = 3;
         final int producerParallelism = 2;
         final int failAfterElements = numElementsPerProducer * producerParallelism * 2 / 3;

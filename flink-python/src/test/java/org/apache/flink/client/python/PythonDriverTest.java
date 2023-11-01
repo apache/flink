@@ -53,7 +53,7 @@ class PythonDriverTest {
         PythonDriverOptions pythonDriverOptions = new PythonDriverOptions("xxx", null, args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
         // verify the generated commands
-        assertThat(commands).containsExactly("-m", "xxx", "--input", "in.txt");
+        assertThat(commands).containsExactly("-u", "-m", "xxx", "--input", "in.txt");
     }
 
     @Test
@@ -64,6 +64,6 @@ class PythonDriverTest {
 
         PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(null, "xxx.py", args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
-        assertThat(commands).containsExactly("-m", "xxx", "--input", "in.txt");
+        assertThat(commands).containsExactly("-u", "xxx.py", "--input", "in.txt");
     }
 }

@@ -22,7 +22,10 @@ import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Retry strategy that retry fixed times, and will not fail with some kind of exception. */
+/**
+ * A retry strategy that will ignore a specific type of exception and retry a test if it occurs, up
+ * to a fixed number of times.
+ */
 public class RetryOnExceptionStrategy extends AbstractRetryStrategy {
     private static final Logger LOG = LoggerFactory.getLogger(RetryOnExceptionStrategy.class);
 
@@ -37,6 +40,12 @@ public class RetryOnExceptionStrategy extends AbstractRetryStrategy {
     @Override
     public void handleException(String testName, int attemptIndex, Throwable throwable)
             throws Throwable {
+        // Failed when reach the total retry times
+        if (attemptIndex >= totalTimes) {
+            LOG.error("Test Failed at the last retry.", throwable);
+            throw throwable;
+        }
+
         if (repeatableException.isAssignableFrom(throwable.getClass())) {
             // continue retrying when get some repeatable exceptions
             String retryMsg =

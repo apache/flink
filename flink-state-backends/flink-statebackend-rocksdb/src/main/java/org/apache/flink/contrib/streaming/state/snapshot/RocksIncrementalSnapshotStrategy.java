@@ -35,7 +35,6 @@ import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SnapshotDirectory;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateHandleID;
-import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
@@ -50,7 +49,6 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -279,6 +277,7 @@ public class RocksIncrementalSnapshotStrategy<K>
                 metaStateHandle =
                         materializeMetaData(
                                 snapshotCloseableRegistry,
+                                tmpResourcesRegistry,
                                 stateMetaInfoSnapshots,
                                 checkpointId,
                                 checkpointStreamFactory);
@@ -289,11 +288,21 @@ public class RocksIncrementalSnapshotStrategy<K>
                         metaStateHandle.getJobManagerOwnedSnapshot(),
                         "Metadata for job manager was not properly created.");
 
-                uploadSstFiles(sstFiles, miscFiles, snapshotCloseableRegistry);
+                uploadSstFiles(
+                        sstFiles, miscFiles, snapshotCloseableRegistry, tmpResourcesRegistry);
                 long checkpointedSize = metaStateHandle.getStateSize();
                 checkpointedSize += getUploadedStateSize(sstFiles.values());
                 checkpointedSize += getUploadedStateSize(miscFiles.values());
 
+                // We make the 'sstFiles' as the 'sharedState' in IncrementalRemoteKeyedStateHandle,
+                // whether they belong to the sharded CheckpointedStateScope or exclusive
+                // CheckpointedStateScope.
+                // In this way, the first checkpoint after job recovery can be an incremental
+                // checkpoint in CLAIM mode, either restoring from checkpoint or restoring from
+                // native savepoint.
+                // And this has no effect on the registration of shareState currently, because the
+                // snapshot result of native savepoint would not be registered into
+                // 'SharedStateRegistry'.
                 final IncrementalRemoteKeyedStateHandle jmIncrementalKeyedStateHandle =
                         new IncrementalRemoteKeyedStateHandle(
                                 backendUID,
@@ -320,12 +329,7 @@ public class RocksIncrementalSnapshotStrategy<K>
                 return snapshotResult;
             } finally {
                 if (!completed) {
-                    final List<StateObject> statesToDiscard =
-                            new ArrayList<>(1 + miscFiles.size() + sstFiles.size());
-                    statesToDiscard.add(metaStateHandle);
-                    statesToDiscard.addAll(miscFiles.values());
-                    statesToDiscard.addAll(sstFiles.values());
-                    cleanupIncompleteSnapshot(statesToDiscard, localBackupDirectory);
+                    cleanupIncompleteSnapshot(tmpResourcesRegistry, localBackupDirectory);
                 }
             }
         }
@@ -333,7 +337,8 @@ public class RocksIncrementalSnapshotStrategy<K>
         private void uploadSstFiles(
                 @Nonnull Map<StateHandleID, StreamStateHandle> sstFiles,
                 @Nonnull Map<StateHandleID, StreamStateHandle> miscFiles,
-                @Nonnull CloseableRegistry snapshotCloseableRegistry)
+                @Nonnull CloseableRegistry snapshotCloseableRegistry,
+                @Nonnull CloseableRegistry tmpResourcesRegistry)
                 throws Exception {
 
             // write state data
@@ -355,13 +360,15 @@ public class RocksIncrementalSnapshotStrategy<K>
                                 sstFilePaths,
                                 checkpointStreamFactory,
                                 stateScope,
-                                snapshotCloseableRegistry));
+                                snapshotCloseableRegistry,
+                                tmpResourcesRegistry));
                 miscFiles.putAll(
                         stateUploader.uploadFilesToCheckpointFs(
                                 miscFilePaths,
                                 checkpointStreamFactory,
                                 stateScope,
-                                snapshotCloseableRegistry));
+                                snapshotCloseableRegistry,
+                                tmpResourcesRegistry));
 
                 synchronized (uploadedStateIDs) {
                     switch (sharingFilesStrategy) {

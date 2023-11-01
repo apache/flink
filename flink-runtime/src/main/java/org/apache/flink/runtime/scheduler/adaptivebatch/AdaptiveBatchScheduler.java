@@ -203,7 +203,10 @@ public class AdaptiveBatchScheduler extends DefaultScheduler {
 
         } else {
             parallelism =
-                    vertexParallelismDecider.decideParallelismForVertex(consumedResultsInfo.get());
+                    vertexParallelismDecider.decideParallelismForVertex(
+                            jobVertex.getJobVertexId(),
+                            consumedResultsInfo.get(),
+                            jobVertex.getMaxParallelism());
             if (forwardGroup != null) {
                 forwardGroup.setParallelism(parallelism);
             }

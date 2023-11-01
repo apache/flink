@@ -2,7 +2,7 @@ public class TestNotSplitJavaCode {
     private int a = 1;
     public final int[] b;
 
-    public TestSplitJavaCode(int[] b) {
+    public TestNotSplitJavaCode(int[] b) {
         this.b = b;
     }
 

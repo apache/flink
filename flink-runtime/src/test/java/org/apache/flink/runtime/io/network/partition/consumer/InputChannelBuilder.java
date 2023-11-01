@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -38,7 +39,7 @@ import static org.apache.flink.runtime.io.network.partition.consumer.SingleInput
 /** Builder for various {@link InputChannel} types. */
 public class InputChannelBuilder {
     public static final ConnectionID STUB_CONNECTION_ID =
-            new ConnectionID(new InetSocketAddress("localhost", 5000), 0);
+            new ConnectionID(ResourceID.generate(), new InetSocketAddress("localhost", 5000), 0);
 
     private int channelIndex = 0;
     private ResultPartitionID partitionId = new ResultPartitionID();

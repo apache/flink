@@ -209,6 +209,8 @@ class FlattenRowCoderImpl(FieldCoderImpl):
         self._mask_utils = MaskUtils(self._field_count)
 
     def encode_to_stream(self, value, out_stream: OutputStream):
+        if not isinstance(value, List):
+            raise TypeError('Expected list, got {0}'.format(type(value)))
         # encode mask value
         self._mask_utils.write_mask(value, 0, out_stream)
 

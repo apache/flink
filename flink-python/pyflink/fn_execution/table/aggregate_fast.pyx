@@ -456,7 +456,7 @@ cdef class GroupAggFunctionBase:
 
     cpdef void on_timer(self, InternalRow key):
         if self.state_cleaning_enabled:
-            self.state_backend.set_current_key(key)
+            self.state_backend.set_current_key(list(key.values))
             accumulator_state = self.state_backend.get_value_state(
                 "accumulators", self.state_value_coder)
             accumulator_state.clear()

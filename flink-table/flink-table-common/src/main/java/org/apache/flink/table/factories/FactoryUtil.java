@@ -52,11 +52,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -801,27 +802,34 @@ public final class FactoryUtil {
     }
 
     static List<Factory> discoverFactories(ClassLoader classLoader) {
-        final List<Factory> result = new LinkedList<>();
-        ServiceLoaderUtil.load(Factory.class, classLoader)
-                .forEach(
-                        loadResult -> {
-                            if (loadResult.hasFailed()) {
-                                if (loadResult.getError() instanceof NoClassDefFoundError) {
-                                    LOG.debug(
-                                            "NoClassDefFoundError when loading a "
-                                                    + Factory.class
-                                                    + ". This is expected when trying to load a format dependency but no flink-connector-files is loaded.",
-                                            loadResult.getError());
-                                    // After logging, we just ignore this failure
-                                    return;
-                                }
-                                throw new TableException(
-                                        "Unexpected error when trying to load service provider for factories.",
-                                        loadResult.getError());
-                            }
-                            result.add(loadResult.getService());
-                        });
-        return result;
+        final Iterator<Factory> serviceLoaderIterator =
+                ServiceLoader.load(Factory.class, classLoader).iterator();
+
+        final List<Factory> loadResults = new ArrayList<>();
+        while (true) {
+            try {
+                // error handling should also be applied to the hasNext() call because service
+                // loading might cause problems here as well
+                if (!serviceLoaderIterator.hasNext()) {
+                    break;
+                }
+
+                loadResults.add(serviceLoaderIterator.next());
+            } catch (Throwable t) {
+                if (t instanceof NoClassDefFoundError) {
+                    LOG.debug(
+                            "NoClassDefFoundError when loading a "
+                                    + Factory.class.getCanonicalName()
+                                    + ". This is expected when trying to load a format dependency but no flink-connector-files is loaded.",
+                            t);
+                } else {
+                    throw new TableException(
+                            "Unexpected error when trying to load service provider.", t);
+                }
+            }
+        }
+
+        return loadResults;
     }
 
     private static String stringifyOption(String key, String value) {

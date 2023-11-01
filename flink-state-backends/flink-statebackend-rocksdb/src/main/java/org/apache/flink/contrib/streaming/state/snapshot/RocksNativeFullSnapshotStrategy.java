@@ -33,7 +33,6 @@ import org.apache.flink.runtime.state.LocalRecoveryConfig;
 import org.apache.flink.runtime.state.SnapshotDirectory;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateHandleID;
-import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.Preconditions;
@@ -46,7 +45,6 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -174,6 +172,7 @@ public class RocksNativeFullSnapshotStrategy<K>
                 metaStateHandle =
                         materializeMetaData(
                                 snapshotCloseableRegistry,
+                                tmpResourcesRegistry,
                                 stateMetaInfoSnapshots,
                                 checkpointId,
                                 checkpointStreamFactory);
@@ -184,7 +183,7 @@ public class RocksNativeFullSnapshotStrategy<K>
                         metaStateHandle.getJobManagerOwnedSnapshot(),
                         "Metadata for job manager was not properly created.");
 
-                uploadSstFiles(privateFiles, snapshotCloseableRegistry);
+                uploadSstFiles(privateFiles, snapshotCloseableRegistry, tmpResourcesRegistry);
                 long checkpointedSize = metaStateHandle.getStateSize();
                 checkpointedSize += getUploadedStateSize(privateFiles.values());
 
@@ -215,18 +214,15 @@ public class RocksNativeFullSnapshotStrategy<K>
                 return snapshotResult;
             } finally {
                 if (!completed) {
-                    final List<StateObject> statesToDiscard =
-                            new ArrayList<>(1 + privateFiles.size());
-                    statesToDiscard.add(metaStateHandle);
-                    statesToDiscard.addAll(privateFiles.values());
-                    cleanupIncompleteSnapshot(statesToDiscard, localBackupDirectory);
+                    cleanupIncompleteSnapshot(tmpResourcesRegistry, localBackupDirectory);
                 }
             }
         }
 
         private void uploadSstFiles(
                 @Nonnull Map<StateHandleID, StreamStateHandle> privateFiles,
-                @Nonnull CloseableRegistry snapshotCloseableRegistry)
+                @Nonnull CloseableRegistry snapshotCloseableRegistry,
+                @Nonnull CloseableRegistry tmpResourcesRegistry)
                 throws Exception {
 
             // write state data
@@ -248,7 +244,8 @@ public class RocksNativeFullSnapshotStrategy<K>
                                 privateFilePaths,
                                 checkpointStreamFactory,
                                 CheckpointedStateScope.EXCLUSIVE,
-                                snapshotCloseableRegistry));
+                                snapshotCloseableRegistry,
+                                tmpResourcesRegistry));
             }
         }
     }

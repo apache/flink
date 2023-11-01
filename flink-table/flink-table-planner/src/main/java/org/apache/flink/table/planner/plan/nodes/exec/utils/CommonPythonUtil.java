@@ -47,6 +47,7 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
+import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.utils.AggregateInfo;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment;
@@ -70,10 +71,12 @@ import org.apache.flink.table.types.logical.StructuredType;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.fun.SqlCastFunction;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.lang.reflect.Field;
@@ -438,22 +441,32 @@ public class CommonPythonUtil {
         for (RexNode operand : pythonRexCall.getOperands()) {
             if (operand instanceof RexCall) {
                 RexCall childPythonRexCall = (RexCall) operand;
-                PythonFunctionInfo argPythonInfo =
-                        createPythonFunctionInfo(childPythonRexCall, inputNodes, classLoader);
-                inputs.add(argPythonInfo);
+                if (childPythonRexCall.getOperator() instanceof SqlCastFunction
+                        && childPythonRexCall.getOperands().get(0) instanceof RexInputRef
+                        && childPythonRexCall.getOperands().get(0).getType()
+                                instanceof TimeIndicatorRelDataType) {
+                    operand = childPythonRexCall.getOperands().get(0);
+                } else {
+                    PythonFunctionInfo argPythonInfo =
+                            createPythonFunctionInfo(childPythonRexCall, inputNodes, classLoader);
+                    inputs.add(argPythonInfo);
+                    continue;
+                }
             } else if (operand instanceof RexLiteral) {
                 RexLiteral literal = (RexLiteral) operand;
                 inputs.add(
                         convertLiteralToPython(
                                 literal, literal.getType().getSqlTypeName(), classLoader));
+                continue;
+            }
+
+            assert operand instanceof RexInputRef;
+            if (inputNodes.containsKey(operand)) {
+                inputs.add(inputNodes.get(operand));
             } else {
-                if (inputNodes.containsKey(operand)) {
-                    inputs.add(inputNodes.get(operand));
-                } else {
-                    Integer inputOffset = inputNodes.size();
-                    inputs.add(inputOffset);
-                    inputNodes.put(operand, inputOffset);
-                }
+                Integer inputOffset = inputNodes.size();
+                inputs.add(inputOffset);
+                inputNodes.put(operand, inputOffset);
             }
         }
         return new PythonFunctionInfo((PythonFunction) functionDefinition, inputs.toArray());

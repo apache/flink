@@ -27,6 +27,8 @@ from threading import RLock
 
 from py4j.java_gateway import (java_import, logger, JavaGateway, GatewayParameters,
                                CallbackServerParameters)
+
+from pyflink.find_flink_home import _find_flink_home
 from pyflink.pyflink_gateway_server import launch_gateway_server_process
 from pyflink.util.exceptions import install_exception_handler, install_py4j_hooks
 
@@ -100,6 +102,8 @@ def launch_gateway():
         os.close(fd)
         os.unlink(conn_info_file)
 
+        _find_flink_home()
+
         env = dict(os.environ)
         env["_PYFLINK_CONN_INFO_PATH"] = conn_info_file
 
@@ -109,7 +113,11 @@ def launch_gateway():
             time.sleep(0.1)
 
         if not os.path.isfile(conn_info_file):
-            raise Exception("Java gateway process exited before sending its port number")
+            stderr_info = p.stderr.read().decode('utf-8')
+            raise RuntimeError(
+                "Java gateway process exited before sending its port number.\nStderr:\n"
+                + stderr_info
+            )
 
         with open(conn_info_file, "rb") as info:
             gateway_port = struct.unpack("!I", info.read(4))[0]

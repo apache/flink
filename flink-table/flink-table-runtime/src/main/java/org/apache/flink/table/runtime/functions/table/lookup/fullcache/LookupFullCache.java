@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.functions.table.lookup.fullcache;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
@@ -27,12 +28,14 @@ import org.apache.flink.table.connector.source.lookup.LookupOptions.LookupCacheT
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.trigger.CacheReloadTrigger;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Internal implementation of {@link LookupCache} for {@link LookupCacheType#FULL}. */
+@Internal
 public class LookupFullCache implements LookupCache {
     private static final long serialVersionUID = 1L;
 
@@ -45,9 +48,15 @@ public class LookupFullCache implements LookupCache {
     // Cache metrics
     private transient Counter hitCounter; // equals to number of requests
 
+    private transient ClassLoader userCodeClassLoader;
+
     public LookupFullCache(CacheLoader cacheLoader, CacheReloadTrigger reloadTrigger) {
-        this.cacheLoader = Preconditions.checkNotNull(cacheLoader);
-        this.reloadTrigger = Preconditions.checkNotNull(reloadTrigger);
+        this.cacheLoader = checkNotNull(cacheLoader);
+        this.reloadTrigger = checkNotNull(reloadTrigger);
+    }
+
+    public void setUserCodeClassLoader(ClassLoader userCodeClassLoader) {
+        this.userCodeClassLoader = userCodeClassLoader;
     }
 
     @Override
@@ -57,25 +66,31 @@ public class LookupFullCache implements LookupCache {
         }
         metricGroup.hitCounter(hitCounter);
         metricGroup.missCounter(new SimpleCounter()); // always zero
-        cacheLoader.open(metricGroup);
-    }
+        cacheLoader.initializeMetrics(metricGroup);
 
-    public synchronized void open(Configuration parameters) throws Exception {
         if (reloadTriggerContext == null) {
-            cacheLoader.open(parameters);
-            reloadTriggerContext =
-                    new ReloadTriggerContext(
-                            cacheLoader,
-                            th -> {
-                                if (reloadFailCause == null) {
-                                    reloadFailCause = th;
-                                } else {
-                                    reloadFailCause.addSuppressed(th);
-                                }
-                            });
+            try {
+                // TODO add Configuration into FunctionContext and pass in into LookupFullCache
+                checkNotNull(
+                        userCodeClassLoader,
+                        "User code classloader must be initialized before opening full cache");
+                cacheLoader.open(new Configuration(), userCodeClassLoader);
+                reloadTriggerContext =
+                        new ReloadTriggerContext(
+                                cacheLoader::reloadAsync,
+                                th -> {
+                                    if (reloadFailCause == null) {
+                                        reloadFailCause = th;
+                                    } else {
+                                        reloadFailCause.addSuppressed(th);
+                                    }
+                                });
 
-            reloadTrigger.open(reloadTriggerContext);
-            cacheLoader.awaitFirstLoad();
+                reloadTrigger.open(reloadTriggerContext);
+                cacheLoader.awaitFirstLoad();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to open lookup 'FULL' cache.", e);
+            }
         }
     }
 
@@ -109,7 +124,9 @@ public class LookupFullCache implements LookupCache {
 
     @Override
     public void close() throws Exception {
-        reloadTrigger.close(); // firstly try to interrupt reload thread
+        // stops scheduled thread pool that's responsible for scheduling cache updates
+        reloadTrigger.close();
+        // stops thread pool that's responsible for executing the actual cache update
         cacheLoader.close();
     }
 }

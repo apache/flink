@@ -298,7 +298,7 @@ public class KafkaSourceEnumerator
         if (t != null) {
             throw new FlinkRuntimeException("Failed to initialize partition splits due to ", t);
         }
-        if (partitionDiscoveryIntervalMs < 0) {
+        if (partitionDiscoveryIntervalMs <= 0) {
             LOG.debug("Partition discovery is disabled.");
             noMoreNewPartitionSplits = true;
         }
@@ -612,6 +612,10 @@ public class KafkaSourceEnumerator
                                                             OffsetSpec.forTimestamp(
                                                                     entry.getValue()))))
                     .entrySet().stream()
+                    // OffsetAndTimestamp cannot be initialized with a negative offset, which is
+                    // possible if the timestamp does not correspond to an offset and the topic
+                    // partition is empty
+                    .filter(entry -> entry.getValue().offset() >= 0)
                     .collect(
                             Collectors.toMap(
                                     Map.Entry::getKey,

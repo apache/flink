@@ -398,22 +398,20 @@ class HsSubpartitionFileReaderImplTest {
         // if no preload data in file reader, return Optional.empty.
         assertThat(subpartitionFileReader.consumeBuffer(0)).isNotPresent();
 
-        // buffers in file: (0-0, 0-1)
-        writeDataToFile(0, 0, 0, 2);
+        // buffers in file: (0-0, 0-1, 0-2)
+        writeDataToFile(0, 0, 0, 3);
 
-        Queue<MemorySegment> memorySegments = createsMemorySegments(2);
+        Queue<MemorySegment> memorySegments = createsMemorySegments(3);
         subpartitionFileReader.prepareForScheduling();
         // trigger reading, add buffer to queue.
         subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
 
-        // if nextBufferToConsume is not equal to peek elements index, return Optional.empty.
-        assertThat(subpartitionFileReader.consumeBuffer(10)).isNotPresent();
-
+        // if nextBufferToConsume is equal to peek elements index.
         assertThat(subpartitionFileReader.consumeBuffer(0))
                 .hasValueSatisfying(
                         (bufferAndBacklog -> {
                             assertThat(bufferAndBacklog.getNextDataType())
-                                    .isEqualTo(DataType.EVENT_BUFFER);
+                                    .isEqualTo(DataType.DATA_BUFFER);
                             assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(0);
                             // first buffer's data is 0.
                             assertThat(
@@ -424,6 +422,26 @@ class HsSubpartitionFileReaderImplTest {
                                                     .getInt())
                                     .isEqualTo(0);
                         }));
+
+        // if nextBufferToConsume is less than peek elements index, return Optional.empty.
+        assertThat(subpartitionFileReader.consumeBuffer(0)).isNotPresent();
+
+        // if nextBufferToConsume is greater than peek elements index, skip this buffer and keep
+        // looking.
+        assertThat(subpartitionFileReader.consumeBuffer(2))
+                .hasValueSatisfying(
+                        (bufferAndBacklog -> {
+                            assertThat(bufferAndBacklog.getNextDataType()).isEqualTo(DataType.NONE);
+                            assertThat(bufferAndBacklog.getSequenceNumber()).isEqualTo(2);
+                            assertThat(
+                                            bufferAndBacklog
+                                                    .buffer()
+                                                    .getNioBufferReadable()
+                                                    .order(ByteOrder.nativeOrder())
+                                                    .getInt())
+                                    .isEqualTo(2);
+                        }));
+        assertThat(subpartitionFileReader.getLoadedBuffers()).isEmpty();
     }
 
     @Test
@@ -454,20 +472,24 @@ class HsSubpartitionFileReaderImplTest {
         // if no preload data in file reader, return DataType.NONE.
         assertThat(subpartitionFileReader.peekNextToConsumeDataType(0)).isEqualTo(DataType.NONE);
 
-        // buffers in file: (0-0, 0-1)
-        writeDataToFile(0, 0, 2);
+        // buffers in file: (0-0, 0-1, 0-2)
+        writeDataToFile(0, 0, 3);
 
-        Queue<MemorySegment> memorySegments = createsMemorySegments(2);
+        Queue<MemorySegment> memorySegments = createsMemorySegments(3);
         subpartitionFileReader.prepareForScheduling();
         // trigger reading, add buffer to queue.
         subpartitionFileReader.readBuffers(memorySegments, (ignore) -> {});
 
-        // if nextBufferToConsume is not equal to peek elements index, return DataType.NONE.
-        assertThat(subpartitionFileReader.peekNextToConsumeDataType(10)).isEqualTo(DataType.NONE);
-
         // if nextBufferToConsume is equal to peek elements index, return the real DataType.
         assertThat(subpartitionFileReader.peekNextToConsumeDataType(0))
                 .isEqualTo(DataType.DATA_BUFFER);
+
+        // if nextBufferToConsume is greater than peek elements index, skip this buffer and keep
+        // looking.
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(2))
+                .isEqualTo(DataType.EVENT_BUFFER);
+        // if nextBufferToConsume is less than peek elements index, return DataType.NONE.
+        assertThat(subpartitionFileReader.peekNextToConsumeDataType(1)).isEqualTo(DataType.NONE);
     }
 
     /**

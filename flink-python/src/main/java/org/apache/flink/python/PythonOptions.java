@@ -36,7 +36,7 @@ public class PythonOptions {
     public static final ConfigOption<Integer> MAX_BUNDLE_SIZE =
             ConfigOptions.key("python.fn-execution.bundle.size")
                     .intType()
-                    .defaultValue(100000)
+                    .defaultValue(1000)
                     .withDescription(
                             "The maximum number of elements to include in a bundle for Python "
                                     + "user-defined function execution. The elements are processed asynchronously. "
@@ -57,7 +57,7 @@ public class PythonOptions {
     public static final ConfigOption<Integer> MAX_ARROW_BATCH_SIZE =
             ConfigOptions.key("python.fn-execution.arrow.batch.size")
                     .intType()
-                    .defaultValue(10000)
+                    .defaultValue(1000)
                     .withDescription(
                             "The maximum number of elements to include in an arrow batch for Python "
                                     + "user-defined function execution. The arrow batch size should not exceed the "
@@ -82,6 +82,14 @@ public class PythonOptions {
                                     + "will be displayed in the log file of the TaskManager periodically. "
                                     + "The interval between each profiling is determined by the config options "
                                     + "python.fn-execution.bundle.size and python.fn-execution.bundle.time.");
+
+    /** The configuration to enable or disable system env for Python execution. */
+    public static final ConfigOption<Boolean> PYTHON_SYSTEMENV_ENABLED =
+            ConfigOptions.key("python.systemenv.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Specify whether to load System Environment when starting Python worker.");
 
     /** The configuration to enable or disable python operator chaining. */
     public static final ConfigOption<Boolean> PYTHON_OPERATOR_CHAINING_ENABLED =

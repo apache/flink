@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
@@ -73,10 +72,11 @@ public class NettyShuffleDescriptorBuilder {
     }
 
     public NettyShuffleDescriptor buildRemote() {
-        ConnectionID connectionID =
-                new ConnectionID(new InetSocketAddress(address, dataPort), connectionIndex);
         return new NettyShuffleDescriptor(
-                producerLocation, new NetworkPartitionConnectionInfo(connectionID), id);
+                producerLocation,
+                new NetworkPartitionConnectionInfo(
+                        new InetSocketAddress(address, dataPort), connectionIndex),
+                id);
     }
 
     public NettyShuffleDescriptor buildLocal() {

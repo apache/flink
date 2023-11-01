@@ -215,4 +215,24 @@ public abstract class DecoratorWithPodTemplateTestBase extends KubernetesPodTest
         assertThat(this.resultPod.getMainContainer().getImagePullPolicy())
                 .isEqualTo(IMAGE_PULL_POLICY);
     }
+
+    @Test
+    void testDNSPolicyWithPodTemplate() {
+        assertThat(this.resultPod.getPodWithoutMainContainer().getSpec().getDnsPolicy())
+                .isEqualTo("None");
+    }
+
+    @Test
+    void testDNSPolicyOverwritten() throws Exception {
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED, true);
+        final FlinkPod podTemplate =
+                KubernetesUtils.loadPodFromTemplateFile(
+                        flinkKubeClient,
+                        KubernetesPodTemplateTestUtils.getPodTemplateFile(),
+                        KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
+        final FlinkPod newResultPod = getResultPod(podTemplate);
+        assertThat(newResultPod.getPodWithoutMainContainer().getSpec().getDnsPolicy())
+                .isEqualTo(Constants.DNS_POLICY_HOSTNETWORK);
+        flinkConfig.set(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED, false);
+    }
 }

@@ -30,6 +30,7 @@ import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /** ITCase to test csv format for {@link CsvFileFormatFactory} in batch mode. */
@@ -113,6 +114,16 @@ public class CsvFilesystemBatchITCase {
             check(
                     "select * from nonPartitionedTable",
                     Arrays.asList(Row.of("x5", 5, 1, 1), Row.of("x5", 5, 2, 2)));
+        }
+
+        @Test
+        public void testEmpty() throws Exception {
+            String path = new URI(resultPath()).getPath();
+            new File(path).mkdirs();
+            File file = new File(path, "test_file");
+            file.createNewFile();
+
+            check("select * from nonPartitionedTable", Collections.emptyList());
         }
     }
 }

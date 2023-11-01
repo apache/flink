@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -35,13 +36,18 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.rex.RexVisitor;
+import org.apache.calcite.rex.RexVisitorImpl;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBeans;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.ImmutableIntList;
+import org.apache.calcite.util.Util;
 
 import javax.annotation.Nullable;
 
@@ -49,9 +55,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.plan.RelOptUtil.conjunctions;
@@ -75,6 +83,20 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
             FlinkFilterIntoJoinRule.Config.DEFAULT.toRule();
     public static final FlinkJoinConditionPushRule JOIN_CONDITION_PUSH =
             FlinkJoinConditionPushRule.Config.DEFAULT.toRule();
+
+    // For left/right join, not all filter conditions support push to another side after deduction.
+    // This set specifies the supported filter conditions.
+    public static final Set<SqlKind> SUITABLE_FILTER_TO_PUSH =
+            new HashSet() {
+                {
+                    add(SqlKind.EQUALS);
+                    add(SqlKind.GREATER_THAN);
+                    add(SqlKind.GREATER_THAN_OR_EQUAL);
+                    add(SqlKind.LESS_THAN);
+                    add(SqlKind.LESS_THAN_OR_EQUAL);
+                    add(SqlKind.NOT_EQUALS);
+                }
+            };
 
     /** Creates a FilterJoinRule. */
     protected FlinkFilterJoinRule(C config) {
@@ -349,7 +371,7 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         for (RexNode filter : filtersToPush) {
             final RelOptUtil.InputFinder inputFinder = RelOptUtil.InputFinder.analyze(filter);
             final ImmutableBitSet inputBits = inputFinder.build();
-            if (filter.isAlwaysTrue()) {
+            if (!isSuitableFilterToPush(filter, joinType)) {
                 continue;
             }
 
@@ -380,6 +402,30 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                 }
             }
         }
+    }
+
+    private boolean isSuitableFilterToPush(RexNode filter, JoinRelType joinType) {
+        if (filter.isAlwaysTrue()) {
+            return false;
+        }
+        if (joinType == JoinRelType.INNER) {
+            return true;
+        }
+        // For left/right outer join, now, we only support to push special condition in set
+        // SUITABLE_FILTER_TO_PUSH to other side. Take left outer join and IS_NULL condition as an
+        // example, If the join right side contains an IS_NULL filter, while we try to push it to
+        // the join left side and the left side have any other filter on this column, which will
+        // conflict and generate wrong plan.
+        if ((joinType == JoinRelType.LEFT || joinType == JoinRelType.RIGHT)
+                && filter instanceof RexCall) {
+            RexCall rexCall = (RexCall) filter;
+            if (SUITABLE_FILTER_TO_PUSH.contains(rexCall.op.kind)
+                    && (rexCall.getOperands().get(0) instanceof RexLiteral
+                            || rexCall.getOperands().get(1) instanceof RexLiteral)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private RexNode remapFilter(
@@ -415,6 +461,12 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         }
 
         @Override
+        public boolean matches(RelOptRuleCall call) {
+            Join join = call.rel(0);
+            return !isEventTimeTemporalJoin(join.getCondition()) && super.matches(call);
+        }
+
+        @Override
         public void onMatch(RelOptRuleCall call) {
             Join join = call.rel(0);
             perform(call, null, join);
@@ -440,6 +492,8 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
      * Rule that tries to push filter expressions into a join condition and into the inputs of the
      * join.
      *
+     * <p>Note: It never pushes a filter into an event time temporal join in streaming.
+     *
      * @see CoreRules#FILTER_INTO_JOIN
      */
     public static class FlinkFilterIntoJoinRule
@@ -447,6 +501,12 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         /** Creates a FlinkFilterIntoJoinRule. */
         protected FlinkFilterIntoJoinRule(FlinkFilterIntoJoinRule.Config config) {
             super(config);
+        }
+
+        @Override
+        public boolean matches(RelOptRuleCall call) {
+            Join join = call.rel(1);
+            return !isEventTimeTemporalJoin(join.getCondition()) && super.matches(call);
         }
 
         @Override
@@ -476,6 +536,26 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
                 return new FlinkFilterIntoJoinRule(this);
             }
         }
+    }
+
+    protected boolean isEventTimeTemporalJoin(RexNode joinCondition) {
+        RexVisitor<Void> temporalConditionFinder =
+                new RexVisitorImpl<Void>(true) {
+                    @Override
+                    public Void visitCall(RexCall call) {
+                        if (call.getOperator() == TemporalJoinUtil.INITIAL_TEMPORAL_JOIN_CONDITION()
+                                && TemporalJoinUtil.isInitialRowTimeTemporalTableJoin(call)) {
+                            throw new Util.FoundOne(call);
+                        }
+                        return super.visitCall(call);
+                    }
+                };
+        try {
+            joinCondition.accept(temporalConditionFinder);
+        } catch (Util.FoundOne found) {
+            return true;
+        }
+        return false;
     }
 
     /**

@@ -49,7 +49,7 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.hudi:hudi-presto-bundle:0.10.1
 - org.weakref:jmxutils:1.19
 - software.amazon.ion:ion-java:1.0.2
-- org.xerial.snappy:snappy-java:1.1.8.3
+- org.xerial.snappy:snappy-java:1.1.10.1
 - org.apache.hadoop.thirdparty:hadoop-shaded-protobuf_3_7:1.1.1
 - org.apache.hadoop.thirdparty:hadoop-shaded-guava:1.1.1
 - org.apache.kerby:kerb-core:1.0.1

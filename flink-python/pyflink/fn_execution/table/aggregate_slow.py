@@ -436,9 +436,9 @@ class GroupAggFunctionBase(object):
         except KeyError:
             self.buffer[tuple(key)] = [input_data]
 
-    def on_timer(self, key):
+    def on_timer(self, key: Row):
         if self.state_cleaning_enabled:
-            self.state_backend.set_current_key(key)
+            self.state_backend.set_current_key(list(key._values))
             accumulator_state = self.state_backend.get_value_state(
                 "accumulators", self.state_value_coder)
             accumulator_state.clear()

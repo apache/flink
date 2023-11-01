@@ -29,6 +29,10 @@ import akka.actor.Extension;
 public class RemoteAddressExtension
         extends AbstractExtensionId<RemoteAddressExtension.RemoteAddressExtensionImpl> {
 
+    public static final RemoteAddressExtension INSTANCE = new RemoteAddressExtension();
+
+    private RemoteAddressExtension() {}
+
     @Override
     public RemoteAddressExtensionImpl createExtension(ExtendedActorSystem system) {
         return new RemoteAddressExtensionImpl(system);

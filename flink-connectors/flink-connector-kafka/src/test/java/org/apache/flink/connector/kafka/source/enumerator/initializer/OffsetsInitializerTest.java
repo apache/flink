@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class OffsetsInitializerTest {
     private static final String TOPIC = "topic";
     private static final String TOPIC2 = "topic2";
+    private static final String EMPTY_TOPIC3 = "topic3";
     private static KafkaSourceEnumerator.PartitionOffsetsRetrieverImpl retriever;
 
     @BeforeClass
@@ -47,6 +49,8 @@ public class OffsetsInitializerTest {
         KafkaSourceTestEnv.setup();
         KafkaSourceTestEnv.setupTopic(TOPIC, true, true, KafkaSourceTestEnv::getRecordsForTopic);
         KafkaSourceTestEnv.setupTopic(TOPIC2, false, false, KafkaSourceTestEnv::getRecordsForTopic);
+        KafkaSourceTestEnv.createTestTopic(EMPTY_TOPIC3);
+
         retriever =
                 new KafkaSourceEnumerator.PartitionOffsetsRetrieverImpl(
                         KafkaSourceTestEnv.getAdminClient(), KafkaSourceTestEnv.GROUP_ID);
@@ -107,7 +111,19 @@ public class OffsetsInitializerTest {
                     long expectedOffset = tp.partition() > 2 ? tp.partition() : 3L;
                     assertThat((long) offset).isEqualTo(expectedOffset);
                 });
-        assertThat(initializer.getAutoOffsetResetStrategy()).isEqualTo(OffsetResetStrategy.NONE);
+        assertThat(initializer.getAutoOffsetResetStrategy()).isEqualTo(OffsetResetStrategy.LATEST);
+    }
+
+    @Test
+    public void testTimestampOffsetsInitializerForEmptyPartitions() {
+        OffsetsInitializer initializer = OffsetsInitializer.timestamp(2001);
+        List<TopicPartition> partitions = KafkaSourceTestEnv.getPartitionsForTopic(EMPTY_TOPIC3);
+        Map<TopicPartition, Long> expectedOffsets =
+                partitions.stream().collect(Collectors.toMap(tp -> tp, tp -> 0L));
+        assertThat(initializer.getPartitionOffsets(partitions, retriever))
+                .as("offsets are equal to 0 since the timestamp is out of range.")
+                .isEqualTo(expectedOffsets);
+        assertThat(initializer.getAutoOffsetResetStrategy()).isEqualTo(OffsetResetStrategy.LATEST);
     }
 
     @Test

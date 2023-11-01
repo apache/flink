@@ -29,9 +29,7 @@ import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,9 +37,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -49,10 +45,8 @@ import static org.mockito.Mockito.verify;
 /** Unit tests for the {@link CompletedCheckpoint}. */
 public class CompletedCheckpointTest {
 
-    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
-
     @Test
-    public void testCompareCheckpointsWithDifferentOrder() {
+    void testCompareCheckpointsWithDifferentOrder() {
 
         CompletedCheckpoint checkpoint1 =
                 new CompletedCheckpoint(
@@ -90,11 +84,11 @@ public class CompletedCheckpointTest {
         checkpoints2.add(checkpoint1);
         checkpoints2.add(checkpoint2);
 
-        assertFalse(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2));
+        assertThat(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2)).isFalse();
     }
 
     @Test
-    public void testCompareCheckpointsWithSameOrder() {
+    void testCompareCheckpointsWithSameOrder() {
 
         CompletedCheckpoint checkpoint1 =
                 new CompletedCheckpoint(
@@ -132,12 +126,12 @@ public class CompletedCheckpointTest {
         checkpoints2.add(checkpoint2);
         checkpoints2.add(checkpoint1);
 
-        assertTrue(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2));
+        assertThat(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2)).isTrue();
     }
 
     /** Verify that both JobID and checkpoint id are taken into account when comparing. */
     @Test
-    public void testCompareCheckpointsWithSameJobID() {
+    void testCompareCheckpointsWithSameJobID() {
         JobID jobID = new JobID();
 
         CompletedCheckpoint checkpoint1 =
@@ -172,12 +166,12 @@ public class CompletedCheckpointTest {
         List<CompletedCheckpoint> checkpoints2 = new ArrayList<>();
         checkpoints2.add(checkpoint2);
 
-        assertFalse(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2));
+        assertThat(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2)).isFalse();
     }
 
     /** Verify that both JobID and checkpoint id are taken into account when comparing. */
     @Test
-    public void testCompareCheckpointsWithSameCheckpointId() {
+    void testCompareCheckpointsWithSameCheckpointId() {
         JobID jobID1 = new JobID();
         JobID jobID2 = new JobID();
 
@@ -213,11 +207,11 @@ public class CompletedCheckpointTest {
         List<CompletedCheckpoint> checkpoints2 = new ArrayList<>();
         checkpoints2.add(checkpoint2);
 
-        assertFalse(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2));
+        assertThat(CompletedCheckpoint.checkpointsMatch(checkpoints1, checkpoints2)).isFalse();
     }
 
     @Test
-    public void testRegisterStatesAtRegistry() {
+    void testRegisterStatesAtRegistry() {
         OperatorState state = mock(OperatorState.class);
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         operatorStates.put(new OperatorID(), state);
@@ -242,7 +236,7 @@ public class CompletedCheckpointTest {
 
     /** Tests that the garbage collection properties are respected when subsuming checkpoints. */
     @Test
-    public void testCleanUpOnSubsume() throws Exception {
+    void testCleanUpOnSubsume() throws Exception {
         OperatorState state = mock(OperatorState.class);
         Map<OperatorID, OperatorState> operatorStates = new HashMap<>();
         operatorStates.put(new OperatorID(), state);
@@ -275,13 +269,13 @@ public class CompletedCheckpointTest {
         checkpoint.markAsDiscardedOnSubsume().discard();
 
         verify(state, times(1)).discardState();
-        assertTrue(location.isDisposed());
-        assertTrue(metadata.isDisposed());
+        assertThat(location.isDisposed()).isTrue();
+        assertThat(metadata.isDisposed()).isTrue();
     }
 
     /** Tests that the garbage collection properties are respected when shutting down. */
     @Test
-    public void testCleanUpOnShutdown() throws Exception {
+    void testCleanUpOnShutdown() throws Exception {
         JobStatus[] terminalStates =
                 new JobStatus[] {
                     JobStatus.FINISHED, JobStatus.CANCELED, JobStatus.FAILED, JobStatus.SUSPENDED
@@ -323,8 +317,8 @@ public class CompletedCheckpointTest {
             checkpoint.markAsDiscardedOnShutdown(status).discard();
 
             verify(state, times(0)).discardState();
-            assertFalse(retainedLocation.isDisposed());
-            assertFalse(retainedHandle.isDisposed());
+            assertThat(retainedLocation.isDisposed()).isFalse();
+            assertThat(retainedHandle.isDisposed()).isFalse();
 
             // Discard
             EmptyStreamStateHandle discardHandle = new EmptyStreamStateHandle();
@@ -351,14 +345,14 @@ public class CompletedCheckpointTest {
             checkpoint.markAsDiscardedOnShutdown(status).discard();
 
             verify(state, times(1)).discardState();
-            assertTrue(discardLocation.isDisposed());
-            assertTrue(discardHandle.isDisposed());
+            assertThat(discardLocation.isDisposed()).isTrue();
+            assertThat(discardHandle.isDisposed()).isTrue();
         }
     }
 
     /** Tests that the stats callbacks happen if the callback is registered. */
     @Test
-    public void testCompletedCheckpointStatsCallbacks() throws Exception {
+    void testCompletedCheckpointStatsCallbacks() throws Exception {
         Map<JobVertexID, TaskStateStats> taskStats = new HashMap<>();
         JobVertexID jobVertexId = new JobVertexID();
         taskStats.put(jobVertexId, new TaskStateStats(jobVertexId, 1));
@@ -374,6 +368,7 @@ public class CompletedCheckpointTest {
                         1,
                         1,
                         1,
+                        true,
                         mock(SubtaskStateStats.class),
                         null);
         CompletedCheckpoint completed =
@@ -390,11 +385,11 @@ public class CompletedCheckpointTest {
                         checkpointStats);
 
         completed.markAsDiscardedOnShutdown(JobStatus.FINISHED).discard();
-        assertTrue(checkpointStats.isDiscarded());
+        assertThat(checkpointStats.isDiscarded()).isTrue();
     }
 
     @Test
-    public void testIsJavaSerializable() throws Exception {
+    void testIsJavaSerializable() throws Exception {
         TaskStateStats task1 = new TaskStateStats(new JobVertexID(), 3);
         TaskStateStats task2 = new TaskStateStats(new JobVertexID(), 4);
 
@@ -414,26 +409,26 @@ public class CompletedCheckpointTest {
                         123129837912L,
                         42L,
                         44L,
+                        true,
                         new SubtaskStateStats(
                                 123, 213123, 123123, 123123, 0, 0, 0, 0, 0, 0, false, true),
                         null);
 
         CompletedCheckpointStats copy = CommonTestUtils.createCopySerializable(completed);
 
-        assertEquals(completed.getCheckpointId(), copy.getCheckpointId());
-        assertEquals(completed.getTriggerTimestamp(), copy.getTriggerTimestamp());
-        assertEquals(completed.getProperties(), copy.getProperties());
-        assertEquals(completed.getNumberOfSubtasks(), copy.getNumberOfSubtasks());
-        assertEquals(
-                completed.getNumberOfAcknowledgedSubtasks(),
-                copy.getNumberOfAcknowledgedSubtasks());
-        assertEquals(completed.getEndToEndDuration(), copy.getEndToEndDuration());
-        assertEquals(completed.getStateSize(), copy.getStateSize());
-        assertEquals(completed.getProcessedData(), copy.getProcessedData());
-        assertEquals(completed.getPersistedData(), copy.getPersistedData());
-        assertEquals(
-                completed.getLatestAcknowledgedSubtaskStats().getSubtaskIndex(),
-                copy.getLatestAcknowledgedSubtaskStats().getSubtaskIndex());
-        assertEquals(completed.getStatus(), copy.getStatus());
+        assertThat(copy.getCheckpointId()).isEqualTo(completed.getCheckpointId());
+        assertThat(copy.getTriggerTimestamp()).isEqualTo(completed.getTriggerTimestamp());
+        assertThat(copy.getProperties()).isEqualTo(completed.getProperties());
+        assertThat(copy.getNumberOfSubtasks()).isEqualTo(completed.getNumberOfSubtasks());
+        assertThat(copy.getNumberOfAcknowledgedSubtasks())
+                .isEqualTo(completed.getNumberOfAcknowledgedSubtasks());
+        assertThat(copy.getEndToEndDuration()).isEqualTo(completed.getEndToEndDuration());
+        assertThat(copy.getStateSize()).isEqualTo(completed.getStateSize());
+        assertThat(copy.getProcessedData()).isEqualTo(completed.getProcessedData());
+        assertThat(copy.getPersistedData()).isEqualTo(completed.getPersistedData());
+        assertThat(copy.isUnalignedCheckpoint()).isEqualTo(completed.isUnalignedCheckpoint());
+        assertThat(copy.getLatestAcknowledgedSubtaskStats().getSubtaskIndex())
+                .isEqualTo(completed.getLatestAcknowledgedSubtaskStats().getSubtaskIndex());
+        assertThat(copy.getStatus()).isEqualTo(completed.getStatus());
     }
 }

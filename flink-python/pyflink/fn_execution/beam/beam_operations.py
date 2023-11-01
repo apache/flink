@@ -21,6 +21,13 @@ from apache_beam.runners import common
 from apache_beam.runners.worker import bundle_processor, operation_specs
 from apache_beam.utils import proto_utils
 
+from pyflink import fn_execution
+
+if fn_execution.PYFLINK_CYTHON_ENABLED:
+    import pyflink.fn_execution.beam.beam_operations_fast as beam_operations
+else:
+    import pyflink.fn_execution.beam.beam_operations_slow as beam_operations
+
 from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.coders import from_proto, from_type_info_proto, TimeWindowCoder, \
     CountWindowCoder, FlattenRowCoder
@@ -29,12 +36,6 @@ from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend, RemoteOpera
 import pyflink.fn_execution.datastream.operations as datastream_operations
 from pyflink.fn_execution.datastream.process import operations
 import pyflink.fn_execution.table.operations as table_operations
-
-try:
-    import pyflink.fn_execution.beam.beam_operations_fast as beam_operations
-except ImportError:
-    import pyflink.fn_execution.beam.beam_operations_slow as beam_operations
-
 
 # ----------------- UDF --------------------
 

@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 
-import org.junit.Before
+import org.junit.{Before, Test}
 
 class NestedLoopJoinTest extends JoinTestBase {
 
@@ -27,5 +27,13 @@ class NestedLoopJoinTest extends JoinTestBase {
   def before(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortMergeJoin, HashJoin")
+  }
+
+  @Test
+  def testLeftOuterJoinWithFilter1(): Unit = {
+    // Only support for nested loop join.
+    // We will push a = 10 into left side MyTable1 by derived from a = d and d = 10.
+    util.verifyExecPlan(
+      "SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d = 10 AND a < 12")
   }
 }

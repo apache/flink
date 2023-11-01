@@ -26,7 +26,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/** Tests for the RetryOnFailure annotation. */
+/** Tests for the {@link RetryOnFailure} annotation on JUnit5 {@link RetryExtension}. */
 @ExtendWith(RetryExtension.class)
 class RetryOnFailureExtensionTest {
 

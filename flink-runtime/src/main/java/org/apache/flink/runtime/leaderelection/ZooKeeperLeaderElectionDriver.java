@@ -166,11 +166,10 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
     private void retrieveLeaderInformationFromZooKeeper() throws Exception {
         if (leaderLatch.hasLeadership()) {
             ChildData childData = cache.getCurrentData(connectionInformationPath);
-            if (childData != null) {
-                leaderElectionEventHandler.onLeaderInformationChange(
-                        ZooKeeperUtils.readLeaderInformation(childData.getData()));
-            }
-            leaderElectionEventHandler.onLeaderInformationChange(LeaderInformation.empty());
+            leaderElectionEventHandler.onLeaderInformationChange(
+                    childData == null
+                            ? LeaderInformation.empty()
+                            : ZooKeeperUtils.readLeaderInformation(childData.getData()));
         }
     }
 

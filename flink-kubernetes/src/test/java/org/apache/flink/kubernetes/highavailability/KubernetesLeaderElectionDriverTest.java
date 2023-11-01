@@ -20,6 +20,8 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesException;
+import org.apache.flink.runtime.leaderelection.LeaderElectionException;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 
 import org.junit.jupiter.api.Test;
@@ -28,7 +30,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.assertThatChainOfCauses;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
@@ -91,9 +92,9 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                             electionEventHandler.waitForError();
                             final String errorMsg =
                                     "ConfigMap " + LEADER_CONFIGMAP_NAME + " does not exist.";
-                            assertThat(electionEventHandler.getError()).isNotNull();
-                            assertThatChainOfCauses(electionEventHandler.getError())
-                                    .anySatisfy(t -> assertThat(t).hasMessageContaining(errorMsg));
+                            assertThat(electionEventHandler.getError())
+                                    .isInstanceOf(KubernetesException.class)
+                                    .hasMessage(errorMsg);
                         });
             }
         };
@@ -136,9 +137,9 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                                     "Could not write leader information since ConfigMap "
                                             + LEADER_CONFIGMAP_NAME
                                             + " does not exist.";
-                            assertThat(electionEventHandler.getError()).isNotNull();
-                            assertThatChainOfCauses(electionEventHandler.getError())
-                                    .anySatisfy(t -> assertThat(t).hasMessageContaining(errorMsg));
+                            assertThat(electionEventHandler.getError())
+                                    .isInstanceOf(KubernetesException.class)
+                                    .hasMessage(errorMsg);
                         });
             }
         };
@@ -199,9 +200,9 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                             electionEventHandler.waitForError();
                             final String errorMsg =
                                     "ConfigMap " + LEADER_CONFIGMAP_NAME + " is deleted externally";
-                            assertThat(electionEventHandler.getError()).isNotNull();
-                            assertThatChainOfCauses(electionEventHandler.getError())
-                                    .anySatisfy(t -> assertThat(t).hasMessageContaining(errorMsg));
+                            assertThat(electionEventHandler.getError())
+                                    .isInstanceOf(LeaderElectionException.class)
+                                    .hasMessage(errorMsg);
                         });
             }
         };
@@ -223,9 +224,9 @@ class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestB
                             electionEventHandler.waitForError();
                             final String errorMsg =
                                     "Error while watching the ConfigMap " + LEADER_CONFIGMAP_NAME;
-                            assertThat(electionEventHandler.getError()).isNotNull();
-                            assertThatChainOfCauses(electionEventHandler.getError())
-                                    .anySatisfy(t -> assertThat(t).hasMessageContaining(errorMsg));
+                            assertThat(electionEventHandler.getError())
+                                    .isInstanceOf(LeaderElectionException.class)
+                                    .hasMessage(errorMsg);
                         });
             }
         };

@@ -27,9 +27,11 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.reader.SimpleStreamFormat;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.fs.Path;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -81,6 +83,26 @@ class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Integer>> {
     @Test
     void testBatchSizeIsRecordMultiple() throws IOException {
         simpleReadTest(20);
+    }
+
+    @Test
+    void testReadEmptyFile() throws IOException {
+        final StreamFormatAdapter<Integer> format =
+                new StreamFormatAdapter<>(new CheckpointedIntFormat());
+
+        final File emptyFile = new File(tmpDir.toFile(), "testFile-empty");
+        emptyFile.createNewFile();
+        Path emptyFilePath = Path.fromLocalFile(emptyFile);
+
+        final BulkFormat.Reader<Integer> reader =
+                format.createReader(
+                        new Configuration(),
+                        new FileSourceSplit("test-id", emptyFilePath, 0L, 0, 0L, 0));
+
+        final List<Integer> result = new ArrayList<>();
+        readNumbers(reader, result, 0);
+
+        assertThat(result).isEmpty();
     }
 
     private void simpleReadTest(int batchSize) throws IOException {

@@ -518,7 +518,7 @@ class AkkaUtils {
      * @return {@link Address} of the given {@link ActorSystem}
      */
     public static Address getAddress(ActorSystem system) {
-        return new RemoteAddressExtension().apply(system).getAddress();
+        return RemoteAddressExtension.INSTANCE.apply(system).getAddress();
     }
 
     /**

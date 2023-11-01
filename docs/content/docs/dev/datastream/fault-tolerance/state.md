@@ -702,8 +702,6 @@ in that:
     *broadcasted* stream and a *non-broadcasted* one, and
  3. such an operator can have *multiple broadcast states* with different names.
 
-**Notes:** Broadcast state is still not supported in Python DataStream API.
-
 {{< top >}}
 
 ## Using Operator State

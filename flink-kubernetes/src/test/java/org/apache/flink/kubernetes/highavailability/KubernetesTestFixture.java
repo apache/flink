@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector.LEADER_ANNOTATION_KEY;
@@ -167,10 +166,10 @@ class KubernetesTestFixture {
                                                     .orElse(false);
                                     return CompletableFuture.completedFuture(updated);
                                 } catch (Throwable throwable) {
-                                    throw new CompletionException(throwable);
+                                    return FutureUtils.completedExceptionally(throwable);
                                 }
                             }
-                            throw new CompletionException(
+                            return FutureUtils.completedExceptionally(
                                     new KubernetesException(
                                             "ConfigMap " + configMapName + " does not exist."));
                         })
