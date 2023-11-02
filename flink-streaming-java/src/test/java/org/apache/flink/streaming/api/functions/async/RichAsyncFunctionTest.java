@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.ExecutionConfigSupplier;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -110,7 +111,7 @@ public class RichAsyncFunctionTest {
         final ExecutionConfig executionConfig = mock(ExecutionConfig.class);
         final ClassLoader userCodeClassLoader = mock(ClassLoader.class);
 
-        RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
+        RuntimeContext mockedRuntimeContext = mock(MockRuntimeContext.class);
 
         when(mockedRuntimeContext.getTaskName()).thenReturn(taskName);
         when(mockedRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
@@ -309,4 +310,6 @@ public class RichAsyncFunctionTest {
             // expected
         }
     }
+
+    private interface MockRuntimeContext extends RuntimeContext, ExecutionConfigSupplier {}
 }

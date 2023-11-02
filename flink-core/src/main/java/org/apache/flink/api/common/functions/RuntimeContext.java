@@ -39,10 +39,13 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -122,6 +125,15 @@ public interface RuntimeContext {
      * job.
      */
     ExecutionConfig getExecutionConfig();
+
+    @PublicEvolving
+    <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation);
+
+    @PublicEvolving
+    Map<String, String> getGlobalJobParameters();
+
+    @PublicEvolving
+    boolean isObjectReuseEnabled();
 
     /**
      * Gets the ClassLoader to load classes that are not in system's classpath, but are part of the

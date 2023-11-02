@@ -97,8 +97,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                             getRuntimeContext().getIndexOfThisSubtask());
         }
 
-        final long watermarkInterval =
-                getRuntimeContext().getExecutionConfig().getAutoWatermarkInterval();
+        final long watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();
 
         this.ctx =
                 StreamSourceContexts.getSourceContext(

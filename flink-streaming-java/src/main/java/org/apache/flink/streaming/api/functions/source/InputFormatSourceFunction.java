@@ -72,7 +72,7 @@ public class InputFormatSourceFunction<OUT> extends RichParallelSourceFunction<O
         format.configure(new Configuration());
 
         provider = context.getInputSplitProvider();
-        serializer = typeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+        serializer = getRuntimeContext().createSerializer(typeInfo);
         splitIterator = getInputSplits();
         isRunning = splitIterator.hasNext();
     }

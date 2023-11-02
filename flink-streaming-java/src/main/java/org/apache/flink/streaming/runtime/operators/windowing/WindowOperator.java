@@ -670,7 +670,7 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
         public AbstractPerWindowStateStore(
                 KeyedStateBackend<?> keyedStateBackend, ExecutionConfig executionConfig) {
-            super(keyedStateBackend, executionConfig);
+            super(keyedStateBackend, t -> t.createSerializer(executionConfig));
         }
     }
 

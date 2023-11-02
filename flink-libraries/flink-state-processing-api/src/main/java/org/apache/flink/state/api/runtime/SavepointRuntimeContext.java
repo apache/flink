@@ -29,6 +29,7 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.ExecutionConfigSupplier;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
@@ -42,6 +43,8 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.util.Preconditions;
 
@@ -49,6 +52,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -59,7 +63,7 @@ import java.util.Set;
  * exception if state is registered outside of open.
  */
 @Internal
-public final class SavepointRuntimeContext implements RuntimeContext {
+public final class SavepointRuntimeContext implements RuntimeContext, ExecutionConfigSupplier {
     private static final String REGISTRATION_EXCEPTION_MSG =
             "State Descriptors may only be registered inside of open";
 
@@ -121,7 +125,22 @@ public final class SavepointRuntimeContext implements RuntimeContext {
 
     @Override
     public ExecutionConfig getExecutionConfig() {
-        return ctx.getExecutionConfig();
+        return ((ExecutionConfigSupplier) ctx).getExecutionConfig();
+    }
+
+    @Override
+    public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
+        return ctx.createSerializer(typeInformation);
+    }
+
+    @Override
+    public Map<String, String> getGlobalJobParameters() {
+        return ctx.getGlobalJobParameters();
+    }
+
+    @Override
+    public boolean isObjectReuseEnabled() {
+        return ctx.isObjectReuseEnabled();
     }
 
     @Override

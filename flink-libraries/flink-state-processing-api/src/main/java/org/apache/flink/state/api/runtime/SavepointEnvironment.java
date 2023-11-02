@@ -89,6 +89,8 @@ public class SavepointEnvironment implements Environment {
 
     private final RuntimeContext ctx;
 
+    private final ExecutionConfig executionConfig;
+
     private final Configuration configuration;
 
     private final int maxParallelism;
@@ -113,6 +115,7 @@ public class SavepointEnvironment implements Environment {
 
     private SavepointEnvironment(
             RuntimeContext ctx,
+            ExecutionConfig executionConfig,
             Configuration configuration,
             int maxParallelism,
             int indexOfSubtask,
@@ -123,6 +126,7 @@ public class SavepointEnvironment implements Environment {
                 new ExecutionAttemptID(
                         new ExecutionGraphID(), new ExecutionVertexID(vertexID, indexOfSubtask), 0);
         this.ctx = Preconditions.checkNotNull(ctx);
+        this.executionConfig = Preconditions.checkNotNull(executionConfig);
         this.configuration = Preconditions.checkNotNull(configuration);
 
         Preconditions.checkArgument(maxParallelism > 0 && indexOfSubtask < maxParallelism);
@@ -142,7 +146,7 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public ExecutionConfig getExecutionConfig() {
-        return ctx.getExecutionConfig();
+        return executionConfig;
     }
 
     @Override
@@ -325,6 +329,8 @@ public class SavepointEnvironment implements Environment {
     public static class Builder {
         private RuntimeContext ctx;
 
+        private ExecutionConfig executionConfig;
+
         private Configuration configuration;
 
         private int maxParallelism;
@@ -333,8 +339,10 @@ public class SavepointEnvironment implements Environment {
 
         private PrioritizedOperatorSubtaskState prioritizedOperatorSubtaskState;
 
-        public Builder(RuntimeContext ctx, int maxParallelism) {
+        public Builder(RuntimeContext ctx, ExecutionConfig executionConfig, int maxParallelism) {
             this.ctx = Preconditions.checkNotNull(ctx);
+
+            this.executionConfig = Preconditions.checkNotNull(executionConfig);
 
             Preconditions.checkArgument(maxParallelism > 0);
             this.maxParallelism = maxParallelism;
@@ -364,6 +372,7 @@ public class SavepointEnvironment implements Environment {
         public SavepointEnvironment build() {
             return new SavepointEnvironment(
                     ctx,
+                    executionConfig,
                     configuration,
                     maxParallelism,
                     indexOfSubtask,

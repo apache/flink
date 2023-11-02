@@ -96,7 +96,9 @@ public class StreamOperatorStateHandler {
         this.closeableRegistry = closeableRegistry;
 
         if (keyedStateBackend != null) {
-            keyedStateStore = new DefaultKeyedStateStore(keyedStateBackend, executionConfig);
+            keyedStateStore =
+                    new DefaultKeyedStateStore(
+                            keyedStateBackend, t -> t.createSerializer(executionConfig));
         } else {
             keyedStateStore = null;
         }

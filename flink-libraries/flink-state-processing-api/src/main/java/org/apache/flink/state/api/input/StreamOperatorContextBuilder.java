@@ -19,6 +19,7 @@
 package org.apache.flink.state.api.input;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.functions.ExecutionConfigSupplier;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
@@ -42,6 +43,8 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utility for creating a {@link StreamOperatorStateContext}. */
 @Internal
@@ -73,6 +76,9 @@ class StreamOperatorContextBuilder {
             CloseableRegistry registry,
             @Nullable StateBackend applicationStateBackend) {
         this.ctx = ctx;
+        checkState(
+                ctx instanceof ExecutionConfigSupplier,
+                "The runtime context does not implement ExecutionConfigSupplier");
         this.maxParallelism = ctx.getMaxNumberOfParallelSubtasks();
         this.configuration = configuration;
         this.operatorState = operatorState;
@@ -94,7 +100,10 @@ class StreamOperatorContextBuilder {
 
     StreamOperatorStateContext build(Logger logger) throws IOException {
         final Environment environment =
-                new SavepointEnvironment.Builder(ctx, maxParallelism)
+                new SavepointEnvironment.Builder(
+                                ctx,
+                                ((ExecutionConfigSupplier) ctx).getExecutionConfig(),
+                                maxParallelism)
                         .setConfiguration(configuration)
                         .setSubtaskIndex(split.getSplitNumber())
                         .setPrioritizedOperatorSubtaskState(

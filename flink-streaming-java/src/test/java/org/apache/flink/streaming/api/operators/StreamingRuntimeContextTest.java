@@ -303,7 +303,7 @@ public class StreamingRuntimeContextTest {
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
         DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(keyedStateBackend, config);
+                new DefaultKeyedStateStore(keyedStateBackend, t -> t.createSerializer(config));
 
         doAnswer(
                         new Answer<Object>() {
@@ -334,7 +334,7 @@ public class StreamingRuntimeContextTest {
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
         DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(keyedStateBackend, config);
+                new DefaultKeyedStateStore(keyedStateBackend, t -> t.createSerializer(config));
 
         when(operatorMock.getExecutionConfig()).thenReturn(config);
 
@@ -390,7 +390,7 @@ public class StreamingRuntimeContextTest {
         KeyedStateBackend keyedStateBackend = mock(KeyedStateBackend.class);
 
         DefaultKeyedStateStore keyedStateStore =
-                new DefaultKeyedStateStore(keyedStateBackend, config);
+                new DefaultKeyedStateStore(keyedStateBackend, t -> t.createSerializer(config));
 
         when(operatorMock.getExecutionConfig()).thenReturn(config);
 
