@@ -164,7 +164,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                         || !Objects.equals(theFirstStateHandle.getKeyGroupRange(), keyGroupRange));
 
         if (isRescaling) {
-            restoreWithRescaling(restoreStateHandles);
+            restoreWithRescaling(new ArrayList<>(restoreStateHandles));
         } else {
             restoreWithoutRescaling(theFirstStateHandle);
         }
