@@ -608,7 +608,7 @@ show tables;
 ## SHOW CREATE TABLE
 
 ```sql
-SHOW CREATE TABLE
+SHOW CREATE TABLE [[catalog_name.]db_name.]table_name
 ```
 
 Show create table statement for specified table.
