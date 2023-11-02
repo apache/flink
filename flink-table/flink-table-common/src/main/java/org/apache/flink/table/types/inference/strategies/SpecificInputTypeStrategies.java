@@ -122,6 +122,9 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy TWO_EQUALS_COMPARABLE =
             comparable(ConstantArgumentCount.of(2), StructuredType.StructuredComparison.EQUALS);
 
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#IN}. */
+    public static final InputTypeStrategy IN = new SubQueryInputTypeStrategy();
+
     private SpecificInputTypeStrategies() {
         // no instantiation
     }

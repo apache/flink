@@ -48,12 +48,6 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
   // ----------------------------------------------------------------------------------------------
 
   @Test
-  def testInMoreThanOneTypes(): Unit = {
-    assertThatExceptionOfType(classOf[ValidationException])
-      .isThrownBy(() => testTableApi('f2.in('f3, 'f4, 4), "FAIL"))
-  }
-
-  @Test
   def testInDifferentOperands(): Unit = {
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => testTableApi('f1.in("Hi", "Hello world", "Comment#1"), "FAIL"))

@@ -127,10 +127,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       case fd: FunctionDefinition =>
         fd match {
 
-          case IN =>
-            assert(args.size > 1)
-            In(args.head, args.drop(1))
-
           case DISTINCT =>
             assert(args.size == 1)
             DistinctAgg(args.head)
