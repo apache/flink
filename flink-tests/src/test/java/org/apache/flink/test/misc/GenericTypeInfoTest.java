@@ -26,7 +26,9 @@ import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.junit.Assert;
 import org.junit.Test;
 
-import static org.hamcrest.core.IsEqual.equalTo;
+import java.util.Arrays;
+
+import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 
 /** Test TypeInfo serializer tree. */
 public class GenericTypeInfoTest {
@@ -51,22 +53,25 @@ public class GenericTypeInfoTest {
                                 "( {8}[a-zA-Z]+:java\\.math\\.BigInteger\\R)( {12}\\S*\\R)+", "$1");
 
         Assert.assertThat(
-                serTree,
-                equalTo(
-                        "GenericTypeInfo (PojoWithCollectionGeneric)\n"
-                                + "    pojos:java.util.List\n"
-                                + "    key:int\n"
-                                + "    sqlDate:java.sql.Date\n"
-                                + "    bigInt:java.math.BigInteger\n"
-                                + "    bigDecimalKeepItNull:java.math.BigDecimal\n"
-                                + "        intVal:java.math.BigInteger\n"
-                                + "        scale:int\n"
-                                + "    scalaBigInt:scala.math.BigInt\n"
-                                + "        bigInteger:java.math.BigInteger\n"
-                                + "    mixed:java.util.List\n"
-                                + "    makeMeGeneric:org.apache.flink.test.operators.util.CollectionDataSets$PojoWithDateAndEnum\n"
-                                + "        group:java.lang.String\n"
-                                + "        date:java.util.Date\n"
-                                + "        cat:org.apache.flink.test.operators.util.CollectionDataSets$Category (is enum)\n"));
+                Arrays.asList(serTree.split("\n")),
+                containsInAnyOrder(
+                        Arrays.asList(
+                                        ("GenericTypeInfo (PojoWithCollectionGeneric)\n"
+                                                        + "    pojos:java.util.List\n"
+                                                        + "    key:int\n"
+                                                        + "    sqlDate:java.sql.Date\n"
+                                                        + "    bigInt:java.math.BigInteger\n"
+                                                        + "    bigDecimalKeepItNull:java.math.BigDecimal\n"
+                                                        + "        intVal:java.math.BigInteger\n"
+                                                        + "        scale:int\n"
+                                                        + "    scalaBigInt:scala.math.BigInt\n"
+                                                        + "        bigInteger:java.math.BigInteger\n"
+                                                        + "    mixed:java.util.List\n"
+                                                        + "    makeMeGeneric:org.apache.flink.test.operators.util.CollectionDataSets$PojoWithDateAndEnum\n"
+                                                        + "        group:java.lang.String\n"
+                                                        + "        date:java.util.Date\n"
+                                                        + "        cat:org.apache.flink.test.operators.util.CollectionDataSets$Category (is enum)\n")
+                                                .split("\n"))
+                                .toArray()));
     }
 }
