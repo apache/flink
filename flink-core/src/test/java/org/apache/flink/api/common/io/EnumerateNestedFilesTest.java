@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public class EnumerateNestedFilesTest {
 
-    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+    @TempDir private Path temporaryFolder;
 
     protected Configuration config;
 
