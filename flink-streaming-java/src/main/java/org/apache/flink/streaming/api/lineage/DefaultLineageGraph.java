@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.api.lineage;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,6 +28,7 @@ import java.util.List;
 import java.util.Set;
 
 /** Default implementation for {@link LineageGraph}. */
+@Internal
 public class DefaultLineageGraph implements LineageGraph {
     private final List<LineageEdge> lineageEdges;
     private final List<SourceLineageVertex> sources;
@@ -64,6 +67,7 @@ public class DefaultLineageGraph implements LineageGraph {
     }
 
     /** Build the default lineage graph from {@link LineageEdge}. */
+    @Internal
     public static class LineageGraphBuilder {
         private final List<LineageEdge> lineageEdges;
 

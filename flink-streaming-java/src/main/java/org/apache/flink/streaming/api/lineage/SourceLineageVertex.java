@@ -19,12 +19,14 @@
 
 package org.apache.flink.streaming.api.lineage;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.Boundedness;
 
 /**
  * Lineage vertex for source which has {@link Boundedness} to indicate whether the data for the
  * source is bounded.
  */
+@PublicEvolving
 public interface SourceLineageVertex extends LineageVertex {
     /**
      * The boundedness for the source connector, users can get boundedness for each sources in the
