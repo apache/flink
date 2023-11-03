@@ -71,7 +71,7 @@ public class WatermarkOutputMultiplexerTest {
         watermarkOutput.emitWatermark(new Watermark(0));
 
         assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(watermark(0));
-        assertThat(underlyingWatermarkOutput.isIdle()).isEqualTo(false);
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
     }
 
     @Test
