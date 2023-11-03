@@ -57,7 +57,8 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         arraySortTestCases(),
                         arrayExceptTestCases(),
                         arrayIntersectTestCases(),
-                        splitTestCases())
+                        splitTestCases(),
+                        arrayContainsSeqTestCases())
                 .flatMap(s -> s);
     }
 
@@ -1878,5 +1879,53 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                         .testSqlValidationError(
                                 "SPLIT(f1, '1', '2')",
                                 "No match found for function signature SPLIT(<CHARACTER>, <CHARACTER>, <CHARACTER>)"));
+    }
+
+    private Stream<TestSetSpec> arrayContainsSeqTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_CONTAINS_SEQ)
+                        .onFieldsWithData(
+                                new Integer[] {1, 2, null},
+                                new Integer[] {1},
+                                new Integer[] {1, 2, null, 3},
+                                new Integer[] {1, 2, null, 3},
+                                1)
+                        .andDataTypes(
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(DataTypes.INT().notNull()),
+                                DataTypes.ARRAY(DataTypes.INT()),
+                                DataTypes.ARRAY(
+                                        DataTypes.ROW(DataTypes.BOOLEAN(), DataTypes.DATE())),
+                                DataTypes.INT())
+                        // ARRAY<INT>
+                        .testResult(
+                                $("f0").arrayContainsSeq(new Integer[] {1, 2}),
+                                "ARRAY_CONTAINS_SEQ(f0, ARRAY[1, 2])",
+                                true,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f1").arrayContainsSeq(new Integer[] {2, null}),
+                                "ARRAY_CONTAINS_SEQ(f1, ARRAY[2, NULL])",
+                                false,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f2").arrayContainsSeq(new Integer[] {1, 3}),
+                                "ARRAY_CONTAINS_SEQ(f2, ARRAY[1, 3])",
+                                false,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        .testResult(
+                                $("f3").arrayContainsSeq(new Integer[] {null, 3}),
+                                "ARRAY_CONTAINS_SEQ(f2, ARRAY[null, 3])",
+                                true,
+                                DataTypes.ARRAY(DataTypes.INT()))
+                        // invalid signatures
+                        .testSqlValidationError(
+                                "ARRAY_CONTAINS_SEQ(f4, TRUE)",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_CONTAINS_SEQ(<COMMON>, <COMMON>)")
+                        .testTableApiValidationError(
+                                $("f4").arrayContainsSeq(true),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "ARRAY_CONTAINS_SEQ(<COMMON>, <COMMON>)"));
     }
 }
