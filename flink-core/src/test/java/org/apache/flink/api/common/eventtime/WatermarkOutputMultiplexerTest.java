@@ -148,7 +148,7 @@ public class WatermarkOutputMultiplexerTest {
         multiplexer.onPeriodicEmit();
 
         assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(nullValue());
-        assertThat(underlyingWatermarkOutput.isIdle()).isEqualTo(false);
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
     }
 
     @Test
