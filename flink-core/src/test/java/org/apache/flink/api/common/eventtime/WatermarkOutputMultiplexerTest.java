@@ -211,7 +211,7 @@ public class WatermarkOutputMultiplexerTest {
         watermarkOutput.markIdle();
         multiplexer.onPeriodicEmit();
 
-        assertThat(underlyingWatermarkOutput.isIdle()).isEqualTo(true);
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
 
         watermarkOutput.emitWatermark(new Watermark(0));
         multiplexer.onPeriodicEmit();
