@@ -55,7 +55,7 @@ public class TestingClusterEntrypointProcess extends TestJvmProcess {
     }
 
     @Override
-    public String[] getJvmArgs() {
+    public String[] getMainMethodArgs() {
         return new String[] {markerFile.getAbsolutePath()};
     }
 

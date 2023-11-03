@@ -82,7 +82,7 @@ class FlinkSecurityManagerITCase {
         }
 
         @Override
-        public String[] getJvmArgs() {
+        public String[] getMainMethodArgs() {
             return new String[0];
         }
 

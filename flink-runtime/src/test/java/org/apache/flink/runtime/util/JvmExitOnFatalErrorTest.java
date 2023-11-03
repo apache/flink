@@ -131,7 +131,7 @@ class JvmExitOnFatalErrorTest {
         }
 
         @Override
-        public String[] getJvmArgs() {
+        public String[] getMainMethodArgs() {
             return new String[] {temporaryFolder.getAbsolutePath()};
         }
 

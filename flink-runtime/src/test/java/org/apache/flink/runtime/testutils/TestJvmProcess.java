@@ -101,12 +101,12 @@ public abstract class TestJvmProcess {
      *
      * <p>These can be parsed by the main method of the entry point class.
      */
-    public abstract String[] getJvmArgs();
+    public abstract String[] getMainMethodArgs();
 
     /**
      * Returns the name of the class to run.
      *
-     * <p>Arguments to the main method can be specified via {@link #getJvmArgs()}.
+     * <p>Arguments to the main method can be specified via {@link #getMainMethodArgs()}.
      */
     public abstract String getEntryPointClassName();
 
@@ -151,10 +151,10 @@ public abstract class TestJvmProcess {
 
         cmd = ArrayUtils.add(cmd, getEntryPointClassName());
 
-        String[] jvmArgs = getJvmArgs();
+        String[] mainMethodArgs = getMainMethodArgs();
 
-        if (jvmArgs != null && jvmArgs.length > 0) {
-            cmd = ArrayUtils.addAll(cmd, jvmArgs);
+        if (mainMethodArgs != null && mainMethodArgs.length > 0) {
+            cmd = ArrayUtils.addAll(cmd, mainMethodArgs);
         }
 
         synchronized (createDestroyLock) {
