@@ -76,7 +76,7 @@ public class DelimitedInputFormatSamplingTest {
     // ========================================================================
 
     @BeforeAll
-    public static void initialize() {
+    static void initialize() {
         try {
             testTempFolder = tempFolder.newFolder();
             // make sure we do 4 samples
