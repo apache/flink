@@ -18,6 +18,7 @@
 
 package org.apache.flink.util;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.net.URL;
@@ -41,10 +42,12 @@ public class LambdaUtilTest {
             Thread.currentThread().setContextClassLoader(original);
 
             LambdaUtil.withContextClassLoader(
-                    temp, () -> assertSame(temp, Thread.currentThread().getContextClassLoader()));
+                    temp, () -> Assertions.assertSame(
+                            temp,
+                            Thread.currentThread().getContextClassLoader()));
 
             // make sure the method restored the original context class loader
-            assertSame(original, Thread.currentThread().getContextClassLoader());
+            Assertions.assertSame(original, Thread.currentThread().getContextClassLoader());
         } finally {
             Thread.currentThread().setContextClassLoader(aPrioriContextClassLoader);
         }
@@ -65,12 +68,12 @@ public class LambdaUtilTest {
             LambdaUtil.withContextClassLoader(
                     temp,
                     () -> {
-                        assertSame(temp, Thread.currentThread().getContextClassLoader());
+                        Assertions.assertSame(temp, Thread.currentThread().getContextClassLoader());
                         return true;
                     });
 
             // make sure the method restored the original context class loader
-            assertSame(original, Thread.currentThread().getContextClassLoader());
+            Assertions.assertSame(original, Thread.currentThread().getContextClassLoader());
         } finally {
             Thread.currentThread().setContextClassLoader(aPrioriContextClassLoader);
         }
