@@ -33,14 +33,4 @@ class MissingTypeInfoTest extends TypeInformationTestBase<MissingTypeInfo> {
             new MissingTypeInfo("alt" + functionName, testException)
         };
     }
-
-    @Override
-    public void testSerialization() {
-        // this class is not intended to be serialized
-    }
-
-    @Override
-    public void testGetTotalFields() {
-        // getTotalFields is not meant to be called
-    }
 }

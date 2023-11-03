@@ -20,7 +20,7 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.configuration.Configuration;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -30,8 +30,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(Parameterized.class)
 public class ExecutionConfigFromConfigurationTest {
@@ -141,7 +140,7 @@ public class ExecutionConfigFromConfigurationTest {
     @Parameterized.Parameter public TestSpec spec;
 
     @Test
-    public void testLoadingFromConfiguration() {
+    void testLoadingFromConfiguration() {
         ExecutionConfig configFromSetters = new ExecutionConfig();
         ExecutionConfig configFromFile = new ExecutionConfig();
 
@@ -154,7 +153,7 @@ public class ExecutionConfigFromConfigurationTest {
     }
 
     @Test
-    public void testNotOverridingIfNotSet() {
+    void testNotOverridingIfNotSet() {
         ExecutionConfig executionConfig = new ExecutionConfig();
 
         spec.setNonDefaultValue(executionConfig);
@@ -225,11 +224,11 @@ public class ExecutionConfigFromConfigurationTest {
         }
 
         public void assertEqual(ExecutionConfig configFromFile, ExecutionConfig configFromSetters) {
-            assertThat(getter.apply(configFromFile), equalTo(getter.apply(configFromSetters)));
+            assertThat(getter.apply(configFromFile)).isEqualTo(getter.apply(configFromSetters));
         }
 
         public void assertEqualNonDefault(ExecutionConfig configFromFile) {
-            assertThat(getter.apply(configFromFile), equalTo(nonDefaultValue));
+            assertThat(getter.apply(configFromFile)).isEqualTo(nonDefaultValue);
         }
 
         @Override

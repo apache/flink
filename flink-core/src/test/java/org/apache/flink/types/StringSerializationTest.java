@@ -20,7 +20,7 @@ package org.apache.flink.types;
 
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,9 +33,9 @@ import java.util.Random;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test for the serialization of Strings through the StringValue class. */
 public class StringSerializationTest {
@@ -43,7 +43,7 @@ public class StringSerializationTest {
     private final Random rnd = new Random(2093486528937460234L);
 
     @Test
-    public void testNonNullValues() {
+    void testNonNullValues() {
         try {
             String[] testStrings =
                     new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
@@ -57,7 +57,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testUnicodeValues() {
+    void testUnicodeValues() {
         try {
             String[] testStrings =
                     new String[] {
@@ -83,7 +83,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testUnicodeSurrogatePairs() {
+    void testUnicodeSurrogatePairs() {
         try {
             String[] symbols =
                     new String[] {
@@ -112,7 +112,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testStringBinaryCompatibility() {
+    void testStringBinaryCompatibility() {
         try {
             String[] testStrings =
                     new String[] {
@@ -140,15 +140,15 @@ public class StringSerializationTest {
                 // old impl should read bytes from new one
                 String oldString =
                         deserializeBytes(newBytes, StringSerializationTest::oldReadString);
-                assertEquals(oldString, testString);
+                assertThat(oldString).isEqualTo(testString);
                 // new impl should read bytes from old one
                 String newString =
                         deserializeBytes(oldBytes, StringSerializationTest::newReadString);
-                assertEquals(newString, testString);
+                assertThat(newString).isEqualTo(testString);
                 // it should roundtrip over new impl
                 String roundtrip =
                         deserializeBytes(newBytes, StringSerializationTest::newReadString);
-                assertEquals(roundtrip, testString);
+                assertThat(roundtrip).isEqualTo(testString);
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -158,7 +158,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testNullValues() {
+    void testNullValues() {
         try {
             String[] testStrings =
                     new String[] {
@@ -184,7 +184,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testLongValues() {
+    void testLongValues() {
         try {
             String[] testStrings =
                     new String[] {
@@ -203,7 +203,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testMixedValues() {
+    void testMixedValues() {
         try {
             String[] testStrings =
                     new String[] {
@@ -228,7 +228,7 @@ public class StringSerializationTest {
     }
 
     @Test
-    public void testBinaryCopyOfLongStrings() {
+    void testBinaryCopyOfLongStrings() {
         try {
             String[] testStrings =
                     new String[] {
@@ -288,11 +288,11 @@ public class StringSerializationTest {
         while (deserializer.available() > 0) {
             String deser = StringValue.readString(deserializer);
 
-            assertEquals("DeserializedString differs from original string.", values[num], deser);
+            assertThat(deser).isEqualTo(values[num]);
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertThat(num).isEqualTo(values.length);
     }
 
     public static final void testCopy(String[] values) throws IOException {
@@ -322,11 +322,11 @@ public class StringSerializationTest {
         while (validate.available() > 0) {
             String deser = StringValue.readString(validate);
 
-            assertEquals("DeserializedString differs from original string.", values[num], deser);
+            assertThat(deser).isEqualTo(values[num]);
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertThat(num).isEqualTo(values.length);
     }
 
     // needed to test the binary compatibility for new/old string serialization code

@@ -18,71 +18,69 @@
 
 package org.apache.flink.api.common.accumulators;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class AverageAccumulatorTest {
 
     @Test
-    public void testGet() {
+    void testGet() {
         AverageAccumulator average = new AverageAccumulator();
-        assertEquals(0.0, average.getLocalValue(), 0.0);
+        assertThat(average.getLocalValue()).isEqualTo(0.0);
     }
 
     @Test
-    public void testAdd() {
+    void testAdd() {
         AverageAccumulator average = new AverageAccumulator();
         int i1;
         for (i1 = 0; i1 < 10; i1++) {
             average.add(i1);
         }
-        assertEquals(4.5, average.getLocalValue(), 0.0);
+        assertThat(average.getLocalValue()).isEqualTo(4.5);
         average.resetLocal();
 
         Integer i2;
         for (i2 = 0; i2 < 10; i2++) {
             average.add(i2);
         }
-        assertEquals(4.5, average.getLocalValue(), 0.0);
+        assertThat(average.getLocalValue()).isEqualTo(4.5);
         average.resetLocal();
 
         long i3;
         for (i3 = 0; i3 < 10; i3++) {
             average.add(i3);
         }
-        assertEquals(4.5, average.getLocalValue(), 0.0);
+        assertThat(average.getLocalValue()).isEqualTo(4.5);
         average.resetLocal();
 
         Long i4;
         for (i4 = 0L; i4 < 10; i4++) {
             average.add(i4);
         }
-        assertEquals(4.5, average.getLocalValue(), 0.0);
+        assertThat(average.getLocalValue()).isEqualTo(4.5);
         average.resetLocal();
 
         double i5;
         for (i5 = 0; i5 < 10; i5++) {
             average.add(i5);
         }
-        assertEquals(4.5, average.getLocalValue(), 0.0);
+        assertThat(average.getLocalValue()).isEqualTo(4.5);
         average.resetLocal();
 
         Double i6;
         for (i6 = 0.0; i6 < 10; i6++) {
             average.add(i6);
         }
-        assertEquals(4.5, average.getLocalValue(), 0.0);
+        assertThat(average.getLocalValue()).isEqualTo(4.5);
         average.resetLocal();
 
-        assertEquals(0.0, average.getLocalValue(), 0.0);
+        assertThat(average.getLocalValue()).isEqualTo(0.0);
     }
 
     @Test
-    public void testMergeSuccess() {
+    void testMergeSuccess() {
         AverageAccumulator avg1 = new AverageAccumulator();
         for (int i = 0; i < 5; i++) {
             avg1.add(i);
@@ -94,11 +92,11 @@ public class AverageAccumulatorTest {
         }
 
         avg1.merge(avg2);
-        assertEquals(4.5, avg1.getLocalValue(), 0.0);
+        assertThat(avg1.getLocalValue()).isEqualTo(4.5);
     }
 
     @Test
-    public void testMergeFailed() {
+    void testMergeFailed() {
         AverageAccumulator average = new AverageAccumulator();
         Accumulator<Double, Double> averageNew = null;
         average.add(1);
@@ -106,9 +104,9 @@ public class AverageAccumulatorTest {
             average.merge(averageNew);
             fail("should fail with an exception");
         } catch (IllegalArgumentException e) {
-            assertNotNull(e.getMessage());
-            assertTrue(
-                    e.getMessage().contains("The merged accumulator must be AverageAccumulator."));
+            assertThat(e.getMessage()).isNotNull();
+            assertThat(e.getMessage())
+                    .contains("The merged accumulator must be AverageAccumulator.");
         } catch (Throwable t) {
             fail(
                     "wrong exception; expected IllegalArgumentException but found "
@@ -117,10 +115,10 @@ public class AverageAccumulatorTest {
     }
 
     @Test
-    public void testClone() {
+    void testClone() {
         AverageAccumulator average = new AverageAccumulator();
         average.add(1);
         AverageAccumulator averageNew = average.clone();
-        assertEquals(1, averageNew.getLocalValue(), 0.0);
+        assertThat(averageNew.getLocalValue()).isEqualTo(1);
     }
 }

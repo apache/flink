@@ -21,12 +21,11 @@ package org.apache.flink.api.java.typeutils.runtime.tuple.base;
 import org.apache.flink.api.common.typeutils.TypePairComparator;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Abstract test base for TuplePairComparators.
@@ -34,22 +33,21 @@ import static org.junit.Assert.fail;
  * @param <T>
  * @param <R>
  */
-public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tuple>
-        extends TestLogger {
+public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tuple> {
 
     protected abstract TypePairComparator<T, R> createComparator(boolean ascending);
 
     protected abstract Tuple2<T[], R[]> getSortedTestData();
 
     @Test
-    public void testEqualityWithReference() {
+    void testEqualityWithReference() {
         try {
             TypePairComparator<T, R> comparator = getComparator(true);
             Tuple2<T[], R[]> data = getSortedData();
             for (int x = 0; x < data.f0.length; x++) {
                 comparator.setReference(data.f0[x]);
 
-                assertTrue(comparator.equalToReference(data.f1[x]));
+                assertThat(comparator.equalToReference(data.f1[x])).isTrue();
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -59,7 +57,7 @@ public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tup
     }
 
     @Test
-    public void testInequalityWithReference() {
+    void testInequalityWithReference() {
         testGreatSmallAscDescWithReference(true);
         testGreatSmallAscDescWithReference(false);
     }
@@ -75,9 +73,9 @@ public abstract class TuplePairComparatorTestBase<T extends Tuple, R extends Tup
                 for (int y = x + 1; y < data.f1.length; y++) {
                     comparator.setReference(data.f0[x]);
                     if (ascending) {
-                        assertTrue(comparator.compareToReference(data.f1[y]) > 0);
+                        assertThat(comparator.compareToReference(data.f1[y]) > 0).isTrue();
                     } else {
-                        assertTrue(comparator.compareToReference(data.f1[y]) < 0);
+                        assertThat(comparator.compareToReference(data.f1[y]) < 0).isTrue();
                     }
                 }
             }

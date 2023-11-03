@@ -26,27 +26,27 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.JSONPObject;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link AbstractDeserializationSchema}. */
 @SuppressWarnings("serial")
 public class AbstractDeserializationSchemaTest {
 
     @Test
-    public void testTypeExtractionTuple() {
+    void testTypeExtractionTuple() {
         TypeInformation<Tuple2<byte[], byte[]>> type = new TupleSchema().getProducedType();
         TypeInformation<Tuple2<byte[], byte[]>> expected =
                 TypeInformation.of(new TypeHint<Tuple2<byte[], byte[]>>() {});
-        assertEquals(expected, type);
+        assertThat(type).isEqualTo(expected);
     }
 
     @Test
-    public void testTypeExtractionTupleAnonymous() {
+    void testTypeExtractionTupleAnonymous() {
         TypeInformation<Tuple2<byte[], byte[]>> type =
                 new AbstractDeserializationSchema<Tuple2<byte[], byte[]>>() {
                     @Override
@@ -57,18 +57,18 @@ public class AbstractDeserializationSchemaTest {
 
         TypeInformation<Tuple2<byte[], byte[]>> expected =
                 TypeInformation.of(new TypeHint<Tuple2<byte[], byte[]>>() {});
-        assertEquals(expected, type);
+        assertThat(type).isEqualTo(expected);
     }
 
     @Test
-    public void testTypeExtractionGeneric() {
+    void testTypeExtractionGeneric() {
         TypeInformation<JSONPObject> type = new JsonSchema().getProducedType();
         TypeInformation<JSONPObject> expected = TypeInformation.of(new TypeHint<JSONPObject>() {});
-        assertEquals(expected, type);
+        assertThat(type).isEqualTo(expected);
     }
 
     @Test
-    public void testTypeExtractionGenericAnonymous() {
+    void testTypeExtractionGenericAnonymous() {
         TypeInformation<JSONPObject> type =
                 new AbstractDeserializationSchema<JSONPObject>() {
                     @Override
@@ -78,11 +78,11 @@ public class AbstractDeserializationSchemaTest {
                 }.getProducedType();
 
         TypeInformation<JSONPObject> expected = TypeInformation.of(new TypeHint<JSONPObject>() {});
-        assertEquals(expected, type);
+        assertThat(type).isEqualTo(expected);
     }
 
     @Test
-    public void testTypeExtractionRawException() {
+    void testTypeExtractionRawException() {
         try {
             new RawSchema();
             fail();
@@ -92,7 +92,7 @@ public class AbstractDeserializationSchemaTest {
     }
 
     @Test
-    public void testTypeExtractionGenericException() {
+    void testTypeExtractionGenericException() {
         try {
             new GenericSchema<>();
             fail();
@@ -102,9 +102,9 @@ public class AbstractDeserializationSchemaTest {
     }
 
     @Test
-    public void testIndirectGenericExtension() {
+    void testIndirectGenericExtension() {
         TypeInformation<String> type = new IndirectExtension().getProducedType();
-        assertEquals(BasicTypeInfo.STRING_TYPE_INFO, type);
+        assertThat(type).isEqualTo(BasicTypeInfo.STRING_TYPE_INFO);
     }
 
     // ------------------------------------------------------------------------

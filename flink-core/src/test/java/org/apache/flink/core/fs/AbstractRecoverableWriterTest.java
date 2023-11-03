@@ -21,12 +21,10 @@ package org.apache.flink.core.fs;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -34,13 +32,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * A base test-suite for the {@link RecoverableWriter}. This should be subclassed to test each
  * filesystem specific writer.
  */
-public abstract class AbstractRecoverableWriterTest extends TestLogger {
+public abstract class AbstractRecoverableWriterTest {
 
     private static final Random RND = new Random();
 
@@ -83,7 +82,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
     }
 
     @Test
-    public void testCloseWithNoData() throws Exception {
+    void testCloseWithNoData() throws Exception {
         final RecoverableWriter writer = getNewFileSystemWriter();
 
         final Path testDir = getBasePathForTest();
@@ -92,20 +91,20 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
         final RecoverableFsDataOutputStream stream = writer.open(path);
         for (Map.Entry<Path, String> fileContents : getFileContentByPath(testDir).entrySet()) {
-            Assert.assertTrue(fileContents.getKey().getName().startsWith(".part-0.inprogress."));
-            Assert.assertTrue(fileContents.getValue().isEmpty());
+            assertThat(fileContents.getKey().getName().startsWith(".part-0.inprogress.")).isTrue();
+            assertThat(fileContents.getValue().isEmpty()).isTrue();
         }
 
         stream.closeForCommit().commit();
 
         for (Map.Entry<Path, String> fileContents : getFileContentByPath(testDir).entrySet()) {
-            Assert.assertEquals("part-0", fileContents.getKey().getName());
-            Assert.assertTrue(fileContents.getValue().isEmpty());
+            assertThat(fileContents.getKey().getName()).isEqualTo("part-0");
+            assertThat(fileContents.getValue().isEmpty()).isTrue();
         }
     }
 
     @Test
-    public void testCommitAfterNormalClose() throws Exception {
+    void testCommitAfterNormalClose() throws Exception {
         final RecoverableWriter writer = getNewFileSystemWriter();
 
         final Path testDir = getBasePathForTest();
@@ -119,8 +118,8 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
             stream.closeForCommit().commit();
 
             for (Map.Entry<Path, String> fileContents : getFileContentByPath(testDir).entrySet()) {
-                Assert.assertEquals("part-0", fileContents.getKey().getName());
-                Assert.assertEquals(testData1, fileContents.getValue());
+                assertThat(fileContents.getKey().getName()).isEqualTo("part-0");
+                assertThat(fileContents.getValue()).isEqualTo(testData1);
             }
         } finally {
             IOUtils.closeQuietly(stream);
@@ -128,7 +127,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
     }
 
     @Test
-    public void testCommitAfterPersist() throws Exception {
+    void testCommitAfterPersist() throws Exception {
         final RecoverableWriter writer = getNewFileSystemWriter();
 
         final Path testDir = getBasePathForTest();
@@ -145,8 +144,8 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
             stream.closeForCommit().commit();
 
             for (Map.Entry<Path, String> fileContents : getFileContentByPath(testDir).entrySet()) {
-                Assert.assertEquals("part-0", fileContents.getKey().getName());
-                Assert.assertEquals(testData1 + testData2, fileContents.getValue());
+                assertThat(fileContents.getKey().getName()).isEqualTo("part-0");
+                assertThat(fileContents.getValue()).isEqualTo(testData1 + testData2);
             }
         } finally {
             IOUtils.closeQuietly(stream);
@@ -161,23 +160,23 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
     private static final String FINAL_WITH_EXTRA_STATE = "FINAL";
 
     @Test
-    public void testRecoverWithEmptyState() throws Exception {
+    void testRecoverWithEmptyState() throws Exception {
         testResumeAfterMultiplePersist(INIT_EMPTY_PERSIST, "", testData3);
     }
 
     @Test
-    public void testRecoverWithState() throws Exception {
+    void testRecoverWithState() throws Exception {
         testResumeAfterMultiplePersist(INTERM_WITH_STATE_PERSIST, testData1, testData1 + testData3);
     }
 
     @Test
-    public void testRecoverFromIntermWithoutAdditionalState() throws Exception {
+    void testRecoverFromIntermWithoutAdditionalState() throws Exception {
         testResumeAfterMultiplePersist(
                 INTERM_WITH_NO_ADDITIONAL_STATE_PERSIST, testData1, testData1 + testData3);
     }
 
     @Test
-    public void testRecoverAfterMultiplePersistsState() throws Exception {
+    void testRecoverAfterMultiplePersistsState() throws Exception {
         testResumeAfterMultiplePersist(
                 FINAL_WITH_EXTRA_STATE, testData1 + testData2, testData1 + testData2 + testData3);
     }
@@ -230,23 +229,22 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
             // we expect the data to be truncated
             Map<Path, String> files = getFileContentByPath(testDir);
-            Assert.assertEquals(1L, files.size());
+            assertThat(files.size()).isEqualTo(1L);
 
             for (Map.Entry<Path, String> fileContents : files.entrySet()) {
-                Assert.assertTrue(
-                        fileContents.getKey().getName().startsWith(".part-0.inprogress."));
-                Assert.assertEquals(expectedPostRecoveryContents, fileContents.getValue());
+                assertThat(fileContents.getKey().getName()).startsWith(".part-0.inprogress.");
+                assertThat(fileContents.getValue()).isEqualTo(expectedPostRecoveryContents);
             }
 
             recoveredStream.write(testData3.getBytes(StandardCharsets.UTF_8));
             recoveredStream.closeForCommit().commit();
 
             files = getFileContentByPath(testDir);
-            Assert.assertEquals(1L, files.size());
+            assertThat(files.size()).isEqualTo(1L);
 
             for (Map.Entry<Path, String> fileContents : files.entrySet()) {
-                Assert.assertEquals("part-0", fileContents.getKey().getName());
-                Assert.assertEquals(expectedFinalContents, fileContents.getValue());
+                assertThat(fileContents.getKey().getName()).isEqualTo("part-0");
+                assertThat(fileContents.getValue()).isEqualTo(expectedFinalContents);
             }
         } finally {
             IOUtils.closeQuietly(recoveredStream);
@@ -254,7 +252,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
     }
 
     @Test
-    public void testCommitAfterRecovery() throws Exception {
+    void testCommitAfterRecovery() throws Exception {
         final Path testDir = getBasePathForTest();
         final Path path = new Path(testDir, "part-0");
 
@@ -293,11 +291,11 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
         committer.commitAfterRecovery();
 
         Map<Path, String> files = getFileContentByPath(testDir);
-        Assert.assertEquals(1L, files.size());
+        assertThat(files.size()).isEqualTo(1L);
 
         for (Map.Entry<Path, String> fileContents : files.entrySet()) {
-            Assert.assertEquals("part-0", fileContents.getKey().getName());
-            Assert.assertEquals(testData1 + testData2, fileContents.getValue());
+            assertThat(fileContents.getKey().getName()).isEqualTo("part-0");
+            assertThat(fileContents.getValue()).isEqualTo(testData1 + testData2);
         }
     }
 
@@ -350,7 +348,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
     }
 
     @Test
-    public void testResumeWithWrongOffset() throws Exception {
+    void testResumeWithWrongOffset() throws Exception {
         // this is a rather unrealistic scenario, but it is to trigger
         // truncation of the file and try to resume with missing data.
 

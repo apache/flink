@@ -25,7 +25,7 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
@@ -39,7 +39,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /** A test validating that the initialization of local output paths is properly synchronized. */
@@ -55,7 +55,7 @@ public class InitOutputPathTest {
      * latches.
      */
     @Test
-    public void testErrorOccursUnSynchronized() throws Exception {
+    void testErrorOccursUnSynchronized() throws Exception {
         // deactivate the lock to produce the original un-synchronized state
         Field lock = FileSystem.class.getDeclaredField("OUTPUT_DIRECTORY_INIT_LOCK");
         lock.setAccessible(true);
@@ -75,7 +75,7 @@ public class InitOutputPathTest {
     }
 
     @Test
-    public void testProperSynchronized() throws Exception {
+    void testProperSynchronized() throws Exception {
         // in the synchronized variant, we cannot use the "await latches" because not
         // both threads can make process interleaved (due to the synchronization)
         // the test uses sleeps (rather than latches) to produce the same interleaving.

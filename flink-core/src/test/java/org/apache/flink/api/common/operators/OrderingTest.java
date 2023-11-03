@@ -18,28 +18,28 @@
 
 package org.apache.flink.api.common.operators;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 public class OrderingTest {
 
     @Test
-    public void testNewOrdering() {
+    void testNewOrdering() {
         Ordering ordering = new Ordering();
 
         // add a field
         ordering.appendOrdering(3, Integer.class, Order.ASCENDING);
-        assertEquals(1, ordering.getNumberOfFields());
+        assertThat(ordering.getNumberOfFields()).isEqualTo(1);
 
         // add a second field
         ordering.appendOrdering(1, Long.class, Order.DESCENDING);
-        assertEquals(2, ordering.getNumberOfFields());
+        assertThat(ordering.getNumberOfFields()).isEqualTo(2);
 
         // duplicate field index does not change Ordering
         ordering.appendOrdering(1, String.class, Order.ASCENDING);
-        assertEquals(2, ordering.getNumberOfFields());
+        assertThat(ordering.getNumberOfFields()).isEqualTo(2);
 
         // verify field positions, types, and orderings
         assertArrayEquals(new int[] {3, 1}, ordering.getFieldPositions());

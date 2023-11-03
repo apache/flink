@@ -22,18 +22,20 @@ import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
+
 /** Tests for the combination of {@link DataOutputSerializer} and {@link DataInputDeserializer}. */
 public class DataInputOutputSerializerTest {
 
     @Test
-    public void testWrapAsByteBuffer() {
+    void testWrapAsByteBuffer() {
         SerializationTestType randomInt = Util.randomRecord(SerializationTestTypeFactory.INT);
 
         DataOutputSerializer serializer = new DataOutputSerializer(randomInt.length());
@@ -43,32 +45,32 @@ public class DataInputOutputSerializerTest {
             // empty buffer, read buffer should be empty
             ByteBuffer wrapper = serializer.wrapAsByteBuffer();
 
-            Assert.assertEquals(0, wrapper.position());
-            Assert.assertEquals(0, wrapper.limit());
+            assertThat(0, wrapper.position());
+            assertThat(0, wrapper.limit());
 
             // write to data output, read buffer should still be empty
             randomInt.write(serializer);
 
-            Assert.assertEquals(0, wrapper.position());
-            Assert.assertEquals(0, wrapper.limit());
+            assertThat(0, wrapper.position());
+            assertThat(0, wrapper.limit());
 
             // get updated read buffer, read buffer should contain written data
             wrapper = serializer.wrapAsByteBuffer();
 
-            Assert.assertEquals(0, wrapper.position());
-            Assert.assertEquals(randomInt.length(), wrapper.limit());
+            assertThat(0, wrapper.position());
+            assertThat(randomInt.length(), wrapper.limit());
 
             // clear data output, read buffer should still contain written data
             serializer.clear();
 
-            Assert.assertEquals(0, wrapper.position());
-            Assert.assertEquals(randomInt.length(), wrapper.limit());
+            assertThat(0, wrapper.position());
+            assertThat(randomInt.length(), wrapper.limit());
 
             // get updated read buffer, should be empty
             wrapper = serializer.wrapAsByteBuffer();
 
-            Assert.assertEquals(0, wrapper.position());
-            Assert.assertEquals(0, wrapper.limit());
+            assertThat(0, wrapper.position());
+            assertThat(0, wrapper.limit());
 
             // write to data output and read back to memory
             randomInt.write(serializer);
@@ -76,16 +78,16 @@ public class DataInputOutputSerializerTest {
 
             segment.put(0, wrapper, randomInt.length());
 
-            Assert.assertEquals(randomInt.length(), wrapper.position());
-            Assert.assertEquals(randomInt.length(), wrapper.limit());
+            assertThat(randomInt.length(), wrapper.position());
+            assertThat(randomInt.length(), wrapper.limit());
         } catch (IOException e) {
             e.printStackTrace();
-            Assert.fail("Test encountered an unexpected exception.");
+            fail("Test encountered an unexpected exception.");
         }
     }
 
     @Test
-    public void testRandomValuesWriteRead() {
+    void testRandomValuesWriteRead() {
         final int numElements = 100000;
         final ArrayDeque<SerializationTestType> reference = new ArrayDeque<>();
 
@@ -98,7 +100,7 @@ public class DataInputOutputSerializerTest {
                 value.write(serializer);
             } catch (IOException e) {
                 e.printStackTrace();
-                Assert.fail("Test encountered an unexpected exception.");
+                fail("Test encountered an unexpected exception.");
             }
         }
 
@@ -110,10 +112,10 @@ public class DataInputOutputSerializerTest {
                 SerializationTestType actual = expected.getClass().newInstance();
                 actual.read(deserializer);
 
-                Assert.assertEquals(expected, actual);
+                assertThat(expected, actual);
             } catch (Exception e) {
                 e.printStackTrace();
-                Assert.fail("Test encountered an unexpected exception.");
+                fail("Test encountered an unexpected exception.");
             }
         }
 

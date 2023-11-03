@@ -20,7 +20,7 @@ package org.apache.flink.core.io;
 
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Calendar;
@@ -29,12 +29,14 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class LocatableSplitAssignerTest {
 
     @Test
-    public void testSerialSplitAssignmentWithNullHost() {
+    void testSerialSplitAssignmentWithNullHost() {
         try {
             final int NUM_SPLITS = 50;
             final String[][] hosts =
@@ -50,14 +52,14 @@ public class LocatableSplitAssignerTest {
             LocatableInputSplitAssigner ia = new LocatableInputSplitAssigner(splits);
             InputSplit is = null;
             while ((is = ia.getNextInputSplit(null, 0)) != null) {
-                assertTrue(splits.remove(is));
+                assertThat(splits.remove(is)).isTrue();
             }
 
             // check we had all
-            assertTrue(splits.isEmpty());
-            assertNull(ia.getNextInputSplit("", 0));
-            assertEquals(NUM_SPLITS, ia.getNumberOfRemoteAssignments());
-            assertEquals(0, ia.getNumberOfLocalAssignments());
+            assertThat(splits.isEmpty()).isTrue();
+            assertThat(ia.getNextInputSplit("", 0)).isNull();
+            assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(NUM_SPLITS);
+            assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -65,7 +67,7 @@ public class LocatableSplitAssignerTest {
     }
 
     @Test
-    public void testSerialSplitAssignmentAllForSameHost() {
+    void testSerialSplitAssignmentAllForSameHost() {
         try {
             final int NUM_SPLITS = 50;
 
@@ -79,15 +81,15 @@ public class LocatableSplitAssignerTest {
             LocatableInputSplitAssigner ia = new LocatableInputSplitAssigner(splits);
             InputSplit is = null;
             while ((is = ia.getNextInputSplit("testhost", 0)) != null) {
-                assertTrue(splits.remove(is));
+                assertThat(splits.remove(is)).isTrue();
             }
 
             // check we had all
-            assertTrue(splits.isEmpty());
-            assertNull(ia.getNextInputSplit("", 0));
+            assertThat(splits.isEmpty()).isTrue();
+            assertThat(ia.getNextInputSplit("", 0)).isNull();
 
-            assertEquals(0, ia.getNumberOfRemoteAssignments());
-            assertEquals(NUM_SPLITS, ia.getNumberOfLocalAssignments());
+            assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(0);
+            assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(NUM_SPLITS);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -95,7 +97,7 @@ public class LocatableSplitAssignerTest {
     }
 
     @Test
-    public void testSerialSplitAssignmentAllForRemoteHost() {
+    void testSerialSplitAssignmentAllForRemoteHost() {
         try {
             final String[] hosts = {"host1", "host1", "host1", "host2", "host2", "host3"};
             final int NUM_SPLITS = 10 * hosts.length;
@@ -110,15 +112,15 @@ public class LocatableSplitAssignerTest {
             LocatableInputSplitAssigner ia = new LocatableInputSplitAssigner(splits);
             InputSplit is = null;
             while ((is = ia.getNextInputSplit("testhost", 0)) != null) {
-                assertTrue(splits.remove(is));
+                assertThat(splits.remove(is)).isTrue();
             }
 
             // check we had all
-            assertTrue(splits.isEmpty());
-            assertNull(ia.getNextInputSplit("anotherHost", 0));
+            assertThat(splits.isEmpty()).isTrue();
+            assertThat(ia.getNextInputSplit("anotherHost", 0)).isNull();
 
-            assertEquals(NUM_SPLITS, ia.getNumberOfRemoteAssignments());
-            assertEquals(0, ia.getNumberOfLocalAssignments());
+            assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(NUM_SPLITS);
+            assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -126,7 +128,7 @@ public class LocatableSplitAssignerTest {
     }
 
     @Test
-    public void testSerialSplitAssignmentSomeForRemoteHost() {
+    void testSerialSplitAssignmentSomeForRemoteHost() {
         try {
 
             // host1 reads all local
@@ -159,15 +161,15 @@ public class LocatableSplitAssignerTest {
             InputSplit is = null;
             int i = 0;
             while ((is = ia.getNextInputSplit(hosts[i++ % hosts.length], 0)) != null) {
-                assertTrue(splits.remove(is));
+                assertThat(splits.remove(is)).isTrue();
             }
 
             // check we had all
-            assertTrue(splits.isEmpty());
-            assertNull(ia.getNextInputSplit("anotherHost", 0));
+            assertThat(splits.isEmpty()).isTrue();
+            assertThat(ia.getNextInputSplit("anotherHost", 0)).isNull();
 
-            assertEquals(NUM_REMOTE_SPLITS, ia.getNumberOfRemoteAssignments());
-            assertEquals(NUM_LOCAL_SPLITS, ia.getNumberOfLocalAssignments());
+            assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(NUM_REMOTE_SPLITS);
+            assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(NUM_LOCAL_SPLITS);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -175,7 +177,7 @@ public class LocatableSplitAssignerTest {
     }
 
     @Test
-    public void testSerialSplitAssignmentMultiLocalHost() {
+    void testSerialSplitAssignmentMultiLocalHost() {
         try {
 
             final String[] localHosts = {"local1", "local2", "local3"};
@@ -220,26 +222,26 @@ public class LocatableSplitAssignerTest {
                 String host = requestingHosts[i % requestingHosts.length];
                 is = ia.getNextInputSplit(host, 0);
                 // check valid split
-                assertTrue(is != null);
+                assertThat(is != null).isTrue();
                 // check unassigned split
-                assertTrue(splits.remove(is));
+                assertThat(splits.remove(is)).isTrue();
                 // check priority of split
                 if (host.equals(localHosts[0])) {
-                    assertTrue(Arrays.equals(is.getHostnames(), oneLocalHost));
+                    assertThat(Arrays.equals(is.getHostnames(), oneLocalHost)).isTrue();
                 } else if (host.equals(localHosts[1])) {
-                    assertTrue(Arrays.equals(is.getHostnames(), twoLocalHosts));
+                    assertThat(Arrays.equals(is.getHostnames(), twoLocalHosts)).isTrue();
                 } else if (host.equals(localHosts[2])) {
-                    assertTrue(Arrays.equals(is.getHostnames(), threeLocalHosts));
+                    assertThat(Arrays.equals(is.getHostnames(), threeLocalHosts)).isTrue();
                 } else {
-                    assertTrue(Arrays.equals(is.getHostnames(), noLocalHost));
+                    assertThat(Arrays.equals(is.getHostnames(), noLocalHost)).isTrue();
                 }
             }
             // check we had all
-            assertTrue(splits.isEmpty());
-            assertNull(ia.getNextInputSplit("anotherHost", 0));
+            assertThat(splits.isEmpty()).isTrue();
+            assertThat(ia.getNextInputSplit("anotherHost", 0)).isNull();
 
-            assertEquals(NUM_REMOTE_SPLITS, ia.getNumberOfRemoteAssignments());
-            assertEquals(NUM_LOCAL_SPLITS, ia.getNumberOfLocalAssignments());
+            assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(NUM_REMOTE_SPLITS);
+            assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(NUM_LOCAL_SPLITS);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -247,7 +249,7 @@ public class LocatableSplitAssignerTest {
     }
 
     @Test
-    public void testSerialSplitAssignmentMixedLocalHost() {
+    void testSerialSplitAssignmentMixedLocalHost() {
         try {
             final String[] hosts = {"host1", "host1", "host1", "host2", "host2", "host3"};
             final int NUM_SPLITS = 10 * hosts.length;
@@ -263,15 +265,15 @@ public class LocatableSplitAssignerTest {
             InputSplit is = null;
             int i = 0;
             while ((is = ia.getNextInputSplit(hosts[i++ % hosts.length], 0)) != null) {
-                assertTrue(splits.remove(is));
+                assertThat(splits.remove(is)).isTrue();
             }
 
             // check we had all
-            assertTrue(splits.isEmpty());
-            assertNull(ia.getNextInputSplit("anotherHost", 0));
+            assertThat(splits.isEmpty()).isTrue();
+            assertThat(ia.getNextInputSplit("anotherHost", 0)).isNull();
 
-            assertEquals(0, ia.getNumberOfRemoteAssignments());
-            assertEquals(NUM_SPLITS, ia.getNumberOfLocalAssignments());
+            assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(0);
+            assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(NUM_SPLITS);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -279,7 +281,7 @@ public class LocatableSplitAssignerTest {
     }
 
     @Test
-    public void testConcurrentSplitAssignmentNullHost() {
+    void testConcurrentSplitAssignmentNullHost() {
         try {
             final int NUM_THREADS = 10;
             final int NUM_SPLITS = 500;
@@ -337,14 +339,14 @@ public class LocatableSplitAssignerTest {
                 }
             }
 
-            assertEquals(NUM_SPLITS, splitsRetrieved.get());
-            assertEquals(SUM_OF_IDS, sumOfIds.get());
+            assertThat(splitsRetrieved.get()).isEqualTo(NUM_SPLITS);
+            assertThat(sumOfIds.get()).isEqualTo(SUM_OF_IDS);
 
             // nothing left
-            assertNull(ia.getNextInputSplit("", 0));
+            assertThat(ia.getNextInputSplit("", 0)).isNull();
 
-            assertEquals(NUM_SPLITS, ia.getNumberOfRemoteAssignments());
-            assertEquals(0, ia.getNumberOfLocalAssignments());
+            assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(NUM_SPLITS);
+            assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(0);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -352,7 +354,7 @@ public class LocatableSplitAssignerTest {
     }
 
     @Test
-    public void testConcurrentSplitAssignmentForSingleHost() {
+    void testConcurrentSplitAssignmentForSingleHost() {
         try {
             final int NUM_THREADS = 10;
             final int NUM_SPLITS = 500;
@@ -407,14 +409,14 @@ public class LocatableSplitAssignerTest {
                 }
             }
 
-            assertEquals(NUM_SPLITS, splitsRetrieved.get());
-            assertEquals(SUM_OF_IDS, sumOfIds.get());
+            assertThat(splitsRetrieved.get()).isEqualTo(NUM_SPLITS);
+            assertThat(sumOfIds.get()).isEqualTo(SUM_OF_IDS);
 
             // nothing left
-            assertNull(ia.getNextInputSplit("testhost", 0));
+            assertThat(ia.getNextInputSplit("testhost", 0)).isNull();
 
-            assertEquals(0, ia.getNumberOfRemoteAssignments());
-            assertEquals(NUM_SPLITS, ia.getNumberOfLocalAssignments());
+            assertThat(ia.getNumberOfRemoteAssignments()).isEqualTo(0);
+            assertThat(ia.getNumberOfLocalAssignments()).isEqualTo(NUM_SPLITS);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -422,7 +424,7 @@ public class LocatableSplitAssignerTest {
     }
 
     @Test
-    public void testConcurrentSplitAssignmentForMultipleHosts() {
+    void testConcurrentSplitAssignmentForMultipleHosts() {
         try {
             final int NUM_THREADS = 10;
             final int NUM_SPLITS = 500;
@@ -481,14 +483,14 @@ public class LocatableSplitAssignerTest {
                 }
             }
 
-            assertEquals(NUM_SPLITS, splitsRetrieved.get());
-            assertEquals(SUM_OF_IDS, sumOfIds.get());
+            assertThat(splitsRetrieved.get()).isEqualTo(NUM_SPLITS);
+            assertThat(sumOfIds.get()).isEqualTo(SUM_OF_IDS);
 
             // nothing left
-            assertNull(ia.getNextInputSplit("testhost", 0));
+            assertThat(ia.getNextInputSplit("testhost", 0)).isNull();
 
             // at least one fraction of hosts needs be local, no matter how bad the thread races
-            assertTrue(ia.getNumberOfLocalAssignments() >= NUM_SPLITS / hosts.length);
+            assertThat(ia.getNumberOfLocalAssignments() >= NUM_SPLITS / hosts.length).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -496,7 +498,7 @@ public class LocatableSplitAssignerTest {
     }
 
     @Test
-    public void testAssignmentOfManySplitsRandomly() {
+    void testAssignmentOfManySplitsRandomly() {
 
         long seed = Calendar.getInstance().getTimeInMillis();
 
@@ -532,11 +534,11 @@ public class LocatableSplitAssignerTest {
         for (int i = 0; i < NUM_SPLITS; i++) {
             LocatableInputSplit split =
                     ia.getNextInputSplit(requestingHosts[rand.nextInt(requestingHosts.length)], 0);
-            assertTrue(split != null);
-            assertTrue(splits.remove(split));
+            assertThat(split != null).isTrue();
+            assertThat(splits.remove(split)).isTrue();
         }
 
-        assertTrue(splits.isEmpty());
-        assertNull(ia.getNextInputSplit("testHost", 0));
+        assertThat(splits.isEmpty()).isTrue();
+        assertThat(ia.getNextInputSplit("testhost", 0)).isNull();
     }
 }

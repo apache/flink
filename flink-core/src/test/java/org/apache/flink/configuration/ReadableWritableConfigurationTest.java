@@ -21,7 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -35,8 +35,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests read access ({@link ReadableConfig}) to {@link Configuration}. There are 4 different test
@@ -138,31 +137,31 @@ public class ReadableWritableConfigurationTest {
     @Parameterized.Parameter public TestSpec<?> testSpec;
 
     @Test
-    public void testGetOptionalFromObject() {
+    void testGetOptionalFromObject() {
         Configuration configuration = new Configuration();
         testSpec.setValue(configuration);
 
         Optional<?> optional = configuration.getOptional(testSpec.getOption());
-        assertThat(optional.get(), equalTo(testSpec.getValue()));
+        assertThat(optional.get()).isEqualTo(testSpec.getValue());
     }
 
     @Test
-    public void testGetOptionalFromString() {
+    void testGetOptionalFromString() {
         ConfigOption<?> option = testSpec.getOption();
         Configuration configuration = new Configuration();
         configuration.setString(option.key(), testSpec.getStringValue());
 
         Optional<?> optional = configuration.getOptional(option);
-        assertThat(optional.get(), equalTo(testSpec.getValue()));
+        assertThat(optional.get()).isEqualTo(testSpec.getValue());
     }
 
     @Test
-    public void testGetDefaultValue() {
+    void testGetDefaultValue() {
         Configuration configuration = new Configuration();
 
         ConfigOption<?> option = testSpec.getOption();
         Object value = configuration.get(option);
-        assertThat(value, equalTo(option.defaultValue()));
+        assertThat(value).isEqualTo(option.defaultValue());
     }
 
     @Test
@@ -174,7 +173,7 @@ public class ReadableWritableConfigurationTest {
         Object value =
                 ((Optional<Object>) configuration.getOptional(option))
                         .orElse(testSpec.getDefaultValueOverride());
-        assertThat(value, equalTo(testSpec.getDefaultValueOverride()));
+        assertThat(value).isEqualTo(testSpec.getDefaultValueOverride());
     }
 
     private static class TestSpec<T> {

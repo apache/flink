@@ -17,16 +17,17 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static java.lang.System.arraycopy;
-import static org.junit.Assert.assertArrayEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 /** {@link MemorySegmentFactory} test. */
 public class MemorySegmentFactoryTest {
 
     @Test
-    public void testWrapCopyChangingData() {
+    void testWrapCopyChangingData() {
         byte[] data = {1, 2, 3, 4, 5};
         byte[] changingData = new byte[data.length];
         arraycopy(data, 0, changingData, 0, data.length);
@@ -36,7 +37,7 @@ public class MemorySegmentFactoryTest {
     }
 
     @Test
-    public void testWrapPartialCopy() {
+    void testWrapPartialCopy() {
         byte[] data = {1, 2, 3, 5, 6};
         MemorySegment segment = MemorySegmentFactory.wrapCopy(data, 0, data.length / 2);
         byte[] exp = new byte[segment.size()];
@@ -45,17 +46,19 @@ public class MemorySegmentFactoryTest {
     }
 
     @Test
-    public void testWrapCopyEmpty() {
+    void testWrapCopyEmpty() {
         MemorySegmentFactory.wrapCopy(new byte[0], 0, 0);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrapCopyWrongStart() {
-        MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3);
+        assertThatThrownBy(() -> MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrapCopyWrongEnd() {
-        MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10);
+        assertThatThrownBy(() -> MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

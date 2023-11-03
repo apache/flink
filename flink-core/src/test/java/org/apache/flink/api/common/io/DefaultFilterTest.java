@@ -19,7 +19,7 @@ package org.apache.flink.api.common.io;
 
 import org.apache.flink.core.fs.Path;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -27,7 +27,7 @@ import org.junit.runners.Parameterized.Parameters;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @RunWith(Parameterized.class)
 public class DefaultFilterTest {
@@ -59,10 +59,10 @@ public class DefaultFilterTest {
     }
 
     @Test
-    public void test() {
+    void test() {
         FilePathFilter defaultFilter = FilePathFilter.createDefaultFilter();
         Path path = new Path(filePath);
-        assertEquals(
+        assertThat(
                 String.format("File: %s", filePath), shouldFilter, defaultFilter.filterPath(path));
     }
 }

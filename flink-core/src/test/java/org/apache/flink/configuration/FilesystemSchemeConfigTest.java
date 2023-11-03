@@ -21,24 +21,20 @@ package org.apache.flink.configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.UnsupportedFileSystemSchemeException;
 import org.apache.flink.core.fs.local.LocalFileSystem;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.net.URI;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the configuration of the default file system scheme. */
-public class FilesystemSchemeConfigTest extends TestLogger {
+public class FilesystemSchemeConfigTest {
 
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -50,55 +46,55 @@ public class FilesystemSchemeConfigTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testDefaultsToLocal() throws Exception {
+    void testDefaultsToLocal() throws Exception {
         URI justPath = new URI(tempFolder.newFile().toURI().getPath());
-        assertNull(justPath.getScheme());
+        assertThat(justPath.getScheme()).isNull();
 
         FileSystem fs = FileSystem.get(justPath);
-        assertEquals("file", fs.getUri().getScheme());
+        assertThat(fs.getUri().getScheme()).isEqualTo("file");
     }
 
     @Test
-    public void testExplicitlySetToLocal() throws Exception {
+    void testExplicitlySetToLocal() throws Exception {
         final Configuration conf = new Configuration();
         conf.setString(
                 CoreOptions.DEFAULT_FILESYSTEM_SCHEME, LocalFileSystem.getLocalFsURI().toString());
         FileSystem.initialize(conf);
 
         URI justPath = new URI(tempFolder.newFile().toURI().getPath());
-        assertNull(justPath.getScheme());
+        assertThat(justPath.getScheme()).isNull();
 
         FileSystem fs = FileSystem.get(justPath);
-        assertEquals("file", fs.getUri().getScheme());
+        assertThat(fs.getUri().getScheme()).isEqualTo("file");
     }
 
     @Test
-    public void testExplicitlySetToOther() throws Exception {
+    void testExplicitlySetToOther() throws Exception {
         final Configuration conf = new Configuration();
         conf.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "otherFS://localhost:1234/");
         FileSystem.initialize(conf);
 
         URI justPath = new URI(tempFolder.newFile().toURI().getPath());
-        assertNull(justPath.getScheme());
+        assertThat(justPath.getScheme()).isNull();
 
         try {
             FileSystem.get(justPath);
             fail("should have failed with an exception");
         } catch (UnsupportedFileSystemSchemeException e) {
-            assertTrue(e.getMessage().contains("otherFS"));
+            assertThat(e.getMessage().contains("otherFS")).isTrue();
         }
     }
 
     @Test
-    public void testExplicitlyPathTakesPrecedence() throws Exception {
+    void testExplicitlyPathTakesPrecedence() throws Exception {
         final Configuration conf = new Configuration();
         conf.setString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, "otherFS://localhost:1234/");
         FileSystem.initialize(conf);
 
         URI pathAndScheme = tempFolder.newFile().toURI();
-        assertNotNull(pathAndScheme.getScheme());
+        assertThat(pathAndScheme.getScheme()).isNotNull();
 
         FileSystem fs = FileSystem.get(pathAndScheme);
-        assertEquals("file", fs.getUri().getScheme());
+        assertThat(fs.getUri().getScheme()).isEqualTo("file");
     }
 }

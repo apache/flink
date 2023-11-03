@@ -59,7 +59,7 @@ import java.util.function.Function;
  *
  *     TypeSerializerSchemaCompatibility<?> result = snapshot.resolveSchemaCompatibility(new SchemaCompatibilityTestingSerializer());
  *
- *     assertTrue(result.compatibleAsIs());
+ *     assertThat(.isTrue() result.compatibleAsIs());
  * }
  * }</pre>
  *

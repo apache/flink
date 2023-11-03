@@ -18,7 +18,7 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -29,7 +29,7 @@ import static org.junit.Assert.assertSame;
 public class LambdaUtilTest {
 
     @Test
-    public void testRunWithContextClassLoaderRunnable() throws Exception {
+    void testRunWithContextClassLoaderRunnable() throws Exception {
         final ClassLoader aPrioriContextClassLoader =
                 Thread.currentThread().getContextClassLoader();
 
@@ -51,7 +51,7 @@ public class LambdaUtilTest {
     }
 
     @Test
-    public void testRunWithContextClassLoaderSupplier() throws Exception {
+    void testRunWithContextClassLoaderSupplier() throws Exception {
         final ClassLoader aPrioriContextClassLoader =
                 Thread.currentThread().getContextClassLoader();
 

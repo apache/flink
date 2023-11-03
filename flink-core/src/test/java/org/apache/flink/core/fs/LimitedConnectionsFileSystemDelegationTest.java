@@ -21,13 +21,13 @@ package org.apache.flink.core.fs;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
@@ -156,13 +156,13 @@ public class LimitedConnectionsFileSystemDelegationTest {
             FileSystemKind kind =
                     rnd.nextBoolean() ? FileSystemKind.FILE_SYSTEM : FileSystemKind.OBJECT_STORE;
             when(fs.getKind()).thenReturn(kind);
-            assertEquals(kind, lfs.getKind());
+            assertThat(lfs.getKind()).isEqualTo(kind);
             verify(fs).getKind();
         }
     }
 
     @Test
-    public void testDelegateOutStreamMethods() throws IOException {
+    void testDelegateOutStreamMethods() throws IOException {
 
         // mock the output stream
         final FSDataOutputStream mockOut = mock(FSDataOutputStream.class);
@@ -186,7 +186,7 @@ public class LimitedConnectionsFileSystemDelegationTest {
             verify(mockOut).write(bytes, 100, 111);
         }
 
-        assertEquals(outPos, out.getPos());
+        assertThat(out.getPos()).isEqualTo(outPos);
 
         out.flush();
         verify(mockOut).flush();
@@ -199,7 +199,7 @@ public class LimitedConnectionsFileSystemDelegationTest {
     }
 
     @Test
-    public void testDelegateInStreamMethods() throws IOException {
+    void testDelegateInStreamMethods() throws IOException {
         // mock the input stream
         final FSDataInputStream mockIn = mock(FSDataInputStream.class);
         final int value = 93;
@@ -221,17 +221,17 @@ public class LimitedConnectionsFileSystemDelegationTest {
 
         // validate the input stream
 
-        assertEquals(value, in.read());
-        assertEquals(bytesRead, in.read(new byte[11], 2, 5));
+        assertThat(in.read()).isEqualTo(value);
+        assertThat(in.read(new byte[11], 2, 5)).isEqualTo(bytesRead);
 
-        assertEquals(inPos, in.getPos());
+        assertThat(in.getPos()).isEqualTo(inPos);
 
         in.seek(17876);
         verify(mockIn).seek(17876);
 
-        assertEquals(available, in.available());
+        assertThat(in.available()).isEqualTo(available);
 
-        assertEquals(markSupported, in.markSupported());
+        assertThat(in.markSupported()).isEqualTo(markSupported);
 
         in.mark(9876);
         verify(mockIn).mark(9876);

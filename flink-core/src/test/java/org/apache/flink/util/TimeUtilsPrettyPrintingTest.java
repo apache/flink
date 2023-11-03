@@ -18,18 +18,17 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.time.Duration;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TimeUtils#formatWithHighestUnit(Duration)}. */
 @RunWith(Parameterized.class)
-public class TimeUtilsPrettyPrintingTest extends TestLogger {
+public class TimeUtilsPrettyPrintingTest {
     @Parameterized.Parameters
     public static Object[][] parameters() {
         return new Object[][] {
@@ -49,7 +48,7 @@ public class TimeUtilsPrettyPrintingTest extends TestLogger {
     public String expectedString;
 
     @Test
-    public void testFormatting() {
-        assertThat(TimeUtils.formatWithHighestUnit(duration), is(expectedString));
+    void testFormatting() {
+        assertThat(TimeUtils.formatWithHighestUnit(duration)).isEqualTo(expectedString);
     }
 }

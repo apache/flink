@@ -192,7 +192,7 @@ public class KryoSerializer<T> extends TypeSerializer<T> {
     /**
      * Copy-constructor that does not copy transient fields. They will be initialized once required.
      */
-    protected KryoSerializer(KryoSerializer<T> toCopy) {
+    public KryoSerializer(KryoSerializer<T> toCopy) {
 
         this.type = checkNotNull(toCopy.type, "Type class cannot be null.");
         this.defaultSerializerClasses = toCopy.defaultSerializerClasses;

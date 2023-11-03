@@ -19,7 +19,7 @@ package org.apache.flink.types;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,69 +27,63 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.not;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link Row} and {@link RowUtils}. */
 public class RowTest {
 
     @Test
-    public void testRowNamed() {
+    void testRowNamed() {
         final Row row = Row.withNames(RowKind.DELETE);
 
         // test getters and setters
         row.setField("a", 42);
         row.setField("b", true);
         row.setField("c", null);
-        assertThat(row.getFieldNames(false), containsInAnyOrder("a", "b", "c"));
-        assertThat(row.getArity(), equalTo(3));
-        assertThat(row.getKind(), equalTo(RowKind.DELETE));
-        assertThat(row.getField("a"), equalTo(42));
-        assertThat(row.getField("b"), equalTo(true));
-        assertThat(row.getField("c"), equalTo(null));
+        assertThat(row.getFieldNames(false)).contains("a", "b", "c");
+        assertThat(row.getArity()).isEqualTo(3);
+        assertThat(row.getKind()).isEqualTo(RowKind.DELETE);
+        assertThat(row.getField("a")).isEqualTo(42);
+        assertThat(row.getField("b")).isEqualTo(true);
+        assertThat(row.getField("c")).isEqualTo(null);
 
         // test toString
-        assertThat(row.toString(), equalTo("-D{a=42, b=true, c=null}"));
+        assertThat(row.toString()).isEqualTo("-D{a=42, b=true, c=null}");
 
         // test override
         row.setField("a", 13);
         row.setField("c", "Hello");
-        assertThat(row.getField("a"), equalTo(13));
-        assertThat(row.getField("b"), equalTo(true));
-        assertThat(row.getField("c"), equalTo("Hello"));
+        assertThat(row.getField("a")).isEqualTo(13);
+        assertThat(row.getField("b")).isEqualTo(true);
+        assertThat(row.getField("c")).isEqualTo("Hello");
 
         // test equality
         final Row otherRow1 = Row.withNames(RowKind.DELETE);
         otherRow1.setField("a", 13);
         otherRow1.setField("b", true);
         otherRow1.setField("c", "Hello");
-        assertThat(row.hashCode(), equalTo(otherRow1.hashCode()));
-        assertThat(row, equalTo(otherRow1));
+        assertThat(row.hashCode()).isEqualTo(otherRow1.hashCode());
+        assertThat(row).isEqualTo(otherRow1);
 
         // test inequality
         final Row otherRow2 = Row.withNames(RowKind.DELETE);
         otherRow2.setField("a", 13);
         otherRow2.setField("b", false); // diff here
         otherRow2.setField("c", "Hello");
-        assertThat(row.hashCode(), not(equalTo(otherRow2.hashCode())));
-        assertThat(row, not(equalTo(otherRow2)));
+        assertThat(row.hashCode()).isNotEqualTo(otherRow2.hashCode());
+        assertThat(row).isNotEqualTo(otherRow2);
 
         // test clear
         row.clear();
-        assertThat(row.getArity(), equalTo(0));
-        assertThat(row.getFieldNames(false), empty());
-        assertThat(row.toString(), equalTo("-D{}"));
+        assertThat(row.getArity()).isEqualTo(0);
+        assertThat(row.getFieldNames(false)).isEmpty();
+        assertThat(row.toString()).isEqualTo("-D{}");
 
         // test invalid setter
         try {
@@ -101,7 +95,7 @@ public class RowTest {
 
         // test invalid getter
         try {
-            assertNull(row.getField(0));
+            assertThat(row.getField(0)).isNull();
             fail();
         } catch (Throwable t) {
             assertThat(t, hasMessage(containsString("not supported in name-based field mode")));
@@ -109,51 +103,51 @@ public class RowTest {
     }
 
     @Test
-    public void testRowPositioned() {
+    void testRowPositioned() {
         final Row row = Row.withPositions(RowKind.DELETE, 3);
 
         // test getters and setters
         row.setField(0, 42);
         row.setField(1, true);
         row.setField(2, null);
-        assertThat(row.getFieldNames(false), equalTo(null));
-        assertThat(row.getArity(), equalTo(3));
-        assertThat(row.getKind(), equalTo(RowKind.DELETE));
-        assertThat(row.getField(0), equalTo(42));
-        assertThat(row.getField(1), equalTo(true));
-        assertThat(row.getField(2), equalTo(null));
+        assertThat(row.getFieldNames(false)).isEqualTo(null);
+        assertThat(row.getArity()).isEqualTo(3);
+        assertThat(row.getKind()).isEqualTo(RowKind.DELETE);
+        assertThat(row.getField(0)).isEqualTo(42);
+        assertThat(row.getField(1)).isEqualTo(true);
+        assertThat(row.getField(2)).isEqualTo(null);
 
         // test toString
-        assertThat(row.toString(), equalTo("-D[42, true, null]"));
+        assertThat(row.toString()).isEqualTo("-D[42, true, null]");
 
         // test override
         row.setField(0, 13);
         row.setField(2, "Hello");
-        assertThat(row.getField(0), equalTo(13));
-        assertThat(row.getField(1), equalTo(true));
-        assertThat(row.getField(2), equalTo("Hello"));
+        assertThat(row.getField(0)).isEqualTo(13);
+        assertThat(row.getField(1)).isEqualTo(true);
+        assertThat(row.getField(2)).isEqualTo("Hello");
 
         // test equality
         final Row otherRow1 = Row.withPositions(RowKind.DELETE, 3);
         otherRow1.setField(0, 13);
         otherRow1.setField(1, true);
         otherRow1.setField(2, "Hello");
-        assertThat(row.hashCode(), equalTo(otherRow1.hashCode()));
-        assertThat(row, equalTo(otherRow1));
+        assertThat(row.hashCode()).isEqualTo(otherRow1.hashCode());
+        assertThat(row).isEqualTo(otherRow1);
 
         // test inequality
         final Row otherRow2 = Row.withPositions(RowKind.DELETE, 3);
         otherRow2.setField(0, 13);
         otherRow2.setField(1, false); // diff here
         otherRow2.setField(2, "Hello");
-        assertThat(row.hashCode(), not(equalTo(otherRow2.hashCode())));
-        assertThat(row, not(equalTo(otherRow2)));
+        assertThat(row.hashCode()).isNotEqualTo(otherRow2.hashCode());
+        assertThat(row).isNotEqualTo(otherRow2);
 
         // test clear
         row.clear();
-        assertThat(row.getArity(), equalTo(3));
-        assertThat(row.getFieldNames(false), equalTo(null));
-        assertThat(row.toString(), equalTo("-D[null, null, null]"));
+        assertThat(row.getArity()).isEqualTo(3);
+        assertThat(row.getFieldNames(false)).isEqualTo(null);
+        assertThat(row.toString()).isEqualTo("-D[null, null, null]");
 
         // test invalid setter
         try {
@@ -165,7 +159,7 @@ public class RowTest {
 
         // test invalid getter
         try {
-            assertNull(row.getField("a"));
+            assertThat(row.getField("a")).isNull();
             fail();
         } catch (Throwable t) {
             assertThat(t, hasMessage(containsString("not supported in position-based field mode")));
@@ -173,7 +167,7 @@ public class RowTest {
     }
 
     @Test
-    public void testRowNamedPositioned() {
+    void testRowNamedPositioned() {
         final LinkedHashMap<String, Integer> positionByName = new LinkedHashMap<>();
         positionByName.put("a", 0);
         positionByName.put("b", 1);
@@ -185,45 +179,45 @@ public class RowTest {
         row.setField(0, 42);
         row.setField("b", true);
         row.setField(2, null);
-        assertThat(row.getFieldNames(false), equalTo(null));
-        assertThat(row.getFieldNames(true), contains("a", "b", "c"));
-        assertThat(row.getArity(), equalTo(3));
-        assertThat(row.getKind(), equalTo(RowKind.DELETE));
-        assertThat(row.getField(0), equalTo(42));
-        assertThat(row.getField(1), equalTo(true));
-        assertThat(row.getField("c"), equalTo(null));
+        assertThat(row.getFieldNames(false)).isEqualTo(null);
+        assertThat(row.getFieldNames(true)).contains("a", "b", "c");
+        assertThat(row.getArity()).isEqualTo(3);
+        assertThat(row.getKind()).isEqualTo(RowKind.DELETE);
+        assertThat(row.getField(0)).isEqualTo(42);
+        assertThat(row.getField(1)).isEqualTo(true);
+        assertThat(row.getField("c")).isEqualTo(null);
 
         // test toString
-        assertThat(row.toString(), equalTo("-D[42, true, null]"));
+        assertThat(row.toString()).isEqualTo("-D[42, true, null]");
 
         // test override
         row.setField("a", 13);
         row.setField(2, "Hello");
-        assertThat(row.getField(0), equalTo(13));
-        assertThat(row.getField("b"), equalTo(true));
-        assertThat(row.getField(2), equalTo("Hello"));
+        assertThat(row.getField(0)).isEqualTo(13);
+        assertThat(row.getField("b")).isEqualTo(true);
+        assertThat(row.getField(2)).isEqualTo("Hello");
 
         // test equality
         final Row otherRow1 = Row.withPositions(RowKind.DELETE, 3);
         otherRow1.setField(0, 13);
         otherRow1.setField(1, true);
         otherRow1.setField(2, "Hello");
-        assertThat(row.hashCode(), equalTo(otherRow1.hashCode()));
-        assertThat(row, equalTo(otherRow1));
+        assertThat(row.hashCode()).isEqualTo(otherRow1.hashCode());
+        assertThat(row).isEqualTo(otherRow1);
 
         // test inequality
         final Row otherRow2 = Row.withPositions(RowKind.DELETE, 3);
         otherRow2.setField(0, 13);
         otherRow2.setField(1, false); // diff here
         otherRow2.setField(2, "Hello");
-        assertThat(row.hashCode(), not(equalTo(otherRow2.hashCode())));
-        assertThat(row, not(equalTo(otherRow2)));
+        assertThat(row.hashCode()).isNotEqualTo(otherRow2.hashCode());
+        assertThat(row).isNotEqualTo(otherRow2);
 
         // test clear
         row.clear();
-        assertThat(row.getArity(), equalTo(3));
-        assertThat(row.getFieldNames(true), contains("a", "b", "c"));
-        assertThat(row.toString(), equalTo("-D[null, null, null]"));
+        assertThat(row.getArity()).isEqualTo(3);
+        assertThat(row.getFieldNames(true)).contains("a", "b", "c");
+        assertThat(row.toString()).isEqualTo("-D[null, null, null]");
 
         // test invalid setter
         try {
@@ -235,7 +229,7 @@ public class RowTest {
 
         // test invalid getter
         try {
-            assertNull(row.getField("DOES_NOT_EXIST"));
+            assertThat(row.getField("DOES_NOT_EXIST")).isNull();
             fail();
         } catch (Throwable t) {
             assertThat(t, hasMessage(containsString("Unknown field name 'DOES_NOT_EXIST'")));
@@ -243,7 +237,7 @@ public class RowTest {
     }
 
     @Test
-    public void testRowOf() {
+    void testRowOf() {
         final Row row1 = Row.of(1, "hello", null, Tuple2.of(2L, "hi"), true);
 
         final Row row2 = Row.withPositions(5);
@@ -253,11 +247,11 @@ public class RowTest {
         row2.setField(3, new Tuple2<>(2L, "hi"));
         row2.setField(4, true);
 
-        assertEquals(row1, row2);
+        assertThat(row2).isEqualTo(row1);
     }
 
     @Test
-    public void testRowCopyPositioned() {
+    void testRowCopyPositioned() {
         final Row row = Row.withPositions(5);
         row.setField(0, 1);
         row.setField(1, "hello");
@@ -266,12 +260,12 @@ public class RowTest {
         row.setField(4, "hello world");
 
         final Row copy = Row.copy(row);
-        assertEquals(row, copy);
+        assertThat(copy).isEqualTo(row);
         assertNotSame(row, copy);
     }
 
     @Test
-    public void testRowCopyNamed() {
+    void testRowCopyNamed() {
         final Row row = Row.withNames();
         row.setField("a", 1);
         row.setField("b", "hello");
@@ -280,12 +274,12 @@ public class RowTest {
         row.setField("e", "hello world");
 
         final Row copy = Row.copy(row);
-        assertEquals(row, copy);
+        assertThat(copy).isEqualTo(row);
         assertNotSame(row, copy);
     }
 
     @Test
-    public void testRowProjectPositioned() {
+    void testRowProjectPositioned() {
         final Row row = Row.withPositions(5);
         row.setField(0, 1);
         row.setField(1, "hello");
@@ -300,11 +294,11 @@ public class RowTest {
         expected.setField(1, null);
         expected.setField(2, "hello world");
 
-        assertEquals(expected, projected);
+        assertThat(projected).isEqualTo(expected);
     }
 
     @Test
-    public void testRowProjectNamed() {
+    void testRowProjectNamed() {
         final Row row = Row.withNames();
         row.setField("a", 1);
         row.setField("b", "hello");
@@ -319,11 +313,11 @@ public class RowTest {
         expected.setField("c", null);
         expected.setField("e", "hello world");
 
-        assertEquals(expected, projected);
+        assertThat(projected).isEqualTo(expected);
     }
 
     @Test
-    public void testRowJoinPositioned() {
+    void testRowJoinPositioned() {
         Row row1 = new Row(2);
         row1.setField(0, 1);
         row1.setField(1, "hello");
@@ -343,11 +337,11 @@ public class RowTest {
         expected.setField(2, null);
         expected.setField(3, new Tuple2<>(2, "hi"));
         expected.setField(4, "hello world");
-        assertEquals(expected, joinedRow);
+        assertThat(joinedRow).isEqualTo(expected);
     }
 
     @Test
-    public void testDeepEqualsAndHashCodePositioned() {
+    void testDeepEqualsAndHashCodePositioned() {
         final Map<String, byte[]> originalMap = new HashMap<>();
         originalMap.put("k1", new byte[] {1, 2, 3});
         originalMap.put("k2", new byte[] {3, 4, 6});
@@ -362,8 +356,8 @@ public class RowTest {
                         Collections.emptyMap(),
                         new int[][] {{1, 2, 3}, {}, {4, 5}},
                         1.44);
-        assertEquals(originalRow, originalRow);
-        assertEquals(originalRow.hashCode(), originalRow.hashCode());
+        assertThat(originalRow).isEqualTo(originalRow);
+        assertThat(originalRow.hashCode()).isEqualTo(originalRow.hashCode());
 
         {
             // no diff
@@ -377,8 +371,8 @@ public class RowTest {
                             Collections.emptyMap(),
                             new int[][] {{1, 2, 3}, {}, {4, 5}},
                             1.44);
-            assertEquals(row, originalRow);
-            assertEquals(row.hashCode(), originalRow.hashCode());
+            assertThat(originalRow).isEqualTo(row);
+            assertThat(originalRow.hashCode()).isEqualTo(row.hashCode());
         }
 
         {
@@ -440,7 +434,7 @@ public class RowTest {
     }
 
     @Test
-    public void testDeepEqualsCodeNamed() {
+    void testDeepEqualsCodeNamed() {
         final Row named = Row.withNames(RowKind.DELETE);
         named.setField("a", 12); // "b" is missing due to sparsity
         named.setField("c", true);
@@ -455,16 +449,16 @@ public class RowTest {
         namedPositioned.setField("b", null);
         namedPositioned.setField("c", true);
 
-        assertThat(named, equalTo(namedPositioned));
-        assertThat(namedPositioned, equalTo(named));
+        assertThat(named).isEqualTo(namedPositioned);
+        assertThat(namedPositioned).isEqualTo(named);
 
         named.setField("b", "Hello");
-        assertThat(named, not(equalTo(namedPositioned)));
-        assertThat(namedPositioned, not(equalTo(named)));
+        assertThat(named).isNotEqualTo(namedPositioned);
+        assertThat(namedPositioned).isNotEqualTo(named);
     }
 
     @Test
-    public void testDeepToString() {
+    void testDeepToString() {
         final Row row = Row.withNames(RowKind.UPDATE_BEFORE);
         row.setField("a", 1);
         row.setField("b", "hello");
@@ -480,17 +474,17 @@ public class RowTest {
         row.setField("h", map);
 
         assertThat(
-                row.toString(),
-                equalTo(
-                        "-U{"
-                                + "a=1, "
-                                + "b=hello, "
-                                + "c=null, "
-                                + "d=(2,hi), "
-                                + "e=hello world, "
-                                + "f=[[1], null, [3, 4]], "
-                                + "g=[[true], null, [false, false]], "
-                                + "h={a=[1, 2, 3, 4], b=[], c=null}"
-                                + "}"));
+                        equalTo(
+                                "-U{"
+                                        + "a=1, "
+                                        + "b=hello, "
+                                        + "c=null, "
+                                        + "d=(2,hi), "
+                                        + "e=hello world, "
+                                        + "f=[[1], null, [3, 4]], "
+                                        + "g=[[true], null, [false, false]], "
+                                        + "h={a=[1, 2, 3, 4], b=[], c=null}"
+                                        + "}"))
+                .isEqualTo(row.toString());
     }
 }

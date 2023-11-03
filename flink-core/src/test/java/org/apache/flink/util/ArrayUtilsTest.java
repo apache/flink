@@ -18,17 +18,17 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.sameInstance;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link ArrayUtils}. */
-public class ArrayUtilsTest extends TestLogger {
+public class ArrayUtilsTest {
 
     @Test
-    public void concatWithEmptyArray() {
+    void concatWithEmptyArray() {
         String[] emptyArray = new String[] {};
         String[] nonEmptyArray = new String[] {"some value"};
 
@@ -44,7 +44,7 @@ public class ArrayUtilsTest extends TestLogger {
     }
 
     @Test
-    public void concatArrays() {
+    void concatArrays() {
         String[] array1 = new String[] {"A", "B", "C", "D", "E", "F", "G"};
         String[] array2 = new String[] {"1", "2", "3"};
 

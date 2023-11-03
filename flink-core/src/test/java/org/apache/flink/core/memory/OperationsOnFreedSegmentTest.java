@@ -18,7 +18,7 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -29,8 +29,8 @@ import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.util.function.BiConsumer;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Various tests with freed memory segments for {@link MemorySegment} (in both heap and off-heap
@@ -41,14 +41,14 @@ public class OperationsOnFreedSegmentTest {
     private static final int PAGE_SIZE = (int) ((Math.random() * 10000) + 1000);
 
     @Test
-    public void testSingleSegmentOperationsHeapSegment() throws Exception {
+    void testSingleSegmentOperationsHeapSegment() throws Exception {
         for (MemorySegment segment : createTestSegments()) {
             testOpsOnFreedSegment(segment);
         }
     }
 
     @Test
-    public void testCompare() {
+    void testCompare() {
         MemorySegment aliveHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
         MemorySegment aliveOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
 
@@ -83,12 +83,12 @@ public class OperationsOnFreedSegmentTest {
     }
 
     @Test
-    public void testCopyTo() {
+    void testCopyTo() {
         testAliveVsFree(this::testCopy);
     }
 
     @Test
-    public void testSwap() {
+    void testSwap() {
         testAliveVsFree(this::testSwap);
     }
 
@@ -133,7 +133,7 @@ public class OperationsOnFreedSegmentTest {
 
     private void testOpsOnFreedSegment(MemorySegment segment) throws Exception {
         segment.free();
-        assertTrue(segment.isFreed());
+        assertThat(segment.isFreed()).isTrue();
 
         // --------- bytes -----------
 

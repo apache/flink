@@ -18,15 +18,13 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link MemorySegment} in on-heap mode. */
 @RunWith(Parameterized.class)
@@ -47,27 +45,27 @@ public class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Test
-    public void testHeapSegmentSpecifics() {
+    void testHeapSegmentSpecifics() {
         final byte[] buffer = new byte[411];
         MemorySegment seg = new MemorySegment(buffer, null);
 
-        assertFalse(seg.isFreed());
-        assertFalse(seg.isOffHeap());
-        assertEquals(buffer.length, seg.size());
-        assertTrue(buffer == seg.getArray());
+        assertThat(seg.isFreed()).isFalse();
+        assertThat(seg.isOffHeap()).isFalse();
+        assertThat(seg.size()).isEqualTo(buffer.length);
+        assertThat(buffer == seg.getArray()).isTrue();
 
         ByteBuffer buf1 = seg.wrap(1, 2);
         ByteBuffer buf2 = seg.wrap(3, 4);
 
-        assertTrue(buf1 != buf2);
-        assertEquals(1, buf1.position());
-        assertEquals(3, buf1.limit());
-        assertEquals(3, buf2.position());
-        assertEquals(7, buf2.limit());
+        assertThat(buf1 != buf2).isTrue();
+        assertThat(buf1.position()).isEqualTo(1);
+        assertThat(buf1.limit()).isEqualTo(3);
+        assertThat(buf2.position()).isEqualTo(3);
+        assertThat(buf2.limit()).isEqualTo(7);
     }
 
     @Test
-    public void testReadOnlyByteBufferPut() {
+    void testReadOnlyByteBufferPut() {
         final byte[] buffer = new byte[100];
         MemorySegment seg = new MemorySegment(buffer, null);
 
@@ -80,22 +78,22 @@ public class OnHeapMemorySegmentTest extends MemorySegmentTestBase {
         int numBytes = 5;
 
         ByteBuffer readOnlyBuf = bb.asReadOnlyBuffer();
-        assertFalse(readOnlyBuf.isDirect());
-        assertFalse(readOnlyBuf.hasArray());
+        assertThat(readOnlyBuf.isDirect()).isFalse();
+        assertThat(readOnlyBuf.hasArray()).isFalse();
 
         seg.put(offset, readOnlyBuf, numBytes);
 
         // verify the area before the written region.
         for (int i = 0; i < offset; i++) {
-            assertEquals(0, buffer[i]);
+            assertThat(buffer[i]).isEqualTo(0);
         }
 
         // verify the region that is written.
-        assertEquals("hello", new String(buffer, offset, numBytes));
+        assertThat(new String(buffer, offset, numBytes)).isEqualTo("hello");
 
         // verify the area after the written region.
         for (int i = offset + numBytes; i < buffer.length; i++) {
-            assertEquals(0, buffer[i]);
+            assertThat(buffer[i]).isEqualTo(0);
         }
     }
 }

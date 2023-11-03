@@ -19,7 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -32,8 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StructuredOptionsSplitter}. */
 @RunWith(Parameterized.class)
@@ -97,7 +96,7 @@ public class StructuredOptionsSplitterTest {
     @Parameterized.Parameter public TestSpec testSpec;
 
     @Test
-    public void testParse() {
+    void testParse() {
         testSpec.getExpectedException()
                 .ifPresent(
                         exception -> {
@@ -108,7 +107,7 @@ public class StructuredOptionsSplitterTest {
                 StructuredOptionsSplitter.splitEscaped(
                         testSpec.getString(), testSpec.getDelimiter());
 
-        assertThat(splits, equalTo(testSpec.getExpectedSplits()));
+        assertThat(splits).isEqualTo(testSpec.getExpectedSplits());
     }
 
     private static class TestSpec {

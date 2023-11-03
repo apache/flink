@@ -18,7 +18,7 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,21 +28,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class ReferenceTest {
 
     @Test
-    public void testOwnedReferenceIsOwned() {
+    void testOwnedReferenceIsOwned() {
         final Reference<String> value = Reference.owned("foobar");
 
         assertThat(value.isOwned()).isTrue();
     }
 
     @Test
-    public void testBorrowedReferenceIsNotOwned() {
+    void testBorrowedReferenceIsNotOwned() {
         final Reference<String> value = Reference.borrowed("foobar");
 
         assertThat(value.isOwned()).isFalse();
     }
 
     @Test
-    public void testOwnedReferenceReturnsSomeOwned() {
+    void testOwnedReferenceReturnsSomeOwned() {
         final String value = "foobar";
         final Reference<String> owned = Reference.owned(value);
 
@@ -50,7 +50,7 @@ public class ReferenceTest {
     }
 
     @Test
-    public void testBorrowedReferenceReturnsEmptyOwned() {
+    void testBorrowedReferenceReturnsEmptyOwned() {
         Reference<String> value = Reference.borrowed("foobar");
 
         assertThat(value.owned()).isEmpty();

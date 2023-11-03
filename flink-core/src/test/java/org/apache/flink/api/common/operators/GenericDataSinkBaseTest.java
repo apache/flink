@@ -31,14 +31,14 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Nothing;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.concurrent.Future;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Checks the GenericDataSinkBase operator for both Rich and non-Rich output formats. */
 @SuppressWarnings("serial")
@@ -52,7 +52,7 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
                     "testSource");
 
     @Test
-    public void testDataSourcePlain() {
+    void testDataSourcePlain() {
         try {
             TestNonRichOutputFormat out = new TestNonRichOutputFormat();
             GenericDataSinkBase<String> sink =
@@ -68,13 +68,13 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
             executionConfig.disableObjectReuse();
             in.reset();
             sink.executeOnCollections(asList(TestIOData.NAMES), null, executionConfig);
-            assertEquals(out.output, asList(TestIOData.NAMES));
+            assertThat(out.output).isEqualTo(asList(TestIOData.NAMES));
 
             executionConfig.enableObjectReuse();
             out.clear();
             in.reset();
             sink.executeOnCollections(asList(TestIOData.NAMES), null, executionConfig);
-            assertEquals(out.output, asList(TestIOData.NAMES));
+            assertThat(out.output).isEqualTo(asList(TestIOData.NAMES));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -82,7 +82,7 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
     }
 
     @Test
-    public void testDataSourceWithRuntimeContext() {
+    void testDataSourceWithRuntimeContext() {
         try {
             TestRichOutputFormat out = new TestRichOutputFormat();
             GenericDataSinkBase<String> sink =
@@ -113,7 +113,7 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
                             UnregisteredMetricsGroup.createOperatorMetricGroup()),
                     executionConfig);
 
-            assertEquals(out.output, asList(TestIOData.RICH_NAMES));
+            assertThat(out.output).isEqualTo(asList(TestIOData.RICH_NAMES));
 
             executionConfig.enableObjectReuse();
             out.clear();
@@ -129,7 +129,7 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
                             accumulatorMap,
                             UnregisteredMetricsGroup.createOperatorMetricGroup()),
                     executionConfig);
-            assertEquals(out.output, asList(TestIOData.RICH_NAMES));
+            assertThat(out.output).isEqualTo(asList(TestIOData.RICH_NAMES));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

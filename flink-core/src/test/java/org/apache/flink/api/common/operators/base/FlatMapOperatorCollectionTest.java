@@ -32,8 +32,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -42,30 +41,34 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Future;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Fail.fail;
+import static org.junit.jupiter.api.Assertions.fail;
+
 @SuppressWarnings("serial")
 public class FlatMapOperatorCollectionTest implements Serializable {
 
     @Test
-    public void testExecuteOnCollection() {
+    void testExecuteOnCollection() {
         try {
             IdRichFlatMap<String> udf = new IdRichFlatMap<String>();
             testExecuteOnCollection(udf, Arrays.asList("f", "l", "i", "n", "k"), true);
-            Assert.assertTrue(udf.isClosed);
+            assertThat(udf.isClosed).isTrue();
 
             udf = new IdRichFlatMap<String>();
             testExecuteOnCollection(udf, Arrays.asList("f", "l", "i", "n", "k"), false);
-            Assert.assertTrue(udf.isClosed);
+            assertThat(udf.isClosed).isTrue();
 
             udf = new IdRichFlatMap<String>();
             testExecuteOnCollection(udf, Collections.<String>emptyList(), true);
-            Assert.assertTrue(udf.isClosed);
+            assertThat(udf.isClosed).isTrue();
 
             udf = new IdRichFlatMap<String>();
             testExecuteOnCollection(udf, Collections.<String>emptyList(), false);
-            Assert.assertTrue(udf.isClosed);
+            assertThat(udf.isClosed).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
@@ -93,8 +96,8 @@ public class FlatMapOperatorCollectionTest implements Serializable {
                                         UnregisteredMetricsGroup.createOperatorMetricGroup()),
                                 executionConfig);
 
-        Assert.assertEquals(input.size(), result.size());
-        Assert.assertEquals(input, result);
+        assertThat(result.size()).isEqualTo(input.size());
+        assertThat(result).isEqualTo(input);
     }
 
     public class IdRichFlatMap<IN> extends RichFlatMapFunction<IN, IN> {
@@ -107,15 +110,15 @@ public class FlatMapOperatorCollectionTest implements Serializable {
             isOpened = true;
 
             RuntimeContext ctx = getRuntimeContext();
-            Assert.assertEquals("Test UDF", ctx.getTaskName());
-            Assert.assertEquals(4, ctx.getNumberOfParallelSubtasks());
-            Assert.assertEquals(0, ctx.getIndexOfThisSubtask());
+            assertThat(ctx.getTaskName()).isEqualTo("Test UDF");
+            assertThat(ctx.getNumberOfParallelSubtasks()).isEqualTo(4);
+            assertThat(ctx.getIndexOfThisSubtask()).isEqualTo(0);
         }
 
         @Override
         public void flatMap(IN value, Collector<IN> out) throws Exception {
-            Assert.assertTrue(isOpened);
-            Assert.assertFalse(isClosed);
+            assertThat(isOpened).isTrue();
+            assertThat(isClosed).isFalse();
 
             out.collect(value);
         }

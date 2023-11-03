@@ -18,28 +18,26 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link UnionIterator}. */
 public class UnionIteratorTest {
 
     @Test
-    public void testUnion() {
+    void testUnion() {
         try {
             UnionIterator<Integer> iter = new UnionIterator<>();
 
             // should succeed and be empty
-            assertFalse(iter.iterator().hasNext());
+            assertThat(iter.iterator().hasNext()).isFalse();
 
             iter.clear();
 
@@ -57,7 +55,7 @@ public class UnionIteratorTest {
 
             int val = 1;
             for (int i : iter) {
-                assertEquals(val++, i);
+                assertThat(val++).isEqualTo(i);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -66,7 +64,7 @@ public class UnionIteratorTest {
     }
 
     @Test
-    public void testTraversableOnce() {
+    void testTraversableOnce() {
         try {
             UnionIterator<Integer> iter = new UnionIterator<>();
 
@@ -117,9 +115,9 @@ public class UnionIteratorTest {
 
             // should succeed
             Iterator<Integer> ints = iter.iterator();
-            assertNotNull(ints.next());
-            assertNotNull(ints.next());
-            assertNotNull(ints.next());
+            assertThat(ints.next()).isNotNull();
+            assertThat(ints.next()).isNotNull();
+            assertThat(ints.next()).isNotNull();
 
             // should fail if called in the middle of operations
             try {
@@ -133,7 +131,7 @@ public class UnionIteratorTest {
             iter.clear();
 
             // should succeed again
-            assertFalse(iter.iterator().hasNext());
+            assertThat(iter.iterator().hasNext()).isFalse();
 
         } catch (Exception e) {
             e.printStackTrace();

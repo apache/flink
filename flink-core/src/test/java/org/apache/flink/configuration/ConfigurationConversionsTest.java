@@ -23,7 +23,7 @@ import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -34,10 +34,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.closeTo;
-import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link Configuration} conversion between types. Extracted from {@link
@@ -364,7 +364,7 @@ public class ConfigurationConversionsTest {
     @Parameterized.Parameter public TestSpec<?> testSpec;
 
     @Test
-    public void testConversions() throws Exception {
+    void testConversions() throws Exception {
         testSpec.getExpectedException()
                 .ifPresent(
                         exception -> {
@@ -461,7 +461,7 @@ public class ConfigurationConversionsTest {
         }
 
         void assertConfiguration(Configuration conf) throws Exception {
-            assertThat(configurationAccessor.access(conf), matcher);
+            assertThat(matcher).isEqualTo(configurationAccessor.access(conf));
         }
     }
 }

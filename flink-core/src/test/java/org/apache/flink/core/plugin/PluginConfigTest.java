@@ -20,32 +20,29 @@ package org.apache.flink.core.plugin;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.testutils.CommonTestUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
 import org.junit.After;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link PluginConfig} utility class. */
-public class PluginConfigTest extends TestLogger {
+public class PluginConfigTest {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private static Map<String, String> oldEnvVariables;
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() {
         oldEnvVariables = System.getenv();
     }
@@ -58,18 +55,18 @@ public class PluginConfigTest extends TestLogger {
     }
 
     @Test
-    public void getPluginsDir_existingDirectory_returnsDirectoryFile() throws IOException {
+    void getPluginsDir_existingDirectory_returnsDirectoryFile() throws IOException {
         final File pluginsDirectory = temporaryFolder.newFolder();
         final Map<String, String> envVariables =
                 ImmutableMap.of(
                         ConfigConstants.ENV_FLINK_PLUGINS_DIR, pluginsDirectory.getAbsolutePath());
         CommonTestUtils.setEnv(envVariables);
 
-        assertThat(PluginConfig.getPluginsDir().get(), is(pluginsDirectory));
+        assertThat(PluginConfig.getPluginsDir().get()).isEqualTo(pluginsDirectory);
     }
 
     @Test
-    public void getPluginsDir_nonExistingDirectory_returnsEmpty() {
+    void getPluginsDir_nonExistingDirectory_returnsEmpty() {
         final Map<String, String> envVariables =
                 ImmutableMap.of(
                         ConfigConstants.ENV_FLINK_PLUGINS_DIR,
@@ -77,6 +74,6 @@ public class PluginConfigTest extends TestLogger {
                                 .getAbsolutePath());
         CommonTestUtils.setEnv(envVariables);
 
-        assertFalse(PluginConfig.getPluginsDir().isPresent());
+        assertThat(PluginConfig.getPluginsDir().isPresent()).isFalse();
     }
 }

@@ -22,17 +22,17 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.Random;
 
-public class RecordITCase extends TestLogger {
+import static org.junit.jupiter.api.Assertions.fail;
+
+public class RecordITCase {
 
     private static final long SEED = 354144423270432543L;
     private final Random rand = new Random(RecordITCase.SEED);
@@ -48,7 +48,7 @@ public class RecordITCase extends TestLogger {
     }
 
     @Test
-    public void massiveRandomBlackBoxTests() {
+    void massiveRandomBlackBoxTests() {
         try {
             // random test with records with a small number of fields
             for (int i = 0; i < 100000; i++) {
@@ -68,7 +68,7 @@ public class RecordITCase extends TestLogger {
                 RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
             }
         } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
+            fail("Test failed due to an exception: " + t.getMessage());
         }
     }
 }

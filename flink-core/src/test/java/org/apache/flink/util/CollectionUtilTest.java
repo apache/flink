@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class CollectionUtilTest {
 
     @Test
-    public void testPartition() {
+    void testPartition() {
         List<Integer> list = Arrays.asList(1, 2, 3, 4);
         Collection<List<Integer>> partitioned = CollectionUtil.partition(list, 4);
 
@@ -45,12 +45,12 @@ public class CollectionUtilTest {
     }
 
     @Test
-    public void testOfNullableWithNull() {
+    void testOfNullableWithNull() {
         assertThat(CollectionUtil.ofNullable(null)).isEmpty();
     }
 
     @Test
-    public void testFromNullableWithObject() {
+    void testFromNullableWithObject() {
         final Object element = new Object();
         assertThat(CollectionUtil.ofNullable(element)).singleElement().isEqualTo(element);
     }

@@ -18,33 +18,29 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This class verifies that the Unmodifiable Configuration class overrides all setter methods in
  * Configuration.
  */
-public class UnmodifiableConfigurationTest extends TestLogger {
+public class UnmodifiableConfigurationTest {
 
     @Test
-    public void testOverrideAddMethods() {
+    void testOverrideAddMethods() {
         try {
             Class<UnmodifiableConfiguration> clazz = UnmodifiableConfiguration.class;
             for (Method m : clazz.getMethods()) {
                 if (m.getName().startsWith("add")) {
-                    assertEquals(clazz, m.getDeclaringClass());
+                    assertThat(m.getDeclaringClass()).isEqualTo(clazz);
                 }
             }
         } catch (Exception e) {
@@ -54,7 +50,7 @@ public class UnmodifiableConfigurationTest extends TestLogger {
     }
 
     @Test
-    public void testExceptionOnSet() {
+    void testExceptionOnSet() {
         try {
             @SuppressWarnings("rawtypes")
             final ConfigOption rawOption = ConfigOptions.key("testkey").defaultValue("value");
@@ -81,13 +77,14 @@ public class UnmodifiableConfigurationTest extends TestLogger {
                     Object key = keyClass == String.class ? "key" : rawOption;
 
                     Object parameter = parameters.get(parameterClass);
-                    assertNotNull("method " + m + " not covered by test", parameter);
+                    assertThat(parameter).isNotNull();
 
                     try {
                         m.invoke(config, key, parameter);
                         fail("should fail with an exception");
                     } catch (InvocationTargetException e) {
-                        assertTrue(e.getTargetException() instanceof UnsupportedOperationException);
+                        assertThat(e.getTargetException())
+                                .isInstanceOf(UnsupportedOperationException.class);
                     }
                 }
             }

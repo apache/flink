@@ -23,10 +23,11 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.testutils.migration.SchemaCompatibilityTestingSerializer;
 import org.apache.flink.testutils.migration.SchemaCompatibilityTestingSerializer.SchemaCompatibilityTestingSnapshot;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 /** Tests for the {@link CompositeTypeSerializerUtil}. */
 public class CompositeTypeSerializerUtilTest {
@@ -36,7 +37,7 @@ public class CompositeTypeSerializerUtilTest {
     // ------------------------------------------------------------------------------------------------
 
     @Test
-    public void testCompatibleAsIsIntermediateCompatibilityResult() {
+    void testCompatibleAsIsIntermediateCompatibilityResult() {
         final TypeSerializerSnapshot<?>[] testSerializerSnapshots =
                 new TypeSerializerSnapshot<?>[] {
                     SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializer(
@@ -55,14 +56,14 @@ public class CompositeTypeSerializerUtilTest {
                 CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
                         testNewSerializers, testSerializerSnapshots);
 
-        assertTrue(intermediateCompatibilityResult.isCompatibleAsIs());
-        assertTrue(intermediateCompatibilityResult.getFinalResult().isCompatibleAsIs());
+        assertThat(intermediateCompatibilityResult.isCompatibleAsIs()).isTrue();
+        assertThat(intermediateCompatibilityResult.getFinalResult().isCompatibleAsIs()).isTrue();
         assertArrayEquals(
                 testNewSerializers, intermediateCompatibilityResult.getNestedSerializers());
     }
 
     @Test
-    public void testCompatibleWithReconfiguredSerializerIntermediateCompatibilityResult() {
+    void testCompatibleWithReconfiguredSerializerIntermediateCompatibilityResult() {
         final TypeSerializerSnapshot<?>[] testSerializerSnapshots =
                 new TypeSerializerSnapshot<?>[] {
                     SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializer("a"),
@@ -86,14 +87,15 @@ public class CompositeTypeSerializerUtilTest {
                     new SchemaCompatibilityTestingSerializer("b"),
                 };
 
-        assertTrue(intermediateCompatibilityResult.isCompatibleWithReconfiguredSerializer());
+        assertThat(intermediateCompatibilityResult.isCompatibleWithReconfiguredSerializer())
+                .isTrue();
         assertArrayEquals(
                 expectedReconfiguredNestedSerializers,
                 intermediateCompatibilityResult.getNestedSerializers());
     }
 
     @Test
-    public void testCompatibleAfterMigrationIntermediateCompatibilityResult() {
+    void testCompatibleAfterMigrationIntermediateCompatibilityResult() {
         final TypeSerializerSnapshot<?>[] testSerializerSnapshots =
                 new TypeSerializerSnapshot<?>[] {
                     SchemaCompatibilityTestingSnapshot
@@ -114,12 +116,13 @@ public class CompositeTypeSerializerUtilTest {
                 CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
                         testNewSerializers, testSerializerSnapshots);
 
-        assertTrue(intermediateCompatibilityResult.isCompatibleAfterMigration());
-        assertTrue(intermediateCompatibilityResult.getFinalResult().isCompatibleAfterMigration());
+        assertThat(intermediateCompatibilityResult.isCompatibleAfterMigration()).isTrue();
+        assertThat(intermediateCompatibilityResult.getFinalResult().isCompatibleAfterMigration())
+                .isTrue();
     }
 
     @Test
-    public void testIncompatibleIntermediateCompatibilityResult() {
+    void testIncompatibleIntermediateCompatibilityResult() {
         final TypeSerializerSnapshot<?>[] testSerializerSnapshots =
                 new TypeSerializerSnapshot<?>[] {
                     SchemaCompatibilityTestingSnapshot.thatIsCompatibleWithNextSerializer(),
@@ -142,33 +145,36 @@ public class CompositeTypeSerializerUtilTest {
                 CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
                         testNewSerializers, testSerializerSnapshots);
 
-        assertTrue(intermediateCompatibilityResult.isIncompatible());
-        assertTrue(intermediateCompatibilityResult.getFinalResult().isIncompatible());
+        assertThat(intermediateCompatibilityResult.isIncompatible()).isTrue();
+        assertThat(intermediateCompatibilityResult.getFinalResult().isIncompatible()).isTrue();
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testGetFinalResultOnUndefinedReconfigureIntermediateCompatibilityResultFails() {
         IntermediateCompatibilityResult<Integer> intermediateCompatibilityResult =
                 IntermediateCompatibilityResult.undefinedReconfigureResult(
                         new TypeSerializer[] {IntSerializer.INSTANCE});
 
-        intermediateCompatibilityResult.getFinalResult();
+        assertThatThrownBy(intermediateCompatibilityResult::getFinalResult)
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void
             testGetNestedSerializersOnCompatibleAfterMigrationIntermediateCompatibilityResultFails() {
         IntermediateCompatibilityResult<Integer> intermediateCompatibilityResult =
                 IntermediateCompatibilityResult.definedCompatibleAfterMigrationResult();
 
-        intermediateCompatibilityResult.getNestedSerializers();
+        assertThatThrownBy(intermediateCompatibilityResult::getNestedSerializers)
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testGetNestedSerializersOnIncompatibleIntermediateCompatibilityResultFails() {
         IntermediateCompatibilityResult<Integer> intermediateCompatibilityResult =
                 IntermediateCompatibilityResult.definedIncompatibleResult();
 
-        intermediateCompatibilityResult.getNestedSerializers();
+        assertThatThrownBy(intermediateCompatibilityResult::getNestedSerializers)
+                .isInstanceOf(IllegalStateException.class);
     }
 }

@@ -20,7 +20,7 @@ package org.apache.flink.management.jmx;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
@@ -33,8 +33,7 @@ import javax.management.remote.JMXServiceURL;
 import java.lang.management.ManagementFactory;
 import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link JMXServer} functionality. */
 public class JMXServerTest {
@@ -51,14 +50,14 @@ public class JMXServerTest {
 
     /** Verifies initialize, registered mBean and retrieval via attribute. */
     @Test
-    public void testJMXServiceRegisterMBean() throws Exception {
+    void testJMXServiceRegisterMBean() throws Exception {
         TestObject testObject = new TestObject();
         ObjectName testObjectName = new ObjectName("org.apache.flink.management", "key", "value");
         MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
 
         try {
             Optional<JMXServer> server = JMXService.getInstance();
-            assertTrue(server.isPresent());
+            assertThat(server.isPresent()).isTrue();
             mBeanServer.registerMBean(testObject, testObjectName);
 
             JMXServiceURL url =
@@ -71,13 +70,13 @@ public class JMXServerTest {
             JMXConnector jmxConn = JMXConnectorFactory.connect(url);
             MBeanServerConnection mbeanConnConn = jmxConn.getMBeanServerConnection();
 
-            assertEquals(1, mbeanConnConn.getAttribute(testObjectName, "Foo"));
+            assertThat(mbeanConnConn.getAttribute(testObjectName, "Foo")).isEqualTo(1);
             mBeanServer.unregisterMBean(testObjectName);
             try {
                 mbeanConnConn.getAttribute(testObjectName, "Foo");
             } catch (Exception e) {
                 // expected for unregistered objects.
-                assertTrue(e instanceof InstanceNotFoundException);
+                assertThat(e).isInstanceOf(InstanceNotFoundException.class);
             }
         } finally {
             JMXService.stopInstance();

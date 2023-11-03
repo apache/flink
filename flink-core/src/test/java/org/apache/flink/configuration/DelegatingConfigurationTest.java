@@ -19,7 +19,7 @@
 package org.apache.flink.configuration;
 
 import org.assertj.core.api.Assertions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -27,14 +27,13 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DelegatingConfiguration}. */
 public class DelegatingConfigurationTest {
 
     @Test
-    public void testIfDelegatesImplementAllMethods() throws IllegalArgumentException {
+    void testIfDelegatesImplementAllMethods() throws IllegalArgumentException {
 
         // For each method in the Configuration class...
         Method[] confMethods = Configuration.class.getDeclaredMethods();
@@ -70,27 +69,23 @@ public class DelegatingConfigurationTest {
                 }
             }
 
-            assertTrue(
-                    "Configuration method '"
-                            + configurationMethod.getName()
-                            + "' has not been wrapped correctly in DelegatingConfiguration wrapper",
-                    hasMethod);
+            assertThat(hasMethod).isTrue();
         }
     }
 
     @Test
-    public void testDelegationConfigurationWithNullPrefix() {
+    void testDelegationConfigurationWithNullPrefix() {
         Configuration backingConf = new Configuration();
         backingConf.setValueInternal("test-key", "value", false);
 
         DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, null);
         Set<String> keySet = configuration.keySet();
 
-        assertEquals(keySet, backingConf.keySet());
+        assertThat(backingConf.keySet()).isEqualTo(keySet);
     }
 
     @Test
-    public void testDelegationConfigurationWithPrefix() {
+    void testDelegationConfigurationWithPrefix() {
         String prefix = "pref-";
         String expectedKey = "key";
 
@@ -103,8 +98,8 @@ public class DelegatingConfigurationTest {
         DelegatingConfiguration configuration = new DelegatingConfiguration(backingConf, prefix);
         Set<String> keySet = configuration.keySet();
 
-        assertEquals(keySet.size(), 1);
-        assertEquals(keySet.iterator().next(), expectedKey);
+        assertThat(1).isEqualTo(keySet.size());
+        assertThat(expectedKey).isEqualTo(keySet.iterator().next());
 
         /*
          * Key does not match the prefix
@@ -115,11 +110,11 @@ public class DelegatingConfigurationTest {
         configuration = new DelegatingConfiguration(backingConf, prefix);
         keySet = configuration.keySet();
 
-        assertTrue(keySet.isEmpty());
+        assertThat(keySet.isEmpty()).isTrue();
     }
 
     @Test
-    public void testDelegationConfigurationToMapConsistentWithAddAllToProperties() {
+    void testDelegationConfigurationToMapConsistentWithAddAllToProperties() {
         Configuration conf = new Configuration();
         conf.setString("k0", "v0");
         conf.setString("prefix.k1", "v1");
@@ -136,7 +131,7 @@ public class DelegatingConfigurationTest {
             mapProperties.put(entry.getKey(), entry.getValue());
         }
         // Verification
-        assertEquals(properties, mapProperties);
+        assertThat(mapProperties).isEqualTo(properties);
     }
 
     @Test

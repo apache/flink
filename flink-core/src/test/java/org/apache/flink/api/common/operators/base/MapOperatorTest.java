@@ -31,7 +31,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,15 +40,15 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class MapOperatorTest implements java.io.Serializable {
 
     @Test
-    public void testMapPlain() {
+    void testMapPlain() {
         try {
             final MapFunction<String, Integer> parser =
                     new MapFunction<String, Integer>() {
@@ -73,8 +73,8 @@ public class MapOperatorTest implements java.io.Serializable {
             executionConfig.enableObjectReuse();
             List<Integer> resultRegular = op.executeOnCollections(input, null, executionConfig);
 
-            assertEquals(asList(1, 2, 3, 4, 5, 6), resultMutableSafe);
-            assertEquals(asList(1, 2, 3, 4, 5, 6), resultRegular);
+            assertThat(resultMutableSafe).isEqualTo(asList(1, 2, 3, 4, 5, 6));
+            assertThat(resultRegular).isEqualTo(asList(1, 2, 3, 4, 5, 6));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -82,7 +82,7 @@ public class MapOperatorTest implements java.io.Serializable {
     }
 
     @Test
-    public void testMapWithRuntimeContext() {
+    void testMapWithRuntimeContext() {
         try {
             final String taskName = "Test Task";
             final AtomicBoolean opened = new AtomicBoolean();
@@ -95,9 +95,9 @@ public class MapOperatorTest implements java.io.Serializable {
                         public void open(OpenContext openContext) throws Exception {
                             opened.set(true);
                             RuntimeContext ctx = getRuntimeContext();
-                            assertEquals(0, ctx.getIndexOfThisSubtask());
-                            assertEquals(1, ctx.getNumberOfParallelSubtasks());
-                            assertEquals(taskName, ctx.getTaskName());
+                            assertThat(ctx.getIndexOfThisSubtask()).isEqualTo(0);
+                            assertThat(ctx.getNumberOfParallelSubtasks()).isEqualTo(1);
+                            assertThat(ctx.getTaskName()).isEqualTo(taskName);
                         }
 
                         @Override
@@ -151,11 +151,11 @@ public class MapOperatorTest implements java.io.Serializable {
                                     UnregisteredMetricsGroup.createOperatorMetricGroup()),
                             executionConfig);
 
-            assertEquals(asList(1, 2, 3, 4, 5, 6), resultMutableSafe);
-            assertEquals(asList(1, 2, 3, 4, 5, 6), resultRegular);
+            assertThat(resultMutableSafe).isEqualTo(asList(1, 2, 3, 4, 5, 6));
+            assertThat(resultRegular).isEqualTo(asList(1, 2, 3, 4, 5, 6));
 
-            assertTrue(opened.get());
-            assertTrue(closed.get());
+            assertThat(opened.get()).isTrue();
+            assertThat(closed.get()).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

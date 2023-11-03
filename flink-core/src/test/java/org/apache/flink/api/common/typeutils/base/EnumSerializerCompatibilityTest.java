@@ -24,18 +24,19 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshotSerialization
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.testutils.ClassLoaderUtils;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-public class EnumSerializerCompatibilityTest extends TestLogger {
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+public class EnumSerializerCompatibilityTest {
 
     @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -48,28 +49,29 @@ public class EnumSerializerCompatibilityTest extends TestLogger {
 
     /** Check that identical enums don't require migration */
     @Test
-    public void checkIndenticalEnums() throws Exception {
-        Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_A).isCompatibleAsIs());
+    void checkIndenticalEnums() throws Exception {
+        assertThat(checkCompatibility(ENUM_A, ENUM_A).isCompatibleAsIs()).isTrue();
     }
 
     /** Check that appending fields to the enum does not require migration */
     @Test
-    public void checkAppendedField() throws Exception {
-        Assert.assertTrue(
-                checkCompatibility(ENUM_A, ENUM_B).isCompatibleWithReconfiguredSerializer());
+    void checkAppendedField() throws Exception {
+        assertThat(checkCompatibility(ENUM_A, ENUM_B).isCompatibleWithReconfiguredSerializer())
+                .isTrue();
     }
 
     /** Check that removing enum fields makes the snapshot incompatible */
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void removingFieldShouldBeIncompatible() throws Exception {
-        Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isIncompatible());
+        assertThatThrownBy(() -> checkCompatibility(ENUM_A, ENUM_C))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     /** Check that changing the enum field order don't require migration */
     @Test
-    public void checkDifferentFieldOrder() throws Exception {
-        Assert.assertTrue(
-                checkCompatibility(ENUM_A, ENUM_D).isCompatibleWithReconfiguredSerializer());
+    void checkDifferentFieldOrder() throws Exception {
+        assertThat(checkCompatibility(ENUM_A, ENUM_D).isCompatibleWithReconfiguredSerializer())
+                .isTrue();
     }
 
     @SuppressWarnings("unchecked")

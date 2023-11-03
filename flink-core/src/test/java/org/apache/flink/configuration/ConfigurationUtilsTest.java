@@ -18,9 +18,7 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.time.Duration;
@@ -36,13 +34,12 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
 
 /** Tests for the {@link ConfigurationUtils}. */
-public class ConfigurationUtilsTest extends TestLogger {
+public class ConfigurationUtilsTest {
 
     @Test
-    public void testPropertiesToConfiguration() {
+    void testPropertiesToConfiguration() {
         final Properties properties = new Properties();
         final int entries = 10;
 
@@ -60,7 +57,7 @@ public class ConfigurationUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testHideSensitiveValues() {
+    void testHideSensitiveValues() {
         final Map<String, String> keyValuePairs = new HashMap<>();
         keyValuePairs.put("foobar", "barfoo");
         final String secretKey1 = "secret.key";
@@ -81,7 +78,7 @@ public class ConfigurationUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testGetPrefixedKeyValuePairs() {
+    void testGetPrefixedKeyValuePairs() {
         final String prefix = "test.prefix.";
         final Map<String, String> expectedKeyValuePairs =
                 new HashMap<String, String>() {
@@ -101,32 +98,35 @@ public class ConfigurationUtilsTest extends TestLogger {
     }
 
     @Test
-    public void testConvertToString() {
+    void testConvertToString() {
         // String
-        assertEquals("Simple String", ConfigurationUtils.convertToString("Simple String"));
+        assertThat(ConfigurationUtils.convertToString("Simple String")).isEqualTo("Simple String");
 
         // Duration
-        assertEquals("0 ms", ConfigurationUtils.convertToString(Duration.ZERO));
-        assertEquals("123 ms", ConfigurationUtils.convertToString(Duration.ofMillis(123L)));
-        assertEquals("1234 s", ConfigurationUtils.convertToString(Duration.ofMillis(1_234_000L)));
-        assertEquals("25 h", ConfigurationUtils.convertToString(Duration.ofHours(25L)));
+        assertThat(ConfigurationUtils.convertToString(Duration.ZERO)).isEqualTo("0 ms");
+        assertThat(ConfigurationUtils.convertToString(Duration.ofMillis(123L))).isEqualTo("123 ms");
+        assertThat(ConfigurationUtils.convertToString(Duration.ofMillis(1_234_000L)))
+                .isEqualTo("1234 s");
+        assertThat(ConfigurationUtils.convertToString(Duration.ofHours(25L))).isEqualTo("25 h");
 
         // List
         final List<Object> listElements = new ArrayList<>();
         listElements.add("Test;String");
         listElements.add(Duration.ZERO);
         listElements.add(42);
-        assertEquals("'Test;String';0 ms;42", ConfigurationUtils.convertToString(listElements));
+        assertThat(ConfigurationUtils.convertToString(listElements))
+                .isEqualTo("'Test;String';0 ms;42");
 
         // Map
         final Map<Object, Object> mapElements = new HashMap<>();
         mapElements.put("A:,B", "C:,D");
         mapElements.put(10, 20);
-        assertEquals("'''A:,B'':''C:,D''',10:20", ConfigurationUtils.convertToString(mapElements));
+        assertThat(ConfigurationUtils.convertToString(mapElements))
+                .isEqualTo("'''A:,B'':''C:,D''',10:20");
     }
 
     @Test
-    public void testRandomTempDirectorySelection() {
+    void testRandomTempDirectorySelection() {
         final Configuration configuration = new Configuration();
         final StringBuilder tempDirectories = new StringBuilder();
         final int numberTempDirectories = 20;

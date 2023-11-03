@@ -17,11 +17,9 @@
 
 package org.apache.flink.core.classloading;
 
-import org.apache.flink.util.TestLogger;
-
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -33,14 +31,11 @@ import java.util.Collections;
 import java.util.Enumeration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.CoreMatchers.sameInstance;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ComponentClassLoader}. */
-public class ComponentClassLoaderTest extends TestLogger {
+public class ComponentClassLoaderTest {
 
     private static final String NON_EXISTENT_CLASS_NAME = "foo.Bar";
     private static final Class<?> CLASS_TO_LOAD = Class.class;
@@ -52,7 +47,7 @@ public class ComponentClassLoaderTest extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TMP = new TemporaryFolder();
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() throws IOException {
         resourceToLoad = TMP.newFile("tmpfile").getName();
     }
@@ -61,7 +56,7 @@ public class ComponentClassLoaderTest extends TestLogger {
     // Class loading
     // ----------------------------------------------------------------------------------------------
 
-    @Test(expected = ClassNotFoundException.class)
+    @Test
     public void testComponentOnlyIsDefaultForClasses() throws Exception {
         TestUrlClassLoader owner =
                 new TestUrlClassLoader(NON_EXISTENT_CLASS_NAME, CLASS_RETURNED_BY_OWNER);
@@ -70,11 +65,12 @@ public class ComponentClassLoaderTest extends TestLogger {
                 new ComponentClassLoader(
                         new URL[0], owner, new String[0], new String[0], Collections.emptyMap());
 
-        componentClassLoader.loadClass(NON_EXISTENT_CLASS_NAME);
+        assertThatThrownBy(() -> componentClassLoader.loadClass(NON_EXISTENT_CLASS_NAME))
+                .isInstanceOf(ClassNotFoundException.class);
     }
 
     @Test
-    public void testOwnerFirstClassFoundIgnoresComponent() throws Exception {
+    void testOwnerFirstClassFoundIgnoresComponent() throws Exception {
         TestUrlClassLoader owner =
                 new TestUrlClassLoader(CLASS_TO_LOAD.getName(), CLASS_RETURNED_BY_OWNER);
 
@@ -87,11 +83,11 @@ public class ComponentClassLoaderTest extends TestLogger {
                         Collections.emptyMap());
 
         final Class<?> loadedClass = componentClassLoader.loadClass(CLASS_TO_LOAD.getName());
-        assertThat(loadedClass, sameInstance(CLASS_RETURNED_BY_OWNER));
+        assertThat(loadedClass).isInstanceOf(CLASS_RETURNED_BY_OWNER);
     }
 
     @Test
-    public void testOwnerFirstClassNotFoundFallsBackToComponent() throws Exception {
+    void testOwnerFirstClassNotFoundFallsBackToComponent() throws Exception {
         TestUrlClassLoader owner = new TestUrlClassLoader();
 
         final ComponentClassLoader componentClassLoader =
@@ -103,11 +99,11 @@ public class ComponentClassLoaderTest extends TestLogger {
                         Collections.emptyMap());
 
         final Class<?> loadedClass = componentClassLoader.loadClass(CLASS_TO_LOAD.getName());
-        assertThat(loadedClass, sameInstance(CLASS_TO_LOAD));
+        assertThat(loadedClass).isInstanceOf(CLASS_TO_LOAD);
     }
 
     @Test
-    public void testComponentFirstClassFoundIgnoresOwner() throws Exception {
+    void testComponentFirstClassFoundIgnoresOwner() throws Exception {
         TestUrlClassLoader owner =
                 new TestUrlClassLoader(CLASS_TO_LOAD.getName(), CLASS_RETURNED_BY_OWNER);
 
@@ -120,11 +116,11 @@ public class ComponentClassLoaderTest extends TestLogger {
                         Collections.emptyMap());
 
         final Class<?> loadedClass = componentClassLoader.loadClass(CLASS_TO_LOAD.getName());
-        assertThat(loadedClass, sameInstance(CLASS_TO_LOAD));
+        assertThat(loadedClass).isInstanceOf(CLASS_TO_LOAD);
     }
 
     @Test
-    public void testComponentFirstClassNotFoundFallsBackToOwner() throws Exception {
+    void testComponentFirstClassNotFoundFallsBackToOwner() throws Exception {
         TestUrlClassLoader owner =
                 new TestUrlClassLoader(NON_EXISTENT_CLASS_NAME, CLASS_RETURNED_BY_OWNER);
 
@@ -137,7 +133,7 @@ public class ComponentClassLoaderTest extends TestLogger {
                         Collections.emptyMap());
 
         final Class<?> loadedClass = componentClassLoader.loadClass(NON_EXISTENT_CLASS_NAME);
-        assertThat(loadedClass, sameInstance(CLASS_RETURNED_BY_OWNER));
+        assertThat(loadedClass).isInstanceOf(CLASS_RETURNED_BY_OWNER);
     }
 
     // ----------------------------------------------------------------------------------------------
@@ -145,21 +141,20 @@ public class ComponentClassLoaderTest extends TestLogger {
     // ----------------------------------------------------------------------------------------------
 
     @Test
-    public void testComponentOnlyIsDefaultForResources() throws IOException {
+    void testComponentOnlyIsDefaultForResources() throws IOException {
         TestUrlClassLoader owner = new TestUrlClassLoader();
 
         final ComponentClassLoader componentClassLoader =
                 new ComponentClassLoader(
                         new URL[0], owner, new String[0], new String[0], Collections.emptyMap());
 
-        assertThat(componentClassLoader.getResource(NON_EXISTENT_RESOURCE_NAME), nullValue());
-        assertThat(
-                componentClassLoader.getResources(NON_EXISTENT_RESOURCE_NAME).hasMoreElements(),
-                is(false));
+        assertThat(componentClassLoader.getResource(NON_EXISTENT_RESOURCE_NAME)).isNull();
+        assertThat(componentClassLoader.getResources(NON_EXISTENT_RESOURCE_NAME).hasMoreElements())
+                .isFalse();
     }
 
     @Test
-    public void testOwnerFirstResourceFoundIgnoresComponent() {
+    void testOwnerFirstResourceFoundIgnoresComponent() {
         TestUrlClassLoader owner =
                 new TestUrlClassLoader(resourceToLoad, RESOURCE_RETURNED_BY_OWNER);
 
@@ -172,11 +167,11 @@ public class ComponentClassLoaderTest extends TestLogger {
                         Collections.emptyMap());
 
         final URL loadedResource = componentClassLoader.getResource(resourceToLoad);
-        assertThat(loadedResource, sameInstance(RESOURCE_RETURNED_BY_OWNER));
+        assertThat(loadedResource).isInstanceOf(RESOURCE_RETURNED_BY_OWNER.getClass());
     }
 
     @Test
-    public void testOwnerFirstResourceNotFoundFallsBackToComponent() throws Exception {
+    void testOwnerFirstResourceNotFoundFallsBackToComponent() throws Exception {
         TestUrlClassLoader owner = new TestUrlClassLoader();
 
         final ComponentClassLoader componentClassLoader =
@@ -188,11 +183,11 @@ public class ComponentClassLoaderTest extends TestLogger {
                         Collections.emptyMap());
 
         final URL loadedResource = componentClassLoader.getResource(resourceToLoad);
-        assertThat(loadedResource.toString(), containsString(resourceToLoad));
+        assertThat(loadedResource.toString()).contains(resourceToLoad);
     }
 
     @Test
-    public void testComponentFirstResourceFoundIgnoresOwner() throws Exception {
+    void testComponentFirstResourceFoundIgnoresOwner() throws Exception {
         TestUrlClassLoader owner =
                 new TestUrlClassLoader(resourceToLoad, RESOURCE_RETURNED_BY_OWNER);
 
@@ -205,11 +200,11 @@ public class ComponentClassLoaderTest extends TestLogger {
                         Collections.emptyMap());
 
         final URL loadedResource = componentClassLoader.getResource(resourceToLoad);
-        assertThat(loadedResource.toString(), containsString(resourceToLoad));
+        assertThat(loadedResource.toString()).contains(resourceToLoad);
     }
 
     @Test
-    public void testComponentFirstResourceNotFoundFallsBackToOwner() {
+    void testComponentFirstResourceNotFoundFallsBackToOwner() {
         TestUrlClassLoader owner =
                 new TestUrlClassLoader(NON_EXISTENT_RESOURCE_NAME, RESOURCE_RETURNED_BY_OWNER);
 
@@ -222,7 +217,7 @@ public class ComponentClassLoaderTest extends TestLogger {
                         Collections.emptyMap());
 
         final URL loadedResource = componentClassLoader.getResource(NON_EXISTENT_RESOURCE_NAME);
-        assertThat(loadedResource, sameInstance(RESOURCE_RETURNED_BY_OWNER));
+        assertThat(loadedResource).isInstanceOf(RESOURCE_RETURNED_BY_OWNER.getClass());
     }
 
     private static class TestUrlClassLoader extends URLClassLoader {

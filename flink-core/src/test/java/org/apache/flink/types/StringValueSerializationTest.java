@@ -22,15 +22,15 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test for the serialization of StringValue. */
 public class StringValueSerializationTest {
@@ -38,7 +38,7 @@ public class StringValueSerializationTest {
     private final Random rnd = new Random(2093486528937460234L);
 
     @Test
-    public void testNonNullValues() {
+    void testNonNullValues() {
         try {
             String[] testStrings =
                     new String[] {"a", "", "bcd", "jbmbmner8 jhk hj \n \t üäßß@µ", "", "non-empty"};
@@ -52,7 +52,7 @@ public class StringValueSerializationTest {
     }
 
     @Test
-    public void testLongValues() {
+    void testLongValues() {
         try {
             String[] testStrings =
                     new String[] {
@@ -71,7 +71,7 @@ public class StringValueSerializationTest {
     }
 
     @Test
-    public void testMixedValues() {
+    void testMixedValues() {
         try {
             String[] testStrings =
                     new String[] {
@@ -93,7 +93,7 @@ public class StringValueSerializationTest {
     }
 
     @Test
-    public void testBinaryCopyOfLongStrings() {
+    void testBinaryCopyOfLongStrings() {
         try {
             String[] testStrings =
                     new String[] {
@@ -134,14 +134,11 @@ public class StringValueSerializationTest {
             StringValue deser = new StringValue();
             deser.read(deserializer);
 
-            assertEquals(
-                    "DeserializedString differs from original string.",
-                    values[num],
-                    deser.getValue());
+            assertThat(deser.getValue()).isEqualTo(values[num]);
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertThat(num).isEqualTo(values.length);
     }
 
     public static void testCopy(String[] values) throws IOException {
@@ -175,13 +172,10 @@ public class StringValueSerializationTest {
         while (validateInput.available() > 0) {
             sValue.read(validate);
 
-            assertEquals(
-                    "DeserializedString differs from original string.",
-                    values[num],
-                    sValue.getValue());
+            assertThat(sValue.getValue()).isEqualTo(values[num]);
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertThat(num).isEqualTo(values.length);
     }
 }

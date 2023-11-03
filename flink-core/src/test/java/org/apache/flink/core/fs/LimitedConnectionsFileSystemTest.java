@@ -24,7 +24,7 @@ import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -32,9 +32,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link LimitedConnectionsFileSystem}. */
 public class LimitedConnectionsFileSystemTest {
@@ -42,7 +41,7 @@ public class LimitedConnectionsFileSystemTest {
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
     @Test
-    public void testConstructionNumericOverflow() {
+    void testConstructionNumericOverflow() {
         final LimitedConnectionsFileSystem limitedFs =
                 new LimitedConnectionsFileSystem(
                         LocalFileSystem.getSharedInstance(),
@@ -52,16 +51,16 @@ public class LimitedConnectionsFileSystemTest {
                         Long.MAX_VALUE - 1, // long timeout, close to overflow
                         Long.MAX_VALUE - 1); // long timeout, close to overflow
 
-        assertEquals(Integer.MAX_VALUE, limitedFs.getMaxNumOpenStreamsTotal());
-        assertEquals(Integer.MAX_VALUE, limitedFs.getMaxNumOpenOutputStreams());
-        assertEquals(Integer.MAX_VALUE, limitedFs.getMaxNumOpenInputStreams());
+        assertThat(limitedFs.getMaxNumOpenStreamsTotal()).isEqualTo(Integer.MAX_VALUE);
+        assertThat(limitedFs.getMaxNumOpenOutputStreams()).isEqualTo(Integer.MAX_VALUE);
+        assertThat(limitedFs.getMaxNumOpenInputStreams()).isEqualTo(Integer.MAX_VALUE);
 
-        assertTrue(limitedFs.getStreamOpenTimeout() > 0);
-        assertTrue(limitedFs.getStreamInactivityTimeout() > 0);
+        assertThat(limitedFs.getStreamOpenTimeout() > 0).isTrue();
+        assertThat(limitedFs.getStreamInactivityTimeout() > 0).isTrue();
     }
 
     @Test
-    public void testLimitingOutputStreams() throws Exception {
+    void testLimitingOutputStreams() throws Exception {
         final int maxConcurrentOpen = 2;
         final int numThreads = 61;
 
@@ -90,7 +89,7 @@ public class LimitedConnectionsFileSystemTest {
     }
 
     @Test
-    public void testLimitingInputStreams() throws Exception {
+    void testLimitingInputStreams() throws Exception {
         final int maxConcurrentOpen = 2;
         final int numThreads = 61;
 
@@ -123,7 +122,7 @@ public class LimitedConnectionsFileSystemTest {
     }
 
     @Test
-    public void testLimitingMixedStreams() throws Exception {
+    void testLimitingMixedStreams() throws Exception {
         final int maxConcurrentOpen = 2;
         final int numThreads = 61;
 
@@ -159,7 +158,7 @@ public class LimitedConnectionsFileSystemTest {
     }
 
     @Test
-    public void testOpenTimeoutOutputStreams() throws Exception {
+    void testOpenTimeoutOutputStreams() throws Exception {
         final long openTimeout = 50L;
         final int maxConcurrentOpen = 2;
 
@@ -200,7 +199,7 @@ public class LimitedConnectionsFileSystemTest {
     }
 
     @Test
-    public void testOpenTimeoutInputStreams() throws Exception {
+    void testOpenTimeoutInputStreams() throws Exception {
         final long openTimeout = 50L;
         final int maxConcurrentOpen = 2;
 
@@ -246,7 +245,7 @@ public class LimitedConnectionsFileSystemTest {
     }
 
     @Test
-    public void testTerminateStalledOutputStreams() throws Exception {
+    void testTerminateStalledOutputStreams() throws Exception {
         final int maxConcurrentOpen = 2;
         final int numThreads = 20;
 
@@ -304,7 +303,7 @@ public class LimitedConnectionsFileSystemTest {
     }
 
     @Test
-    public void testTerminateStalledInputStreams() throws Exception {
+    void testTerminateStalledInputStreams() throws Exception {
         final int maxConcurrentOpen = 2;
         final int numThreads = 20;
 
@@ -370,7 +369,7 @@ public class LimitedConnectionsFileSystemTest {
     }
 
     @Test
-    public void testTerminateStalledMixedStreams() throws Exception {
+    void testTerminateStalledMixedStreams() throws Exception {
         final int maxConcurrentOpen = 2;
         final int numThreads = 20;
 
@@ -440,12 +439,12 @@ public class LimitedConnectionsFileSystemTest {
     }
 
     @Test
-    public void testFailingStreamsUnregister() throws Exception {
+    void testFailingStreamsUnregister() throws Exception {
         final LimitedConnectionsFileSystem fs = new LimitedConnectionsFileSystem(new FailFs(), 1);
 
-        assertEquals(0, fs.getNumberOfOpenInputStreams());
-        assertEquals(0, fs.getNumberOfOpenOutputStreams());
-        assertEquals(0, fs.getTotalNumberOfOpenStreams());
+        assertThat(fs.getNumberOfOpenInputStreams()).isEqualTo(0);
+        assertThat(fs.getNumberOfOpenOutputStreams()).isEqualTo(0);
+        assertThat(fs.getTotalNumberOfOpenStreams()).isEqualTo(0);
 
         try {
             fs.open(new Path(tempFolder.newFile().toURI()));
@@ -461,9 +460,9 @@ public class LimitedConnectionsFileSystemTest {
             // expected
         }
 
-        assertEquals(0, fs.getNumberOfOpenInputStreams());
-        assertEquals(0, fs.getNumberOfOpenOutputStreams());
-        assertEquals(0, fs.getTotalNumberOfOpenStreams());
+        assertThat(fs.getNumberOfOpenInputStreams()).isEqualTo(0);
+        assertThat(fs.getNumberOfOpenOutputStreams()).isEqualTo(0);
+        assertThat(fs.getTotalNumberOfOpenStreams()).isEqualTo(0);
     }
 
     /**
@@ -472,7 +471,7 @@ public class LimitedConnectionsFileSystemTest {
      * was checked.
      */
     @Test
-    public void testSlowOutputStreamNotClosed() throws Exception {
+    void testSlowOutputStreamNotClosed() throws Exception {
         final LimitedConnectionsFileSystem fs =
                 new LimitedConnectionsFileSystem(LocalFileSystem.getSharedInstance(), 1, 0L, 1000L);
 
@@ -515,7 +514,7 @@ public class LimitedConnectionsFileSystemTest {
      * checked.
      */
     @Test
-    public void testSlowInputStreamNotClosed() throws Exception {
+    void testSlowInputStreamNotClosed() throws Exception {
         final File file = tempFolder.newFile();
         createRandomContents(file, new Random(), 50);
 
@@ -597,8 +596,9 @@ public class LimitedConnectionsFileSystemTest {
         public void go() throws Exception {
 
             try (FSDataOutputStream stream = fs.create(path, WriteMode.OVERWRITE)) {
-                assertTrue(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams);
-                assertTrue(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
+                assertThat(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams)
+                        .isTrue();
+                assertThat(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal).isTrue();
 
                 final Random rnd = new Random();
                 final byte[] data = new byte[rnd.nextInt(10000) + 1];
@@ -634,8 +634,8 @@ public class LimitedConnectionsFileSystemTest {
         public void go() throws Exception {
 
             try (FSDataInputStream stream = fs.open(path)) {
-                assertTrue(fs.getNumberOfOpenInputStreams() <= maxConcurrentInputStreams);
-                assertTrue(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
+                assertThat(fs.getNumberOfOpenInputStreams() <= maxConcurrentInputStreams).isTrue();
+                assertThat(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal).isTrue();
 
                 final byte[] readBuffer = new byte[4096];
 
@@ -684,8 +684,9 @@ public class LimitedConnectionsFileSystemTest {
         public void go() throws Exception {
 
             try (FSDataOutputStream stream = fs.create(path, WriteMode.OVERWRITE)) {
-                assertTrue(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams);
-                assertTrue(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
+                assertThat(fs.getNumberOfOpenOutputStreams() <= maxConcurrentOutputStreams)
+                        .isTrue();
+                assertThat(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal).isTrue();
 
                 final Random rnd = new Random();
                 final byte[] data = new byte[rnd.nextInt(10000) + 1];
@@ -726,11 +727,11 @@ public class LimitedConnectionsFileSystemTest {
         public void go() throws Exception {
 
             try (FSDataInputStream stream = fs.open(path)) {
-                assertTrue(fs.getNumberOfOpenInputStreams() <= maxConcurrentInputStreams);
-                assertTrue(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal);
+                assertThat(fs.getNumberOfOpenInputStreams() <= maxConcurrentInputStreams).isTrue();
+                assertThat(fs.getTotalNumberOfOpenStreams() <= maxConcurrentStreamsTotal).isTrue();
 
                 final byte[] readBuffer = new byte[(int) fs.getFileStatus(path).getLen() - 1];
-                assertTrue(stream.read(readBuffer) != -1);
+                assertThat(stream.read(readBuffer) != -1).isTrue();
 
                 waitTillWokenUp();
 

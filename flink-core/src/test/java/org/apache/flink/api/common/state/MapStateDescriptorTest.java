@@ -25,20 +25,18 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.testutils.CommonTestUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link MapStateDescriptor}. */
 public class MapStateDescriptorTest {
 
     @Test
-    public void testMapStateDescriptor() throws Exception {
+    void testMapStateDescriptor() throws Exception {
 
         TypeSerializer<Integer> keySerializer =
                 new KryoSerializer<>(Integer.class, new ExecutionConfig());
@@ -48,28 +46,28 @@ public class MapStateDescriptorTest {
         MapStateDescriptor<Integer, String> descr =
                 new MapStateDescriptor<>("testName", keySerializer, valueSerializer);
 
-        assertEquals("testName", descr.getName());
-        assertNotNull(descr.getSerializer());
-        assertTrue(descr.getSerializer() instanceof MapSerializer);
-        assertNotNull(descr.getKeySerializer());
-        assertEquals(keySerializer, descr.getKeySerializer());
-        assertNotNull(descr.getValueSerializer());
-        assertEquals(valueSerializer, descr.getValueSerializer());
+        assertThat(descr.getName()).isEqualTo("testName");
+        assertThat(descr.getSerializer()).isNotNull();
+        assertThat(descr.getSerializer() instanceof MapSerializer).isTrue();
+        assertThat(descr.getKeySerializer()).isNotNull();
+        assertThat(descr.getKeySerializer()).isEqualTo(keySerializer);
+        assertThat(descr.getValueSerializer()).isNotNull();
+        assertThat(descr.getValueSerializer()).isEqualTo(valueSerializer);
 
         MapStateDescriptor<Integer, String> copy = CommonTestUtils.createCopySerializable(descr);
 
-        assertEquals("testName", copy.getName());
-        assertNotNull(copy.getSerializer());
-        assertTrue(copy.getSerializer() instanceof MapSerializer);
+        assertThat(copy.getName()).isEqualTo("testName");
+        assertThat(copy.getSerializer()).isNotNull();
+        assertThat(copy.getSerializer() instanceof MapSerializer).isTrue();
 
-        assertNotNull(copy.getKeySerializer());
-        assertEquals(keySerializer, copy.getKeySerializer());
-        assertNotNull(copy.getValueSerializer());
-        assertEquals(valueSerializer, copy.getValueSerializer());
+        assertThat(copy.getKeySerializer()).isNotNull();
+        assertThat(copy.getKeySerializer()).isEqualTo(keySerializer);
+        assertThat(copy.getValueSerializer()).isNotNull();
+        assertThat(copy.getValueSerializer()).isEqualTo(valueSerializer);
     }
 
     @Test
-    public void testHashCodeEquals() throws Exception {
+    void testHashCodeEquals() throws Exception {
         final String name = "testName";
 
         MapStateDescriptor<String, String> original =
@@ -82,22 +80,22 @@ public class MapStateDescriptorTest {
 
         // test that hashCode() works on state descriptors with initialized and uninitialized
         // serializers
-        assertEquals(original.hashCode(), same.hashCode());
-        assertEquals(original.hashCode(), sameBySerializer.hashCode());
+        assertThat(same.hashCode()).isEqualTo(original.hashCode());
+        assertThat(sameBySerializer.hashCode()).isEqualTo(original.hashCode());
 
-        assertEquals(original, same);
-        assertEquals(original, sameBySerializer);
+        assertThat(same).isEqualTo(original);
+        assertThat(sameBySerializer).isEqualTo(original);
 
         // equality with a clone
         MapStateDescriptor<String, String> clone = CommonTestUtils.createCopySerializable(original);
-        assertEquals(original, clone);
+        assertThat(clone).isEqualTo(original);
 
         // equality with an initialized
         clone.initializeSerializerUnlessSet(new ExecutionConfig());
-        assertEquals(original, clone);
+        assertThat(clone).isEqualTo(original);
 
         original.initializeSerializerUnlessSet(new ExecutionConfig());
-        assertEquals(original, same);
+        assertThat(same).isEqualTo(original);
     }
 
     /**
@@ -107,7 +105,7 @@ public class MapStateDescriptorTest {
      * descriptor.
      */
     @Test
-    public void testSerializerDuplication() {
+    void testSerializerDuplication() {
         // we need a serializer that actually duplicates for testing (a stateful one)
         // we use Kryo here, because it meets these conditions
         TypeSerializer<String> keySerializer =

@@ -18,16 +18,15 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link MemorySegment} in off-heap mode using unsafe memory. */
 @RunWith(Parameterized.class)
@@ -48,22 +47,23 @@ public class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
     }
 
     @Override
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testByteBufferWrapping() {
-        createSegment(10).wrap(1, 2);
+        assertThatThrownBy(() -> createSegment(10).wrap(1, 2))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
-    public void testCallCleanerOnFree() {
+    void testCallCleanerOnFree() {
         final CompletableFuture<Void> cleanerFuture = new CompletableFuture<>();
         MemorySegmentFactory.allocateOffHeapUnsafeMemory(
                         10, null, () -> cleanerFuture.complete(null))
                 .free();
-        assertTrue(cleanerFuture.isDone());
+        assertThat(cleanerFuture.isDone()).isTrue();
     }
 
     @Test
-    public void testCallCleanerOnceOnConcurrentFree() throws InterruptedException {
+    void testCallCleanerOnceOnConcurrentFree() throws InterruptedException {
         final AtomicInteger counter = new AtomicInteger(0);
         final Runnable cleaner =
                 () -> {
@@ -86,6 +86,6 @@ public class OffHeapUnsafeMemorySegmentTest extends MemorySegmentTestBase {
         t1.join();
         t2.join();
 
-        assertThat(counter.get(), is(1));
+        assertThat(counter.get()).isEqualTo(1);
     }
 }

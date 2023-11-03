@@ -18,25 +18,30 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the sanity checks of the memory segments. */
 public class MemorySegmentChecksTest {
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testHeapNullBuffer2() {
-        new MemorySegment((byte[]) null, new Object());
+        assertThatThrownBy(() -> new MemorySegment((byte[]) null, new Object()))
+                .isInstanceOf(NullPointerException.class);
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testOffHeapNullBuffer2() {
-        new MemorySegment((ByteBuffer) null, new Object());
+        assertThatThrownBy(() -> new MemorySegment((ByteBuffer) null, new Object()))
+                .isInstanceOf(NullPointerException.class);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNonDirectBuffer() {
-        new MemorySegment(ByteBuffer.allocate(1024), new Object());
+        assertThatThrownBy(() -> new MemorySegment(ByteBuffer.allocate(1024), new Object()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }
