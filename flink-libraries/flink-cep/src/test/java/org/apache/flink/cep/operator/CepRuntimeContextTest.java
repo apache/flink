@@ -23,6 +23,7 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.ExecutionConfigSupplier;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -118,7 +119,7 @@ public class CepRuntimeContextTest extends TestLogger {
         final ClassLoader userCodeClassLoader = mock(ClassLoader.class);
         final DistributedCache distributedCache = mock(DistributedCache.class);
 
-        RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
+        RuntimeContext mockedRuntimeContext = mock(MockRuntimeContext.class);
 
         when(mockedRuntimeContext.getTaskName()).thenReturn(taskName);
         when(mockedRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
@@ -312,4 +313,6 @@ public class CepRuntimeContextTest extends TestLogger {
             processMatchCalled = true;
         }
     }
+
+    private interface MockRuntimeContext extends RuntimeContext, ExecutionConfigSupplier {}
 }
