@@ -708,6 +708,23 @@ public class TaskManagerOptions {
                             "Time we wait for the timers in milliseconds to finish all pending timer threads"
                                     + " when the stream task is cancelled.");
 
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<TaskManagerLoadBalanceMode> TASK_MANAGER_LOAD_BALANCE_MODE =
+            ConfigOptions.key("taskmanager.load-balance.mode")
+                    .enumType(TaskManagerLoadBalanceMode.class)
+                    .defaultValue(TaskManagerLoadBalanceMode.NONE)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Mode for the load-balance allocation strategy across all available %s. "
+                                                    + "The %s mode tries to spread out the slots evenly across all available %s. "
+                                                    + "The %s mode is the default mode without any specified strategy. ",
+                                            code("TaskExecutors"),
+                                            code(TaskManagerLoadBalanceMode.SLOTS.name()),
+                                            code("TaskExecutors"),
+                                            code(TaskManagerLoadBalanceMode.NONE.name()))
+                                    .build());
+
     // ------------------------------------------------------------------------
 
     /** Not intended to be instantiated. */

@@ -21,10 +21,10 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.TaskManagerLoadBalanceMode;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.ConfigurationException;
@@ -41,7 +41,7 @@ public class SlotManagerConfiguration {
     private final Duration declareNeededResourceDelay;
     private final boolean waitResultConsumedBeforeRelease;
     private final SlotMatchingStrategy slotMatchingStrategy;
-    private final boolean evenlySpreadOutSlots;
+    private final TaskManagerLoadBalanceMode taskManagerLoadBalanceMode;
     private final WorkerResourceSpec defaultWorkerResourceSpec;
     private final int numSlotsPerWorker;
     private final int minSlotNum;
@@ -59,7 +59,7 @@ public class SlotManagerConfiguration {
             Duration declareNeededResourceDelay,
             boolean waitResultConsumedBeforeRelease,
             SlotMatchingStrategy slotMatchingStrategy,
-            boolean evenlySpreadOutSlots,
+            TaskManagerLoadBalanceMode taskManagerLoadBalanceMode,
             WorkerResourceSpec defaultWorkerResourceSpec,
             int numSlotsPerWorker,
             int minSlotNum,
@@ -76,7 +76,7 @@ public class SlotManagerConfiguration {
         this.declareNeededResourceDelay = Preconditions.checkNotNull(declareNeededResourceDelay);
         this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
         this.slotMatchingStrategy = Preconditions.checkNotNull(slotMatchingStrategy);
-        this.evenlySpreadOutSlots = evenlySpreadOutSlots;
+        this.taskManagerLoadBalanceMode = taskManagerLoadBalanceMode;
         this.defaultWorkerResourceSpec = Preconditions.checkNotNull(defaultWorkerResourceSpec);
         Preconditions.checkState(numSlotsPerWorker > 0);
         this.numSlotsPerWorker = numSlotsPerWorker;
@@ -199,8 +199,8 @@ public class SlotManagerConfiguration {
         return slotMatchingStrategy;
     }
 
-    public boolean isEvenlySpreadOutSlots() {
-        return evenlySpreadOutSlots;
+    public TaskManagerLoadBalanceMode getTaskManagerLoadBalanceMode() {
+        return taskManagerLoadBalanceMode;
     }
 
     public WorkerResourceSpec getDefaultWorkerResourceSpec() {
@@ -260,10 +260,10 @@ public class SlotManagerConfiguration {
                 configuration.getBoolean(
                         ResourceManagerOptions.TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED);
 
-        boolean evenlySpreadOutSlots =
-                configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+        TaskManagerLoadBalanceMode taskManagerLoadBalanceMode =
+                TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
         final SlotMatchingStrategy slotMatchingStrategy =
-                evenlySpreadOutSlots
+                taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
                         ? LeastUtilizationSlotMatchingStrategy.INSTANCE
                         : AnyMatchingSlotMatchingStrategy.INSTANCE;
 
@@ -282,7 +282,7 @@ public class SlotManagerConfiguration {
                 declareNeededResourceDelay,
                 waitResultConsumedBeforeRelease,
                 slotMatchingStrategy,
-                evenlySpreadOutSlots,
+                taskManagerLoadBalanceMode,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
                 minSlotNum,

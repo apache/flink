@@ -21,6 +21,7 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.configuration.TaskManagerLoadBalanceMode;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -1121,7 +1122,7 @@ class DeclarativeSlotManagerTest {
     void testSpreadOutSlotAllocationStrategy() throws Exception {
         try (DeclarativeSlotManager slotManager =
                 createDeclarativeSlotManagerBuilder()
-                        .setEvenlySpreadOutSlots(true)
+                        .setTaskManagerLoadBalanceMode(TaskManagerLoadBalanceMode.SLOTS)
                         .buildAndStartWithDirectExec()) {
 
             final List<CompletableFuture<JobID>> requestSlotFutures = new ArrayList<>();

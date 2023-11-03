@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.TaskManagerLoadBalanceMode;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
@@ -84,7 +85,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
     public DefaultResourceAllocationStrategy(
             ResourceProfile totalResourceProfile,
             int numSlotsPerWorker,
-            boolean evenlySpreadOutSlots,
+            TaskManagerLoadBalanceMode taskManagerLoadBalanceMode,
             Time taskManagerTimeout,
             int redundantTaskManagerNum,
             CPUResource minTotalCPU,
@@ -95,7 +96,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 SlotManagerUtils.generateDefaultSlotResourceProfile(
                         totalResourceProfile, numSlotsPerWorker);
         this.availableResourceMatchingStrategy =
-                evenlySpreadOutSlots
+                taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
                         ? LeastUtilizationResourceMatchingStrategy.INSTANCE
                         : AnyMatchingResourceMatchingStrategy.INSTANCE;
         this.taskManagerTimeout = taskManagerTimeout;
