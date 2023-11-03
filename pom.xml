@@ -1154,6 +1154,28 @@ under the License.
 		</profile>
 
 		<profile>
+			<id>java21-target</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<configuration>
+							<source>21</source>
+							<target>21</target>
+							<compilerArgs combine.children="append">
+								<arg>--add-exports=java.base/sun.net.util=ALL-UNNAMED</arg>
+								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
+								<arg>--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED</arg>
+								<arg>--add-exports=java.security.jgss/sun.security.krb5=ALL-UNNAMED</arg>
+							</compilerArgs>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
 			<id>fast</id>
 			<activation>
 				<property>
