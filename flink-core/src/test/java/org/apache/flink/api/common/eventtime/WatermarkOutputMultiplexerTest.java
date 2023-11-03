@@ -296,7 +296,7 @@ public class WatermarkOutputMultiplexerTest {
         deferredOutput.emitWatermark(new Watermark(5));
         immediateOutput.emitWatermark(new Watermark(2));
 
-        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(nullValue());
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isNull();
     }
 
     @Test
