@@ -66,7 +66,7 @@ public class WatermarkOutputMultiplexerTest {
         WatermarkOutput watermarkOutput = createImmediateOutput(multiplexer);
 
         watermarkOutput.markIdle();
-        assertThat(underlyingWatermarkOutput.isIdle()).isEqualTo(true);
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
 
         watermarkOutput.emitWatermark(new Watermark(0));
 
