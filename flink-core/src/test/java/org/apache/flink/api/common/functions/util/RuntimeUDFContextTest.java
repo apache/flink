@@ -99,8 +99,8 @@ public class RuntimeUDFContextTest {
             List<Integer> list1 = ctx.getBroadcastVariable("name1");
             List<Double> list2 = ctx.getBroadcastVariable("name2");
 
-            assertThat(list1).isEqualTo(Arrays.asList(1, 2, 3, 4));
-            assertThat(list2).isEqualTo(Arrays.asList(1.0, 2.0, 3.0, 4.0));
+            assertThat(list1).containsExactly(1, 2, 3, 4);
+            assertThat(list2).containsExactly(1.0, 2.0, 3.0, 4.0);
 
             // access again
             List<Integer> list3 = ctx.getBroadcastVariable("name1");
