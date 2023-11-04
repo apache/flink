@@ -1886,7 +1886,7 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ARRAY_CONTAINS_SEQ)
                         .onFieldsWithData(
                                 new Integer[] {1, 2, null},
-                                new Integer[] {1},
+                                new Integer[] {1, 2, 3, 4},
                                 new Integer[] {1, 2, null, 3},
                                 new Integer[] {1, 2, null, 3},
                                 1)
