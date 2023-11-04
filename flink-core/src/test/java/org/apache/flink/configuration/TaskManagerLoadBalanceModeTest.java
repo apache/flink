@@ -36,7 +36,7 @@ class TaskManagerLoadBalanceModeTest {
         assertThat(TaskManagerLoadBalanceMode.loadFromConfiguration(conf1))
                 .isEqualTo(TASK_MANAGER_LOAD_BALANCE_MODE.defaultValue());
 
-        // Check for non-set 'taskmanager.load-balance.mode: NONE' and
+        // Check for non-set 'taskmanager.load-balance.mode' and
         // 'cluster.evenly-spread-out-slots: true'
         Configuration conf2 = new Configuration();
         conf2.set(EVENLY_SPREAD_OUT_SLOTS_STRATEGY, true);
