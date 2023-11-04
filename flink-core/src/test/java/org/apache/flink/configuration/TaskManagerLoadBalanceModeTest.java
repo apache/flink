@@ -30,7 +30,7 @@ class TaskManagerLoadBalanceModeTest {
 
     @Test
     void testReadTaskManagerLoadBalanceMode() {
-        // Check for non-set 'taskmanager.load-balance.mode: NONE' and
+        // Check for non-set 'taskmanager.load-balance.mode' and
         // 'cluster.evenly-spread-out-slots: false'
         Configuration conf1 = new Configuration();
         assertThat(TaskManagerLoadBalanceMode.loadFromConfiguration(conf1))
