@@ -22,11 +22,12 @@ import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
-import org.apache.flink.configuration.TaskManagerLoadBalanceMode;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.testutils.TestingUtils;
 
 import java.time.Duration;
+
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 
 /** Builder for {@link SlotManagerConfiguration}. */
 public class SlotManagerConfigurationBuilder {

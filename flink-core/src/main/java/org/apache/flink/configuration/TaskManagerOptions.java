@@ -25,9 +25,12 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.TimeUtils;
 
+import javax.annotation.Nonnull;
+
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
@@ -719,11 +722,37 @@ public class TaskManagerOptions {
                                             "Mode for the load-balance allocation strategy across all available %s. "
                                                     + "The %s mode tries to spread out the slots evenly across all available %s. "
                                                     + "The %s mode is the default mode without any specified strategy. ",
-                                            code("TaskExecutors"),
+                                            code("TaskManagers"),
                                             code(TaskManagerLoadBalanceMode.SLOTS.name()),
-                                            code("TaskExecutors"),
+                                            code("TaskManagers"),
                                             code(TaskManagerLoadBalanceMode.NONE.name()))
                                     .build());
+
+    /** Type of {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE}. */
+    public enum TaskManagerLoadBalanceMode {
+        NONE,
+        SLOTS;
+
+        /**
+         * The method is mainly to load the {@link
+         * TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE} from {@link Configuration}, which is
+         * compatible with {@link ClusterOptions#EVENLY_SPREAD_OUT_SLOTS_STRATEGY}.
+         */
+        public static TaskManagerLoadBalanceMode loadFromConfiguration(
+                @Nonnull Configuration configuration) {
+            Optional<TaskManagerLoadBalanceMode> taskManagerLoadBalanceModeOptional =
+                    configuration.getOptional(TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE);
+            if (taskManagerLoadBalanceModeOptional.isPresent()) {
+                return taskManagerLoadBalanceModeOptional.get();
+            }
+            boolean evenlySpreadOutSlots =
+                    configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+
+            return evenlySpreadOutSlots
+                    ? TaskManagerLoadBalanceMode.SLOTS
+                    : TaskManagerLoadBalanceMode.NONE;
+        }
+    }
 
     // ------------------------------------------------------------------------
 

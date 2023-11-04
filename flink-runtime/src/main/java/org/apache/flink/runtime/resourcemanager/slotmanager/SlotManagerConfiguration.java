@@ -24,7 +24,6 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ResourceManagerOptions;
-import org.apache.flink.configuration.TaskManagerLoadBalanceMode;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.ConfigurationException;
@@ -32,6 +31,8 @@ import org.apache.flink.util.Preconditions;
 
 import java.math.RoundingMode;
 import java.time.Duration;
+
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 
 /** Configuration for the {@link SlotManager}. */
 public class SlotManagerConfiguration {

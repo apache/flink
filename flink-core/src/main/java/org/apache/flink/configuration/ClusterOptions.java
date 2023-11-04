@@ -34,10 +34,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @PublicEvolving
 public class ClusterOptions {
 
-    /** @see ClusterOptions#EVENLY_SPREAD_OUT_SLOTS_STRATEGY_KEY */
-    private static final String EVENLY_SPREAD_OUT_SLOTS_STRATEGY_KEY =
-            "cluster.evenly-spread-out-slots";
-
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Long> INITIAL_REGISTRATION_TIMEOUT =
             ConfigOptions.key("cluster.registration.initial-timeout")
@@ -97,38 +93,15 @@ public class ClusterOptions {
     @Deprecated
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Boolean> EVENLY_SPREAD_OUT_SLOTS_STRATEGY =
-            ConfigOptions.key(EVENLY_SPREAD_OUT_SLOTS_STRATEGY_KEY)
+            ConfigOptions.key("cluster.evenly-spread-out-slots")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Enable the slot spread out allocation strategy. "
-                                                    + "This strategy tries to spread out "
-                                                    + "the slots evenly across all available %s. "
-                                                    + "Note: The configuration item is deprecated. "
-                                                    + "Please use '%s' instead. "
-                                                    + "The '%s: %s' is equal to '%s: %s'. "
-                                                    + "The '%s: %s' is equal to '%s: %s'.",
-                                            code("TaskExecutors"),
-                                            code(
-                                                    TaskManagerOptions
-                                                            .TASK_MANAGER_LOAD_BALANCE_MODE
-                                                            .key()),
-                                            code(
-                                                    TaskManagerOptions
-                                                            .TASK_MANAGER_LOAD_BALANCE_MODE
-                                                            .key()),
-                                            code("SLOTS"),
-                                            code(EVENLY_SPREAD_OUT_SLOTS_STRATEGY_KEY),
-                                            code("true"),
-                                            code(
-                                                    TaskManagerOptions
-                                                            .TASK_MANAGER_LOAD_BALANCE_MODE
-                                                            .key()),
-                                            code("NONE"),
-                                            code(EVENLY_SPREAD_OUT_SLOTS_STRATEGY_KEY),
-                                            code("false"))
+                                            "Enable the slot spread out allocation strategy. This strategy tries to spread out "
+                                                    + "the slots evenly across all available %s.",
+                                            code("TaskExecutors"))
                                     .build());
 
     @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)

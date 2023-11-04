@@ -21,7 +21,7 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerLoadBalanceMode;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
@@ -29,6 +29,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 
 /** Utility class for selecting {@link SlotSelectionStrategy}. */
 public class SlotSelectionStrategyUtils {
@@ -38,7 +40,7 @@ public class SlotSelectionStrategyUtils {
     public static SlotSelectionStrategy selectSlotSelectionStrategy(
             final JobType jobType, final Configuration configuration) {
         TaskManagerLoadBalanceMode taskManagerLoadBalanceMode =
-                TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
+                TaskManagerOptions.TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
 
         final SlotSelectionStrategy locationPreferenceSlotSelectionStrategy;
 
