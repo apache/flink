@@ -750,7 +750,7 @@ public class TaskManagerOptions {
 
             return evenlySpreadOutSlots
                     ? TaskManagerLoadBalanceMode.SLOTS
-                    : TaskManagerLoadBalanceMode.NONE;
+                    : TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE.defaultValue();
         }
     }
 
