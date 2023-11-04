@@ -98,7 +98,7 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
             createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
                     throws ConfigurationException {
         return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
-                getConfigurationWithoutMaxResourceIfSet(configuration),
+                getConfigurationWithoutResourceLimitationIfSet(configuration),
                 ArbitraryWorkerResourceSpecFactory.INSTANCE);
     }
 
@@ -109,19 +109,35 @@ public final class StandaloneResourceManagerFactory extends ResourceManagerFacto
      * @return the configuration for standalone ResourceManager
      */
     @VisibleForTesting
-    public static Configuration getConfigurationWithoutMaxResourceIfSet(
+    public static Configuration getConfigurationWithoutResourceLimitationIfSet(
             Configuration configuration) {
         final Configuration copiedConfig = new Configuration(configuration);
-        removeMaxResourceConfig(copiedConfig);
+        removeResourceLimitationConfig(copiedConfig);
 
         return copiedConfig;
     }
 
-    private static void removeMaxResourceConfig(Configuration configuration) {
-        // The max slot/cpu/memory limit should not take effect for standalone cluster, we
-        // overwrite the
-        // configure in case user
-        // sets this value by mistake.
+    private static void removeResourceLimitationConfig(Configuration configuration) {
+        // The slot/cpu/memory limit should not take effect for standalone cluster, we overwrite the
+        // configure in case user sets this value by mistake.
+        if (configuration.removeConfig(ResourceManagerOptions.MIN_SLOT_NUM)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MIN_SLOT_NUM.key());
+        }
+
+        if (configuration.removeConfig(ResourceManagerOptions.MIN_TOTAL_CPU)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MIN_TOTAL_CPU.key());
+        }
+
+        if (configuration.removeConfig(ResourceManagerOptions.MIN_TOTAL_MEM)) {
+            LOG.warn(
+                    "Config option {} will be ignored in standalone mode.",
+                    ResourceManagerOptions.MIN_TOTAL_MEM.key());
+        }
+
         if (configuration.removeConfig(ResourceManagerOptions.MAX_SLOT_NUM)) {
             LOG.warn(
                     "Config option {} will be ignored in standalone mode.",

@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.utils.JsonTestUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -39,10 +39,10 @@ import java.util.Map;
  * Tests for configuring operator-level state TTL via {@link
  * org.apache.flink.table.api.CompiledPlan}.
  */
-public class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
+class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
 
     @Test
-    public void testDifferentStateTtlForDifferentOneInputOperator() throws Exception {
+    void testDifferentStateTtlForDifferentOneInputOperator() throws Exception {
         String dataId =
                 TestValuesTableFactory.registerRowData(
                         Arrays.asList(
@@ -113,11 +113,11 @@ public class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
                         "+I[Jerry, 1, 2, 99.9]",
                         "+I[Olivia, 2, 4, 1100.0]",
                         "+I[Michael, 1, 3, 599.9]");
-        assertResult(expected, TestValuesTableFactory.getResults("OrdersStats"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("OrdersStats"));
     }
 
     @Test
-    public void testDifferentStateTtlForSameTwoInputStreamOperator() throws Exception {
+    void testDifferentStateTtlForSameTwoInputStreamOperator() throws Exception {
         String leftTableDataId =
                 TestValuesTableFactory.registerRowData(
                         Arrays.asList(
@@ -187,7 +187,7 @@ public class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
         List<String> expected =
                 Arrays.asList(
                         "+I[1, 1000002, TRUCK]", "+I[1, 1000004, RAIL]", "+I[1, 1000005, AIR]");
-        assertResult(expected, TestValuesTableFactory.getResults("OrdersShipInfo"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("OrdersShipInfo"));
     }
 
     private static Map<String, String> getProperties(

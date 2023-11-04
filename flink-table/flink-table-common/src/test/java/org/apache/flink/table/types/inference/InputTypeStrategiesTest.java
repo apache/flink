@@ -636,7 +636,34 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                         .expectSignature("f(<ARRAY>, <ARRAY ELEMENT>)")
                         .expectArgumentTypes(
                                 DataTypes.ARRAY(DataTypes.INT().notNull()).notNull(),
-                                DataTypes.INT()));
+                                DataTypes.INT()),
+                TestSpec.forStrategy(
+                                "Reinterpret_cast strategy",
+                                SpecificInputTypeStrategies.REINTERPRET_CAST)
+                        .calledWithArgumentTypes(
+                                DataTypes.DATE(), DataTypes.BIGINT(), DataTypes.BOOLEAN().notNull())
+                        .calledWithLiteralAt(1, DataTypes.BIGINT())
+                        .calledWithLiteralAt(2, true)
+                        .expectSignature("f(<ANY>, <TYPE LITERAL>, <TRUE | FALSE>)")
+                        .expectArgumentTypes(
+                                DataTypes.DATE(),
+                                DataTypes.BIGINT(),
+                                DataTypes.BOOLEAN().notNull()),
+                TestSpec.forStrategy(
+                                "Reinterpret_cast strategy non literal overflow",
+                                SpecificInputTypeStrategies.REINTERPRET_CAST)
+                        .calledWithArgumentTypes(
+                                DataTypes.DATE(), DataTypes.BIGINT(), DataTypes.BOOLEAN().notNull())
+                        .calledWithLiteralAt(1, DataTypes.BIGINT())
+                        .expectErrorMessage("Not null boolean literal expected for overflow."),
+                TestSpec.forStrategy(
+                                "Reinterpret_cast strategy not supported cast",
+                                SpecificInputTypeStrategies.REINTERPRET_CAST)
+                        .calledWithArgumentTypes(
+                                DataTypes.INT(), DataTypes.BIGINT(), DataTypes.BOOLEAN().notNull())
+                        .calledWithLiteralAt(1, DataTypes.BIGINT())
+                        .calledWithLiteralAt(2, true)
+                        .expectErrorMessage("Unsupported reinterpret cast from 'INT' to 'BIGINT'"));
     }
 
     /** Simple pojo that should be converted to a Structured type. */

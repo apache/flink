@@ -207,7 +207,8 @@ class BlobServerGetTest {
             }
         } finally {
             if (blobStore != null) {
-                blobStore.closeAndCleanupAllData();
+                blobStore.cleanupAllData();
+                blobStore.close();
             }
         }
     }
@@ -269,7 +270,8 @@ class BlobServerGetTest {
             }
         } finally {
             if (blobStore != null) {
-                blobStore.closeAndCleanupAllData();
+                blobStore.cleanupAllData();
+                blobStore.close();
             }
         }
     }

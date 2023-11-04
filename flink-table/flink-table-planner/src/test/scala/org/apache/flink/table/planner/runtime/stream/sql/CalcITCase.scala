@@ -641,6 +641,34 @@ class CalcITCase extends StreamingTestBase {
   }
 
   @Test
+  def testCurrentWatermarkWithoutAnyAttribute(): Unit = {
+    val tableId = TestValuesTableFactory.registerData(Seq())
+    tEnv.executeSql(s"""
+                       |CREATE TABLE T (
+                       |  ts TIMESTAMP_LTZ(3)
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$tableId',
+                       |  'bounded' = 'true'
+                       |)
+       """.stripMargin)
+
+    try {
+      tEnv.sqlQuery("SELECT ts, CURRENT_WATERMARK() FROM T")
+      fail("CURRENT_WATERMARK without any attribute should have failed.");
+    } catch {
+      case e: Exception =>
+        assertEquals(
+          "SQL validation failed. From line 1, column 12 to line 1, column 30: No match found for function signature CURRENT_WATERMARK().\n" +
+            "Supported signatures are:\n" +
+            "CURRENT_WATERMARK(<TIMESTAMP_WITHOUT_TIME_ZONE *ROWTIME*>)\n" +
+            "CURRENT_WATERMARK(<TIMESTAMP_WITH_LOCAL_TIME_ZONE *ROWTIME*>)",
+          e.getMessage
+        )
+    }
+  }
+
+  @Test
   def testCreateTemporaryTableFromDescriptor(): Unit = {
     val rows = Seq(row(42))
     val tableId = TestValuesTableFactory.registerData(rows)

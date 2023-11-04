@@ -78,7 +78,12 @@ public class StreamConfig implements Serializable {
     //  Config Keys
     // ------------------------------------------------------------------------
 
-    @VisibleForTesting public static final String SERIALIZEDUDF = "serializedUDF";
+    public static final String SERIALIZED_UDF = "serializedUDF";
+    /**
+     * Introduce serializedUdfClassName to avoid unnecessarily heavy {@link
+     * #getStreamOperatorFactory}.
+     */
+    public static final String SERIALIZED_UDF_CLASS = "serializedUdfClass";
 
     private static final String NUMBER_OF_OUTPUTS = "numberOfOutputs";
     private static final String NUMBER_OF_NETWORK_INPUTS = "numberOfNetworkInputs";
@@ -368,7 +373,8 @@ public class StreamConfig implements Serializable {
 
     public void setStreamOperatorFactory(StreamOperatorFactory<?> factory) {
         if (factory != null) {
-            toBeSerializedConfigObjects.put(SERIALIZEDUDF, factory);
+            toBeSerializedConfigObjects.put(SERIALIZED_UDF, factory);
+            toBeSerializedConfigObjects.put(SERIALIZED_UDF_CLASS, factory.getClass());
         }
     }
 
@@ -380,7 +386,7 @@ public class StreamConfig implements Serializable {
 
     public <T extends StreamOperatorFactory<?>> T getStreamOperatorFactory(ClassLoader cl) {
         try {
-            return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZEDUDF, cl);
+            return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZED_UDF, cl);
         } catch (ClassNotFoundException e) {
             String classLoaderInfo = ClassLoaderUtil.getUserCodeClassLoaderInfo(cl);
             boolean loadableDoubleCheck = ClassLoaderUtil.validateClassLoadable(e, cl);
@@ -397,6 +403,15 @@ public class StreamConfig implements Serializable {
             throw new StreamTaskException(exceptionMessage, e);
         } catch (Exception e) {
             throw new StreamTaskException("Cannot instantiate user function.", e);
+        }
+    }
+
+    public <T extends StreamOperatorFactory<?>> Class<T> getStreamOperatorFactoryClass(
+            ClassLoader cl) {
+        try {
+            return InstantiationUtil.readObjectFromConfig(this.config, SERIALIZED_UDF_CLASS, cl);
+        } catch (Exception e) {
+            throw new StreamTaskException("Could not instantiate serialized udf class.", e);
         }
     }
 
@@ -758,7 +773,7 @@ public class StreamConfig implements Serializable {
 
         try {
             builder.append("\nOperator: ")
-                    .append(getStreamOperatorFactory(cl).getClass().getSimpleName());
+                    .append(getStreamOperatorFactoryClass(cl).getSimpleName());
         } catch (Exception e) {
             builder.append("\nOperator: Missing");
         }

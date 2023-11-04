@@ -22,6 +22,9 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,8 +34,8 @@ import java.util.Map;
 import java.util.Random;
 
 /** Tests that the {@link JobVertexDetailsInfo} can be marshalled and unmarshalled. */
-public class JobVertexDetailsInfoTest
-        extends RestResponseMarshallingTestBase<JobVertexDetailsInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<JobVertexDetailsInfo> {
     @Override
     protected Class<JobVertexDetailsInfo> getTestResponseClass() {
         return JobVertexDetailsInfo.class;

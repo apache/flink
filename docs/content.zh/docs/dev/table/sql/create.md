@@ -615,6 +615,7 @@ INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 * 暂不支持主键约束。
 
 **注意：** 默认情况下，RTAS 是非原子性的，这意味着如果在向表中插入数据时发生错误，该表不会被自动删除或还原成原来的表。
+**注意：** RTAS 会先删除表，然后创建表并写入数据。但如果表是在基于内存的 Catalog 里，删除表只会将其从 Catalog 里移除，并不会移除物理表中的数据。因此，执行RTAS语句之前的数据仍然存在。
 
 ### 原子性
 

@@ -33,13 +33,13 @@ import java.util.Collections;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ColumnReferenceFinder}. */
-public class ColumnReferenceFinderTest extends TableTestBase {
+class ColumnReferenceFinderTest extends TableTestBase {
 
     private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
     private ResolvedSchema resolvedSchema;
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         resolvedSchema =
                 util.testingTableEnv()
                         .getCatalogManager()
@@ -62,7 +62,7 @@ public class ColumnReferenceFinderTest extends TableTestBase {
     }
 
     @Test
-    public void testFindReferencedColumn() {
+    void testFindReferencedColumn() {
         assertThat(ColumnReferenceFinder.findReferencedColumn("b", resolvedSchema))
                 .isEqualTo(Collections.emptySet());
 

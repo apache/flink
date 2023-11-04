@@ -186,7 +186,7 @@ public class FileSystemBlobStore implements BlobStoreService {
     }
 
     @Override
-    public void closeAndCleanupAllData() {
+    public void cleanupAllData() {
         try {
             LOG.debug("Cleaning up {}.", basePath);
 

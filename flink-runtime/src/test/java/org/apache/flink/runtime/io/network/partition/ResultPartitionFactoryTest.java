@@ -38,6 +38,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 
@@ -64,7 +65,7 @@ class ResultPartitionFactoryTest {
     }
 
     @Test
-    void testBoundedBlockingSubpartitionsCreated() {
+    void testBoundedBlockingSubpartitionsCreated() throws IOException {
         final BoundedBlockingResultPartition resultPartition =
                 (BoundedBlockingResultPartition)
                         createResultPartition(ResultPartitionType.BLOCKING);
@@ -73,7 +74,7 @@ class ResultPartitionFactoryTest {
     }
 
     @Test
-    void testPipelinedSubpartitionsCreated() {
+    void testPipelinedSubpartitionsCreated() throws IOException {
         final PipelinedResultPartition resultPartition =
                 (PipelinedResultPartition) createResultPartition(ResultPartitionType.PIPELINED);
         assertThat(resultPartition.subpartitions)
@@ -81,26 +82,26 @@ class ResultPartitionFactoryTest {
     }
 
     @Test
-    void testSortMergePartitionCreated() {
+    void testSortMergePartitionCreated() throws IOException {
         ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING, 1);
         assertThat(resultPartition).isInstanceOf(SortMergeResultPartition.class);
     }
 
     @Test
-    void testHybridFullResultPartitionOfLegacyModeCreated() {
+    void testHybridFullResultPartitionOfLegacyModeCreated() throws IOException {
         ResultPartition resultPartition = createResultPartition(ResultPartitionType.HYBRID_FULL);
         assertThat(resultPartition).isInstanceOf(HsResultPartition.class);
     }
 
     @Test
-    void testHybridSelectiveResultPartitionOfLegacyModeCreated() {
+    void testHybridSelectiveResultPartitionOfLegacyModeCreated() throws IOException {
         ResultPartition resultPartition =
                 createResultPartition(ResultPartitionType.HYBRID_SELECTIVE);
         assertThat(resultPartition).isInstanceOf(HsResultPartition.class);
     }
 
     @Test
-    void testHybridFullResultPartitionOfNewModeCreated() {
+    void testHybridFullResultPartitionOfNewModeCreated() throws IOException {
         ResultPartition resultPartition =
                 createResultPartition(
                         ResultPartitionType.HYBRID_FULL, createTieredResultPartitionFactory());
@@ -108,7 +109,7 @@ class ResultPartitionFactoryTest {
     }
 
     @Test
-    void testHybridSelectiveResultPartitionOfNewModeCreated() {
+    void testHybridSelectiveResultPartitionOfNewModeCreated() throws IOException {
         ResultPartition resultPartition =
                 createResultPartition(
                         ResultPartitionType.HYBRID_SELECTIVE, createTieredResultPartitionFactory());
@@ -116,7 +117,7 @@ class ResultPartitionFactoryTest {
     }
 
     @Test
-    void testNoReleaseOnConsumptionForBoundedBlockingPartition() {
+    void testNoReleaseOnConsumptionForBoundedBlockingPartition() throws IOException {
         final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING);
 
         resultPartition.onConsumedSubpartition(0);
@@ -125,7 +126,7 @@ class ResultPartitionFactoryTest {
     }
 
     @Test
-    void testNoReleaseOnConsumptionForSortMergePartition() {
+    void testNoReleaseOnConsumptionForSortMergePartition() throws IOException {
         final ResultPartition resultPartition =
                 createResultPartition(ResultPartitionType.BLOCKING, 1);
 
@@ -135,7 +136,7 @@ class ResultPartitionFactoryTest {
     }
 
     @Test
-    void testNoReleaseOnConsumptionForHybridFullPartitionOfLegacyMode() {
+    void testNoReleaseOnConsumptionForHybridFullPartitionOfLegacyMode() throws IOException {
         final ResultPartition resultPartition =
                 createResultPartition(ResultPartitionType.HYBRID_FULL);
 
@@ -145,7 +146,7 @@ class ResultPartitionFactoryTest {
     }
 
     @Test
-    void testNoReleaseOnConsumptionForHybridSelectivePartitionOfLegacyMode() {
+    void testNoReleaseOnConsumptionForHybridSelectivePartitionOfLegacyMode() throws IOException {
         final ResultPartition resultPartition =
                 createResultPartition(ResultPartitionType.HYBRID_SELECTIVE);
 
@@ -155,7 +156,7 @@ class ResultPartitionFactoryTest {
     }
 
     @Test
-    void testNoReleaseOnConsumptionForHybridFullPartitionOfNewMode() {
+    void testNoReleaseOnConsumptionForHybridFullPartitionOfNewMode() throws IOException {
         ResultPartition resultPartition =
                 createResultPartition(
                         ResultPartitionType.HYBRID_FULL, createTieredResultPartitionFactory());
@@ -166,7 +167,7 @@ class ResultPartitionFactoryTest {
     }
 
     @Test
-    void testNoReleaseOnConsumptionForHybridSelectivePartitionOfNewMode() {
+    void testNoReleaseOnConsumptionForHybridSelectivePartitionOfNewMode() throws IOException {
         ResultPartition resultPartition =
                 createResultPartition(
                         ResultPartitionType.HYBRID_SELECTIVE, createTieredResultPartitionFactory());
@@ -176,18 +177,19 @@ class ResultPartitionFactoryTest {
         assertThat(resultPartition.isReleased()).isFalse();
     }
 
-    private static ResultPartition createResultPartition(ResultPartitionType partitionType) {
+    private static ResultPartition createResultPartition(ResultPartitionType partitionType)
+            throws IOException {
         return createResultPartition(partitionType, Integer.MAX_VALUE, false, Optional.empty());
     }
 
     private static ResultPartition createResultPartition(
-            ResultPartitionType partitionType,
-            Optional<TieredResultPartitionFactory> tieredStorage) {
+            ResultPartitionType partitionType, Optional<TieredResultPartitionFactory> tieredStorage)
+            throws IOException {
         return createResultPartition(partitionType, Integer.MAX_VALUE, false, tieredStorage);
     }
 
     private static ResultPartition createResultPartition(
-            ResultPartitionType partitionType, int sortShuffleMinParallelism) {
+            ResultPartitionType partitionType, int sortShuffleMinParallelism) throws IOException {
         return createResultPartition(
                 partitionType, sortShuffleMinParallelism, false, Optional.empty());
     }
@@ -196,7 +198,8 @@ class ResultPartitionFactoryTest {
             ResultPartitionType partitionType,
             int sortShuffleMinParallelism,
             boolean isBroadcast,
-            Optional<TieredResultPartitionFactory> tieredStorage) {
+            Optional<TieredResultPartitionFactory> tieredStorage)
+            throws IOException {
         final ResultPartitionManager manager = new ResultPartitionManager();
 
         final ResultPartitionFactory factory =

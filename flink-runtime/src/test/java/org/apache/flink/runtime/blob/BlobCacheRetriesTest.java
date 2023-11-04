@@ -80,7 +80,8 @@ class BlobCacheRetriesTest {
             testBlobFetchRetries(blobStoreService, new JobID(), PERMANENT_BLOB);
         } finally {
             if (blobStoreService != null) {
-                blobStoreService.closeAndCleanupAllData();
+                blobStoreService.cleanupAllData();
+                blobStoreService.close();
             }
         }
     }
@@ -148,7 +149,8 @@ class BlobCacheRetriesTest {
             testBlobFetchWithTooManyFailures(blobStoreService, new JobID(), PERMANENT_BLOB);
         } finally {
             if (blobStoreService != null) {
-                blobStoreService.closeAndCleanupAllData();
+                blobStoreService.cleanupAllData();
+                blobStoreService.close();
             }
         }
     }

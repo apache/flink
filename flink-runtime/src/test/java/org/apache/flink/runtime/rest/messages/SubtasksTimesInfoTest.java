@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,7 +29,8 @@ import java.util.List;
 import java.util.Map;
 
 /** Tests that the {@link SubtasksTimesInfo} can be marshalled and unmarshalled. */
-public class SubtasksTimesInfoTest extends RestResponseMarshallingTestBase<SubtasksTimesInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class SubtasksTimesInfoTest extends RestResponseMarshallingTestBase<SubtasksTimesInfo> {
 
     @Override
     protected Class<SubtasksTimesInfo> getTestResponseClass() {

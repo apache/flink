@@ -45,6 +45,12 @@
             <td>This option configures local recovery for this state backend. By default, local recovery is deactivated. Local recovery currently only covers keyed state backends (including both the EmbeddedRocksDBStateBackend and the HashMapStateBackend).</td>
         </tr>
         <tr>
+            <td><h5>state.checkpoint.cleaner.parallel-mode</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Option whether to discard a checkpoint's states in parallel using the ExecutorService passed into the cleaner</td>
+        </tr>
+        <tr>
             <td><h5>state.checkpoints.num-retained</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>

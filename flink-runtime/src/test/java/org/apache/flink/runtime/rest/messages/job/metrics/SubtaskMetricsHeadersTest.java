@@ -21,37 +21,32 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SubtaskMetricsHeaders}. */
-public class SubtaskMetricsHeadersTest extends TestLogger {
+public class SubtaskMetricsHeadersTest {
 
     private final SubtaskMetricsHeaders subtaskMetricsHeaders = SubtaskMetricsHeaders.getInstance();
 
     @Test
-    public void testUrl() {
-        assertThat(
-                subtaskMetricsHeaders.getTargetRestEndpointURL(),
-                equalTo(
+    void testUrl() {
+        assertThat(subtaskMetricsHeaders.getTargetRestEndpointURL())
+                .isEqualTo(
                         "/jobs/:"
                                 + JobIDPathParameter.KEY
                                 + "/vertices/:"
                                 + JobVertexIdPathParameter.KEY
                                 + "/subtasks/:"
                                 + SubtaskIndexPathParameter.KEY
-                                + "/metrics"));
+                                + "/metrics");
     }
 
     @Test
-    public void testMessageParameters() {
-        assertThat(
-                subtaskMetricsHeaders.getUnresolvedMessageParameters(),
-                instanceOf(SubtaskMetricsMessageParameters.class));
+    void testMessageParameters() {
+        assertThat(subtaskMetricsHeaders.getUnresolvedMessageParameters())
+                .isInstanceOf(SubtaskMetricsMessageParameters.class);
     }
 }

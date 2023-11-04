@@ -29,6 +29,7 @@ import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReaderImpl;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
@@ -80,6 +81,9 @@ public class TaskStateManagerImpl implements TaskStateManager {
     /** The changelog storage where the manager reads and writes the changelog */
     @Nullable private final StateChangelogStorage<?> stateChangelogStorage;
 
+    /** The file merging snapshot */
+    @Nullable private final FileMergingSnapshotManager fileMergingSnapshotManager;
+
     private final TaskExecutorStateChangelogStoragesManager changelogStoragesManager;
 
     /** The checkpoint responder through which this manager can report to the job manager. */
@@ -91,6 +95,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull JobID jobId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             @Nonnull TaskLocalStateStore localStateStore,
+            @Nullable FileMergingSnapshotManager fileMergingSnapshotManager,
             @Nullable StateChangelogStorage<?> stateChangelogStorage,
             @Nonnull TaskExecutorStateChangelogStoragesManager changelogStoragesManager,
             @Nullable JobManagerTaskRestore jobManagerTaskRestore,
@@ -99,6 +104,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
                 jobId,
                 executionAttemptID,
                 localStateStore,
+                fileMergingSnapshotManager,
                 stateChangelogStorage,
                 changelogStoragesManager,
                 jobManagerTaskRestore,
@@ -113,6 +119,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull JobID jobId,
             @Nonnull ExecutionAttemptID executionAttemptID,
             @Nonnull TaskLocalStateStore localStateStore,
+            @Nullable FileMergingSnapshotManager fileMergingSnapshotManager,
             @Nullable StateChangelogStorage<?> stateChangelogStorage,
             @Nonnull TaskExecutorStateChangelogStoragesManager changelogStoragesManager,
             @Nullable JobManagerTaskRestore jobManagerTaskRestore,
@@ -120,6 +127,7 @@ public class TaskStateManagerImpl implements TaskStateManager {
             @Nonnull SequentialChannelStateReaderImpl sequentialChannelStateReader) {
         this.jobId = jobId;
         this.localStateStore = localStateStore;
+        this.fileMergingSnapshotManager = fileMergingSnapshotManager;
         this.stateChangelogStorage = stateChangelogStorage;
         this.changelogStoragesManager = changelogStoragesManager;
         this.jobManagerTaskRestore = jobManagerTaskRestore;
@@ -268,6 +276,12 @@ public class TaskStateManagerImpl implements TaskStateManager {
             ExceptionUtils.rethrow(e);
         }
         return storageView;
+    }
+
+    @Nullable
+    @Override
+    public FileMergingSnapshotManager getFileMergingSnapshotManager() {
+        return fileMergingSnapshotManager;
     }
 
     /** Tracking when local state can be confirmed and disposed. */

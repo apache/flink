@@ -315,7 +315,7 @@ public class MyMapper extends RichMapFunction<Long, Long> {
       .getMetricGroup()
       .histogram("myHistogram", new DropwizardHistogramWrapper(dropwizardHistogram));
   }
-  
+
   @Override
   public Long map(Long value) throws Exception {
     this.histogram.update(value);
@@ -333,12 +333,12 @@ class MyMapper extends RichMapFunction[Long, Long] {
   override def open(config: Configuration): Unit = {
     val dropwizardHistogram =
       new com.codahale.metrics.Histogram(new SlidingWindowReservoir(500))
-        
+
     histogram = getRuntimeContext()
       .getMetricGroup()
       .histogram("myHistogram", new DropwizardHistogramWrapper(dropwizardHistogram))
   }
-  
+
   override def map(value: Long): Long = {
     histogram.update(value)
     value
@@ -464,7 +464,7 @@ class MyMapper extends RichMapFunction[Long,Long] {
 
   override def open(config: Configuration): Unit = {
     val dropwizardMeter: com.codahale.metrics.Meter = new com.codahale.metrics.Meter()
-  
+
     meter = getRuntimeContext()
       .getMetricGroup()
       .meter("myMeter", new DropwizardMeterWrapper(dropwizardMeter))
@@ -687,7 +687,7 @@ Thus, in order to infer the metric identifier:
 </table>
 
 ### Memory
-The memory-related metrics require Oracle's memory management (also included in OpenJDK's Hotspot implementation) to be in place. 
+The memory-related metrics require Oracle's memory management (also included in OpenJDK's Hotspot implementation) to be in place.
 Some metrics might not be exposed when using other JVM implementations (e.g. IBM's J9).
 <table class="table table-bordered">                               
   <thead>                                                          
@@ -715,8 +715,8 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
     <tr>
       <td>Heap.Max</td>
       <td>The maximum amount of heap memory that can be used for memory management (in bytes). <br/>
-      This value might not be necessarily equal to the maximum value specified through -Xmx or 
-      the equivalent Flink configuration parameter. Some GC algorithms allocate heap memory that won't 
+      This value might not be necessarily equal to the maximum value specified through -Xmx or
+      the equivalent Flink configuration parameter. Some GC algorithms allocate heap memory that won't
       be available to the user code and, therefore, not being exposed through the heap metrics.</td>
       <td>Gauge</td>
     </tr>
@@ -829,15 +829,20 @@ Some metrics might not be exposed when using other JVM implementations (e.g. IBM
   </thead>
   <tbody>
     <tr>
-      <th rowspan="2"><strong>Job-/TaskManager</strong></th>
-      <td rowspan="2">Status.JVM.GarbageCollector</td>
-      <td>&lt;GarbageCollector&gt;.Count</td>
-      <td>The total number of collections that have occurred.</td>
+      <th rowspan="3"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="3">Status.JVM.GarbageCollector</td>
+      <td>&lt;Collector/All&gt;.Count</td>
+      <td>The total number of collections that have occurred for the given (or all) collector.</td>
       <td>Gauge</td>
     </tr>
     <tr>
-      <td>&lt;GarbageCollector&gt;.Time</td>
-      <td>The total time spent performing garbage collection.</td>
+      <td>&lt;Collector/All&gt;.Time</td>
+      <td>The total time spent performing garbage collection for the given (or all) collector.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>&lt;Collector/All&gt;.TimeMsPerSecond</td>
+      <td>The time (in milliseconds) spent garbage collecting per second for the given (or all) collector.</td>
       <td>Gauge</td>
     </tr>
   </tbody>
@@ -1904,7 +1909,7 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
       <th rowspan="1">Operator</th>
       <td>loopFrequencyHz</td>
       <td>stream, shardId</td>
-      <td>The number of calls to getRecords in one second. 
+      <td>The number of calls to getRecords in one second.
       </td>
       <td>Gauge</td>
     </tr>
@@ -2147,7 +2152,7 @@ Metrics below can be used to measure the effectiveness of speculative execution.
     </tr>
     <tr>
       <td>numEffectiveSpeculativeExecutions</td>
-      <td>Number of effective speculative execution attempts, i.e. speculative execution attempts which 
+      <td>Number of effective speculative execution attempts, i.e. speculative execution attempts which
       finish earlier than their corresponding original attempts.</td>
       <td>Counter</td>
     </tr>
@@ -2162,7 +2167,7 @@ To enable the latency tracking you must set the `latencyTrackingInterval` to a p
 
 At the `latencyTrackingInterval`, the sources will periodically emit a special record, called a `LatencyMarker`.
 The marker contains a timestamp from the time when the record has been emitted at the sources.
-Latency markers can not overtake regular user records, thus if records are queuing up in front of an operator, 
+Latency markers can not overtake regular user records, thus if records are queuing up in front of an operator,
 it will add to the latency tracked by the marker.
 
 Note that the latency markers are not accounting for the time user records spend in operators as they are
@@ -2170,17 +2175,17 @@ bypassing them. In particular the markers are not accounting for the time record
 Only if operators are not able to accept new records, thus they are queuing up, the latency measured using
 the markers will reflect that.
 
-The `LatencyMarker`s are used to derive a distribution of the latency between the sources of the topology and each 
-downstream operator. These distributions are reported as histogram metrics. The granularity of these distributions can 
-be controlled in the [Flink configuration]({{< ref "docs/deployment/config" >}}#metrics-latency-interval). For the highest 
-granularity `subtask` Flink will derive the latency distribution between every source subtask and every downstream 
-subtask, which results in quadratic (in the terms of the parallelism) number of histograms. 
+The `LatencyMarker`s are used to derive a distribution of the latency between the sources of the topology and each
+downstream operator. These distributions are reported as histogram metrics. The granularity of these distributions can
+be controlled in the [Flink configuration]({{< ref "docs/deployment/config" >}}#metrics-latency-interval). For the highest
+granularity `subtask` Flink will derive the latency distribution between every source subtask and every downstream
+subtask, which results in quadratic (in the terms of the parallelism) number of histograms.
 
 Currently, Flink assumes that the clocks of all machines in the cluster are in sync. We recommend setting
 up an automated clock synchronisation service (like NTP) to avoid false latency results.
 
 <span class="label label-danger">Warning</span> Enabling latency metrics can significantly impact the performance
-of the cluster (in particular for `subtask` granularity). It is highly recommended to only use them for debugging 
+of the cluster (in particular for `subtask` granularity). It is highly recommended to only use them for debugging
 purposes.
 
 ## State access latency tracking
@@ -2194,7 +2199,7 @@ This configuration has a default value of 100. A smaller value will get more acc
 As the type of this latency metrics is histogram, `state.backend.latency-track.history-size` will control the maximum number of recorded values in history, which has the default value of 128.
 A larger value of this configuration will require more memory, but will provide a more accurate result.
 
-<span class="label label-danger">Warning</span> Enabling state-access-latency metrics may impact the performance. 
+<span class="label label-danger">Warning</span> Enabling state-access-latency metrics may impact the performance.
 It is recommended to only use them for debugging purposes.
 
 ## REST API integration

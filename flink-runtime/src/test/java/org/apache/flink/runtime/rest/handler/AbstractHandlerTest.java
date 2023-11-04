@@ -38,7 +38,6 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -53,7 +52,6 @@ import org.apache.flink.shaded.netty4.io.netty.util.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
@@ -75,7 +73,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link AbstractHandler}. */
-@ExtendWith(TestLoggerExtension.class)
 class AbstractHandlerTest {
 
     private static final RestfulGateway mockRestfulGateway =

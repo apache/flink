@@ -28,6 +28,7 @@ import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.SequentialChannelStateReader;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
@@ -242,6 +243,12 @@ public class TestTaskStateManager implements TaskStateManager {
             ExceptionUtils.rethrow(e);
         }
         return storageView;
+    }
+
+    @Nullable
+    @Override
+    public FileMergingSnapshotManager getFileMergingSnapshotManager() {
+        return null;
     }
 
     @Override

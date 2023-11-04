@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.concurrent.Executor;
 
 /** Tests for the {@link AggregatingJobsMetricsHandler}. */
-public class AggregatingJobsMetricsHandlerTest
+class AggregatingJobsMetricsHandlerTest
         extends AggregatingMetricsHandlerTestBase<
                 AggregatingJobsMetricsHandler, AggregatedJobMetricsParameters> {
 

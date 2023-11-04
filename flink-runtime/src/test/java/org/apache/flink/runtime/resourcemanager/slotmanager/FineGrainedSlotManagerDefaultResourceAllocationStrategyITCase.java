@@ -57,7 +57,9 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                         DEFAULT_NUM_SLOTS_PER_WORKER,
                         slotManagerConfiguration.isEvenlySpreadOutSlots(),
                         slotManagerConfiguration.getTaskManagerTimeout(),
-                        slotManagerConfiguration.getRedundantTaskManagerNum()));
+                        slotManagerConfiguration.getRedundantTaskManagerNum(),
+                        slotManagerConfiguration.getMinTotalCpu(),
+                        slotManagerConfiguration.getMinTotalMem()));
     }
 
     /**

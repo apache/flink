@@ -22,8 +22,8 @@
           },
           "partitionKeys" : [ ],
           "options" : {
-            "connector" : "values",
-            "bounded" : "false"
+            "bounded" : "false",
+            "connector" : "values"
           }
         }
       }
@@ -60,9 +60,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "connector" : "filesystem",
             "format" : "testcsv",
-            "path" : "/tmp",
-            "connector" : "filesystem"
+            "path" : "/tmp"
           }
         }
       },

@@ -107,7 +107,7 @@ public class NettyPartitionRequestClientTest {
                 InputChannelBuilder.newBuilder()
                         .setConnectionManager(
                                 mockConnectionManagerWithPartitionRequestClient(client))
-                        .setInitialBackoff(1)
+                        .setPartitionRequestListenerTimeout(1)
                         .setMaxBackoff(2)
                         .buildRemoteChannel(inputGate);
 

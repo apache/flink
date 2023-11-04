@@ -166,8 +166,7 @@ public class ProcedureITCase extends StreamingTestBase {
         tableResult = tEnv().executeSql("call `system`.generate_user('yuxia', 18)");
         verifyTableResult(
                 tableResult,
-                Collections.singletonList(
-                        Row.of(new TestProcedureCatalogFactory.UserPojo("yuxia", 18))),
+                Collections.singletonList(Row.of("yuxia", 18)),
                 ResolvedSchema.of(
                         Column.physical("name", DataTypes.STRING()),
                         Column.physical("age", DataTypes.INT().notNull().bridgedTo(int.class))));

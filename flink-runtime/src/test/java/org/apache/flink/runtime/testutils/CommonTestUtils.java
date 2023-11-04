@@ -21,6 +21,7 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -363,6 +364,32 @@ public class CommonTestUtils {
                     } else {
                         return false;
                     }
+                });
+    }
+
+    /** Wait for on more completed checkpoint. */
+    public static void waitForOneMoreCheckpoint(JobID jobID, MiniCluster miniCluster)
+            throws Exception {
+        final long[] currentCheckpoint = new long[] {-1L};
+        waitUntilCondition(
+                () -> {
+                    AccessExecutionGraph graph = miniCluster.getExecutionGraph(jobID).get();
+                    CheckpointStatsSnapshot snapshot = graph.getCheckpointStatsSnapshot();
+                    if (snapshot != null) {
+                        long currentCount = snapshot.getCounts().getNumberOfCompletedCheckpoints();
+                        if (currentCheckpoint[0] < 0L) {
+                            currentCheckpoint[0] = currentCount;
+                        } else {
+                            return currentCount > currentCheckpoint[0];
+                        }
+                    } else if (graph.getState().isGloballyTerminalState()) {
+                        checkState(
+                                graph.getFailureInfo() != null,
+                                "Job terminated before taking required checkpoint.",
+                                graph.getState());
+                        throw graph.getFailureInfo().getException();
+                    }
+                    return false;
                 });
     }
 

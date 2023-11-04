@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -34,10 +34,10 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /** Test json deserialization for over aggregate. */
-public class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
+class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testProcTimeBoundedPartitionedRowsOver()
+    void testProcTimeBoundedPartitionedRowsOver()
             throws ExecutionException, InterruptedException, IOException {
         createTestValuesSourceTable(
                 "MyTable",
@@ -75,11 +75,11 @@ public class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
                         "+I[5, 33, 10]",
                         "+I[5, 46, 10]",
                         "+I[5, 60, 10]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
-    public void testProcTimeUnboundedNonPartitionedRangeOver()
+    void testProcTimeUnboundedNonPartitionedRangeOver()
             throws IOException, ExecutionException, InterruptedException {
         List<Row> data =
                 Arrays.asList(
@@ -120,11 +120,11 @@ public class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
                         "+I[Hello, 4, null]",
                         "+I[Hello, 5, null]",
                         "+I[Hello, 6, null]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
-    public void testRowTimeBoundedPartitionedRangeOver()
+    void testRowTimeBoundedPartitionedRangeOver()
             throws IOException, ExecutionException, InterruptedException {
         List<Row> data =
                 Arrays.asList(
@@ -197,6 +197,6 @@ public class OverAggregateJsonPlanITCase extends JsonPlanTestBase {
                         "+I[Hello World, 18, 1, 1, 7]",
                         "+I[Hello World, 8, 2, 2, 15]",
                         "+I[Hello World, 20, 1, 1, 20]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 }

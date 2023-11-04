@@ -581,4 +581,35 @@ class JoinTest extends TableTestBase {
         "`D` in `LOOKUP`"
     )
   }
+
+  @Test
+  def testJoinPartitionTableWithNonExistentPartition(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table leftPartitionTable (
+                               | a1 varchar,
+                               | b1 int)
+                               | partitioned by (b1) 
+                               | with (
+                               | 'connector' = 'values',
+                               | 'bounded' = 'false',
+                               | 'partition-list' = 'b1:1'
+                               |)
+                               |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |create table rightPartitionTable (
+                               | a2 varchar,
+                               | b2 int)
+                               | partitioned by (b2) 
+                               | with (
+                               | 'connector' = 'values',
+                               | 'bounded' = 'false',
+                               | 'partition-list' = 'b2:2'
+                               |)
+                               |""".stripMargin)
+    // partition 'b2 = 3' not exists.
+    util.verifyExecPlan(
+      """
+        |SELECT * FROM leftPartitionTable, rightPartitionTable WHERE b1 = 1 AND b2 = 3 AND a1 = a2
+        |""".stripMargin)
+  }
 }

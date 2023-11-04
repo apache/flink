@@ -221,6 +221,8 @@ function run_group_2 {
 
     run_test "Shaded Hadoop S3A with credentials provider end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop_with_provider"
 
+    run_test "Failure Enricher end-to-end test" "$END_TO_END_DIR/test-scripts/test_failure_enricher.sh" "skip_check_exceptions"
+
     if [[ `uname -i` != 'aarch64' ]]; then
         run_test "PyFlink end-to-end test" "$END_TO_END_DIR/test-scripts/test_pyflink.sh" "skip_check_exceptions"
     fi

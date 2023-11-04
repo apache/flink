@@ -86,6 +86,39 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + ")";
 
         util.tableEnv().executeSql(ddl2);
+
+        String ddl3 =
+                "CREATE TABLE NestedTable (\n"
+                        + "  id int,\n"
+                        + "  deepNested row<nested1 row<name string, `value` int>, nested2 row<num int, flag boolean>>,\n"
+                        + "  nested row<name string, `value` int>,\n"
+                        + "  `deepNestedWith.` row<`.value` int, nested row<```name` string, `.value` int>>,\n"
+                        + "  name string,\n"
+                        + "  testMap Map<string, string>\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = '`deepNested.nested1.value`;`deepNestedWith..nested..value`;`deepNestedWith..nested.``name`;',"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl3);
+
+        String ddl4 =
+                "CREATE TABLE NestedItemTable (\n"
+                        + "  `ID` INT,\n"
+                        + "  `Timestamp` TIMESTAMP(3),\n"
+                        + "  `Result` ROW<\n"
+                        + "    `Mid` ROW<"
+                        + "      `data_arr` ROW<`value` BIGINT> ARRAY,\n"
+                        + "      `data_map` MAP<STRING, ROW<`value` BIGINT>>"
+                        + "     >"
+                        + "   >,\n"
+                        + "   WATERMARK FOR `Timestamp` AS `Timestamp`\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'filterable-fields' = 'Result_Mid_data_map;',"
+                        + " 'bounded' = 'true'\n"
+                        + ")";
+        util.tableEnv().executeSql(ddl4);
     }
 
     @Test
@@ -117,5 +150,35 @@ public class PushFilterIntoTableSourceScanRuleTest
                         + ")";
         util.tableEnv().executeSql(ddl);
         super.testWithInterval();
+    }
+
+    @Test
+    public void testBasicNestedFilter() {
+        util.verifyRelPlan("SELECT * FROM NestedTable WHERE deepNested.nested1.`value` > 2");
+    }
+
+    @Test
+    public void testNestedFilterWithDotInTheName() {
+        util.verifyRelPlan(
+                "SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.`.value` > 5");
+    }
+
+    @Test
+    public void testNestedFilterWithBacktickInTheName() {
+        util.verifyRelPlan(
+                "SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.```name` = 'foo'");
+    }
+
+    @Test
+    public void testNestedFilterOnMapKey() {
+        util.verifyRelPlan(
+                "SELECT * FROM NestedItemTable WHERE"
+                        + " `Result`.`Mid`.data_map['item'].`value` = 3");
+    }
+
+    @Test
+    public void testNestedFilterOnArrayField() {
+        util.verifyRelPlan(
+                "SELECT * FROM NestedItemTable WHERE `Result`.`Mid`.data_arr[2].`value` = 3");
     }
 }

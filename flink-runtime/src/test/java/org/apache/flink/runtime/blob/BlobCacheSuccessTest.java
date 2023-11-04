@@ -192,7 +192,8 @@ class BlobCacheSuccessTest {
             }
         } finally {
             if (blobStoreService != null) {
-                blobStoreService.closeAndCleanupAllData();
+                blobStoreService.cleanupAllData();
+                blobStoreService.close();
             }
         }
     }

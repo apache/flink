@@ -20,52 +20,62 @@ package org.apache.flink.table.planner.expressions.validation
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ArrayTypeTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class ArrayTypeValidationTest extends ArrayTypeTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testImplicitTypeCastArraySql(): Unit = {
-    testSqlApi("ARRAY['string', 12]", "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testSqlApi("ARRAY['string', 12]", "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testObviousInvalidIndexTableApi(): Unit = {
-    testTableApi('f2.at(0), "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi('f2.at(0), "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testEmptyArraySql(): Unit = {
-    testSqlApi("ARRAY[]", "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testSqlApi("ARRAY[]", "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNullArraySql(): Unit = {
-    testSqlApi("ARRAY[NULL]", "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testSqlApi("ARRAY[NULL]", "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDifferentTypesArraySql(): Unit = {
-    testSqlApi("ARRAY[1, TRUE]", "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testSqlApi("ARRAY[1, TRUE]", "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testElementNonArray(): Unit = {
-    testTableApi('f0.element(), "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi('f0.element(), "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testElementNonArraySql(): Unit = {
-    testSqlApi("ELEMENT(f0)", "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testSqlApi("ELEMENT(f0)", "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testCardinalityOnNonArray(): Unit = {
-    testTableApi('f0.cardinality(), "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi('f0.cardinality(), "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testCardinalityOnNonArraySql(): Unit = {
-    testSqlApi("CARDINALITY(f0)", "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testSqlApi("CARDINALITY(f0)", "FAIL"))
   }
 }

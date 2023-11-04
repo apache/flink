@@ -107,9 +107,9 @@ resultStream.print();
 env.execute();
 
 // prints:
-// +I[Alice]
-// +I[Bob]
-// +I[John]
+// +I[ALICE]
+// +I[BOB]
+// +I[JOHN]
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -140,9 +140,9 @@ resultStream.print()
 env.execute()
 
 // prints:
-// +I[Alice]
-// +I[Bob]
-// +I[John]
+// +I[ALICE]
+// +I[BOB]
+// +I[JOHN]
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -173,9 +173,9 @@ res_ds.print()
 env.execute()
 
 # prints:
-# +I[Alice]
-# +I[Bob]
-# +I[John]
+# +I[ALICE]
+# +I[BOB]
+# +I[JOHN]
 ```
 {{< /tab >}}
 {{< /tabs >}}

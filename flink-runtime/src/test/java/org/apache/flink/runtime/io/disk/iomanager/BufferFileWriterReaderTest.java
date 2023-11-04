@@ -25,22 +25,20 @@ import org.apache.flink.runtime.io.network.buffer.BufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class BufferFileWriterReaderTest {
+class BufferFileWriterReaderTest {
 
     private static final int BUFFER_SIZE = 32 * 1024;
 
@@ -56,13 +54,13 @@ public class BufferFileWriterReaderTest {
 
     private LinkedBlockingQueue<Buffer> returnedBuffers = new LinkedBlockingQueue<>();
 
-    @AfterClass
-    public static void shutdown() throws Exception {
+    @AfterAll
+    static void shutdown() throws Exception {
         ioManager.close();
     }
 
-    @Before
-    public void setUpWriterAndReader() {
+    @BeforeEach
+    void setUpWriterAndReader() {
         final FileIOChannel.ID channel = ioManager.createChannel();
 
         try {
@@ -83,8 +81,8 @@ public class BufferFileWriterReaderTest {
         }
     }
 
-    @After
-    public void tearDownWriterAndReader() {
+    @AfterEach
+    void tearDownWriterAndReader() {
         if (writer != null) {
             writer.deleteChannel();
         }
@@ -97,7 +95,7 @@ public class BufferFileWriterReaderTest {
     }
 
     @Test
-    public void testWriteRead() throws IOException {
+    void testWriteRead() throws IOException {
         int numBuffers = 1024;
         int currentNumber = 0;
 
@@ -119,16 +117,18 @@ public class BufferFileWriterReaderTest {
 
         // Read buffers back in...
         for (int i = 0; i < numBuffers; i++) {
-            assertFalse(reader.hasReachedEndOfFile());
+            assertThat(reader.hasReachedEndOfFile()).isFalse();
             reader.readInto(createBuffer());
         }
 
         reader.close();
 
-        assertTrue(reader.hasReachedEndOfFile());
+        assertThat(reader.hasReachedEndOfFile()).isTrue();
 
         // Verify that the content is the same
-        assertEquals("Read less buffers than written.", numBuffers, returnedBuffers.size());
+        assertThat(returnedBuffers)
+                .withFailMessage("Read less buffers than written.")
+                .hasSize(numBuffers);
 
         currentNumber = 0;
         Buffer buffer;
@@ -139,7 +139,7 @@ public class BufferFileWriterReaderTest {
     }
 
     @Test
-    public void testWriteSkipRead() throws IOException {
+    void testWriteSkipRead() throws IOException {
         int numBuffers = 1024;
         int currentNumber = 0;
 
@@ -165,16 +165,18 @@ public class BufferFileWriterReaderTest {
 
         // Read buffers back in...
         for (int i = 0; i < numBuffers; i++) {
-            assertFalse(reader.hasReachedEndOfFile());
+            assertThat(reader.hasReachedEndOfFile()).isFalse();
             reader.readInto(createBuffer());
         }
 
         reader.close();
 
-        assertTrue(reader.hasReachedEndOfFile());
+        assertThat(reader.hasReachedEndOfFile()).isTrue();
 
         // Verify that the content is the same
-        assertEquals("Read less buffers than written.", numBuffers, returnedBuffers.size());
+        assertThat(returnedBuffers)
+                .withFailMessage("Read less buffers than written.")
+                .hasSize(numBuffers);
 
         // Start number after skipped buffers...
         currentNumber = (BUFFER_SIZE / 4) * toSkip;

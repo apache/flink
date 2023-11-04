@@ -27,29 +27,32 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Wei
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
 /** Test for group aggregate json plan. */
-@RunWith(Parameterized.class)
-public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
 
-    @Parameterized.Parameter public boolean isMiniBatchEnabled;
+    @Parameter private boolean isMiniBatchEnabled;
 
-    @Parameterized.Parameters(name = "isMiniBatchEnabled={0}")
-    public static List<Boolean> testData() {
+    @Parameters(name = "isMiniBatchEnabled={0}")
+    private static List<Boolean> testData() {
         return Arrays.asList(true, false);
     }
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    @Override
+    protected void setup() throws Exception {
         super.setup();
         if (isMiniBatchEnabled) {
             tableEnv.getConfig()
@@ -63,8 +66,8 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
         }
     }
 
-    @Test
-    public void testSimpleAggCallsWithGroupBy() throws Exception {
+    @TestTemplate
+    void testSimpleAggCallsWithGroupBy() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.smallData3()),
@@ -86,12 +89,12 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                                 + "from MyTable group by b")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(Arrays.asList("+I[1, 1, null, Hi]", "+I[2, 2, 2.0, Hello]"), result);
     }
 
-    @Test
-    public void testDistinctAggCalls() throws Exception {
+    @TestTemplate
+    void testDistinctAggCalls() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.data2()),
@@ -121,7 +124,7 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                                 + "from MyTable group by e")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[1, 1, 4, 12, 32, 6.0, 5]",
@@ -130,8 +133,8 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                 result);
     }
 
-    @Test
-    public void testUserDefinedAggCallsWithoutMerge() throws Exception {
+    @TestTemplate
+    void testUserDefinedAggCallsWithoutMerge() throws Exception {
         tableEnv.createTemporaryFunction("my_sum1", new VarSum1AggFunction());
         tableEnv.createFunction("my_avg", WeightedAvg.class);
         tableEnv.createTemporarySystemFunction("my_sum2", VarSum2AggFunction.class);
@@ -161,13 +164,13 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                                 + "from MyTable group by e")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList("+I[1, 77, 0, 1]", "+I[2, 120, 0, 2]", "+I[3, 58, 0, 3]"), result);
     }
 
-    @Test
-    public void testUserDefinedAggCallsWithMerge() throws Exception {
+    @TestTemplate
+    void testUserDefinedAggCallsWithMerge() throws Exception {
         tableEnv.createFunction("my_avg", JavaUserDefinedAggFunctions.WeightedAvgWithMerge.class);
         tableEnv.createTemporarySystemFunction(
                 "my_concat_agg", JavaUserDefinedAggFunctions.ConcatDistinctAggFunction.class);
@@ -191,7 +194,7 @@ public class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                                 + "from MyTable group by e")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[1, 1, Hallo Welt wie|Hallo|GHI|EFG|DEF]",

@@ -85,7 +85,7 @@ class RegistryAvroDeserializationSchemaTest {
                                         + " \"fields\": [\n"
                                         + "     {\"name\": \"name\", \"type\": \"string\"}"
                                         + " ]\n"
-                                        + "}]");
+                                        + "}");
         RegistryAvroDeserializationSchema<SimpleRecord> deserializer =
                 new RegistryAvroDeserializationSchema<>(
                         SimpleRecord.class,

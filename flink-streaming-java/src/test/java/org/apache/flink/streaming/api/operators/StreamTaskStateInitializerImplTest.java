@@ -294,6 +294,7 @@ public class StreamTaskStateInitializerImplTest {
                         jobID,
                         executionAttemptID,
                         taskLocalStateStore,
+                        null,
                         changelogStorage,
                         new TaskExecutorStateChangelogStoragesManager(),
                         jobManagerTaskRestore,

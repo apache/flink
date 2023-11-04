@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.DuplicatingFileSystem;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStateToolset;
 import org.apache.flink.runtime.state.CheckpointStorageLocation;
@@ -41,13 +43,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** An implementation of durable checkpoint storage to file systems. */
 public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess {
 
-    private final FileSystem fileSystem;
+    protected final FileSystem fileSystem;
 
-    private final Path checkpointsDirectory;
+    protected final Path checkpointsDirectory;
 
-    private final Path sharedStateDirectory;
+    protected final Path sharedStateDirectory;
 
-    private final Path taskOwnedStateDirectory;
+    protected final Path taskOwnedStateDirectory;
 
     private final int fileSizeThreshold;
 
@@ -200,5 +202,19 @@ public class FsCheckpointStorageAccess extends AbstractFsCheckpointStorageAccess
         final CheckpointStorageLocationReference reference = encodePathAsReference(location);
         return new FsCheckpointStorageLocation(
                 fs, location, location, location, reference, fileSizeThreshold, writeBufferSize);
+    }
+
+    public FsMergingCheckpointStorageAccess toFileMergingStorage(
+            FileMergingSnapshotManager mergingSnapshotManager, Environment environment)
+            throws IOException {
+        return new FsMergingCheckpointStorageAccess(
+                fileSystem,
+                checkpointsDirectory.getParent(),
+                getDefaultSavepointDirectory(),
+                environment.getJobID(),
+                fileSizeThreshold,
+                writeBufferSize,
+                mergingSnapshotManager,
+                environment);
     }
 }

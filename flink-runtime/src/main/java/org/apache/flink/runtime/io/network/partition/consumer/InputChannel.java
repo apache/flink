@@ -77,7 +77,7 @@ public abstract class InputChannel {
     protected final Counter numBuffersIn;
 
     /** The current backoff (in ms). */
-    private int currentBackoff;
+    protected int currentBackoff;
 
     protected InputChannel(
             SingleInputGate inputGate,
@@ -105,7 +105,7 @@ public abstract class InputChannel {
 
         this.initialBackoff = initial;
         this.maxBackoff = max;
-        this.currentBackoff = initial == 0 ? -1 : 0;
+        this.currentBackoff = 0;
 
         this.numBytesIn = numBytesIn;
         this.numBuffersIn = numBuffersIn;
@@ -277,12 +277,12 @@ public abstract class InputChannel {
      */
     protected boolean increaseBackoff() {
         // Backoff is disabled
-        if (currentBackoff < 0) {
+        if (initialBackoff == 0) {
             return false;
         }
 
-        // This is the first time backing off
         if (currentBackoff == 0) {
+            // This is the first time backing off
             currentBackoff = initialBackoff;
 
             return true;

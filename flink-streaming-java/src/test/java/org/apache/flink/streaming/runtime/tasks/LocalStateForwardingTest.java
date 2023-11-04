@@ -251,6 +251,7 @@ public class LocalStateForwardingTest extends TestLogger {
                         jobID,
                         executionAttemptID,
                         taskLocalStateStore,
+                        null,
                         stateChangelogStorage,
                         new TaskExecutorStateChangelogStoragesManager(),
                         null,

@@ -343,7 +343,7 @@ under the License.
 			<build>
 				<plugins>
 					<plugin>
-						<groupId>io.github.zentol.japicmp</groupId>
+						<groupId>com.github.siom79.japicmp</groupId>
 						<artifactId>japicmp-maven-plugin</artifactId>
 						<configuration>
 							<!-- version bump broke the checks -->

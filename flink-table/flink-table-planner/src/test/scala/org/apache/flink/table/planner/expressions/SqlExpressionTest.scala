@@ -21,7 +21,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
  * Tests all SQL expressions that are currently supported according to the documentation. This tests
@@ -95,7 +95,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("5-5", "0")
     testSqlApi("5*5", "25")
     testSqlApi("5/5", "1")
-    testSqlApi("5%2", "1");
+    testSqlApi("5%2", "1")
     testSqlApi("POWER(5, 5)", "3125.0")
     testSqlApi("POWER(-1, 0.5)", "NaN")
     testSqlApi("ABS(-5)", "5")

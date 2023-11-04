@@ -107,4 +107,13 @@ public class UrlPrefixDecorator<
     public Collection<? extends RestAPIVersion<?>> getSupportedAPIVersions() {
         return decorated.getSupportedAPIVersions();
     }
+
+    @Override
+    public Collection<Class<?>> getResponseTypeParameters() {
+        return decorated.getResponseTypeParameters();
+    }
+
+    public MessageHeaders<R, P, M> getDecorated() {
+        return decorated;
+    }
 }

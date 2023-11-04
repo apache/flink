@@ -69,7 +69,7 @@ Prerequisites for building Flink:
 
 * Unix-like environment (we use Linux, Mac OS X, Cygwin, WSL)
 * Git
-* Maven (we recommend version 3.8.6 and require at least 3.1.1)
+* Maven (we require version 3.8.6)
 * Java 8 or 11 (Java 9 or 10 may work)
 
 ```
@@ -79,9 +79,6 @@ cd flink
 ```
 
 Flink is now installed in `build-target`.
-
-*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.1.1 creates the libraries properly.
-To build unit tests with Java 8, use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
 
 ## Developing Flink
 

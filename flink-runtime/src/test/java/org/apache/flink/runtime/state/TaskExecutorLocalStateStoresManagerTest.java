@@ -415,6 +415,7 @@ class TaskExecutorLocalStateStoresManagerTest {
                 VoidPermanentBlobService.INSTANCE,
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 Executors.newDirectExecutorService(),
+                null,
                 throwable -> {},
                 workingDirectory);
     }

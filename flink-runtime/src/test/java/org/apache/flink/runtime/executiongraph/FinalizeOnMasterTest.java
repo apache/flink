@@ -41,8 +41,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Tests that the {@link JobVertex#finalizeOnMaster(ClassLoader)} is called properly and only when
- * the execution graph reaches the a successful final state.
+ * Tests that the {@link JobVertex#finalizeOnMaster(FinalizeOnMasterContext)} is called properly and
+ * only when the execution graph reaches the successful final state.
  */
 class FinalizeOnMasterTest {
 

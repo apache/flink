@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.catalog
 
+import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
@@ -31,6 +32,7 @@ import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, UserClassLoaderJarTestUtils}
 
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.{Before, Rule, Test}
 import org.junit.Assert.{assertEquals, fail}
 import org.junit.rules.ExpectedException
@@ -1117,17 +1119,15 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testCreateViewAndShowCreateTable(): Unit = {
-    val isBounded = !isStreamingMode
     val createTableDDL =
-      s""" |create table `source` (
-         |  `id` bigint not null,
-         | `group` string not null,
-         | `score` double
-         |) with (
-         |  'connector' = 'source-only',
-         |  'bounded' = '$isBounded'
-         |)
-         |""".stripMargin
+      """ |create table `source` (
+        |  `id` bigint not null,
+        | `group` string not null,
+        | `score` double
+        |) with (
+        |  'connector' = 'source-only'
+        |)
+        |""".stripMargin
     val createViewDDL =
       """ |create view `tmp` as
         |select `group`, avg(`score`) as avg_score
@@ -1146,15 +1146,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testAlterViewRename(): Unit = {
-    val isBounded = !isStreamingMode
-    tableEnv.executeSql(s"""
-                           | CREATE TABLE T (
-                           |   id INT
-                           | ) WITH (
-                           |   'connector' = 'source-only',
-                           |   'bounded' = '$isBounded'
-                           | )
-                           |""".stripMargin)
+    tableEnv.executeSql("""
+                          | CREATE TABLE T (
+                          |   id INT
+                          | ) WITH (
+                          |   'connector' = 'source-only'
+                          | )
+                          |""".stripMargin)
     tableEnv.executeSql("CREATE VIEW V AS SELECT * FROM T")
 
     tableEnv.executeSql("ALTER VIEW V RENAME TO V2")
@@ -1163,16 +1161,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testAlterViewAs(): Unit = {
-    val isBounded = !isStreamingMode
-    tableEnv.executeSql(s"""
-                           | CREATE TABLE T (
-                           |   a INT,
-                           |   b INT
-                           | ) WITH (
-                           |   'connector' = 'source-only',
-                           |   'bounded' = '$isBounded'
-                           | )
-                           |""".stripMargin)
+    tableEnv.executeSql("""
+                          | CREATE TABLE T (
+                          |   a INT,
+                          |   b INT
+                          | ) WITH (
+                          |   'connector' = 'source-only'
+                          | )
+                          |""".stripMargin)
     tableEnv.executeSql("CREATE VIEW V AS SELECT a FROM T")
 
     tableEnv.executeSql("ALTER VIEW V AS SELECT b FROM T")
@@ -1277,6 +1273,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
         |)
       """.stripMargin
     tableEnv.executeSql(ddl2)
+    assertThatThrownBy(() => tableEnv.executeSql("drop database db1")).satisfies(
+      anyCauseMatches(
+        classOf[ValidationException],
+        "Cannot drop a database which is currently in use."))
+    tableEnv.executeSql("use `default`")
     try {
       tableEnv.executeSql("drop database db1")
       fail("ValidationException expected")

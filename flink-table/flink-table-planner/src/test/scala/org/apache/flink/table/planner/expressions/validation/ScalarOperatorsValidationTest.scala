@@ -20,42 +20,49 @@ package org.apache.flink.table.planner.expressions.validation
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ScalarOperatorsTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIfInvalidTypesScala(): Unit = {
-    testTableApi(('f6 && true).?(5, "false"), "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi(('f6 && true).?(5, "false"), "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidStringComparison1(): Unit = {
-    testTableApi("w" === 4, "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi("w" === 4, "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidStringComparison2(): Unit = {
-    testTableApi("w" > 4.toExpr, "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi("w" > 4.toExpr, "FAIL"))
   }
 
   // ----------------------------------------------------------------------------------------------
   // Sub-query functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInMoreThanOneTypes(): Unit = {
-    testTableApi('f2.in('f3, 'f4, 4), "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi('f2.in('f3, 'f4, 4), "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInDifferentOperands(): Unit = {
-    testTableApi('f1.in("Hi", "Hello world", "Comment#1"), "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi('f1.in("Hi", "Hello world", "Comment#1"), "FAIL"))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testBetweenWithDifferentOperandTypeScala(): Unit = {
-    testTableApi(2.between(1, "a"), "FAIL")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => testTableApi(2.between(1, "a"), "FAIL"))
   }
 
   @Test

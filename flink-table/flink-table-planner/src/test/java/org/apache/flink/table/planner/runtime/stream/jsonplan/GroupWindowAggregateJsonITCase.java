@@ -23,18 +23,19 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
 /** Test for group window aggregate json plan. */
-public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
+class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    @Override
+    protected void setup() throws Exception {
         super.setup();
         createTestValuesSourceTable(
                 "MyTable",
@@ -59,7 +60,7 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testEventTimeTumbleWindow() throws Exception {
+    void testEventTimeTumbleWindow() throws Exception {
         createTestValuesSinkTable(
                 "MySink",
                 "name STRING",
@@ -80,7 +81,7 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "GROUP BY name, TUMBLE(rowtime, INTERVAL '5' SECOND)")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[a, 2020-10-10T00:00, 2020-10-10T00:00:05, 4, 10, 2]",
@@ -93,7 +94,7 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testEventTimeHopWindow() throws Exception {
+    void testEventTimeHopWindow() throws Exception {
         createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
         compileSqlAndExecutePlan(
                         "insert into MySink select\n"
@@ -103,7 +104,7 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "GROUP BY name, HOP(rowtime, INTERVAL '5' SECOND, INTERVAL '10' SECOND)")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[a, 1]",
@@ -121,7 +122,7 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testEventTimeSessionWindow() throws Exception {
+    void testEventTimeSessionWindow() throws Exception {
         createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
         compileSqlAndExecutePlan(
                         "insert into MySink select\n"
@@ -131,7 +132,7 @@ public class GroupWindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "GROUP BY name, Session(rowtime, INTERVAL '3' SECOND)")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[a, 1]", "+I[a, 4]", "+I[b, 1]", "+I[b, 1]", "+I[b, 2]", "+I[null, 1]"),

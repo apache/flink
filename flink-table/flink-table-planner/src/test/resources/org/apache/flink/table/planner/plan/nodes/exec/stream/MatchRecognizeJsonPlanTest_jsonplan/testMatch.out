@@ -36,8 +36,8 @@
           },
           "partitionKeys" : [ ],
           "options" : {
-            "connector" : "values",
-            "bounded" : "false"
+            "bounded" : "false",
+            "connector" : "values"
           }
         }
       }
@@ -178,31 +178,6 @@
           } ],
           "type" : "BOOLEAN"
         },
-        "l" : {
-          "kind" : "CALL",
-          "syntax" : "BINARY",
-          "internalName" : "$=$1",
-          "operands" : [ {
-            "kind" : "CALL",
-            "internalName" : "$LAST$1",
-            "operands" : [ {
-              "kind" : "PATTERN_INPUT_REF",
-              "alpha" : "*",
-              "inputIndex" : 1,
-              "type" : "VARCHAR(2147483647)"
-            }, {
-              "kind" : "LITERAL",
-              "value" : 0,
-              "type" : "INT NOT NULL"
-            } ],
-            "type" : "VARCHAR(2147483647)"
-          }, {
-            "kind" : "LITERAL",
-            "value" : "b",
-            "type" : "VARCHAR(2147483647) NOT NULL"
-          } ],
-          "type" : "BOOLEAN"
-        },
         "C" : {
           "kind" : "CALL",
           "syntax" : "BINARY",
@@ -224,6 +199,31 @@
           }, {
             "kind" : "LITERAL",
             "value" : "c",
+            "type" : "VARCHAR(2147483647) NOT NULL"
+          } ],
+          "type" : "BOOLEAN"
+        },
+        "l" : {
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
+            "operands" : [ {
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "*",
+              "inputIndex" : 1,
+              "type" : "VARCHAR(2147483647)"
+            }, {
+              "kind" : "LITERAL",
+              "value" : 0,
+              "type" : "INT NOT NULL"
+            } ],
+            "type" : "VARCHAR(2147483647)"
+          }, {
+            "kind" : "LITERAL",
+            "value" : "b",
             "type" : "VARCHAR(2147483647) NOT NULL"
           } ],
           "type" : "BOOLEAN"
@@ -328,9 +328,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "connector" : "values",
             "sink-insert-only" : "false",
-            "table-sink-class" : "DEFAULT",
-            "connector" : "values"
+            "table-sink-class" : "DEFAULT"
           }
         }
       }

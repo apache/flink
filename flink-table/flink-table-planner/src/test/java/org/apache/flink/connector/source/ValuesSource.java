@@ -57,10 +57,19 @@ public class ValuesSource implements Source<RowData, ValuesSourceSplit, NoOpEnum
 
     private final List<byte[]> serializedElements;
 
-    public ValuesSource(Collection<RowData> elements, TypeSerializer<RowData> serializer) {
+    private final TerminatingLogic terminatingLogic;
+    private final Boundedness boundedness;
+
+    public ValuesSource(
+            TerminatingLogic terminatingLogic,
+            Boundedness boundedness,
+            Collection<RowData> elements,
+            TypeSerializer<RowData> serializer) {
         Preconditions.checkState(serializer != null, "serializer not set");
         this.serializedElements = serializeElements(elements, serializer);
         this.serializer = serializer;
+        this.terminatingLogic = terminatingLogic;
+        this.boundedness = boundedness;
     }
 
     private List<byte[]> serializeElements(
@@ -82,7 +91,7 @@ public class ValuesSource implements Source<RowData, ValuesSourceSplit, NoOpEnum
 
     @Override
     public Boundedness getBoundedness() {
-        return Boundedness.BOUNDED;
+        return boundedness;
     }
 
     @Override
@@ -98,14 +107,14 @@ public class ValuesSource implements Source<RowData, ValuesSourceSplit, NoOpEnum
                 IntStream.range(0, serializedElements.size())
                         .mapToObj(ValuesSourceSplit::new)
                         .collect(Collectors.toList());
-        return new ValuesSourceEnumerator(enumContext, splits);
+        return new ValuesSourceEnumerator(enumContext, splits, terminatingLogic);
     }
 
     @Override
     public SplitEnumerator<ValuesSourceSplit, NoOpEnumState> restoreEnumerator(
             SplitEnumeratorContext<ValuesSourceSplit> enumContext, NoOpEnumState checkpoint)
             throws Exception {
-        throw new UnsupportedOperationException("Unsupported now.");
+        return createEnumerator(enumContext);
     }
 
     @Override

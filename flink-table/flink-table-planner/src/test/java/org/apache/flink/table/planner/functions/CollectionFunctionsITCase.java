@@ -975,11 +975,16 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().nullable())
                         .testSqlValidationError(
                                 "ARRAY_JOIN(f0)",
-                                "No match found for function "
-                                        + "signature ARRAY_JOIN(<VARCHAR(2147483647) ARRAY>)")
+                                "No match found for function signature ARRAY_JOIN(<VARCHAR(2147483647) ARRAY>).\n"
+                                        + "Supported signatures are:\n"
+                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testSqlValidationError(
                                 "ARRAY_JOIN()",
-                                "No match found for function signature ARRAY_JOIN()")
+                                "No match found for function signature ARRAY_JOIN().\n"
+                                        + "Supported signatures are:\n"
+                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>)\n"
+                                        + "ARRAY_JOIN(ARRAY<STRING>, <CHARACTER_STRING>, <CHARACTER_STRING>)")
                         .testSqlValidationError(
                                 "ARRAY_JOIN(f5, '+')",
                                 "Invalid input arguments. Expected signatures are:\n"
@@ -1190,7 +1195,16 @@ class CollectionFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "ARRAY_SLICE(<ARRAY>, <INTEGER>, <INTEGER>)")
                         .testSqlValidationError(
                                 "ARRAY_SLICE()",
-                                " No match found for function signature ARRAY_SLICE()")
+                                "No match found for function signature ARRAY_SLICE().\n"
+                                        + "Supported signatures are:\n"
+                                        + "ARRAY_SLICE(<ARRAY>, <INTEGER>, <INTEGER>)\n"
+                                        + "ARRAY_SLICE(<ARRAY>, <INTEGER>)")
+                        .testSqlValidationError(
+                                "ARRAY_SLICE(1)",
+                                "No match found for function signature ARRAY_SLICE(<NUMERIC>).\n"
+                                        + "Supported signatures are:\n"
+                                        + "ARRAY_SLICE(<ARRAY>, <INTEGER>, <INTEGER>)\n"
+                                        + "ARRAY_SLICE(<ARRAY>, <INTEGER>)")
                         .testSqlValidationError("ARRAY_SLICE(null)", "Illegal use of 'NULL'"));
     }
 }

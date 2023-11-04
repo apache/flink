@@ -515,7 +515,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[a, b, c, metadata_1, metadata_2])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], metadata_1=[$3], metadata_2=[CAST(CAST($4):INTEGER):BIGINT])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -531,7 +531,7 @@ Sink(table=[default_catalog.default_database.MetadataTable], fields=[a, b, c, me
       <![CDATA[
 LogicalSink(table=[default_catalog.default_database.MetadataTable], fields=[metadata_1, metadata_2, other, metadata_23])
 +- LogicalProject(metadata_1=[$0], metadata_2=[$1], other=[$2], metadata_23=[$4])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">

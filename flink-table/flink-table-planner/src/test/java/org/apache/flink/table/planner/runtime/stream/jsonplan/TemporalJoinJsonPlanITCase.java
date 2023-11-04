@@ -23,7 +23,8 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
@@ -31,10 +32,11 @@ import java.util.List;
 import static org.apache.flink.table.api.Expressions.$;
 
 /** Test for TemporalJoin json plan. */
-public class TemporalJoinJsonPlanITCase extends JsonPlanTestBase {
+class TemporalJoinJsonPlanITCase extends JsonPlanTestBase {
 
+    @BeforeEach
     @Override
-    public void setup() throws Exception {
+    protected void setup() throws Exception {
         super.setup();
         List<Row> orders =
                 Arrays.asList(
@@ -78,7 +80,7 @@ public class TemporalJoinJsonPlanITCase extends JsonPlanTestBase {
 
     /** test process time inner join. * */
     @Test
-    public void testJoinTemporalFunction() throws Exception {
+    void testJoinTemporalFunction() throws Exception {
         compileSqlAndExecutePlan(
                         "INSERT INTO MySink "
                                 + "SELECT amount * r.rate "
@@ -87,11 +89,11 @@ public class TemporalJoinJsonPlanITCase extends JsonPlanTestBase {
                                 + "WHERE o.currency = r.currency ")
                 .await();
         List<String> expected = Arrays.asList("+I[102]", "+I[228]", "+I[348]", "+I[50]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
-    public void testTemporalTableJoin() throws Exception {
+    void testTemporalTableJoin() throws Exception {
         compileSqlAndExecutePlan(
                         "INSERT INTO MySink "
                                 + "SELECT amount * r.rate "
@@ -100,6 +102,6 @@ public class TemporalJoinJsonPlanITCase extends JsonPlanTestBase {
                                 + "ON o.currency = r.currency ")
                 .await();
         List<String> expected = Arrays.asList("+I[102]", "+I[228]", "+I[348]", "+I[50]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 }

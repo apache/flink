@@ -37,6 +37,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.internal.ExecutableOperationContextImpl;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
@@ -70,10 +71,12 @@ import org.apache.flink.table.operations.CallProcedureOperation;
 import org.apache.flink.table.operations.CompileAndExecutePlanOperation;
 import org.apache.flink.table.operations.DeleteFromFilterOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
+import org.apache.flink.table.operations.ExecutableOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseOperation;
@@ -82,10 +85,13 @@ import org.apache.flink.table.operations.command.ExecutePlanOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
+import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.command.ShowJobsOperation;
 import org.apache.flink.table.operations.command.StopJobOperation;
 import org.apache.flink.table.operations.ddl.AlterOperation;
+import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateOperation;
+import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropOperation;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.DateTimeUtils;
@@ -110,6 +116,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.api.common.RuntimeExecutionMode.STREAMING;
+import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESULT_OK;
 import static org.apache.flink.table.gateway.service.utils.Constants.COMPLETION_CANDIDATES;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
@@ -183,7 +191,8 @@ public class OperationExecutor {
 
     public ResultFetcher executeStatement(OperationHandle handle, String statement) {
         // Instantiate the TableEnvironment lazily
-        TableEnvironmentInternal tableEnv = getTableEnvironment();
+        ResourceManager resourceManager = sessionContext.getSessionState().resourceManager.copy();
+        TableEnvironmentInternal tableEnv = getTableEnvironment(resourceManager);
         List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
         if (parsedOperations.size() > 1) {
             throw new UnsupportedOperationException(
@@ -197,14 +206,15 @@ public class OperationExecutor {
             try {
                 SqlGatewayStreamExecutionEnvironment.setAsContext(
                         sessionContext.getUserClassloader());
-                return executeOperation(tableEnv, handle, op);
+                return executeOperation(tableEnv, handle, op).withResourceManager(resourceManager);
             } finally {
                 SqlGatewayStreamExecutionEnvironment.unsetAsContext();
             }
         } else {
             return sessionContext.isStatementSetState()
                     ? executeOperationInStatementSetState(tableEnv, handle, op)
-                    : executeOperation(tableEnv, handle, op);
+                            .withResourceManager(resourceManager)
+                    : executeOperation(tableEnv, handle, op).withResourceManager(resourceManager);
         }
     }
 
@@ -315,6 +325,10 @@ public class OperationExecutor {
     // --------------------------------------------------------------------------------------------
 
     public TableEnvironmentInternal getTableEnvironment() {
+        return getTableEnvironment(sessionContext.getSessionState().resourceManager);
+    }
+
+    public TableEnvironmentInternal getTableEnvironment(ResourceManager resourceManager) {
         // checks the value of RUNTIME_MODE
         Configuration operationConfig = sessionContext.getSessionConf().clone();
         operationConfig.addAll(executionConfig);
@@ -342,8 +356,8 @@ public class OperationExecutor {
                 executor,
                 sessionContext.getSessionState().catalogManager,
                 sessionContext.getSessionState().moduleManager,
-                sessionContext.getSessionState().resourceManager,
-                sessionContext.getSessionState().functionCatalog);
+                resourceManager,
+                sessionContext.getSessionState().functionCatalog.copy(resourceManager));
     }
 
     private static Executor lookupExecutor(
@@ -440,9 +454,39 @@ public class OperationExecutor {
             return callShowJobsOperation(tableEnv, handle, (ShowJobsOperation) op);
         } else if (op instanceof RemoveJarOperation) {
             return callRemoveJar(handle, ((RemoveJarOperation) op).getPath());
+        } else if (op instanceof AddJarOperation
+                || op instanceof ShowJarsOperation
+                || op instanceof CreateTempSystemFunctionOperation
+                || op instanceof CreateCatalogFunctionOperation
+                || op instanceof ShowFunctionsOperation) {
+            return callExecutableOperation(handle, (ExecutableOperation) op);
         } else {
             return callOperation(tableEnv, handle, op);
         }
+    }
+
+    private ResultFetcher callExecutableOperation(OperationHandle handle, ExecutableOperation op) {
+        TableResultInternal result =
+                op.execute(
+                        new ExecutableOperationContextImpl(
+                                sessionContext.getSessionState().catalogManager,
+                                sessionContext.getSessionState().functionCatalog,
+                                sessionContext.getSessionState().moduleManager,
+                                sessionContext.getSessionState().resourceManager,
+                                tableConfig(),
+                                sessionContext.getSessionConf().get(RUNTIME_MODE) == STREAMING));
+        return ResultFetcher.fromTableResult(handle, result, false);
+    }
+
+    private TableConfig tableConfig() {
+        Configuration operationConfig = sessionContext.getSessionConf().clone();
+        operationConfig.addAll(executionConfig);
+
+        TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.setRootConfiguration(sessionContext.getDefaultContext().getFlinkConfig());
+        tableConfig.addConfiguration(operationConfig);
+
+        return tableConfig;
     }
 
     private ResultFetcher callSetOperation(

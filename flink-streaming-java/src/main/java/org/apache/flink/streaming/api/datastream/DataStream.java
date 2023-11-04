@@ -526,8 +526,17 @@ public class DataStream<T> {
      * in the set time, the stream terminates.
      *
      * @return The iterative data stream created.
+     * @deprecated This method is deprecated since Flink 1.19. The only known use case of this
+     *     Iteration API comes from Flink ML, which already has its own implementation of iteration
+     *     and no longer uses this API. If there's any use cases other than Flink ML that needs
+     *     iteration support, please reach out to dev@flink.apache.org and we can consider making
+     *     the Flink ML iteration implementation a separate common library.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-357%3A+Deprecate+Iteration+API+of+DataStream">
+     *     FLIP-357: Deprecate Iteration API of DataStream </a>
+     * @see <a href="https://nightlies.apache.org/flink/flink-ml-docs-stable/">Flink ML </a>
      */
-    @PublicEvolving
+    @Deprecated
     public IterativeStream<T> iterate() {
         return new IterativeStream<>(this, 0);
     }
@@ -554,8 +563,17 @@ public class DataStream<T> {
      *
      * @param maxWaitTimeMillis Number of milliseconds to wait between inputs before shutting down
      * @return The iterative data stream created.
+     * @deprecated This method is deprecated since Flink 1.19. The only known use case of this
+     *     Iteration API comes from Flink ML, which already has its own implementation of iteration
+     *     and no longer uses this API. If there's any use cases other than Flink ML that needs
+     *     iteration support, please reach out to dev@flink.apache.org and we can consider making
+     *     the Flink ML iteration implementation a separate common library.
+     * @see <a
+     *     href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-357%3A+Deprecate+Iteration+API+of+DataStream">
+     *     FLIP-357: Deprecate Iteration API of DataStream </a>
+     * @see <a href="https://nightlies.apache.org/flink/flink-ml-docs-stable/">Flink ML </a>
      */
-    @PublicEvolving
+    @Deprecated
     public IterativeStream<T> iterate(long maxWaitTimeMillis) {
         return new IterativeStream<>(this, maxWaitTimeMillis);
     }

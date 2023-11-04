@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -31,10 +31,10 @@ import java.util.List;
 import java.util.Map;
 
 /** Integration tests for operations on changelog source, including upsert source. */
-public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
+class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testChangelogSource() throws Exception {
+    void testChangelogSource() throws Exception {
         registerChangelogSource();
         createTestNonInsertOnlyValuesSinkTable(
                 "user_sink",
@@ -52,11 +52,11 @@ public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
                         "+I[user1, Tom, tom123@gmail.com, 8.10, 16.20]",
                         "+I[user3, Bailey, bailey@qq.com, 9.99, 19.98]",
                         "+I[user4, Tina, tina@gmail.com, 11.30, 22.60]");
-        assertResult(expected, TestValuesTableFactory.getResults("user_sink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("user_sink"));
     }
 
     @Test
-    public void testToUpsertSource() throws Exception {
+    void testToUpsertSource() throws Exception {
         registerUpsertSource();
         createTestNonInsertOnlyValuesSinkTable(
                 "user_sink",
@@ -74,12 +74,12 @@ public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
                         "+I[user1, Tom, tom123@gmail.com, 8.10, 16.20]",
                         "+I[user3, Bailey, bailey@qq.com, 9.99, 19.98]",
                         "+I[user4, Tina, tina@gmail.com, 11.30, 22.60]");
-        assertResult(expected, TestValuesTableFactory.getResults("user_sink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("user_sink"));
     }
 
     // ------------------------------------------------------------------------------------------
 
-    public void registerChangelogSource() {
+    protected void registerChangelogSource() {
         Map<String, String> properties = new HashMap<>();
         properties.put("changelog-mode", "I,UA,UB,D");
         createTestValuesSourceTable(
@@ -95,7 +95,7 @@ public class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
                 properties);
     }
 
-    public void registerUpsertSource() {
+    protected void registerUpsertSource() {
         Map<String, String> properties = new HashMap<>();
         properties.put("changelog-mode", "I,UA,D");
         createTestValuesSourceTable(

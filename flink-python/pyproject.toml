@@ -27,7 +27,7 @@ requires = [
 ]
 
 [tool.cibuildwheel]
-build = ["cp38-*", "cp39-*", "cp310-*"]
+build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]

@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
+import org.apache.flink.runtime.execution.Environment;
 
 import java.io.IOException;
 
@@ -75,4 +77,15 @@ public interface CheckpointStorageWorkerView {
      * @return A toolset for additional operations for state owned by tasks.
      */
     CheckpointStateToolset createTaskOwnedCheckpointStateToolset();
+
+    /**
+     * Return {@link org.apache.flink.runtime.state.filesystem.FsMergingCheckpointStorageAccess} if
+     * file merging is enabled Otherwise, return itself. File merging is supported by subclasses of
+     * {@link org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess}.
+     */
+    default CheckpointStorageWorkerView toFileMergingStorage(
+            FileMergingSnapshotManager mergingSnapshotManager, Environment environment)
+            throws IOException {
+        return this;
+    }
 }

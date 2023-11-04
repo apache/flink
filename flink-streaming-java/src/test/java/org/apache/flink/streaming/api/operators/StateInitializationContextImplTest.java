@@ -170,6 +170,7 @@ public class StateInitializationContextImplTest {
                         new JobID(),
                         createExecutionAttemptId(),
                         new TestTaskLocalStateStore(),
+                        null,
                         new InMemoryStateChangelogStorage(),
                         new TaskExecutorStateChangelogStoragesManager(),
                         jobManagerTaskRestore,

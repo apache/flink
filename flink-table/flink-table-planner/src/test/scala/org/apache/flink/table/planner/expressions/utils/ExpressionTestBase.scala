@@ -52,10 +52,10 @@ import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
-import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.{After, Before, Rule}
-import org.junit.Assert.{assertEquals, assertTrue, fail}
-import org.junit.rules.ExpectedException
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable
+import org.junit.jupiter.api.{AfterEach, BeforeEach}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 
 import java.util.Collections
 
@@ -90,13 +90,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
   private val tableName = "testTable"
   protected val nullable = "NULL"
 
-  // used for accurate exception information checking.
-  val expectedException: ExpectedException = ExpectedException.none()
-
-  @Rule
-  def thrown: ExpectedException = expectedException
-
-  @Before
+  @BeforeEach
   def prepare(): Unit = {
     settings = if (isStreaming) {
       EnvironmentSettings.newInstance().inStreamingMode().build()
@@ -138,7 +132,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
     invalidTableApiExprs.clear()
   }
 
-  @After
+  @AfterEach
   def evaluateExprs(): Unit = {
 
     // evaluate valid expressions
@@ -146,25 +140,20 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
 
     // evaluate invalid expressions
     invalidSqlExprs.foreach {
-      case (sqlExpr, keywords, clazz) => {
-        try {
+      case (sqlExpr, keywords, clazz) =>
+        val callable: ThrowingCallable = () => {
           val invalidExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
           addSqlTestExpr(sqlExpr, keywords, invalidExprs, clazz)
           evaluateGivenExprs(invalidExprs)
-          fail(s"Expected a $clazz, but no exception is thrown.")
-        } catch {
-          case e if e.getClass == clazz =>
-            if (keywords != null) {
-              assertTrue(
-                s"The actual exception message \n${e.getMessage}\n" +
-                  s"doesn't contain expected keyword \n$keywords\n",
-                e.getMessage.contains(keywords))
-            }
-          case e: Throwable =>
-            e.printStackTrace()
-            fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
         }
-      }
+        if (keywords != null) {
+          assertThatExceptionOfType(clazz)
+            .isThrownBy(callable)
+            .withMessageContaining(keywords)
+        } else {
+          assertThatExceptionOfType(clazz)
+            .isThrownBy(callable)
+        }
     }
 
     invalidTableApiExprs.foreach {
@@ -329,9 +318,9 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
     val optimized = hep.findBestExp()
 
     // throw exception if plan contains more than a calc
-    if (!optimized.getInput(0).getInputs.isEmpty) {
-      fail("Expression is converted into more than a Calc operation. Use a different test method.")
-    }
+    assertTrue(
+      optimized.getInput(0).getInputs.isEmpty,
+      "Expression is converted into more than a Calc operation. Use a different test method.")
 
     exprs.asInstanceOf[mutable.ArrayBuffer[(String, RexNode, String)]] +=
       ((summaryString, extractRexNode(optimized), expected))
@@ -356,9 +345,9 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
         case ((originalExpr, optimizedExpr, expected), actual) =>
           val original = if (originalExpr == null) "" else s"for: [$originalExpr]"
           assertEquals(
-            s"Wrong result $original optimized to: [$optimizedExpr]",
             expected,
-            if (actual == null) "NULL" else actual)
+            if (actual == null) "NULL" else actual,
+            s"Wrong result $original optimized to: [$optimizedExpr]")
       }
   }
 
@@ -401,7 +390,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
   def testDataType: AbstractDataType[_] =
     throw new IllegalArgumentException("Implement this if no legacy types are expected.")
 
-  def testSystemFunctions: java.util.Map[String, ScalarFunction] = Collections.emptyMap();
+  def testSystemFunctions: java.util.Map[String, ScalarFunction] = Collections.emptyMap()
 
   // ----------------------------------------------------------------------------------------------
   // Legacy type system

@@ -65,11 +65,11 @@ class JobManagerOperatorGroupTest {
 
         jmOperatorGroup11.close();
         assertThat(jmOperatorGroup11.isClosed()).isTrue();
-        assertThat(jmJobGroup.numRegisteredOperatorMetricGroups()).isEqualTo(1);
+        assertThat(jmJobGroup.numRegisteredOperatorMetricGroups()).isOne();
 
         jmOperatorGroup21.close();
         assertThat(jmOperatorGroup21.isClosed()).isTrue();
-        assertThat(jmJobGroup.numRegisteredOperatorMetricGroups()).isEqualTo(0);
+        assertThat(jmJobGroup.numRegisteredOperatorMetricGroups()).isZero();
     }
 
     @Test
@@ -203,7 +203,7 @@ class JobManagerOperatorGroupTest {
 
         QueryScopeInfo.JobManagerOperatorQueryScopeInfo info =
                 jmJobGroup.createQueryServiceMetricInfo(new DummyCharacterFilter());
-        assertThat(info.scope).isEqualTo("");
+        assertThat(info.scope).isEmpty();
         assertThat(info.jobID).isEqualTo(jobId.toString());
         assertThat(info.vertexID).isEqualTo(jobVertexId.toString());
         assertThat(info.operatorName).isEqualTo("opName");

@@ -2254,7 +2254,8 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("reinterpretCast")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REINTERPRET_CAST)
+                    .outputTypeStrategy(TypeStrategies.argument(1))
                     .build();
 
     public static final BuiltInFunctionDefinition AS =

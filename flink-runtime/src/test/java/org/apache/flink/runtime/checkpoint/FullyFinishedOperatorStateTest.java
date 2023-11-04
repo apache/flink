@@ -18,11 +18,20 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.InputChannelStateHandle;
+import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
+
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generateSampleOperatorSubtaskState;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -48,5 +57,31 @@ class FullyFinishedOperatorStateTest {
                                         new ByteStreamStateHandle("test", new byte[] {1, 2, 3, 4})))
                 .as("Should not be able to put new subtask states for a fully finished state")
                 .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void testGetDiscardables() throws IOException {
+        Tuple2<List<StateObject>, OperatorSubtaskState> opSubtaskStates1 =
+                generateSampleOperatorSubtaskState();
+        Tuple2<List<StateObject>, OperatorSubtaskState> opSubtaskStates2 =
+                generateSampleOperatorSubtaskState();
+
+        OperatorState operatorState = new OperatorState(new OperatorID(), 2, 256);
+        operatorState.putState(0, opSubtaskStates1.f1);
+        operatorState.putState(1, opSubtaskStates2.f1);
+        ByteStreamStateHandle coordinatorState =
+                new ByteStreamStateHandle("test", new byte[] {1, 2, 3, 4});
+        operatorState.setCoordinatorState(coordinatorState);
+        HashSet<StateObject> discardables = new HashSet<>();
+        discardables.addAll(opSubtaskStates1.f0.subList(0, 4));
+        discardables.add(((InputChannelStateHandle) opSubtaskStates1.f0.get(4)).getDelegate());
+        discardables.add(
+                ((ResultSubpartitionStateHandle) opSubtaskStates1.f0.get(5)).getDelegate());
+        discardables.addAll(opSubtaskStates2.f0.subList(0, 4));
+        discardables.add(((InputChannelStateHandle) opSubtaskStates2.f0.get(4)).getDelegate());
+        discardables.add(
+                ((ResultSubpartitionStateHandle) opSubtaskStates2.f0.get(5)).getDelegate());
+        discardables.add(coordinatorState);
+        assertThat(new HashSet<>(operatorState.getDiscardables())).isEqualTo(discardables);
     }
 }
