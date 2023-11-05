@@ -87,6 +87,30 @@
             <td>The maximum time in ms for a connection to stay idle before failing.</td>
         </tr>
         <tr>
+            <td><h5>rest.profiling.dir</h5></td>
+            <td style="word-wrap: break-word;">System.getProperty("java.io.tmpdir")</td>
+            <td>String</td>
+            <td>Profiling result storing directory.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.profiling.duration-max</h5></td>
+            <td style="word-wrap: break-word;">5 min</td>
+            <td>Duration</td>
+            <td>Maximum profiling duration for each profiling request. Any profiling request's duration exceeding this value will not be accepted.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.profiling.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enables the experimental profiler feature.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.profiling.history-size</h5></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>Maximum profiling history instance to be maintained for JobManager or each TaskManager. The oldest instance will be removed on a rolling basis when the history size exceeds this value.</td>
+        </tr>
+        <tr>
             <td><h5>rest.retry.delay</h5></td>
             <td style="word-wrap: break-word;">3000</td>
             <td>Long</td>

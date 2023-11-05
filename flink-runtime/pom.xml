@@ -215,6 +215,13 @@ under the License.
 			<artifactId>snappy-java</artifactId>
 		</dependency>
 
+		<!-- Async Profiler library -->
+		<dependency>
+			<groupId>tools.profiler</groupId>
+			<artifactId>async-profiler</artifactId>
+			<version>2.9</version>
+		</dependency>
+
 		<!-- Lz4 compression library -->
 		<dependency>
 			<groupId>org.lz4</groupId>
