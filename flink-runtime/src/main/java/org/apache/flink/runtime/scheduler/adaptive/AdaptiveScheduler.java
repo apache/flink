@@ -196,6 +196,25 @@ public class AdaptiveScheduler
                 allocationTimeoutDefault = Duration.ofMillis(-1);
                 stabilizationTimeoutDefault = Duration.ZERO;
             }
+
+            final Duration scalingIntervalMin =
+                    configuration.get(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN);
+            final Duration scalingIntervalMax =
+                    configuration.get(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX);
+            Preconditions.checkState(
+                    !scalingIntervalMin.isNegative(),
+                    "%s must be positive integer or 0",
+                    JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN.key());
+            if (scalingIntervalMax != null) {
+                Preconditions.checkState(
+                        scalingIntervalMax.compareTo(scalingIntervalMin) > 0,
+                        "%s(%d) must be greater than %s(%d)",
+                        JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX.key(),
+                        scalingIntervalMax,
+                        JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN.key(),
+                        scalingIntervalMin);
+            }
+
             return new Settings(
                     executionMode,
                     configuration
@@ -204,23 +223,31 @@ public class AdaptiveScheduler
                     configuration
                             .getOptional(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT)
                             .orElse(stabilizationTimeoutDefault),
-                    Duration.ofMillis(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT)));
+                    Duration.ofMillis(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT)),
+                    scalingIntervalMin,
+                    scalingIntervalMax);
         }
 
         private final SchedulerExecutionMode executionMode;
         private final Duration initialResourceAllocationTimeout;
         private final Duration resourceStabilizationTimeout;
         private final Duration slotIdleTimeout;
+        private final Duration scalingIntervalMin;
+        private final Duration scalingIntervalMax;
 
         public Settings(
                 SchedulerExecutionMode executionMode,
                 Duration initialResourceAllocationTimeout,
                 Duration resourceStabilizationTimeout,
-                Duration slotIdleTimeout) {
+                Duration slotIdleTimeout,
+                Duration scalingIntervalMin,
+                Duration scalingIntervalMax) {
             this.executionMode = executionMode;
             this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
             this.resourceStabilizationTimeout = resourceStabilizationTimeout;
             this.slotIdleTimeout = slotIdleTimeout;
+            this.scalingIntervalMin = scalingIntervalMin;
+            this.scalingIntervalMax = scalingIntervalMax;
         }
 
         public SchedulerExecutionMode getExecutionMode() {
@@ -237,6 +264,14 @@ public class AdaptiveScheduler
 
         public Duration getSlotIdleTimeout() {
             return slotIdleTimeout;
+        }
+
+        public Duration getScalingIntervalMin() {
+            return scalingIntervalMin;
+        }
+
+        public Duration getScalingIntervalMax() {
+            return scalingIntervalMax;
         }
     }
 
@@ -989,7 +1024,9 @@ public class AdaptiveScheduler
                         LOG,
                         this,
                         userCodeClassLoader,
-                        failureCollection));
+                        failureCollection,
+                        settings.getScalingIntervalMin(),
+                        settings.getScalingIntervalMax()));
     }
 
     @Override
