@@ -243,7 +243,6 @@ public class JobExceptionsHandler
                 historyEntry.getFailingTaskName(),
                 toString(historyEntry.getTaskManagerLocation()),
                 toString(historyEntry.getTaskManagerLocation()),
-
                 toTaskManagerId(historyEntry.getTaskManagerLocation()),
                 concurrentExceptions);
     }

@@ -200,9 +200,7 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         @Nullable
         private final String location;
 
-        /**
-         * @deprecated Use {@link ExceptionInfo#location} instead.
-         */
+        /** @deprecated Use {@link ExceptionInfo#location} instead. */
         @Deprecated
         @JsonInclude(NON_NULL)
         @JsonProperty(FIELD_NAME_ENDPOINT)
