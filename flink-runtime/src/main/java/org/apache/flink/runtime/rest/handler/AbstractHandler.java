@@ -76,25 +76,13 @@ public abstract class AbstractHandler<
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    protected static ObjectMapper MAPPER = null;
+    protected static final ObjectMapper MAPPER = RestMapperUtils.getStrictObjectMapper();
+
+    /**
+     * Other response payload overhead (in bytes). If we truncate response payload, we should leave
+     * enough buffer for this overhead.
+     */
     private static final int OTHER_RESP_PAYLOAD_OVERHEAD = 1024;
-
-    static {
-        System.out.println("Entered static block for AbstractHandler");
-        ObjectMapper mapper = null;
-        try {
-            mapper = RestMapperUtils.getStrictObjectMapper();
-        } catch (Throwable t) {
-            System.out.println("Failure during static initialization:");
-            t.printStackTrace();
-            throw t;
-        }
-
-        MAPPER = mapper;
-
-        System.out.println("Finished static block for AbstractHandler");
-    }
-
 
     private final UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders;
 
@@ -113,7 +101,6 @@ public abstract class AbstractHandler<
             @Nonnull Map<String, String> responseHeaders,
             @Nonnull UntypedResponseMessageHeaders<R, M> untypedResponseMessageHeaders) {
         super(leaderRetriever, timeout, responseHeaders);
-        System.out.println("In constructor for AbstractHandler");
 
         this.untypedResponseMessageHeaders =
                 Preconditions.checkNotNull(untypedResponseMessageHeaders);

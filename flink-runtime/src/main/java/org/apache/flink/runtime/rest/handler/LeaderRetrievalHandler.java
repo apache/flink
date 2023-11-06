@@ -50,10 +50,6 @@ import java.util.Map;
 public abstract class LeaderRetrievalHandler<T extends RestfulGateway>
         extends SimpleChannelInboundHandler<RoutedRequest> {
 
-    static {
-        System.out.println("Entered static block for LeaderRetrievalHandler");
-    }
-
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
     protected final GatewayRetriever<? extends T> leaderRetriever;
@@ -66,11 +62,9 @@ public abstract class LeaderRetrievalHandler<T extends RestfulGateway>
             @Nonnull GatewayRetriever<? extends T> leaderRetriever,
             @Nonnull Time timeout,
             @Nonnull Map<String, String> responseHeaders) {
-        System.out.println("Entering constructor for LeaderRetrievalHandler");
         this.leaderRetriever = Preconditions.checkNotNull(leaderRetriever);
         this.timeout = Preconditions.checkNotNull(timeout);
         this.responseHeaders = Preconditions.checkNotNull(responseHeaders);
-        System.out.println("Exiting constructor for LeaderRetrievalHandler");
     }
 
     @Override
