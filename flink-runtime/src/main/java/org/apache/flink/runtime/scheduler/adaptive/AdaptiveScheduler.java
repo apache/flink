@@ -179,6 +179,68 @@ public class AdaptiveScheduler
 
     private static final Logger LOG = LoggerFactory.getLogger(AdaptiveScheduler.class);
 
+    /**
+     * Consolidated settings for the adaptive scheduler. This class is used to avoid passing around
+     * multiple config options.
+     */
+    public static class Settings {
+
+        public static Settings of(Configuration configuration) {
+            final SchedulerExecutionMode executionMode =
+                    configuration.get(JobManagerOptions.SCHEDULER_MODE);
+            Duration allocationTimeoutDefault =
+                    JobManagerOptions.RESOURCE_WAIT_TIMEOUT.defaultValue();
+            Duration stabilizationTimeoutDefault =
+                    JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT.defaultValue();
+            if (executionMode == SchedulerExecutionMode.REACTIVE) {
+                allocationTimeoutDefault = Duration.ofMillis(-1);
+                stabilizationTimeoutDefault = Duration.ZERO;
+            }
+            return new Settings(
+                    executionMode,
+                    configuration
+                            .getOptional(JobManagerOptions.RESOURCE_WAIT_TIMEOUT)
+                            .orElse(allocationTimeoutDefault),
+                    configuration
+                            .getOptional(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT)
+                            .orElse(stabilizationTimeoutDefault),
+                    Duration.ofMillis(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT)));
+        }
+
+        private final SchedulerExecutionMode executionMode;
+        private final Duration initialResourceAllocationTimeout;
+        private final Duration resourceStabilizationTimeout;
+        private final Duration slotIdleTimeout;
+
+        public Settings(
+                SchedulerExecutionMode executionMode,
+                Duration initialResourceAllocationTimeout,
+                Duration resourceStabilizationTimeout,
+                Duration slotIdleTimeout) {
+            this.executionMode = executionMode;
+            this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
+            this.resourceStabilizationTimeout = resourceStabilizationTimeout;
+            this.slotIdleTimeout = slotIdleTimeout;
+        }
+
+        public SchedulerExecutionMode getExecutionMode() {
+            return executionMode;
+        }
+
+        public Duration getInitialResourceAllocationTimeout() {
+            return initialResourceAllocationTimeout;
+        }
+
+        public Duration getResourceStabilizationTimeout() {
+            return resourceStabilizationTimeout;
+        }
+
+        public Duration getSlotIdleTimeout() {
+            return slotIdleTimeout;
+        }
+    }
+
+    private final Settings settings;
     private final JobGraph jobGraph;
 
     private final JobInfo jobInfo;
@@ -212,10 +274,6 @@ public class AdaptiveScheduler
 
     private final RescalingController forceRescalingController;
 
-    private final Duration initialResourceAllocationTimeout;
-
-    private final Duration resourceStabilizationTimeout;
-
     private final ExecutionGraphFactory executionGraphFactory;
 
     private State state = new Created(this, LOG);
@@ -229,8 +287,6 @@ public class AdaptiveScheduler
 
     private BackgroundTask<ExecutionGraph> backgroundTask = BackgroundTask.finishedBackgroundTask();
 
-    private final SchedulerExecutionMode executionMode;
-
     private final DeploymentStateTimeMetrics deploymentTimeMetrics;
 
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
@@ -239,9 +295,8 @@ public class AdaptiveScheduler
 
     private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
-    private final Duration slotIdleTimeout;
-
     public AdaptiveScheduler(
+            Settings settings,
             JobGraph jobGraph,
             @Nullable JobResourceRequirements jobResourceRequirements,
             Configuration configuration,
@@ -251,8 +306,6 @@ public class AdaptiveScheduler
             ClassLoader userCodeClassLoader,
             CheckpointsCleaner checkpointsCleaner,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
-            Duration initialResourceAllocationTimeout,
-            Duration resourceStabilizationTimeout,
             JobManagerJobMetricGroup jobManagerJobMetricGroup,
             RestartBackoffTimeStrategy restartBackoffTimeStrategy,
             long initializationTimestamp,
@@ -265,12 +318,12 @@ public class AdaptiveScheduler
 
         assertPreconditions(jobGraph);
 
+        this.settings = settings;
         this.jobGraph = jobGraph;
         this.jobInfo = new JobInfoImpl(jobGraph.getJobID(), jobGraph.getName());
-        this.executionMode = configuration.get(JobManagerOptions.SCHEDULER_MODE);
 
         VertexParallelismStore vertexParallelismStore =
-                computeVertexParallelismStore(jobGraph, executionMode);
+                computeVertexParallelismStore(jobGraph, settings.getExecutionMode());
         if (jobResourceRequirements != null) {
             vertexParallelismStore =
                     DefaultVertexParallelismStore.applyJobResourceRequirements(
@@ -305,10 +358,6 @@ public class AdaptiveScheduler
 
         this.forceRescalingController = new EnforceParallelismChangeRescalingController();
 
-        this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
-
-        this.resourceStabilizationTimeout = resourceStabilizationTimeout;
-
         this.executionGraphFactory = executionGraphFactory;
 
         final JobStatusStore jobStatusStore = new JobStatusStore(initializationTimestamp);
@@ -336,8 +385,6 @@ public class AdaptiveScheduler
         this.exceptionHistory =
                 new BoundedFIFOQueue<>(configuration.get(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
         this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
-        this.slotIdleTimeout =
-                Duration.ofMillis(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT));
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
@@ -819,7 +866,7 @@ public class AdaptiveScheduler
 
     @Override
     public void updateJobResourceRequirements(JobResourceRequirements jobResourceRequirements) {
-        if (executionMode == SchedulerExecutionMode.REACTIVE) {
+        if (settings.getExecutionMode() == SchedulerExecutionMode.REACTIVE) {
             throw new UnsupportedOperationException(
                     "Cannot change the parallelism of a job running in reactive mode.");
         }
@@ -910,8 +957,8 @@ public class AdaptiveScheduler
                 new WaitingForResources.Factory(
                         this,
                         LOG,
-                        this.initialResourceAllocationTimeout,
-                        this.resourceStabilizationTimeout,
+                        settings.getInitialResourceAllocationTimeout(),
+                        settings.getResourceStabilizationTimeout(),
                         previousExecutionGraph));
     }
 
@@ -1078,7 +1125,7 @@ public class AdaptiveScheduler
             adjustedParallelismStore =
                     computeVertexParallelismStoreForExecution(
                             adjustedJobGraph,
-                            executionMode,
+                            settings.getExecutionMode(),
                             (vertex) -> {
                                 VertexParallelismInformation vertexParallelismInfo =
                                         initialParallelismStore.getParallelismInfo(vertex.getID());
@@ -1358,7 +1405,7 @@ public class AdaptiveScheduler
         getMainThreadExecutor()
                 .schedule(
                         this::checkIdleSlotTimeout,
-                        slotIdleTimeout.toMillis(),
+                        settings.getSlotIdleTimeout().toMillis(),
                         TimeUnit.MILLISECONDS);
     }
 }
