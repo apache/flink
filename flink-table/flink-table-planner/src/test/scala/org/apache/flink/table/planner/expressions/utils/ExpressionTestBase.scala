@@ -258,6 +258,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
       val converter = DataStructureConverters
         .getConverter(resolvedDataType)
         .asInstanceOf[DataStructureConverter[RowData, Row]]
+      converter.open(getClass.getClassLoader)
       converter.toInternalOrNull(testData)
     }
     try {
