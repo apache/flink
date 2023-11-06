@@ -30,9 +30,9 @@ import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
 
-import scala.collection.Seq
-
 import java.time.DayOfWeek
+
+import scala.collection.Seq
 
 /** Misc tests. */
 class MiscITCase extends BatchTestBase {
