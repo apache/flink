@@ -711,7 +711,10 @@ public class TaskManagerOptions {
                             "Time we wait for the timers in milliseconds to finish all pending timer threads"
                                     + " when the stream task is cancelled.");
 
-    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
     public static final ConfigOption<TaskManagerLoadBalanceMode> TASK_MANAGER_LOAD_BALANCE_MODE =
             ConfigOptions.key("taskmanager.load-balance.mode")
                     .enumType(TaskManagerLoadBalanceMode.class)
@@ -719,13 +722,16 @@ public class TaskManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Mode for the load-balance allocation strategy across all available %s. "
-                                                    + "The %s mode tries to spread out the slots evenly across all available %s. "
-                                                    + "The %s mode is the default mode without any specified strategy. ",
-                                            code("TaskManagers"),
-                                            code(TaskManagerLoadBalanceMode.SLOTS.name()),
-                                            code("TaskManagers"),
-                                            code(TaskManagerLoadBalanceMode.NONE.name()))
+                                            "Mode for the load-balance allocation strategy across all available %s.",
+                                            code("TaskManagers"))
+                                    .list(
+                                            text(
+                                                    "The %s mode tries to spread out the slots evenly across all available %s.",
+                                                    code(TaskManagerLoadBalanceMode.SLOTS.name()),
+                                                    code("TaskManagers")),
+                                            text(
+                                                    "The %s mode is the default mode without any specified strategy.",
+                                                    code(TaskManagerLoadBalanceMode.NONE.name())))
                                     .build());
 
     /** Type of {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE}. */
