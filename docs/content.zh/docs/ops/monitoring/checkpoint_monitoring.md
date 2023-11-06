@@ -106,7 +106,7 @@ web.checkpoints.history: 15
 
 {{< img src="/fig/checkpoint_monitoring-summary.png" width="700px" alt="Checkpoint Monitoring: Summary" >}}
 
-请注意，这些统计信息不会在 JobManager 丢失后无法保存，如果 JobManager 故障转移，这些统计信息将重新计数。
+请注意，这些统计信息不会在 JobManager 丢失后继续保存，如果 JobManager 故障转移，这些统计信息将重新计数。
 
 <a name="configuration-tab"></a>
 
