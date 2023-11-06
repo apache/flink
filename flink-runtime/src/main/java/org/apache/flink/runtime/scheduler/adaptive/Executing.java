@@ -43,6 +43,7 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
@@ -243,8 +244,7 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
         schedulingProvider.stopCheckpointScheduler();
 
         final CompletableFuture<String> savepointFuture =
-                executionGraph
-                        .getCheckpointCoordinator()
+                Objects.requireNonNull(executionGraph.getCheckpointCoordinator())
                         .triggerSynchronousSavepoint(terminate, targetDirectory, formatType)
                         .thenApply(CompletedCheckpoint::getExternalPointer);
         return context.goToStopWithSavepoint(
