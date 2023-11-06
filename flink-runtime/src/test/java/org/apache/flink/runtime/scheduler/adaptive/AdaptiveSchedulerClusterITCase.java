@@ -88,8 +88,8 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
         final Configuration configuration = new Configuration();
 
         configuration.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-        configuration.set(
-                JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(100L));
+        configuration.set(JobManagerOptions.RESOURCE_STABILIZATION_TIMEOUT, Duration.ofMillis(1L));
+        configuration.set(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN, Duration.ofMillis(1L));
         // required for #testCheckpointStatsPersistedAcrossRescale
         configuration.set(WebOptions.CHECKPOINTS_HISTORY_SIZE, Integer.MAX_VALUE);
 
