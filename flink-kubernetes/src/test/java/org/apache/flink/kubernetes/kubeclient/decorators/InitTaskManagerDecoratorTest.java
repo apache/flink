@@ -297,7 +297,6 @@ class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
 
         for (int i = 0; i < expectedRequirements.size(); i++) {
             Collections.sort(expectedRequirements.get(i).getValues());
-            expectedRequirements.get(i).setValues(expectedRequirements.get(i).getValues());
         }
         assertEquals(requirements, expectedRequirements);
     }
