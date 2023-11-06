@@ -141,6 +141,8 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
                                         .getListState(STREAMING_COMMITTER_RAW_STATES_DESC),
                                 new SinkV1WriterCommittableSerializer<>(committableSerializer));
                 legacyCommitterState.get().forEach(legacyCommittables::addAll);
+                // FLINK-33437: clear legacy state
+                legacyCommitterState.clear();
             }
         }
         sinkWriter = writerStateHandler.createWriter(initContext, context);
