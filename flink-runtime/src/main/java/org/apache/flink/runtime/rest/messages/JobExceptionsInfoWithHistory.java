@@ -200,6 +200,10 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         @Nullable
         private final String location;
 
+        /**
+         * @deprecated Use {@link ExceptionInfo#location} instead.
+         */
+        @Deprecated
         @JsonInclude(NON_NULL)
         @JsonProperty(FIELD_NAME_ENDPOINT)
         @Nullable
@@ -223,25 +227,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     null,
                     null,
                     null);
-        }
-
-        public ExceptionInfo(
-                String exceptionName,
-                String stacktrace,
-                long timestamp,
-                Map<String, String> failureLabels,
-                @Nullable String taskName,
-                @Nullable String endpoint,
-                @Nullable String taskManagerId) {
-            this(
-                    exceptionName,
-                    stacktrace,
-                    timestamp,
-                    failureLabels,
-                    taskName,
-                    endpoint,
-                    endpoint,
-                    taskManagerId);
         }
 
         @JsonCreator
@@ -285,6 +270,7 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
             return taskName;
         }
 
+        @Deprecated
         @JsonIgnore
         @Nullable
         public String getLocation() {
@@ -348,7 +334,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     .add("timestamp=" + timestamp)
                     .add("failureLabels=" + failureLabels)
                     .add("taskName='" + taskName + "'")
-                    .add("location='" + location + "'")
                     .add("endpoint='" + endpoint + "'")
                     .toString();
         }
@@ -380,27 +365,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     null,
                     null,
                     null,
-                    concurrentExceptions);
-        }
-
-        public RootExceptionInfo(
-                String exceptionName,
-                String stacktrace,
-                long timestamp,
-                Map<String, String> failureLabels,
-                @Nullable String taskName,
-                @Nullable String endpoint,
-                @Nullable String taskManagerId,
-                Collection<ExceptionInfo> concurrentExceptions) {
-            this(
-                    exceptionName,
-                    stacktrace,
-                    timestamp,
-                    failureLabels,
-                    taskName,
-                    endpoint,
-                    endpoint,
-                    taskManagerId,
                     concurrentExceptions);
         }
 
@@ -459,7 +423,6 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
                     .add("stacktrace='" + getStacktrace() + "'")
                     .add("timestamp=" + getTimestamp())
                     .add("taskName='" + getTaskName() + "'")
-                    .add("location='" + getLocation() + "'")
                     .add("endpoint='" + getEndpoint() + "'")
                     .add("concurrentExceptions=" + getConcurrentExceptions())
                     .toString();

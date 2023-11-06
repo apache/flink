@@ -242,6 +242,8 @@ public class JobExceptionsHandler
                 historyEntry.getFailureLabels(),
                 historyEntry.getFailingTaskName(),
                 toString(historyEntry.getTaskManagerLocation()),
+                toString(historyEntry.getTaskManagerLocation()),
+
                 toTaskManagerId(historyEntry.getTaskManagerLocation()),
                 concurrentExceptions);
     }
@@ -256,6 +258,7 @@ public class JobExceptionsHandler
                 exceptionHistoryEntry.getTimestamp(),
                 exceptionHistoryEntry.getFailureLabels(),
                 exceptionHistoryEntry.getFailingTaskName(),
+                toString(exceptionHistoryEntry.getTaskManagerLocation()),
                 toString(exceptionHistoryEntry.getTaskManagerLocation()),
                 toTaskManagerId(exceptionHistoryEntry.getTaskManagerLocation()));
     }
