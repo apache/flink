@@ -31,6 +31,7 @@ import java.net.Socket;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests for the {@link org.apache.flink.streaming.api.functions.source.SocketTextStreamFunction}.
@@ -232,6 +233,20 @@ public class SocketTextStreamFunctionTest {
                 IOUtils.closeQuietly(channel);
             }
             IOUtils.closeQuietly(server);
+        }
+    }
+
+    @Test
+    public void testConnectionErrorWithRetries() throws Exception {
+        // Assume port 65535 is not open
+        SocketTextStreamFunction source = new SocketTextStreamFunction(LOCALHOST, 65535, "\n", 3L);
+
+        SocketSourceThread runner = new SocketSourceThread(source);
+        runner.start();
+        try {
+            runner.waitUntilDone();
+        } catch (Exception e) {
+            fail("Socket connection exceptions should be handled in run method");
         }
     }
 

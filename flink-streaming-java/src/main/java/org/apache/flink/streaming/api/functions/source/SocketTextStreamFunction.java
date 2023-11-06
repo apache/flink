@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -127,6 +128,8 @@ public class SocketTextStreamFunction implements SourceFunction<String> {
                         }
                     }
                 }
+            } catch (IOException e) {
+                LOG.warn(e.getMessage() + ". Wait for retry.");
             }
 
             // if we dropped out of this loop due to an EOF, sleep and retry
