@@ -65,7 +65,7 @@ The ExecutionGraph is a parallel version of the JobGraph: For each JobVertex, it
 The ExecutionVertex tracks the state of execution of a particular subtask. All ExecutionVertices from one JobVertex are held in an
 {{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/ExecutionJobVertex.java" name="ExecutionJobVertex" >}},
 which tracks the status of the operator as a whole.
-Besides the vertices, the ExecutionGraph also contains the {{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/IntermediateResult.java" name="IntermediateResult" >}} and the {{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/IntermediateResultPartition.java" name="IntermediateResultPartition" >}}. The former tracks the state of the *IntermediateDataSet*, the latter the state of each of its partitions.
+Besides the vertices, the ExecutionGraph also contains the {{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/IntermediateResult.java" name="IntermediateResult" >}} and the {{< gh_link file="/flink-runtime/src/main/java/org/apache/flink/runtime/executiongraph/IntermediateResultPartition.java" name="IntermediateResultPartition" >}}. The former tracks the state of the *IntermediateDataSet*, the latter tracks the state of each of its partitions.
 
 {{< img src="/fig/job_and_execution_graph.svg" alt="JobGraph and ExecutionGraph" width="50%" >}}
 
