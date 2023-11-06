@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
@@ -54,8 +54,8 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
     private final Instant lastRescale;
     // only one schedule at the time
     private boolean rescaleScheduled = false;
-    private final Duration scalingIntervalMin;
-    @Nullable private final Duration scalingIntervalMax;
+    @VisibleForTesting final Duration scalingIntervalMin;
+    @VisibleForTesting @Nullable final Duration scalingIntervalMax;
 
     Executing(
             ExecutionGraph executionGraph,
@@ -302,6 +302,8 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final ClassLoader userCodeClassLoader;
         private final List<ExceptionHistoryEntry> failureCollection;
+        private final Duration scalingIntervalMin;
+        private final Duration scalingIntervalMax;
 
         Factory(
                 ExecutionGraph executionGraph,
@@ -310,7 +312,9 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
                 Logger log,
                 Context context,
                 ClassLoader userCodeClassLoader,
-                List<ExceptionHistoryEntry> failureCollection) {
+                List<ExceptionHistoryEntry> failureCollection,
+                Duration scalingIntervalMin,
+                Duration scalingIntervalMax) {
             this.context = context;
             this.log = log;
             this.executionGraph = executionGraph;
@@ -318,6 +322,8 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
             this.userCodeClassLoader = userCodeClassLoader;
             this.failureCollection = failureCollection;
+            this.scalingIntervalMin = scalingIntervalMin;
+            this.scalingIntervalMax = scalingIntervalMax;
         }
 
         public Class<Executing> getStateClass() {
@@ -325,7 +331,6 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
         }
 
         public Executing getState() {
-            final Configuration jobConfiguration = executionGraph.getJobConfiguration();
             return new Executing(
                     executionGraph,
                     executionGraphHandler,
@@ -334,8 +339,8 @@ class Executing extends StateWithExecutionGraph implements ResourceListener {
                     context,
                     userCodeClassLoader,
                     failureCollection,
-                    jobConfiguration.get(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MIN),
-                    jobConfiguration.get(JobManagerOptions.SCHEDULER_SCALING_INTERVAL_MAX),
+                    scalingIntervalMin,
+                    scalingIntervalMax,
                     Instant.now());
         }
     }
