@@ -34,6 +34,7 @@ public final class SinkTestStep extends TableTestStep {
     public final @Nullable List<Row> expectedAfterRestore;
     public final @Nullable List<String> expectedBeforeRestoreStrings;
     public final @Nullable List<String> expectedAfterRestoreStrings;
+    public final boolean testChangelogData;
 
     SinkTestStep(
             String name,
@@ -43,7 +44,8 @@ public final class SinkTestStep extends TableTestStep {
             @Nullable List<Row> expectedBeforeRestore,
             @Nullable List<Row> expectedAfterRestore,
             @Nullable List<String> expectedBeforeRestoreStrings,
-            @Nullable List<String> expectedAfterRestoreStrings) {
+            @Nullable List<String> expectedAfterRestoreStrings,
+            boolean testChangelogData) {
         super(name, schemaComponents, partitionKeys, options);
         if (expectedBeforeRestore != null && expectedAfterRestoreStrings != null) {
             throw new IllegalArgumentException(
@@ -57,6 +59,7 @@ public final class SinkTestStep extends TableTestStep {
         this.expectedAfterRestore = expectedAfterRestore;
         this.expectedBeforeRestoreStrings = expectedBeforeRestoreStrings;
         this.expectedAfterRestoreStrings = expectedAfterRestoreStrings;
+        this.testChangelogData = testChangelogData;
     }
 
     /** Builder for creating a {@link SinkTestStep}. */
@@ -97,6 +100,10 @@ public final class SinkTestStep extends TableTestStep {
                         : TestKind.SINK_WITH_RESTORE_DATA;
     }
 
+    public boolean getTestChangelogData() {
+        return testChangelogData;
+    }
+
     /** Builder pattern for {@link SinkTestStep}. */
     public static final class Builder extends AbstractBuilder<Builder> {
 
@@ -105,6 +112,8 @@ public final class SinkTestStep extends TableTestStep {
 
         private List<String> expectedBeforeRestoreStrings;
         private List<String> expectedAfterRestoreStrings;
+
+        private boolean testChangelogData = true;
 
         private Builder(String name) {
             super(name);
@@ -138,6 +147,16 @@ public final class SinkTestStep extends TableTestStep {
             return this;
         }
 
+        public Builder testChangelogData() {
+            this.testChangelogData = true;
+            return this;
+        }
+
+        public Builder testMaterializedData() {
+            this.testChangelogData = false;
+            return this;
+        }
+
         public SinkTestStep build() {
             return new SinkTestStep(
                     name,
@@ -147,7 +166,8 @@ public final class SinkTestStep extends TableTestStep {
                     expectedBeforeRestore,
                     expectedAfterRestore,
                     expectedBeforeRestoreStrings,
-                    expectedAfterRestoreStrings);
+                    expectedAfterRestoreStrings,
+                    testChangelogData);
         }
     }
 }

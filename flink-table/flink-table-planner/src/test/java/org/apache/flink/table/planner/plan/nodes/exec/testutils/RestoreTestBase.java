@@ -44,7 +44,10 @@ import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -78,6 +81,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @ExtendWith(MiniClusterExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestMethodOrder(OrderAnnotation.class)
 public abstract class RestoreTestBase implements TableTestProgramRunner {
 
     private final Class<? extends ExecNode> execNodeUnderTest;
@@ -149,10 +153,9 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                     if (!ignoreAfter) {
                         results.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
                     }
+                    List<String> expectedResults = getExpectedResults(sinkTestStep, tableName);
                     final boolean shouldComplete =
-                            CollectionUtils.isEqualCollection(
-                                    TestValuesTableFactory.getRawResultsAsStrings(tableName),
-                                    results);
+                            CollectionUtils.isEqualCollection(expectedResults, results);
                     if (shouldComplete) {
                         future.complete(null);
                     }
@@ -166,6 +169,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     @Disabled
     @ParameterizedTest
     @MethodSource("supportedPrograms")
+    @Order(0)
     public void generateTestSetupFiles(TableTestProgram program) throws Exception {
         final TableEnvironment tEnv =
                 TableEnvironment.create(EnvironmentSettings.inStreamingMode());
@@ -214,10 +218,14 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         final Path savepointDirPath = getSavepointPath(program, getLatestMetadata());
         Files.createDirectories(savepointDirPath);
         Files.move(savepointPath, savepointDirPath, StandardCopyOption.ATOMIC_MOVE);
+
+        program.getSetupSinkTestSteps()
+                .forEach(s -> TestValuesTableFactory.clearLocalRawResultsObserver(s.name));
     }
 
     @ParameterizedTest
     @MethodSource("createSpecs")
+    @Order(1)
     void testRestore(TableTestProgram program, ExecNodeMetadata metadata) throws Exception {
         final EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
         final SavepointRestoreSettings restoreSettings =
@@ -270,7 +278,8 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         } else {
             compiledPlan.execute().await();
             for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-                assertThat(TestValuesTableFactory.getRawResultsAsStrings(sinkTestStep.name))
+                List<String> expectedResults = getExpectedResults(sinkTestStep, sinkTestStep.name);
+                assertThat(expectedResults)
                         .containsExactlyInAnyOrder(
                                 Stream.concat(
                                                 sinkTestStep.getExpectedBeforeRestoreAsStrings()
@@ -295,5 +304,13 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         return String.format(
                 "%s/src/test/resources/restore-tests/%s_%d/%s",
                 System.getProperty("user.dir"), metadata.name(), metadata.version(), program.id);
+    }
+
+    private static List<String> getExpectedResults(SinkTestStep sinkTestStep, String tableName) {
+        if (sinkTestStep.getTestChangelogData()) {
+            return TestValuesTableFactory.getRawResultsAsStrings(tableName);
+        } else {
+            return TestValuesTableFactory.getResultsAsStrings(tableName);
+        }
     }
 }
