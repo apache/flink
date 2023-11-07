@@ -21,6 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -177,6 +178,15 @@ public interface ClusterClient<T> extends AutoCloseable {
      */
     CompletableFuture<String> triggerSavepoint(
             JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType);
+
+    /**
+     * Triggers a checkpoint for the job identified by the job id. The checkpoint will be written to
+     * the checkpoint directory for the job.
+     *
+     * @param jobId job id
+     * @param checkpointType the checkpoint type (configured / full / incremental)
+     */
+    CompletableFuture<Long> triggerCheckpoint(JobID jobId, CheckpointType checkpointType);
 
     /**
      * Sends out a request to a specified coordinator and return the response.
