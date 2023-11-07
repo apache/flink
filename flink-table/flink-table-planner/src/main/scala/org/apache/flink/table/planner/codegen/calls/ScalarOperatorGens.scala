@@ -345,44 +345,83 @@ object ScalarOperatorGens {
     }
   }
 
-  def generateEquals(
+  private def wrapExpressionIfNonEq(
+      isNonEq: Boolean,
+      equalsExpr: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
+    if (isNonEq) {
+      GeneratedExpression(
+        s"(!${equalsExpr.resultTerm})",
+        equalsExpr.nullTerm,
+        equalsExpr.code,
+        resultType)
+    } else {
+      equalsExpr
+    }
+  }
+
+  private def generateEqualAndNonEqual(
       ctx: CodeGeneratorContext,
       left: GeneratedExpression,
       right: GeneratedExpression,
+      operator: String,
       resultType: LogicalType): GeneratedExpression = {
+
     checkImplicitConversionValidity(left, right)
+
+    val nonEq = operator match {
+      case "==" => false
+      case "!=" => true
+      case _ => throw new CodeGenException(s"Unsupported boolean comparison '$operator'.")
+    }
     val canEqual = isInteroperable(left.resultType, right.resultType)
+
     if (isCharacterString(left.resultType) && isCharacterString(right.resultType)) {
       generateOperatorIfNotNull(ctx, resultType, left, right)(
-        (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)")
+        (leftTerm, rightTerm) => s"${if (nonEq) "!" else ""}$leftTerm.equals($rightTerm)")
     }
     // numeric types
     else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
-      generateComparison(ctx, "==", left, right, resultType)
+      generateComparison(ctx, operator, left, right, resultType)
     }
     // array types
     else if (isArray(left.resultType) && canEqual) {
-      generateArrayComparison(ctx, left, right, resultType)
+      wrapExpressionIfNonEq(
+        nonEq,
+        generateArrayComparison(ctx, left, right, resultType),
+        resultType)
     }
     // map types
     else if (isMap(left.resultType) && canEqual) {
       val mapType = left.resultType.asInstanceOf[MapType]
-      generateMapComparison(ctx, left, right, mapType.getKeyType, mapType.getValueType, resultType)
+      wrapExpressionIfNonEq(
+        nonEq,
+        generateMapComparison(
+          ctx,
+          left,
+          right,
+          mapType.getKeyType,
+          mapType.getValueType,
+          resultType),
+        resultType)
     }
     // multiset types
     else if (isMultiset(left.resultType) && canEqual) {
       val multisetType = left.resultType.asInstanceOf[MultisetType]
-      generateMapComparison(
-        ctx,
-        left,
-        right,
-        multisetType.getElementType,
-        new IntType(false),
+      wrapExpressionIfNonEq(
+        nonEq,
+        generateMapComparison(
+          ctx,
+          left,
+          right,
+          multisetType.getElementType,
+          new IntType(false),
+          resultType),
         resultType)
     }
     // comparable types of same type
     else if (isComparable(left.resultType) && canEqual) {
-      generateComparison(ctx, "==", left, right, resultType)
+      generateComparison(ctx, operator, left, right, resultType)
     }
     // generic types of same type
     else if (isRaw(left.resultType) && canEqual) {
@@ -399,7 +438,7 @@ object ScalarOperatorGens {
            |  ${left.resultTerm}.ensureMaterialized($ser);
            |  ${right.resultTerm}.ensureMaterialized($ser);
            |  $resultTerm =
-           |    ${left.resultTerm}.getBinarySection().
+           |    ${if (nonEq) "!" else ""}${left.resultTerm}.getBinarySection().
            |    equals(${right.resultTerm}.getBinarySection());
            |}
            |""".stripMargin
@@ -407,41 +446,56 @@ object ScalarOperatorGens {
     }
     // support date/time/timestamp equalTo string.
     // for performance, we cast literal string to literal time.
-    else if (isTimePoint(left.resultType) && isCharacterString(right.resultType)) {
-      if (right.literal) {
-        generateEquals(ctx, left, generateCastLiteral(ctx, right, left.resultType), resultType)
-      } else {
-        generateEquals(
-          ctx,
-          left,
-          generateCast(ctx, right, left.resultType, nullOnFailure = true),
-          resultType)
-      }
-    } else if (isTimePoint(right.resultType) && isCharacterString(left.resultType)) {
-      if (left.literal) {
-        generateEquals(ctx, generateCastLiteral(ctx, left, right.resultType), right, resultType)
-      } else {
-        generateEquals(
-          ctx,
-          generateCast(ctx, left, right.resultType, nullOnFailure = true),
-          right,
-          resultType)
-      }
+    else if (
+      (isTimePoint(left.resultType) && isCharacterString(right.resultType)) || (isTimePoint(
+        right.resultType) && isCharacterString(left.resultType))
+    ) {
+      val (newLeft, newRight) =
+        if (isTimePoint(left.resultType)) (left, right)
+        else (right, left)
+      generateEqualAndNonEqual(
+        ctx,
+        newLeft,
+        if (newRight.literal) {
+          generateCastLiteral(ctx, newRight, newLeft.resultType)
+        } else {
+          generateCast(ctx, newRight, newLeft.resultType, nullOnFailure = true)
+        },
+        operator,
+        resultType
+      )
     }
     // non comparable types
     else {
-      generateOperatorIfNotNull(ctx, resultType, left, right) {
-        if (isReference(left.resultType)) {
-          (leftTerm, rightTerm) => s"$leftTerm.equals($rightTerm)"
-        } else if (isReference(right.resultType)) {
-          (leftTerm, rightTerm) => s"$rightTerm.equals($leftTerm)"
-        } else {
-          throw new CodeGenException(
-            s"Incomparable types: ${left.resultType} and " +
-              s"${right.resultType}")
-        }
+      val (newLeft, newRight) = if (isReference(left.resultType)) {
+        (left, right)
+      } else if (isReference(right.resultType)) {
+        (right, left)
+      } else {
+        throw new CodeGenException(
+          s"Incomparable types: ${left.resultType} and " +
+            s"${right.resultType}")
+      }
+      generateOperatorIfNotNull(ctx, resultType, newLeft, newRight) {
+        (leftTerm, rightTerm) => s"${if (nonEq) "!" else ""}$leftTerm.equals($rightTerm)"
       }
     }
+  }
+
+  def generateEquals(
+      ctx: CodeGeneratorContext,
+      left: GeneratedExpression,
+      right: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
+    generateEqualAndNonEqual(ctx, left, right, "==", resultType)
+  }
+
+  def generateNotEquals(
+      ctx: CodeGeneratorContext,
+      left: GeneratedExpression,
+      right: GeneratedExpression,
+      resultType: LogicalType): GeneratedExpression = {
+    generateEqualAndNonEqual(ctx, left, right, "!=", resultType)
   }
 
   def generateIsDistinctFrom(
@@ -472,68 +526,6 @@ object ScalarOperatorGens {
       generateIsTrue(generateEquals(ctx, left, right, resultType), new BooleanType(false)),
       resultType
     )
-  }
-
-  def generateNotEquals(
-      ctx: CodeGeneratorContext,
-      left: GeneratedExpression,
-      right: GeneratedExpression,
-      resultType: LogicalType): GeneratedExpression = {
-    checkImplicitConversionValidity(left, right)
-    if (isCharacterString(left.resultType) && isCharacterString(right.resultType)) {
-      generateOperatorIfNotNull(ctx, resultType, left, right)(
-        (leftTerm, rightTerm) => s"!$leftTerm.equals($rightTerm)")
-    }
-    // numeric types
-    else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
-      generateComparison(ctx, "!=", left, right, resultType)
-    }
-    // temporal types
-    else if (
-      isTemporal(left.resultType) &&
-      isInteroperable(left.resultType, right.resultType)
-    ) {
-      generateComparison(ctx, "!=", left, right, resultType)
-    }
-    // array types
-    else if (isArray(left.resultType) && isInteroperable(left.resultType, right.resultType)) {
-      val equalsExpr = generateEquals(ctx, left, right, resultType)
-      GeneratedExpression(
-        s"(!${equalsExpr.resultTerm})",
-        equalsExpr.nullTerm,
-        equalsExpr.code,
-        resultType)
-    }
-    // map types
-    else if (isMap(left.resultType) && isInteroperable(left.resultType, right.resultType)) {
-      val equalsExpr = generateEquals(ctx, left, right, resultType)
-      GeneratedExpression(
-        s"(!${equalsExpr.resultTerm})",
-        equalsExpr.nullTerm,
-        equalsExpr.code,
-        resultType)
-    }
-    // comparable types
-    else if (
-      isComparable(left.resultType) &&
-      isInteroperable(left.resultType, right.resultType)
-    ) {
-      generateComparison(ctx, "!=", left, right, resultType)
-    }
-    // non-comparable types
-    else {
-      generateOperatorIfNotNull(ctx, resultType, left, right) {
-        if (isReference(left.resultType)) {
-          (leftTerm, rightTerm) => s"!($leftTerm.equals($rightTerm))"
-        } else if (isReference(right.resultType)) {
-          (leftTerm, rightTerm) => s"!($rightTerm.equals($leftTerm))"
-        } else {
-          throw new CodeGenException(
-            s"Incomparable types: ${left.resultType} and " +
-              s"${right.resultType}")
-        }
-      }
-    }
   }
 
   /** Generates comparison code for numeric types and comparable types of same type. */
