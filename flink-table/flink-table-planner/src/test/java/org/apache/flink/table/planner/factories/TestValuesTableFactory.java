@@ -280,6 +280,15 @@ public final class TestValuesTableFactory
         TestValuesRuntimeFunctions.registerLocalRawResultsObserver(tableName, observer);
     }
 
+    /**
+     * Clears the observers for a table.
+     *
+     * @param tableName the table name of the registered table sink.
+     */
+    public static void clearLocalRawResultsObserver(String tableName) {
+        TestValuesRuntimeFunctions.clearLocalRawResultsObserver(tableName);
+    }
+
     public static List<Watermark> getWatermarkOutput(String tableName) {
         return TestValuesRuntimeFunctions.getWatermarks(tableName);
     }
