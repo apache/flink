@@ -30,7 +30,7 @@ import static org.apache.flink.table.planner.hint.FlinkHints.resolveSubQuery;
 import static org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil.containsSubQuery;
 
 /** An abstract shuttle for each shuttle used for join hint. */
-public abstract class JoinHintRelShuttle extends RelShuttleImpl {
+public abstract class JoinHintsRelShuttle extends RelShuttleImpl {
 
     @Override
     public RelNode visit(LogicalJoin join) {

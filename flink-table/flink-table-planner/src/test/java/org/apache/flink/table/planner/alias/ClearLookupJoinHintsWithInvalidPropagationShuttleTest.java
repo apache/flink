@@ -44,8 +44,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Collections;
 
 /** Tests clearing lookup join hint with invalid propagation in stream. */
-class ClearLookupJoinHintWithInvalidPropagationShuttleTest
-        extends ClearJoinHintWithInvalidPropagationShuttleTestBase {
+class ClearLookupJoinHintsWithInvalidPropagationShuttleTest
+        extends ClearJoinHintsWithInvalidPropagationShuttleTestBase {
     @Override
     TableTestUtil getTableTestUtil() {
         return streamTestUtil(TableConfig.getDefault());
@@ -79,7 +79,7 @@ class ClearLookupJoinHintWithInvalidPropagationShuttleTest
         util.tableEnv()
                 .createTemporarySystemFunction(
                         "MockOffset",
-                        new ClearLookupJoinHintWithInvalidPropagationShuttleTest
+                        new ClearLookupJoinHintsWithInvalidPropagationShuttleTest
                                 .MockOffsetTableFunction());
     }
 

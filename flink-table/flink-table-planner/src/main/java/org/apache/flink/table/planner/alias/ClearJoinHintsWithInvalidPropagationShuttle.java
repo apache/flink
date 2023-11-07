@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.alias;
 
 import org.apache.flink.table.planner.hint.FlinkHints;
-import org.apache.flink.table.planner.hint.JoinHintRelShuttle;
+import org.apache.flink.table.planner.hint.JoinHintsRelShuttle;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
 import org.apache.calcite.rel.BiRel;
@@ -49,7 +49,7 @@ import java.util.stream.Collectors;
  * <p>TODO some node will be attached join hints when parse SqlNode to RelNode such as Project and
  * etc. The join hints on these node can also be cleared.
  */
-public class ClearJoinHintWithInvalidPropagationShuttle extends JoinHintRelShuttle {
+public class ClearJoinHintsWithInvalidPropagationShuttle extends JoinHintsRelShuttle {
 
     @Override
     protected RelNode visitBiRel(BiRel biRel) {

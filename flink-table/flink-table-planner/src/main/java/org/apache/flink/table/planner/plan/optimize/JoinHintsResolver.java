@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.optimize;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.hint.FlinkHints;
-import org.apache.flink.table.planner.hint.JoinHintRelShuttle;
+import org.apache.flink.table.planner.hint.JoinHintsRelShuttle;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
 import org.apache.calcite.rel.BiRel;
@@ -50,7 +50,7 @@ import static org.apache.flink.table.planner.hint.LookupJoinHintOptions.LOOKUP_T
  *
  * <p>Note: duplicate join hints are not checked here.
  */
-public class JoinHintResolver extends JoinHintRelShuttle {
+public class JoinHintsResolver extends JoinHintsRelShuttle {
     private final Set<RelHint> allHints = new HashSet<>();
     private final Set<RelHint> validHints = new HashSet<>();
 

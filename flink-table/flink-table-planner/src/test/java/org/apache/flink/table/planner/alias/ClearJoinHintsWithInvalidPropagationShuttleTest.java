@@ -29,8 +29,8 @@ import org.apache.calcite.rel.hint.RelHint;
 import org.junit.jupiter.api.Test;
 
 /** Tests clearing join hint with invalid propagation in batch. */
-class ClearJoinHintWithInvalidPropagationShuttleTest
-        extends ClearJoinHintWithInvalidPropagationShuttleTestBase {
+class ClearJoinHintsWithInvalidPropagationShuttleTest
+        extends ClearJoinHintsWithInvalidPropagationShuttleTestBase {
     @Override
     TableTestUtil getTableTestUtil() {
         return batchTestUtil(TableConfig.getDefault());

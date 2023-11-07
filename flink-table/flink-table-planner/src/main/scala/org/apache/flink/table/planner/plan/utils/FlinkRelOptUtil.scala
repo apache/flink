@@ -653,9 +653,7 @@ object FlinkRelOptUtil {
 
     private def tryToPropagateHintsInSubQuery(node: RelNode): RelNode = {
       if (containsSubQuery(node)) {
-        FlinkHints.resolveSubQuery(
-          node,
-          relNode => FlinkRelOptUtil.propagateRelHints(relNode, reset = false))
+        FlinkHints.resolveSubQuery(node, relNode => relNode.accept(this))
       } else {
         node
       }

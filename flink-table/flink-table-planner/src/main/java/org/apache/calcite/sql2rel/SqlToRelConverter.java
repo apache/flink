@@ -18,7 +18,7 @@ package org.apache.calcite.sql2rel;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
+import org.apache.flink.table.planner.alias.ClearJoinHintsWithInvalidPropagationShuttle;
 import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
@@ -653,8 +653,8 @@ public class SqlToRelConverter {
 
         // ----- FLINK MODIFICATION BEGIN -----
         // propagate the hints.
-        // 'FlinkRelOptUtil.propagateRelHints' will also propagate hints not only in the whole rel
-        // tree, but also in the sub query
+        // The method FlinkRelOptUtil#propagateRelHints not only finds and propagates hints
+        // throughout the entire rel tree but also within subqueries.
         result = FlinkRelOptUtil.propagateRelHints(result, false);
 
         // replace all join hints with upper case
@@ -663,10 +663,10 @@ public class SqlToRelConverter {
         // clear join hints which are propagated into wrong query block
         // The hint QueryBlockAlias will be added when building a RelNode tree before. It is used to
         // distinguish the query block in the SQL.
-        result = result.accept(new ClearJoinHintWithInvalidPropagationShuttle());
+        result = result.accept(new ClearJoinHintsWithInvalidPropagationShuttle());
 
         // clear the hints on some nodes where these hints should not be attached
-        result = FlinkHints.clearJoinLookupHintsOnUnmatchedNodes(result);
+        result = FlinkHints.clearJoinHintsOnUnmatchedNodes(result);
 
         // ----- FLINK MODIFICATION END -----
 
