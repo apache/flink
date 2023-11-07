@@ -50,21 +50,8 @@ public interface TwoPhaseCommittingSink<InputT, CommT> extends Sink<InputT> {
      * @return A sink writer for the two-phase commit protocol.
      * @throws IOException for any failure during creation.
      */
-    PrecommittingSinkWriter<InputT, CommT> createWriter(InitContext context) throws IOException;
-
-    /**
-     * Creates a {@link Committer} that permanently makes the previously written data visible
-     * through {@link Committer#commit(Collection)}.
-     *
-     * @return A committer for the two-phase commit protocol.
-     * @throws IOException for any failure during creation.
-     * @deprecated Please use {@link #createCommitter(CommitterInitContext)}
-     */
-    @Deprecated
-    default Committer<CommT> createCommitter() throws IOException {
-        throw new UnsupportedOperationException(
-                "Deprecated, please use createCommitter(CommitterInitContext)");
-    }
+    PrecommittingSinkWriter<InputT, CommT> createWriter(WriterInitContext context)
+            throws IOException;
 
     /**
      * Creates a {@link Committer} that permanently makes the previously written data visible
@@ -74,9 +61,7 @@ public interface TwoPhaseCommittingSink<InputT, CommT> extends Sink<InputT> {
      * @return A committer for the two-phase commit protocol.
      * @throws IOException for any failure during creation.
      */
-    default Committer<CommT> createCommitter(CommitterInitContext context) throws IOException {
-        return createCommitter();
-    }
+    Committer<CommT> createCommitter(CommitterInitContext context) throws IOException;
 
     /** Returns the serializer of the committable type. */
     SimpleVersionedSerializer<CommT> getCommittableSerializer();

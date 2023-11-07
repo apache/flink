@@ -54,7 +54,7 @@ public class TestExpandingSink
     }
 
     @Override
-    public PrecommittingSinkWriter<Integer, Integer> createWriter(InitContext context)
+    public PrecommittingSinkWriter<Integer, Integer> createWriter(WriterInitContext context)
             throws IOException {
         return null;
     }

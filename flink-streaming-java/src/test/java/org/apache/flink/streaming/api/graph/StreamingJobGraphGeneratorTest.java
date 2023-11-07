@@ -2324,7 +2324,7 @@ class StreamingJobGraphGeneratorTest {
                     WithPostCommitTopology<Integer, Void> {
 
         @Override
-        public PrecommittingSinkWriter<Integer, Void> createWriter(InitContext context)
+        public PrecommittingSinkWriter<Integer, Void> createWriter(WriterInitContext context)
                 throws IOException {
             return new PrecommittingSinkWriter<Integer, Void>() {
                 @Override

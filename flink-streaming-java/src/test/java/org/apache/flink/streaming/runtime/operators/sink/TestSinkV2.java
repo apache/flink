@@ -61,7 +61,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
     }
 
     @Override
-    public SinkWriter<InputT> createWriter(InitContext context) {
+    public SinkWriter<InputT> createWriter(WriterInitContext context) {
         writer.init(context);
         return writer;
     }
@@ -185,7 +185,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         }
 
         @Override
-        public Committer<String> createCommitter() {
+        public Committer<String> createCommitter(CommitterInitContext context) {
             committer.init();
             return committer;
         }
@@ -196,7 +196,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         }
 
         @Override
-        public PrecommittingSinkWriter<InputT, String> createWriter(InitContext context) {
+        public PrecommittingSinkWriter<InputT, String> createWriter(WriterInitContext context) {
             return (PrecommittingSinkWriter<InputT, String>) super.createWriter(context);
         }
     }
@@ -233,13 +233,13 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         }
 
         @Override
-        public DefaultStatefulSinkWriter<InputT> createWriter(InitContext context) {
+        public DefaultStatefulSinkWriter<InputT> createWriter(WriterInitContext context) {
             return (DefaultStatefulSinkWriter<InputT>) super.createWriter(context);
         }
 
         @Override
         public StatefulSinkWriter<InputT, String> restoreWriter(
-                InitContext context, Collection<String> recoveredState) {
+                WriterInitContext context, Collection<String> recoveredState) {
             DefaultStatefulSinkWriter<InputT> statefulWriter =
                     (DefaultStatefulSinkWriter) getWriter();
 
@@ -293,7 +293,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
             // noting to do here
         }
 
-        public void init(InitContext context) {
+        public void init(WriterInitContext context) {
             // context is not used in default case
         }
     }

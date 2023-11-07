@@ -267,7 +267,7 @@ public class SinkV2MetricsITCase extends TestLogger {
         private long sendTime;
 
         @Override
-        public void init(Sink.InitContext context) {
+        public void init(Sink.WriterInitContext context) {
             this.metricGroup = context.metricGroup();
             metricGroup.setCurrentSendTimeGauge(() -> sendTime);
         }

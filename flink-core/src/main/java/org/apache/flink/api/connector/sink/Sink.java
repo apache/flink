@@ -135,7 +135,7 @@ public interface Sink<InputT, CommT, WriterStateT, GlobalCommT> extends Serializ
      * The interface exposes some runtime info for creating a {@link SinkWriter}.
      *
      * @deprecated Please migrate to {@link org.apache.flink.api.connector.sink2.Sink} and use
-     *     {@link org.apache.flink.api.connector.sink2.Sink.InitContext}.
+     *     {@link org.apache.flink.api.connector.sink2.Sink.WriterInitContext}.
      */
     @Deprecated
     @PublicEvolving

@@ -35,7 +35,7 @@ import java.io.Serializable;
 public interface ElementConverter<InputT, RequestEntryT> extends Serializable {
     RequestEntryT apply(InputT element, SinkWriter.Context context);
 
-    default void open(Sink.InitContext context) {
+    default void open(Sink.WriterInitContext context) {
         // No-op default implementation
     }
 }
