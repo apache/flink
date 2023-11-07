@@ -34,9 +34,11 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import java.time.Duration;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
+
 /** Builder for {@link DeclarativeSlotManager}. */
 public class DeclarativeSlotManagerBuilder {
-    private boolean evenlySpreadOutSlots;
+    private TaskManagerLoadBalanceMode taskManagerLoadBalanceMode;
     private final ScheduledExecutor scheduledExecutor;
     private Time taskManagerRequestTimeout;
     private Time taskManagerTimeout;
@@ -53,7 +55,7 @@ public class DeclarativeSlotManagerBuilder {
     private Duration declareNeededResourceDelay;
 
     private DeclarativeSlotManagerBuilder(ScheduledExecutor scheduledExecutor) {
-        this.evenlySpreadOutSlots = false;
+        this.taskManagerLoadBalanceMode = TaskManagerLoadBalanceMode.NONE;
         this.scheduledExecutor = scheduledExecutor;
         this.taskManagerRequestTimeout = TestingUtils.infiniteTime();
         this.taskManagerTimeout = TestingUtils.infiniteTime();
@@ -93,8 +95,9 @@ public class DeclarativeSlotManagerBuilder {
         return this;
     }
 
-    public DeclarativeSlotManagerBuilder setEvenlySpreadOutSlots(boolean evenlySpreadOutSlots) {
-        this.evenlySpreadOutSlots = evenlySpreadOutSlots;
+    public DeclarativeSlotManagerBuilder setTaskManagerLoadBalanceMode(
+            TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
+        this.taskManagerLoadBalanceMode = taskManagerLoadBalanceMode;
         return this;
     }
 
@@ -159,10 +162,10 @@ public class DeclarativeSlotManagerBuilder {
                         requirementCheckDelay,
                         declareNeededResourceDelay,
                         waitResultConsumedBeforeRelease,
-                        evenlySpreadOutSlots
+                        taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
                                 ? LeastUtilizationSlotMatchingStrategy.INSTANCE
                                 : AnyMatchingSlotMatchingStrategy.INSTANCE,
-                        evenlySpreadOutSlots,
+                        taskManagerLoadBalanceMode,
                         defaultWorkerResourceSpec,
                         numSlotsPerWorker,
                         minSlotNum,

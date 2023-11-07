@@ -55,7 +55,7 @@ class FineGrainedSlotManagerDefaultResourceAllocationStrategyITCase
                 new DefaultResourceAllocationStrategy(
                         DEFAULT_TOTAL_RESOURCE_PROFILE,
                         DEFAULT_NUM_SLOTS_PER_WORKER,
-                        slotManagerConfiguration.isEvenlySpreadOutSlots(),
+                        slotManagerConfiguration.getTaskManagerLoadBalanceMode(),
                         slotManagerConfiguration.getTaskManagerTimeout(),
                         slotManagerConfiguration.getRedundantTaskManagerNum(),
                         slotManagerConfiguration.getMinTotalCpu(),

@@ -25,9 +25,12 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.util.TimeUtils;
 
+import javax.annotation.Nonnull;
+
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
@@ -707,6 +710,55 @@ public class TaskManagerOptions {
                     .withDescription(
                             "Time we wait for the timers in milliseconds to finish all pending timer threads"
                                     + " when the stream task is cancelled.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
+    public static final ConfigOption<TaskManagerLoadBalanceMode> TASK_MANAGER_LOAD_BALANCE_MODE =
+            ConfigOptions.key("taskmanager.load-balance.mode")
+                    .enumType(TaskManagerLoadBalanceMode.class)
+                    .defaultValue(TaskManagerLoadBalanceMode.NONE)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Mode for the load-balance allocation strategy across all available %s.",
+                                            code("TaskManagers"))
+                                    .list(
+                                            text(
+                                                    "The %s mode tries to spread out the slots evenly across all available %s.",
+                                                    code(TaskManagerLoadBalanceMode.SLOTS.name()),
+                                                    code("TaskManagers")),
+                                            text(
+                                                    "The %s mode is the default mode without any specified strategy.",
+                                                    code(TaskManagerLoadBalanceMode.NONE.name())))
+                                    .build());
+
+    /** Type of {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE}. */
+    public enum TaskManagerLoadBalanceMode {
+        NONE,
+        SLOTS;
+
+        /**
+         * The method is mainly to load the {@link
+         * TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE} from {@link Configuration}, which is
+         * compatible with {@link ClusterOptions#EVENLY_SPREAD_OUT_SLOTS_STRATEGY}.
+         */
+        public static TaskManagerLoadBalanceMode loadFromConfiguration(
+                @Nonnull Configuration configuration) {
+            Optional<TaskManagerLoadBalanceMode> taskManagerLoadBalanceModeOptional =
+                    configuration.getOptional(TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE);
+            if (taskManagerLoadBalanceModeOptional.isPresent()) {
+                return taskManagerLoadBalanceModeOptional.get();
+            }
+            boolean evenlySpreadOutSlots =
+                    configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+
+            return evenlySpreadOutSlots
+                    ? TaskManagerLoadBalanceMode.SLOTS
+                    : TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE.defaultValue();
+        }
+    }
 
     // ------------------------------------------------------------------------
 

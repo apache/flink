@@ -20,8 +20,8 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.configuration.CheckpointingOptions;
-import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
@@ -30,6 +30,8 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
+
 /** Utility class for selecting {@link SlotSelectionStrategy}. */
 public class SlotSelectionStrategyUtils {
 
@@ -37,13 +39,13 @@ public class SlotSelectionStrategyUtils {
 
     public static SlotSelectionStrategy selectSlotSelectionStrategy(
             final JobType jobType, final Configuration configuration) {
-        final boolean evenlySpreadOutSlots =
-                configuration.getBoolean(ClusterOptions.EVENLY_SPREAD_OUT_SLOTS_STRATEGY);
+        TaskManagerLoadBalanceMode taskManagerLoadBalanceMode =
+                TaskManagerOptions.TaskManagerLoadBalanceMode.loadFromConfiguration(configuration);
 
         final SlotSelectionStrategy locationPreferenceSlotSelectionStrategy;
 
         locationPreferenceSlotSelectionStrategy =
-                evenlySpreadOutSlots
+                taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
                         ? LocationPreferenceSlotSelectionStrategy.createEvenlySpreadOut()
                         : LocationPreferenceSlotSelectionStrategy.createDefault();
 

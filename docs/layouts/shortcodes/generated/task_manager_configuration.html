@@ -57,6 +57,12 @@
             <td>Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.load-balance.mode</h5></td>
+            <td style="word-wrap: break-word;">NONE</td>
+            <td><p>Enum</p></td>
+            <td>Mode for the load-balance allocation strategy across all available <code class="highlighter-rouge">TaskManagers</code>.<ul><li>The <code class="highlighter-rouge">SLOTS</code> mode tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskManagers</code>.</li><li>The <code class="highlighter-rouge">NONE</code> mode is the default mode without any specified strategy.</li></ul><br /><br />Possible values:<ul><li>"NONE"</li><li>"SLOTS"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.bind-policy</h5></td>
             <td style="word-wrap: break-word;">"ip"</td>
             <td>String</td>

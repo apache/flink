@@ -40,6 +40,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 import static org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUtils.getEffectiveResourceProfile;
 
 /**
@@ -84,7 +85,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
     public DefaultResourceAllocationStrategy(
             ResourceProfile totalResourceProfile,
             int numSlotsPerWorker,
-            boolean evenlySpreadOutSlots,
+            TaskManagerLoadBalanceMode taskManagerLoadBalanceMode,
             Time taskManagerTimeout,
             int redundantTaskManagerNum,
             CPUResource minTotalCPU,
@@ -95,7 +96,7 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                 SlotManagerUtils.generateDefaultSlotResourceProfile(
                         totalResourceProfile, numSlotsPerWorker);
         this.availableResourceMatchingStrategy =
-                evenlySpreadOutSlots
+                taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
                         ? LeastUtilizationResourceMatchingStrategy.INSTANCE
                         : AnyMatchingResourceMatchingStrategy.INSTANCE;
         this.taskManagerTimeout = taskManagerTimeout;

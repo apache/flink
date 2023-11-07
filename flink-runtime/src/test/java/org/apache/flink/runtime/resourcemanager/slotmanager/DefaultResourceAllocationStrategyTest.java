@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DefaultResourceAllocationStrategy}. */
@@ -44,9 +45,10 @@ class DefaultResourceAllocationStrategyTest {
             ResourceProfile.fromResources(1, 100);
     private static final int NUM_OF_SLOTS = 5;
     private static final DefaultResourceAllocationStrategy ANY_MATCHING_STRATEGY =
-            createStrategy(false);
+            createStrategy(TaskManagerLoadBalanceMode.NONE);
 
-    private static final DefaultResourceAllocationStrategy EVENLY_STRATEGY = createStrategy(true);
+    private static final DefaultResourceAllocationStrategy EVENLY_STRATEGY =
+            createStrategy(TaskManagerLoadBalanceMode.SLOTS);
 
     @Test
     void testFulfillRequirementWithRegisteredResources() {
@@ -694,20 +696,21 @@ class DefaultResourceAllocationStrategyTest {
                 .hasSize(pendingTaskManagersToAllocate);
     }
 
-    private static DefaultResourceAllocationStrategy createStrategy(boolean evenlySpreadOutSlots) {
-        return createStrategy(evenlySpreadOutSlots, 0);
+    private static DefaultResourceAllocationStrategy createStrategy(
+            TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
+        return createStrategy(taskManagerLoadBalanceMode, 0);
     }
 
     private static DefaultResourceAllocationStrategy createStrategy(int redundantTaskManagerNum) {
-        return createStrategy(false, redundantTaskManagerNum);
+        return createStrategy(TaskManagerLoadBalanceMode.NONE, redundantTaskManagerNum);
     }
 
     private static DefaultResourceAllocationStrategy createStrategy(
-            boolean evenlySpreadOutSlots, int redundantTaskManagerNum) {
+            TaskManagerLoadBalanceMode taskManagerLoadBalanceMode, int redundantTaskManagerNum) {
         return new DefaultResourceAllocationStrategy(
                 DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
                 NUM_OF_SLOTS,
-                evenlySpreadOutSlots,
+                taskManagerLoadBalanceMode,
                 Time.milliseconds(0),
                 redundantTaskManagerNum,
                 new CPUResource(0.0),
@@ -719,7 +722,7 @@ class DefaultResourceAllocationStrategyTest {
         return new DefaultResourceAllocationStrategy(
                 DEFAULT_SLOT_RESOURCE.multiply(NUM_OF_SLOTS),
                 NUM_OF_SLOTS,
-                false,
+                TaskManagerLoadBalanceMode.NONE,
                 Time.milliseconds(0),
                 0,
                 minRequiredCPU,

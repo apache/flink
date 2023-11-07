@@ -27,6 +27,8 @@ import org.apache.flink.testutils.TestingUtils;
 
 import java.time.Duration;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
+
 /** Builder for {@link SlotManagerConfiguration}. */
 public class SlotManagerConfigurationBuilder {
     private Time taskManagerRequestTimeout;
@@ -43,7 +45,7 @@ public class SlotManagerConfigurationBuilder {
     private MemorySize minTotalMem;
     private MemorySize maxTotalMem;
     private int redundantTaskManagerNum;
-    private boolean evenlySpreadOutSlots;
+    private TaskManagerLoadBalanceMode taskManagerLoadBalanceMode;
 
     private SlotManagerConfigurationBuilder() {
         this.taskManagerRequestTimeout = TestingUtils.infiniteTime();
@@ -62,7 +64,7 @@ public class SlotManagerConfigurationBuilder {
         this.maxTotalMem = MemorySize.MAX_VALUE;
         this.redundantTaskManagerNum =
                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue();
-        this.evenlySpreadOutSlots = false;
+        this.taskManagerLoadBalanceMode = TaskManagerLoadBalanceMode.NONE;
     }
 
     public static SlotManagerConfigurationBuilder newBuilder() {
@@ -141,8 +143,9 @@ public class SlotManagerConfigurationBuilder {
         return this;
     }
 
-    public SlotManagerConfigurationBuilder setEvenlySpreadOutSlots(boolean evenlySpreadOutSlots) {
-        this.evenlySpreadOutSlots = evenlySpreadOutSlots;
+    public SlotManagerConfigurationBuilder setTaskManagerLoadBalanceMode(
+            TaskManagerLoadBalanceMode taskManagerLoadBalanceMode) {
+        this.taskManagerLoadBalanceMode = taskManagerLoadBalanceMode;
         return this;
     }
 
@@ -153,10 +156,10 @@ public class SlotManagerConfigurationBuilder {
                 requirementCheckDelay,
                 declareNeededResourceDelay,
                 waitResultConsumedBeforeRelease,
-                evenlySpreadOutSlots
+                taskManagerLoadBalanceMode == TaskManagerLoadBalanceMode.SLOTS
                         ? LeastUtilizationSlotMatchingStrategy.INSTANCE
                         : AnyMatchingSlotMatchingStrategy.INSTANCE,
-                evenlySpreadOutSlots,
+                taskManagerLoadBalanceMode,
                 defaultWorkerResourceSpec,
                 numSlotsPerWorker,
                 minSlotNum,
