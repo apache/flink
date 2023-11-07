@@ -21,6 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /** Settable implementation of ClusterClient used for testing. */
@@ -57,6 +59,9 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
             triggerSavepointFunction =
                     (ignore, savepointPath, formatType) ->
                             CompletableFuture.completedFuture(savepointPath);
+
+    private BiFunction<JobID, CheckpointType, CompletableFuture<Long>> triggerCheckpointFunction =
+            (ignore, checkpointType) -> CompletableFuture.completedFuture(1L);
 
     public void setCancelFunction(Function<JobID, CompletableFuture<Acknowledge>> cancelFunction) {
         this.cancelFunction = cancelFunction;
@@ -78,6 +83,11 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
             TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
                     triggerSavepointFunction) {
         this.triggerSavepointFunction = triggerSavepointFunction;
+    }
+
+    public void setTriggerCheckpointFunction(
+            BiFunction<JobID, CheckpointType, CompletableFuture<Long>> triggerCheckpointFunction) {
+        this.triggerCheckpointFunction = triggerCheckpointFunction;
     }
 
     @Override
@@ -155,6 +165,11 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
     public CompletableFuture<String> triggerSavepoint(
             JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
         return triggerSavepointFunction.apply(jobId, savepointDirectory, formatType);
+    }
+
+    @Override
+    public CompletableFuture<Long> triggerCheckpoint(JobID jobId, CheckpointType checkpointType) {
+        return triggerCheckpointFunction.apply(jobId, checkpointType);
     }
 
     @Override

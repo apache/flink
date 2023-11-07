@@ -44,6 +44,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FileSystem;
@@ -102,6 +103,7 @@ public class CliFrontend {
     private static final String ACTION_CANCEL = "cancel";
     private static final String ACTION_STOP = "stop";
     private static final String ACTION_SAVEPOINT = "savepoint";
+    private static final String ACTION_CHECKPOINT = "checkpoint";
 
     // configuration dir parameters
     private static final String CONFIG_DIRECTORY_FALLBACK_1 = "../conf";
@@ -813,7 +815,7 @@ public class CliFrontend {
         } catch (Exception e) {
             Throwable cause = ExceptionUtils.stripExecutionException(e);
             throw new FlinkException(
-                    "Triggering a savepoint for the job " + jobId + " failed.", cause);
+                    "Failed to trigger a savepoint for the job " + jobId + ".", cause);
         }
     }
 
@@ -836,10 +838,91 @@ public class CliFrontend {
         try {
             disposeFuture.get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
-            throw new FlinkException("Disposing the savepoint '" + savepointPath + "' failed.", e);
+            throw new FlinkException("Failed to dispose the savepoint '" + savepointPath + "'.", e);
         }
 
         logAndSysout("Savepoint '" + savepointPath + "' disposed.");
+    }
+
+    /**
+     * Executes the CHECKPOINT action.
+     *
+     * @param args Command line arguments for the checkpoint action.
+     */
+    protected void checkpoint(String[] args) throws Exception {
+        LOG.info("Running 'checkpoint' command.");
+
+        final Options commandOptions = CliFrontendParser.getCheckpointCommandOptions();
+
+        final CommandLine commandLine = getCommandLine(commandOptions, args, false);
+
+        final CheckpointOptions checkpointOptions = new CheckpointOptions(commandLine);
+
+        // evaluate help flag
+        if (checkpointOptions.isPrintHelp()) {
+            CliFrontendParser.printHelpForCheckpoint(customCommandLines);
+            return;
+        }
+
+        final CustomCommandLine activeCommandLine = validateAndGetActiveCommandLine(commandLine);
+
+        String[] cleanedArgs = checkpointOptions.getArgs();
+
+        final JobID jobId;
+
+        if (cleanedArgs.length >= 1) {
+            String jobIdString = cleanedArgs[0];
+
+            jobId = parseJobId(jobIdString);
+        } else {
+            throw new CliArgsException(
+                    "Missing JobID. " + "Specify a Job ID to manipulate a checkpoint.");
+        }
+        runClusterAction(
+                activeCommandLine,
+                commandLine,
+                (clusterClient, effectiveConfiguration) ->
+                        triggerCheckpoint(
+                                clusterClient,
+                                jobId,
+                                checkpointOptions.getCheckpointType(),
+                                getClientTimeout(effectiveConfiguration)));
+    }
+
+    /** Sends a CheckpointTriggerMessage to the job manager. */
+    private void triggerCheckpoint(
+            ClusterClient<?> clusterClient,
+            JobID jobId,
+            CheckpointType checkpointType,
+            Duration clientTimeout)
+            throws FlinkException {
+        logAndSysout("Triggering checkpoint for job " + jobId + '.');
+
+        CompletableFuture<Long> checkpointFuture =
+                clusterClient.triggerCheckpoint(jobId, checkpointType);
+
+        logAndSysout("Waiting for response...");
+
+        try {
+            final long checkpointId =
+                    checkpointFuture.get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+
+            logAndSysout(
+                    "Checkpoint"
+                            + (checkpointType == CheckpointType.CONFIGURED
+                                    ? ""
+                                    : ("(" + checkpointType + ")"))
+                            + " "
+                            + checkpointId
+                            + " for job "
+                            + jobId
+                            + " completed.");
+            logAndSysout("You can resume your program from this checkpoint with the run command.");
+        } catch (Exception e) {
+            Throwable cause = ExceptionUtils.stripExecutionException(e);
+            throw new FlinkException(
+                    "Failed to trigger a checkpoint for the job " + jobId + ".", cause);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1111,6 +1194,9 @@ public class CliFrontend {
                     return 0;
                 case ACTION_SAVEPOINT:
                     savepoint(params);
+                    return 0;
+                case ACTION_CHECKPOINT:
+                    checkpoint(params);
                     return 0;
                 case "-h":
                 case "--help":

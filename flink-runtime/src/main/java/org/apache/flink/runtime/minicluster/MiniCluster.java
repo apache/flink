@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -892,6 +893,13 @@ public class MiniCluster implements AutoCloseableAsync {
     public CompletableFuture<String> triggerCheckpoint(JobID jobID) {
         return runDispatcherCommand(
                 dispatcherGateway -> dispatcherGateway.triggerCheckpoint(jobID, rpcTimeout));
+    }
+
+    public CompletableFuture<Long> triggerCheckpoint(JobID jobID, CheckpointType checkpointType) {
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway.triggerCheckpointAndGetCheckpointID(
+                                jobID, checkpointType, rpcTimeout));
     }
 
     public CompletableFuture<String> stopWithSavepoint(

@@ -34,6 +34,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -79,6 +80,12 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointInfo;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatusHeaders;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatusMessageParameters;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointTriggerHeaders;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointTriggerMessageParameters;
+import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointTriggerRequestBody;
 import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteStatusHeaders;
 import org.apache.flink.runtime.rest.messages.dataset.ClusterDataSetDeleteStatusMessageParameters;
@@ -544,6 +551,36 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     }
 
     @Override
+    public CompletableFuture<Long> triggerCheckpoint(JobID jobId, CheckpointType checkpointType) {
+        final CheckpointTriggerHeaders checkpointTriggerHeaders =
+                CheckpointTriggerHeaders.getInstance();
+        final CheckpointTriggerMessageParameters checkpointTriggerMessageParameters =
+                checkpointTriggerHeaders.getUnresolvedMessageParameters();
+        checkpointTriggerMessageParameters.jobID.resolve(jobId);
+
+        final CompletableFuture<TriggerResponse> responseFuture =
+                sendRequest(
+                        checkpointTriggerHeaders,
+                        checkpointTriggerMessageParameters,
+                        new CheckpointTriggerRequestBody(checkpointType, null));
+
+        return responseFuture
+                .thenCompose(
+                        checkpointTriggerResponseBody -> {
+                            final TriggerId checkpointTriggerId =
+                                    checkpointTriggerResponseBody.getTriggerId();
+                            return pollCheckpointAsync(jobId, checkpointTriggerId);
+                        })
+                .thenApply(
+                        checkpointInfo -> {
+                            if (checkpointInfo.getFailureCause() != null) {
+                                throw new CompletionException(checkpointInfo.getFailureCause());
+                            }
+                            return checkpointInfo.getCheckpointId();
+                        });
+    }
+
+    @Override
     public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
             JobID jobId, OperatorID operatorId, CoordinationRequest request) {
         ClientCoordinationHeaders headers = ClientCoordinationHeaders.getInstance();
@@ -645,6 +682,20 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                     savepointStatusMessageParameters.jobIdPathParameter.resolve(jobId);
                     savepointStatusMessageParameters.triggerIdPathParameter.resolve(triggerID);
                     return sendRequest(savepointStatusHeaders, savepointStatusMessageParameters);
+                });
+    }
+
+    private CompletableFuture<CheckpointInfo> pollCheckpointAsync(
+            final JobID jobId, final TriggerId triggerID) {
+        return pollResourceAsync(
+                () -> {
+                    final CheckpointStatusHeaders checkpointStatusHeaders =
+                            CheckpointStatusHeaders.getInstance();
+                    final CheckpointStatusMessageParameters checkpointStatusMessageParameters =
+                            checkpointStatusHeaders.getUnresolvedMessageParameters();
+                    checkpointStatusMessageParameters.jobIdPathParameter.resolve(jobId);
+                    checkpointStatusMessageParameters.triggerIdPathParameter.resolve(triggerID);
+                    return sendRequest(checkpointStatusHeaders, checkpointStatusMessageParameters);
                 });
     }
 

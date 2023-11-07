@@ -157,6 +157,13 @@ public class CliFrontendParser {
                             + " for changing state backends, native = a specific format for the"
                             + " chosen state backend, might be faster to take and restore from.");
 
+    static final Option CHECKPOINT_FULL_OPTION =
+            new Option(
+                    "full",
+                    "full",
+                    false,
+                    "Defines whether to trigger this checkpoint as a full one.");
+
     // list specific options
     static final Option RUNNING_OPTION =
             new Option("r", "running", false, "Show only running programs and their JobIDs");
@@ -442,6 +449,10 @@ public class CliFrontendParser {
                 .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
+    static Options getCheckpointCommandOptions() {
+        return buildGeneralOptions(new Options()).addOption(CHECKPOINT_FULL_OPTION);
+    }
+
     // --------------------------------------------------------------------------------------------
     //  Help
     // --------------------------------------------------------------------------------------------
@@ -482,6 +493,10 @@ public class CliFrontendParser {
                 .addOption(JAR_OPTION);
     }
 
+    private static Options getCheckpointOptionsWithoutDeprecatedOptions(Options options) {
+        return options.addOption(CHECKPOINT_FULL_OPTION);
+    }
+
     /** Prints the help for the client. */
     public static void printHelp(Collection<CustomCommandLine> customCommandLines) {
         System.out.println("./flink <ACTION> [OPTIONS] [ARGUMENTS]");
@@ -495,6 +510,7 @@ public class CliFrontendParser {
         printHelpForStop(customCommandLines);
         printHelpForCancel(customCommandLines);
         printHelpForSavepoint(customCommandLines);
+        printHelpForCheckpoint(customCommandLines);
 
         System.out.println();
     }
@@ -605,6 +621,21 @@ public class CliFrontendParser {
         System.out.println("\n  Syntax: savepoint [OPTIONS] <Job ID> [<target directory>]");
         formatter.setSyntaxPrefix("  \"savepoint\" action options:");
         formatter.printHelp(" ", getSavepointOptionsWithoutDeprecatedOptions(new Options()));
+
+        printCustomCliOptions(customCommandLines, formatter, false);
+
+        System.out.println();
+    }
+
+    public static void printHelpForCheckpoint(Collection<CustomCommandLine> customCommandLines) {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.setLeftPadding(5);
+        formatter.setWidth(80);
+
+        System.out.println("\nAction \"checkpoint\" triggers checkpoints for a running job.");
+        System.out.println("\n  Syntax: checkpoint [OPTIONS] <Job ID>");
+        formatter.setSyntaxPrefix("  \"checkpoint\" action options:");
+        formatter.printHelp(" ", getCheckpointOptionsWithoutDeprecatedOptions(new Options()));
 
         printCustomCliOptions(customCommandLines, formatter, false);
 
