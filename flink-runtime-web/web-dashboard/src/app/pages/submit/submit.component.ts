@@ -78,7 +78,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
   public validateForm: UntypedFormGroup;
   public planVisible = false;
 
-  @ViewChild(DagreComponent, { static: true }) private readonly dagreComponent: DagreComponent;
+  @ViewChild(DagreComponent) private readonly dagreComponent: DagreComponent;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -177,6 +177,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
       )
       .subscribe(data => {
         this.planVisible = true;
+        this.cdr.detectChanges();
         this.dagreComponent.flush(data.nodes, data.links, true);
       });
   }
