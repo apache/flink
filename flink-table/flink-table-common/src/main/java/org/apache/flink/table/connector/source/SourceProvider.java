@@ -39,17 +39,7 @@ public interface SourceProvider extends ScanTableSource.ScanRuntimeProvider, Par
 
     /** Helper method for creating a static provider. */
     static SourceProvider of(Source<RowData, ?, ?> source) {
-        return new SourceProvider() {
-            @Override
-            public Source<RowData, ?, ?> createSource() {
-                return source;
-            }
-
-            @Override
-            public boolean isBounded() {
-                return Boundedness.BOUNDED.equals(source.getBoundedness());
-            }
-        };
+        return of(source, null);
     }
 
     /** Helper method for creating a Source provider with a provided source parallelism. */

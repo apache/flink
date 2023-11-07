@@ -37,17 +37,7 @@ public interface InputFormatProvider
 
     /** Helper method for creating a static provider. */
     static InputFormatProvider of(InputFormat<RowData, ?> inputFormat) {
-        return new InputFormatProvider() {
-            @Override
-            public InputFormat<RowData, ?> createInputFormat() {
-                return inputFormat;
-            }
-
-            @Override
-            public boolean isBounded() {
-                return true;
-            }
-        };
+        return of(inputFormat, null);
     }
 
     /** Helper method for creating a static provider with a provided source parallelism. */
