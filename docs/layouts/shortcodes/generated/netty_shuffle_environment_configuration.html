@@ -171,16 +171,22 @@
             <td>The Netty transport type, either "nio" or "epoll". The "auto" means selecting the property mode automatically based on the platform. Note that the "epoll" mode can get better performance, less GC and have more advanced features which are only available on modern Linux.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.network.partition-request-timeout</h5></td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
+            <td>Timeout for an individual partition request of remote input channels. The partition request will finally fail if the total wait time exceeds twice the value of <code class="highlighter-rouge">taskmanager.network.request-backoff.max</code>.</td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.request-backoff.initial</h5></td>
             <td style="word-wrap: break-word;">100</td>
             <td>Integer</td>
-            <td>Minimum backoff in milliseconds for partition requests of input channels.</td>
+            <td>Minimum backoff in milliseconds for partition requests of local input channels.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.request-backoff.max</h5></td>
             <td style="word-wrap: break-word;">10000</td>
             <td>Integer</td>
-            <td>Maximum backoff in milliseconds for partition requests of input channels.</td>
+            <td>Maximum backoff in milliseconds for partition requests of local input channels.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.retries</h5></td>

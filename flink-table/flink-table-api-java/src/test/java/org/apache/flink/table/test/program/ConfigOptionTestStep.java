@@ -16,29 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskexecutor;
+package org.apache.flink.table.test.program;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.api.TableEnvironment;
 
-/** Non op implement of {@link ShuffleDescriptorsCache}. */
-public class NoOpShuffleDescriptorsCache implements ShuffleDescriptorsCache {
+/** Test step for setting a {@link ConfigOption}. */
+public final class ConfigOptionTestStep<T> implements TestStep {
 
-    public static final NoOpShuffleDescriptorsCache INSTANCE = new NoOpShuffleDescriptorsCache();
+    public final ConfigOption<T> option;
+    public final T value;
 
-    @Override
-    public void clear() {}
-
-    @Override
-    public ShuffleDescriptorGroup get(PermanentBlobKey blobKey) {
-        return null;
+    ConfigOptionTestStep(ConfigOption<T> option, T value) {
+        this.option = option;
+        this.value = value;
     }
 
     @Override
-    public void put(
-            JobID jobId, PermanentBlobKey blobKey, ShuffleDescriptorGroup shuffleDescriptorGroup) {}
+    public TestKind getKind() {
+        return TestKind.CONFIG;
+    }
 
-    @Override
-    public void clearCacheForJob(JobID jobId) {}
+    public void apply(TableEnvironment env) {
+        env.getConfig().set(option, value);
+    }
 }

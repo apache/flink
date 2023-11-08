@@ -89,7 +89,7 @@ class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                                 + "from MyTable group by b")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(Arrays.asList("+I[1, 1, null, Hi]", "+I[2, 2, 2.0, Hello]"), result);
     }
 
@@ -124,7 +124,7 @@ class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                                 + "from MyTable group by e")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[1, 1, 4, 12, 32, 6.0, 5]",
@@ -164,7 +164,7 @@ class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                                 + "from MyTable group by e")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList("+I[1, 77, 0, 1]", "+I[2, 120, 0, 2]", "+I[3, 58, 0, 3]"), result);
     }
@@ -194,7 +194,7 @@ class GroupAggregateJsonPlanITCase extends JsonPlanTestBase {
                                 + "from MyTable group by e")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[1, 1, Hallo Welt wie|Hallo|GHI|EFG|DEF]",

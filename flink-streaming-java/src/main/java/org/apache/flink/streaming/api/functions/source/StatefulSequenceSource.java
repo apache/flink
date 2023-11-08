@@ -42,6 +42,9 @@ import java.util.Deque;
  * <p>This strategy guarantees that each element will be emitted exactly-once, but elements will not
  * necessarily be emitted in ascending order, even for the same tasks.
  *
+ * <p>NOTE: this source will be removed together with the deprecated
+ * StreamExecutionEnvironmetn#generateSequence() method.
+ *
  * @deprecated This class is based on the {@link
  *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
  *     removed. Use the new {@link org.apache.flink.api.connector.source.Source} API instead.

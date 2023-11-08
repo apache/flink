@@ -121,7 +121,7 @@ class JoinJsonPlanITCase extends JsonPlanTestBase {
                         "+I[1, HiHi, Hi8]",
                         "+I[2, HeHe, Hi5]",
                         "+I[null, HeHe, Hi9]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
@@ -132,7 +132,7 @@ class JoinJsonPlanITCase extends JsonPlanTestBase {
         List<String> expected =
                 Arrays.asList(
                         "+I[Hello world, Hallo Welt]", "+I[Hello, Hallo Welt]", "+I[Hi, Hallo]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
@@ -141,7 +141,7 @@ class JoinJsonPlanITCase extends JsonPlanTestBase {
         compileSqlAndExecutePlan("insert into MySink \n" + "SELECT a1, b1 FROM A JOIN B ON a1 = b1")
                 .await();
         List<String> expected = Arrays.asList("+I[1, 1]", "+I[2, 2]", "+I[2, 2]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
@@ -152,7 +152,7 @@ class JoinJsonPlanITCase extends JsonPlanTestBase {
                                 + "SELECT a3, b4 FROM A, B where a2 = b2 and a2 < 2")
                 .await();
         List<String> expected = Arrays.asList("+I[Hi, Hallo]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
@@ -163,6 +163,6 @@ class JoinJsonPlanITCase extends JsonPlanTestBase {
                                 + "SELECT a1, b1, b3 FROM A JOIN B ON a1 = b1 AND a1 = b3")
                 .await();
         List<String> expected = Arrays.asList("+I[2, 2, 2]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 }

@@ -288,6 +288,54 @@ public final class LogicalTypeCasts {
         return supportsCasting(sourceType, targetType, true);
     }
 
+    /**
+     * Returns whether the source type can be reinterpreted as the target type.
+     *
+     * <p>Reinterpret casts correspond to the SQL reinterpret_cast and represent the logic behind a
+     * {@code REINTERPRET_CAST(sourceType AS targetType)} operation.
+     */
+    public static boolean supportsReinterpretCast(LogicalType sourceType, LogicalType targetType) {
+        if (sourceType.getTypeRoot() == targetType.getTypeRoot()) {
+            return true;
+        }
+
+        switch (sourceType.getTypeRoot()) {
+            case INTEGER:
+                switch (targetType.getTypeRoot()) {
+                    case DATE:
+                    case TIME_WITHOUT_TIME_ZONE:
+                    case INTERVAL_YEAR_MONTH:
+                        return true;
+                    default:
+                        return false;
+                }
+            case BIGINT:
+                switch (targetType.getTypeRoot()) {
+                    case TIMESTAMP_WITHOUT_TIME_ZONE:
+                    case INTERVAL_DAY_TIME:
+                        return true;
+                    default:
+                        return false;
+                }
+            case DATE:
+            case TIME_WITHOUT_TIME_ZONE:
+            case INTERVAL_YEAR_MONTH:
+                switch (targetType.getTypeRoot()) {
+                    case INTEGER:
+                    case BIGINT:
+                        return true;
+                    default:
+                        return false;
+                }
+
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+            case INTERVAL_DAY_TIME:
+                return targetType.getTypeRoot() == BIGINT;
+            default:
+                return false;
+        }
+    }
+
     // --------------------------------------------------------------------------------------------
 
     private static boolean supportsCasting(

@@ -608,7 +608,7 @@ show tables;
 ## SHOW CREATE TABLE
 
 ```sql
-SHOW CREATE TABLE [catalog_name.][db_name.]table_name
+SHOW CREATE TABLE [[catalog_name.]db_name.]table_name
 ```
 
 展示创建指定表的 create 语句。

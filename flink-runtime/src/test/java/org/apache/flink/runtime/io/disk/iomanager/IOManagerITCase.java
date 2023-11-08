@@ -26,12 +26,10 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.io.File;
@@ -39,8 +37,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Integration test case for the I/O manager. */
-public class IOManagerITCase extends TestLogger {
+class IOManagerITCase {
 
     private static final long SEED = 649180756312423613L;
 
@@ -56,19 +56,19 @@ public class IOManagerITCase extends TestLogger {
 
     private MemoryManager memoryManager;
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
         ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         ioManager.close();
 
-        Assert.assertTrue(
-                "Not all memory was returned to the memory manager in the test.",
-                memoryManager.verifyEmpty());
+        assertThat(memoryManager.verifyEmpty())
+                .withFailMessage("Not all memory was returned to the memory manager in the test.")
+                .isTrue();
         memoryManager.shutdown();
         memoryManager = null;
     }
@@ -82,7 +82,7 @@ public class IOManagerITCase extends TestLogger {
      */
     @Test
     @SuppressWarnings("unchecked")
-    public void parallelChannelsTest() throws Exception {
+    void parallelChannelsTest() throws Exception {
         final Random rnd = new Random(SEED);
         final AbstractInvokable memOwner = new DummyInvokable();
 
@@ -141,27 +141,22 @@ public class IOManagerITCase extends TestLogger {
             try {
                 while (true) {
                     val.read(in);
-                    int intValue = 0;
-                    try {
-                        intValue = Integer.parseInt(val.value);
-                    } catch (NumberFormatException nfex) {
-                        Assert.fail(
-                                "Invalid value read from reader. Valid decimal number expected.");
-                    }
-                    Assert.assertEquals(
-                            "Written and read values do not match during sequential read.",
-                            nextVal,
-                            intValue);
+                    int intValue = Integer.parseInt(val.value);
+
+                    assertThat(intValue)
+                            .withFailMessage(
+                                    "Written and read values do not match during sequential read.")
+                            .isEqualTo(nextVal);
                     nextVal++;
                 }
             } catch (EOFException eofex) {
                 // expected
             }
 
-            Assert.assertEquals(
-                    "NUmber of written numbers differs from number of read numbers.",
-                    writingCounters[i],
-                    nextVal);
+            assertThat(nextVal)
+                    .withFailMessage(
+                            "NUmber of written numbers differs from number of read numbers.")
+                    .isEqualTo(writingCounters[i]);
 
             this.memoryManager.release(in.close());
         }
@@ -185,19 +180,11 @@ public class IOManagerITCase extends TestLogger {
                 if (ins[channel] != null) {
                     try {
                         val.read(ins[channel]);
-                        int intValue;
-                        try {
-                            intValue = Integer.parseInt(val.value);
-                        } catch (NumberFormatException nfex) {
-                            Assert.fail(
-                                    "Invalid value read from reader. Valid decimal number expected.");
-                            return;
-                        }
+                        int intValue = Integer.parseInt(val.value);
 
-                        Assert.assertEquals(
-                                "Written and read values do not match.",
-                                readingCounters[channel]++,
-                                intValue);
+                        assertThat(intValue)
+                                .withFailMessage("Written and read values do not match.")
+                                .isEqualTo(readingCounters[channel]++);
 
                         break;
                     } catch (EOFException eofex) {
@@ -222,7 +209,7 @@ public class IOManagerITCase extends TestLogger {
         // check that files are deleted
         for (int i = 0; i < NUM_CHANNELS; i++) {
             File f = new File(ids[i].getPath());
-            Assert.assertFalse("Channel file has not been deleted.", f.exists());
+            assertThat(f).withFailMessage("Channel file has not been deleted.").doesNotExist();
         }
     }
 

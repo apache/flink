@@ -30,9 +30,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
-            "connector" : "values",
             "bounded" : "false",
-            "changelog-mode" : "I,UA,UB,D"
+            "changelog-mode" : "I,UA,UB,D",
+            "connector" : "values"
           }
         }
       },
@@ -123,9 +123,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
+            "connector" : "values",
             "sink-insert-only" : "false",
-            "table-sink-class" : "DEFAULT",
-            "connector" : "values"
+            "table-sink-class" : "DEFAULT"
           }
         }
       }

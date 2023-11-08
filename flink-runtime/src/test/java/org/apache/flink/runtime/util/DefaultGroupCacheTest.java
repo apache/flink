@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.taskexecutor;
+package org.apache.flink.runtime.util;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
@@ -35,14 +35,14 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for {@link DefaultShuffleDescriptorsCache}. */
-class DefaultShuffleDescriptorsCacheTest {
+/** Tests for {@link DefaultGroupCache}. */
+class DefaultGroupCacheTest {
     private final Duration expireTimeout = Duration.ofSeconds(10);
 
     @Test
     void testGetEntry() {
-        DefaultShuffleDescriptorsCache cache =
-                new DefaultShuffleDescriptorsCache.Factory(
+        DefaultGroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> cache =
+                new DefaultGroupCache.Factory<JobID, PermanentBlobKey, ShuffleDescriptorGroup>(
                                 expireTimeout, Integer.MAX_VALUE, Ticker.systemTicker())
                         .create();
 
@@ -56,16 +56,16 @@ class DefaultShuffleDescriptorsCacheTest {
 
         PermanentBlobKey blobKey = new PermanentBlobKey();
 
-        assertThat(cache.get(blobKey)).isNull();
+        assertThat(cache.get(jobId, blobKey)).isNull();
 
         cache.put(jobId, blobKey, shuffleDescriptorGroup);
-        assertThat(cache.get(blobKey)).isEqualTo(shuffleDescriptorGroup);
+        assertThat(cache.get(jobId, blobKey)).isEqualTo(shuffleDescriptorGroup);
     }
 
     @Test
     void testClearCacheForJob() {
-        DefaultShuffleDescriptorsCache cache =
-                new DefaultShuffleDescriptorsCache.Factory(
+        DefaultGroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> cache =
+                new DefaultGroupCache.Factory<JobID, PermanentBlobKey, ShuffleDescriptorGroup>(
                                 expireTimeout, Integer.MAX_VALUE, Ticker.systemTicker())
                         .create();
 
@@ -78,19 +78,20 @@ class DefaultShuffleDescriptorsCacheTest {
                         });
         PermanentBlobKey blobKey = new PermanentBlobKey();
 
-        assertThat(cache.get(blobKey)).isNull();
+        assertThat(cache.get(jobId, blobKey)).isNull();
 
         cache.put(jobId, blobKey, shuffleDescriptorGroup);
-        assertThat(cache.get(blobKey)).isEqualTo(shuffleDescriptorGroup);
+        assertThat(cache.get(jobId, blobKey)).isEqualTo(shuffleDescriptorGroup);
 
-        cache.clearCacheForJob(jobId);
-        assertThat(cache.get(blobKey)).isNull();
+        cache.clearCacheForGroup(jobId);
+        assertThat(cache.get(jobId, blobKey)).isNull();
     }
 
     @Test
     void testPutWhenOverLimit() {
-        DefaultShuffleDescriptorsCache cache =
-                new DefaultShuffleDescriptorsCache.Factory(expireTimeout, 1, Ticker.systemTicker())
+        DefaultGroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> cache =
+                new DefaultGroupCache.Factory<JobID, PermanentBlobKey, ShuffleDescriptorGroup>(
+                                expireTimeout, 1, Ticker.systemTicker())
                         .create();
 
         JobID jobId = new JobID();
@@ -104,7 +105,7 @@ class DefaultShuffleDescriptorsCacheTest {
         PermanentBlobKey blobKey = new PermanentBlobKey();
 
         cache.put(jobId, blobKey, shuffleDescriptorGroup);
-        assertThat(cache.get(blobKey)).isEqualTo(shuffleDescriptorGroup);
+        assertThat(cache.get(jobId, blobKey)).isEqualTo(shuffleDescriptorGroup);
 
         ShuffleDescriptorGroup otherShuffleDescriptorGroup =
                 new ShuffleDescriptorGroup(
@@ -115,15 +116,15 @@ class DefaultShuffleDescriptorsCacheTest {
         PermanentBlobKey otherBlobKey = new PermanentBlobKey();
 
         cache.put(jobId, otherBlobKey, otherShuffleDescriptorGroup);
-        assertThat(cache.get(blobKey)).isNull();
-        assertThat(cache.get(otherBlobKey)).isEqualTo(otherShuffleDescriptorGroup);
+        assertThat(cache.get(jobId, blobKey)).isNull();
+        assertThat(cache.get(jobId, otherBlobKey)).isEqualTo(otherShuffleDescriptorGroup);
     }
 
     @Test
     void testEntryExpired() {
         TestingTicker ticker = new TestingTicker();
-        DefaultShuffleDescriptorsCache cache =
-                new DefaultShuffleDescriptorsCache.Factory(
+        DefaultGroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup> cache =
+                new DefaultGroupCache.Factory<JobID, PermanentBlobKey, ShuffleDescriptorGroup>(
                                 Duration.ofSeconds(1), Integer.MAX_VALUE, ticker)
                         .create();
 
@@ -138,10 +139,10 @@ class DefaultShuffleDescriptorsCacheTest {
         PermanentBlobKey blobKey = new PermanentBlobKey();
 
         cache.put(jobId, blobKey, shuffleDescriptorGroup);
-        assertThat(cache.get(blobKey)).isEqualTo(shuffleDescriptorGroup);
+        assertThat(cache.get(jobId, blobKey)).isEqualTo(shuffleDescriptorGroup);
 
         ticker.advance(Duration.ofSeconds(2));
-        assertThat(cache.get(blobKey)).isNull();
+        assertThat(cache.get(jobId, blobKey)).isNull();
     }
 
     private static class TestingTicker extends Ticker {

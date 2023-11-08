@@ -81,6 +81,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DeclarativeSlotManager}. */
@@ -1121,7 +1122,7 @@ class DeclarativeSlotManagerTest {
     void testSpreadOutSlotAllocationStrategy() throws Exception {
         try (DeclarativeSlotManager slotManager =
                 createDeclarativeSlotManagerBuilder()
-                        .setEvenlySpreadOutSlots(true)
+                        .setTaskManagerLoadBalanceMode(TaskManagerLoadBalanceMode.SLOTS)
                         .buildAndStartWithDirectExec()) {
 
             final List<CompletableFuture<JobID>> requestSlotFutures = new ArrayList<>();

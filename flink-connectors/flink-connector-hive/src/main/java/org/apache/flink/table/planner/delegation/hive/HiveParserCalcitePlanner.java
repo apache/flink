@@ -478,6 +478,7 @@ public class HiveParserCalcitePlanner {
             HiveParserJoinTypeCheckCtx jCtx =
                     new HiveParserJoinTypeCheckCtx(
                             leftRR, rightRR, hiveJoinType, frameworkConfig, cluster);
+            jCtx.setUnparseTranslator(semanticAnalyzer.unparseTranslator);
             HiveParserRowResolver combinedRR = HiveParserRowResolver.getCombinedRR(leftRR, rightRR);
             if (joinCondAst.getType() == HiveASTParser.TOK_TABCOLNAME
                     && !hiveJoinType.equals(JoinType.LEFTSEMI)) {

@@ -24,6 +24,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MeterView;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -129,7 +130,8 @@ public class MetricUtils {
         MetricGroup jvm = metricGroup.addGroup("JVM");
 
         instantiateClassLoaderMetrics(jvm.addGroup("ClassLoader"));
-        instantiateGarbageCollectorMetrics(jvm.addGroup("GarbageCollector"));
+        instantiateGarbageCollectorMetrics(
+                jvm.addGroup("GarbageCollector"), ManagementFactory.getGarbageCollectorMXBeans());
         instantiateMemoryMetrics(jvm.addGroup(METRIC_GROUP_MEMORY));
         instantiateThreadMetrics(jvm.addGroup("Threads"));
         instantiateCPUMetrics(jvm.addGroup("CPU"));
@@ -222,16 +224,32 @@ public class MetricUtils {
         metrics.<Long, Gauge<Long>>gauge("ClassesUnloaded", mxBean::getUnloadedClassCount);
     }
 
-    private static void instantiateGarbageCollectorMetrics(MetricGroup metrics) {
-        List<GarbageCollectorMXBean> garbageCollectors =
-                ManagementFactory.getGarbageCollectorMXBeans();
-
+    @VisibleForTesting
+    static void instantiateGarbageCollectorMetrics(
+            MetricGroup metrics, List<GarbageCollectorMXBean> garbageCollectors) {
         for (final GarbageCollectorMXBean garbageCollector : garbageCollectors) {
             MetricGroup gcGroup = metrics.addGroup(garbageCollector.getName());
 
-            gcGroup.<Long, Gauge<Long>>gauge("Count", garbageCollector::getCollectionCount);
-            gcGroup.<Long, Gauge<Long>>gauge("Time", garbageCollector::getCollectionTime);
+            gcGroup.gauge("Count", garbageCollector::getCollectionCount);
+            Gauge<Long> timeGauge = gcGroup.gauge("Time", garbageCollector::getCollectionTime);
+            gcGroup.meter("TimeMsPerSecond", new MeterView(timeGauge));
         }
+        Gauge<Long> totalGcTime =
+                () ->
+                        garbageCollectors.stream()
+                                .mapToLong(GarbageCollectorMXBean::getCollectionTime)
+                                .sum();
+
+        Gauge<Long> totalGcCount =
+                () ->
+                        garbageCollectors.stream()
+                                .mapToLong(GarbageCollectorMXBean::getCollectionCount)
+                                .sum();
+
+        MetricGroup allGroup = metrics.addGroup("All");
+        allGroup.gauge("Count", totalGcCount);
+        Gauge<Long> totalTime = allGroup.gauge("Time", totalGcTime);
+        allGroup.meter("TimeMsPerSecond", new MeterView(totalTime));
     }
 
     private static void instantiateMemoryMetrics(MetricGroup metrics) {

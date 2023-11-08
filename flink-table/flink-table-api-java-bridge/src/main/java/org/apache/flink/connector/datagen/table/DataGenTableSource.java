@@ -21,7 +21,6 @@ package org.apache.flink.connector.datagen.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.connector.datagen.table.types.RowDataGenerator;
-import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGenerator;
 import org.apache.flink.streaming.api.functions.source.datagen.DataGeneratorSource;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -33,10 +32,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
 
-/**
- * A {@link StreamTableSource} that emits each number from a given interval exactly once, possibly
- * in parallel. See {@link StatefulSequenceSource}.
- */
+/** A {@link StreamTableSource} that emits generated data rows. */
 @Internal
 public class DataGenTableSource implements ScanTableSource, SupportsLimitPushDown {
 

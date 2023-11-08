@@ -65,6 +65,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
     private final int partitionRequestMaxBackoff;
 
+    private final int partitionRequestListenerTimeout;
+
     /**
      * Number of network buffers to use for each outgoing/incoming channel (subpartition/input
      * channel).
@@ -122,6 +124,7 @@ public class NettyShuffleEnvironmentConfiguration {
             int networkBufferSize,
             int partitionRequestInitialBackoff,
             int partitionRequestMaxBackoff,
+            int partitionRequestListenerTimeout,
             int networkBuffersPerChannel,
             int floatingNetworkBuffersPerGate,
             Optional<Integer> maxRequiredBuffersPerGate,
@@ -148,6 +151,7 @@ public class NettyShuffleEnvironmentConfiguration {
         this.networkBufferSize = networkBufferSize;
         this.partitionRequestInitialBackoff = partitionRequestInitialBackoff;
         this.partitionRequestMaxBackoff = partitionRequestMaxBackoff;
+        this.partitionRequestListenerTimeout = partitionRequestListenerTimeout;
         this.networkBuffersPerChannel = networkBuffersPerChannel;
         this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
         this.maxRequiredBuffersPerGate = maxRequiredBuffersPerGate;
@@ -188,6 +192,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public int partitionRequestMaxBackoff() {
         return partitionRequestMaxBackoff;
+    }
+
+    public int getPartitionRequestListenerTimeout() {
+        return partitionRequestListenerTimeout;
     }
 
     public int networkBuffersPerChannel() {
@@ -317,6 +325,13 @@ public class NettyShuffleEnvironmentConfiguration {
         int maxRequestBackoff =
                 configuration.getInteger(
                         NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX);
+        int listenerTimeout =
+                (int)
+                        configuration
+                                .get(
+                                        NettyShuffleEnvironmentOptions
+                                                .NETWORK_PARTITION_REQUEST_TIMEOUT)
+                                .toMillis();
 
         int buffersPerChannel =
                 configuration.getInteger(
@@ -419,6 +434,7 @@ public class NettyShuffleEnvironmentConfiguration {
                 pageSize,
                 initialRequestBackoff,
                 maxRequestBackoff,
+                listenerTimeout,
                 buffersPerChannel,
                 extraBuffersPerGate,
                 maxRequiredBuffersPerGate,
@@ -561,6 +577,7 @@ public class NettyShuffleEnvironmentConfiguration {
         result = 31 * result + networkBufferSize;
         result = 31 * result + partitionRequestInitialBackoff;
         result = 31 * result + partitionRequestMaxBackoff;
+        result = 31 * result + partitionRequestListenerTimeout;
         result = 31 * result + networkBuffersPerChannel;
         result = 31 * result + floatingNetworkBuffersPerGate;
         result = 31 * result + requestSegmentsTimeout.hashCode();
@@ -604,6 +621,7 @@ public class NettyShuffleEnvironmentConfiguration {
                     && Arrays.equals(this.tempDirs, that.tempDirs)
                     && this.batchShuffleCompressionEnabled == that.batchShuffleCompressionEnabled
                     && this.maxBuffersPerChannel == that.maxBuffersPerChannel
+                    && this.partitionRequestListenerTimeout == that.partitionRequestListenerTimeout
                     && Objects.equals(this.compressionCodec, that.compressionCodec)
                     && this.maxNumberOfConnections == that.maxNumberOfConnections
                     && this.connectionReuseEnabled == that.connectionReuseEnabled
@@ -638,6 +656,8 @@ public class NettyShuffleEnvironmentConfiguration {
                 + compressionCodec
                 + ", maxBuffersPerChannel="
                 + maxBuffersPerChannel
+                + ", partitionRequestListenerTimeout"
+                + partitionRequestListenerTimeout
                 + ", batchShuffleReadMemoryBytes="
                 + batchShuffleReadMemoryBytes
                 + ", sortShuffleMinBuffers="

@@ -642,8 +642,9 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
     private Counter getOperatorRecordsOutCounter(
             StreamTask<?, ?> containingTask, StreamConfig operatorConfig) {
         ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
-        StreamOperatorFactory<?> operatorFactory =
-                operatorConfig.getStreamOperatorFactory(userCodeClassloader);
+        Class<StreamOperatorFactory<?>> streamOperatorFactoryClass =
+                operatorConfig.getStreamOperatorFactoryClass(userCodeClassloader);
+
         // Do not use the numRecordsOut counter on output if this operator is SinkWriterOperator.
         //
         // Metric "numRecordsOut" is defined as the total number of records written to the
@@ -651,8 +652,15 @@ public abstract class OperatorChain<OUT, OP extends StreamOperator<OUT>>
         // number of records sent to downstream operators, which is number of Committable batches
         // sent to SinkCommitter. So we skip registering this metric on output and leave this metric
         // to sink writer implementations to report.
-        if (operatorFactory instanceof SinkWriterOperatorFactory) {
-            return null;
+        try {
+            Class<?> sinkWriterFactoryClass =
+                    userCodeClassloader.loadClass(SinkWriterOperatorFactory.class.getName());
+            if (sinkWriterFactoryClass.isAssignableFrom(streamOperatorFactoryClass)) {
+                return null;
+            }
+        } catch (ClassNotFoundException e) {
+            throw new StreamTaskException(
+                    "Could not load SinkWriterOperatorFactory class from userCodeClassloader.", e);
         }
 
         InternalOperatorMetricGroup operatorMetricGroup =

@@ -52,7 +52,7 @@ class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
                         "+I[user1, Tom, tom123@gmail.com, 8.10, 16.20]",
                         "+I[user3, Bailey, bailey@qq.com, 9.99, 19.98]",
                         "+I[user4, Tina, tina@gmail.com, 11.30, 22.60]");
-        assertResult(expected, TestValuesTableFactory.getResults("user_sink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("user_sink"));
     }
 
     @Test
@@ -74,7 +74,7 @@ class ChangelogSourceJsonPlanITCase extends JsonPlanTestBase {
                         "+I[user1, Tom, tom123@gmail.com, 8.10, 16.20]",
                         "+I[user3, Bailey, bailey@qq.com, 9.99, 19.98]",
                         "+I[user4, Tina, tina@gmail.com, 11.30, 22.60]");
-        assertResult(expected, TestValuesTableFactory.getResults("user_sink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("user_sink"));
     }
 
     // ------------------------------------------------------------------------------------------

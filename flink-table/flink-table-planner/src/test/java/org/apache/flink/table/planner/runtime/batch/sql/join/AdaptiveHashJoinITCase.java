@@ -168,7 +168,7 @@ public class AdaptiveHashJoinITCase extends TestLogger {
 
     private void asserResult(String sinkTableName, int resultSize) {
         // Due to concern OOM and record value is same, here just assert result size
-        List<String> result = TestValuesTableFactory.getResults(sinkTableName);
+        List<String> result = TestValuesTableFactory.getResultsAsStrings(sinkTableName);
         assertThat(result.size()).isEqualTo(resultSize);
     }
 

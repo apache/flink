@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 
@@ -52,9 +51,12 @@ public class TableApiRules {
     private static final Pattern TABLE_API_MODULES =
             Pattern.compile(".*/flink-table-(api-(bridge-base|java(|-bridge))|common)/.*");
 
+    public static final String CONFIG_OPTIONS_FQ_NAME =
+            "org.apache.flink.configuration.ConfigOption";
+
     @ArchTest
     public static final ArchRule CONFIG_OPTIONS_IN_OPTIONS_CLASSES =
-            fields().that(arePublicStaticOfType(ConfigOption.class))
+            fields().that(arePublicStaticOfType(CONFIG_OPTIONS_FQ_NAME))
                     .and()
                     .areDeclaredInClassesThat(
                             areJavaClasses().and(resideInAPackage("org.apache.flink.table..")))
@@ -67,7 +69,7 @@ public class TableApiRules {
     @ArchTest
     public static final ArchRule TABLE_FACTORIES_CONTAIN_NO_CONFIG_OPTIONS =
             noFields()
-                    .that(arePublicStaticOfType(ConfigOption.class))
+                    .that(arePublicStaticOfType(CONFIG_OPTIONS_FQ_NAME))
                     .and()
                     .areDeclaredInClassesThat(
                             areJavaClasses().and(resideInAPackage("org.apache.flink.table..")))

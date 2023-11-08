@@ -45,8 +45,10 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +56,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** A manager for dealing with all user defined resource. */
 @Internal
@@ -64,7 +69,12 @@ public class ResourceManager implements Closeable {
     private static final String JAR_SUFFIX = "jar";
     private static final String FILE_SCHEME = "file";
 
-    private final Path localResourceDir;
+    protected final Path localResourceDir;
+    /** Resource infos for functions. */
+    private final Map<ResourceUri, ResourceCounter> functionResourceInfos;
+
+    private final boolean cleanLocalResource;
+
     protected final Map<ResourceUri, URL> resourceInfos;
     protected final MutableURLClassLoader userClassLoader;
 
@@ -76,12 +86,27 @@ public class ResourceManager implements Closeable {
     }
 
     public ResourceManager(ReadableConfig config, MutableURLClassLoader userClassLoader) {
-        this.localResourceDir =
+        this(
                 new Path(
                         config.get(TableConfigOptions.RESOURCES_DOWNLOAD_DIR),
-                        String.format("flink-table-%s", UUID.randomUUID()));
-        this.resourceInfos = new HashMap<>();
+                        String.format("flink-table-%s", UUID.randomUUID())),
+                new HashMap<>(),
+                new HashMap<>(),
+                userClassLoader,
+                true);
+    }
+
+    private ResourceManager(
+            Path localResourceDir,
+            Map<ResourceUri, URL> resourceInfos,
+            Map<ResourceUri, ResourceCounter> functionResourceInfos,
+            MutableURLClassLoader userClassLoader,
+            boolean cleanLocalResource) {
+        this.localResourceDir = localResourceDir;
+        this.functionResourceInfos = functionResourceInfos;
+        this.resourceInfos = resourceInfos;
         this.userClassLoader = userClassLoader;
+        this.cleanLocalResource = cleanLocalResource;
     }
 
     /**
@@ -103,7 +128,8 @@ public class ResourceManager implements Closeable {
                                         String.format("Failed to register jar resource [%s]", url),
                                         e);
                             }
-                        }),
+                        },
+                        false),
                 true);
     }
 
@@ -124,13 +150,67 @@ public class ResourceManager implements Closeable {
                         Collections.singletonList(resourceUri),
                         ResourceType.FILE,
                         false,
-                        url -> {});
+                        url -> {},
+                        false);
         registerResources(stagingResources, false);
         return resourceInfos.get(new ArrayList<>(stagingResources.keySet()).get(0)).getPath();
     }
 
+    /**
+     * Declare a resource for function and add it to the function resource infos. If the file is
+     * remote, it will be copied to a local file. The declared resource will not be added to
+     * resources and classloader if it is not used in the job.
+     *
+     * @param resourceUris the resource uri for function.
+     */
+    public void declareFunctionResources(Set<ResourceUri> resourceUris) throws IOException {
+        prepareStagingResources(
+                resourceUris,
+                ResourceType.JAR,
+                true,
+                url -> {
+                    try {
+                        JarUtils.checkJarFile(url);
+                    } catch (IOException e) {
+                        throw new ValidationException(
+                                String.format("Failed to register jar resource [%s]", url), e);
+                    }
+                },
+                true);
+    }
+
+    /**
+     * Unregister the resource uri in function resources, when the reference count of the resource
+     * is 0, the resource will be removed from the function resources.
+     *
+     * @param resourceUris the uris to unregister in function resources.
+     */
+    public void unregisterFunctionResources(List<ResourceUri> resourceUris) {
+        if (!resourceUris.isEmpty()) {
+            resourceUris.forEach(
+                    uri -> {
+                        ResourceCounter counter = functionResourceInfos.get(uri);
+                        if (counter != null && counter.decreaseCounter()) {
+                            functionResourceInfos.remove(uri);
+                        }
+                    });
+        }
+    }
+
     public URLClassLoader getUserClassLoader() {
         return userClassLoader;
+    }
+
+    public URLClassLoader createUserClassLoader(List<ResourceUri> resourceUris) {
+        if (resourceUris.isEmpty()) {
+            return userClassLoader;
+        }
+        MutableURLClassLoader classLoader = userClassLoader.copy();
+        for (ResourceUri resourceUri : new HashSet<>(resourceUris)) {
+            classLoader.addURL(checkNotNull(functionResourceInfos.get(resourceUri)).url);
+        }
+
+        return classLoader;
     }
 
     public Map<ResourceUri, URL> getResources() {
@@ -168,9 +248,19 @@ public class ResourceManager implements Closeable {
         tableConfig.set(PipelineOptions.JARS, new ArrayList<>(jarFiles));
     }
 
+    public ResourceManager copy() {
+        return new ResourceManager(
+                localResourceDir,
+                new HashMap<>(resourceInfos),
+                new HashMap<>(functionResourceInfos),
+                userClassLoader.copy(),
+                false);
+    }
+
     @Override
     public void close() throws IOException {
         resourceInfos.clear();
+        functionResourceInfos.clear();
 
         IOException exception = null;
         try {
@@ -180,14 +270,17 @@ public class ResourceManager implements Closeable {
             exception = e;
         }
 
-        FileSystem fileSystem = FileSystem.getLocalFileSystem();
-        try {
-            if (fileSystem.exists(localResourceDir)) {
-                fileSystem.delete(localResourceDir, true);
+        if (cleanLocalResource) {
+            FileSystem fileSystem = FileSystem.getLocalFileSystem();
+            try {
+                if (fileSystem.exists(localResourceDir)) {
+                    fileSystem.delete(localResourceDir, true);
+                }
+            } catch (IOException ioe) {
+                LOG.debug(
+                        String.format("Error while delete directory [%s].", localResourceDir), ioe);
+                exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
             }
-        } catch (IOException ioe) {
-            LOG.debug(String.format("Error while delete directory [%s].", localResourceDir), ioe);
-            exception = ExceptionUtils.firstOrSuppressed(ioe, exception);
         }
 
         if (exception != null) {
@@ -309,6 +402,11 @@ public class ResourceManager implements Closeable {
         }
     }
 
+    @VisibleForTesting
+    Map<ResourceUri, ResourceCounter> functionResourceInfos() {
+        return functionResourceInfos;
+    }
+
     private Path getResourceLocalPath(Path remotePath) {
         String fileName = remotePath.getName();
         String fileExtension = Files.getFileExtension(fileName);
@@ -327,7 +425,7 @@ public class ResourceManager implements Closeable {
         return new Path(localResourceDir, fileNameWithUUID);
     }
 
-    private void checkResources(List<ResourceUri> resourceUris, ResourceType expectedType)
+    private void checkResources(Collection<ResourceUri> resourceUris, ResourceType expectedType)
             throws IOException {
         // check the resource type
         if (resourceUris.stream()
@@ -360,10 +458,11 @@ public class ResourceManager implements Closeable {
     }
 
     private Map<ResourceUri, URL> prepareStagingResources(
-            List<ResourceUri> resourceUris,
+            Collection<ResourceUri> resourceUris,
             ResourceType expectedType,
             boolean executable,
-            Consumer<URL> resourceChecker)
+            Consumer<URL> resourceChecker,
+            boolean declareFunctionResource)
             throws IOException {
         checkResources(resourceUris, expectedType);
 
@@ -381,24 +480,41 @@ public class ResourceManager implements Closeable {
                 }
             }
 
-            // here can check whether the resource path is valid
-            Path path = new Path(resourceUri.getUri());
             URL localUrl;
-            // download resource to a local path firstly if in remote
-            if (isRemotePath(path)) {
-                localUrl = downloadResource(path, executable);
+            ResourceUri localResourceUri = resourceUri;
+            if (expectedType == ResourceType.JAR
+                    && functionResourceInfos.containsKey(resourceUri)) {
+                // Get local url from function resource infos.
+                localUrl = functionResourceInfos.get(resourceUri).url;
+                // Register resource uri to increase the reference counter
+                functionResourceInfos
+                        .computeIfAbsent(resourceUri, key -> new ResourceCounter(localUrl))
+                        .increaseCounter();
             } else {
-                localUrl = getURLFromPath(path);
-                // if the local resource is a relative path, here convert it to an absolute path
-                // before register
-                resourceUri = new ResourceUri(expectedType, localUrl.getPath());
+                // here can check whether the resource path is valid
+                Path path = new Path(resourceUri.getUri());
+                // download resource to a local path firstly if in remote
+                if (isRemotePath(path)) {
+                    localUrl = downloadResource(path, executable);
+                } else {
+                    localUrl = getURLFromPath(path);
+                    // if the local resource is a relative path, here convert it to an absolute path
+                    // before register
+                    localResourceUri = new ResourceUri(expectedType, localUrl.getPath());
+                }
+
+                // check the local file
+                resourceChecker.accept(localUrl);
+
+                if (declareFunctionResource) {
+                    functionResourceInfos
+                            .computeIfAbsent(resourceUri, key -> new ResourceCounter(localUrl))
+                            .increaseCounter();
+                }
             }
 
-            // check the local file
-            resourceChecker.accept(localUrl);
-
             // add it to a staging map
-            stagingResourceLocalURLs.put(resourceUri, localUrl);
+            stagingResourceLocalURLs.put(localResourceUri, localUrl);
         }
         return stagingResourceLocalURLs;
     }
@@ -418,5 +534,30 @@ public class ResourceManager implements Closeable {
                     resourceInfos.put(resourceUri, url);
                     LOG.info("Register resource [{}] successfully.", resourceUri.getUri());
                 });
+    }
+
+    /**
+     * Resource with reference counter, when the counter is 0, it means the resource can be removed.
+     */
+    static class ResourceCounter {
+        final URL url;
+        int counter;
+
+        private ResourceCounter(URL url) {
+            this.url = url;
+            this.counter = 0;
+        }
+
+        private void increaseCounter() {
+            this.counter++;
+        }
+
+        private boolean decreaseCounter() {
+            this.counter--;
+            checkState(
+                    this.counter >= 0,
+                    String.format("Invalid reference count[%d] which must >= 0", this.counter));
+            return this.counter == 0;
+        }
     }
 }

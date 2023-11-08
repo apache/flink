@@ -90,9 +90,11 @@ public class ResourceManagerRuntimeServices {
                             SlotManagerUtils.generateTaskManagerTotalResourceProfile(
                                     slotManagerConfiguration.getDefaultWorkerResourceSpec()),
                             slotManagerConfiguration.getNumSlotsPerWorker(),
-                            slotManagerConfiguration.isEvenlySpreadOutSlots(),
+                            slotManagerConfiguration.getTaskManagerLoadBalanceMode(),
                             slotManagerConfiguration.getTaskManagerTimeout(),
-                            slotManagerConfiguration.getRedundantTaskManagerNum()));
+                            slotManagerConfiguration.getRedundantTaskManagerNum(),
+                            slotManagerConfiguration.getMinTotalCpu(),
+                            slotManagerConfiguration.getMinTotalMem()));
         } else {
             return new DeclarativeSlotManager(
                     scheduledExecutor,

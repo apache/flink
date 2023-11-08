@@ -36,7 +36,7 @@ class ValuesJsonPlanITCase extends JsonPlanTestBase {
                         "INSERT INTO MySink SELECT * from (VALUES (1, 2, 'Hi'), (3, 4, 'Hello'))")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(Arrays.asList("+I[1, 2, Hi]", "+I[3, 4, Hello]"), result);
     }
 }

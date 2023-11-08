@@ -221,7 +221,7 @@ public class ExecNodeMetadataUtilTest {
                 .hasMessage(
                         "ExecNode: org.apache.flink.table.planner.plan.utils."
                                 + "ExecNodeMetadataUtilTest.DummyNodeNoAnnotation is not "
-                                + "listed in the unsupported classes since it is not annotated "
+                                + "listed in the unsupported classes and it is not annotated "
                                 + "with: ExecNodeMetadata.");
 
         assertThatThrownBy(() -> ExecNodeContext.newContext(DummyNode.class))

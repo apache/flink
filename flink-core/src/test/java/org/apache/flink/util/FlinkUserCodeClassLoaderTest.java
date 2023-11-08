@@ -58,5 +58,10 @@ public class FlinkUserCodeClassLoaderTest extends TestLogger {
         protected Class<?> loadClassWithoutExceptionHandling(String name, boolean resolve) {
             throw expectedException;
         }
+
+        @Override
+        public MutableURLClassLoader copy() {
+            return new ThrowingURLClassLoader(classLoadingExceptionHandler, expectedException);
+        }
     }
 }

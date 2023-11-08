@@ -312,13 +312,13 @@ We show an example to describe how to use offset in Tumble window in the followi
 Flink SQL> SELECT * FROM TABLE(
    TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES, INTERVAL '1' MINUTES));
 -- or with the named params
--- note: the DATA param must be the first
+-- note: the DATA param must be the first and `OFFSET` should be wrapped with double quotes
 Flink SQL> SELECT * FROM TABLE(
    TUMBLE(
      DATA => TABLE Bid,
      TIMECOL => DESCRIPTOR(bidtime),
      SIZE => INTERVAL '10' MINUTES,
-     OFFSET => INTERVAL '1' MINUTES));
+     `OFFSET` => INTERVAL '1' MINUTES));
 +------------------+-------+------+------------------+------------------+-------------------------+
 |          bidtime | price | item |     window_start |       window_end |            window_time  |
 +------------------+-------+------+------------------+------------------+-------------------------+

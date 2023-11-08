@@ -96,7 +96,7 @@ class WindowDeduplicateJsonITCase extends JsonPlanTestBase {
                                 + "WHERE rownum <= 1")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[2020-10-10 00:00:04, 5, 5.0, 5.0, 5.55, null, a, 2020-10-10 00:00:04.000, 2020-10-10T00:00, 2020-10-10T00:00:05, 2020-10-10T00:00:04.999]",

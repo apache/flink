@@ -635,11 +635,13 @@ public class SingleInputGateTest extends InputGateTestBase {
                 };
 
         int initialBackoff = 137;
+        int partitionRequestTimeout = 600;
         int maxBackoff = 1001;
 
         final NettyShuffleEnvironment netEnv =
                 new NettyShuffleEnvironmentBuilder()
                         .setPartitionRequestInitialBackoff(initialBackoff)
+                        .setPartitionRequestTimeout(partitionRequestTimeout)
                         .setPartitionRequestMaxBackoff(maxBackoff)
                         .build();
 
@@ -675,14 +677,10 @@ public class SingleInputGateTest extends InputGateTestBase {
             InputChannel localChannel = channelMap.get(createSubpartitionInfo(partitionIds[0]));
             assertThat(localChannel.getClass()).isEqualTo(LocalInputChannel.class);
 
-            InputChannel remoteChannel = channelMap.get(createSubpartitionInfo(partitionIds[1]));
-            assertThat(remoteChannel.getClass()).isEqualTo(RemoteInputChannel.class);
-
             InputChannel unknownChannel = channelMap.get(createSubpartitionInfo(partitionIds[2]));
             assertThat(unknownChannel.getClass()).isEqualTo(UnknownInputChannel.class);
 
-            InputChannel[] channels =
-                    new InputChannel[] {localChannel, remoteChannel, unknownChannel};
+            InputChannel[] channels = new InputChannel[] {localChannel, unknownChannel};
             for (InputChannel ch : channels) {
                 assertThat(ch.getCurrentBackoff()).isEqualTo(0);
 
@@ -700,6 +698,22 @@ public class SingleInputGateTest extends InputGateTestBase {
 
                 assertThat(ch.increaseBackoff()).isFalse();
             }
+
+            InputChannel remoteChannel = channelMap.get(createSubpartitionInfo(partitionIds[1]));
+            assertThat(remoteChannel.getClass()).isEqualTo(RemoteInputChannel.class);
+
+            assertThat(remoteChannel.getCurrentBackoff()).isEqualTo(0);
+
+            assertThat(remoteChannel.increaseBackoff()).isTrue();
+            assertThat(remoteChannel.getCurrentBackoff()).isEqualTo(partitionRequestTimeout);
+
+            assertThat(remoteChannel.increaseBackoff()).isTrue();
+            assertThat(remoteChannel.getCurrentBackoff()).isEqualTo(partitionRequestTimeout * 2);
+
+            assertThat(remoteChannel.increaseBackoff()).isTrue();
+            assertThat(remoteChannel.getCurrentBackoff()).isEqualTo(partitionRequestTimeout * 3);
+
+            assertThat(remoteChannel.increaseBackoff()).isFalse();
         }
     }
 

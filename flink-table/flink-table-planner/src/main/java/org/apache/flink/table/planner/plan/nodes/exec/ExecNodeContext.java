@@ -105,6 +105,9 @@ public final class ExecNodeContext {
     public ExecNodeContext(String value) {
         this.id = null;
         String[] split = value.split("_");
+        if ("null".equals(split[0]) || "null".equals(split[1])) {
+            throw new TableException(String.format("Unsupported exec node type: '%s'.", value));
+        }
         this.name = split[0];
         this.version = Integer.valueOf(split[1]);
     }
@@ -167,12 +170,19 @@ public final class ExecNodeContext {
      */
     @JsonValue
     public String getTypeAsString() {
+        if (name == null || version == null) {
+            throw new TableException(
+                    String.format(
+                            "Can not serialize ExecNode with id: %d. Missing type, this is a bug,"
+                                    + " please file a ticket.",
+                            getId()));
+        }
         return name + "_" + version;
     }
 
     @Override
     public String toString() {
-        return getId() + "_" + getTypeAsString();
+        return getId() + "_" + getName() + "_" + getVersion();
     }
 
     public static <T extends ExecNode<?>> ExecNodeContext newContext(Class<T> execNodeClass) {
@@ -181,7 +191,8 @@ public final class ExecNodeContext {
             if (!ExecNodeMetadataUtil.isUnsupported(execNodeClass)) {
                 throw new IllegalStateException(
                         String.format(
-                                "ExecNode: %s is not listed in the unsupported classes since it is not annotated with: %s.",
+                                "ExecNode: %s is not listed in the unsupported classes and"
+                                        + " it is not annotated with: %s.",
                                 execNodeClass.getCanonicalName(),
                                 ExecNodeMetadata.class.getSimpleName()));
             }

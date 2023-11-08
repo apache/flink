@@ -239,11 +239,7 @@ function install_miniconda() {
 
 # Install some kinds of py env.
 function install_py_env() {
-    if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
-        py_env=("3.10")
-    else
-        py_env=("3.8" "3.9" "3.10")
-    fi
+    py_env=("3.8" "3.9" "3.10" "3.11")
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.conda/envs/${py_env[i]}" ]; then
             rm -rf "$CURRENT_DIR/.conda/envs/${py_env[i]}"
@@ -416,7 +412,7 @@ function install_environment() {
     fi
 
     # step-3 install python environment which includes
-    # 3.8 3.9 3.10
+    # 3.8 3.9 3.10 3.11
     if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
         install_py_env
@@ -597,7 +593,7 @@ function check_stage() {
 #########################
 # Tox check
 function tox_check() {
-    LATEST_PYTHON="py310"
+    LATEST_PYTHON="py311"
     print_function "STAGE" "tox checks"
     # Set created py-env in $PATH for tox's creating virtual env
     activate
@@ -803,7 +799,7 @@ usage: $0 [options]
 -l          list all checks supported.
 Examples:
   ./lint-python.sh -s basic        =>  install environment with basic components.
-  ./lint-python.sh -s py_env       =>  install environment with python env(3.8,3.9,3.10).
+  ./lint-python.sh -s py_env       =>  install environment with python env(3.8,3.9,3.10, 3.11).
   ./lint-python.sh -s all          =>  install environment with all components such as python env,tox,flake8,sphinx,mypy etc.
   ./lint-python.sh -s tox,flake8   =>  install environment with tox,flake8.
   ./lint-python.sh -s tox -f       =>  reinstall environment with tox.

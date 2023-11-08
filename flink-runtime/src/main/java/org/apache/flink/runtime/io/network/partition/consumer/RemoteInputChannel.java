@@ -100,6 +100,9 @@ public class RemoteInputChannel extends InputChannel {
     /** The initial number of exclusive buffers assigned to this channel. */
     private final int initialCredit;
 
+    /** The milliseconds timeout for partition request listener in result partition manager. */
+    private final int partitionRequestListenerTimeout;
+
     /** The number of available buffers that have not been announced to the producer yet. */
     private final AtomicInteger unannouncedCredit = new AtomicInteger(0);
 
@@ -124,6 +127,7 @@ public class RemoteInputChannel extends InputChannel {
             ConnectionManager connectionManager,
             int initialBackOff,
             int maxBackoff,
+            int partitionRequestListenerTimeout,
             int networkBuffersPerChannel,
             Counter numBytesIn,
             Counter numBuffersIn,
@@ -140,6 +144,7 @@ public class RemoteInputChannel extends InputChannel {
                 numBuffersIn);
         checkArgument(networkBuffersPerChannel >= 0, "Must be non-negative.");
 
+        this.partitionRequestListenerTimeout = partitionRequestListenerTimeout;
         this.initialCredit = networkBuffersPerChannel;
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
@@ -201,10 +206,28 @@ public class RemoteInputChannel extends InputChannel {
 
         if (increaseBackoff()) {
             partitionRequestClient.requestSubpartition(
-                    partitionId, consumedSubpartitionIndex, this, getCurrentBackoff());
+                    partitionId, consumedSubpartitionIndex, this, 0);
         } else {
             failPartitionRequest();
         }
+    }
+
+    /**
+     * The remote task manager creates partition request listener and returns {@link
+     * PartitionNotFoundException} until the listener is timeout, so the backoff should add the
+     * timeout milliseconds if it exists.
+     *
+     * @return <code>true</code>, iff the operation was successful. Otherwise, <code>false</code>.
+     */
+    @Override
+    protected boolean increaseBackoff() {
+        if (partitionRequestListenerTimeout > 0) {
+            currentBackoff += partitionRequestListenerTimeout;
+            return currentBackoff < 2 * maxBackoff;
+        }
+
+        // Backoff is disabled
+        return false;
     }
 
     @Override

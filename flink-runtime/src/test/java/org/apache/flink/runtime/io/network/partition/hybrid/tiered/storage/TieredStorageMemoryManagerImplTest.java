@@ -243,7 +243,7 @@ public class TieredStorageMemoryManagerImplTest {
     }
 
     @Test
-    void testReleaseBeforeRecyclingBuffers() throws IOException {
+    void testRelease() throws IOException {
         int numBuffers = 5;
 
         TieredStorageMemoryManagerImpl storageMemoryManager =
@@ -251,26 +251,10 @@ public class TieredStorageMemoryManagerImplTest {
                         numBuffers,
                         Collections.singletonList(new TieredStorageMemorySpec(this, 0)));
         requestedBuffers.add(storageMemoryManager.requestBufferBlocking(this));
-        assertThatThrownBy(storageMemoryManager::release).isInstanceOf(IllegalStateException.class);
+        assertThat(storageMemoryManager.numOwnerRequestedBuffer(this)).isOne();
         recycleRequestedBuffers();
         storageMemoryManager.release();
-    }
-
-    @Test
-    void testLeakingBuffers() throws IOException {
-        int numBuffers = 10;
-
-        TieredStorageMemoryManagerImpl storageMemoryManager =
-                createStorageMemoryManager(
-                        numBuffers,
-                        Collections.singletonList(new TieredStorageMemorySpec(this, 0)));
-
-        requestedBuffers.add(storageMemoryManager.requestBufferBlocking(this));
-        assertThatThrownBy(storageMemoryManager::release)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Leaking buffers");
-        recycleRequestedBuffers();
-        storageMemoryManager.release();
+        assertThat(storageMemoryManager.numOwnerRequestedBuffer(this)).isZero();
     }
 
     public void onBufferReclaimRequest() {

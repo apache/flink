@@ -303,6 +303,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
     private void checkCheckpointConfig(Configuration clusterConfigMap, List<String> errors) {
         CheckpointConfig expectedCheckpointConfig = new CheckpointConfig();
         expectedCheckpointConfig.configure(clusterConfigMap);
+        configureCheckpointStorage(clusterConfigMap, expectedCheckpointConfig);
         checkConfigurationObject(
                 expectedCheckpointConfig.toConfiguration(),
                 checkpointCfg.toConfiguration(),

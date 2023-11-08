@@ -74,6 +74,6 @@ class DeduplicationJsonPlanITCase extends JsonPlanTestBase {
 
         assertResult(
                 Arrays.asList("+I[1, terry, pen, 1000]", "+I[4, bob, apple, 4000]"),
-                TestValuesTableFactory.getRawResults("MySink"));
+                TestValuesTableFactory.getRawResultsAsStrings("MySink"));
     }
 }

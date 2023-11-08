@@ -61,7 +61,7 @@ class IncrementalRemoteKeyedStateHandleTest {
             verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.TRUE);
         }
 
-        verify(stateHandle.getMetaStateHandle()).discardState();
+        verify(stateHandle.getMetaDataStateHandle()).discardState();
     }
 
     /**
@@ -130,8 +130,8 @@ class IncrementalRemoteKeyedStateHandleTest {
             verify(handleAndLocalPath.getHandle(), times(0)).discardState();
         }
 
-        verify(stateHandle1.getMetaStateHandle(), times(1)).discardState();
-        verify(stateHandle2.getMetaStateHandle(), times(0)).discardState();
+        verify(stateHandle1.getMetaDataStateHandle(), times(1)).discardState();
+        verify(stateHandle2.getMetaDataStateHandle(), times(0)).discardState();
 
         // We discard the second
         stateHandle2.discardState();
@@ -146,8 +146,8 @@ class IncrementalRemoteKeyedStateHandleTest {
             verifyDiscard(handleAndLocalPath.getHandle(), TernaryBoolean.TRUE);
         }
 
-        verify(stateHandle1.getMetaStateHandle(), times(1)).discardState();
-        verify(stateHandle2.getMetaStateHandle(), times(1)).discardState();
+        verify(stateHandle1.getMetaDataStateHandle(), times(1)).discardState();
+        verify(stateHandle2.getMetaDataStateHandle(), times(1)).discardState();
     }
 
     /**
@@ -176,7 +176,7 @@ class IncrementalRemoteKeyedStateHandleTest {
 
         // Everything should be discarded for this handle
         stateHandleZ.discardState();
-        verify(stateHandleZ.getMetaStateHandle(), times(1)).discardState();
+        verify(stateHandleZ.getMetaDataStateHandle(), times(1)).discardState();
 
         // Close the first registry
         stateRegistryA.close();
@@ -188,16 +188,16 @@ class IncrementalRemoteKeyedStateHandleTest {
 
         // Private state should still get discarded
         stateHandleY.discardState();
-        verify(stateHandleY.getMetaStateHandle(), times(1)).discardState();
+        verify(stateHandleY.getMetaDataStateHandle(), times(1)).discardState();
 
         // This should still be unaffected
-        verify(stateHandleX.getMetaStateHandle(), never()).discardState();
+        verify(stateHandleX.getMetaDataStateHandle(), never()).discardState();
 
         // We re-register the handle with a new registry
         SharedStateRegistry sharedStateRegistryB = spy(new SharedStateRegistryImpl());
         stateHandleX.registerSharedStates(sharedStateRegistryB, 0L);
         stateHandleX.discardState();
-        verify(stateHandleX.getMetaStateHandle(), times(1)).discardState();
+        verify(stateHandleX.getMetaDataStateHandle(), times(1)).discardState();
 
         // Should be completely discarded because it is tracked through the new registry
         sharedStateRegistryB.unregisterUnusedState(1L);

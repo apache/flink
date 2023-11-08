@@ -339,7 +339,7 @@ string:
     table: STRING.rtrim()
     description: |
       返回从 STRING 中删除右边空格的字符串。
-      例如 `'This is a test String. '.ltrim()` 返回 `'This is a test String.'`。
+      例如 `'This is a test String. '.rtrim()` 返回 `'This is a test String.'`。
   - sql: REPEAT(string, int)
     table: STRING.repeat(INT)
     description: |

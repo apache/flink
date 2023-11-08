@@ -254,13 +254,8 @@ use `default`;
 
 drop database `default`;
 !output
-+--------+
-| result |
-+--------+
-|     OK |
-+--------+
-1 row in set
-!ok
+org.apache.flink.table.api.ValidationException: Cannot drop a database which is currently in use.
+!error
 
 drop catalog `mod`;
 !output

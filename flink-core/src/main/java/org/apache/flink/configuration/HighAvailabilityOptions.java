@@ -167,11 +167,16 @@ public class HighAvailabilityOptions {
                     .withDescription(
                             "Defines the number of connection retries before the client gives up.");
 
+    /** @deprecated Don't use this option anymore. It has no effect on Flink. */
+    @Deprecated
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<String> ZOOKEEPER_RUNNING_JOB_REGISTRY_PATH =
             key("high-availability.zookeeper.path.running-registry")
                     .stringType()
-                    .defaultValue("/running_job_registry/");
+                    .defaultValue("/running_job_registry/")
+                    .withDescription(
+                            "Don't use this option anymore. It has no effect on Flink. The RunningJobRegistry has been "
+                                    + "replaced by the JobResultStore in Flink 1.15.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<String> ZOOKEEPER_CLIENT_ACL =
