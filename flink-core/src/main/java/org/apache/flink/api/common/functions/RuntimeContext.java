@@ -39,10 +39,13 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -121,7 +124,33 @@ public interface RuntimeContext {
      * Returns the {@link org.apache.flink.api.common.ExecutionConfig} for the currently executing
      * job.
      */
+    @Deprecated
     ExecutionConfig getExecutionConfig();
+
+    /**
+     * Create a serializer for a given type.
+     *
+     * @param typeInformation the type information of the object to be serialized
+     * @return the serializer for the given type
+     */
+    @PublicEvolving
+    <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation);
+
+    /**
+     * Get global job parameters.
+     *
+     * @return the global job parameters
+     */
+    @PublicEvolving
+    Map<String, String> getGlobalJobParameters();
+
+    /**
+     * Check if object reuse is enabled.
+     *
+     * @return true if object reuse is enabled, false otherwise
+     */
+    @PublicEvolving
+    boolean isObjectReuseEnabled();
 
     /**
      * Gets the ClassLoader to load classes that are not in system's classpath, but are part of the

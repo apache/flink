@@ -31,6 +31,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.ExecutionConfigSupplier;
 import org.apache.flink.api.common.functions.IterationRuntimeContext;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
@@ -45,12 +46,15 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -98,7 +102,8 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
      * context only supports basic operations which are thread safe. Consequently, state access,
      * accumulators, broadcast variables and the distributed cache are disabled.
      */
-    private static class RichAsyncFunctionRuntimeContext implements RuntimeContext {
+    private static class RichAsyncFunctionRuntimeContext
+            implements RuntimeContext, ExecutionConfigSupplier {
         private final RuntimeContext runtimeContext;
 
         RichAsyncFunctionRuntimeContext(RuntimeContext context) {
@@ -147,7 +152,22 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
 
         @Override
         public ExecutionConfig getExecutionConfig() {
-            return runtimeContext.getExecutionConfig();
+            return ((ExecutionConfigSupplier) runtimeContext).getExecutionConfig();
+        }
+
+        @Override
+        public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
+            return runtimeContext.createSerializer(typeInformation);
+        }
+
+        @Override
+        public Map<String, String> getGlobalJobParameters() {
+            return runtimeContext.getGlobalJobParameters();
+        }
+
+        @Override
+        public boolean isObjectReuseEnabled() {
+            return runtimeContext.isObjectReuseEnabled();
         }
 
         @Override

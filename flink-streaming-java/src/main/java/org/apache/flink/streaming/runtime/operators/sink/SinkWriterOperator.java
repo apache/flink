@@ -334,7 +334,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
         @Override
         public boolean isObjectReuseEnabled() {
-            return getRuntimeContext().getExecutionConfig().isObjectReuseEnabled();
+            return getRuntimeContext().isObjectReuseEnabled();
         }
 
         @Override

@@ -29,6 +29,7 @@ import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
+import org.apache.flink.api.common.functions.ExecutionConfigSupplier;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
@@ -40,10 +41,13 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -56,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the distributed cache are disabled.
  */
 @Internal
-class CepRuntimeContext implements RuntimeContext {
+class CepRuntimeContext implements RuntimeContext, ExecutionConfigSupplier {
 
     private final RuntimeContext runtimeContext;
 
@@ -106,7 +110,22 @@ class CepRuntimeContext implements RuntimeContext {
 
     @Override
     public ExecutionConfig getExecutionConfig() {
-        return runtimeContext.getExecutionConfig();
+        return ((ExecutionConfigSupplier) runtimeContext).getExecutionConfig();
+    }
+
+    @Override
+    public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
+        return runtimeContext.createSerializer(typeInformation);
+    }
+
+    @Override
+    public Map<String, String> getGlobalJobParameters() {
+        return runtimeContext.getGlobalJobParameters();
+    }
+
+    @Override
+    public boolean isObjectReuseEnabled() {
+        return runtimeContext.isObjectReuseEnabled();
     }
 
     @Override

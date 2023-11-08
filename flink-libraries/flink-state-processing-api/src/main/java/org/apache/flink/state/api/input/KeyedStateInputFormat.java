@@ -155,8 +155,7 @@ public class KeyedStateInputFormat<K, N, OUT>
                         .withMaxParallelism(split.getNumKeyGroups())
                         .withKey(
                                 operator,
-                                operator.getKeyType()
-                                        .createSerializer(getRuntimeContext().getExecutionConfig()))
+                                getRuntimeContext().createSerializer(operator.getKeyType()))
                         .build(LOG);
 
         AbstractKeyedStateBackend<K> keyedStateBackend =
@@ -164,7 +163,7 @@ public class KeyedStateInputFormat<K, N, OUT>
 
         final DefaultKeyedStateStore keyedStateStore =
                 new DefaultKeyedStateStore(
-                        keyedStateBackend, getRuntimeContext().getExecutionConfig());
+                        keyedStateBackend, getRuntimeContext()::createSerializer);
         SavepointRuntimeContext ctx =
                 new SavepointRuntimeContext(getRuntimeContext(), keyedStateStore);
 
@@ -172,7 +171,7 @@ public class KeyedStateInputFormat<K, N, OUT>
                 (InternalTimeServiceManager<K>) context.internalTimerServiceManager();
         try {
             operator.setup(
-                    getRuntimeContext().getExecutionConfig(),
+                    getRuntimeContext()::createSerializer,
                     keyedStateBackend,
                     timeServiceManager,
                     ctx);
