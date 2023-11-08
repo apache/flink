@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.functions.async;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
@@ -34,6 +33,9 @@ import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
 import org.junit.Test;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -107,8 +109,10 @@ public class RichAsyncFunctionTest {
         final int indexOfSubtask = 43;
         final int attemptNumber = 1337;
         final String taskNameWithSubtask = "barfoo";
-        final ExecutionConfig executionConfig = mock(ExecutionConfig.class);
+        final Map<String, String> globalJobParameters = new HashMap<>();
+        globalJobParameters.put("k1", "v1");
         final ClassLoader userCodeClassLoader = mock(ClassLoader.class);
+        final boolean isObjectReused = true;
 
         RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
 
@@ -119,7 +123,8 @@ public class RichAsyncFunctionTest {
         when(mockedRuntimeContext.getIndexOfThisSubtask()).thenReturn(indexOfSubtask);
         when(mockedRuntimeContext.getAttemptNumber()).thenReturn(attemptNumber);
         when(mockedRuntimeContext.getTaskNameWithSubtasks()).thenReturn(taskNameWithSubtask);
-        when(mockedRuntimeContext.getExecutionConfig()).thenReturn(executionConfig);
+        when(mockedRuntimeContext.getGlobalJobParameters()).thenReturn(globalJobParameters);
+        when(mockedRuntimeContext.isObjectReuseEnabled()).thenReturn(isObjectReused);
         when(mockedRuntimeContext.getUserCodeClassLoader()).thenReturn(userCodeClassLoader);
 
         function.setRuntimeContext(mockedRuntimeContext);
@@ -132,7 +137,8 @@ public class RichAsyncFunctionTest {
         assertEquals(indexOfSubtask, runtimeContext.getIndexOfThisSubtask());
         assertEquals(attemptNumber, runtimeContext.getAttemptNumber());
         assertEquals(taskNameWithSubtask, runtimeContext.getTaskNameWithSubtasks());
-        assertEquals(executionConfig, runtimeContext.getExecutionConfig());
+        assertEquals(globalJobParameters, runtimeContext.getGlobalJobParameters());
+        assertEquals(isObjectReused, runtimeContext.isObjectReuseEnabled());
         assertEquals(userCodeClassLoader, runtimeContext.getUserCodeClassLoader());
 
         try {

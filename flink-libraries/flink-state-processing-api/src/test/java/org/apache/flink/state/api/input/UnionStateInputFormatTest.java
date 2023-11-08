@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api.input;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -66,7 +67,8 @@ public class UnionStateInputFormatTest {
                     new OperatorStateInputSplit(subtaskState.getManagedOperatorState(), 0);
 
             UnionStateInputFormat<Integer> format =
-                    new UnionStateInputFormat<>(state, new Configuration(), null, descriptor);
+                    new UnionStateInputFormat<>(
+                            state, new Configuration(), null, descriptor, new ExecutionConfig());
 
             format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
             format.open(split);

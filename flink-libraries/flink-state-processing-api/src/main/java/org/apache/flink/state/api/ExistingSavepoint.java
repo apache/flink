@@ -116,7 +116,11 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
         ListStateInputFormat<T> inputFormat =
                 new ListStateInputFormat<>(
-                        operatorState, env.getConfiguration(), stateBackend, descriptor);
+                        operatorState,
+                        env.getConfiguration(),
+                        stateBackend,
+                        descriptor,
+                        env.getConfig());
         return env.createInput(inputFormat, typeInfo);
     }
 
@@ -141,7 +145,11 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, serializer);
         ListStateInputFormat<T> inputFormat =
                 new ListStateInputFormat<>(
-                        operatorState, env.getConfiguration(), stateBackend, descriptor);
+                        operatorState,
+                        env.getConfiguration(),
+                        stateBackend,
+                        descriptor,
+                        env.getConfig());
         return env.createInput(inputFormat, typeInfo);
     }
 
@@ -161,7 +169,11 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
         UnionStateInputFormat<T> inputFormat =
                 new UnionStateInputFormat<>(
-                        operatorState, env.getConfiguration(), stateBackend, descriptor);
+                        operatorState,
+                        env.getConfiguration(),
+                        stateBackend,
+                        descriptor,
+                        env.getConfig());
         return env.createInput(inputFormat, typeInfo);
     }
 
@@ -186,7 +198,11 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, serializer);
         UnionStateInputFormat<T> inputFormat =
                 new UnionStateInputFormat<>(
-                        operatorState, env.getConfiguration(), stateBackend, descriptor);
+                        operatorState,
+                        env.getConfiguration(),
+                        stateBackend,
+                        descriptor,
+                        env.getConfig());
         return env.createInput(inputFormat, typeInfo);
     }
 
@@ -214,7 +230,11 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
                 new MapStateDescriptor<>(name, keyTypeInfo, valueTypeInfo);
         BroadcastStateInputFormat<K, V> inputFormat =
                 new BroadcastStateInputFormat<>(
-                        operatorState, env.getConfiguration(), stateBackend, descriptor);
+                        operatorState,
+                        env.getConfiguration(),
+                        stateBackend,
+                        descriptor,
+                        env.getConfig());
         return env.createInput(inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
     }
 
@@ -248,7 +268,11 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
                 new MapStateDescriptor<>(name, keySerializer, valueSerializer);
         BroadcastStateInputFormat<K, V> inputFormat =
                 new BroadcastStateInputFormat<>(
-                        operatorState, env.getConfiguration(), stateBackend, descriptor);
+                        operatorState,
+                        env.getConfiguration(),
+                        stateBackend,
+                        descriptor,
+                        env.getConfig());
         return env.createInput(inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
     }
 
@@ -325,7 +349,8 @@ public class ExistingSavepoint extends WritableSavepoint<ExistingSavepoint> {
                         operatorState,
                         stateBackend,
                         env.getConfiguration(),
-                        new KeyedStateReaderOperator<>(function, keyTypeInfo));
+                        new KeyedStateReaderOperator<>(function, keyTypeInfo),
+                        env.getConfig());
 
         return env.createInput(inputFormat, outTypeInfo);
     }
