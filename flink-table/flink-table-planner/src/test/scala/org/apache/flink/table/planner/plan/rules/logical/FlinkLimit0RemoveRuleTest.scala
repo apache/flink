@@ -89,6 +89,6 @@ class FlinkLimit0RemoveRuleTest extends TableTestBase {
 
   @Test
   def testLimitZeroWithJoin(): Unit = {
-    util.verifyRelPlan("SELECT * FROM MyTable INNER JOIN (SELECT * FROM MyTable Limit 0) ON TRUE")
+    util.verifyRelPlan("SELECT * FROM MyTable INNER JOIN (SELECT * FROM MyTable LIMIT 0) ON TRUE")
   }
 }
