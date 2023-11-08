@@ -1995,4 +1995,44 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
       )
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
+
+  @TestTemplate
+  def testGroupJsonObjectAggWithRetract(): Unit = {
+    val data = new mutable.MutableList[(Long, String, Long)]
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    data.+=((2L, "Hallo", 2L))
+    val sql =
+      s"""
+         |select
+         |   JSON_OBJECTAGG(key k value v)
+         |from (select
+         |             cast(SUM(a) as string) as k,t as v
+         |       from
+         |             Table6
+         |       group by t)
+         |""".stripMargin
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'c, 't)
+    tEnv.createTemporaryView("Table6", t)
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+    val expected =
+      List(
+        "{\"30\":2}"
+      )
+    assertThat(sink.getRetractResults).isEqualTo(expected)
+  }
 }
