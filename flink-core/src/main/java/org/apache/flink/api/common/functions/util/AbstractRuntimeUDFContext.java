@@ -41,11 +41,14 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
 
@@ -83,8 +86,24 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
     }
 
     @Override
+    @Deprecated
     public ExecutionConfig getExecutionConfig() {
         return executionConfig;
+    }
+
+    @Override
+    public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
+        return typeInformation.createSerializer(executionConfig);
+    }
+
+    @Override
+    public Map<String, String> getGlobalJobParameters() {
+        return Collections.unmodifiableMap(executionConfig.getGlobalJobParameters().toMap());
+    }
+
+    @Override
+    public boolean isObjectReuseEnabled() {
+        return executionConfig.isObjectReuseEnabled();
     }
 
     @Override

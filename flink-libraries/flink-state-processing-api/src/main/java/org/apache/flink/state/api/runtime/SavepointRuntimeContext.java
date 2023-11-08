@@ -42,6 +42,8 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.util.Preconditions;
 
@@ -49,6 +51,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -120,8 +123,24 @@ public final class SavepointRuntimeContext implements RuntimeContext {
     }
 
     @Override
+    @Deprecated
     public ExecutionConfig getExecutionConfig() {
         return ctx.getExecutionConfig();
+    }
+
+    @Override
+    public <T> TypeSerializer<T> createSerializer(TypeInformation<T> typeInformation) {
+        return ctx.createSerializer(typeInformation);
+    }
+
+    @Override
+    public Map<String, String> getGlobalJobParameters() {
+        return ctx.getGlobalJobParameters();
+    }
+
+    @Override
+    public boolean isObjectReuseEnabled() {
+        return ctx.isObjectReuseEnabled();
     }
 
     @Override
