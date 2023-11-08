@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.testutils;
+package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLimit;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -27,7 +27,7 @@ import org.apache.flink.types.Row;
 /** {@link TableTestProgram} definitions for testing {@link StreamExecLimit}. */
 public class LimitTestPrograms {
 
-    static final Row[] DATA =
+    static final Row[] DATA1 =
             new Row[] {
                 Row.of(2, "a", 6),
                 Row.of(4, "b", 8),
@@ -36,18 +36,23 @@ public class LimitTestPrograms {
                 Row.of(3, "b", 7),
                 Row.of(5, "c", 9)
             };
+
+    static final Row[] DATA2 =
+            new Row[] {
+                    Row.of(8, "d", 3),
+                    Row.of(7, "e", 2)
+            };
     static final TableTestProgram LIMIT =
             TableTestProgram.of("limit", "validates limit node")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("a INT", "b VARCHAR", "c INT")
-                                    .producedBeforeRestore(DATA)
-                                    .producedAfterRestore(DATA)
+                                    .producedBeforeRestore(DATA1)
+                                    .producedAfterRestore(DATA2)
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema("a INT", "b VARCHAR", "c BIGINT")
-                                    .addOption("sink-insert-only", "false")
                                     .consumedBeforeRestore(
                                             "+I[2, a, 6]", "+I[4, b, 8]", "+I[6, c, 10]")
                                     .consumedAfterRestore(new String[] {})
