@@ -104,15 +104,6 @@ public final class FactoryUtil {
                             "Defines the format identifier for encoding data. "
                                     + "The identifier is used to discover a suitable format factory.");
 
-    public static final ConfigOption<Integer> SOURCE_PARALLELISM =
-            ConfigOptions.key("scan.parallelism")
-                    .intType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Defines a custom parallelism for the source. "
-                                    + "By default, if this option is not defined, the planner will derive the parallelism "
-                                    + "for each statement individually by also considering the global configuration.");
-
     public static final ConfigOption<Integer> SINK_PARALLELISM =
             ConfigOptions.key("sink.parallelism")
                     .intType()
@@ -128,6 +119,15 @@ public final class FactoryUtil {
                     .asList()
                     .defaultValues("rest")
                     .withDescription("Specify the endpoints that are used.");
+
+    public static final ConfigOption<Integer> SOURCE_PARALLELISM =
+            ConfigOptions.key("scan.parallelism")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Defines a custom parallelism for the source. "
+                                    + "By default, if this option is not defined, the planner will derive the parallelism "
+                                    + "for each statement individually by also considering the global configuration.");
 
     public static final ConfigOption<WatermarkEmitStrategy> WATERMARK_EMIT_STRATEGY =
             ConfigOptions.key("scan.watermark.emit.strategy")
