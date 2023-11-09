@@ -196,8 +196,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @see FSDataOutputStream
  */
 @Public
-public abstract class FileSystem {
-
+public abstract class FileSystem implements IFileSystem {
     /**
      * The possible write modes. The write mode decides what happens if a file should be created,
      * but already exists.
@@ -216,8 +215,6 @@ public abstract class FileSystem {
          */
         OVERWRITE
     }
-
-    // ------------------------------------------------------------------------
 
     /** Logger for all FileSystem work. */
     private static final Logger LOG = LoggerFactory.getLogger(FileSystem.class);
@@ -570,139 +567,8 @@ public abstract class FileSystem {
     }
 
     // ------------------------------------------------------------------------
-    //  File System Methods
+    //  File System Methods deprecated
     // ------------------------------------------------------------------------
-
-    /**
-     * Returns the path of the file system's current working directory.
-     *
-     * @return the path of the file system's current working directory
-     */
-    public abstract Path getWorkingDirectory();
-
-    /**
-     * Returns the path of the user's home directory in this file system.
-     *
-     * @return the path of the user's home directory in this file system.
-     */
-    public abstract Path getHomeDirectory();
-
-    /**
-     * Returns a URI whose scheme and authority identify this file system.
-     *
-     * @return a URI whose scheme and authority identify this file system
-     */
-    public abstract URI getUri();
-
-    /**
-     * Return a file status object that represents the path.
-     *
-     * @param f The path we want information from
-     * @return a FileStatus object
-     * @throws FileNotFoundException when the path does not exist; IOException see specific
-     *     implementation
-     */
-    public abstract FileStatus getFileStatus(Path f) throws IOException;
-
-    /**
-     * Return an array containing hostnames, offset and size of portions of the given file. For a
-     * nonexistent file or regions, null will be returned. This call is most helpful with DFS, where
-     * it returns hostnames of machines that contain the given file. The FileSystem will simply
-     * return an elt containing 'localhost'.
-     */
-    public abstract BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len)
-            throws IOException;
-
-    /**
-     * Opens an FSDataInputStream at the indicated Path.
-     *
-     * @param f the file name to open
-     * @param bufferSize the size of the buffer to be used.
-     */
-    public abstract FSDataInputStream open(Path f, int bufferSize) throws IOException;
-
-    /**
-     * Opens an FSDataInputStream at the indicated Path.
-     *
-     * @param f the file to open
-     */
-    public abstract FSDataInputStream open(Path f) throws IOException;
-
-    /**
-     * Creates a new {@link RecoverableWriter}. A recoverable writer creates streams that can
-     * persist and recover their intermediate state. Persisting and recovering intermediate state is
-     * a core building block for writing to files that span multiple checkpoints.
-     *
-     * <p>The returned object can act as a shared factory to open and recover multiple streams.
-     *
-     * <p>This method is optional on file systems and various file system implementations may not
-     * support this method, throwing an {@code UnsupportedOperationException}.
-     *
-     * @return A RecoverableWriter for this file system.
-     * @throws IOException Thrown, if the recoverable writer cannot be instantiated.
-     */
-    public RecoverableWriter createRecoverableWriter() throws IOException {
-        throw new UnsupportedOperationException(
-                "This file system does not support recoverable writers.");
-    }
-
-    /**
-     * Return the number of bytes that large input files should be optimally be split into to
-     * minimize I/O time.
-     *
-     * @return the number of bytes that large input files should be optimally be split into to
-     *     minimize I/O time
-     * @deprecated This value is no longer used and is meaningless.
-     */
-    @Deprecated
-    public long getDefaultBlockSize() {
-        return 32 * 1024 * 1024; // 32 MB;
-    }
-
-    /**
-     * List the statuses of the files/directories in the given path if the path is a directory.
-     *
-     * @param f given path
-     * @return the statuses of the files/directories in the given path
-     * @throws IOException
-     */
-    public abstract FileStatus[] listStatus(Path f) throws IOException;
-
-    /**
-     * Check if exists.
-     *
-     * @param f source file
-     */
-    public boolean exists(final Path f) throws IOException {
-        try {
-            return (getFileStatus(f) != null);
-        } catch (FileNotFoundException e) {
-            return false;
-        }
-    }
-
-    /**
-     * Delete a file.
-     *
-     * @param f the path to delete
-     * @param recursive if path is a directory and set to <code>true</code>, the directory is
-     *     deleted else throws an exception. In case of a file the recursive can be set to either
-     *     <code>true</code> or <code>false</code>
-     * @return <code>true</code> if delete is successful, <code>false</code> otherwise
-     * @throws IOException
-     */
-    public abstract boolean delete(Path f, boolean recursive) throws IOException;
-
-    /**
-     * Make the given file and all non-existent parents into directories. Has the semantics of Unix
-     * 'mkdir -p'. Existence of the directory hierarchy is not an error.
-     *
-     * @param f the directory/directories to be created
-     * @return <code>true</code> if at least one new directory has been created, <code>false</code>
-     *     otherwise
-     * @throws IOException thrown if an I/O error occurs while creating the directory
-     */
-    public abstract boolean mkdirs(Path f) throws IOException;
 
     /**
      * Opens an FSDataOutputStream at the indicated Path.
@@ -739,46 +605,12 @@ public abstract class FileSystem {
      *     overwritten, and if false an error will be thrown.
      * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because a
      *     file already exists at that path and the write mode indicates to not overwrite the file.
-     * @deprecated Use {@link #create(Path, WriteMode)} instead.
+     * @deprecated Use {@link #create(Path, FileSystem.WriteMode)} instead.
      */
     @Deprecated
     public FSDataOutputStream create(Path f, boolean overwrite) throws IOException {
         return create(f, overwrite ? WriteMode.OVERWRITE : WriteMode.NO_OVERWRITE);
     }
-
-    /**
-     * Opens an FSDataOutputStream to a new file at the given path.
-     *
-     * <p>If the file already exists, the behavior depends on the given {@code WriteMode}. If the
-     * mode is set to {@link WriteMode#NO_OVERWRITE}, then this method fails with an exception.
-     *
-     * @param f The file path to write to
-     * @param overwriteMode The action to take if a file or directory already exists at the given
-     *     path.
-     * @return The stream to the new file at the target path.
-     * @throws IOException Thrown, if the stream could not be opened because of an I/O, or because a
-     *     file already exists at that path and the write mode indicates to not overwrite the file.
-     */
-    public abstract FSDataOutputStream create(Path f, WriteMode overwriteMode) throws IOException;
-
-    /**
-     * Renames the file/directory src to dst.
-     *
-     * @param src the file/directory to rename
-     * @param dst the new name of the file/directory
-     * @return <code>true</code> if the renaming was successful, <code>false</code> otherwise
-     * @throws IOException
-     */
-    public abstract boolean rename(Path src, Path dst) throws IOException;
-
-    /**
-     * Returns true if this is a distributed file system. A distributed file system here means that
-     * the file system is shared among all Flink processes that participate in a cluster or job and
-     * that all these processes can see the same files.
-     *
-     * @return True, if this is a distributed file system, false otherwise.
-     */
-    public abstract boolean isDistributedFS();
 
     /**
      * Gets a description of the characteristics of this file system.
@@ -788,51 +620,79 @@ public abstract class FileSystem {
     @Deprecated
     public abstract FileSystemKind getKind();
 
+    /**
+     * Return the number of bytes that large input files should be optimally be split into to
+     * minimize I/O time.
+     *
+     * @return the number of bytes that large input files should be optimally be split into to
+     *     minimize I/O time
+     * @deprecated This value is no longer used and is meaningless.
+     */
+    @Deprecated
+    public long getDefaultBlockSize() {
+        return 32 * 1024 * 1024; // 32 MB;
+    }
+
+    // ------------------------------------------------------------------------
+    // File System Methods kept for binary compatibility. Please check {@link IFileSystem} for the
+    // documentation.
+    // ------------------------------------------------------------------------
+
+    @Override
+    public abstract Path getWorkingDirectory();
+
+    @Override
+    public abstract Path getHomeDirectory();
+
+    @Override
+    public abstract URI getUri();
+
+    @Override
+    public abstract FileStatus getFileStatus(Path f) throws IOException;
+
+    @Override
+    public abstract BlockLocation[] getFileBlockLocations(FileStatus file, long start, long len)
+            throws IOException;
+
+    @Override
+    public abstract FSDataInputStream open(Path f, int bufferSize) throws IOException;
+
+    @Override
+    public abstract FSDataInputStream open(Path f) throws IOException;
+
+    @Override
+    public RecoverableWriter createRecoverableWriter() throws IOException {
+        return IFileSystem.super.createRecoverableWriter();
+    }
+
+    @Override
+    public abstract FileStatus[] listStatus(Path f) throws IOException;
+
+    @Override
+    public boolean exists(final Path f) throws IOException {
+        return IFileSystem.super.exists(f);
+    }
+
+    @Override
+    public abstract boolean delete(Path f, boolean recursive) throws IOException;
+
+    @Override
+    public abstract boolean mkdirs(Path f) throws IOException;
+
+    @Override
+    public abstract FSDataOutputStream create(Path f, WriteMode overwriteMode) throws IOException;
+
+    @Override
+    public abstract boolean rename(Path src, Path dst) throws IOException;
+
+    @Override
+    public abstract boolean isDistributedFS();
+
     // ------------------------------------------------------------------------
     //  output directory initialization
     // ------------------------------------------------------------------------
 
-    /**
-     * Initializes output directories on local file systems according to the given write mode.
-     *
-     * <ul>
-     *   <li>WriteMode.NO_OVERWRITE &amp; parallel output:
-     *       <ul>
-     *         <li>A directory is created if the output path does not exist.
-     *         <li>An existing directory is reused, files contained in the directory are NOT
-     *             deleted.
-     *         <li>An existing file raises an exception.
-     *       </ul>
-     *   <li>WriteMode.NO_OVERWRITE &amp; NONE parallel output:
-     *       <ul>
-     *         <li>An existing file or directory raises an exception.
-     *       </ul>
-     *   <li>WriteMode.OVERWRITE &amp; parallel output:
-     *       <ul>
-     *         <li>A directory is created if the output path does not exist.
-     *         <li>An existing directory is reused, files contained in the directory are NOT
-     *             deleted.
-     *         <li>An existing file is deleted and replaced by a new directory.
-     *       </ul>
-     *   <li>WriteMode.OVERWRITE &amp; NONE parallel output:
-     *       <ul>
-     *         <li>An existing file or directory (and all its content) is deleted
-     *       </ul>
-     * </ul>
-     *
-     * <p>Files contained in an existing directory are not deleted, because multiple instances of a
-     * DataSinkTask might call this function at the same time and hence might perform concurrent
-     * delete operations on the file system (possibly deleting output files of concurrently running
-     * tasks). Since concurrent DataSinkTasks are not aware of each other, coordination of delete
-     * and create operations would be difficult.
-     *
-     * @param outPath Output path that should be prepared.
-     * @param writeMode Write mode to consider.
-     * @param createDirectory True, to initialize a directory at the given path, false to prepare
-     *     space for a file.
-     * @return True, if the path was successfully prepared, false otherwise.
-     * @throws IOException Thrown, if any of the file system access operations failed.
-     */
+    @Override
     public boolean initOutPathLocalFS(Path outPath, WriteMode writeMode, boolean createDirectory)
             throws IOException {
         if (isDistributedFS()) {
@@ -843,6 +703,7 @@ public abstract class FileSystem {
         // concurrently work in this method (multiple output formats writing locally) might end
         // up deleting each other's directories and leave non-retrievable files, without necessarily
         // causing an exception. That results in very subtle issues, like output files looking as if
+
         // they are not getting created.
 
         // we acquire the lock interruptibly here, to make sure that concurrent threads waiting
@@ -945,28 +806,7 @@ public abstract class FileSystem {
         }
     }
 
-    /**
-     * Initializes output directories on distributed file systems according to the given write mode.
-     *
-     * <p>WriteMode.NO_OVERWRITE &amp; parallel output: - A directory is created if the output path
-     * does not exist. - An existing file or directory raises an exception.
-     *
-     * <p>WriteMode.NO_OVERWRITE &amp; NONE parallel output: - An existing file or directory raises
-     * an exception.
-     *
-     * <p>WriteMode.OVERWRITE &amp; parallel output: - A directory is created if the output path
-     * does not exist. - An existing directory and its content is deleted and a new directory is
-     * created. - An existing file is deleted and replaced by a new directory.
-     *
-     * <p>WriteMode.OVERWRITE &amp; NONE parallel output: - An existing file or directory is deleted
-     * and replaced by a new directory.
-     *
-     * @param outPath Output path that should be prepared.
-     * @param writeMode Write mode to consider.
-     * @param createDirectory True, to initialize a directory at the given path, false otherwise.
-     * @return True, if the path was successfully prepared, false otherwise.
-     * @throws IOException Thrown, if any of the file system access operations failed.
-     */
+    @Override
     public boolean initOutPathDistFS(Path outPath, WriteMode writeMode, boolean createDirectory)
             throws IOException {
         if (!isDistributedFS()) {
