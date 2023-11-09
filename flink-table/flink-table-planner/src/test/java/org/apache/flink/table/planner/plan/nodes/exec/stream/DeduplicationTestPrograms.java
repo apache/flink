@@ -81,7 +81,8 @@ public class DeduplicationTestPrograms {
 
     static final TableTestProgram DEDUPLICATE_PROCTIME =
             TableTestProgram.of(
-                            "deduplicate-asc-proctime", "validates deduplication in ascending with proctime")
+                            "deduplicate-asc-proctime",
+                            "validates deduplication in ascending with proctime")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
                                     .addSchema(
