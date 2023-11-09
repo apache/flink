@@ -105,6 +105,8 @@ under the License.
 	</modules>
 
 	<properties>
+		<sonar.organization>gboussidasonar.organization>
+ 		<sonar.host.url>https://sonarcloud.iosonar.host.url>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<flink.hadoop.version>2.10.2</flink.hadoop.version>
