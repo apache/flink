@@ -18,13 +18,15 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLimit;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
-/** {@link TableTestProgram} definitions for testing {@link StreamExecLimit}. */
+/**
+ * {@link TableTestProgram} definitions for testing {@link
+ * org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLimit}.
+ */
 public class LimitTestPrograms {
 
     static final Row[] DATA1 =
@@ -37,11 +39,7 @@ public class LimitTestPrograms {
                 Row.of(5, "c", 9)
             };
 
-    static final Row[] DATA2 =
-            new Row[] {
-                    Row.of(8, "d", 3),
-                    Row.of(7, "e", 2)
-            };
+    static final Row[] DATA2 = new Row[] {Row.of(8, "d", 3), Row.of(7, "e", 2)};
     static final TableTestProgram LIMIT =
             TableTestProgram.of("limit", "validates limit node")
                     .setupTableSource(
