@@ -514,6 +514,37 @@ class SplitAggregateITCase(
     val expected = List("1,1,3,2,3,1", "2,3,24,8,29,3", "3,1,null,2,10,5", "4,2,6,4,21,5")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
+
+  @Test
+  def testListAggWithDistinctMultiArgs(): Unit = {
+    val t1 = tEnv.sqlQuery(s"""
+                              |SELECT
+                              |  a,
+                              |  LISTAGG(DISTINCT c, '#')
+                              |FROM T
+                              |GROUP BY a
+       """.stripMargin)
+
+    val sink = new TestingRetractSink
+    t1.toRetractStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Map[String, List[String]](
+      "1" -> List("Hello 0", "Hello 1"),
+      "2" -> List("Hello 0", "Hello 1", "Hello 2", "Hello 3", "Hello 4"),
+      "3" -> List("Hello 0", "Hello 1"),
+      "4" -> List("Hello 1", "Hello 2", "Hello 3")
+    )
+    val actualData = sink.getRetractResults.sorted
+    val actualMap = actualData.map {
+      str =>
+        // key and value are split by ','
+        val list = str.split(",")
+        val values = list(1).split("#").toList.sorted
+        (list(0), values)
+    }.toMap
+    assertMapStrEquals(expected.toString, actualMap.toString)
+  }
 }
 
 object SplitAggregateITCase {

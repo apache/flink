@@ -216,6 +216,11 @@ class DistinctAggregateTest(
        """.stripMargin
     util.verifyRelPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
+
+  @Test
+  def testListAggWithDistinctMultiArgs(): Unit = {
+    util.verifyExecPlan("SELECT a, LISTAGG(DISTINCT c, '#') FROM MyTable GROUP BY a")
+  }
 }
 
 object DistinctAggregateTest {

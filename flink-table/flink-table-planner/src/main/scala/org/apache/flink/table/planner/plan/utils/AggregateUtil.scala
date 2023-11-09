@@ -953,9 +953,10 @@ object AggregateUtil extends Enumeration {
         aggCall.getAggregation match {
           case _: SqlCountAggFunction | _: SqlAvgAggFunction | _: SqlMinMaxAggFunction |
               _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction |
-              _: SqlSingleValueAggFunction | _: SqlListAggFunction =>
+              _: SqlSingleValueAggFunction =>
             true
-          case _: SqlFirstLastValueAggFunction => aggCall.getArgList.size() == 1
+          case _: SqlFirstLastValueAggFunction | _: SqlListAggFunction =>
+            aggCall.getArgList.size() == 1
           case _ => false
         }
     }
