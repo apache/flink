@@ -162,6 +162,11 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     }
 
     @Override
+    public Optional<org.apache.flink.core.fs.Path> maybeGetPath() {
+        return stateHandle.maybeGetPath();
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
