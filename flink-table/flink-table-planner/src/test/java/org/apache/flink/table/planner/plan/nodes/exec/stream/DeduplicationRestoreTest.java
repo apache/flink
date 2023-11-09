@@ -34,6 +34,8 @@ public class DeduplicationRestoreTest extends RestoreTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                DeduplicationTestPrograms.DEDUPLICATE, DeduplicationTestPrograms.DEDUPLICATE_DESC);
+                DeduplicationTestPrograms.DEDUPLICATE,
+                DeduplicationTestPrograms.DEDUPLICATE_PROCTIME,
+                DeduplicationTestPrograms.DEDUPLICATE_DESC);
     }
 }

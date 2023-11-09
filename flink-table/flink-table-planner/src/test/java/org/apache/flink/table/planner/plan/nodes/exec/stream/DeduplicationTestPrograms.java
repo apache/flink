@@ -79,6 +79,44 @@ public class DeduplicationTestPrograms {
                                     + "WHERE row_num = 1")
                     .build();
 
+    static final TableTestProgram DEDUPLICATE_PROCTIME =
+            TableTestProgram.of(
+                            "deduplicate-asc-proctime", "validates deduplication in ascending with proctime")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("MyTable")
+                                    .addSchema(
+                                            "order_id bigint",
+                                            "`user` varchar",
+                                            "product varchar",
+                                            "order_time bigint ",
+                                            "event_time as TO_TIMESTAMP(FROM_UNIXTIME(order_time)) ",
+                                            "proctime AS PROCTIME() ")
+                                    .producedBeforeRestore(DATA1)
+                                    .producedAfterRestore(DATA2)
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("MySink")
+                                    .addSchema(
+                                            "order_id bigint",
+                                            "`user` varchar",
+                                            "product varchar",
+                                            "order_time bigint",
+                                            "primary key(product) not enforced")
+                                    .consumedBeforeRestore(
+                                            Row.of(1, "terry", "pen", 1000),
+                                            Row.of(4, "bob", "apple", 4000))
+                                    .consumedAfterRestore(Row.of(8L, "bill", "banana", 8000L))
+                                    .build())
+                    .runSql(
+                            "insert into MySink "
+                                    + "select order_id, user, product, order_time \n"
+                                    + "FROM ("
+                                    + "  SELECT *,"
+                                    + "    ROW_NUMBER() OVER (PARTITION BY product ORDER BY proctime ASC) AS row_num\n"
+                                    + "  FROM MyTable)"
+                                    + "WHERE row_num = 1")
+                    .build();
+
     static final TableTestProgram DEDUPLICATE_DESC =
             TableTestProgram.of("deduplicate-desc", "validates deduplication in descending")
                     .setupTableSource(
