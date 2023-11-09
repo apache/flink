@@ -216,9 +216,8 @@ class FlinkSubQueryRemoveRule(
 
       // EXISTS and NOT EXISTS
       case SqlKind.EXISTS =>
-        // If the sub-query is guaranteed to produce at least one row, just return// If the sub-query is guaranteed to produce at least one row, just return
-
-        // TRUE.
+        // If the sub-query is guaranteed to produce at least one row, just return TRUE.
+        // If the sub-query is guaranteed to produce no rows then return FALSE.
         val mq = subQuery.rel.getCluster.getMetadataQuery
         val minRowCount = mq.getMinRowCount(subQuery.rel)
         if (minRowCount != null && minRowCount >= 1d) {
@@ -228,6 +227,7 @@ class FlinkSubQueryRemoveRule(
         if (maxRowCount != null && maxRowCount < 1d) {
           return Option.apply(relBuilder.literal(withNot))
         }
+
         val joinCondition = if (equivalent != null) {
           // EXISTS has correlation variables
           relBuilder.push(equivalent.getKey) // push join right
