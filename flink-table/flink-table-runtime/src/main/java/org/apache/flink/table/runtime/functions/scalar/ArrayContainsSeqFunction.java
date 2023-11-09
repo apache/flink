@@ -68,11 +68,13 @@ public class ArrayContainsSeqFunction extends BuiltInScalarFunction {
                 return false;
             }
             int i = 0;
-            int j = 0;
             boolean isEqual = false;
             while (i < array1.size()) {
+                if (array1.size() - i < array2.size()) {
+                    return false;
+                }
                 int k = i;
-                int l = 0;
+                int j = 0;
                 while (j < array2.size()) {
                     final Object element1 = elementGetter.getElementOrNull(array1, k);
                     final Object element2 = elementGetter.getElementOrNull(array2, j);
@@ -85,14 +87,14 @@ public class ArrayContainsSeqFunction extends BuiltInScalarFunction {
                     }
                     if (isEqual) {
                         k++;
-                        l++;
+                        j++;
+                    } else {
+                        break;
                     }
-                    j++;
                 }
-                if (l == array2.size()) {
+                if (j == array2.size()) {
                     return true;
                 }
-                j = 0;
                 i++;
             }
             return false;
