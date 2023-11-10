@@ -21,8 +21,10 @@ import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils._
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
+import org.apache.flink.api.java.typeutils.runtime.TupleSerializerConfigSnapshot
 import org.apache.flink.api.scala.typeutils._
 
 import _root_.scala.reflect.ClassTag
@@ -147,7 +149,8 @@ package object scala {
   class Tuple2CaseClassSerializer[T1, T2](
       val clazz: Class[(T1, T2)],
       fieldSerializers: Array[TypeSerializer[_]]
-  ) extends ScalaCaseClassSerializer[(T1, T2)](clazz, fieldSerializers) {
+  ) extends ScalaCaseClassSerializer[(T1, T2)](clazz, fieldSerializers)
+    with SelfResolvingTypeSerializer[(T1, T2)] {
 
     override def createInstance(fields: Array[AnyRef]): (T1, T2) = {
       (fields(0).asInstanceOf[T1], fields(1).asInstanceOf[T2])
@@ -155,6 +158,26 @@ package object scala {
 
     override def snapshotConfiguration(): TypeSerializerSnapshot[(T1, T2)] = {
       new Tuple2CaseClassSerializerSnapshot[T1, T2](this)
+    }
+
+    override def resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
+        s: TypeSerializerConfigSnapshot[(T1, T2)]
+    ): TypeSerializerSchemaCompatibility[(T1, T2)] = {
+
+      require(s.isInstanceOf[TupleSerializerConfigSnapshot[(T1, T2)]])
+
+      val oldSnapshot = s.asInstanceOf[TupleSerializerConfigSnapshot[(T1, T2)]]
+      val newSnapshot =
+        new Tuple2CaseClassSerializerSnapshot[T1, T2](oldSnapshot.getTupleClass)
+
+      val nestedSnapshots = oldSnapshot.getNestedSerializersAndConfigs
+
+      CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+        this,
+        newSnapshot,
+        nestedSnapshots.get(0).f1,
+        nestedSnapshots.get(1).f1
+      )
     }
   }
 }

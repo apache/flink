@@ -123,10 +123,7 @@ public class StateMetaInfoSnapshotReadersWriters {
         switch (readVersion) {
             case 1:
             case 2:
-                throw new UnsupportedOperationException(
-                        String.format(
-                                "No longer supported version [%d]. Please upgrade first to Flink 1.16. ",
-                                readVersion));
+                return LegacyStateMetaInfoReaders.KeyedBackendStateMetaInfoReaderV1V2.INSTANCE;
             case 3:
             case 4:
                 return LegacyStateMetaInfoReaders.KeyedBackendStateMetaInfoReaderV3V4.INSTANCE;
@@ -142,10 +139,7 @@ public class StateMetaInfoSnapshotReadersWriters {
     private static StateMetaInfoReader getLegacyOperatorStateMetaInfoReader(int readVersion) {
         switch (readVersion) {
             case 1:
-                throw new UnsupportedOperationException(
-                        String.format(
-                                "No longer supported version [%d]. Please upgrade first to Flink 1.16. ",
-                                readVersion));
+                return LegacyStateMetaInfoReaders.OperatorBackendStateMetaInfoReaderV1.INSTANCE;
             case 2:
             case 3:
                 return LegacyStateMetaInfoReaders.OperatorBackendStateMetaInfoReaderV2V3.INSTANCE;
@@ -171,7 +165,7 @@ public class StateMetaInfoSnapshotReadersWriters {
      *   <li>3. Meta info options map, consisting of the map size (int) followed by the key value
      *       pairs (String, String)
      *   <li>4. Serializer configuration map, consisting of the map size (int) followed by the key
-     *       value pairs (String, TypeSerializerSnapshot)
+     *       value pairs (String, TypeSerializerConfigSnapshot)
      * </ul>
      */
     static class CurrentWriterImpl implements StateMetaInfoWriter {
