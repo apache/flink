@@ -2072,10 +2072,11 @@ public class TypeExtractor {
             return new GenericTypeInfo<>(clazz);
         }
 
+        boolean isRecord = isRecord(clazz);
         List<PojoField> pojoFields = new ArrayList<>();
         for (Field field : fields) {
             Type fieldType = field.getGenericType();
-            if (!isValidPojoField(field, clazz, typeHierarchy) && clazz != Row.class) {
+            if (!isRecord && !isValidPojoField(field, clazz, typeHierarchy) && clazz != Row.class) {
                 LOG.info(
                         "Class "
                                 + clazz
@@ -2140,6 +2141,11 @@ public class TypeExtractor {
             }
         }
 
+        if (isRecord) {
+            // no default constructor extraction needs to be applied for Java records
+            return pojoType;
+        }
+
         // Try retrieving the default constructor, if it does not have one
         // we cannot use this because the serializer uses it.
         Constructor<OUT> defaultConstructor = null;
@@ -2172,6 +2178,18 @@ public class TypeExtractor {
 
         // everything is checked, we return the pojo
         return pojoType;
+    }
+
+    /**
+     * Determine whether the given class is a valid Java record.
+     *
+     * @param clazz class to check
+     * @return True if the class is a Java record
+     */
+    @PublicEvolving
+    public static boolean isRecord(Class<?> clazz) {
+        return clazz.getSuperclass().getName().equals("java.lang.Record")
+                && (clazz.getModifiers() & Modifier.FINAL) != 0;
     }
 
     /**
