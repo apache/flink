@@ -139,10 +139,10 @@ hbase:
     versions:
         - version: 1.4.x
           maven: flink-connector-hbase-1.4
-          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase-1.4/$version/flink-sql-connector-hbase-1.4-$version.jar
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase-1.4/3.0.0-1.17/flink-sql-connector-hbase-1.4-3.0.0-1.17.jar
         - version: 2.2.x
           maven: flink-connector-hbase-2.2
-          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase-2.2/$version/flink-sql-connector-hbase-2.2-$version.jar
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-hbase-2.2/3.0.0-1.17/flink-sql-connector-hbase-2.2-3.0.0-1.17.jar
 
 jdbc:
     name: JDBC
@@ -156,7 +156,7 @@ kafka:
     versions:
         - version: universal
           maven: flink-connector-kafka
-          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$version/flink-sql-connector-kafka-$version.jar
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.0.1-1.18/flink-sql-connector-kafka-3.0.1-1.18.jar
 
 upsert-kafka:
     name: Upsert Kafka
@@ -164,7 +164,7 @@ upsert-kafka:
     versions:
         - version: universal
           maven: flink-connector-kafka
-          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/$version/flink-sql-connector-kafka-$version.jar
+          sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka/3.0.1-1.18/flink-sql-connector-kafka-3.0.1-1.18.jar
 
 kinesis:
     name: Amazon Kinesis Data Streams
