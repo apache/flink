@@ -344,7 +344,7 @@ public class JobGraphTest extends TestLogger {
             assertEquals(
                     blobKey,
                     InstantiationUtil.deserializeObject(
-                            jobGraphEntry.blobKey, ClassLoader.getSystemClassLoader()));
+                            jobGraphEntry.blobKey, ClassLoader.getSystemClassLoader(), false));
             assertEquals(entry.isExecutable, jobGraphEntry.isExecutable);
             assertEquals(entry.isZipped, jobGraphEntry.isZipped);
             assertEquals(entry.filePath, jobGraphEntry.filePath);
