@@ -79,16 +79,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
         val windowReference = translateWindowReference(children.head)
         return WindowEnd(windowReference)
 
-      case PROCTIME =>
-        assert(children.size == 1)
-        val windowReference = translateWindowReference(children.head)
-        return ProctimeAttribute(windowReference)
-
-      case ROWTIME =>
-        assert(children.size == 1)
-        val windowReference = translateWindowReference(children.head)
-        return RowtimeAttribute(windowReference)
-
       case THROW_EXCEPTION =>
         assert(children.size == 2)
         return ThrowException(

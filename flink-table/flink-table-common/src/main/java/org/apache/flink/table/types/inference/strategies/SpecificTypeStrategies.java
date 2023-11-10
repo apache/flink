@@ -92,6 +92,9 @@ public final class SpecificTypeStrategies {
     /** See {@link CurrentWatermarkTypeStrategy}. */
     public static final TypeStrategy CURRENT_WATERMARK = new CurrentWatermarkTypeStrategy();
 
+    /** See {@link RowtimeTypeStrategy}. */
+    public static final TypeStrategy ROWTIME = new RowtimeTypeStrategy();
+
     /** See {@link InternalReplicateRowsTypeStrategy}. */
     public static final TypeStrategy INTERNAL_REPLICATE_ROWS =
             new InternalReplicateRowsTypeStrategy();
