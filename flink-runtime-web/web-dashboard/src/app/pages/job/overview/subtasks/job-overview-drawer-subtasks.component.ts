@@ -78,7 +78,7 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
   readonly sortWriteBytesFn = createSortFn(item => item.metrics?.['write-bytes']);
   readonly sortWriteRecordsFn = createSortFn(item => item.metrics?.['write-records']);
   readonly sortAttemptFn = createSortFn(item => item.attempt);
-  readonly sortHostFn = createSortFn(item => item.host);
+  readonly sortEndpointFn = createSortFn(item => item.endpoint);
   readonly sortStartTimeFn = createSortFn(item => item['start_time']);
   readonly sortDurationFn = createSortFn(item => item.duration);
   readonly sortEndTimeFn = createSortFn(item => item['end-time']);
