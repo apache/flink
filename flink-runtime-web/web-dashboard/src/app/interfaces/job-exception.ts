@@ -45,6 +45,7 @@ export interface ExceptionInfo {
   timestamp: number;
   taskName: string;
   location: string;
+  taskManagerId: string;
 }
 
 export interface RootExceptionInfo extends ExceptionInfo {
