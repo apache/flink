@@ -60,7 +60,9 @@ public class KryoSerializerCompatibilityTest {
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
+                    new DataOutputViewStreamWrapper(out),
+                    kryoSerializerConfigSnapshot,
+                    kryoSerializerForA);
             serializedConfig = out.toByteArray();
         }
 
@@ -72,7 +74,8 @@ public class KryoSerializerCompatibilityTest {
             kryoSerializerConfigSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader());
+                            Thread.currentThread().getContextClassLoader(),
+                            kryoSerializerForB);
         }
 
         @SuppressWarnings("unchecked")
@@ -224,7 +227,9 @@ public class KryoSerializerCompatibilityTest {
         byte[] serializedConfig;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out), kryoSerializerConfigSnapshot);
+                    new DataOutputViewStreamWrapper(out),
+                    kryoSerializerConfigSnapshot,
+                    kryoSerializer);
             serializedConfig = out.toByteArray();
         }
 
@@ -240,7 +245,8 @@ public class KryoSerializerCompatibilityTest {
             kryoSerializerConfigSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
                             new DataInputViewStreamWrapper(in),
-                            Thread.currentThread().getContextClassLoader());
+                            Thread.currentThread().getContextClassLoader(),
+                            kryoSerializer);
         }
 
         // reconfigure - check reconfiguration result and that registration id remains the same

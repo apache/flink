@@ -25,6 +25,8 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Optional;
 
@@ -35,30 +37,41 @@ public class TypeSerializerSnapshotSerializationUtil {
      * Writes a {@link TypeSerializerSnapshot} to the provided data output view.
      *
      * <p>It is written with a format that can be later read again using {@link
-     * #readSerializerSnapshot(DataInputView, ClassLoader)}.
+     * #readSerializerSnapshot(DataInputView, ClassLoader, TypeSerializer)}.
      *
      * @param out the data output view
      * @param serializerSnapshot the serializer configuration snapshot to write
+     * @param serializer the prior serializer (no longer used?)
      */
     public static <T> void writeSerializerSnapshot(
-            DataOutputView out, TypeSerializerSnapshot<T> serializerSnapshot) throws IOException {
+            DataOutputView out,
+            TypeSerializerSnapshot<T> serializerSnapshot,
+            TypeSerializer<T> serializer)
+            throws IOException {
 
-        new TypeSerializerSnapshotSerializationProxy<>(serializerSnapshot).write(out);
+        new TypeSerializerSnapshotSerializationProxy<>(serializerSnapshot, serializer).write(out);
     }
 
     /**
      * Reads from a data input view a {@link TypeSerializerSnapshot} that was previously written
-     * using {@link #writeSerializerSnapshot(DataOutputView, TypeSerializerSnapshot}.
+     * using {@link TypeSerializerSnapshotSerializationUtil#writeSerializerSnapshot(DataOutputView,
+     * TypeSerializerSnapshot, TypeSerializer)}.
      *
      * @param in the data input view
      * @param userCodeClassLoader the user code class loader to use
+     * @param existingPriorSerializer the prior serializer. This would only be non-null if we are
+     *     restoring from a snapshot taken with Flink version <= 1.6.
      * @return the read serializer configuration snapshot
      */
     public static <T> TypeSerializerSnapshot<T> readSerializerSnapshot(
-            DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
+            DataInputView in,
+            ClassLoader userCodeClassLoader,
+            @Nullable TypeSerializer<T> existingPriorSerializer)
+            throws IOException {
 
         final TypeSerializerSnapshotSerializationProxy<T> proxy =
-                new TypeSerializerSnapshotSerializationProxy<>(userCodeClassLoader);
+                new TypeSerializerSnapshotSerializationProxy<>(
+                        userCodeClassLoader, existingPriorSerializer);
         proxy.read(in);
 
         return proxy.getSerializerSnapshot();
@@ -80,16 +93,21 @@ public class TypeSerializerSnapshotSerializationUtil {
 
         private ClassLoader userCodeClassLoader;
         private TypeSerializerSnapshot<T> serializerSnapshot;
+        @Nullable private TypeSerializer<T> serializer;
 
         /** Constructor for reading serializers. */
-        TypeSerializerSnapshotSerializationProxy(ClassLoader userCodeClassLoader) {
+        TypeSerializerSnapshotSerializationProxy(
+                ClassLoader userCodeClassLoader,
+                @Nullable TypeSerializer<T> existingPriorSerializer) {
             this.userCodeClassLoader = Preconditions.checkNotNull(userCodeClassLoader);
+            this.serializer = existingPriorSerializer;
         }
 
         /** Constructor for writing out serializers. */
         TypeSerializerSnapshotSerializationProxy(
-                TypeSerializerSnapshot<T> serializerConfigSnapshot) {
+                TypeSerializerSnapshot<T> serializerConfigSnapshot, TypeSerializer<T> serializer) {
             this.serializerSnapshot = Preconditions.checkNotNull(serializerConfigSnapshot);
+            this.serializer = Preconditions.checkNotNull(serializer);
         }
 
         /**

@@ -63,6 +63,9 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
     /** This specifies if we use a compressed format write the key-groups */
     private boolean usingKeyGroupCompression;
 
+    // TODO the keySerializer field should be removed, once all serializers have the
+    // restoreSerializer() method implemented
+    private TypeSerializer<K> keySerializer;
     private TypeSerializerSnapshot<K> keySerializerSnapshot;
 
     private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
@@ -80,6 +83,7 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
 
         this.usingKeyGroupCompression = compression;
 
+        this.keySerializer = Preconditions.checkNotNull(keySerializer);
         this.keySerializerSnapshot =
                 Preconditions.checkNotNull(keySerializer.snapshotConfiguration());
 
@@ -127,7 +131,8 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
         // write the compression format used to write each key-group
         out.writeBoolean(usingKeyGroupCompression);
 
-        TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(out, keySerializerSnapshot);
+        TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
+                out, keySerializerSnapshot, keySerializer);
 
         // write individual registered keyed state metainfos
         out.writeShort(stateMetaInfoSnapshots.size());
@@ -157,7 +162,8 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
                 readVersion);
         this.keySerializerSnapshot =
                 TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-                        in, userCodeClassLoader);
+                        in, userCodeClassLoader, null);
+        this.keySerializer = null;
 
         Integer metaInfoSnapshotVersion = META_INFO_SNAPSHOT_FORMAT_VERSION_MAPPER.get(readVersion);
         if (metaInfoSnapshotVersion == null) {
@@ -167,7 +173,9 @@ public class KeyedBackendSerializationProxy<K> extends VersionedIOReadableWritab
                             + readVersion);
         }
         final StateMetaInfoReader stateMetaInfoReader =
-                StateMetaInfoSnapshotReadersWriters.getReader(metaInfoSnapshotVersion);
+                StateMetaInfoSnapshotReadersWriters.getReader(
+                        metaInfoSnapshotVersion,
+                        StateMetaInfoSnapshotReadersWriters.StateTypeHint.KEYED_STATE);
 
         int numKvStates = in.readShort();
         stateMetaInfoSnapshots = new ArrayList<>(numKvStates);

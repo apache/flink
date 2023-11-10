@@ -89,7 +89,7 @@ public class EnumSerializerCompatibilityTest extends TestLogger {
                         new DataOutputViewStreamWrapper(outBuffer)) {
 
             TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    outputViewStreamWrapper, snapshot);
+                    outputViewStreamWrapper, snapshot, enumSerializer);
             snapshotBytes = outBuffer.toByteArray();
         }
 
@@ -104,7 +104,7 @@ public class EnumSerializerCompatibilityTest extends TestLogger {
 
             restoredSnapshot =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-                            inputViewStreamWrapper, classLoader2);
+                            inputViewStreamWrapper, classLoader2, enumSerializer);
         }
 
         EnumSerializer enumSerializer2 = new EnumSerializer(classLoader2.loadClass(ENUM_NAME));

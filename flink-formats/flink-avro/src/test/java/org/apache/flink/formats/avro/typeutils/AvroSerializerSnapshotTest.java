@@ -251,7 +251,7 @@ class AvroSerializerSnapshotTest {
 
             TypeSerializerSnapshot<GenericRecord> restored =
                     TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-                            in, AvroSerializer.class.getClassLoader());
+                            in, AvroSerializer.class.getClassLoader(), null);
 
             assertThat(restored.resolveSchemaCompatibility(currentSerializer))
                     .is(matching(isCompatibleAsIs()));
@@ -271,7 +271,7 @@ class AvroSerializerSnapshotTest {
         DataOutputSerializer out = new DataOutputSerializer(1024);
 
         TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                out, serializer.snapshotConfiguration());
+                out, serializer.snapshotConfiguration(), serializer);
 
         Path snapshotPath =
                 getSerializerSnapshotFilePath(new AvroSerializerSnapshot<>().getCurrentVersion());
