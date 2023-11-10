@@ -29,6 +29,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Set;
 import java.util.UUID;
 
@@ -39,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class GPUDriverTest {
 
     private static final String TESTING_DISCOVERY_SCRIPT_PATH =
-            "src/test/resources/testing-gpu-discovery.sh";
+            Paths.get("src/test/resources/testing-gpu-discovery.sh").toAbsolutePath().toString();
 
     @Test
     void testGPUDriverWithTestScript() throws Exception {
