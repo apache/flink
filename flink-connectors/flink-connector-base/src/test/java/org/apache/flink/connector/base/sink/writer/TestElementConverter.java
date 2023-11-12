@@ -28,7 +28,7 @@ public class TestElementConverter implements ElementConverter<String, Integer> {
     private int openCallCount;
 
     @Override
-    public void open(Sink.InitContext context) {
+    public void open(Sink.WriterInitContext context) {
         openCallCount++;
     }
 

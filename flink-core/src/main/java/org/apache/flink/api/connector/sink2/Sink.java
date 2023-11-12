@@ -20,7 +20,6 @@ package org.apache.flink.api.connector.sink2;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -31,7 +30,6 @@ import org.apache.flink.util.UserCodeClassLoader;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.function.Consumer;
 
 /**
@@ -55,17 +53,11 @@ public interface Sink<InputT> extends Serializable {
      * @return A sink writer.
      * @throws IOException for any failure during creation.
      */
-    SinkWriter<InputT> createWriter(InitContext context) throws IOException;
+    SinkWriter<InputT> createWriter(WriterInitContext context) throws IOException;
 
     /** The interface exposes some runtime info for creating a {@link SinkWriter}. */
     @PublicEvolving
-    interface InitContext {
-        /**
-         * The first checkpoint id when an application is started and not recovered from a
-         * previously taken checkpoint or savepoint.
-         */
-        long INITIAL_CHECKPOINT_ID = 1;
-
+    interface WriterInitContext extends InitContext {
         /**
          * Gets the {@link UserCodeClassLoader} to load classes that are not in system's classpath,
          * but are part of the jar file of a user job.
@@ -91,27 +83,8 @@ public interface Sink<InputT> extends Serializable {
          */
         ProcessingTimeService getProcessingTimeService();
 
-        /** @return The id of task where the writer is. */
-        int getSubtaskId();
-
-        /** @return The number of parallel Sink tasks. */
-        int getNumberOfParallelSubtasks();
-
-        /**
-         * Gets the attempt number of this parallel subtask. First attempt is numbered 0.
-         *
-         * @return Attempt number of the subtask.
-         */
-        int getAttemptNumber();
-
         /** @return The metric group this writer belongs to. */
         SinkWriterMetricGroup metricGroup();
-
-        /**
-         * Returns id of the restored checkpoint, if state was restored from the snapshot of a
-         * previous execution.
-         */
-        OptionalLong getRestoredCheckpointId();
 
         /**
          * Provides a view on this context as a {@link SerializationSchema.InitializationContext}.
@@ -123,12 +96,6 @@ public interface Sink<InputT> extends Serializable {
 
         /** Creates a serializer for the type of sink's input. */
         <IN> TypeSerializer<IN> createInputSerializer();
-
-        /**
-         * The ID of the current job. Note that Job ID can change in particular upon manual restart.
-         * The returned ID should NOT be used for any job management tasks.
-         */
-        JobID getJobId();
 
         /**
          * Returns a metadata consumer, the {@link SinkWriter} can publish metadata events of type

@@ -159,7 +159,7 @@ class PrintSinkTest {
     }
 
     private static class MockInitContext
-            implements Sink.InitContext, SerializationSchema.InitializationContext {
+            implements Sink.WriterInitContext, SerializationSchema.InitializationContext {
 
         private final int numSubtasks;
 

@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import unittest
+
 from pyflink.common import Types
 from pyflink.datastream.connectors import DeliveryGuarantee
 from pyflink.datastream.connectors.elasticsearch import Elasticsearch7SinkBuilder, \
@@ -23,6 +25,7 @@ from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 from pyflink.util.java_utils import get_field_value, is_instance_of
 
 
+@unittest.skip("Should be moved to elasticsearch connector repo")
 class FlinkElasticsearch7Test(PyFlinkStreamingTestCase):
 
     def test_es_sink(self):

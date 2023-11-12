@@ -58,7 +58,7 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
 
     @Override
     public StatefulSinkWriter<String, BufferedRequestState<Integer>> createWriter(
-            InitContext context) throws IOException {
+            WriterInitContext context) throws IOException {
         return new AsyncSinkWriter<String, Integer>(
                 getElementConverter(),
                 context,
@@ -92,7 +92,7 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
 
     @Override
     public StatefulSinkWriter<String, BufferedRequestState<Integer>> restoreWriter(
-            InitContext context, Collection<BufferedRequestState<Integer>> recoveredState)
+            WriterInitContext context, Collection<BufferedRequestState<Integer>> recoveredState)
             throws IOException {
         return createWriter(context);
     }
