@@ -51,6 +51,7 @@ import java.util.UUID;
 public class RowToProtoConverter {
     private static final Logger LOG = LoggerFactory.getLogger(ProtoToRowConverter.class);
     private final Method encodeMethod;
+    private boolean isCodeSplit = false;
 
     public RowToProtoConverter(RowType rowType, PbFormatConfig formatConfig)
             throws PbCodegenException {
@@ -84,11 +85,18 @@ public class RowToProtoConverter {
             PbCodegenSerializer codegenSer =
                     PbCodegenSerializeFactory.getPbCodegenTopRowSer(
                             descriptor, rowType, formatContext);
+            LOG.info("Fast-pb generate split serialize code");
             String genCode =
                     codegenSer.codegen("message", "rowData", codegenAppender.currentIndent());
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return message");
             codegenAppender.end("}");
+            if (!formatContext.getSplitMethodStack().isEmpty()) {
+                isCodeSplit = true;
+                for (String spliteMethod : formatContext.getSplitMethodStack()) {
+                    codegenAppender.appendSegment(spliteMethod);
+                }
+            }
             codegenAppender.end("}");
 
             String printCode = codegenAppender.printWithLineNumber();
@@ -108,5 +116,9 @@ public class RowToProtoConverter {
     public byte[] convertRowToProtoBinary(RowData rowData) throws Exception {
         AbstractMessage message = (AbstractMessage) encodeMethod.invoke(null, rowData);
         return message.toByteArray();
+    }
+
+    public boolean isCodeSplit() {
+        return isCodeSplit;
     }
 }

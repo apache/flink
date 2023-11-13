@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.protobuf.deserialize;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
@@ -74,6 +75,11 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
             }
             throw new IOException("Failed to deserialize PB object.", t);
         }
+    }
+
+    @VisibleForTesting
+    public boolean isCodeSplit() {
+        return protoToRowConverter.isCodeSplit();
     }
 
     @Override

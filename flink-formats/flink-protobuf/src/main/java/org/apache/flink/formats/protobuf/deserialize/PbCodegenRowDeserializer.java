@@ -21,6 +21,7 @@ package org.apache.flink.formats.protobuf.deserialize;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbFormatContext;
 import org.apache.flink.formats.protobuf.util.PbCodegenAppender;
+import org.apache.flink.formats.protobuf.util.PbCodegenUtils;
 import org.apache.flink.formats.protobuf.util.PbCodegenVarId;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -59,6 +60,7 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
         appender.appendLine(
                 "GenericRowData " + flinkRowDataVar + " = new GenericRowData(" + fieldSize + ")");
         int index = 0;
+        PbCodegenAppender splitAppender = new PbCodegenAppender(indent);
         for (String fieldName : rowType.getFieldNames()) {
             int subUid = varUid.getAndIncrement();
             String flinkRowEleVar = "elementDataVar" + subUid;
@@ -68,7 +70,7 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
             String strongCamelFieldName = PbFormatUtils.getStrongCamelCaseJsonName(fieldName);
             PbCodegenDeserializer codegen =
                     PbCodegenDeserializeFactory.getPbCodegenDes(elementFd, subType, formatContext);
-            appender.appendLine("Object " + flinkRowEleVar + " = null");
+            splitAppender.appendLine("Object " + flinkRowEleVar + " = null");
             if (!formatContext.getPbFormatConfig().isReadDefaultValues()) {
                 // only works in syntax=proto2 and readDefaultValues=false
                 // readDefaultValues must be true in pb3 mode
@@ -77,7 +79,7 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                                 pbMessageVar,
                                 strongCamelFieldName,
                                 PbFormatUtils.isRepeatedType(subType));
-                appender.begin("if(" + isMessageElementNonEmptyCode + "){");
+                splitAppender.begin("if(" + isMessageElementNonEmptyCode + "){");
             }
             String pbGetMessageElementCode =
                     pbGetMessageElementCode(
@@ -87,14 +89,30 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                             PbFormatUtils.isArrayType(subType));
             String code =
                     codegen.codegen(
-                            flinkRowEleVar, pbGetMessageElementCode, appender.currentIndent());
-            appender.appendSegment(code);
+                            flinkRowEleVar, pbGetMessageElementCode, splitAppender.currentIndent());
+            splitAppender.appendSegment(code);
             if (!formatContext.getPbFormatConfig().isReadDefaultValues()) {
-                appender.end("}");
+                splitAppender.end("}");
             }
-            appender.appendLine(
+            splitAppender.appendLine(
                     flinkRowDataVar + ".setField(" + index + ", " + flinkRowEleVar + ")");
+            if (PbCodegenUtils.needToSplit(splitAppender.code().length())) {
+                String splitMethod =
+                        formatContext.splitDeserializerRowTypeMethod(
+                                flinkRowDataVar,
+                                pbMessageTypeStr,
+                                pbMessageVar,
+                                splitAppender.code());
+                appender.appendSegment(splitMethod);
+                splitAppender = new PbCodegenAppender();
+            }
             index += 1;
+        }
+        if (!splitAppender.code().isEmpty()) {
+            String splitMethod =
+                    formatContext.splitDeserializerRowTypeMethod(
+                            flinkRowDataVar, pbMessageTypeStr, pbMessageVar, splitAppender.code());
+            appender.appendSegment(splitMethod);
         }
         appender.appendLine(resultVar + " = " + flinkRowDataVar);
         return appender.code();

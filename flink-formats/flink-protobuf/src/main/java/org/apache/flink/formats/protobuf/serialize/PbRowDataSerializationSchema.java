@@ -55,6 +55,10 @@ public class PbRowDataSerializationSchema implements SerializationSchema<RowData
         rowToProtoConverter = new RowToProtoConverter(rowType, pbFormatConfig);
     }
 
+    public boolean isCodeSplit() {
+        return rowToProtoConverter.isCodeSplit();
+    }
+
     @Override
     public byte[] serialize(RowData element) {
         try {
