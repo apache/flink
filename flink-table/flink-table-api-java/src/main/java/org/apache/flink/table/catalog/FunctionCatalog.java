@@ -771,6 +771,9 @@ public final class FunctionCatalog {
             // directly.
             return ((InlineCatalogFunction) function).getDefinition();
         }
+        if (function.getFunctionLanguage() == FunctionLanguage.PYTHON) {
+            resourceManager.registerPythonResources();
+        }
         // If the jar resource of UDF used is not empty, register it to classloader before
         // validate.
         registerFunctionJarResources(name, function.getFunctionResources());

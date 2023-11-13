@@ -36,11 +36,7 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -137,13 +133,9 @@ public class DefaultContext {
      * @param dynamicConfig user specified configuration.
      * @param dependencies user specified jars
      * @param discoverExecutionConfig flag whether to load the execution configuration
-     * @param discoverPythonJar flag whetehr to load the python jar
      */
     public static DefaultContext load(
-            Configuration dynamicConfig,
-            List<URL> dependencies,
-            boolean discoverExecutionConfig,
-            boolean discoverPythonJar) {
+            Configuration dynamicConfig, List<URL> dependencies, boolean discoverExecutionConfig) {
         // 1. find the configuration directory
         String flinkConfigDir = CliFrontend.getConfigurationDirectoryFromEnv();
 
@@ -158,11 +150,6 @@ public class DefaultContext {
         // initialize default file system
         FileSystem.initialize(
                 configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
-
-        if (discoverPythonJar) {
-            dependencies = new ArrayList<>(dependencies);
-            dependencies.addAll(discoverPythonDependencies());
-        }
 
         if (discoverExecutionConfig) {
             Options commandLineOptions = collectCommandLineOptions(commandLines);
@@ -183,24 +170,5 @@ public class DefaultContext {
         }
 
         return new DefaultContext(configuration, dependencies);
-    }
-
-    private static List<URL> discoverPythonDependencies() {
-        try {
-            URL location =
-                    Class.forName(
-                                    "org.apache.flink.python.PythonFunctionRunner",
-                                    false,
-                                    Thread.currentThread().getContextClassLoader())
-                            .getProtectionDomain()
-                            .getCodeSource()
-                            .getLocation();
-            if (Paths.get(location.toURI()).toFile().isFile()) {
-                return Collections.singletonList(location);
-            }
-        } catch (URISyntaxException | ClassNotFoundException e) {
-            LOG.warn("Failed to find flink-python jar." + e);
-        }
-        return Collections.emptyList();
     }
 }

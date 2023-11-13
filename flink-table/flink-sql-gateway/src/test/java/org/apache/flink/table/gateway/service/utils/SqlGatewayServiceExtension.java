@@ -89,7 +89,7 @@ public class SqlGatewayServiceExtension implements BeforeAllCallback, AfterAllCa
             sessionManager =
                     sessionManagerCreator.apply(
                             DefaultContext.load(
-                                    new Configuration(), Collections.emptyList(), true, false));
+                                    new Configuration(), Collections.emptyList(), true));
         } finally {
             CommonTestUtils.setEnv(originalEnv);
         }
