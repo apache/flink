@@ -56,7 +56,8 @@ public class PythonEnvironmentManagerUtils {
     private static final String GET_SITE_PACKAGES_PATH_SCRIPT =
             "import sys;"
                     + "import sysconfig;"
-                    + "print(sysconfig.get_path('platlib', vars={'base': sys.argv[1], 'platbase': sys.argv[1]}))";
+                    + "print(sysconfig.get_path('platlib', vars={'base': sys.argv[1], 'platbase': sys.argv[1]}));"
+                    + "print(sysconfig.get_path('purelib', vars={'base': sys.argv[1], 'platbase': sys.argv[1]}));";
 
     private static final String GET_RUNNER_DIR_SCRIPT =
             "import pyflink;"
