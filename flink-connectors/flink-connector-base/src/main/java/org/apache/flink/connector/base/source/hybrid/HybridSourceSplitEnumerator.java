@@ -361,7 +361,7 @@ public class HybridSourceSplitEnumerator
             }
             Integer lastIndex = null;
             for (Integer sourceIndex : readerSourceIndex.values()) {
-                if (lastIndex != null && lastIndex != sourceIndex) {
+                if (lastIndex != null && !lastIndex.equals(sourceIndex)) {
                     return filterRegisteredReaders(readers);
                 }
                 lastIndex = sourceIndex;
@@ -372,7 +372,7 @@ public class HybridSourceSplitEnumerator
         private Map<Integer, ReaderInfo> filterRegisteredReaders(Map<Integer, ReaderInfo> readers) {
             Map<Integer, ReaderInfo> readersForSource = new HashMap<>(readers.size());
             for (Map.Entry<Integer, ReaderInfo> e : readers.entrySet()) {
-                if (readerSourceIndex.get(e.getKey()) == (Integer) sourceIndex) {
+                if (Objects.equals(readerSourceIndex.get(e.getKey()), sourceIndex)) {
                     readersForSource.put(e.getKey(), e.getValue());
                 }
             }
