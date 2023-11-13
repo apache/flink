@@ -42,8 +42,10 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -77,6 +79,8 @@ public class ResourceManager implements Closeable {
 
     protected final Map<ResourceUri, URL> resourceInfos;
     protected final MutableURLClassLoader userClassLoader;
+
+    private boolean containPython = false;
 
     public static ResourceManager createResourceManager(
             URL[] urls, ClassLoader parent, ReadableConfig config) {
@@ -194,6 +198,13 @@ public class ResourceManager implements Closeable {
                             functionResourceInfos.remove(uri);
                         }
                     });
+        }
+    }
+
+    public void registerPythonResources() {
+        if (!containPython) {
+            registerResources(discoverPythonDependencies(), true);
+            containPython = true;
         }
     }
 
@@ -423,6 +434,26 @@ public class ResourceManager implements Closeable {
                             fileExtension);
         }
         return new Path(localResourceDir, fileNameWithUUID);
+    }
+
+    private static Map<ResourceUri, URL> discoverPythonDependencies() {
+        try {
+            URL location =
+                    Class.forName(
+                                    "org.apache.flink.python.PythonFunctionRunner",
+                                    false,
+                                    Thread.currentThread().getContextClassLoader())
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation();
+            if (Paths.get(location.toURI()).toFile().isFile()) {
+                return Collections.singletonMap(
+                        new ResourceUri(ResourceType.JAR, location.getPath()), location);
+            }
+        } catch (URISyntaxException | ClassNotFoundException e) {
+            LOG.warn("Failed to find flink-python jar." + e);
+        }
+        return Collections.emptyMap();
     }
 
     private void checkResources(Collection<ResourceUri> resourceUris, ResourceType expectedType)
