@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.alias;
+package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintTestUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 

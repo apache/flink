@@ -18,8 +18,8 @@ package org.apache.calcite.sql2rel;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.planner.alias.ClearJoinHintsWithInvalidPropagationShuttle;
 import org.apache.flink.table.planner.calcite.TimestampSchemaVersion;
+import org.apache.flink.table.planner.hint.ClearJoinHintsWithInvalidPropagationShuttle;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogSnapshotReader;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;

@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.alias;
-
-import org.apache.flink.table.planner.hint.FlinkHints;
-import org.apache.flink.table.planner.hint.JoinHintsRelShuttle;
-import org.apache.flink.table.planner.hint.JoinStrategy;
+package org.apache.flink.table.planner.hint;
 
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;

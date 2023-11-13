@@ -533,7 +533,7 @@ object FlinkRelOptUtil {
 
   // ----- The following is mainly copied from RelOptUtil -----
   // ----- Copied Line: 537 ~ 743 -----
-  // ----- Modified Line: 642 ~ 664 -----
+  // ----- Modified Line: 642 ~ 662 -----
   /**
    * Propagates the relational expression hints from root node to leaf node.
    *
