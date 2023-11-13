@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.protobuf.serialize;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbConstant;
 import org.apache.flink.formats.protobuf.PbFormatConfig;
@@ -85,7 +86,6 @@ public class RowToProtoConverter {
             PbCodegenSerializer codegenSer =
                     PbCodegenSerializeFactory.getPbCodegenTopRowSer(
                             descriptor, rowType, formatContext);
-            LOG.info("Fast-pb generate split serialize code");
             String genCode =
                     codegenSer.codegen("message", "rowData", codegenAppender.currentIndent());
             codegenAppender.appendSegment(genCode);
@@ -118,7 +118,8 @@ public class RowToProtoConverter {
         return message.toByteArray();
     }
 
-    public boolean isCodeSplit() {
+    @VisibleForTesting
+    protected boolean isCodeSplit() {
         return isCodeSplit;
     }
 }

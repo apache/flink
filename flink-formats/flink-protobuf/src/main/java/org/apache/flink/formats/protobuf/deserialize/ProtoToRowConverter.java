@@ -106,7 +106,6 @@ public class ProtoToRowConverter {
             PbCodegenDeserializer codegenDes =
                     PbCodegenDeserializeFactory.getPbCodegenTopRowDes(
                             descriptor, rowType, pbFormatContext);
-            LOG.info("Fast-pb generate split deserialize code");
             String genCode = codegenDes.codegen("rowData", "message", 0);
             codegenAppender.appendSegment(genCode);
             codegenAppender.appendLine("return rowData");
