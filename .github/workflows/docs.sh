@@ -30,11 +30,11 @@ if ! curl --fail -OL $HUGO_REPO ; then
 	exit 1
 fi
 tar -zxvf $HUGO_ARTIFACT -C /usr/local/bin
+# workaround for a git security patch
+git config --global --add safe.directory /root/flink
 git submodule update --init --recursive
 # Setup the external documentation modules
 cd docs
-# workaround for a git security patch
-git config --global --add safe.directory /root/flink
 source setup_docs.sh
 cd ..
 # Build the docs
