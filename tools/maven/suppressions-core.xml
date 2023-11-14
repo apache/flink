@@ -122,6 +122,4 @@ under the License.
 		files="(.*)test[/\\](.*)testutils[/\\](.*)"
 		checks="RedundantModifier|JavadocParagraph|JavadocType|JavadocStyle|StaticVariableNameCheck|LocalFinalVariableName|EmptyLineSeparator"/>
 
-	<!-- Suppress for Java17-specific test classes where Java records are used. -->
-	<suppress files="(.*)test[/\\].*[/\\]Java17.*.java" checks="MethodNameCheck"/>
 </suppressions>

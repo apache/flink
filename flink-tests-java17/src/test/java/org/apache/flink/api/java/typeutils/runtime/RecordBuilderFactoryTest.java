@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the @{@link JavaRecordBuilderFactory}. */
-class Java17RecordBuilderFactoryTest {
+class RecordBuilderFactoryTest {
 
     Field[] fields;
 
