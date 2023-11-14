@@ -22,7 +22,6 @@ import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
-import org.apache.flink.table.planner.functions.InternalFunctionDefinitions.THROW_EXCEPTION
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, DECIMAL, SYMBOL}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasLength, hasPrecision, hasScale}
@@ -108,38 +107,8 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           tafd.getAccumulatorTypeInfo,
           args)
 
-      case fd: FunctionDefinition =>
-        fd match {
-
-          case OVER =>
-            assert(args.size >= 4)
-            OverCall(
-              args.head,
-              args.slice(4, args.size),
-              args(1),
-              args(2),
-              args(3)
-            )
-
-          case UNBOUNDED_RANGE =>
-            assert(args.isEmpty)
-            UnboundedRange()
-
-          case UNBOUNDED_ROW =>
-            assert(args.isEmpty)
-            UnboundedRow()
-
-          case CURRENT_RANGE =>
-            assert(args.isEmpty)
-            CurrentRange()
-
-          case CURRENT_ROW =>
-            assert(args.isEmpty)
-            CurrentRow()
-
-          case _ =>
-            unknownFunctionHandler()
-        }
+      case _: FunctionDefinition =>
+        unknownFunctionHandler()
     }
   }
 
