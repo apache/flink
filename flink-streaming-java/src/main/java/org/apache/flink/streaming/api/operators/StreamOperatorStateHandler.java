@@ -21,10 +21,12 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -98,7 +100,14 @@ public class StreamOperatorStateHandler {
         if (keyedStateBackend != null) {
             keyedStateStore =
                     new DefaultKeyedStateStore(
-                            keyedStateBackend, t -> t.createSerializer(executionConfig));
+                            keyedStateBackend,
+                            new SerializerFactory() {
+                                @Override
+                                public <T> TypeSerializer<T> createSerializer(
+                                        TypeInformation<T> typeInformation) {
+                                    return typeInformation.createSerializer(executionConfig);
+                                }
+                            });
         } else {
             keyedStateStore = null;
         }

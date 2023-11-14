@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.operators.windowing;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.SerializerFactory;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.state.AppendingState;
@@ -670,7 +671,15 @@ public class WindowOperator<K, IN, ACC, OUT, W extends Window>
 
         public AbstractPerWindowStateStore(
                 KeyedStateBackend<?> keyedStateBackend, ExecutionConfig executionConfig) {
-            super(keyedStateBackend, t -> t.createSerializer(executionConfig));
+            super(
+                    keyedStateBackend,
+                    new SerializerFactory() {
+                        @Override
+                        public <T> TypeSerializer<T> createSerializer(
+                                TypeInformation<T> typeInformation) {
+                            return typeInformation.createSerializer(executionConfig);
+                        }
+                    });
         }
     }
 

@@ -31,6 +31,8 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.util.Collector;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * A {@link RichMapPartitionFunction} that serves as the runtime for a {@link BoundedStreamTask}.
  *
@@ -74,6 +76,9 @@ public class BoundedOneInputStreamTaskRunner<IN>
         super.open(openContext);
 
         RuntimeContext runtimeContext = getRuntimeContext();
+        checkState(
+                runtimeContext instanceof ExecutionConfigSupplier,
+                "The runtime context does not implement ExecutionConfigSupplier");
         ExecutionConfig executionConfig =
                 ((ExecutionConfigSupplier) runtimeContext).getExecutionConfig();
 
