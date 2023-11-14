@@ -24,7 +24,7 @@ CONTAINER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 RETRY_COUNT=3
 RETRY_BACKOFF_TIME=5
 RESULT_HASH="e682ec6622b5e83f2eb614617d5ab2cf"
-MINIKUBE_VERSION="v1.28.0"
+MINIKUBE_VERSION="latest"
 CRICTL_VERSION="v1.24.2"
 CRI_DOCKERD_VERSION="0.2.3"
 
@@ -44,11 +44,6 @@ function setup_kubernetes_for_linux {
         download_kubectl_url="https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/$arch/kubectl"
         retry_download "${download_kubectl_url}"
         chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-    fi
-    # Download minikube when it is not installed beforehand.
-    if [ -x "$(command -v minikube)" ] && [[ "$(minikube version | grep -c $MINIKUBE_VERSION)" == "0" ]]; then
-      echo "Removing any already installed minikube binaries ..."
-      sudo rm "$(which minikube)"
     fi
 
     if ! [ -x "$(command -v minikube)" ]; then
