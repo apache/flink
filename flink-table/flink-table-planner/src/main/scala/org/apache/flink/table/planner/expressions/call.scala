@@ -242,22 +242,3 @@ case class PlannerTableFunctionCall(
   override def toString =
     s"${tableFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"
 }
-
-case class ThrowException(msg: PlannerExpression, tp: TypeInformation[_]) extends UnaryExpression {
-
-  override private[flink] def resultType: TypeInformation[_] = tp
-
-  override private[flink] def child: PlannerExpression = msg
-
-  override private[flink] def validateInput(): ValidationResult = {
-    if (child.resultType == Types.STRING) {
-      ValidationSuccess
-    } else {
-      ValidationFailure(
-        s"ThrowException operator requires String input, " +
-          s"but $child is of type ${child.resultType}")
-    }
-  }
-
-  override def toString: String = s"ThrowException($msg)"
-}

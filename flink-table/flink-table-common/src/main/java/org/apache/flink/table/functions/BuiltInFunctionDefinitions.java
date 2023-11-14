@@ -2306,7 +2306,8 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("streamRecordTimestamp")
                     .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(NO_ARGS)
+                    .outputTypeStrategy(explicit(DataTypes.BIGINT()))
                     .build();
 
     public static final BuiltInFunctionDefinition RANGE_TO =
