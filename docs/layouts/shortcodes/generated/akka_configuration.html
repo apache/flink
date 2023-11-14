@@ -57,6 +57,24 @@
             <td>Min number of threads to cap factor-based parallelism number to.</td>
         </tr>
         <tr>
+            <td><h5>pekko.remote-fork-join-executor.parallelism-factor</h5></td>
+            <td style="word-wrap: break-word;">2.0</td>
+            <td>Double</td>
+            <td>The parallelism factor is used to determine thread pool size using the following formula: ceil(available processors * factor). Resulting size is then bounded by the parallelism-min and parallelism-max values.</td>
+        </tr>
+        <tr>
+            <td><h5>pekko.remote-fork-join-executor.parallelism-max</h5></td>
+            <td style="word-wrap: break-word;">16</td>
+            <td>Integer</td>
+            <td>Max number of threads to cap factor-based parallelism number to.</td>
+        </tr>
+        <tr>
+            <td><h5>pekko.remote-fork-join-executor.parallelism-min</h5></td>
+            <td style="word-wrap: break-word;">8</td>
+            <td>Integer</td>
+            <td>Min number of threads to cap factor-based parallelism number to.</td>
+        </tr>
+        <tr>
             <td><h5>pekko.framesize</h5></td>
             <td style="word-wrap: break-word;">"10485760b"</td>
             <td>String</td>

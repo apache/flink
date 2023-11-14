@@ -273,4 +273,17 @@ public class ActorSystemBootstrapTools {
         return new RpcSystem.ForkJoinExecutorConfiguration(
                 parallelismFactor, minParallelism, maxParallelism);
     }
+
+    public static RpcSystem.ForkJoinExecutorConfiguration getRemoteForkJoinExecutorConfiguration(
+            final Configuration configuration) {
+        final double parallelismFactor =
+                configuration.getDouble(AkkaOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR);
+        final int minParallelism =
+                configuration.getInteger(AkkaOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_MIN);
+        final int maxParallelism =
+                configuration.getInteger(AkkaOptions.REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_MAX);
+
+        return new RpcSystem.ForkJoinExecutorConfiguration(
+                parallelismFactor, minParallelism, maxParallelism);
+    }
 }

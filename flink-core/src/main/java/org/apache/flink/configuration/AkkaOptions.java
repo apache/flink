@@ -237,6 +237,38 @@ public class AkkaOptions {
                                             "Max number of threads to cap factor-based parallelism number to.")
                                     .build());
 
+    public static final ConfigOption<Double> REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_FACTOR =
+            ConfigOptions.key("pekko.remote-fork-join-executor.parallelism-factor")
+                    .doubleType()
+                    .defaultValue(2.0)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The parallelism factor is used to determine thread pool size using the"
+                                                    + " following formula: ceil(available processors * factor). Resulting size"
+                                                    + " is then bounded by the parallelism-min and parallelism-max values.")
+                                    .build());
+
+    public static final ConfigOption<Integer> REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_MIN =
+            ConfigOptions.key("pekko.remote-fork-join-executor.parallelism-min")
+                    .intType()
+                    .defaultValue(8)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Min number of threads to cap factor-based parallelism number to.")
+                                    .build());
+
+    public static final ConfigOption<Integer> REMOTE_FORK_JOIN_EXECUTOR_PARALLELISM_MAX =
+            ConfigOptions.key("pekko.remote-fork-join-executor.parallelism-max")
+                    .intType()
+                    .defaultValue(16)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Max number of threads to cap factor-based parallelism number to.")
+                                    .build());
+
     // ==================================================
     // Configurations for client-socket-work-pool.
     // ==================================================
