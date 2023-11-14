@@ -43,8 +43,7 @@ import java.util.Random;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** A test for the {@link PojoSerializer} with Java Records. */
-class Java17PojoRecordSerializerTest
-        extends SerializerTestBase<Java17PojoRecordSerializerTest.TestUserClass> {
+class PojoRecordSerializerTest extends SerializerTestBase<PojoRecordSerializerTest.TestUserClass> {
     private final TypeInformation<TestUserClass> type =
             TypeExtractor.getForClass(TestUserClass.class);
 

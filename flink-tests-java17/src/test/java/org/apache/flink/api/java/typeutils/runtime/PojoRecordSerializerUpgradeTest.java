@@ -26,11 +26,11 @@ import java.util.Collection;
 import java.util.List;
 
 /** A {@link TypeSerializerUpgradeTestBase} for the {@link PojoSerializer}. */
-class Java17PojoRecordSerializerUpgradeTest
+class PojoRecordSerializerUpgradeTest
         extends TypeSerializerUpgradeTestBase<
-                Java17PojoRecordSerializerUpgradeTestSpecifications.RecordMigrationSetup
+                PojoRecordSerializerUpgradeTestSpecifications.RecordMigrationSetup
                         .RecordBeforeMigration,
-                Java17PojoRecordSerializerUpgradeTestSpecifications.RecordMigrationVerifier
+                PojoRecordSerializerUpgradeTestSpecifications.RecordMigrationVerifier
                         .RecordAfterSchemaUpgrade> {
 
     @Override
@@ -47,16 +47,14 @@ class Java17PojoRecordSerializerUpgradeTest
                 new TestSpecification<>(
                         "pojo-serializer-to-record",
                         flinkVersion,
-                        Java17PojoRecordSerializerUpgradeTestSpecifications.PojoToRecordSetup.class,
-                        Java17PojoRecordSerializerUpgradeTestSpecifications.PojoToRecordVerifier
-                                .class));
+                        PojoRecordSerializerUpgradeTestSpecifications.PojoToRecordSetup.class,
+                        PojoRecordSerializerUpgradeTestSpecifications.PojoToRecordVerifier.class));
         testSpecifications.add(
                 new TestSpecification<>(
                         "pojo-serializer-record-migration",
                         flinkVersion,
-                        Java17PojoRecordSerializerUpgradeTestSpecifications.RecordMigrationSetup
-                                .class,
-                        Java17PojoRecordSerializerUpgradeTestSpecifications.RecordMigrationVerifier
+                        PojoRecordSerializerUpgradeTestSpecifications.RecordMigrationSetup.class,
+                        PojoRecordSerializerUpgradeTestSpecifications.RecordMigrationVerifier
                                 .class));
         return testSpecifications;
     }

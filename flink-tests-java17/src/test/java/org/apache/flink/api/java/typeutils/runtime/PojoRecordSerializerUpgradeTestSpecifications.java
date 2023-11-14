@@ -33,7 +33,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertSame;
 
 /** A {@link TypeSerializerUpgradeTestBase} for the {@link PojoSerializer}. */
-class Java17PojoRecordSerializerUpgradeTestSpecifications {
+class PojoRecordSerializerUpgradeTestSpecifications {
 
     public static final class PojoToRecordSetup
             implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<
