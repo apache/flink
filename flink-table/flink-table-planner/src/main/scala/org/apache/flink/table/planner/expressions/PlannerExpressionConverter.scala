@@ -79,12 +79,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
         val windowReference = translateWindowReference(children.head)
         return WindowEnd(windowReference)
 
-      case THROW_EXCEPTION =>
-        assert(children.size == 2)
-        return ThrowException(
-          children.head.accept(this),
-          fromDataTypeToTypeInfo(children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType))
-
       case _ =>
     }
 
@@ -142,10 +136,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           case CURRENT_ROW =>
             assert(args.isEmpty)
             CurrentRow()
-
-          case STREAM_RECORD_TIMESTAMP =>
-            assert(args.isEmpty)
-            StreamRecordTimestamp()
 
           case _ =>
             unknownFunctionHandler()
