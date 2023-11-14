@@ -2061,35 +2061,8 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("over")
                     .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
-                    .build();
-
-    public static final BuiltInFunctionDefinition UNBOUNDED_RANGE =
-            BuiltInFunctionDefinition.newBuilder()
-                    .name("unboundedRange")
-                    .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
-                    .build();
-
-    public static final BuiltInFunctionDefinition UNBOUNDED_ROW =
-            BuiltInFunctionDefinition.newBuilder()
-                    .name("unboundedRow")
-                    .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
-                    .build();
-
-    public static final BuiltInFunctionDefinition CURRENT_RANGE =
-            BuiltInFunctionDefinition.newBuilder()
-                    .name("currentRange")
-                    .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
-                    .build();
-
-    public static final BuiltInFunctionDefinition CURRENT_ROW =
-            BuiltInFunctionDefinition.newBuilder()
-                    .name("currentRow")
-                    .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.OVER)
+                    .outputTypeStrategy(TypeStrategies.argument(0))
                     .build();
 
     // --------------------------------------------------------------------------------------------
