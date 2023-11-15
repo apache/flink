@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.delegation.Executor;
@@ -47,7 +47,7 @@ public class DefaultExecutorTest {
         final List<Transformation<?>> dummyTransformations =
                 Collections.singletonList(
                         env.fromElements(1, 2, 3)
-                                .addSink(new DiscardingSink<>())
+                                .sinkTo(new DiscardingSink<>())
                                 .getTransformation());
 
         final Configuration configuration = new Configuration();
@@ -78,7 +78,7 @@ public class DefaultExecutorTest {
         final List<Transformation<?>> dummyTransformations =
                 Collections.singletonList(
                         env.fromElements(1, 2, 3)
-                                .addSink(new DiscardingSink<>())
+                                .sinkTo(new DiscardingSink<>())
                                 .getTransformation());
 
         final Configuration configuration = new Configuration();

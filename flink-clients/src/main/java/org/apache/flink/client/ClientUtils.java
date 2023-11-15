@@ -33,6 +33,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.rest.HttpHeader;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.SerializedThrowable;
@@ -43,6 +44,8 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -184,5 +187,25 @@ public enum ClientUtils {
                 interval,
                 TimeUnit.MILLISECONDS);
         return scheduledExecutor;
+    }
+
+    public static Collection<HttpHeader> readHeadersFromEnvironmentVariable(String envVarName) {
+        List<HttpHeader> headers = new ArrayList<>();
+        String rawHeaders = System.getenv(envVarName);
+
+        if (rawHeaders != null) {
+            String[] lines = rawHeaders.split("\n");
+            for (String line : lines) {
+                String[] keyValue = line.split(":", 2);
+                if (keyValue.length == 2) {
+                    headers.add(new HttpHeader(keyValue[0], keyValue[1]));
+                } else {
+                    LOG.info(
+                            "Skipped a malformed header {} from FLINK_REST_CLIENT_HEADERS env variable. Expecting newline-separated headers in format header_name:header_value.",
+                            line);
+                }
+            }
+        }
+        return headers;
     }
 }

@@ -18,9 +18,11 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -71,15 +73,17 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
     public void setUp() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
-        env.setRestartStrategy(RestartStrategies.noRestart());
         smallResult = sharedObjects.add(new CopyOnWriteArrayList<>());
         bigResult = sharedObjects.add(new CopyOnWriteArrayList<>());
+        IntegerStreamSource.failedBefore = false;
+        IntegerStreamSource.latch = new CountDownLatch(1);
     }
 
     @Test
     public void testImmediateCheckpointing() throws Exception {
+        env.setRestartStrategy(RestartStrategies.noRestart());
         env.enableCheckpointing(Long.MAX_VALUE - 1);
-        StreamGraph streamGraph = getStreamGraph(env);
+        StreamGraph streamGraph = getStreamGraph(env, false, false);
         env.execute(streamGraph);
         assertThat(smallResult.get().size()).isEqualTo(SMALL_SOURCE_NUM_RECORDS);
         assertThat(bigResult.get().size()).isEqualTo(BIG_SOURCE_NUM_RECORDS);
@@ -96,9 +100,9 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
         try (MiniCluster miniCluster = new MiniCluster(cfg)) {
             miniCluster.start();
 
+            env.setRestartStrategy(RestartStrategies.noRestart());
             env.enableCheckpointing(100);
-            IntegerStreamSource.latch = new CountDownLatch(1);
-            JobGraph jobGraph = getStreamGraph(env).getJobGraph();
+            JobGraph jobGraph = getStreamGraph(env, true, false).getJobGraph();
             miniCluster.submitJob(jobGraph).get();
 
             CommonTestUtils.waitForSubtasksToFinish(
@@ -118,7 +122,7 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
             bigResult.get().clear();
 
             env.enableCheckpointing(Long.MAX_VALUE - 1);
-            JobGraph restoredJobGraph = getStreamGraph(env).getJobGraph();
+            JobGraph restoredJobGraph = getStreamGraph(env, true, false).getJobGraph();
             restoredJobGraph.setSavepointRestoreSettings(
                     SavepointRestoreSettings.forPath(savepointPath, false));
             miniCluster.submitJob(restoredJobGraph).get();
@@ -131,13 +135,65 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
         }
     }
 
-    private StreamGraph getStreamGraph(StreamExecutionEnvironment env) {
-        env.addSource(new IntegerStreamSource(SMALL_SOURCE_NUM_RECORDS, false))
+    /**
+     * Tests the behaviors of the following two scenarios at which the subtasks that have finished
+     * should be restored to {@link org.apache.flink.runtime.scheduler.VertexEndOfDataListener}.
+     *
+     * <p>Some subtasks in the job have reached the end of data but failed due to their final
+     * checkpoint throwing exceptions.
+     *
+     * <p>Some pipelines of the job have been finished but the next checkpoint is not triggered, at
+     * this time a full-strategy failover happens.
+     */
+    @Test
+    public void testFailoverAfterSomeTasksFinished() throws Exception {
+        final Configuration config = new Configuration();
+        config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "full");
+
+        final MiniClusterConfiguration cfg =
+                new MiniClusterConfiguration.Builder()
+                        .withRandomPorts()
+                        .setNumTaskManagers(1)
+                        .setNumSlotsPerTaskManager(4)
+                        .setConfiguration(config)
+                        .build();
+        try (MiniCluster miniCluster = new MiniCluster(cfg)) {
+            miniCluster.start();
+
+            env.enableCheckpointing(100);
+            JobGraph jobGraph = getStreamGraph(env, true, true).getJobGraph();
+            miniCluster.submitJob(jobGraph).get();
+
+            CommonTestUtils.waitForSubtasksToFinish(
+                    miniCluster,
+                    jobGraph.getJobID(),
+                    findVertexByName(jobGraph, "passA -> Sink: sinkA").getID(),
+                    true);
+            bigResult.get().clear();
+            IntegerStreamSource.latch.countDown();
+
+            miniCluster.requestJobResult(jobGraph.getJobID()).get();
+
+            // We are expecting the source to be finished and then restart during failover, so the
+            // sink should receive records as much as double SMALL_SOURCE_NUM_RECORDS.
+            // However, in a few cases, a checkpoint happens to be triggered before failover, and
+            // the source would not restart so the sink will only receive SMALL_SOURCE_NUM_RECORDS
+            // records.
+            assertThat(smallResult.get().size())
+                    .isIn(SMALL_SOURCE_NUM_RECORDS, SMALL_SOURCE_NUM_RECORDS * 2);
+            assertThat(bigResult.get().size()).isEqualTo(BIG_SOURCE_NUM_RECORDS);
+        }
+    }
+
+    private StreamGraph getStreamGraph(
+            StreamExecutionEnvironment env, boolean block, boolean needFailover) {
+
+        env.addSource(new IntegerStreamSource(SMALL_SOURCE_NUM_RECORDS, false, false))
                 .transform("passA", Types.INT, new PassThroughOperator())
                 .addSink(new CollectSink(smallResult))
                 .name("sinkA");
 
-        env.addSource(new IntegerStreamSource(BIG_SOURCE_NUM_RECORDS, true))
+        env.addSource(new IntegerStreamSource(BIG_SOURCE_NUM_RECORDS, block, needFailover))
                 .transform("passB", Types.INT, new PassThroughOperator())
                 .addSink(new CollectSink(bigResult))
                 .name("sinkB");
@@ -157,16 +213,19 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
 
         private static final long serialVersionUID = 1L;
         private static CountDownLatch latch;
+        private static boolean failedBefore;
 
         private final int numRecords;
         private boolean block;
         private volatile boolean running;
         private int emittedCount;
+        private boolean needFailover;
 
-        public IntegerStreamSource(int numRecords, boolean block) {
+        public IntegerStreamSource(int numRecords, boolean block, boolean needFailover) {
             this.numRecords = numRecords;
             this.running = true;
             this.block = block;
+            this.needFailover = needFailover;
             this.emittedCount = 0;
         }
 
@@ -180,6 +239,10 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
             }
             if (block && latch != null) {
                 latch.await();
+            }
+            if (needFailover && !failedBefore) {
+                failedBefore = true;
+                throw new RuntimeException("forced failure");
             }
         }
 
@@ -220,8 +283,8 @@ public class CheckpointAfterAllTasksFinishedITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
         }
 
         @Override

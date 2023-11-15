@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Wei
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
 import org.apache.calcite.sql.validate.SqlMonotonicity.{CONSTANT, DECREASING, INCREASING, NOT_MONOTONIC}
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.time.Duration
 
@@ -258,7 +258,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
     val actualMono = FlinkRelMetadataQuery
       .reuseOrCreate(optimized.getCluster.getMetadataQuery)
       .getRelModifiedMonotonicity(optimized)
-    assertEquals(expect, actualMono)
+    assertThat(actualMono).isEqualTo(expect)
   }
 }
 

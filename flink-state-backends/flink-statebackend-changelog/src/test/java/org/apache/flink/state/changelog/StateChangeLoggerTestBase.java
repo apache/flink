@@ -125,7 +125,8 @@ abstract class StateChangeLoggerTestBase<Namespace> {
         }
 
         @Override
-        public CompletableFuture<?> persist(SequenceNumber from) throws IOException {
+        public CompletableFuture<?> persist(SequenceNumber from, long checkpointId)
+                throws IOException {
             throw new UnsupportedOperationException();
         }
 
@@ -134,9 +135,6 @@ abstract class StateChangeLoggerTestBase<Namespace> {
 
         @Override
         public void confirm(SequenceNumber from, SequenceNumber to, long checkpointId) {}
-
-        @Override
-        public void subsume(long checkpointId) {}
 
         @Override
         public void reset(SequenceNumber from, SequenceNumber to, long checkpointId) {}

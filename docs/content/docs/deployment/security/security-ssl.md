@@ -113,7 +113,7 @@ need to be set up such that the truststore trusts the keystore's certificate.
 
 Because internal communication is mutually authenticated between server and client side, keystore and truststore typically refer to a dedicated
 certificate that acts as a shared secret. In such a setup, the certificate can use wild card hostnames or addresses.
-WHen using self-signed certificates, it is even possible to use the same file as keystore and truststore.
+When using self-signed certificates, it is even possible to use the same file as keystore and truststore.
 
 ```yaml
 security.ssl.internal.keystore: /path/to/file.keystore
@@ -171,7 +171,7 @@ If these cipher suites are not supported on your setup, you will see that Flink 
 
 ## Creating and Deploying Keystores and Truststores
 
-Keys, Certificates, and the Keystores and Truststores can be generatedd using the [keytool utility](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/keytool.html).
+Keys, Certificates, and the Keystores and Truststores can be generated using the [keytool utility](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/keytool.html).
 You need to have an appropriate Java Keystore and Truststore accessible from each node in the Flink cluster.
 
   - For standalone setups, this means copying the files to each node, or adding them to a shared mounted directory.

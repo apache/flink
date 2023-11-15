@@ -34,7 +34,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<arrow.version>5.0.0</arrow.version>
+		<arrow.version>13.0.0</arrow.version>
 		<kafka.version>3.2.3</kafka.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
@@ -127,7 +127,7 @@ under the License.
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>pemja</artifactId>
-			<version>0.3.0</version>
+			<version>0.4.1</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 

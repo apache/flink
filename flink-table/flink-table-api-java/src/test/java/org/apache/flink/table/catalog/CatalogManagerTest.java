@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.listener.AlterDatabaseEvent;
 import org.apache.flink.table.catalog.listener.AlterTableEvent;
@@ -34,8 +35,11 @@ import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.junit.jupiter.api.Test;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -116,25 +120,13 @@ class CatalogManagerTest {
         CompletableFuture<DropTableEvent> dropFuture = new CompletableFuture<>();
         CompletableFuture<DropTableEvent> dropTemporaryFuture = new CompletableFuture<>();
         CatalogManager catalogManager =
-                CatalogManager.newBuilder()
-                        .defaultCatalog("default", new GenericInMemoryCatalog("default"))
-                        .classLoader(CatalogManagerTest.class.getClassLoader())
-                        .config(new Configuration())
-                        .catalogModificationListeners(
-                                Collections.singletonList(
-                                        new TestingTableModificationListener(
-                                                createFuture,
-                                                createTemporaryFuture,
-                                                alterFuture,
-                                                dropFuture,
-                                                dropTemporaryFuture)))
-                        .catalogStoreHolder(
-                                CatalogStoreHolder.newBuilder()
-                                        .classloader(CatalogManagerTest.class.getClassLoader())
-                                        .catalogStore(new GenericInMemoryCatalogStore())
-                                        .config(new Configuration())
-                                        .build())
-                        .build();
+                createCatalogManager(
+                        new TestingTableModificationListener(
+                                createFuture,
+                                createTemporaryFuture,
+                                alterFuture,
+                                dropFuture,
+                                dropTemporaryFuture));
 
         catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
         // Create a view
@@ -250,19 +242,37 @@ class CatalogManagerTest {
         assertThat(dropTemporaryEvent.identifier().getObjectName()).isEqualTo("table2");
     }
 
-    private CatalogManager createCatalogManager(CatalogModificationListener listener) {
-        return CatalogManager.newBuilder()
-                .classLoader(CatalogManagerTest.class.getClassLoader())
-                .config(new Configuration())
-                .defaultCatalog("default", new GenericInMemoryCatalog("default"))
-                .catalogModificationListeners(Collections.singletonList(listener))
-                .catalogStoreHolder(
-                        CatalogStoreHolder.newBuilder()
-                                .catalogStore(new GenericInMemoryCatalogStore())
-                                .config(new Configuration())
-                                .classloader(CatalogManagerTest.class.getClassLoader())
-                                .build())
-                .build();
+    @Test
+    public void testDropCurrentDatabase() throws Exception {
+        CatalogManager catalogManager = createCatalogManager(null);
+
+        catalogManager.createDatabase(
+                "default", "dummy", new CatalogDatabaseImpl(new HashMap<>(), null), false);
+        catalogManager.setCurrentDatabase("dummy");
+
+        assertThatThrownBy(() -> catalogManager.dropDatabase("default", "dummy", false, false))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Cannot drop a database which is currently in use.");
+    }
+
+    private CatalogManager createCatalogManager(@Nullable CatalogModificationListener listener) {
+        CatalogManager.Builder builder =
+                CatalogManager.newBuilder()
+                        .classLoader(CatalogManagerTest.class.getClassLoader())
+                        .config(new Configuration())
+                        .defaultCatalog("default", new GenericInMemoryCatalog("default"))
+                        .catalogStoreHolder(
+                                CatalogStoreHolder.newBuilder()
+                                        .catalogStore(new GenericInMemoryCatalogStore())
+                                        .config(new Configuration())
+                                        .classloader(CatalogManagerTest.class.getClassLoader())
+                                        .build());
+
+        if (listener != null) {
+            builder.catalogModificationListeners(Collections.singletonList(listener));
+        }
+
+        return builder.build();
     }
 
     /** Testing database modification listener. */

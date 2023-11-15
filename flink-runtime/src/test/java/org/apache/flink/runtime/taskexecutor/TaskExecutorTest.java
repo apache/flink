@@ -2942,7 +2942,7 @@ class TaskExecutorTest {
 
         @Override
         public boolean allocateSlot(
-                int index, JobID jobId, AllocationID allocationId, Time slotTimeout) {
+                int index, JobID jobId, AllocationID allocationId, Duration slotTimeout) {
             final boolean result = super.allocateSlot(index, jobId, allocationId, slotTimeout);
             allocateSlotLatch.trigger();
 
@@ -2955,7 +2955,7 @@ class TaskExecutorTest {
                 JobID jobId,
                 AllocationID allocationId,
                 ResourceProfile resourceProfile,
-                Time slotTimeout) {
+                Duration slotTimeout) {
             final boolean result =
                     super.allocateSlot(index, jobId, allocationId, resourceProfile, slotTimeout);
             allocateSlotLatch.trigger();

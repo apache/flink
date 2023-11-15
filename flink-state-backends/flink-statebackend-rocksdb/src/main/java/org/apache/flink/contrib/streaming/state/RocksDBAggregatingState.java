@@ -27,10 +27,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.rocksdb.ColumnFamilyHandle;
+import org.rocksdb.RocksDBException;
 
+import java.io.IOException;
 import java.util.Collection;
 
 /**
@@ -87,7 +88,7 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
     }
 
     @Override
-    public R get() {
+    public R get() throws IOException, RocksDBException {
         ACC accumulator = getInternal();
         if (accumulator == null) {
             return null;
@@ -96,7 +97,7 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
     }
 
     @Override
-    public void add(T value) {
+    public void add(T value) throws IOException, RocksDBException {
         byte[] key = getKeyBytes();
         ACC accumulator = getInternal(key);
         accumulator = accumulator == null ? aggFunction.createAccumulator() : accumulator;
@@ -104,60 +105,56 @@ class RocksDBAggregatingState<K, N, T, ACC, R>
     }
 
     @Override
-    public void mergeNamespaces(N target, Collection<N> sources) {
+    public void mergeNamespaces(N target, Collection<N> sources)
+            throws IOException, RocksDBException {
         if (sources == null || sources.isEmpty()) {
             return;
         }
 
-        try {
-            ACC current = null;
+        ACC current = null;
 
-            // merge the sources to the target
-            for (N source : sources) {
-                if (source != null) {
-                    setCurrentNamespace(source);
-                    final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
-                    final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
+        // merge the sources to the target
+        for (N source : sources) {
+            if (source != null) {
+                setCurrentNamespace(source);
+                final byte[] sourceKey = serializeCurrentKeyWithGroupAndNamespace();
+                final byte[] valueBytes = backend.db.get(columnFamily, sourceKey);
 
-                    if (valueBytes != null) {
-                        backend.db.delete(columnFamily, writeOptions, sourceKey);
-                        dataInputView.setBuffer(valueBytes);
-                        ACC value = valueSerializer.deserialize(dataInputView);
+                if (valueBytes != null) {
+                    backend.db.delete(columnFamily, writeOptions, sourceKey);
+                    dataInputView.setBuffer(valueBytes);
+                    ACC value = valueSerializer.deserialize(dataInputView);
 
-                        if (current != null) {
-                            current = aggFunction.merge(current, value);
-                        } else {
-                            current = value;
-                        }
+                    if (current != null) {
+                        current = aggFunction.merge(current, value);
+                    } else {
+                        current = value;
                     }
                 }
             }
+        }
 
-            // if something came out of merging the sources, merge it or write it to the target
-            if (current != null) {
-                setCurrentNamespace(target);
-                // create the target full-binary-key
-                final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
-                final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
+        // if something came out of merging the sources, merge it or write it to the target
+        if (current != null) {
+            setCurrentNamespace(target);
+            // create the target full-binary-key
+            final byte[] targetKey = serializeCurrentKeyWithGroupAndNamespace();
+            final byte[] targetValueBytes = backend.db.get(columnFamily, targetKey);
 
-                if (targetValueBytes != null) {
-                    // target also had a value, merge
-                    dataInputView.setBuffer(targetValueBytes);
-                    ACC value = valueSerializer.deserialize(dataInputView);
+            if (targetValueBytes != null) {
+                // target also had a value, merge
+                dataInputView.setBuffer(targetValueBytes);
+                ACC value = valueSerializer.deserialize(dataInputView);
 
-                    current = aggFunction.merge(current, value);
-                }
-
-                // serialize the resulting value
-                dataOutputView.clear();
-                valueSerializer.serialize(current, dataOutputView);
-
-                // write the resulting value
-                backend.db.put(
-                        columnFamily, writeOptions, targetKey, dataOutputView.getCopyOfBuffer());
+                current = aggFunction.merge(current, value);
             }
-        } catch (Exception e) {
-            throw new FlinkRuntimeException("Error while merging state in RocksDB", e);
+
+            // serialize the resulting value
+            dataOutputView.clear();
+            valueSerializer.serialize(current, dataOutputView);
+
+            // write the resulting value
+            backend.db.put(columnFamily, writeOptions, targetKey, dataOutputView.getCopyOfBuffer());
         }
     }
 

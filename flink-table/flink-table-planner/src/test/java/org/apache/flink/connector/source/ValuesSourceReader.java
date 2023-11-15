@@ -97,19 +97,29 @@ public class ValuesSourceReader implements SourceReader<RowData, ValuesSourceSpl
     public InputStatus pollNext(ReaderOutput<RowData> output) throws Exception {
         ValuesSourceSplit currentSplit = remainingSplits.poll();
         if (currentSplit != null) {
-            output.collect(elements.get(currentSplit.getIndex()));
-            // request another split
-            context.sendSplitRequest();
-            return InputStatus.MORE_AVAILABLE;
+            if (currentSplit.isInfinite()) {
+                remainingSplits.add(currentSplit);
+                resetAvailability();
+                return InputStatus.NOTHING_AVAILABLE;
+            } else {
+                output.collect(elements.get(currentSplit.getIndex()));
+                // request another split
+                context.sendSplitRequest();
+                return InputStatus.MORE_AVAILABLE;
+            }
         } else if (noMoreSplits) {
             return InputStatus.END_OF_INPUT;
         } else {
-            // ensure we are not called in a loop by resetting the availability future
-            if (availability.isDone()) {
-                availability = new CompletableFuture<>();
-            }
+            resetAvailability();
 
             return InputStatus.NOTHING_AVAILABLE;
+        }
+    }
+
+    private void resetAvailability() {
+        // ensure we are not called in a loop by resetting the availability future
+        if (availability.isDone()) {
+            availability = new CompletableFuture<>();
         }
     }
 

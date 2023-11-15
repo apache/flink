@@ -51,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -536,6 +537,15 @@ class RocksDBMapState<K, N, UK, UV> extends AbstractRocksDBState<K, N, Map<UK, U
             }
 
             return oldValue;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof Map.Entry)) {
+                return false;
+            }
+            Map.Entry<?, ?> e = (Map.Entry<?, ?>) o;
+            return Objects.equals(getKey(), e.getKey()) && Objects.equals(getValue(), e.getValue());
         }
     }
 

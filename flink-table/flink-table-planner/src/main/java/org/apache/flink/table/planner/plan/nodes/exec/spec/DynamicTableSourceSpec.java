@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.spec;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ContextResolvedTable;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -30,7 +29,6 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilityContext;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.types.logical.RowType;
@@ -77,7 +75,6 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
                             .getFactory(Module::getTableSourceFactory)
                             .orElse(null);
 
-            ResolvedCatalogTable resolvedCatalogTable = contextResolvedTable.getResolvedTable();
             if (factory == null) {
                 // try to get DynamicTableSourceFactory from Catalog,
                 // we need it for we can only get DynamicTableSourceFactory from catalog in Hive
@@ -95,29 +92,19 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
                     FactoryUtil.createDynamicTableSource(
                             factory,
                             contextResolvedTable.getIdentifier(),
-                            resolvedCatalogTable,
+                            contextResolvedTable.getResolvedTable(),
                             loadOptionsFromCatalogTable(contextResolvedTable, context),
                             context.getTableConfig(),
                             context.getClassLoader(),
                             contextResolvedTable.isTemporary());
-            // validate DynamicSource and apply Metadata
-            DynamicSourceUtils.prepareDynamicSource(
-                    contextResolvedTable.getIdentifier().toString(),
-                    resolvedCatalogTable,
-                    tableSource,
-                    false,
-                    context.getTableConfig().getConfiguration());
 
             if (sourceAbilities != null) {
-                //  Note: use DynamicSourceUtils.createProducedType to produce the type info so that
-                //  keep consistent with sql2Rel phase which also called the method producing
-                //  deterministic format (PHYSICAL COLUMNS + METADATA COLUMNS) when converts a given
-                //  DynamicTableSource to a RelNode.
-                // TODO should do a refactor(e.g., add serialized input type info into each
-                //  SourceAbilitySpec so as to avoid this implicit logic dependency)
                 RowType newProducedType =
-                        DynamicSourceUtils.createProducedType(
-                                contextResolvedTable.getResolvedSchema(), tableSource);
+                        (RowType)
+                                contextResolvedTable
+                                        .getResolvedSchema()
+                                        .toPhysicalRowDataType()
+                                        .getLogicalType();
                 for (SourceAbilitySpec spec : sourceAbilities) {
                     SourceAbilityContext sourceAbilityContext =
                             new SourceAbilityContext(context, typeFactory, newProducedType);

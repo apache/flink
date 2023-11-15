@@ -1190,7 +1190,7 @@ public class Execution
         }
     }
 
-    boolean switchToRecovering() {
+    boolean switchToInitializing() {
         if (switchTo(DEPLOYING, INITIALIZING)) {
             sendPartitionInfos();
             return true;

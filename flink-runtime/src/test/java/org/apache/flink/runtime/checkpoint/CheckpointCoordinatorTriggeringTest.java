@@ -272,6 +272,9 @@ class CheckpointCoordinatorTriggeringTest {
         // trigger a savepoint before any checkpoint completes
         // next triggered checkpoint should still be a full one
         takeSavepoint(graph, attemptID, checkpointCoordinator, 2);
+
+        // a complete checkpoint should not remember in the coordinator.
+        assertThat(checkpointCoordinator.getRecentExpiredCheckpoints().isEmpty()).isTrue();
         checkpointCoordinator.startCheckpointScheduler();
         gateway.resetCount();
         // the checkpoint should be a FULL_CHECKPOINT
@@ -782,6 +785,9 @@ class CheckpointCoordinatorTriggeringTest {
                     .get()
                     .isEqualTo(CheckpointFailureReason.CHECKPOINT_EXPIRED);
         }
+
+        // an expired checkpoint should remember in the coordinator.
+        assertThat(checkpointCoordinator.getRecentExpiredCheckpoints().size()).isEqualTo(1);
 
         // continue triggering
         masterHookCheckpointFuture.complete("finish master hook");

@@ -25,13 +25,13 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.runtime.functions.aggregate.FirstValueAggFunction
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class SubplanReuseTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, Boolean.box(true))

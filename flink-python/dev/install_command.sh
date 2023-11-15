@@ -24,6 +24,13 @@ if [[ "$@" =~ 'apache-flink-libraries' ]]; then
     popd
     popd
 fi
+
+if [[ `uname -s` == "Darwin" && `uname -m` == "arm64" ]]; then
+  echo "Adding MacOS arm64 GRPC pip install fix"
+  export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1
+  export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1
+fi
+
 retry_times=3
 install_command="python -m pip install $@"
 ${install_command}

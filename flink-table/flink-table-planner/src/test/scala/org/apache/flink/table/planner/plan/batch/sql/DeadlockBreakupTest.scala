@@ -24,13 +24,13 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class DeadlockBreakupTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED)

@@ -18,9 +18,9 @@
 package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -64,7 +64,7 @@ public class SourceFunctionUtil {
             RuntimeContext runtimeContext =
                     new StreamingRuntimeContext(operator, environment, new HashMap<>());
             ((RichFunction) sourceFunction).setRuntimeContext(runtimeContext);
-            ((RichFunction) sourceFunction).open(new Configuration());
+            ((RichFunction) sourceFunction).open(DefaultOpenContext.INSTANCE);
 
             return runNonRichSourceFunction(sourceFunction);
         }

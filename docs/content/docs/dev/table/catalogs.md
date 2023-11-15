@@ -71,6 +71,44 @@ The provided factory identifier will be used for matching against the required `
 User-defined catalogs should replace `Thread.currentThread().getContextClassLoader()` with the user class loader to load classes. Otherwise, `ClassNotFoundException` maybe thrown. The user class loader can be accessed via `CatalogFactory.Context#getClassLoader`.
 {{< /hint >}}
 
+#### Interface in Catalog for supporting time travel
+
+Starting from version 1.18, the Flink framework supports [time travel]({{< ref "docs/dev/table/sql/queries/time-travel" >}}) to query historical data of a table. To query the historical data of a table, users should implement `getTable(ObjectPath tablePath, long timestamp)` method for the catalog that the table belongs to.
+
+```java
+public class MyCatalogSupportTimeTravel implements Catalog {
+
+    @Override
+    public CatalogBaseTable getTable(ObjectPath tablePath, long timestamp)
+            throws TableNotExistException {
+        // Build a schema corresponding to the specific time point.
+        Schema schema = buildSchema(timestamp);
+        // Set parameters to read data at the corresponding time point.
+        Map<String, String> options = buildOptions(timestamp);
+        // Build CatalogTable
+        CatalogTable catalogTable =
+                CatalogTable.of(schema, "", Collections.emptyList(), options, timestamp);
+        return catalogTable;
+    }
+}
+
+public class MyDynamicTableFactory implements DynamicTableSourceFactory {
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        final ReadableConfig configuration =
+                Configuration.fromMap(context.getCatalogTable().getOptions());
+
+        // Get snapshot from CatalogTable
+        final Optional<Long> snapshot = context.getCatalogTable().getSnapshot();
+
+        // Build DynamicTableSource using snapshot options.
+        final DynamicTableSource dynamicTableSource = buildDynamicSource(configuration, snapshot);
+
+        return dynamicTableSource;
+    }
+}
+```
+
 ## How to Create and Register Flink Tables to Catalog
 
 ### Using SQL DDL
@@ -750,7 +788,7 @@ and do some customized operations when receiving the event, such as report the i
 There are two interfaces for the catalog modification listener: `CatalogModificationListenerFactory` to create the listener and `CatalogModificationListener`
 to receive and process the event. You need to implement these interfaces and below is an example.
 
-```
+```java
 /** Factory used to create a {@link CatalogModificationListener} instance. */
 public class YourCatalogListenerFactory implements CatalogModificationListenerFactory {
     /** The identifier for the customized listener factory, you can named it yourself. */
@@ -782,11 +820,16 @@ public class YourCatalogListener implements CatalogModificationListener {
 }
 ```
 
+You need to create a file `org.apache.flink.table.factories.Factory` in `META-INF/services`
+with the content of `the full name of YourCatalogListenerFactory` for your
+customized catalog listener factory. After that, you can package the codes into a jar file
+and add it to `lib` of Flink cluster.
+
 ### Register Catalog Listener
 
 After implemented above catalog modification factory and listener, you can register it to the table environment.
 
-```
+```java
 Configuration configuration = new Configuration();
 
 // Add the factory identifier, you can set multiple listeners in the configuraiton.
@@ -801,12 +844,7 @@ env.executeSql("CREATE TABLE ...").wait();
 ```
 
 For sql-gateway, you can add the option `table.catalog-modification.listeners` in the `flink-conf.yaml` and start
-the gateway, or you can also use `SET` to specify the listener for ddl, for example, in sql-client or jdbc-driver.
-
-```
-Flink SQL> SET 'table.catalog-modification.listeners' = 'your_factory';
-Flink SQL> CREATE TABLE test_table(...);
-```
+the gateway, or you can also start sql-gateway with dynamic parameter, then you can use sql-client to perform ddl directly.
 
 ## Catalog Store
 
@@ -815,13 +853,14 @@ of catalogs created in the session will be persisted in the corresponding extern
 Even if the session is reconstructed, previously created catalogs can still be retrieved from Catalog Store.
 
 ### Configure Catalog Store
+
 Users can configure the Catalog Store in different ways, one is to use the Table API, and another is to use YAML configuration.
 
-Register a catalog store using catalog store instance.
+Register a catalog store using catalog store instance:
 
 ```java
 // Initialize a catalog Store instance
-CatalogStore catalogStore = new FileCatalogStore("file://path/to/catalog/store/");
+CatalogStore catalogStore = new FileCatalogStore("file:///path/to/catalog/store/");
 
 // set up the catalog store
 final EnvironmentSettings settings =
@@ -830,13 +869,13 @@ final EnvironmentSettings settings =
         .build();
 ```
 
-Register a catalog store using configuration.
+Register a catalog store using configuration:
 
 ```java 
 // Set up configuration
 Configuration configuration = new Configuration();
 configuration.set("table.catalog-store.kind", "file");
-configuration.set("table.catalog-store.file.path", "file://path/to/catalog/store/");
+configuration.set("table.catalog-store.file.path", "file:///path/to/catalog/store/");
 // set up the configuration.
 final EnvironmentSettings settings =
         EnvironmentSettings.newInstance().inBatchMode()
@@ -849,40 +888,41 @@ final TableEnvironment tableEnv = TableEnvironment.create(settings);
 In SQL Gateway, it is recommended to configure the settings in a yaml file so that all sessions can automatically
 use the pre-created Catalog. Usually, you need to configure the kind of Catalog Store and other
 required parameters for the Catalog Store.
+
 ```yaml
 table.catalog-store.kind: file
-table.catalog-store.file.path: /path/to/catalog/store/
+table.catalog-store.file.path: file:///path/to/catalog/store/
 ```
 
 ### Catalog Store Type
-Flink has two built-in Catalog Stores, namely GenericInMemoryCatalogStore and FileCatalogStore.
-Users can also customize their own Catalog Store.
+
+Flink has two built-in Catalog Stores, namely `GenericInMemoryCatalogStore` and `FileCatalogStore`,
+but the Catalog Store model is extendable, so users can also implement their own custom Catalog Store.
 
 #### GenericInMemoryCatalogStore
-GenericInMemoryCatalogStore is an implementation of CatalogStore that saves configuration information in memory.
-All catalog configurations are only available within the session's lifecycle, and the stored catalog configurations will be
-automatically cleared after session reconstruction.
 
-<table class="table table-bordered">
-    <thead>
-      <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 45%">Description</th>
-      </tr>
-    </thead>
-    <tbody>
-    <tr>
-      <td><h5>kind</h5></td>
-      <td>Specify the Catalog Store type to be used, which should be 'generic_in_memory'</td>
-    </tr>
-    </tbody>
-</table>
+`GenericInMemoryCatalogStore` is an implementation of `CatalogStore` that saves configuration information in memory.
+All catalog configurations are only available within the sessions' lifecycle, and the stored catalog configurations will be
+automatically cleared after the session is closed.
+
+{{< hint info >}}
+By default, if no Catalog Store related configuration is specified, the system uses this implementation.
+{{< /hint >}}
 
 #### FileCatalogStore
-FileCatalogStore can save the user's Catalog configuration to a file. To use FileCatalogStore, you need to specify the directory where the Catalog configuration
-needs to be saved. Different Catalogs will correspond to different files and each file will correspond to a Catalog Name.
 
-Here's an example directory structure representing the storage of Catalog configurations using FileCatalogStore:
+`FileCatalogStore` can save the Catalog configuration to a file. To use `FileCatalogStore`, you need to specify the directory where the Catalog configurations
+needs to be saved. Each Catalog will have its own file named the same as the Catalog Name.
+
+The `FileCatalogStore` implementation supports both local and remote file systems that are available via the [Flink `FileSystem` abstraction]({{< ref "docs/deployment/filesystems/overview" >}}).
+If the given Catalog Store path does not exist either completely or partly, `FileCatalogStore` will try to create the missing directories.
+
+{{< hint warning >}}
+If the given Catalog Store path does not exist and `FileCatalogStore` fails to create a directory, the Catalog Store cannot be initialized, hence an exception will be thrown.
+In case the `FileCatalogstore` initialization is not successful, both SQL Client and SQL Gateway will be broken.
+{{< /hint >}}
+
+Here is an example directory structure representing the storage of Catalog configurations using `FileCatalogStore`:
 
 ```shell
 - /path/to/save/the/catalog/
@@ -891,26 +931,37 @@ Here's an example directory structure representing the storage of Catalog config
   - catalog3.yaml
 ```
 
-<table class="table table-bordered">
+#### Catalog Store Configuration
+
+The following options can be used to adjust the Catalog Store behavior.
+
+<table class="configuration table table-bordered">
     <thead>
-      <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 45%">Description</th>
-      </tr>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
     </thead>
     <tbody>
-    <tr>
-      <td><h5>kind</h5></td>
-      <td>Specify the Catalog Store type to be used, which should be 'file'</td>
-    </tr>
-    <tr>
-      <td><h5>path</h5></td>
-      <td>Specify the path to be used for saving in the Catalog Store, it must be a valid directory and currently only supports local directories.</td>
-    </tr>
+        <tr>
+            <td><h5>table.catalog-store.kind</h5></td>
+            <td style="word-wrap: break-word;">"generic_in_memory"</td>
+            <td>String</td>
+            <td>The kind of catalog store to be used. Out of the box, 'generic_in_memory' and 'file' options are supported.</td>
+        </tr>
+        <tr>
+            <td><h5>table.catalog-store.file.path</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The configuration option for specifying the path to the file catalog store root directory.</td>
+        </tr>
     </tbody>
 </table>
 
 #### Custom Catalog Store
+
 Catalog Store is extensible, and users can customize Catalog Store by implementing its interface.
 If SQL CLI or SQL Gateway needs to use Catalog Store, the corresponding CatalogStoreFactory interface
 also needs to be implemented for this Catalog Store.

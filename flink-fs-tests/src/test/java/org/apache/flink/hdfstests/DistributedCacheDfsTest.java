@@ -27,7 +27,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
@@ -168,7 +168,7 @@ public class DistributedCacheDfsTest extends TestLogger {
         env.registerCachedFile(testFile.toString(), "test_data", false);
         env.registerCachedFile(testDir.toString(), "test_dir", false);
 
-        env.fromElements(1).map(new TestMapFunction()).addSink(new DiscardingSink<>());
+        env.fromElements(1).map(new TestMapFunction()).sinkTo(new DiscardingSink<>());
         return env;
     }
 

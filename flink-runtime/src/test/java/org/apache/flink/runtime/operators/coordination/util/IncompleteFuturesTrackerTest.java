@@ -18,19 +18,19 @@
 
 package org.apache.flink.runtime.operators.coordination.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Unit tests for the {@link IncompleteFuturesTracker}. */
-public class IncompleteFuturesTrackerTest {
+class IncompleteFuturesTrackerTest {
 
     @Test
-    public void testFutureTracked() {
+    void testFutureTracked() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
         final CompletableFuture<?> future = new CompletableFuture<>();
 
@@ -40,7 +40,7 @@ public class IncompleteFuturesTrackerTest {
     }
 
     @Test
-    public void testFutureRemovedAfterCompletion() {
+    void testFutureRemovedAfterCompletion() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
         final CompletableFuture<?> future = new CompletableFuture<>();
 
@@ -51,7 +51,7 @@ public class IncompleteFuturesTrackerTest {
     }
 
     @Test
-    public void testFutureNotAddedIfAlreadyCompleted() {
+    void testFutureNotAddedIfAlreadyCompleted() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
         final CompletableFuture<?> future = new CompletableFuture<>();
 
@@ -62,7 +62,7 @@ public class IncompleteFuturesTrackerTest {
     }
 
     @Test
-    public void testFailFutures() throws Exception {
+    void testFailFutures() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
         final CompletableFuture<?> future = new CompletableFuture<>();
 
@@ -71,17 +71,13 @@ public class IncompleteFuturesTrackerTest {
         final Exception expectedException = new Exception();
         tracker.failAllFutures(expectedException);
 
-        assertThat(future).isCompletedExceptionally();
-        try {
-            future.get();
-            fail(null);
-        } catch (ExecutionException e) {
-            assertThat(e.getCause()).isEqualTo(expectedException);
-        }
+        assertThatFuture(future)
+                .eventuallyFailsWith(ExecutionException.class)
+                .withCause(expectedException);
     }
 
     @Test
-    public void testFailFuturesImmediately() throws Exception {
+    void testFailFuturesImmediately() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
         final CompletableFuture<?> future = new CompletableFuture<>();
 
@@ -90,17 +86,13 @@ public class IncompleteFuturesTrackerTest {
 
         tracker.trackFutureWhileIncomplete(future);
 
-        assertThat(future).isCompletedExceptionally();
-        try {
-            future.get();
-            fail(null);
-        } catch (ExecutionException e) {
-            assertThat(e.getCause()).isEqualTo(expectedException);
-        }
+        assertThatFuture(future)
+                .eventuallyFailsWith(ExecutionException.class)
+                .withCause(expectedException);
     }
 
     @Test
-    public void testResetClearsTrackedFutures() {
+    void testResetClearsTrackedFutures() {
         final IncompleteFuturesTracker tracker = new IncompleteFuturesTracker();
 
         final CompletableFuture<?> future = new CompletableFuture<>();

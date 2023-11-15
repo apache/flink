@@ -22,14 +22,16 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -39,12 +41,12 @@ import java.util.List;
  * Tests for the keyed state backend and operator state backend, as created by the {@link
  * HashMapStateBackend}.
  */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBackend> {
 
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+    @TempDir private static java.nio.file.Path tempFolder;
 
-    @Parameterized.Parameters
+    @Parameters
     public static List<Object[]> modes() {
         return Arrays.asList(
                 new Object[][] {
@@ -56,7 +58,7 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
                         (SupplierWithException<CheckpointStorage, IOException>)
                                 () -> {
                                     String checkpointPath =
-                                            TEMP_FOLDER.newFolder().toURI().toString();
+                                            TempDirUtils.newFolder(tempFolder).toURI().toString();
                                     return new FileSystemCheckpointStorage(
                                             new Path(checkpointPath), 0, -1);
                                 }
@@ -64,8 +66,7 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
                 });
     }
 
-    @Parameterized.Parameter
-    public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
+    @Parameter public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
 
     @Override
     protected ConfigurableStateBackend getStateBackend() {
@@ -89,24 +90,24 @@ public class HashMapStateBackendTest extends StateBackendTestBase<HashMapStateBa
 
     // disable these because the verification does not work for this state backend
     @Override
-    @Test
-    public void testValueStateRestoreWithWrongSerializers() {}
+    @TestTemplate
+    void testValueStateRestoreWithWrongSerializers() {}
 
     @Override
-    @Test
-    public void testListStateRestoreWithWrongSerializers() {}
+    @TestTemplate
+    void testListStateRestoreWithWrongSerializers() {}
 
     @Override
-    @Test
-    public void testReducingStateRestoreWithWrongSerializers() {}
+    @TestTemplate
+    void testReducingStateRestoreWithWrongSerializers() {}
 
     @Override
-    @Test
-    public void testMapStateRestoreWithWrongSerializers() {}
+    @TestTemplate
+    void testMapStateRestoreWithWrongSerializers() {}
 
-    @Ignore
-    @Test
-    public void testConcurrentMapIfQueryable() throws Exception {
+    @Disabled
+    @TestTemplate
+    void testConcurrentMapIfQueryable() throws Exception {
         super.testConcurrentMapIfQueryable();
     }
 }

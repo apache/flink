@@ -36,6 +36,7 @@ import org.junit.Test;
 import org.mockito.Matchers;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -460,10 +461,18 @@ public class MergingWindowSetTest {
 
         windowSet.persist();
 
-        verify(mockState).add(eq(new Tuple2<>(new TimeWindow(1, 2), new TimeWindow(1, 2))));
-        verify(mockState).add(eq(new Tuple2<>(new TimeWindow(17, 42), new TimeWindow(17, 42))));
+        verify(mockState)
+                .update(
+                        eq(
+                                new ArrayList<>(
+                                        Arrays.asList(
+                                                new Tuple2<>(
+                                                        new TimeWindow(1, 2), new TimeWindow(1, 2)),
+                                                new Tuple2<>(
+                                                        new TimeWindow(17, 42),
+                                                        new TimeWindow(17, 42))))));
 
-        verify(mockState, times(2)).add(Matchers.<Tuple2<TimeWindow, TimeWindow>>anyObject());
+        verify(mockState, times(1)).update(Matchers.anyObject());
     }
 
     @Test
@@ -561,6 +570,12 @@ public class MergingWindowSetTest {
 
         @Override
         public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+            throw new UnsupportedOperationException(
+                    "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
+        }
+
+        @Override
+        public Trigger<Object, TimeWindow> getDefaultTrigger() {
             return EventTimeTrigger.create();
         }
 

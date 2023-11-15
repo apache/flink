@@ -19,20 +19,20 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.junit.Before
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class IncrementalAggregateTest(
     splitDistinctAggEnabled: Boolean,
     aggPhaseEnforcer: AggregatePhaseStrategy)
   extends DistinctAggregateTest(splitDistinctAggEnabled, aggPhaseEnforcer) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // enable incremental agg
@@ -42,7 +42,7 @@ class IncrementalAggregateTest(
 }
 
 object IncrementalAggregateTest {
-  @Parameterized.Parameters(name = "splitDistinctAggEnabled={0}, aggPhaseEnforcer={1}")
+  @Parameters(name = "splitDistinctAggEnabled={0}, aggPhaseEnforcer={1}")
   def parameters(): util.Collection[Array[Any]] = {
     util.Arrays.asList(
       Array(true, AggregatePhaseStrategy.TWO_PHASE)

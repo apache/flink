@@ -43,12 +43,10 @@ import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterators;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -64,7 +62,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link MetricRegistryImpl}. */
-@ExtendWith(TestLoggerExtension.class)
 class MetricRegistryImplTest {
 
     private static final char GLOBAL_DEFAULT_DELIMITER = '.';

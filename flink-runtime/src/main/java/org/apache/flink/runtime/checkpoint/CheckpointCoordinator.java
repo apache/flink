@@ -140,8 +140,8 @@ public class CheckpointCoordinator {
      */
     private final CheckpointStorageCoordinatorView checkpointStorageView;
 
-    /** A list of recent checkpoint IDs, to identify late messages (vs invalid ones). */
-    private final ArrayDeque<Long> recentPendingCheckpoints;
+    /** A list of recent expired checkpoint IDs, to identify late messages (vs invalid ones). */
+    private final ArrayDeque<Long> recentExpiredCheckpoints;
 
     /**
      * Checkpoint ID counter to ensure ascending IDs. In case of job manager failures, these need to
@@ -345,7 +345,7 @@ public class CheckpointCoordinator {
         this.alignedCheckpointTimeout = chkConfig.getAlignedCheckpointTimeout();
         this.checkpointIdOfIgnoredInFlightData = chkConfig.getCheckpointIdOfIgnoredInFlightData();
 
-        this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
+        this.recentExpiredCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
         this.masterHooks = new HashMap<>();
 
         this.timer = timer;
@@ -1164,8 +1164,8 @@ public class CheckpointCoordinator {
                 abortPendingCheckpoint(
                         checkpoint, checkpointException, message.getTaskExecutionId());
             } else if (LOG.isDebugEnabled()) {
-                if (recentPendingCheckpoints.contains(checkpointId)) {
-                    // message is for an unknown checkpoint, or comes too late (checkpoint disposed)
+                if (recentExpiredCheckpoints.contains(checkpointId)) {
+                    // message is for an expired checkpoint
                     LOG.debug(
                             "Received another decline message for now expired checkpoint attempt {} from task {} of job {} at {} : {}",
                             checkpointId,
@@ -1315,7 +1315,7 @@ public class CheckpointCoordinator {
                 boolean wasPendingCheckpoint;
 
                 // message is for an unknown checkpoint, or comes too late (checkpoint disposed)
-                if (recentPendingCheckpoints.contains(checkpointId)) {
+                if (recentExpiredCheckpoints.contains(checkpointId)) {
                     wasPendingCheckpoint = true;
                     LOG.warn(
                             "Received late message for now expired checkpoint attempt {} from task "
@@ -1416,8 +1416,6 @@ public class CheckpointCoordinator {
             CompletedCheckpoint completedCheckpoint,
             CompletedCheckpoint lastSubsumed,
             CheckpointProperties props) {
-        // remember recent checkpoint id for debugging purposes
-        rememberRecentCheckpointId(checkpointId);
 
         // record the time when this was completed, to calculate
         // the 'min delay between checkpoints'
@@ -1627,11 +1625,11 @@ public class CheckpointCoordinator {
         }
     }
 
-    private void rememberRecentCheckpointId(long id) {
-        if (recentPendingCheckpoints.size() >= NUM_GHOST_CHECKPOINT_IDS) {
-            recentPendingCheckpoints.removeFirst();
+    private void rememberRecentExpiredCheckpointId(long id) {
+        if (recentExpiredCheckpoints.size() >= NUM_GHOST_CHECKPOINT_IDS) {
+            recentExpiredCheckpoints.removeFirst();
         }
-        recentPendingCheckpoints.addLast(id);
+        recentExpiredCheckpoints.addLast(id);
     }
 
     private void dropSubsumedCheckpoints(long checkpointId) {
@@ -1971,6 +1969,11 @@ public class CheckpointCoordinator {
         }
     }
 
+    @VisibleForTesting
+    public ArrayDeque<Long> getRecentExpiredCheckpoints() {
+        return recentExpiredCheckpoints;
+    }
+
     public CheckpointStorageCoordinatorView getCheckpointStorage() {
         return checkpointStorageView;
     }
@@ -2264,7 +2267,11 @@ public class CheckpointCoordinator {
                         pendingCheckpoint.getCheckpointID(),
                         pendingCheckpoint.getCheckpointTimestamp());
                 pendingCheckpoints.remove(pendingCheckpoint.getCheckpointID());
-                rememberRecentCheckpointId(pendingCheckpoint.getCheckpointID());
+                if (exception
+                        .getCheckpointFailureReason()
+                        .equals(CheckpointFailureReason.CHECKPOINT_EXPIRED)) {
+                    rememberRecentExpiredCheckpointId(pendingCheckpoint.getCheckpointID());
+                }
                 scheduleTriggerRequest();
             }
         }

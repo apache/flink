@@ -26,13 +26,13 @@ import org.apache.flink.table.planner.plan.rules.physical.batch.{BatchPhysicalJo
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.{TableFunc1, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class RemoveShuffleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource(
       "x",

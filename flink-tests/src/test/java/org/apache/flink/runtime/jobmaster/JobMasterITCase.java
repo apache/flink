@@ -33,7 +33,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -83,7 +83,7 @@ public class JobMasterITCase extends TestLogger {
         Source<String, MockSplit, Void> mySource = new FailOnInitializationSource();
         DataStream<String> stream =
                 see.fromSource(mySource, WatermarkStrategy.noWatermarks(), "MySourceName");
-        stream.addSink(new DiscardingSink<>());
+        stream.sinkTo(new DiscardingSink<>());
 
         try {
             see.execute();

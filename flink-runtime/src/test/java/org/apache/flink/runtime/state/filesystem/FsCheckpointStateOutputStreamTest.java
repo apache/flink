@@ -26,13 +26,14 @@ import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 
 import java.io.DataInputStream;
@@ -46,13 +47,9 @@ import java.util.List;
 import java.util.Random;
 import java.util.function.Supplier;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
@@ -64,75 +61,78 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for the {@link FsCheckpointStateOutputStream}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class FsCheckpointStateOutputStreamTest {
 
-    @Parameterized.Parameters(name = "relativePaths = {0}")
+    @Parameters(name = "relativePaths = {0}")
     public static List<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 
-    @Parameterized.Parameter public boolean relativePaths;
+    @Parameter public boolean relativePaths;
 
-    @Rule public final TemporaryFolder tempDir = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tempDir;
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testWrongParameters() throws Exception {
+    @TestTemplate
+    void testWrongParameters() throws Exception {
         // this should fail
-        new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-                Path.fromLocalFile(tempDir.newFolder()),
-                FileSystem.getLocalFileSystem(),
-                4000,
-                5000,
-                relativePaths);
+        assertThatThrownBy(
+                        () ->
+                                new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
+                                        Path.fromLocalFile(TempDirUtils.newFolder(tempDir)),
+                                        FileSystem.getLocalFileSystem(),
+                                        4000,
+                                        5000,
+                                        relativePaths))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @Test
-    public void testEmptyState() throws Exception {
+    @TestTemplate
+    void testEmptyState() throws Exception {
         CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-                        Path.fromLocalFile(tempDir.newFolder()),
+                        Path.fromLocalFile(TempDirUtils.newFolder(tempDir)),
                         FileSystem.getLocalFileSystem(),
                         1024,
                         512,
                         relativePaths);
 
         StreamStateHandle handle = stream.closeAndGetHandle();
-        assertNull(handle);
+        assertThat(handle).isNull();
     }
 
-    @Test
-    public void testStateBelowMemThreshold() throws Exception {
+    @TestTemplate
+    void testStateBelowMemThreshold() throws Exception {
         runTest(999, 1024, 1000, false);
     }
 
-    @Test
-    public void testStateOneBufferAboveThreshold() throws Exception {
+    @TestTemplate
+    void testStateOneBufferAboveThreshold() throws Exception {
         runTest(896, 1024, 15, true);
     }
 
-    @Test
-    public void testStateAboveMemThreshold() throws Exception {
+    @TestTemplate
+    void testStateAboveMemThreshold() throws Exception {
         runTest(576446, 259, 17, true);
     }
 
-    @Test
-    public void testZeroThreshold() throws Exception {
+    @TestTemplate
+    void testZeroThreshold() throws Exception {
         runTest(16678, 4096, 0, true);
     }
 
-    @Test
-    public void testGetPos() throws Exception {
+    @TestTemplate
+    void testGetPos() throws Exception {
         CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-                        Path.fromLocalFile(tempDir.newFolder()),
+                        Path.fromLocalFile(TempDirUtils.newFolder(tempDir)),
                         FileSystem.getLocalFileSystem(),
                         31,
                         17,
                         relativePaths);
 
         for (int i = 0; i < 64; ++i) {
-            Assert.assertEquals(i, stream.getPos());
+            assertThat(stream.getPos()).isEqualTo(i);
             stream.write(0x42);
         }
 
@@ -142,7 +142,7 @@ public class FsCheckpointStateOutputStreamTest {
 
         stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-                        Path.fromLocalFile(tempDir.newFolder()),
+                        Path.fromLocalFile(TempDirUtils.newFolder(tempDir)),
                         FileSystem.getLocalFileSystem(),
                         31,
                         17,
@@ -151,7 +151,7 @@ public class FsCheckpointStateOutputStreamTest {
         byte[] data = "testme!".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
         for (int i = 0; i < 7; ++i) {
-            Assert.assertEquals(i * (1 + data.length), stream.getPos());
+            assertThat(stream.getPos()).isEqualTo(i * (1L + data.length));
             stream.write(0x42);
             stream.write(data);
         }
@@ -160,8 +160,8 @@ public class FsCheckpointStateOutputStreamTest {
     }
 
     /** Tests that the underlying stream file is deleted upon calling close. */
-    @Test
-    public void testCleanupWhenClosingStream() throws IOException {
+    @TestTemplate
+    void testCleanupWhenClosingStream() throws IOException {
 
         final FileSystem fs = mock(FileSystem.class);
         final FSDataOutputStream outputStream = mock(FSDataOutputStream.class);
@@ -173,7 +173,11 @@ public class FsCheckpointStateOutputStreamTest {
 
         CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-                        Path.fromLocalFile(tempDir.newFolder()), fs, 4, 0, relativePaths);
+                        Path.fromLocalFile(TempDirUtils.newFolder(tempDir)),
+                        fs,
+                        4,
+                        0,
+                        relativePaths);
 
         // this should create the underlying file stream
         stream.write(new byte[] {1, 2, 3, 4, 5});
@@ -186,8 +190,8 @@ public class FsCheckpointStateOutputStreamTest {
     }
 
     /** Tests that the underlying stream file is deleted if the closeAndGetHandle method fails. */
-    @Test
-    public void testCleanupWhenFailingCloseAndGetHandle() throws IOException {
+    @TestTemplate
+    void testCleanupWhenFailingCloseAndGetHandle() throws IOException {
         final FileSystem fs = mock(FileSystem.class);
         final FSDataOutputStream outputStream = mock(FSDataOutputStream.class);
 
@@ -199,19 +203,18 @@ public class FsCheckpointStateOutputStreamTest {
 
         CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-                        Path.fromLocalFile(tempDir.newFolder()), fs, 4, 0, relativePaths);
+                        Path.fromLocalFile(TempDirUtils.newFolder(tempDir)),
+                        fs,
+                        4,
+                        0,
+                        relativePaths);
 
         // this should create the underlying file stream
         stream.write(new byte[] {1, 2, 3, 4, 5});
 
         verify(fs).create(any(Path.class), any(FileSystem.WriteMode.class));
 
-        try {
-            stream.closeAndGetHandle();
-            fail("Expected IOException");
-        } catch (IOException ioE) {
-            // expected exception
-        }
+        assertThatThrownBy(stream::closeAndGetHandle).isInstanceOf(IOException.class);
 
         verify(fs).delete(eq(pathCaptor.getValue()), anyBoolean());
     }
@@ -220,7 +223,7 @@ public class FsCheckpointStateOutputStreamTest {
             throws Exception {
         CheckpointStateOutputStream stream =
                 new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-                        Path.fromLocalFile(tempDir.newFolder()),
+                        Path.fromLocalFile(TempDirUtils.newFolder(tempDir)),
                         FileSystem.getLocalFileSystem(),
                         bufferSize,
                         threshold,
@@ -249,13 +252,13 @@ public class FsCheckpointStateOutputStreamTest {
 
         StreamStateHandle handle = stream.closeAndGetHandle();
         if (expectFile) {
-            assertTrue(handle instanceof FileStateHandle);
+            assertThat(handle).isInstanceOf(FileStateHandle.class);
         } else {
-            assertTrue(handle instanceof ByteStreamStateHandle);
+            assertThat(handle).isInstanceOf(ByteStreamStateHandle.class);
         }
 
         // make sure the writing process did not alter the original byte array
-        assertArrayEquals(original, bytes);
+        assertThat(bytes).isEqualTo(original);
 
         try (InputStream inStream = handle.openInputStream()) {
             byte[] validation = new byte[bytes.length];
@@ -263,44 +266,34 @@ public class FsCheckpointStateOutputStreamTest {
             DataInputStream dataInputStream = new DataInputStream(inStream);
             dataInputStream.readFully(validation);
 
-            assertArrayEquals(bytes, validation);
+            assertThat(validation).isEqualTo(bytes);
         }
 
         handle.discardState();
     }
 
-    @Test
-    public void testWriteFailsFastWhenClosed() throws Exception {
+    @TestTemplate
+    void testWriteFailsFastWhenClosed() throws Exception {
         FsCheckpointStateOutputStream stream =
                 new FsCheckpointStateOutputStream(
-                        Path.fromLocalFile(tempDir.newFolder()),
+                        Path.fromLocalFile(TempDirUtils.newFolder(tempDir)),
                         FileSystem.getLocalFileSystem(),
                         1024,
                         512,
                         relativePaths);
 
-        assertFalse(stream.isClosed());
+        assertThat(stream.isClosed()).isFalse();
 
         stream.close();
-        assertTrue(stream.isClosed());
+        assertThat(stream.isClosed()).isTrue();
 
-        try {
-            stream.write(1);
-            fail();
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> stream.write(1)).isInstanceOf(IOException.class);
 
-        try {
-            stream.write(new byte[4], 1, 2);
-            fail();
-        } catch (IOException e) {
-            // expected
-        }
+        assertThatThrownBy(() -> stream.write(new byte[4], 1, 2)).isInstanceOf(IOException.class);
     }
 
-    @Test
-    public void testMixedBelowAndAboveThreshold() throws Exception {
+    @TestTemplate
+    void testMixedBelowAndAboveThreshold() throws Exception {
         final byte[] state1 = new byte[1274673];
         final byte[] state2 = new byte[1];
         final byte[] state3 = new byte[0];
@@ -312,7 +305,7 @@ public class FsCheckpointStateOutputStreamTest {
         rnd.nextBytes(state3);
         rnd.nextBytes(state4);
 
-        final File directory = tempDir.newFolder();
+        final File directory = TempDirUtils.newFolder(tempDir);
         final Path basePath = Path.fromLocalFile(directory);
 
         final Supplier<CheckpointStateOutputStream> factory =
@@ -343,29 +336,24 @@ public class FsCheckpointStateOutputStreamTest {
         CheckpointStateOutputStream stream5 = factory.get();
         stream5.write(state4);
         stream5.close();
-        try {
-            stream5.closeAndGetHandle();
-            fail();
-        } catch (IOException e) {
-            // uh-huh
-        }
+        assertThatThrownBy(stream5::closeAndGetHandle).isInstanceOf(IOException.class);
 
         validateBytesInStream(handle1.openInputStream(), state1);
         handle1.discardState();
-        assertFalse(isDirectoryEmpty(directory));
+        assertThat(isDirectoryEmpty(directory)).isFalse();
         ensureLocalFileDeleted(handle1.getFilePath());
 
         validateBytesInStream(handle2.openInputStream(), state2);
         handle2.discardState();
-        assertFalse(isDirectoryEmpty(directory));
+        assertThat(isDirectoryEmpty(directory)).isFalse();
 
         // nothing was written to the stream, so it will return nothing
-        assertNull(handle3);
-        assertFalse(isDirectoryEmpty(directory));
+        assertThat(handle3).isNull();
+        assertThat(isDirectoryEmpty(directory)).isFalse();
 
         validateBytesInStream(handle4.openInputStream(), state4);
         handle4.discardState();
-        assertTrue(isDirectoryEmpty(directory));
+        assertThat(isDirectoryEmpty(directory)).isTrue();
     }
 
     // ------------------------------------------------------------------------
@@ -376,14 +364,14 @@ public class FsCheckpointStateOutputStreamTest {
      * This test checks that the stream does not check and clean the parent directory when
      * encountering a write error.
      */
-    @Test
-    public void testStreamDoesNotTryToCleanUpParentOnError() throws Exception {
-        final File directory = tempDir.newFolder();
+    @TestTemplate
+    void testStreamDoesNotTryToCleanUpParentOnError() throws Exception {
+        final File directory = TempDirUtils.newFolder(tempDir);
 
         // prevent creation of files in that directory
         // this operation does not work reliably on Windows, so we use an "assume" to skip the test
         // is this prerequisite operation is not supported.
-        assumeTrue(directory.setWritable(false, true));
+        assumeThat(directory.setWritable(false, true)).isTrue();
         checkDirectoryNotWritable(directory);
 
         FileSystem fs = spy(FileSystem.getLocalFileSystem());
@@ -399,11 +387,7 @@ public class FsCheckpointStateOutputStreamTest {
         stream1.write(new byte[61]);
         stream2.write(new byte[61]);
 
-        try {
-            stream1.closeAndGetHandle();
-            fail("this should fail with an exception");
-        } catch (IOException ignored) {
-        }
+        assertThatThrownBy(stream1::closeAndGetHandle).isInstanceOf(IOException.class);
 
         stream2.close();
 
@@ -411,8 +395,8 @@ public class FsCheckpointStateOutputStreamTest {
         verify(fs, times(0)).delete(any(Path.class), anyBoolean());
 
         // the directory must still exist as a proper directory
-        assertTrue(directory.exists());
-        assertTrue(directory.isDirectory());
+        assertThat(directory).exists();
+        assertThat(directory).isDirectory();
     }
 
     // ------------------------------------------------------------------------
@@ -423,7 +407,7 @@ public class FsCheckpointStateOutputStreamTest {
         URI uri = path.toUri();
         if ("file".equals(uri.getScheme())) {
             File file = new File(uri.getPath());
-            assertFalse("file not properly deleted", file.exists());
+            assertThat(file).withFailMessage("file not properly deleted").doesNotExist();
         } else {
             throw new IllegalArgumentException("not a local path");
         }
@@ -448,24 +432,24 @@ public class FsCheckpointStateOutputStreamTest {
                 pos += read;
             }
 
-            assertEquals("not enough data", holder.length, pos);
-            assertEquals("too much data", -1, is.read());
-            assertArrayEquals("wrong data", data, holder);
+            assertThat(pos).withFailMessage("not enough data").isEqualTo(holder.length);
+            assertThat(is.read()).withFailMessage("too much data").isEqualTo(-1);
+            assertThat(holder).withFailMessage("wrong data").isEqualTo(data);
         } finally {
             is.close();
         }
     }
 
     private static void checkDirectoryNotWritable(File directory) {
-        try {
-            try (FileOutputStream fos = new FileOutputStream(new File(directory, "temp"))) {
-                fos.write(42);
-                fos.flush();
-            }
-
-            fail("this should fail when writing is properly prevented");
-        } catch (IOException ignored) {
-            // expected, works
-        }
+        assertThatThrownBy(
+                        () -> {
+                            try (FileOutputStream fos =
+                                    new FileOutputStream(new File(directory, "temp"))) {
+                                fos.write(42);
+                                fos.flush();
+                            }
+                        })
+                .withFailMessage("this should fail when writing is properly prevented")
+                .isInstanceOf(IOException.class);
     }
 }

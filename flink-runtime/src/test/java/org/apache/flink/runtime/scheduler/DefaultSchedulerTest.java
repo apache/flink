@@ -641,6 +641,28 @@ public class DefaultSchedulerTest extends TestLogger {
         assertThat(deployedExecutionVertices).contains(executionVertexId, executionVertexId);
     }
 
+    @Test
+    void testRestoreVertexEndOfDataListener() throws Exception {
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        enableCheckpointing(jobGraph, null, null, Long.MAX_VALUE - 1, true);
+
+        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
+        final ArchivedExecutionVertex onlyExecutionVertex =
+                Iterables.getOnlyElement(
+                        scheduler
+                                .requestJob()
+                                .getArchivedExecutionGraph()
+                                .getAllExecutionVertices());
+        final ExecutionAttemptID attemptId =
+                onlyExecutionVertex.getCurrentExecutionAttempt().getAttemptId();
+
+        scheduler.notifyEndOfData(attemptId);
+        assertThat(scheduler.getVertexEndOfDataListener().areAllTasksEndOfData()).isTrue();
+
+        scheduler.restoreState(Collections.singleton(attemptId.getExecutionVertexId()), true);
+        assertThat(scheduler.getVertexEndOfDataListener().areAllTasksEndOfData()).isFalse();
+    }
+
     /**
      * This test covers the use-case where a global fail-over is followed by a local task failure.
      * It verifies (besides checking the expected deployments) that the assert in the global

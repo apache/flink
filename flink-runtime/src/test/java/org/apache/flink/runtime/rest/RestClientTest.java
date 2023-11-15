@@ -63,7 +63,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.THROWABLE;
 class RestClientTest {
 
     @RegisterExtension
-    static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
             TestingUtils.defaultExecutorExtension();
 
     private static final String unroutableIp = "240.0.0.0";
@@ -92,7 +92,7 @@ class RestClientTest {
     }
 
     @Test
-    public void testInvalidVersionRejection() throws Exception {
+    void testInvalidVersionRejection() throws Exception {
         try (final RestClient restClient =
                 new RestClient(new Configuration(), Executors.directExecutor())) {
             assertThatThrownBy(
@@ -112,7 +112,7 @@ class RestClientTest {
 
     /** Tests that we fail the operation if the remote connection closes. */
     @Test
-    public void testConnectionClosedHandling() throws Exception {
+    void testConnectionClosedHandling() throws Exception {
         final Configuration config = new Configuration();
         config.setLong(RestOptions.IDLENESS_TIMEOUT, 5000L);
         try (final ServerSocket serverSocket = new ServerSocket(0);
@@ -159,7 +159,7 @@ class RestClientTest {
 
     /** Tests that we fail the operation if the client closes. */
     @Test
-    public void testRestClientClosedHandling() throws Exception {
+    void testRestClientClosedHandling() throws Exception {
         final Configuration config = new Configuration();
         config.setLong(RestOptions.IDLENESS_TIMEOUT, 5000L);
 
@@ -213,7 +213,7 @@ class RestClientTest {
      * <p>See FLINK-32583
      */
     @Test
-    public void testCloseClientBeforeRequest() throws Exception {
+    void testCloseClientBeforeRequest() throws Exception {
         try (final RestClient restClient =
                 new RestClient(new Configuration(), Executors.directExecutor())) {
             restClient.close(); // Intentionally close the client prior to the request
@@ -235,7 +235,7 @@ class RestClientTest {
     }
 
     @Test
-    public void testCloseClientWhileProcessingRequest() throws Exception {
+    void testCloseClientWhileProcessingRequest() throws Exception {
         // Set up a Netty SelectStrategy with latches that allow us to step forward through Netty's
         // request state machine, closing the client at a particular moment
         final OneShotLatch connectTriggered = new OneShotLatch();
@@ -290,7 +290,7 @@ class RestClientTest {
     }
 
     @Test
-    public void testResponseChannelFuturesResolvedExceptionallyOnClose() throws Exception {
+    void testResponseChannelFuturesResolvedExceptionallyOnClose() throws Exception {
         try (final RestClient restClient =
                 new RestClient(new Configuration(), Executors.directExecutor())) {
             CompletableFuture<Channel> responseChannelFuture = new CompletableFuture<>();

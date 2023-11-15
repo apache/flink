@@ -62,6 +62,19 @@ public class RocksDBOptions {
                             .withDescription(
                                     "This determines the factory for timer service state implementation.");
 
+    /** The cache size per key-group for ROCKSDB timer service factory implementation. */
+    @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
+    public static final ConfigOption<Integer> ROCKSDB_TIMER_SERVICE_FACTORY_CACHE_SIZE =
+            ConfigOptions.key("state.backend.rocksdb.timer-service.cache-size")
+                    .intType()
+                    .defaultValue(128)
+                    .withDescription(
+                            String.format(
+                                    "The cache size per keyGroup of rocksdb timer service factory. This option only has an effect "
+                                            + "when '%s' is configured to '%s'. Increasing this value can improve the performance "
+                                            + "of rocksdb timer service, but consumes more heap memory at the same time.",
+                                    TIMER_SERVICE_FACTORY.key(), ROCKSDB.name()));
+
     /**
      * The number of threads used to transfer (download and upload) files in RocksDBStateBackend.
      */

@@ -22,12 +22,12 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class PythonCalcTest extends TableTestBase {
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.addFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))

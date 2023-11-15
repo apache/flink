@@ -48,8 +48,10 @@ public class DynamicFilteringITCase extends BatchTestBase {
 
     static Stream<Arguments> parameters() {
         return Stream.of(
-                Arguments.of(BatchShuffleMode.ALL_EXCHANGES_BLOCKING),
-                Arguments.of(BatchShuffleMode.ALL_EXCHANGES_PIPELINED));
+                Arguments.of(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, true),
+                Arguments.of(BatchShuffleMode.ALL_EXCHANGES_BLOCKING, false),
+                Arguments.of(BatchShuffleMode.ALL_EXCHANGES_PIPELINED, true),
+                Arguments.of(BatchShuffleMode.ALL_EXCHANGES_PIPELINED, false));
     }
 
     @BeforeEach
@@ -74,6 +76,7 @@ public class DynamicFilteringITCase extends BatchTestBase {
                                 + "  z BIGINT\n"
                                 + ")  WITH (\n"
                                 + " 'connector' = 'values',\n"
+                                + "  'runtime-source' = 'NewSource',\n"
                                 + " 'disable-lookup' = 'true',\n"
                                 + " 'data-id' = '%s',\n"
                                 + " 'bounded' = 'true'\n"
@@ -123,10 +126,12 @@ public class DynamicFilteringITCase extends BatchTestBase {
                         dataId3));
     }
 
-    @ParameterizedTest(name = "mode = {0}")
+    @ParameterizedTest(name = "mode = {0}, ofcg = {1}")
     @MethodSource("parameters")
-    public void testSimpleDynamicFiltering(BatchShuffleMode shuffleMode) {
+    public void testSimpleDynamicFiltering(BatchShuffleMode shuffleMode, boolean ofcg) {
         configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, ofcg);
         checkResult(
                 "SELECT * FROM fact1, dim WHERE x = a AND z = 2",
                 JavaScalaConversionUtil.toScala(
@@ -152,11 +157,13 @@ public class DynamicFilteringITCase extends BatchTestBase {
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
+    @ParameterizedTest(name = "mode = {0}, ofcg = {1}")
     @MethodSource("parameters")
-    public void testDynamicFilteringChainWithMultipleInput(BatchShuffleMode shuffleMode)
-            throws Exception {
+    public void testDynamicFilteringChainWithMultipleInput(
+            BatchShuffleMode shuffleMode, boolean ofcg) throws Exception {
         configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, ofcg);
         String dataId1 = TestValuesTableFactory.registerData(TestData.data7());
         tEnv.executeSql(
                 String.format(
@@ -199,10 +206,13 @@ public class DynamicFilteringITCase extends BatchTestBase {
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
+    @ParameterizedTest(name = "mode = {0}, ofcg = {1}")
     @MethodSource("parameters")
-    public void testDynamicFilteringCannotChainWithMultipleInput(BatchShuffleMode shuffleMode) {
+    public void testDynamicFilteringCannotChainWithMultipleInput(
+            BatchShuffleMode shuffleMode, boolean ofcg) {
         configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, ofcg);
         checkResult(
                 "SELECT * FROM fact1, dim, fact2 WHERE x = fact1.a and fact2.a = fact1.a AND z = 1 and fact1.e = 2 and fact2.e = 1",
                 JavaScalaConversionUtil.toScala(
@@ -230,10 +240,12 @@ public class DynamicFilteringITCase extends BatchTestBase {
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
+    @ParameterizedTest(name = "mode = {0}, ofcg = {1}")
     @MethodSource("parameters")
-    public void testReuseDimSide(BatchShuffleMode shuffleMode) {
+    public void testReuseDimSide(BatchShuffleMode shuffleMode, boolean ofcg) {
         configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, ofcg);
         checkResult(
                 "SELECT * FROM fact1, dim WHERE x = a AND z = 1 and b = 3"
                         + "UNION ALL "
@@ -245,10 +257,13 @@ public class DynamicFilteringITCase extends BatchTestBase {
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
+    @ParameterizedTest(name = "mode = {0}, ofcg = {1}")
     @MethodSource("parameters")
-    public void testDynamicFilteringWithStaticPartitionPruning(BatchShuffleMode shuffleMode) {
+    public void testDynamicFilteringWithStaticPartitionPruning(
+            BatchShuffleMode shuffleMode, boolean ofcg) {
         configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, ofcg);
         checkResult(
                 "SELECT * FROM fact2, dim WHERE x = a and e = z AND y < 5 and a = 3",
                 JavaScalaConversionUtil.toScala(
@@ -259,10 +274,12 @@ public class DynamicFilteringITCase extends BatchTestBase {
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
+    @ParameterizedTest(name = "mode = {0}, ofcg = {1}")
     @MethodSource("parameters")
-    public void testMultiplePartitionKeysWithFullKey(BatchShuffleMode shuffleMode) {
+    public void testMultiplePartitionKeysWithFullKey(BatchShuffleMode shuffleMode, boolean ofcg) {
         configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, ofcg);
         checkResult(
                 "SELECT * FROM fact2, dim WHERE x = a AND z = e and y = 1",
                 JavaScalaConversionUtil.toScala(
@@ -270,10 +287,13 @@ public class DynamicFilteringITCase extends BatchTestBase {
                 false);
     }
 
-    @ParameterizedTest(name = "mode = {0}")
+    @ParameterizedTest(name = "mode = {0}, ofcg = {1}")
     @MethodSource("parameters")
-    public void testMultiplePartitionKeysWithPartialKey(BatchShuffleMode shuffleMode) {
+    public void testMultiplePartitionKeysWithPartialKey(
+            BatchShuffleMode shuffleMode, boolean ofcg) {
         configBatchShuffleMode(tEnv.getConfig(), shuffleMode);
+        tEnv.getConfig()
+                .set(ExecutionConfigOptions.TABLE_EXEC_OPERATOR_FUSION_CODEGEN_ENABLED, ofcg);
         checkResult(
                 "SELECT * FROM fact2, dim WHERE z = e and y = 1",
                 JavaScalaConversionUtil.toScala(

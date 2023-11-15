@@ -37,7 +37,7 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -200,7 +200,7 @@ public class ChangelogRescalingITCase extends TestLogger {
                                     Iterable<TestEvent> elements,
                                     Collector<String> out) {}
                         })
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }

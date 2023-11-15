@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction
 import org.apache.flink.table.resource.ResourceManager
 import org.apache.flink.table.utils.CatalogManagerMocks
 
+import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
@@ -141,6 +142,26 @@ class RexNodeExtractorTest extends RexNodeTestBase {
       extractConjunctiveConditions(a, -1, allFieldNames, relBuilder, functionCatalog)
 
     val expected: Array[Expression] = Array($"amount" >= $"id")
+    assertExpressionArrayEquals(expected, convertedExpressions)
+    assertEquals(0, unconvertedRexNodes.length)
+  }
+
+  @Test
+  def testExtractConditionWithBinaryLiteral(): Unit = {
+    // blob
+    val t0 = rexBuilder.makeInputRef(allFieldTypes.get(5), 5)
+
+    // X'616263'
+    val t1 = rexBuilder.makeBinaryLiteral(ByteString.of("616263", 16))
+
+    // blob = X'616263'
+    val a = rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, t0, t1)
+
+    val relBuilder: RexBuilder = new FlinkRexBuilder(typeFactory)
+    val (convertedExpressions, unconvertedRexNodes) =
+      extractConjunctiveConditions(a, -1, allFieldNames, relBuilder, functionCatalog)
+
+    val expected: Array[Expression] = Array($"blob" === Array[Byte](97, 98, 99))
     assertExpressionArrayEquals(expected, convertedExpressions)
     assertEquals(0, unconvertedRexNodes.length)
   }

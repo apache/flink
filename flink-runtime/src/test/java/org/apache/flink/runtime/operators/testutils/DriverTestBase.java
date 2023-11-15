@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -41,15 +42,14 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -57,9 +57,10 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
-@RunWith(Parameterized.class)
-public abstract class DriverTestBase<S extends Function> extends TestLogger
-        implements TaskContext<S, Record> {
+import static org.assertj.core.api.Assertions.assertThat;
+
+@ExtendWith(ParameterizedTestExtension.class)
+public abstract class DriverTestBase<S extends Function> implements TaskContext<S, Record> {
 
     protected static final long DEFAULT_PER_SORT_MEM = 16 * 1024 * 1024;
 
@@ -127,8 +128,8 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
         this.taskManageInfo = new TestingTaskManagerRuntimeInfo();
     }
 
-    @Parameterized.Parameters
-    public static Collection<Object[]> getConfigurations() {
+    @Parameters
+    private static Collection<Object[]> getConfigurations() {
 
         LinkedList<Object[]> configs = new LinkedList<Object[]>();
 
@@ -146,12 +147,12 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
         return configs;
     }
 
-    public void addInput(MutableObjectIterator<Record> input) {
+    protected void addInput(MutableObjectIterator<Record> input) {
         this.inputs.add(input);
         this.sorters.add(null);
     }
 
-    public void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp)
+    protected void addInputSorted(MutableObjectIterator<Record> input, RecordComparator comp)
             throws Exception {
         Sorter<Record> sorter =
                 ExternalSorter.newBuilder(
@@ -169,33 +170,33 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
         this.inputs.add(null);
     }
 
-    public void addDriverComparator(RecordComparator comparator) {
+    protected void addDriverComparator(RecordComparator comparator) {
         this.comparators.add(comparator);
     }
 
-    public void setOutput(Collector<Record> output) {
+    protected void setOutput(Collector<Record> output) {
         this.output = output;
     }
 
-    public void setOutput(List<Record> output) {
+    protected void setOutput(List<Record> output) {
         this.output = new ListOutputCollector(output);
     }
 
-    public int getNumFileHandlesForSort() {
+    protected int getNumFileHandlesForSort() {
         return numFileHandles;
     }
 
-    public void setNumFileHandlesForSort(int numFileHandles) {
+    protected void setNumFileHandlesForSort(int numFileHandles) {
         this.numFileHandles = numFileHandles;
     }
 
     @SuppressWarnings("rawtypes")
-    public void testDriver(Driver driver, Class stubClass) throws Exception {
+    protected void testDriver(Driver driver, Class stubClass) throws Exception {
         testDriverInternal(driver, stubClass);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void testDriverInternal(Driver driver, Class stubClass) throws Exception {
+    protected void testDriverInternal(Driver driver, Class stubClass) throws Exception {
 
         this.driver = driver;
         driver.setup(this);
@@ -215,7 +216,7 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
 
             // open stub implementation
             try {
-                FunctionUtils.openFunction(this.stub, getTaskConfig().getStubParameters());
+                FunctionUtils.openFunction(this.stub, DefaultOpenContext.INSTANCE);
                 stubOpen = true;
             } catch (Throwable t) {
                 throw new Exception(
@@ -271,7 +272,7 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations)
+    protected void testResettableDriver(ResettableDriver driver, Class stubClass, int iterations)
             throws Exception {
 
         driver.setup(this);
@@ -290,7 +291,7 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
         driver.teardown();
     }
 
-    public void cancel() throws Exception {
+    protected void cancel() throws Exception {
         this.running = false;
 
         // compensate for races, where cancel is called before the driver is set
@@ -395,8 +396,8 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
 
     // --------------------------------------------------------------------------------------------
 
-    @After
-    public void shutdownAll() throws Exception {
+    @AfterEach
+    void shutdownAll() throws Exception {
         // 1st, shutdown sorters
         for (Sorter<?> sorter : this.sorters) {
             if (sorter != null) {
@@ -411,9 +412,9 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
         // last, verify all memory is returned and shutdown mem manager
         MemoryManager memMan = getMemoryManager();
         if (memMan != null) {
-            Assert.assertTrue(
-                    "Memory Manager managed memory was not completely freed.",
-                    memMan.verifyEmpty());
+            assertThat(memMan.verifyEmpty())
+                    .withFailMessage("Memory Manager managed memory was not completely freed.")
+                    .isTrue();
             memMan.shutdown();
         }
     }

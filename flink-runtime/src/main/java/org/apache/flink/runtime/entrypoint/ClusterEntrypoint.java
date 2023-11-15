@@ -499,11 +499,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
             if (haServices != null) {
                 try {
-                    if (cleanupHaData) {
-                        haServices.closeAndCleanupAllData();
-                    } else {
-                        haServices.close();
-                    }
+                    haServices.closeWithOptionalClean(cleanupHaData);
                 } catch (Throwable t) {
                     exception = ExceptionUtils.firstOrSuppressed(t, exception);
                 }

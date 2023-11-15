@@ -65,6 +65,44 @@ Catalog 是可扩展的，用户可以通过实现 `Catalog` 接口来开发自�
  在用户自定义 catalog 中，应该将 `Thread.currentThread().getContextClassLoader()` 替换成该用户类加载器去加载类。否则，可能会发生 `ClassNotFoundException` 的异常。该用户类加载器可以通过 `CatalogFactory.Context#getClassLoader` 获得。
 {{< /hint >}}
 
+#### Catalog 中支持时间旅行的接口
+
+从 1.18 开始， Flink 框架开始支持[时间旅行]({{< ref "docs/dev/table/sql/queries/time-travel" >}})查询表的历史数据。如果要查询表的历史数据，需要这张表所属于的 `catalog` 实现 `getTable(ObjectPath tablePath, long timestamp)` 方法，如下所示:
+
+```java
+public class MyCatalogSupportTimeTravel implements Catalog {
+    
+    @Override
+    public CatalogBaseTable getTable(ObjectPath tablePath, long timestamp)
+            throws TableNotExistException {
+        // Build a schema corresponding to the specific time point.
+        Schema schema = buildSchema(timestamp);
+        // Set parameters to read data at the corresponding time point.
+        Map<String, String> options = buildOptions(timestamp);
+        // Build CatalogTable
+        CatalogTable catalogTable =
+                CatalogTable.of(schema, "", Collections.emptyList(), options, timestamp);
+        return catalogTable;
+    }
+}
+
+public class MyDynamicTableFactory implements DynamicTableSourceFactory {
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        final ReadableConfig configuration =
+                Configuration.fromMap(context.getCatalogTable().getOptions());
+
+        // Get snapshot from CatalogTable
+        final Optional<Long> snapshot = context.getCatalogTable().getSnapshot();
+        
+        // Build DynamicTableSource using snapshot options.
+        final DynamicTableSource dynamicTableSource = buildDynamicSource(configuration, snapshot);
+
+        return dynamicTableSource;
+    }
+}
+```
+
 ## 如何创建 Flink 表并将其注册到 Catalog
 
 ### 使用 SQL DDL
@@ -746,7 +784,7 @@ and do some customized operations when receiving the event, such as report the i
 There are two interfaces for the catalog modification listener: `CatalogModificationListenerFactory` to create the listener and `CatalogModificationListener`
 to receive and process the event. You need to implement these interfaces and below is an example.
 
-```
+```java
 /** Factory used to create a {@link CatalogModificationListener} instance. */
 public class YourCatalogListenerFactory implements CatalogModificationListenerFactory {
     /** The identifier for the customized listener factory, you can named it yourself. */
@@ -778,11 +816,16 @@ public class YourCatalogListener implements CatalogModificationListener {
 }
 ```
 
+You need to create a file `org.apache.flink.table.factories.Factory` in `META-INF/services`
+with the content of `the full name of YourCatalogListenerFactory` for your
+customized catalog listener factory. After that, you can package the codes into a jar file
+and add it to `lib` of Flink cluster.
+
 ### Register Catalog Listener
 
 After implemented above catalog modification factory and listener, you can register it to the table environment.
 
-```
+```java
 Configuration configuration = new Configuration();
 
 // Add the factory identifier, you can set multiple listeners in the configuraiton.
@@ -797,12 +840,7 @@ env.executeSql("CREATE TABLE ...").wait();
 ```
 
 For sql-gateway, you can add the option `table.catalog-modification.listeners` in the `flink-conf.yaml` and start
-the gateway, or you can also use `SET` to specify the listener for ddl, for example, in sql-client or jdbc-driver.
-
-```
-Flink SQL> SET 'table.catalog-modification.listeners' = 'your_factory';
-Flink SQL> CREATE TABLE test_table(...);
-```
+the gateway, or you can also start sql-gateway with dynamic parameter, then you can use sql-client to perform ddl directly.
 
 ## Catalog Store
 

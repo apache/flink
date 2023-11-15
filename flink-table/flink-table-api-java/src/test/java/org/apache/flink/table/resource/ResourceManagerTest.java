@@ -24,6 +24,13 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogFunctionImpl;
+import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.FunctionLanguage;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
@@ -47,9 +54,13 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
+import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CLASS;
 import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_LOWER_UDF_CODE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,6 +71,14 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link ResourceManager}. */
 public class ResourceManagerTest {
+    private static final UnresolvedIdentifier FULL_UNRESOLVED_IDENTIFIER1 =
+            UnresolvedIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, "test_udf1");
+
+    private static final UnresolvedIdentifier FULL_UNRESOLVED_IDENTIFIER2 =
+            UnresolvedIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, "test_udf2");
+
+    private static final UnresolvedIdentifier FULL_UNRESOLVED_IDENTIFIER3 =
+            UnresolvedIdentifier.of(DEFAULT_CATALOG, DEFAULT_DATABASE, "test_udf3");
 
     @TempDir private static File tempFolder;
     private static File udfJar;
@@ -253,6 +272,38 @@ public class ResourceManagerTest {
                 });
     }
 
+    @Test
+    public void testRegisterFunctionResource() throws Exception {
+        URLClassLoader userClassLoader = resourceManager.getUserClassLoader();
+
+        // test class loading before register function resource
+        CommonTestUtils.assertThrows(
+                "LowerUDF",
+                ClassNotFoundException.class,
+                () -> Class.forName(GENERATED_LOWER_UDF_CLASS, false, userClassLoader));
+
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, udfJar.getPath());
+        // register the same jar repeatedly
+        resourceManager.declareFunctionResources(
+                new HashSet<>(Arrays.asList(resourceUri, resourceUri)));
+
+        // test class loading after register function resource
+        CommonTestUtils.assertThrows(
+                "LowerUDF",
+                ClassNotFoundException.class,
+                () -> Class.forName(GENERATED_LOWER_UDF_CLASS, false, userClassLoader));
+
+        URLClassLoader functionClassLoader =
+                resourceManager.createUserClassLoader(Arrays.asList(resourceUri, resourceUri));
+        // test load class
+        final Class<?> clazz1 =
+                Class.forName(GENERATED_LOWER_UDF_CLASS, false, functionClassLoader);
+        final Class<?> clazz2 =
+                Class.forName(GENERATED_LOWER_UDF_CLASS, false, functionClassLoader);
+
+        assertEquals(clazz1, clazz2);
+    }
+
     @MethodSource("provideResource")
     @ParameterizedTest
     public void testDownloadResource(String pathString, boolean executable) throws Exception {
@@ -313,6 +364,90 @@ public class ResourceManagerTest {
                     }
                 });
         assertThat(FileUtils.readFileUtf8(new File(targetUri))).isEqualTo("Bye Bye");
+    }
+
+    @Test
+    void testRegisterFunctionWithResource() {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, udfJar.getPath());
+        List<ResourceUri> resourceUris = Collections.singletonList(resourceUri);
+
+        Configuration configuration = new Configuration();
+        FunctionCatalog functionCatalog =
+                new FunctionCatalog(
+                        configuration,
+                        resourceManager,
+                        CatalogManagerMocks.preparedCatalogManager()
+                                .defaultCatalog(
+                                        DEFAULT_CATALOG,
+                                        new GenericInMemoryCatalog(
+                                                DEFAULT_CATALOG, DEFAULT_DATABASE))
+                                .build(),
+                        new ModuleManager());
+
+        functionCatalog.registerCatalogFunction(
+                FULL_UNRESOLVED_IDENTIFIER1, GENERATED_LOWER_UDF_CLASS, resourceUris, false);
+
+        Map<ResourceUri, ResourceManager.ResourceCounter> functionResourceInfos =
+                resourceManager.functionResourceInfos();
+        // Register catalog function will not register its resource to function resources.
+        assertThat(functionResourceInfos.containsKey(resourceUri)).isFalse();
+        functionCatalog.dropCatalogFunction(FULL_UNRESOLVED_IDENTIFIER1, false);
+
+        // Register catalog function again to validate that unregister catalog function will not
+        // decrease the reference count of resourceUris.
+        functionCatalog.registerCatalogFunction(
+                FULL_UNRESOLVED_IDENTIFIER1, GENERATED_LOWER_UDF_CLASS, resourceUris, false);
+        functionCatalog.registerTemporaryCatalogFunction(
+                FULL_UNRESOLVED_IDENTIFIER2,
+                new CatalogFunctionImpl(
+                        GENERATED_LOWER_UDF_CLASS, FunctionLanguage.JAVA, resourceUris),
+                false);
+        functionCatalog.registerTemporaryCatalogFunction(
+                FULL_UNRESOLVED_IDENTIFIER3,
+                new CatalogFunctionImpl(
+                        GENERATED_LOWER_UDF_CLASS, FunctionLanguage.JAVA, resourceUris),
+                false);
+        functionCatalog.registerTemporarySystemFunction(
+                GENERATED_LOWER_UDF_CLASS,
+                new CatalogFunctionImpl(
+                        GENERATED_LOWER_UDF_CLASS, FunctionLanguage.JAVA, resourceUris),
+                false);
+
+        // There will be three resources for temporary and system functions without catalog
+        // function.
+        assertThat(functionResourceInfos.get(resourceUri).counter).isEqualTo(3);
+        // Drop catalog function will not decrease the reference count of resourceUris.
+        functionCatalog.dropCatalogFunction(FULL_UNRESOLVED_IDENTIFIER1, false);
+        // There will be three resources for temporary and system functions.
+        assertThat(functionResourceInfos.get(resourceUri).counter).isEqualTo(3);
+
+        functionCatalog.dropTemporaryCatalogFunction(FULL_UNRESOLVED_IDENTIFIER2, false);
+        assertThat(functionResourceInfos.get(resourceUri).counter).isEqualTo(2);
+
+        functionCatalog.dropTemporaryCatalogFunction(FULL_UNRESOLVED_IDENTIFIER3, false);
+        assertThat(functionResourceInfos.get(resourceUri).counter).isEqualTo(1);
+
+        functionCatalog.dropTemporarySystemFunction(GENERATED_LOWER_UDF_CLASS, false);
+        assertThat(functionResourceInfos.containsKey(resourceUri)).isFalse();
+    }
+
+    @Test
+    void testCloseCopiedResourceManager() throws Exception {
+        ResourceUri resourceUri = new ResourceUri(ResourceType.JAR, udfJar.getPath());
+        resourceManager.declareFunctionResources(Collections.singleton(resourceUri));
+        resourceManager.registerJarResources(Collections.singletonList(resourceUri));
+        assertThat(resourceManager.functionResourceInfos().size()).isEqualTo(1);
+        assertThat(resourceManager.resourceInfos.size()).isEqualTo(1);
+
+        ResourceManager copiedResourceManager = resourceManager.copy();
+        assertThat(copiedResourceManager.functionResourceInfos().size()).isEqualTo(1);
+        assertThat(copiedResourceManager.resourceInfos.size()).isEqualTo(1);
+        copiedResourceManager.close();
+        assertThat(copiedResourceManager.functionResourceInfos().size()).isEqualTo(0);
+        assertThat(copiedResourceManager.resourceInfos.size()).isEqualTo(0);
+
+        assertThat(resourceManager.functionResourceInfos().size()).isEqualTo(1);
+        assertThat(resourceManager.resourceInfos.size()).isEqualTo(1);
     }
 
     @Test

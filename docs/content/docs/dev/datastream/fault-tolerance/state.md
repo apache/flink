@@ -429,6 +429,9 @@ will lead to compatibility failure and `StateMigrationException`.
 
 - The TTL configuration is not part of check- or savepoints but rather a way of how Flink treats it in the currently running job.
 
+- It is not recommended to restore checkpoint state with adjusting the ttl from a short value to a long value,
+which may cause potential data errors.
+
 - The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
 If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
 
@@ -789,10 +792,7 @@ public class BufferingSink
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        checkpointedState.clear();
-        for (Tuple2<String, Integer> element : bufferedElements) {
-            checkpointedState.add(element);
-        }
+        checkpointedState.update(bufferedElements);
     }
 
     @Override
@@ -835,10 +835,7 @@ class BufferingSink(threshold: Int = 0)
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    checkpointedState.clear()
-    for (element <- bufferedElements) {
-      checkpointedState.add(element)
-    }
+    checkpointedState.update(bufferedElements.asJava)
   }
 
   override def initializeState(context: FunctionInitializationContext): Unit = {
@@ -966,8 +963,7 @@ public static class CounterSource
 
     @Override
     public void snapshotState(FunctionSnapshotContext context) throws Exception {
-        state.clear();
-        state.add(offset);
+        state.update(Collections.singletonList(offset));
     }
 }
 ```
@@ -1009,8 +1005,7 @@ class CounterSource
   }
 
   override def snapshotState(context: FunctionSnapshotContext): Unit = {
-    state.clear()
-    state.add(offset)
+    state.update(java.util.Collections.singletonList(offset))
   }
 }
 ```

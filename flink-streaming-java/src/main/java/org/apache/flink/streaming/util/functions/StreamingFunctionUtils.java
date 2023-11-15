@@ -139,13 +139,9 @@ public final class StreamingFunctionUtils {
                             new JavaSerializer<>());
             ListState<Serializable> listState = backend.getListState(listStateDescriptor);
 
-            listState.clear();
-
             if (null != partitionableState) {
                 try {
-                    for (Serializable statePartition : partitionableState) {
-                        listState.add(statePartition);
-                    }
+                    listState.update(partitionableState);
                 } catch (Exception e) {
                     listState.clear();
 
@@ -153,6 +149,8 @@ public final class StreamingFunctionUtils {
                             "Could not write partitionable state to operator " + "state backend.",
                             e);
                 }
+            } else {
+                listState.clear();
             }
 
             return true;

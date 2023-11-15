@@ -23,16 +23,16 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for temporal sort. */
-public class TemporalSortJsonPlanTest extends TableTestBase {
+class TemporalSortJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         TableEnvironment tEnv = util.getTableEnv();
 
@@ -57,12 +57,12 @@ public class TemporalSortJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testSortProcessingTime() {
+    void testSortProcessingTime() {
         util.verifyJsonPlan("insert into MySink SELECT a FROM MyTable order by proctime, c");
     }
 
     @Test
-    public void testSortRowTime() {
+    void testSortRowTime() {
         util.verifyJsonPlan("insert into MySink SELECT a FROM MyTable order by rowtime, c");
     }
 }

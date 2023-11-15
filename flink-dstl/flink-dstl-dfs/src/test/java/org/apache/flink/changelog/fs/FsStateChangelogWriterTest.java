@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.LocalChangelogRegistry;
+import org.apache.flink.runtime.state.changelog.LocalChangelogRegistryImpl;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.BiConsumerWithException;
@@ -68,7 +69,7 @@ class FsStateChangelogWriterTest {
                     SequenceNumber sqn = append(writer, bytes);
                     assertSubmittedOnly(uploader, bytes);
                     uploader.reset();
-                    writer.persist(sqn);
+                    writer.persist(sqn, 1L);
                     assertNoUpload(uploader, "changes should have been pre-uploaded");
                 });
     }
@@ -79,7 +80,7 @@ class FsStateChangelogWriterTest {
                 (writer, uploader) -> {
                     byte[] bytes = getBytes();
                     CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future =
-                            writer.persist(append(writer, bytes));
+                            writer.persist(append(writer, bytes), 1L);
                     assertSubmittedOnly(uploader, bytes);
                     uploader.completeUpload();
                     assertThat(
@@ -100,11 +101,11 @@ class FsStateChangelogWriterTest {
                 (writer, uploader) -> {
                     byte[] bytes = getBytes();
                     SequenceNumber sqn = append(writer, bytes);
-                    writer.persist(sqn);
+                    writer.persist(sqn, 1L);
                     uploader.completeUpload();
                     uploader.reset();
                     writer.confirm(sqn, writer.nextSequenceNumber(), 1L);
-                    writer.persist(sqn);
+                    writer.persist(sqn, 2L);
                     assertNoUpload(uploader, "confirmed changes shouldn't be re-uploaded");
                 });
     }
@@ -134,11 +135,12 @@ class FsStateChangelogWriterTest {
 
             writer.append(KEY_GROUP, getBytes(10)); // sqn: 0
 
+            long checkpointId = 1L;
             // checkpoint 1 trigger
             SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
-            writer.persist(initialSqn);
+            writer.persist(initialSqn, checkpointId);
             uploadScheduler.scheduleAll(); // checkpoint 1 completed
-            writer.confirm(initialSqn, checkpoint1sqn, 1);
+            writer.confirm(initialSqn, checkpoint1sqn, checkpointId);
 
             writer.append(KEY_GROUP, getBytes(10)); // sqn: 1
 
@@ -150,9 +152,9 @@ class FsStateChangelogWriterTest {
             // materialization 1 completed
             // checkpoint 2 trigger
             SequenceNumber checkpoint2sqn = writer.nextSequenceNumber();
-            writer.persist(materializationSqn);
+            writer.persist(materializationSqn, ++checkpointId);
             uploadScheduler.scheduleAll(); // checkpoint 2 completed
-            writer.confirm(materializationSqn, checkpoint2sqn, 2);
+            writer.confirm(materializationSqn, checkpoint2sqn, checkpointId);
 
             // checkpoint 1 subsumed
             writer.truncate(
@@ -164,9 +166,9 @@ class FsStateChangelogWriterTest {
 
             // checkpoint 3 trigger
             SequenceNumber checkpoint3sqn = writer.nextSequenceNumber();
-            writer.persist(materializationSqn);
+            writer.persist(materializationSqn, ++checkpointId);
             uploadScheduler.scheduleAll(); // checkpoint 3 completed
-            writer.confirm(materializationSqn, checkpoint3sqn, 3);
+            writer.confirm(materializationSqn, checkpoint3sqn, checkpointId);
 
             // trigger pre-emptive upload
             writer.append(KEY_GROUP, getBytes(100)); // sqn: 4
@@ -181,9 +183,9 @@ class FsStateChangelogWriterTest {
             // checkpoint 4 trigger
             SequenceNumber checkpoint4sqn = writer.nextSequenceNumber();
             CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future =
-                    writer.persist(materializationSqn);
+                    writer.persist(materializationSqn, ++checkpointId);
             uploadScheduler.scheduleAll(); // checkpoint 4 completed
-            writer.confirm(materializationSqn, checkpoint4sqn, 4);
+            writer.confirm(materializationSqn, checkpoint4sqn, checkpointId);
 
             SnapshotResult<ChangelogStateHandleStreamImpl> result = future.get();
             ChangelogStateHandleStreamImpl resultHandle = result.getJobManagerOwnedSnapshot();
@@ -225,7 +227,7 @@ class FsStateChangelogWriterTest {
             // checkpoint 1 trigger
             SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
             CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future =
-                    writer.persist(initialSqn);
+                    writer.persist(initialSqn, 1L);
 
             // trigger pre-emptive upload
             writer.append(KEY_GROUP, getBytes(100)); // sqn: 1
@@ -247,14 +249,227 @@ class FsStateChangelogWriterTest {
     }
 
     @Test
+    void testLocalFileDiscard() throws Exception {
+        long appendPersistThreshold = 100;
+        TaskChangelogRegistry taskChangelogRegistry =
+                new TaskChangelogRegistryImpl(Executors.directExecutor());
+
+        try (DiscardRecordableStateChangeUploader uploader =
+                        new DiscardRecordableStateChangeUploader(taskChangelogRegistry);
+                TestingBatchingUploadScheduler uploadScheduler =
+                        new TestingBatchingUploadScheduler(uploader);
+                FsStateChangelogWriter writer =
+                        new FsStateChangelogWriter(
+                                UUID.randomUUID(),
+                                KeyGroupRange.of(KEY_GROUP, KEY_GROUP),
+                                uploadScheduler,
+                                appendPersistThreshold,
+                                new SyncMailboxExecutor(),
+                                taskChangelogRegistry,
+                                TestLocalRecoveryConfig.enabledForTest(),
+                                new LocalChangelogRegistryImpl(
+                                        Executors.newDirectExecutorService()))) {
+            SequenceNumber initialSqn = writer.initialSequenceNumber();
+
+            writer.append(KEY_GROUP, getBytes(10));
+
+            long checkpointId = 1L;
+            // checkpoint 1 trigger
+            SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
+            writer.persist(initialSqn, checkpointId);
+            uploadScheduler.scheduleAll(); // checkpoint 1 completed
+            writer.confirm(initialSqn, checkpoint1sqn, checkpointId);
+
+            // trigger pre-emptive upload
+            writer.append(KEY_GROUP, getBytes(100));
+            uploadScheduler.scheduleAll();
+            writer.append(KEY_GROUP, getBytes(10));
+            // checkpoint 2 trigger
+            SequenceNumber checkpoint2sqn = writer.nextSequenceNumber();
+            CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future2 =
+                    writer.persist(initialSqn, ++checkpointId);
+            uploadScheduler.scheduleAll(); // checkpoint 2 completed
+            writer.confirm(initialSqn, checkpoint2sqn, checkpointId);
+            SnapshotResult<ChangelogStateHandleStreamImpl> result2 = future2.get();
+            for (Tuple2<StreamStateHandle, Long> handleAndOffset :
+                    result2.getTaskLocalSnapshot().getHandlesAndOffsets()) {
+                assertThat(uploader.isDiscarded(handleAndOffset.f0)).isFalse();
+            }
+
+            // materialization 1 trigger
+            SequenceNumber materializationSqn = writer.nextSequenceNumber();
+            writer.append(KEY_GROUP, getBytes(10));
+
+            // materialization 1 completed
+            // checkpoint 3 trigger
+            SequenceNumber checkpoint3sqn = writer.nextSequenceNumber();
+            writer.persist(materializationSqn, ++checkpointId);
+            uploadScheduler.scheduleAll(); // checkpoint 3 completed
+            writer.confirm(materializationSqn, checkpoint3sqn, checkpointId);
+            for (Tuple2<StreamStateHandle, Long> handleAndOffset :
+                    result2.getTaskLocalSnapshot().getHandlesAndOffsets()) {
+                assertThat(uploader.isDiscarded(handleAndOffset.f0)).isTrue();
+            }
+        }
+    }
+
+    @Test
+    void testLocalFileAfterMaterialize() throws Exception {
+        // If register local files when confirm(), the following case will fail:
+        // cp1 trigger: file1,file1'(local)
+        // JM: register [file1] to sharedRegistry
+        // cp1 complete: stopTracking [file1], register [file1'] to localRegistry
+        // cp2 trigger: file1,file1',file2,file2'
+        // JM: register [file1,file2] to sharedRegistry
+        // cp2 complete: stopTracking [file1,file1',file2,file2'], register [file1',file2'] to
+        // localRegistry
+        // cp1 subsume
+        // cp3 trigger:  file1,file1',file2,file2',file3,file3'
+        // materialization: uploaded.clear()
+        // JM: register [file1,file2,file3] to sharedRegistry
+        // cp3 complete: stopTracking [], register [] to localRegistry
+        // cp2 subsume: [file1', file2'] are discarded
+        // if restore from cp3: local file1',file2' are not found
+        long appendPersistThreshold = 100;
+        TaskChangelogRegistry taskChangelogRegistry =
+                new TaskChangelogRegistryImpl(Executors.directExecutor());
+
+        try (DiscardRecordableStateChangeUploader uploader =
+                        new DiscardRecordableStateChangeUploader(taskChangelogRegistry);
+                TestingBatchingUploadScheduler uploadScheduler =
+                        new TestingBatchingUploadScheduler(uploader);
+                FsStateChangelogWriter writer =
+                        new FsStateChangelogWriter(
+                                UUID.randomUUID(),
+                                KeyGroupRange.of(KEY_GROUP, KEY_GROUP),
+                                uploadScheduler,
+                                appendPersistThreshold,
+                                new SyncMailboxExecutor(),
+                                taskChangelogRegistry,
+                                TestLocalRecoveryConfig.enabledForTest(),
+                                new LocalChangelogRegistryImpl(
+                                        Executors.newDirectExecutorService()))) {
+            SequenceNumber initialSqn = writer.initialSequenceNumber();
+
+            writer.append(KEY_GROUP, getBytes(10));
+
+            long checkpointId = 1L;
+            // checkpoint 1 trigger
+            SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
+            writer.persist(initialSqn, checkpointId);
+            uploadScheduler.scheduleAll(); // checkpoint 1 completed
+            writer.confirm(initialSqn, checkpoint1sqn, checkpointId);
+
+            writer.append(KEY_GROUP, getBytes(10));
+            // checkpoint 2 trigger
+            SequenceNumber checkpoint2sqn = writer.nextSequenceNumber();
+            writer.persist(initialSqn, ++checkpointId);
+            uploadScheduler.scheduleAll(); // checkpoint 2 completed
+            writer.confirm(initialSqn, checkpoint2sqn, checkpointId);
+
+            writer.append(KEY_GROUP, getBytes(10));
+            // checkpoint 3 trigger
+            SequenceNumber checkpoint3sqn = writer.nextSequenceNumber();
+            CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future3 =
+                    writer.persist(initialSqn, ++checkpointId);
+            uploadScheduler.scheduleAll(); // checkpoint 3 completed
+
+            // materialization 1 trigger
+            SequenceNumber materializationSqn = writer.nextSequenceNumber();
+            writer.truncate(
+                    materializationSqn.compareTo(checkpoint1sqn) < 0
+                            ? materializationSqn
+                            : checkpoint1sqn);
+            // materialization 1 completed
+            // checkpoint 3 confirm
+            writer.confirm(materializationSqn, checkpoint3sqn, checkpointId);
+
+            writer.append(KEY_GROUP, getBytes(10));
+
+            SnapshotResult<ChangelogStateHandleStreamImpl> result3 = future3.get();
+
+            for (Tuple2<StreamStateHandle, Long> handleAndOffset :
+                    result3.getJobManagerOwnedSnapshot().getHandlesAndOffsets()) {
+                assertThat(uploader.isDiscarded(handleAndOffset.f0)).isFalse();
+            }
+
+            for (Tuple2<StreamStateHandle, Long> handleAndOffset :
+                    result3.getTaskLocalSnapshot().getHandlesAndOffsets()) {
+                assertThat(uploader.isDiscarded(handleAndOffset.f0)).isFalse();
+            }
+        }
+    }
+
+    @Test
+    void testLocalFileAbort() throws Exception {
+        long appendPersistThreshold = 100;
+        TaskChangelogRegistry taskChangelogRegistry =
+                new TaskChangelogRegistryImpl(Executors.directExecutor());
+
+        try (DiscardRecordableStateChangeUploader uploader =
+                        new DiscardRecordableStateChangeUploader(taskChangelogRegistry);
+                TestingBatchingUploadScheduler uploadScheduler =
+                        new TestingBatchingUploadScheduler(uploader);
+                FsStateChangelogWriter writer =
+                        new FsStateChangelogWriter(
+                                UUID.randomUUID(),
+                                KeyGroupRange.of(KEY_GROUP, KEY_GROUP),
+                                uploadScheduler,
+                                appendPersistThreshold,
+                                new SyncMailboxExecutor(),
+                                taskChangelogRegistry,
+                                TestLocalRecoveryConfig.enabledForTest(),
+                                new LocalChangelogRegistryImpl(
+                                        Executors.newDirectExecutorService()))) {
+            SequenceNumber initialSqn = writer.initialSequenceNumber();
+
+            writer.append(KEY_GROUP, getBytes(10));
+
+            long checkpointId = 1L;
+            // checkpoint 1 trigger
+            SequenceNumber checkpoint1sqn = writer.nextSequenceNumber();
+            writer.persist(initialSqn, checkpointId);
+            uploadScheduler.scheduleAll(); // checkpoint 1 completed
+            writer.confirm(initialSqn, checkpoint1sqn, checkpointId);
+
+            writer.append(KEY_GROUP, getBytes(200));
+            uploadScheduler.scheduleAll();
+            writer.append(KEY_GROUP, getBytes(10));
+            // checkpoint 2 trigger
+            SequenceNumber checkpoint2sqn = writer.nextSequenceNumber();
+            CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future2 =
+                    writer.persist(initialSqn, ++checkpointId);
+            uploadScheduler.scheduleAll();
+
+            // checkpoint 2 abort, all local dstl files are deleted
+            writer.reset(initialSqn, checkpoint2sqn, checkpointId);
+            SnapshotResult<ChangelogStateHandleStreamImpl> result2 = future2.get();
+            assertThat(result2.getTaskLocalSnapshot().getHandlesAndOffsets())
+                    .allMatch(tuple -> uploader.isDiscarded(tuple.f0));
+
+            writer.append(KEY_GROUP, getBytes(10));
+            // checkpoint 3 trigger
+            SequenceNumber checkpoint3sqn = writer.nextSequenceNumber();
+            CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future3 =
+                    writer.persist(initialSqn, ++checkpointId);
+            uploadScheduler.scheduleAll(); // checkpoint 3 completed
+            SnapshotResult<ChangelogStateHandleStreamImpl> result3 = future3.get();
+            // checkpoint 3 confirm, delete files of checkpoint 1,2
+            writer.confirm(initialSqn, checkpoint3sqn, checkpointId);
+            assertThat(result3.getTaskLocalSnapshot().getHandlesAndOffsets())
+                    .anyMatch(tuple -> !uploader.isDiscarded(tuple.f0));
+        }
+    }
+
+    @Test
     void testNoReUploadBeforeCompletion() throws Exception {
         withWriter(
                 (writer, uploader) -> {
                     byte[] bytes = getBytes();
                     SequenceNumber sqn = append(writer, bytes);
-                    writer.persist(sqn);
+                    writer.persist(sqn, 1L);
                     uploader.reset();
-                    writer.persist(sqn);
+                    writer.persist(sqn, 2L);
                     assertNoUpload(uploader, "no re-upload should happen");
                 });
     }
@@ -264,11 +479,11 @@ class FsStateChangelogWriterTest {
         withWriter(
                 (writer, uploader) -> {
                     SequenceNumber sqn = append(writer, getBytes());
-                    writer.persist(sqn);
+                    writer.persist(sqn, 1L);
                     uploader.reset();
                     byte[] bytes = getBytes();
                     sqn = append(writer, bytes);
-                    writer.persist(sqn);
+                    writer.persist(sqn, 2L);
                     assertSubmittedOnly(uploader, bytes);
                 });
     }
@@ -282,7 +497,7 @@ class FsStateChangelogWriterTest {
                     SequenceNumber sqn = append(writer, bytes);
                     writer.reset(sqn, SequenceNumber.of(Long.MAX_VALUE), Long.MAX_VALUE);
                     uploader.reset();
-                    writer.persist(sqn);
+                    writer.persist(sqn, 1L);
                     assertSubmittedOnly(uploader, bytes);
                 });
     }
@@ -298,7 +513,7 @@ class FsStateChangelogWriterTest {
                                             CompletableFuture<
                                                             SnapshotResult<
                                                                     ChangelogStateHandleStreamImpl>>
-                                                    future = writer.persist(sqn);
+                                                    future = writer.persist(sqn, 1L);
                                             uploader.failUpload(new RuntimeException("test"));
                                             try {
                                                 future.get();
@@ -317,9 +532,9 @@ class FsStateChangelogWriterTest {
                                         (writer, uploader) -> {
                                             byte[] bytes = getBytes();
                                             SequenceNumber sqn = append(writer, bytes);
-                                            writer.persist(sqn); // future result ignored
+                                            writer.persist(sqn, 1L); // future result ignored
                                             uploader.failUpload(new RuntimeException("test"));
-                                            writer.persist(sqn); // should fail right away
+                                            writer.persist(sqn, 2L); // should fail right away
                                         }))
                 .isInstanceOf(IOException.class);
     }
@@ -330,12 +545,12 @@ class FsStateChangelogWriterTest {
                 (writer, uploader) -> {
                     byte[] bytes = getBytes();
                     SequenceNumber sqn1 = append(writer, bytes);
-                    writer.persist(sqn1); // future result ignored
+                    writer.persist(sqn1, 1L); // future result ignored
                     uploader.failUpload(new RuntimeException("test"));
                     uploader.reset();
                     SequenceNumber sqn2 = append(writer, bytes);
                     CompletableFuture<SnapshotResult<ChangelogStateHandleStreamImpl>> future =
-                            writer.persist(sqn2);
+                            writer.persist(sqn2, 2L);
                     uploader.completeUpload();
                     future.get();
                 });
@@ -349,7 +564,7 @@ class FsStateChangelogWriterTest {
                                         (writer, uploader) -> {
                                             SequenceNumber sqn = append(writer, getBytes());
                                             writer.truncate(sqn.next());
-                                            writer.persist(sqn);
+                                            writer.persist(sqn, 1L);
                                         }))
                 .isInstanceOf(IllegalArgumentException.class);
     }

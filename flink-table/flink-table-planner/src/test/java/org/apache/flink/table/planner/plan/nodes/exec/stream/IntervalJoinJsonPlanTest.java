@@ -23,17 +23,17 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for IntervalJoin. */
-public class IntervalJoinJsonPlanTest extends TableTestBase {
+class IntervalJoinJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -64,7 +64,7 @@ public class IntervalJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProcessingTimeInnerJoinWithOnClause() {
+    void testProcessingTimeInnerJoinWithOnClause() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a int,\n"
@@ -81,7 +81,7 @@ public class IntervalJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testRowTimeInnerJoinWithOnClause() {
+    void testRowTimeInnerJoinWithOnClause() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a int,\n"

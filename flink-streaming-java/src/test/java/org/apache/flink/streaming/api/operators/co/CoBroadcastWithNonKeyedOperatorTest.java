@@ -458,14 +458,13 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 
         boolean exceptionThrown = false;
 
+        final ValueStateDescriptor<String> valueState =
+                new ValueStateDescriptor<>("any", BasicTypeInfo.STRING_TYPE_INFO);
+
         try (TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness =
                 getInitializedTestHarness(
                         new BroadcastProcessFunction<String, Integer, String>() {
                             private static final long serialVersionUID = -1725365436500098384L;
-
-                            private final ValueStateDescriptor<String> valueState =
-                                    new ValueStateDescriptor<>(
-                                            "any", BasicTypeInfo.STRING_TYPE_INFO);
 
                             @Override
                             public void processBroadcastElement(
@@ -488,7 +487,9 @@ public class CoBroadcastWithNonKeyedOperatorTest {
             testHarness.processElement2(new StreamRecord<>(5, 12L));
         } catch (NullPointerException e) {
             Assert.assertEquals(
-                    "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
+                    String.format(
+                            "Keyed state '%s' with type %s can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
+                            valueState.getName(), valueState.getType()),
                     e.getMessage());
             exceptionThrown = true;
         }
@@ -503,14 +504,13 @@ public class CoBroadcastWithNonKeyedOperatorTest {
 
         boolean exceptionThrown = false;
 
+        final ValueStateDescriptor<String> valueState =
+                new ValueStateDescriptor<>("any", BasicTypeInfo.STRING_TYPE_INFO);
+
         try (TwoInputStreamOperatorTestHarness<String, Integer, String> testHarness =
                 getInitializedTestHarness(
                         new BroadcastProcessFunction<String, Integer, String>() {
                             private static final long serialVersionUID = -1725365436500098384L;
-
-                            private final ValueStateDescriptor<String> valueState =
-                                    new ValueStateDescriptor<>(
-                                            "any", BasicTypeInfo.STRING_TYPE_INFO);
 
                             @Override
                             public void processBroadcastElement(
@@ -533,7 +533,9 @@ public class CoBroadcastWithNonKeyedOperatorTest {
             testHarness.processElement1(new StreamRecord<>("5", 12L));
         } catch (NullPointerException e) {
             Assert.assertEquals(
-                    "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
+                    String.format(
+                            "Keyed state '%s' with type %s can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
+                            valueState.getName(), valueState.getType()),
                     e.getMessage());
             exceptionThrown = true;
         }

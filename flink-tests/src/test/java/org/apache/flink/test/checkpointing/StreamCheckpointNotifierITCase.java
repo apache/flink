@@ -18,18 +18,18 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RichReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -114,7 +114,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
                     // -------------- fourth vertex - reducer and the sink ----------------
                     .keyBy(0)
                     .reduce(new OnceFailingReducer(numElements))
-                    .addSink(new DiscardingSink<Tuple1<Long>>());
+                    .sinkTo(new DiscardingSink<>());
 
             env.execute();
 
@@ -196,7 +196,7 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             step = getRuntimeContext().getNumberOfParallelSubtasks();
 
             // if index has been restored, it is not 0 any more

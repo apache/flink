@@ -35,22 +35,18 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class ExternalSortLargeRecordsITCase extends TestLogger {
+class ExternalSortLargeRecordsITCase {
 
     private static final int MEMORY_SIZE = 1024 * 1024 * 78;
 
@@ -64,20 +60,21 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
 
     // --------------------------------------------------------------------------------------------
 
-    @Before
-    public void beforeTest() {
+    @BeforeEach
+    void beforeTest() {
         this.memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
         this.ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void afterTest() throws Exception {
+    @AfterEach
+    void afterTest() throws Exception {
         this.ioManager.close();
 
         if (this.memoryManager != null && testSuccess) {
-            Assert.assertTrue(
-                    "Memory leak: not all segments have been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            assertThat(this.memoryManager.verifyEmpty())
+                    .withFailMessage(
+                            "Memory leak: not all segments have been returned to the memory manager.")
+                    .isTrue();
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -86,7 +83,7 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
     // --------------------------------------------------------------------------------------------
 
     @Test
-    public void testSortWithLongRecordsOnly() {
+    void testSortWithLongRecordsOnly() {
         try {
             final int NUM_RECORDS = 10;
 
@@ -148,11 +145,11 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
             for (int i = 0; i < NUM_RECORDS; i++) {
                 val = iterator.next(val);
 
-                assertTrue(val.f0 <= prevKey);
-                assertTrue(val.f0.intValue() == val.f1.val());
+                assertThat(val.f0).isLessThanOrEqualTo(prevKey);
+                assertThat(val.f0.intValue()).isEqualTo(val.f1.val());
             }
 
-            assertNull(iterator.next(val));
+            assertThat(iterator.next(val)).isNull();
 
             sorter.close();
             testSuccess = true;
@@ -163,7 +160,7 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
     }
 
     @Test
-    public void testSortWithLongAndShortRecordsMixed() {
+    void testSortWithLongAndShortRecordsMixed() {
         try {
             final int NUM_RECORDS = 1000000;
             final int LARGE_REC_INTERVAL = 100000;
@@ -228,14 +225,15 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
             for (int i = 0; i < NUM_RECORDS; i++) {
                 val = iterator.next(val);
 
-                assertTrue("Sort order violated", val.f0 <= prevKey);
-                assertEquals(
-                        "Serialization of test data type incorrect",
-                        val.f0.intValue(),
-                        val.f1.val());
+                assertThat(val.f0)
+                        .withFailMessage("Sort order violated")
+                        .isLessThanOrEqualTo(prevKey);
+                assertThat(val.f0.intValue())
+                        .withFailMessage("Serialization of test data type incorrect")
+                        .isEqualTo(val.f1.val());
             }
 
-            assertNull(iterator.next(val));
+            assertThat(iterator.next(val)).isNull();
 
             sorter.close();
             testSuccess = true;
@@ -246,7 +244,7 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
     }
 
     @Test
-    public void testSortWithShortMediumAndLargeRecords() {
+    void testSortWithShortMediumAndLargeRecords() {
         try {
             final int NUM_RECORDS = 50000;
             final int LARGE_REC_INTERVAL = 10000;
@@ -321,10 +319,10 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
             for (int i = 0; i < NUM_RECORDS; i++) {
                 val = iterator.next(val);
 
-                assertEquals(val.f0.intValue(), val.f1.val());
+                assertThat(val.f0.intValue()).isEqualTo(val.f1.val());
             }
 
-            assertNull(iterator.next(val));
+            assertThat(iterator.next(val)).isNull();
 
             sorter.close();
             testSuccess = true;
@@ -335,7 +333,7 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
     }
 
     @Test
-    public void testSortWithMediumRecordsOnly() {
+    void testSortWithMediumRecordsOnly() {
         try {
             final int NUM_RECORDS = 70;
 
@@ -402,11 +400,11 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
             for (int i = 0; i < NUM_RECORDS; i++) {
                 val = iterator.next(val);
 
-                assertTrue(val.f0 <= prevKey);
-                assertTrue(val.f0.intValue() == val.f1.val());
+                assertThat(val.f0).isLessThanOrEqualTo(prevKey);
+                assertThat(val.f0.intValue()).isEqualTo(val.f1.val());
             }
 
-            assertNull(iterator.next(val));
+            assertThat(iterator.next(val)).isNull();
 
             sorter.close();
             testSuccess = true;
@@ -464,7 +462,7 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
             if (isLong) {
                 for (int i = 0; i < BUFFER.length; i++) {
                     byte b = in.readByte();
-                    assertEquals(BUFFER[i], b);
+                    assertThat(b).isEqualTo(BUFFER[i]);
                 }
             }
         }
@@ -536,7 +534,7 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
 
             for (int i = 0; i < size; i++) {
                 byte b = in.readByte();
-                assertEquals((byte) i, b);
+                assertThat(b).isEqualTo((byte) i);
             }
         }
 

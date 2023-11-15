@@ -24,20 +24,21 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MergeIteratorTest {
+import static org.assertj.core.api.Assertions.assertThat;
+
+class MergeIteratorTest {
 
     private TypeComparator<Tuple2<Integer, String>> comparator;
 
     @SuppressWarnings("unchecked")
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         this.comparator = TestData.getIntStringTupleComparator();
     }
 
@@ -79,7 +80,7 @@ public class MergeIteratorTest {
     }
 
     @Test
-    public void testMergeOfTwoStreams() throws Exception {
+    void testMergeOfTwoStreams() throws Exception {
         // iterators
         List<MutableObjectIterator<Tuple2<Integer, String>>> iterators = new ArrayList<>();
         iterators.add(
@@ -104,15 +105,15 @@ public class MergeIteratorTest {
 
         int pos = 1;
 
-        Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
-        Assert.assertEquals(expected[0], rec1.f0.intValue());
+        assertThat(rec1 = iterator.next(rec1)).isNotNull();
+        assertThat(rec1.f0).isEqualTo(expected[0]);
 
         while ((rec2 = iterator.next(rec2)) != null) {
             k1 = rec1.f0;
             k2 = rec2.f0;
 
-            Assert.assertTrue(comparator.compare(k1, k2) <= 0);
-            Assert.assertEquals(expected[pos++], k2);
+            assertThat(comparator.compare(k1, k2)).isLessThanOrEqualTo(0);
+            assertThat(k2).isEqualTo(expected[pos++]);
 
             Tuple2<Integer, String> tmp = rec1;
             rec1 = rec2;
@@ -121,7 +122,7 @@ public class MergeIteratorTest {
     }
 
     @Test
-    public void testMergeOfTenStreams() throws Exception {
+    void testMergeOfTenStreams() throws Exception {
         // iterators
         List<MutableObjectIterator<Tuple2<Integer, String>>> iterators = new ArrayList<>();
         iterators.add(
@@ -157,22 +158,24 @@ public class MergeIteratorTest {
         Tuple2<Integer, String> rec1 = new Tuple2<>();
         Tuple2<Integer, String> rec2 = new Tuple2<>();
 
-        Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+        assertThat(rec1 = iterator.next(rec1)).isNotNull();
         while ((rec2 = iterator.next(rec2)) != null) {
             elementsFound++;
 
-            Assert.assertTrue(comparator.compare(rec1.f0, rec2.f0) <= 0);
+            assertThat(comparator.compare(rec1.f0, rec2.f0)).isLessThanOrEqualTo(0);
 
             Tuple2<Integer, String> tmp = rec1;
             rec1 = rec2;
             rec2 = tmp;
         }
 
-        Assert.assertEquals("Too few elements returned from stream.", 50, elementsFound);
+        assertThat(elementsFound)
+                .withFailMessage("Too few elements returned from stream.")
+                .isEqualTo(50);
     }
 
     @Test
-    public void testInvalidMerge() throws Exception {
+    void testInvalidMerge() throws Exception {
         // iterators
         List<MutableObjectIterator<Tuple2<Integer, String>>> iterators = new ArrayList<>();
         iterators.add(
@@ -209,7 +212,7 @@ public class MergeIteratorTest {
         Tuple2<Integer, String> rec1 = new Tuple2<>();
         Tuple2<Integer, String> rec2 = new Tuple2<>();
 
-        Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+        assertThat(rec1 = iterator.next(rec1)).isNotNull();
         while ((rec2 = iterator.next(rec2)) != null) {
             if (comparator.compare(rec1.f0, rec2.f0) > 0) {
                 violationFound = true;
@@ -221,6 +224,8 @@ public class MergeIteratorTest {
             rec2 = tmp;
         }
 
-        Assert.assertTrue("Merge must have returned a wrong result", violationFound);
+        assertThat(violationFound)
+                .withFailMessage("Merge must have returned a wrong result")
+                .isTrue();
     }
 }

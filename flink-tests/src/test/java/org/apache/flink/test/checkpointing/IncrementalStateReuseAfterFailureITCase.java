@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 
@@ -128,7 +128,7 @@ public class IncrementalStateReuseAfterFailureITCase {
                                 new OneInputTestStreamOperatorFactory(UID_OP2, evQueue, cmdQueue))
                         .setUidHash(UID_OP2);
 
-        transform2.addSink(new DiscardingSink<>());
+        transform2.sinkTo(new DiscardingSink<>());
 
         return new TestJobWithDescription(
                 env.getStreamGraph().getJobGraph(),

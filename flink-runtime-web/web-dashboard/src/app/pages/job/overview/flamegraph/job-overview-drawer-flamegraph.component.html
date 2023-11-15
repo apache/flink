@@ -16,8 +16,13 @@
   ~ limitations under the License.
   -->
 
-<span *ngIf="selectedVertex?.detail?.status !== 'RUNNING'">
-  Operator is not running. Cannot sample back pressure.
+<span
+  *ngIf="
+    selectedVertex?.detail?.status !== 'RUNNING' &&
+    selectedVertex?.detail?.status !== 'INITIALIZING'
+  "
+>
+  Operator is not running or initializing. Cannot sample flame graph.
 </span>
 
 Type:
@@ -56,7 +61,7 @@ Subtask:
   (ngModelChange)="selectSubtask($event)"
 >
   <nz-option
-    *ngFor="let name of listOfRunningSubtasks"
+    *ngFor="let name of listOfSampleableSubtasks"
     [nzLabel]="name"
     [nzValue]="name"
     nzCustomContent

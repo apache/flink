@@ -18,7 +18,7 @@
 
 package org.apache.flink.test.checkpointing.utils;
 
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.test.util.SuccessException;
@@ -77,7 +77,7 @@ public class ValidatingSink<T> extends RichSinkFunction<T>
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
+    public void open(OpenContext openContext) throws Exception {
         // this sink can only work with DOP 1
         assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
         if (usingProcessingTime && resultChecker.checkResult(windowCounts)) {

@@ -26,18 +26,16 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
-import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.rest.util.TestRestServerEndpoint;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.net.ssl.SSLException;
 
@@ -48,15 +46,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 
 /**
  * This test validates that connections are failing when mutual auth is enabled but untrusted keys
  * or fingerprints are used.
  */
-@RunWith(Parameterized.class)
-public class RestServerSSLAuthITCase extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+public class RestServerSSLAuthITCase {
 
     private static final String KEY_STORE_FILE =
             RestServerSSLAuthITCase.class.getResource("/local127.keystore").getFile();
@@ -75,7 +73,7 @@ public class RestServerSSLAuthITCase extends TestLogger {
         this.serverConfig = clientServerConfig.f1;
     }
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<Object[]> data() throws Exception {
         // client and server trust store does not match
         Tuple2<Configuration, Configuration> untrusted = getClientServerConfiguration();
@@ -99,8 +97,8 @@ public class RestServerSSLAuthITCase extends TestLogger {
         return Arrays.asList(new Object[][] {{untrusted}, {withFingerprint}});
     }
 
-    @Test
-    public void testConnectFailure() throws Exception {
+    @TestTemplate
+    void testConnectFailure() throws Exception {
         RestClient restClient = null;
         RestServerEndpoint serverEndpoint = null;
 
@@ -117,20 +115,17 @@ public class RestServerSSLAuthITCase extends TestLogger {
                             .buildAndStart();
             restClient = new RestClient(clientConfig, Executors.directExecutor());
 
-            CompletableFuture<EmptyResponseBody> response =
-                    restClient.sendRequest(
-                            serverEndpoint.getServerAddress().getHostName(),
-                            serverEndpoint.getServerAddress().getPort(),
-                            RestServerEndpointITCase.TestVersionHeaders.INSTANCE,
-                            EmptyMessageParameters.getInstance(),
-                            EmptyRequestBody.getInstance(),
-                            Collections.emptyList());
-            response.get(60, TimeUnit.SECONDS);
-
-            fail("should never complete normally");
-        } catch (ExecutionException exception) {
-            // that is what we want
-            assertTrue(ExceptionUtils.findThrowable(exception, SSLException.class).isPresent());
+            assertThatFuture(
+                            restClient.sendRequest(
+                                    serverEndpoint.getServerAddress().getHostName(),
+                                    serverEndpoint.getServerAddress().getPort(),
+                                    RestServerEndpointITCase.TestVersionHeaders.INSTANCE,
+                                    EmptyMessageParameters.getInstance(),
+                                    EmptyRequestBody.getInstance(),
+                                    Collections.emptyList()))
+                    .failsWithin(60, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .satisfies(anyCauseMatches(SSLException.class));
         } finally {
             if (restClient != null) {
                 restClient.shutdown(timeout);

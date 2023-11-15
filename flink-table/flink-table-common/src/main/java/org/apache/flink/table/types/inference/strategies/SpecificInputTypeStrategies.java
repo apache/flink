@@ -28,6 +28,7 @@ import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType;
+import org.apache.flink.table.types.logical.TimestampKind;
 
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
@@ -50,12 +51,19 @@ public final class SpecificInputTypeStrategies {
     /** See {@link CastInputTypeStrategy}. */
     public static final InputTypeStrategy CAST = new CastInputTypeStrategy();
 
+    public static final InputTypeStrategy REINTERPRET_CAST = new ReinterpretCastInputTypeStrategy();
+
     /** See {@link MapInputTypeStrategy}. */
     public static final InputTypeStrategy MAP = new MapInputTypeStrategy();
 
     /** See {@link CurrentWatermarkInputTypeStrategy}. */
     public static final InputTypeStrategy CURRENT_WATERMARK =
             new CurrentWatermarkInputTypeStrategy();
+
+    /** See {@link WindowTimeIndictorInputTypeStrategy}. */
+    public static InputTypeStrategy windowTimeIndicator(TimestampKind timestampKind) {
+        return new WindowTimeIndictorInputTypeStrategy(timestampKind);
+    }
 
     /** Argument type representing all types supported in a JSON context. */
     public static final ArgumentTypeStrategy JSON_ARGUMENT =
@@ -119,6 +127,9 @@ public final class SpecificInputTypeStrategies {
      */
     public static final InputTypeStrategy TWO_EQUALS_COMPARABLE =
             comparable(ConstantArgumentCount.of(2), StructuredType.StructuredComparison.EQUALS);
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#IN}. */
+    public static final InputTypeStrategy IN = new SubQueryInputTypeStrategy();
 
     private SpecificInputTypeStrategies() {
         // no instantiation

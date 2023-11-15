@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -60,6 +61,7 @@ import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.PhysicalStateHandleID;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryImpl;
@@ -1520,9 +1522,12 @@ class CheckpointCoordinatorTest {
         TaskStateSnapshot taskOperatorSubtaskStates12 = spy(new TaskStateSnapshot());
         TaskStateSnapshot taskOperatorSubtaskStates13 = spy(new TaskStateSnapshot());
 
-        OperatorSubtaskState subtaskState11 = mock(OperatorSubtaskState.class);
-        OperatorSubtaskState subtaskState12 = mock(OperatorSubtaskState.class);
-        OperatorSubtaskState subtaskState13 = mock(OperatorSubtaskState.class);
+        OperatorSubtaskStateMock subtaskState11mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskStateMock subtaskState12mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskStateMock subtaskState13mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskState subtaskState11 = subtaskState11mock.getSubtaskState();
+        OperatorSubtaskState subtaskState12 = subtaskState12mock.getSubtaskState();
+        OperatorSubtaskState subtaskState13 = subtaskState13mock.getSubtaskState();
         taskOperatorSubtaskStates11.putSubtaskStateByOperatorID(opID1, subtaskState11);
         taskOperatorSubtaskStates12.putSubtaskStateByOperatorID(opID2, subtaskState12);
         taskOperatorSubtaskStates13.putSubtaskStateByOperatorID(opID3, subtaskState13);
@@ -1561,9 +1566,12 @@ class CheckpointCoordinatorTest {
         TaskStateSnapshot taskOperatorSubtaskStates22 = spy(new TaskStateSnapshot());
         TaskStateSnapshot taskOperatorSubtaskStates23 = spy(new TaskStateSnapshot());
 
-        OperatorSubtaskState subtaskState21 = mock(OperatorSubtaskState.class);
-        OperatorSubtaskState subtaskState22 = mock(OperatorSubtaskState.class);
-        OperatorSubtaskState subtaskState23 = mock(OperatorSubtaskState.class);
+        OperatorSubtaskStateMock subtaskState21mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskStateMock subtaskState22mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskStateMock subtaskState23mock = new OperatorSubtaskStateMock();
+        OperatorSubtaskState subtaskState21 = subtaskState21mock.getSubtaskState();
+        OperatorSubtaskState subtaskState22 = subtaskState22mock.getSubtaskState();
+        OperatorSubtaskState subtaskState23 = subtaskState23mock.getSubtaskState();
 
         taskOperatorSubtaskStates21.putSubtaskStateByOperatorID(opID1, subtaskState21);
         taskOperatorSubtaskStates22.putSubtaskStateByOperatorID(opID2, subtaskState22);
@@ -1625,13 +1633,13 @@ class CheckpointCoordinatorTest {
         assertThat(checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints()).isOne();
 
         // validate that all received subtask states in the first checkpoint have been discarded
-        verify(subtaskState11, times(1)).discardState();
-        verify(subtaskState12, times(1)).discardState();
+        subtaskState11mock.verifyDiscard();
+        subtaskState12mock.verifyDiscard();
 
         // validate that all subtask states in the second checkpoint are not discarded
-        verify(subtaskState21, never()).discardState();
-        verify(subtaskState22, never()).discardState();
-        verify(subtaskState23, never()).discardState();
+        subtaskState21mock.verifyNotDiscard();
+        subtaskState22mock.verifyNotDiscard();
+        subtaskState23mock.verifyNotDiscard();
 
         // validate the committed checkpoints
         List<CompletedCheckpoint> scs = checkpointCoordinator.getSuccessfulCheckpoints();
@@ -1656,15 +1664,15 @@ class CheckpointCoordinatorTest {
                         new CheckpointMetrics(),
                         taskOperatorSubtaskStates13),
                 TASK_MANAGER_LOCATION_INFO);
-        verify(subtaskState13, times(1)).discardState();
+        subtaskState13mock.verifyDiscard();
 
         checkpointCoordinator.shutdown();
         completedCheckpointStore.shutdown(JobStatus.FINISHED, new CheckpointsCleaner());
 
         // validate that the states in the second checkpoint have been discarded
-        verify(subtaskState21, times(1)).discardState();
-        verify(subtaskState22, times(1)).discardState();
-        verify(subtaskState23, times(1)).discardState();
+        subtaskState21mock.verifyDiscard();
+        subtaskState22mock.verifyDiscard();
+        subtaskState23mock.verifyDiscard();
     }
 
     @Test
@@ -1708,7 +1716,8 @@ class CheckpointCoordinatorTest {
         OperatorID opID1 = vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
 
         TaskStateSnapshot taskOperatorSubtaskStates1 = spy(new TaskStateSnapshot());
-        OperatorSubtaskState subtaskState1 = mock(OperatorSubtaskState.class);
+        OperatorSubtaskStateMock operatorSubtaskStateMock = new OperatorSubtaskStateMock();
+        OperatorSubtaskState subtaskState1 = operatorSubtaskStateMock.getSubtaskState();
         taskOperatorSubtaskStates1.putSubtaskStateByOperatorID(opID1, subtaskState1);
 
         checkpointCoordinator.receiveAcknowledgeMessage(
@@ -1727,9 +1736,7 @@ class CheckpointCoordinatorTest {
                 .isTrue();
         assertThat(checkpointCoordinator.getNumberOfPendingCheckpoints()).isZero();
         assertThat(checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints()).isZero();
-
-        // validate that the received states have been discarded
-        verify(subtaskState1, times(1)).discardState();
+        operatorSubtaskStateMock.verifyDiscard();
 
         // no confirm message must have been sent
         for (ExecutionVertex vertex : Arrays.asList(vertex1, vertex2)) {
@@ -1852,7 +1859,8 @@ class CheckpointCoordinatorTest {
                 vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
 
         TaskStateSnapshot taskOperatorSubtaskStatesTrigger = spy(new TaskStateSnapshot());
-        OperatorSubtaskState subtaskStateTrigger = mock(OperatorSubtaskState.class);
+        OperatorSubtaskStateMock subtaskStateMock = new OperatorSubtaskStateMock();
+        OperatorSubtaskState subtaskStateTrigger = subtaskStateMock.getSubtaskState();
         taskOperatorSubtaskStatesTrigger.putSubtaskStateByOperatorID(
                 opIDtrigger, subtaskStateTrigger);
 
@@ -1867,7 +1875,7 @@ class CheckpointCoordinatorTest {
                 TASK_MANAGER_LOCATION_INFO);
 
         // verify that the subtask state has not been discarded
-        verify(subtaskStateTrigger, never()).discardState();
+        subtaskStateMock.verifyNotDiscard();
 
         TaskStateSnapshot unknownSubtaskState = mock(TaskStateSnapshot.class);
 
@@ -1914,7 +1922,7 @@ class CheckpointCoordinatorTest {
         verify(triggerSubtaskState, never()).discardState();
 
         // let the checkpoint fail at the first ack vertex
-        reset(subtaskStateTrigger);
+        subtaskStateMock.reset();
         checkpointCoordinator.receiveDeclineMessage(
                 new DeclineCheckpoint(
                         graph.getJobID(),
@@ -1926,7 +1934,7 @@ class CheckpointCoordinatorTest {
         assertThat(pendingCheckpoint.isDisposed()).isTrue();
 
         // check that we've cleaned up the already acknowledged state
-        verify(subtaskStateTrigger, times(1)).discardState();
+        subtaskStateMock.verifyDiscard();
 
         TaskStateSnapshot ackSubtaskState = mock(TaskStateSnapshot.class);
 
@@ -2979,7 +2987,7 @@ class CheckpointCoordinatorTest {
                                         handleAndLocalPath.getHandle(), TernaryBoolean.FALSE);
                             }
 
-                            verify(incrementalKeyedStateHandle.getMetaStateHandle(), never())
+                            verify(incrementalKeyedStateHandle.getMetaDataStateHandle(), never())
                                     .discardState();
                         }
 
@@ -4302,5 +4310,89 @@ class CheckpointCoordinatorTest {
                                                                 metaState))
                                                 .build()))),
                 "test");
+    }
+
+    static class OperatorSubtaskStateMock {
+        OperatorSubtaskState subtaskState;
+        TestingOperatorStateHandle managedOpHandle;
+        TestingOperatorStateHandle rawOpHandle;
+
+        OperatorSubtaskStateMock() {
+            this.managedOpHandle = new TestingOperatorStateHandle();
+            this.rawOpHandle = new TestingOperatorStateHandle();
+            this.subtaskState =
+                    OperatorSubtaskState.builder()
+                            .setManagedOperatorState(managedOpHandle)
+                            .setRawOperatorState(rawOpHandle)
+                            .build();
+        }
+
+        public OperatorSubtaskState getSubtaskState() {
+            return this.subtaskState;
+        }
+
+        public void reset() {
+            managedOpHandle.reset();
+            rawOpHandle.reset();
+        }
+
+        public void verifyDiscard() {
+            assert (managedOpHandle.isDiscarded() && rawOpHandle.discarded);
+        }
+
+        public void verifyNotDiscard() {
+            assert (!managedOpHandle.isDiscarded() && !rawOpHandle.isDiscarded());
+        }
+
+        private static class TestingOperatorStateHandle implements OperatorStateHandle {
+
+            private static final long serialVersionUID = 983594934287613083L;
+
+            boolean discarded;
+
+            @Override
+            public Map<String, StateMetaInfo> getStateNameToPartitionOffsets() {
+                return Collections.emptyMap();
+            }
+
+            @Override
+            public FSDataInputStream openInputStream() throws IOException {
+                throw new IOException("Cannot open input streams in testing implementation.");
+            }
+
+            @Override
+            public PhysicalStateHandleID getStreamStateHandleID() {
+                throw new RuntimeException("Cannot return ID in testing implementation.");
+            }
+
+            @Override
+            public Optional<byte[]> asBytesIfInMemory() {
+                return Optional.empty();
+            }
+
+            @Override
+            public StreamStateHandle getDelegateStateHandle() {
+                return null;
+            }
+
+            @Override
+            public void discardState() throws Exception {
+                assertThat(discarded).isFalse();
+                discarded = true;
+            }
+
+            @Override
+            public long getStateSize() {
+                return 0L;
+            }
+
+            public void reset() {
+                discarded = false;
+            }
+
+            public boolean isDiscarded() {
+                return discarded;
+            }
+        }
     }
 }

@@ -48,6 +48,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.type.RelDataType;
@@ -176,6 +177,15 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         defaultPruner,
                         allPredicates._1(),
                         inputFieldNames);
+
+        // If remaining partitions are empty, it means that there are no partitions are selected
+        // after partition prune. We can directly optimize the RelNode to Empty FlinkLogicalValues.
+        if (remainingPartitions.isEmpty()) {
+            RelNode emptyValue = relBuilder.push(filter).empty().build();
+            call.transformTo(emptyValue);
+            return;
+        }
+
         // apply push down
         DynamicTableSource dynamicTableSource = tableSourceTable.tableSource().copy();
         PartitionPushDownSpec partitionPushDownSpec =

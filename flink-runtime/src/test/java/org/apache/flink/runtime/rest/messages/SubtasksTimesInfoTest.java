@@ -19,6 +19,9 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,7 +29,8 @@ import java.util.List;
 import java.util.Map;
 
 /** Tests that the {@link SubtasksTimesInfo} can be marshalled and unmarshalled. */
-public class SubtasksTimesInfoTest extends RestResponseMarshallingTestBase<SubtasksTimesInfo> {
+@ExtendWith(NoOpTestExtension.class)
+class SubtasksTimesInfoTest extends RestResponseMarshallingTestBase<SubtasksTimesInfo> {
 
     @Override
     protected Class<SubtasksTimesInfo> getTestResponseClass() {
@@ -41,19 +45,22 @@ public class SubtasksTimesInfoTest extends RestResponseMarshallingTestBase<Subta
         subTimeMap1.put(ExecutionState.RUNNING, 1L);
         subTimeMap1.put(ExecutionState.FAILED, 2L);
         subTimeMap1.put(ExecutionState.CANCELED, 3L);
-        subtasks.add(new SubtasksTimesInfo.SubtaskTimeInfo(0, "local1", 1L, subTimeMap1));
+        subtasks.add(
+                new SubtasksTimesInfo.SubtaskTimeInfo(0, "local1", "local1:123", 1L, subTimeMap1));
 
         Map<ExecutionState, Long> subTimeMap2 = new HashMap<>();
         subTimeMap2.put(ExecutionState.RUNNING, 4L);
         subTimeMap2.put(ExecutionState.FAILED, 5L);
         subTimeMap2.put(ExecutionState.CANCELED, 6L);
-        subtasks.add(new SubtasksTimesInfo.SubtaskTimeInfo(1, "local2", 2L, subTimeMap2));
+        subtasks.add(
+                new SubtasksTimesInfo.SubtaskTimeInfo(1, "local2", "local2:123", 2L, subTimeMap2));
 
         Map<ExecutionState, Long> subTimeMap3 = new HashMap<>();
         subTimeMap3.put(ExecutionState.SCHEDULED, 1L);
         subTimeMap3.put(ExecutionState.FAILED, 2L);
         subTimeMap3.put(ExecutionState.CANCELING, 3L);
-        subtasks.add(new SubtasksTimesInfo.SubtaskTimeInfo(2, "local3", 3L, subTimeMap3));
+        subtasks.add(
+                new SubtasksTimesInfo.SubtaskTimeInfo(2, "local3", "local3:123", 3L, subTimeMap3));
 
         return new SubtasksTimesInfo("testId", "testName", System.currentTimeMillis(), subtasks);
     }

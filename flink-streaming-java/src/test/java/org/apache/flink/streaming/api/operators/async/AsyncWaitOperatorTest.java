@@ -20,13 +20,13 @@ package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -44,7 +44,7 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -139,8 +139,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
         static int counter = 0;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             synchronized (MyAbstractAsyncFunction.class) {
                 if (counter == 0) {
@@ -572,7 +572,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
                             private Integer initialValue = null;
 
                             @Override
-                            public void open(Configuration parameters) throws Exception {
+                            public void open(OpenContext openContext) throws Exception {
                                 initialValue = 1;
                             }
 
@@ -596,7 +596,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
                             }
                         })
                 .startNewChain()
-                .addSink(new DiscardingSink<Integer>());
+                .sinkTo(new DiscardingSink<>());
 
         // be build our own OperatorChain
         final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
@@ -1412,8 +1412,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
         }
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
             tryCounts = new HashMap<>();
         }
 

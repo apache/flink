@@ -231,11 +231,21 @@ public class ExecutionGraphTestUtils {
 
     /**
      * Takes all vertices in the given ExecutionGraph and switches their current execution to
+     * INITIALIZING.
+     */
+    public static void switchAllVerticesToInitializing(ExecutionGraph eg) {
+        for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+            vertex.getCurrentExecutionAttempt().switchToInitializing();
+        }
+    }
+
+    /**
+     * Takes all vertices in the given ExecutionGraph and switches their current execution to
      * RUNNING.
      */
     public static void switchAllVerticesToRunning(ExecutionGraph eg) {
         for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-            vertex.getCurrentExecutionAttempt().switchToRecovering();
+            vertex.getCurrentExecutionAttempt().switchToInitializing();
             vertex.getCurrentExecutionAttempt().switchToRunning();
         }
     }
@@ -497,7 +507,7 @@ public class ExecutionGraphTestUtils {
 
         // verify produced data sets
         if (outputJobVertices == null) {
-            assertThat(ejv.getProducedDataSets().length).isZero();
+            assertThat(ejv.getProducedDataSets()).isEmpty();
         } else {
             assertThat(outputJobVertices).hasSize(ejv.getProducedDataSets().length);
             for (int i = 0; i < outputJobVertices.size(); i++) {

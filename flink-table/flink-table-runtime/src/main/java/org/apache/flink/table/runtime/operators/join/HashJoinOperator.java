@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.runtime.operators.join;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.configuration.AlgorithmOptions;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
@@ -120,7 +120,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
 
         this.condition = parameter.condFuncCode.newInstance(cl);
         condition.setRuntimeContext(getRuntimeContext());
-        condition.open(new Configuration());
+        condition.open(DefaultOpenContext.INSTANCE);
 
         this.table =
                 new BinaryHashTable(

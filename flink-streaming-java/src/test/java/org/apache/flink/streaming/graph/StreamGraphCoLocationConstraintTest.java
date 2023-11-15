@@ -23,7 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
 import org.junit.Test;
 
@@ -51,7 +51,7 @@ public class StreamGraphCoLocationConstraintTest {
         DataStream<Long> step2 = step1.keyBy(v -> v).map(v -> v);
         step2.getTransformation().setCoLocationGroupKey("group1");
 
-        DataStreamSink<Long> result = step2.keyBy(v -> v).addSink(new DiscardingSink<>());
+        DataStreamSink<Long> result = step2.keyBy(v -> v).sinkTo(new DiscardingSink<>());
         result.getTransformation().setCoLocationGroupKey("group2");
 
         // get the graph
@@ -85,7 +85,7 @@ public class StreamGraphCoLocationConstraintTest {
         step2.getTransformation().setSlotSharingGroup("ssg3");
         step2.getTransformation().setCoLocationGroupKey("co1");
 
-        DataStreamSink<Long> result = step2.keyBy(v -> v).addSink(new DiscardingSink<>());
+        DataStreamSink<Long> result = step2.keyBy(v -> v).sinkTo(new DiscardingSink<>());
         result.getTransformation().setSlotSharingGroup("ssg4");
         result.getTransformation().setCoLocationGroupKey("co2");
 

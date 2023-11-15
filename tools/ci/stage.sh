@@ -113,11 +113,6 @@ flink-formats/flink-orc,\
 flink-formats/flink-sql-orc,\
 flink-formats/flink-orc-nohive,\
 flink-connectors/flink-file-sink-common,\
-flink-connectors/flink-connector-hbase-base,\
-flink-connectors/flink-connector-hbase-1.4,\
-flink-connectors/flink-sql-connector-hbase-1.4,\
-flink-connectors/flink-connector-hbase-2.2,\
-flink-connectors/flink-sql-connector-hbase-2.2,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors,\
 flink-connectors/flink-connector-files,\

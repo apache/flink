@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.Function
+import org.apache.flink.api.common.functions.{Function, OpenContext}
 import org.apache.flink.cep.functions.PatternProcessFunction
 import org.apache.flink.cep.pattern.conditions.{IterativeCondition, RichIterativeCondition}
 import org.apache.flink.configuration.Configuration
@@ -277,7 +277,7 @@ class MatchCodeGenerator(
           }
 
           @Override
-          public void open(${classOf[Configuration].getCanonicalName} parameters) throws Exception {
+          public void open(${classOf[OpenContext].getCanonicalName} openContext) throws Exception {
             ${ctx.reuseOpenCode()}
           }
 

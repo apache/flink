@@ -23,18 +23,19 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
 /** Test for window deduplicate json plan. */
-public class WindowDeduplicateJsonITCase extends JsonPlanTestBase {
+class WindowDeduplicateJsonITCase extends JsonPlanTestBase {
 
-    @Before
-    public void setup() throws Exception {
+    @BeforeEach
+    @Override
+    protected void setup() throws Exception {
         super.setup();
         createTestValuesSourceTable(
                 "MyTable",
@@ -59,7 +60,7 @@ public class WindowDeduplicateJsonITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testEventTimeTumbleWindow() throws Exception {
+    void testEventTimeTumbleWindow() throws Exception {
         createTestValuesSinkTable(
                 "MySink",
                 "ts STRING",
@@ -95,7 +96,7 @@ public class WindowDeduplicateJsonITCase extends JsonPlanTestBase {
                                 + "WHERE rownum <= 1")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(
                 Arrays.asList(
                         "+I[2020-10-10 00:00:04, 5, 5.0, 5.0, 5.55, null, a, 2020-10-10 00:00:04.000, 2020-10-10T00:00, 2020-10-10T00:00:05, 2020-10-10T00:00:04.999]",

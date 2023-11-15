@@ -22,6 +22,8 @@ mvn --version
 java -version
 javadoc -J-version
 
+# workaround for a git security patch
+git config --global --add safe.directory /root/flink
 git submodule update --init --recursive
 
 cd docs

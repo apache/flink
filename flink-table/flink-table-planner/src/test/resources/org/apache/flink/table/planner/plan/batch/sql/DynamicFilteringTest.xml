@@ -39,10 +39,12 @@ HashJoin(joinType=[InnerJoin], where=[=(p1, p)], select=[a1, b1, c1, p1, x, y, z
 == Optimized Execution Plan ==
 HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])
 :- Exchange(distribution=[hash[p1]])
-:  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1, partitions=[{p1=2}, {p1=3}]]], fields=[a1, b1, c1, p1])
-:     +- DynamicFilteringDataCollector(fields=[p])
-:        +- Calc(select=[x, y, z, p], where=[((x > 10) AND (CAST(p AS BIGINT) > 1))])(reuse_id=[1])
-:           +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1, partitions=[{p1=2}, {p1=3}]]], fields=[a1, b1, c1, p1])\n])
+:     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:     :  +- DynamicFilteringDataCollector(fields=[p])
+:     :     +- Calc(select=[x, y, z, p], where=[((x > 10) AND (CAST(p AS BIGINT) > 1))])(reuse_id=[1])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1, partitions=[{p1=2}, {p1=3}]]], fields=[a1, b1, c1, p1])
 +- Exchange(distribution=[hash[p]])
    +- Reused(reference_id=[1])
 
@@ -84,9 +86,9 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z
     } ]
   }, {
     "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1, partitions=[{p1=2}, {p1=3}]]], fields=[a1, b1, c1, p1])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -153,10 +155,12 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
    :- Exchange(distribution=[hash[y]])
    :  +- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])
    :     :- Exchange(distribution=[hash[p1]])
-   :     :  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
-   :     :     +- DynamicFilteringDataCollector(fields=[p])
-   :     :        +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
-   :     :           +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+   :     :  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\n])
+   :     :     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+   :     :     :  +- DynamicFilteringDataCollector(fields=[p])
+   :     :     :     +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
+   :     :     :        +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+   :     :     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
    :     +- Exchange(distribution=[hash[p]])
    :        +- Reused(reference_id=[1])
    +- Exchange(distribution=[hash[b10]])
@@ -201,9 +205,9 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
     } ]
   }, {
     "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -313,11 +317,12 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
    :- Exchange(distribution=[hash[y]])
    :  +- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])
    :     :- Exchange(distribution=[hash[p1]])
-   :     :  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
-   :     :     +- Exchange(distribution=[any], shuffle_mode=[BATCH])
-   :     :        +- DynamicFilteringDataCollector(fields=[p])
-   :     :           +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
-   :     :              +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+   :     :  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\n])
+   :     :     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+   :     :     :  +- DynamicFilteringDataCollector(fields=[p])
+   :     :     :     +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
+   :     :     :        +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+   :     :     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
    :     +- Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])
    :        +- Reused(reference_id=[1])
    +- Exchange(distribution=[hash[b10]])
@@ -362,9 +367,9 @@ Calc(select=[a1, b1, c1, p1, x, y, z, p, a10, b10, c10, p10])
     } ]
   }, {
     "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -467,10 +472,12 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
 :- Exchange(distribution=[hash[p2]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])
 :- Exchange(distribution=[hash[p1]])
-:  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
-:     +- DynamicFilteringDataCollector(fields=[p])
-:        +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
-:           +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\n])
+:     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:     :  +- DynamicFilteringDataCollector(fields=[p])
+:     :     +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
 +- Exchange(distribution=[hash[p]])
    +- Reused(reference_id=[1])
 
@@ -478,15 +485,15 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: fact2[]",
-    "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])",
-    "parallelism" : 10
-  }, {
-    "id" : ,
     "type" : "Source: fact1[]",
     "pact" : "Data Source",
     "contents" : "[]:DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])",
+    "parallelism" : 10
+  }, {
+    "id" : ,
+    "type" : "Source: fact2[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])",
     "parallelism" : 10
   }, {
     "id" : ,
@@ -518,9 +525,9 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
     } ]
   }, {
     "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -580,15 +587,16 @@ HashJoin(joinType=[InnerJoin], where=[=(p1, p2)], select=[a1, b1, c1, p1, x, y, 
    +- TableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])
 
 == Optimized Execution Plan ==
-MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(p1 = p2)], select=[a1, b1, c1, p1, x, y, z, p, a2, b2, c2, p2], build=[left])\n:- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])\n:  :- [#2] Exchange(distribution=[hash[p1]])\n:  +- [#3] Exchange(distribution=[hash[p]])\n+- [#1] Exchange(distribution=[hash[p2]])\n])
+MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(p1 = p2)], select=[a1, b1, c1, p1, x, y, z, p, a2, b2, c2, p2], build=[left])\n:- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])\n:  :- [#2] Exchange(distribution=[hash[p1]])\n:  +- [#3] Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])\n+- [#1] Exchange(distribution=[hash[p2]])\n])
 :- Exchange(distribution=[hash[p2]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])
 :- Exchange(distribution=[hash[p1]])
-:  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
-:     +- Exchange(distribution=[any], shuffle_mode=[BATCH])
-:        +- DynamicFilteringDataCollector(fields=[p])
-:           +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
-:              +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\n])
+:     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:     :  +- DynamicFilteringDataCollector(fields=[p])
+:     :     +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
 +- Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])
    +- Reused(reference_id=[1])
 
@@ -596,15 +604,15 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: fact2[]",
-    "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])",
-    "parallelism" : 10
-  }, {
-    "id" : ,
     "type" : "Source: fact1[]",
     "pact" : "Data Source",
     "contents" : "[]:DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])",
+    "parallelism" : 10
+  }, {
+    "id" : ,
+    "type" : "Source: fact2[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])",
     "parallelism" : 10
   }, {
     "id" : ,
@@ -636,9 +644,9 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
     } ]
   }, {
     "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -653,7 +661,7 @@ MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where
     "id" : ,
     "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "[]:MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(p1 = p2)], select=[a1, b1, c1, p1, x, y, z, p, a2, b2, c2, p2], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[p1]])\\n:  +- [#3] Exchange(distribution=[hash[p]])\\n+- [#1] Exchange(distribution=[hash[p2]])\\n])",
+    "contents" : "[]:MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(p1 = p2)], select=[a1, b1, c1, p1, x, y, z, p, a2, b2, c2, p2], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[p1]])\\n:  +- [#3] Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])\\n+- [#1] Exchange(distribution=[hash[p2]])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -695,11 +703,12 @@ HashJoin(joinType=[InnerJoin], where=[=(p1, p)], select=[a1, b1, c1, p1, x, y, z
 == Optimized Execution Plan ==
 HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])
 :- Exchange(distribution=[hash[p1]])
-:  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1, partitions=[{p1=2}, {p1=3}]]], fields=[a1, b1, c1, p1])
-:     +- Exchange(distribution=[any], shuffle_mode=[BATCH])
-:        +- DynamicFilteringDataCollector(fields=[p])
-:           +- Calc(select=[x, y, z, p], where=[((x > 10) AND (CAST(p AS BIGINT) > 1))])(reuse_id=[1])
-:              +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1, partitions=[{p1=2}, {p1=3}]]], fields=[a1, b1, c1, p1])\n])
+:     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:     :  +- DynamicFilteringDataCollector(fields=[p])
+:     :     +- Calc(select=[x, y, z, p], where=[((x > 10) AND (CAST(p AS BIGINT) > 1))])(reuse_id=[1])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1, partitions=[{p1=2}, {p1=3}]]], fields=[a1, b1, c1, p1])
 +- Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])
    +- Reused(reference_id=[1])
 
@@ -741,9 +750,9 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z
     } ]
   }, {
     "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1, partitions=[{p1=2}, {p1=3}]]], fields=[a1, b1, c1, p1])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -934,10 +943,12 @@ HashJoin(joinType=[InnerJoin], where=[=(p1, p)], select=[a1, b1, c1, p1, x, y, z
 == Optimized Execution Plan ==
 HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])
 :- Exchange(distribution=[hash[p1]])
-:  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
-:     +- DynamicFilteringDataCollector(fields=[p])
-:        +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
-:           +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\n])
+:     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:     :  +- DynamicFilteringDataCollector(fields=[p])
+:     :     +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
 +- Exchange(distribution=[hash[p]])
    +- Reused(reference_id=[1])
 
@@ -979,9 +990,9 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z
     } ]
   }, {
     "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -1050,15 +1061,19 @@ Union(all=[true], union=[a1, b1, c1, p1, x, y, z, p])
 == Optimized Execution Plan ==
 MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c1, p1, x, y, z, p])\n:- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])\n:  :- [#1] Exchange(distribution=[hash[p1]])\n:  +- [#2] Exchange(distribution=[hash[p]])\n+- HashJoin(joinType=[InnerJoin], where=[(p2 = p)], select=[a2, b2, c2, p2, x, y, z, p], build=[right])\n   :- [#3] Exchange(distribution=[hash[p2]])\n   +- [#2] Exchange(distribution=[hash[p]])\n])
 :- Exchange(distribution=[hash[p1]])
-:  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
-:     +- DynamicFilteringDataCollector(fields=[p])(reuse_id=[2])
-:        +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
-:           +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\n])
+:     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:     :  +- DynamicFilteringDataCollector(fields=[p])(reuse_id=[2])
+:     :     +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
 :- Exchange(distribution=[hash[p]])(reuse_id=[3])
 :  +- Reused(reference_id=[1])
 :- Exchange(distribution=[hash[p2]])
-:  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])
-:     +- Reused(reference_id=[2])
+:  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])\n])
+:     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:     :  +- Reused(reference_id=[2])
+:     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])
 +- Reused(reference_id=[3])
 
 == Physical Execution Plan ==
@@ -1068,6 +1083,12 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c
     "type" : "Source: fact1[]",
     "pact" : "Data Source",
     "contents" : "[]:DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])",
+    "parallelism" : 10
+  }, {
+    "id" : ,
+    "type" : "Source: fact2[]",
+    "pact" : "Data Source",
+    "contents" : "[]:DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])",
     "parallelism" : 10
   }, {
     "id" : ,
@@ -1099,9 +1120,9 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c
     } ]
   }, {
     "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -1114,15 +1135,9 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c
     } ]
   }, {
     "id" : ,
-    "type" : "Source: fact2[]",
-    "pact" : "Data Source",
-    "contents" : "[]:DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])",
-    "parallelism" : 10
-  }, {
-    "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -1183,11 +1198,12 @@ HashJoin(joinType=[InnerJoin], where=[=(p1, p)], select=[a1, b1, c1, p1, x, y, z
 == Optimized Execution Plan ==
 HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])
 :- Exchange(distribution=[hash[p1]])
-:  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
-:     +- Exchange(distribution=[any], shuffle_mode=[BATCH])
-:        +- DynamicFilteringDataCollector(fields=[p])
-:           +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
-:              +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\n])
+:     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:     :  +- DynamicFilteringDataCollector(fields=[p])
+:     :     +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
 +- Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])
    +- Reused(reference_id=[1])
 
@@ -1229,9 +1245,9 @@ HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z
     } ]
   }, {
     "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -1298,19 +1314,21 @@ Union(all=[true], union=[a1, b1, c1, p1, x, y, z, p])
          +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
 
 == Optimized Execution Plan ==
-MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c1, p1, x, y, z, p])\n:- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])\n:  :- [#1] Exchange(distribution=[hash[p1]])\n:  +- [#2] Exchange(distribution=[hash[p]])\n+- HashJoin(joinType=[InnerJoin], where=[(p2 = p)], select=[a2, b2, c2, p2, x, y, z, p], build=[right])\n   :- [#3] Exchange(distribution=[hash[p2]])\n   +- [#2] Exchange(distribution=[hash[p]])\n])
+MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c1, p1, x, y, z, p])\n:- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])\n:  :- [#1] Exchange(distribution=[hash[p1]])\n:  +- [#2] Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])\n+- HashJoin(joinType=[InnerJoin], where=[(p2 = p)], select=[a2, b2, c2, p2, x, y, z, p], build=[right])\n   :- [#3] Exchange(distribution=[hash[p2]])\n   +- [#2] Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])\n])
 :- Exchange(distribution=[hash[p1]])
-:  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
-:     +- Exchange(distribution=[any], shuffle_mode=[BATCH])
-:        +- DynamicFilteringDataCollector(fields=[p])(reuse_id=[2])
-:           +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
-:              +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\n])
+:     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:     :  +- DynamicFilteringDataCollector(fields=[p])(reuse_id=[2])
+:     :     +- Calc(select=[x, y, z, p], where=[(x > 10)])(reuse_id=[1])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, dim, filter=[]]], fields=[x, y, z, p])
+:     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])
 :- Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])(reuse_id=[3])
 :  +- Reused(reference_id=[1])
 :- Exchange(distribution=[hash[p2]])
-:  +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])
-:     +- Exchange(distribution=[any], shuffle_mode=[BATCH])
-:        +- Reused(reference_id=[2])
+:  +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])\n])
+:     :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+:     :  +- Reused(reference_id=[2])
+:     +- DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])
 +- Reused(reference_id=[3])
 
 == Physical Execution Plan ==
@@ -1320,6 +1338,12 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c
     "type" : "Source: fact1[]",
     "pact" : "Data Source",
     "contents" : "[]:DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])",
+    "parallelism" : 10
+  }, {
+    "id" : ,
+    "type" : "Source: fact2[]",
+    "pact" : "Data Source",
+    "contents" : "[]:DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])",
     "parallelism" : 10
   }, {
     "id" : ,
@@ -1351,30 +1375,9 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c
     } ]
   }, {
     "id" : ,
-    "type" : "Order-Enforcer",
+    "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "Order-Enforcer",
-    "parallelism" : 10,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "REBALANCE",
-      "side" : "second"
-    }, {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "Source: fact2[]",
-    "pact" : "Data Source",
-    "contents" : "[]:DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])",
-    "parallelism" : 10
-  }, {
-    "id" : ,
-    "type" : "Order-Enforcer",
-    "pact" : "Operator",
-    "contents" : "Order-Enforcer",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact1]], fields=[a1, b1, c1, p1])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,
@@ -1389,7 +1392,22 @@ MultipleInput(readOrder=[1,0,1,0], members=[\nUnion(all=[true], union=[a1, b1, c
     "id" : ,
     "type" : "MultipleInput[]",
     "pact" : "Operator",
-    "contents" : "[]:MultipleInput(readOrder=[1,0,1,0], members=[\\nUnion(all=[true], union=[a1, b1, c1, p1, x, y, z, p])\\n:- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])\\n:  :- [#1] Exchange(distribution=[hash[p1]])\\n:  +- [#2] Exchange(distribution=[hash[p]])\\n+- HashJoin(joinType=[InnerJoin], where=[(p2 = p)], select=[a2, b2, c2, p2, x, y, z, p], build=[right])\\n   :- [#3] Exchange(distribution=[hash[p2]])\\n   +- [#2] Exchange(distribution=[hash[p]])\\n])",
+    "contents" : "[]:MultipleInput(members=[\\nOrderEnforcer\\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\\n+- [#2] DynamicFilteringTableSourceScan(table=[[default_catalog, default_database, fact2]], fields=[a2, b2, c2, p2])\\n])",
+    "parallelism" : 10,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "MultipleInput[]",
+    "pact" : "Operator",
+    "contents" : "[]:MultipleInput(readOrder=[1,0,1,0], members=[\\nUnion(all=[true], union=[a1, b1, c1, p1, x, y, z, p])\\n:- HashJoin(joinType=[InnerJoin], where=[(p1 = p)], select=[a1, b1, c1, p1, x, y, z, p], build=[right])\\n:  :- [#1] Exchange(distribution=[hash[p1]])\\n:  +- [#2] Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])\\n+- HashJoin(joinType=[InnerJoin], where=[(p2 = p)], select=[a2, b2, c2, p2, x, y, z, p], build=[right])\\n   :- [#3] Exchange(distribution=[hash[p2]])\\n   +- [#2] Exchange(distribution=[hash[p]], shuffle_mode=[BATCH])\\n])",
     "parallelism" : 10,
     "predecessors" : [ {
       "id" : ,

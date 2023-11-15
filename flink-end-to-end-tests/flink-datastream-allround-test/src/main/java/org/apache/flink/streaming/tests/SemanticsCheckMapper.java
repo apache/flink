@@ -18,10 +18,10 @@
 
 package org.apache.flink.streaming.tests;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
 import java.io.Serializable;
@@ -62,7 +62,7 @@ public class SemanticsCheckMapper extends RichFlatMapFunction<Event, String> {
     }
 
     @Override
-    public void open(Configuration parameters) {
+    public void open(OpenContext openContext) {
         ValueStateDescriptor<Long> sequenceStateDescriptor =
                 new ValueStateDescriptor<>("sequenceState", Long.class);
 

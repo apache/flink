@@ -31,7 +31,7 @@ import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.Chan
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -39,23 +39,20 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 
-import static java.util.Collections.singleton;
-import static junit.framework.TestCase.assertFalse;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.ChangelogStateHandleWrapper;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.IncrementalStateHandleWrapper;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.createDummyChangelogStateHandle;
 import static org.apache.flink.runtime.state.ChangelogTestUtils.createDummyIncrementalStateHandle;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class SharedStateRegistryTest {
+class SharedStateRegistryTest {
     private static final String RESTORED_STATE_ID = "restored-state";
 
     /** Validate that all states can be correctly registered at the registry. */
     @Test
-    public void testRegistryNormal() {
+    void testRegistryNormal() {
 
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
@@ -64,33 +61,33 @@ public class SharedStateRegistryTest {
         StreamStateHandle result =
                 sharedStateRegistry.registerReference(
                         firstState.getRegistrationKey(), firstState, 0L);
-        assertTrue(firstState == result);
-        assertFalse(firstState.isDiscarded());
+        assertThat(result).isSameAs(firstState);
+        assertThat(firstState.isDiscarded()).isFalse();
 
         // register another state
         TestSharedState secondState = new TestSharedState("second");
         result =
                 sharedStateRegistry.registerReference(
                         secondState.getRegistrationKey(), secondState, 0L);
-        assertTrue(secondState == result);
-        assertFalse(firstState.isDiscarded());
-        assertFalse(secondState.isDiscarded());
+        assertThat(result).isSameAs(secondState);
+        assertThat(firstState.isDiscarded()).isFalse();
+        assertThat(secondState.isDiscarded()).isFalse();
 
         sharedStateRegistry.unregisterUnusedState(1L);
-        assertTrue(secondState.isDiscarded());
-        assertTrue(firstState.isDiscarded());
+        assertThat(secondState.isDiscarded()).isTrue();
+        assertThat(firstState.isDiscarded()).isTrue();
     }
 
     /** Validate that unregister a nonexistent checkpoint will not throw exception */
     @Test
-    public void testUnregisterWithUnexistedKey() {
+    void testUnregisterWithUnexistedKey() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         sharedStateRegistry.unregisterUnusedState(-1);
         sharedStateRegistry.unregisterUnusedState(Long.MAX_VALUE);
     }
 
     @Test
-    public void testRegisterChangelogStateBackendHandles() throws InterruptedException {
+    void testRegisterChangelogStateBackendHandles() throws InterruptedException {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         long materializationId1 = 1L;
         // the base materialized state on TM side
@@ -131,10 +128,10 @@ public class SharedStateRegistryTest {
 
         // the 1st materialized state would not be discarded since the 2nd changelog state backend
         // handle still use it.
-        assertFalse(materializedState1.isDiscarded());
+        assertThat(materializedState1.isDiscarded()).isFalse();
         // FLINK-26101, check whether the multi registered state not discarded.
-        assertFalse(materializedState2.isDiscarded());
-        assertTrue(nonMaterializedState1.isDiscarded());
+        assertThat(materializedState2.isDiscarded()).isFalse();
+        assertThat(nonMaterializedState1.isDiscarded()).isTrue();
 
         long materializationId2 = 2L;
         IncrementalStateHandleWrapper materializedStateBase2 =
@@ -156,14 +153,14 @@ public class SharedStateRegistryTest {
 
         // the 1st materialized state would be discarded since we have a newer materialized
         // state registered.
-        assertTrue(materializedState1.isDiscarded());
+        assertThat(materializedState1.isDiscarded()).isTrue();
         // the 2nd non-materialized state would not be discarded as 3rd changelog state backend
         // handle still use it.
-        assertFalse(nonMaterializedState2.isDiscarded());
+        assertThat(nonMaterializedState2.isDiscarded()).isFalse();
     }
 
     @Test
-    public void testUnregisterUnusedSavepointState() {
+    void testUnregisterUnusedSavepointState() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         TestingStreamStateHandle handle = new TestingStreamStateHandle();
 
@@ -179,17 +176,17 @@ public class SharedStateRegistryTest {
         sharedStateRegistry.registerReference(
                 new SharedStateRegistryKey("new-state"), new TestingStreamStateHandle(), 4L);
 
-        assertEquals(
-                "Only the initial checkpoint should be retained because its state is in use",
-                singleton(1L),
-                sharedStateRegistry.unregisterUnusedState(3));
-        assertTrue(
-                "The initial checkpoint state is unused so it could be discarded",
-                sharedStateRegistry.unregisterUnusedState(4).isEmpty());
+        assertThat(sharedStateRegistry.unregisterUnusedState(3))
+                .withFailMessage(
+                        "Only the initial checkpoint should be retained because its state is in use")
+                .containsExactly(1L);
+        assertThat(sharedStateRegistry.unregisterUnusedState(4))
+                .withFailMessage("The initial checkpoint state is unused so it could be discarded")
+                .isEmpty();
     }
 
     @Test
-    public void testUnregisterNonInitialCheckpoint() {
+    void testUnregisterNonInitialCheckpoint() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         String stateId = "stateId";
@@ -203,13 +200,13 @@ public class SharedStateRegistryTest {
                 new SharedStateRegistryKey(stateId),
                 new TestingStreamStateHandle(stateId, stateContent),
                 2L);
-        assertTrue(
-                "First (non-initial) checkpoint could be discarded",
-                sharedStateRegistry.unregisterUnusedState(2).isEmpty());
+        assertThat(sharedStateRegistry.unregisterUnusedState(2))
+                .withFailMessage("First (non-initial) checkpoint could be discarded")
+                .isEmpty();
     }
 
     @Test
-    public void testUnregisterInitialCheckpoint() {
+    void testUnregisterInitialCheckpoint() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         TestingStreamStateHandle handle = new TestingStreamStateHandle();
 
@@ -221,14 +218,15 @@ public class SharedStateRegistryTest {
         sharedStateRegistry.registerReference(
                 new SharedStateRegistryKey(RESTORED_STATE_ID), handle, 2L);
 
-        assertTrue(
-                "(retained) checkpoint - should NOT be considered in use even if its state is in use",
-                sharedStateRegistry.unregisterUnusedState(2).isEmpty());
+        assertThat(sharedStateRegistry.unregisterUnusedState(2))
+                .withFailMessage(
+                        "(retained) checkpoint - should NOT be considered in use even if its state is in use")
+                .isEmpty();
     }
 
     /** Emulate turning changelog on while recovering from a retained checkpoint. */
     @Test
-    public void testUnregisterInitialCheckpointUsedInChangelog() {
+    void testUnregisterInitialCheckpointUsedInChangelog() {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         TestingStreamStateHandle handle = new TestingStreamStateHandle();
 
@@ -251,10 +249,10 @@ public class SharedStateRegistryTest {
                 3L,
                 false /* should NOT change anything - deletion should still be prevented */);
 
-        assertEquals(
-                "(retained) checkpoint - should be considered in use as long as its state is in use by changelog",
-                singleton(1L),
-                sharedStateRegistry.unregisterUnusedState(3));
+        assertThat(sharedStateRegistry.unregisterUnusedState(3))
+                .withFailMessage(
+                        "(retained) checkpoint - should be considered in use as long as its state is in use by changelog")
+                .containsExactly(1L);
     }
 
     private void registerInitialCheckpoint(

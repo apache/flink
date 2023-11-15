@@ -18,6 +18,7 @@
 
 package org.apache.flink.state.api;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
@@ -28,7 +29,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -44,7 +44,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
@@ -162,7 +162,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
                 .connect(sEnv.fromCollection(currencyRates).broadcast(descriptor))
                 .process(new CurrencyValidationFunction())
                 .uid(CURRENCY_UID)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         StreamGraph streamGraph = sEnv.getStreamGraph();
         streamGraph.setSavepointRestoreSettings(
@@ -205,7 +205,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
         stream.map(acc -> acc.id)
                 .map(new StatefulOperator())
                 .uid(MODIFY_UID)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         StreamGraph streamGraph = sEnv.getStreamGraph();
         streamGraph.setSavepointRestoreSettings(
@@ -274,7 +274,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
         ValueState<Double> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             ValueStateDescriptor<Double> descriptor =
                     new ValueStateDescriptor<>("total", Types.DOUBLE);
             state = getRuntimeContext().getState(descriptor);
@@ -291,8 +291,8 @@ public class WritableSavepointITCase extends AbstractTestBase {
         ValueState<Double> state;
 
         @Override
-        public void open(Configuration parameters) throws Exception {
-            super.open(parameters);
+        public void open(OpenContext openContext) throws Exception {
+            super.open(openContext);
 
             ValueStateDescriptor<Double> descriptor =
                     new ValueStateDescriptor<>("total", Types.DOUBLE);
@@ -318,7 +318,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
         ListState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             numbers = new ArrayList<>();
         }
 
@@ -329,8 +329,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.addAll(numbers);
+            state.update(numbers);
         }
 
         @Override
@@ -349,14 +348,13 @@ public class WritableSavepointITCase extends AbstractTestBase {
         ListState<Integer> state;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             numbers = new ArrayList<>();
         }
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.addAll(numbers);
+            state.update(numbers);
         }
 
         @Override

@@ -45,7 +45,8 @@ public interface StatefulSink<InputT, WriterStateT> extends Sink<InputT> {
      * @return A sink writer.
      * @throws IOException for any failure during creation.
      */
-    StatefulSinkWriter<InputT, WriterStateT> createWriter(InitContext context) throws IOException;
+    StatefulSinkWriter<InputT, WriterStateT> createWriter(WriterInitContext context)
+            throws IOException;
 
     /**
      * Create a {@link StatefulSinkWriter} from a recovered state.
@@ -55,12 +56,12 @@ public interface StatefulSink<InputT, WriterStateT> extends Sink<InputT> {
      * @throws IOException for any failure during creation.
      */
     StatefulSinkWriter<InputT, WriterStateT> restoreWriter(
-            InitContext context, Collection<WriterStateT> recoveredState) throws IOException;
+            WriterInitContext context, Collection<WriterStateT> recoveredState) throws IOException;
 
     /**
      * Any stateful sink needs to provide this state serializer and implement {@link
      * StatefulSinkWriter#snapshotState(long)} properly. The respective state is used in {@link
-     * #restoreWriter(InitContext, Collection)} on recovery.
+     * #restoreWriter(WriterInitContext, Collection)} on recovery.
      *
      * @return the serializer of the writer's state type.
      */

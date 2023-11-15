@@ -36,11 +36,14 @@ import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
+import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
@@ -1826,14 +1829,25 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("at")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            sequence(
+                                    or(
+                                            logical(LogicalTypeRoot.ARRAY),
+                                            logical(LogicalTypeRoot.MAP)),
+                                    InputTypeStrategies.ITEM_AT_INDEX))
+                    .outputTypeStrategy(SpecificTypeStrategies.ITEM_AT)
                     .build();
 
     public static final BuiltInFunctionDefinition CARDINALITY =
             BuiltInFunctionDefinition.newBuilder()
                     .name("cardinality")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            sequence(
+                                    or(
+                                            logical(LogicalTypeFamily.COLLECTION),
+                                            logical(LogicalTypeRoot.MAP))))
+                    .outputTypeStrategy(nullableIfArgs(TypeStrategies.explicit(DataTypes.INT())))
                     .build();
 
     public static final BuiltInFunctionDefinition ARRAY =
@@ -1848,7 +1862,8 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("element")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeRoot.ARRAY)))
+                    .outputTypeStrategy(forceNullable(SpecificTypeStrategies.ARRAY_ELEMENT))
                     .build();
 
     public static final BuiltInFunctionDefinition MAP =
@@ -2006,14 +2021,22 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("proctime")
                     .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            SpecificInputTypeStrategies.windowTimeIndicator(TimestampKind.PROCTIME))
+                    .outputTypeStrategy(
+                            explicit(
+                                    TypeConversions.fromLogicalToDataType(
+                                            new LocalZonedTimestampType(
+                                                    false, TimestampKind.PROCTIME, 3))))
                     .build();
 
     public static final BuiltInFunctionDefinition ROWTIME =
             BuiltInFunctionDefinition.newBuilder()
                     .name("rowtime")
                     .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            SpecificInputTypeStrategies.windowTimeIndicator(TimestampKind.ROWTIME))
+                    .outputTypeStrategy(SpecificTypeStrategies.ROWTIME)
                     .build();
 
     public static final BuiltInFunctionDefinition CURRENT_WATERMARK =
@@ -2230,7 +2253,8 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("in")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.IN)
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
                     .build();
 
     public static final BuiltInFunctionDefinition CAST =
@@ -2254,7 +2278,8 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("reinterpretCast")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.REINTERPRET_CAST)
+                    .outputTypeStrategy(TypeStrategies.argument(1))
                     .build();
 
     public static final BuiltInFunctionDefinition AS =

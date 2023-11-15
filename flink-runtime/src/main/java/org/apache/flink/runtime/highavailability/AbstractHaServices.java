@@ -47,8 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * #getLeaderPathForRestServer}. The returned leader name is the ConfigMap name in Kubernetes and
  * child path in Zookeeper.
  *
- * <p>{@link #close()} and {@link #closeAndCleanupAllData()} should be implemented to destroy the
- * resources.
+ * <p>{@link #close()} and {@link #cleanupAllData()} should be implemented to destroy the resources.
  *
  * <p>The abstract class is also responsible for determining which component service should be
  * reused. For example, {@link #jobResultStore} is created once and could be reused many times.
@@ -182,8 +181,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public void closeAndCleanupAllData() throws Exception {
-        logger.info("Close and clean up all data for {}.", getClass().getSimpleName());
+    public void cleanupAllData() throws Exception {
+        logger.info("Clean up all data for {}.", getClass().getSimpleName());
 
         Throwable exception = null;
 
@@ -192,40 +191,20 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         try {
             internalCleanup();
             deletedHAData = true;
+            blobStoreService.cleanupAllData();
         } catch (Exception t) {
             exception = t;
         }
 
-        try {
-            if (leaderElectionService != null) {
-                leaderElectionService.close();
-            }
-        } catch (Throwable t) {
-            exception = ExceptionUtils.firstOrSuppressed(t, exception);
-        }
-
-        try {
-            internalClose();
-        } catch (Throwable t) {
-            exception = ExceptionUtils.firstOrSuppressed(t, exception);
-        }
-
-        try {
-            if (deletedHAData) {
-                blobStoreService.closeAndCleanupAllData();
-            } else {
-                logger.info(
-                        "Cannot delete HA blobs because we failed to delete the pointers in the HA store.");
-                blobStoreService.close();
-            }
-        } catch (Throwable t) {
-            exception = ExceptionUtils.firstOrSuppressed(t, exception);
+        if (!deletedHAData) {
+            logger.info(
+                    "Cannot delete HA blobs because we failed to delete the pointers in the HA store.");
         }
 
         if (exception != null) {
             ExceptionUtils.rethrowException(
                     exception,
-                    "Could not properly close and clean up all data of high availability service.");
+                    "Could not properly clean up all data of high availability service.");
         }
         logger.info("Finished cleaning up the high availability data.");
     }
@@ -281,8 +260,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
      * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap).
      *
      * <p>If an exception occurs during internal cleanup, we will continue the cleanup in {@link
-     * #closeAndCleanupAllData} and report exceptions only after all cleanup steps have been
-     * attempted.
+     * #cleanupAllData} and report exceptions only after all cleanup steps have been attempted.
      *
      * @throws Exception when do the cleanup operation on external storage.
      */

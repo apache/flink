@@ -20,12 +20,13 @@ package org.apache.flink.table.planner.plan.common
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
 
   private val util = if (isBatch) batchTestUtil() else streamTestUtil()
@@ -103,36 +104,36 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
                               |  'writable-metadata' = 'f:BIGINT, g:INT'
                               |)""".stripMargin)
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithComplexReorder(): Unit = {
     util.verifyRelPlanInsert(
       "INSERT INTO sink (b,e,a,g,f,c,d) " +
         "SELECT b,e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e")
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithComplexReorderAndComputedColumn(): Unit = {
     util.verifyRelPlanInsert(
       "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
         "SELECT e,a,456,123,c,d FROM MyTable GROUP BY a,b,c,d,e")
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithUnion(): Unit = {
     testPartialInsertWithSetOperator("UNION")
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithUnionAll(): Unit = {
     testPartialInsertWithSetOperator("UNION ALL")
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithIntersectAll(): Unit = {
     testPartialInsertWithSetOperator("INTERSECT ALL")
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithExceptAll(): Unit = {
     testPartialInsertWithSetOperator("EXCEPT ALL")
   }
@@ -145,7 +146,7 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
         "SELECT e,a,789,456,c,d FROM MyTable GROUP BY a,b,c,d,e ")
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithUnionAllNested(): Unit = {
     util.verifyRelPlanInsert(
       "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
@@ -156,14 +157,14 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
         "SELECT e,a,123,456,c,d FROM MyTable GROUP BY a,b,c,d,e ")
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithOrderBy(): Unit = {
     util.verifyRelPlanInsert(
       "INSERT INTO partitioned_sink (e,a,g,f,c,d) " +
         "SELECT e,a,456,123,c,d FROM MyTable ORDER BY a,e,c,d")
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithPersistedMetadata(): Unit = {
     util.verifyRelPlanInsert(
       "INSERT INTO metadata_sink (a,b,c,d,e,f) " +
@@ -171,46 +172,53 @@ class PartialInsertTest(isBatch: Boolean) extends TableTestBase {
     )
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithVirtualMetaDataColumn(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "SQL validation failed. At line 1, column 38: Unknown target column 'g'")
-    util.verifyRelPlanInsert(
-      "INSERT INTO metadata_sink (a,b,c,d,e,g) " +
-        "SELECT a,b,c,d,e,123 FROM MyTable"
-    )
+    assertThatThrownBy(
+      () =>
+        util.verifyRelPlanInsert(
+          "INSERT INTO metadata_sink (a,b,c,d,e,g) " +
+            "SELECT a,b,c,d,e,123 FROM MyTable"
+        ))
+      .hasMessageContaining(
+        "SQL validation failed. At line 1, column 38: Unknown target column 'g'")
+      .isInstanceOf[ValidationException]
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithComputedColumn(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      "SQL validation failed. At line 1, column 38: Unknown target column 'h'")
-    util.verifyRelPlanInsert(
-      "INSERT INTO metadata_sink (a,b,c,d,e,h) " +
-        "SELECT a,b,c,d,e,123 FROM MyTable"
-    )
+    assertThatThrownBy(
+      () =>
+        util.verifyRelPlanInsert(
+          "INSERT INTO metadata_sink (a,b,c,d,e,h) " +
+            "SELECT a,b,c,d,e,123 FROM MyTable"
+        ))
+      .hasMessageContaining(
+        "SQL validation failed. At line 1, column 38: Unknown target column 'h'")
+      .isInstanceOf[ValidationException]
   }
 
-  @Test
+  @TestTemplate
   def testPartialInsertWithGroupBy(): Unit = {
     util.verifyExplainInsert(
       "INSERT INTO partitioned_sink (e,a,d) " +
         "SELECT e,a,d FROM MyTable GROUP BY a,b,c,d,e")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @TestTemplate
   def testPartialInsertCompositeType(): Unit = {
     // TODO this should be updated after FLINK-31301 fixed
-    util.verifyExplainInsert(
-      "INSERT INTO complex_type_sink (a,b.b1,c.c2,f) " +
-        "SELECT a,b.b1,c.c2,f FROM complex_type_src")
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          util.verifyExplainInsert(
+            "INSERT INTO complex_type_sink (a,b.b1,c.c2,f) " +
+              "SELECT a,b.b1,c.c2,f FROM complex_type_src"))
   }
 }
 
 object PartialInsertTest {
-  @Parameterized.Parameters(name = "isBatch: {0}")
+  @Parameters(name = "isBatch: {0}")
   def parameters(): java.util.Collection[Boolean] = {
     java.util.Arrays.asList(true, false)
   }

@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -31,9 +31,9 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /** Test for Rank JsonPlan ser/de. */
-public class RankJsonPlanITCase extends JsonPlanTestBase {
+class RankJsonPlanITCase extends JsonPlanTestBase {
     @Test
-    public void testRank() throws ExecutionException, InterruptedException, IOException {
+    void testRank() throws ExecutionException, InterruptedException, IOException {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.data1()),
@@ -48,11 +48,11 @@ public class RankJsonPlanITCase extends JsonPlanTestBase {
         compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Arrays.asList("+I[1, a, 1]", "+I[3, b, 1]", "+I[5, c, 1]");
-        assertResult(expected, TestValuesTableFactory.getResults("result"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("result"));
     }
 
     @Test
-    public void testFirstN() throws ExecutionException, InterruptedException, IOException {
+    void testFirstN() throws ExecutionException, InterruptedException, IOException {
         createTestValuesSourceTable(
                 "MyTable1",
                 JavaScalaConversionUtil.toJava(TestData.data4()),
@@ -70,6 +70,6 @@ public class RankJsonPlanITCase extends JsonPlanTestBase {
         List<String> expected =
                 Arrays.asList(
                         "+I[book, 1, 1]", "+I[book, 2, 2]", "+I[fruit, 4, 1]", "+I[fruit, 3, 2]");
-        assertResult(expected, TestValuesTableFactory.getResults("result1"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("result1"));
     }
 }

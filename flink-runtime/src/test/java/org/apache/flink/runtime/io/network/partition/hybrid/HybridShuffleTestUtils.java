@@ -119,15 +119,18 @@ public class HybridShuffleTestUtils {
     }
 
     public static FileDataIndexRegionHelper.Region createSingleFixedSizeRegion(
-            int firstBufferIndex, long firstBufferOffset, int numBuffersPerRegion) {
+            int firstBufferIndex,
+            long firstBufferOffset,
+            long lastBufferEndOffset,
+            int numBuffersPerRegion) {
         return new ProducerMergedPartitionFileIndex.FixedSizeRegion(
-                firstBufferIndex, firstBufferOffset, numBuffersPerRegion);
+                firstBufferIndex, firstBufferOffset, lastBufferEndOffset, numBuffersPerRegion);
     }
 
     public static void assertRegionEquals(
             FileDataIndexRegionHelper.Region expected, FileDataIndexRegionHelper.Region region) {
         assertThat(region.getFirstBufferIndex()).isEqualTo(expected.getFirstBufferIndex());
-        assertThat(region.getRegionFileOffset()).isEqualTo(expected.getRegionFileOffset());
+        assertThat(region.getRegionStartOffset()).isEqualTo(expected.getRegionStartOffset());
         assertThat(region.getNumBuffers()).isEqualTo(expected.getNumBuffers());
         if (expected instanceof InternalRegion) {
             assertThat(region).isInstanceOf(InternalRegion.class);

@@ -21,11 +21,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.state.StreamStateHandle;
 
+import java.io.Closeable;
+import java.io.IOException;
+
 /** This registry is responsible for deleting changlog's local handles which are not in use. */
 @Internal
-public interface LocalChangelogRegistry {
+public interface LocalChangelogRegistry extends Closeable {
     LocalChangelogRegistry NO_OP =
             new LocalChangelogRegistry() {
+
                 @Override
                 public void register(StreamStateHandle handle, long checkpointID) {}
 
@@ -33,7 +37,7 @@ public interface LocalChangelogRegistry {
                 public void discardUpToCheckpoint(long upTo) {}
 
                 @Override
-                public void prune(long checkpointID) {}
+                public void close() throws IOException {}
             };
 
     /**
@@ -54,11 +58,4 @@ public interface LocalChangelogRegistry {
      * @param upTo lowest CheckpointID which is still valid.
      */
     void discardUpToCheckpoint(long upTo);
-
-    /**
-     * Called upon ChangelogKeyedStateBackend#notifyCheckpointAborted.
-     *
-     * @param checkpointID to abort
-     */
-    void prune(long checkpointID);
 }

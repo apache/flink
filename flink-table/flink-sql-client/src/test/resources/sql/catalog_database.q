@@ -184,8 +184,9 @@ use `default`;
 !info
 
 drop database `default`;
-[INFO] Execute statement succeed.
-!info
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: Cannot drop a database which is currently in use.
+!error
 
 drop catalog `mod`;
 [ERROR] Could not execute SQL statement. Reason:

@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableFunc1, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class JoinTest extends TableTestBase {
 
@@ -580,5 +580,36 @@ class JoinTest extends TableTestBase {
       "The options of following hints cannot match the name of input tables or views: \n" +
         "`D` in `LOOKUP`"
     )
+  }
+
+  @Test
+  def testJoinPartitionTableWithNonExistentPartition(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table leftPartitionTable (
+                               | a1 varchar,
+                               | b1 int)
+                               | partitioned by (b1) 
+                               | with (
+                               | 'connector' = 'values',
+                               | 'bounded' = 'false',
+                               | 'partition-list' = 'b1:1'
+                               |)
+                               |""".stripMargin)
+    util.tableEnv.executeSql("""
+                               |create table rightPartitionTable (
+                               | a2 varchar,
+                               | b2 int)
+                               | partitioned by (b2) 
+                               | with (
+                               | 'connector' = 'values',
+                               | 'bounded' = 'false',
+                               | 'partition-list' = 'b2:2'
+                               |)
+                               |""".stripMargin)
+    // partition 'b2 = 3' not exists.
+    util.verifyExecPlan(
+      """
+        |SELECT * FROM leftPartitionTable, rightPartitionTable WHERE b1 = 1 AND b2 = 3 AND a1 = a2
+        |""".stripMargin)
   }
 }

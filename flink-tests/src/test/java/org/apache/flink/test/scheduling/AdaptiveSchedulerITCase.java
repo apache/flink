@@ -125,6 +125,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         env.enableCheckpointing(20L, CheckpointingMode.EXACTLY_ONCE);
         final DataStreamSource<Integer> input = env.addSource(new SimpleSource());
 
+        // TODO replace this by sink v2 after source is ported to FLIP-27.
         input.addSink(new DiscardingSink<>());
 
         env.execute();
@@ -221,6 +222,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         env.setParallelism(PARALLELISM);
 
         env.addSource(new DummySource(StopWithSavepointTestBehavior.FAIL_ON_FIRST_CHECKPOINT_ONLY))
+                // TODO replace this by sink v2 after source is ported to FLIP-27.
                 .addSink(new DiscardingSink<>());
         DummySource.resetForParallelism(PARALLELISM);
 
@@ -262,7 +264,9 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(20L, CheckpointingMode.EXACTLY_ONCE);
-        env.addSource(new FailOnCompletedCheckpointSource()).addSink(new DiscardingSink<>());
+        env.addSource(new FailOnCompletedCheckpointSource())
+                // TODO replace this by sink v2 after source is ported to FLIP-27.
+                .addSink(new DiscardingSink<>());
         final JobClient jobClient = env.executeAsync();
         CommonTestUtils.waitUntilCondition(
                 () -> {
@@ -302,7 +306,9 @@ public class AdaptiveSchedulerITCase extends TestLogger {
             StopWithSavepointTestBehavior behavior) {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
-        env.addSource(new DummySource(behavior)).addSink(new DiscardingSink<>());
+        env.addSource(new DummySource(behavior))
+                // TODO replace this by sink v2 after source is ported to FLIP-27.
+                .addSink(new DiscardingSink<>());
         return env;
     }
 
@@ -420,8 +426,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                 hasFailedBefore |= previousState;
             }
 
-            unionListState.clear();
-            unionListState.add(true);
+            unionListState.update(Collections.singletonList(true));
         }
     }
 

@@ -77,7 +77,7 @@ abstract class CommonSubGraphBasedOptimizer extends Optimizer {
    */
   override def optimize(roots: Seq[RelNode]): Seq[RelNode] = {
     // resolve hints before optimizing
-    val joinHintResolver = new JoinHintResolver()
+    val joinHintResolver = new JoinHintsResolver()
     val resolvedHintRoots = joinHintResolver.resolve(toJava(roots))
 
     // clear query block alias bef optimizing

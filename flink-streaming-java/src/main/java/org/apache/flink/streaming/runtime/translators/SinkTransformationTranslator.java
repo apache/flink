@@ -315,6 +315,13 @@ public class SinkTransformationTranslator<Input, Output>
                         Transformation::getDescription,
                         Transformation::setDescription);
 
+                // handle coLocationGroupKey.
+                String coLocationGroupKey = transformation.getCoLocationGroupKey();
+                if (coLocationGroupKey != null
+                        && subTransformation.getCoLocationGroupKey() == null) {
+                    subTransformation.setCoLocationGroupKey(coLocationGroupKey);
+                }
+
                 Optional<SlotSharingGroup> ssg = transformation.getSlotSharingGroup();
 
                 if (ssg.isPresent() && !subTransformation.getSlotSharingGroup().isPresent()) {

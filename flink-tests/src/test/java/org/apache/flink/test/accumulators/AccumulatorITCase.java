@@ -25,12 +25,12 @@ import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
@@ -124,7 +124,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
         private SetAccumulator<StringValue> distinctWords;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
 
             // Add counters using convenience functions
             this.cntNumLines = getRuntimeContext().getIntCounter("num-lines");
@@ -193,7 +193,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
         private IntCounter combineCalls;
 
         @Override
-        public void open(Configuration parameters) {
+        public void open(OpenContext openContext) {
             this.reduceCalls = getRuntimeContext().getIntCounter("reduce-calls");
             this.combineCalls = getRuntimeContext().getIntCounter("combine-calls");
         }

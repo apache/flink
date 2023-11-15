@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import unittest
+
 import json
 from typing import Dict
 
@@ -419,6 +421,7 @@ class KafkaSourceTests(PyFlinkStreamingTestCase):
         return Configuration(j_configuration=j_configuration)
 
 
+@unittest.skip("Should be moved to kafka connector repo")
 class KafkaSinkTests(PyFlinkStreamingTestCase):
 
     def test_compile(self):
@@ -531,6 +534,7 @@ class KafkaRecordSerializationSchemaTests(PyFlinkTestCase):
         self.assertIsNone(j_record.key())
         self.assertEqual(j_record.value(), b'{"f0":"test"}')
 
+    @unittest.skip("Should be moved to kafka connector repo")
     def test_set_topic_selector(self):
         def _select(data):
             data = data[0]

@@ -20,8 +20,6 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
@@ -35,7 +33,7 @@ import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -80,7 +78,7 @@ class StreamContextEnvironmentTest {
         // Add/mutate values in the configuration
         environment.configure(programConfig);
 
-        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(MutatedConfigurationException.class)
                 .hasMessageContainingAll(
@@ -108,7 +106,7 @@ class StreamContextEnvironmentTest {
         // Change the CheckpointConfig
         environment.getCheckpointConfig().setCheckpointStorage(disallowedPath);
 
-        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(MutatedConfigurationException.class)
                 .hasMessageContainingAll(
@@ -116,11 +114,41 @@ class StreamContextEnvironmentTest {
 
         environment.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage());
 
-        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(MutatedConfigurationException.class)
                 .hasMessageContainingAll(
                         CheckpointConfig.class.getSimpleName(), "setCheckpointStorage");
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
+    void testDisallowCheckpointStorageByConfiguration(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
+        final Configuration clusterConfig = new Configuration();
+
+        Configuration jobConfig = new Configuration();
+        String disallowedPath = "file:///flink/disallowed/modification";
+        jobConfig.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+        jobConfig.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, disallowedPath);
+        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final StreamContextEnvironment environment =
+                new StreamContextEnvironment(
+                        new MockExecutorServiceLoader(),
+                        clusterConfig,
+                        jobConfig,
+                        classLoader,
+                        true,
+                        true,
+                        false,
+                        Collections.emptyList());
+
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
+        assertThatThrownBy(() -> executor.accept(environment))
+                .isInstanceOf(MutatedConfigurationException.class)
+                .hasMessageContainingAll(
+                        CheckpointingOptions.CHECKPOINT_STORAGE.key(),
+                        CheckpointingOptions.CHECKPOINTS_DIRECTORY.key());
     }
 
     @ParameterizedTest
@@ -141,7 +169,7 @@ class StreamContextEnvironmentTest {
         // Change the CheckpointConfig
         environment.getCheckpointConfig().setCheckpointStorage(allowedPath);
 
-        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(ExecutorReachedException.class);
     }
@@ -158,7 +186,7 @@ class StreamContextEnvironmentTest {
         final StreamContextEnvironment environment =
                 constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
 
-        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(ExecutorReachedException.class);
     }
@@ -174,7 +202,7 @@ class StreamContextEnvironmentTest {
         final StreamContextEnvironment environment =
                 constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
 
-        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSinkV2());
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(ExecutorReachedException.class);
     }
@@ -207,7 +235,7 @@ class StreamContextEnvironmentTest {
         environment.configure(jobConfig);
         environment.getConfig().setMaxParallelism(1024);
 
-        environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
+        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(ExecutorReachedException.class);
         assertThat(environment.getConfig().getGlobalJobParameters().toMap())
@@ -248,20 +276,4 @@ class StreamContextEnvironmentTest {
     }
 
     private static class ExecutorReachedException extends RuntimeException {}
-
-    private static class DiscardingSinkV2<T> implements Sink<T> {
-        @Override
-        public SinkWriter<T> createWriter(InitContext context) {
-            return new SinkWriter<T>() {
-                @Override
-                public void write(T element, Context context) {}
-
-                @Override
-                public void flush(boolean endOfInput) {}
-
-                @Override
-                public void close() {}
-            };
-        }
-    }
 }

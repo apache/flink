@@ -27,14 +27,15 @@ import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.fs.local.LocalRecoverableWriter;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.EOFException;
 import java.io.File;
@@ -45,40 +46,36 @@ import java.util.Collection;
 import java.util.Random;
 import java.util.UUID;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 /** Abstract base class for tests against checkpointing streams. */
-@RunWith(Parameterized.class)
-public class CheckpointStateOutputStreamTest extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+public class CheckpointStateOutputStreamTest {
 
-    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir private java.nio.file.Path tmp;
 
-    public enum CheckpointStateOutputStreamType {
+    private enum CheckpointStateOutputStreamType {
         FileBasedState,
         FsCheckpointMetaData
     }
 
-    @Parameterized.Parameters
+    @Parameters
     public static Collection<CheckpointStateOutputStreamType> getCheckpointStateOutputStreamType() {
         return Arrays.asList(CheckpointStateOutputStreamType.values());
     }
 
-    @Parameterized.Parameter public CheckpointStateOutputStreamType stateOutputStreamType;
+    @Parameter public CheckpointStateOutputStreamType stateOutputStreamType;
 
     // ------------------------------------------------------------------------
     //  Tests
     // ------------------------------------------------------------------------
 
     /** Validates that even empty streams create a file and a file state handle. */
-    @Test
-    public void testEmptyState() throws Exception {
+    @TestTemplate
+    void testEmptyState() throws Exception {
         final FileSystem fs = FileSystem.getLocalFileSystem();
         final Path folder = baseFolder();
         final String fileName = "myFileName";
@@ -90,22 +87,22 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
         }
 
         // must have created a handle
-        assertNotNull(handle);
-        assertEquals(filePath, handle.getFilePath());
+        assertThat(handle).isNotNull();
+        assertThat(handle.getFilePath()).isEqualTo(filePath);
 
         // the pointer path should exist as a directory
-        assertTrue(fs.exists(handle.getFilePath()));
-        assertFalse(fs.getFileStatus(filePath).isDir());
+        assertThat(fs.exists(handle.getFilePath())).isTrue();
+        assertThat(fs.getFileStatus(filePath).isDir()).isFalse();
 
         // the contents should be empty
         try (FSDataInputStream in = handle.openInputStream()) {
-            assertEquals(-1, in.read());
+            assertThat(in.read()).isEqualTo(-1);
         }
     }
 
     /** Simple write and read test. */
-    @Test
-    public void testWriteAndRead() throws Exception {
+    @TestTemplate
+    void testWriteAndRead() throws Exception {
         final FileSystem fs = FileSystem.getLocalFileSystem();
         final Path folder = baseFolder();
         final String fileName = "fooBarName";
@@ -132,22 +129,22 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
         try (FSDataInputStream in = handle.openInputStream()) {
             byte[] buffer = new byte[data.length];
             readFully(in, buffer);
-            assertArrayEquals(data, buffer);
+            assertThat(buffer).isEqualTo(data);
         }
 
         // (2) the pointer must point to a file with that contents
         try (FSDataInputStream in = fs.open(handle.getFilePath())) {
             byte[] buffer = new byte[data.length];
             readFully(in, buffer);
-            assertArrayEquals(data, buffer);
+            assertThat(buffer).isEqualTo(data);
         }
     }
 
     /** Tests that the underlying stream file is deleted upon calling close. */
-    @Test
-    public void testCleanupWhenClosingStream() throws IOException {
+    @TestTemplate
+    void testCleanupWhenClosingStream() throws IOException {
         final FileSystem fs = FileSystem.getLocalFileSystem();
-        final Path folder = new Path(tmp.newFolder().toURI());
+        final Path folder = new Path(TempDirUtils.newFolder(tmp).toURI());
         final String fileName = "nonCreativeTestFileName";
         final Path path = new Path(folder, fileName);
 
@@ -159,13 +156,13 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
             }
         }
 
-        assertFalse(fs.exists(path));
+        assertThat(fs.exists(path)).isFalse();
     }
 
     /** Tests that the underlying stream file is deleted if the closeAndGetHandle method fails. */
-    @Test
-    public void testCleanupWhenFailingCloseAndGetHandle() throws IOException {
-        final Path folder = new Path(tmp.newFolder().toURI());
+    @TestTemplate
+    void testCleanupWhenFailingCloseAndGetHandle() throws IOException {
+        final Path folder = new Path(TempDirUtils.newFolder(tmp).toURI());
         final String fileName = "test_name";
         final Path filePath = new Path(folder, fileName);
 
@@ -177,12 +174,7 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
         FSDataOutputStream stream = createTestStream(fs, folder, fileName);
         stream.write(new byte[] {1, 2, 3, 4, 5});
 
-        try {
-            closeAndGetResult(stream);
-            fail("Expected IOException");
-        } catch (IOException ignored) {
-            // expected exception
-        }
+        assertThatThrownBy(() -> closeAndGetResult(stream)).isInstanceOf(IOException.class);
 
         verify(fs).delete(filePath, false);
     }
@@ -193,9 +185,9 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
      *
      * <p>That behavior is essential for fast cancellation (concurrent cleanup).
      */
-    @Test
-    public void testCloseDoesNotLock() throws Exception {
-        final Path folder = new Path(tmp.newFolder().toURI());
+    @TestTemplate
+    void testCloseDoesNotLock() throws Exception {
+        final Path folder = new Path(TempDirUtils.newFolder(tmp).toURI());
         final String fileName = "this-is-ignored-anyways.file";
 
         final FileSystem fileSystem =
@@ -261,7 +253,8 @@ public class CheckpointStateOutputStreamTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     private Path baseFolder() throws Exception {
-        return new Path(new File(tmp.newFolder(), UUID.randomUUID().toString()).toURI());
+        return new Path(
+                new File(TempDirUtils.newFolder(tmp), UUID.randomUUID().toString()).toURI());
     }
 
     private static void readFully(InputStream in, byte[] buffer) throws IOException {

@@ -822,6 +822,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
                     new TestingConnectionManager(),
                     0,
                     100,
+                    100,
                     2,
                     new SimpleCounter(),
                     new SimpleCounter(),

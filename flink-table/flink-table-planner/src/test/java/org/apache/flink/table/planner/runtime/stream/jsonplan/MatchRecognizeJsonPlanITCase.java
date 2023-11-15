@@ -22,16 +22,16 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 /** Test json deserialization for match recognize. */
-public class MatchRecognizeJsonPlanITCase extends JsonPlanTestBase {
+class MatchRecognizeJsonPlanITCase extends JsonPlanTestBase {
     @Test
-    public void testSimpleMatch() throws Exception {
+    void testSimpleMatch() throws Exception {
         List<Row> data =
                 Arrays.asList(
                         Row.of(1L, "a"),
@@ -66,11 +66,11 @@ public class MatchRecognizeJsonPlanITCase extends JsonPlanTestBase {
         compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Collections.singletonList("+I[6, 7, 8]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 
     @Test
-    public void testComplexMatch() throws Exception {
+    void testComplexMatch() throws Exception {
         List<Row> data =
                 Arrays.asList(
                         Row.of("ACME", 1L, 19, 1),
@@ -104,6 +104,6 @@ public class MatchRecognizeJsonPlanITCase extends JsonPlanTestBase {
         compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Collections.singletonList("+I[19, 13, null]");
-        assertResult(expected, TestValuesTableFactory.getResults("MySink"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("MySink"));
     }
 }

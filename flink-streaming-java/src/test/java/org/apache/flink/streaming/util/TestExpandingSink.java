@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 
 import java.io.IOException;
 
@@ -39,7 +39,7 @@ public class TestExpandingSink
 
     @Override
     public void addPostCommitTopology(DataStream<CommittableMessage<Integer>> committables) {
-        committables.addSink(new DiscardingSink<>());
+        committables.sinkTo(new DiscardingSink<>());
     }
 
     @Override
@@ -54,13 +54,13 @@ public class TestExpandingSink
     }
 
     @Override
-    public PrecommittingSinkWriter<Integer, Integer> createWriter(InitContext context)
+    public PrecommittingSinkWriter<Integer, Integer> createWriter(WriterInitContext context)
             throws IOException {
         return null;
     }
 
     @Override
-    public Committer<Integer> createCommitter() {
+    public Committer<Integer> createCommitter(CommitterInitContext context) {
         return null;
     }
 

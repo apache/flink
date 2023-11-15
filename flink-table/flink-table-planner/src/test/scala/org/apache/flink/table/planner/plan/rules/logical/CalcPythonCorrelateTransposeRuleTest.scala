@@ -26,13 +26,13 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.{MockPythonTableFunction, TableTestBase}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class CalcPythonCorrelateTransposeRuleTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val programs = new FlinkChainedProgram[StreamOptimizeContext]()
     // query decorrelation

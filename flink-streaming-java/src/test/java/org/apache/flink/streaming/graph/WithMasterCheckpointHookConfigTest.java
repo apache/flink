@@ -25,7 +25,7 @@ import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook.Factory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -84,7 +84,7 @@ public class WithMasterCheckpointHookConfigTest extends TestLogger {
                 .union(env.addSource(source2).map(identity))
                 .union(env.addSource(source3).map(identityWithHook1))
                 .union(env.addSource(source4).map(identityWithHook2))
-                .addSink(new DiscardingSink<String>());
+                .sinkTo(new DiscardingSink<>());
 
         final JobGraph jg = env.getStreamGraph().getJobGraph();
 

@@ -75,32 +75,35 @@ LogicalProject(dim_date_sk=[$4])
 		</Resource>
 		<Resource name="optimized rel plan">
 			<![CDATA[
-HashJoin(joinType=[LeftSemiJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, name, amount, price, fact_date_sk], isBroadcast=[true], build=[right])
-:- RuntimeFilter(select=[fact_date_sk], estimatedFilterRatio=[0.99993896484375])
-:  :- Exchange(distribution=[broadcast])
-:  :  +- GlobalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[65536], maxRowCount=[655360])
-:  :     +- Exchange(distribution=[single])
-:  :        +- LocalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[65536], maxRowCount=[655360])
-:  :           +- Calc(select=[dim_date_sk], where=[<(price, 500)])
-:  :              +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[price, dim_date_sk], metadata=[]]], fields=[price, dim_date_sk])
-:  +- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
-+- Exchange(distribution=[broadcast])
+HashJoin(joinType=[LeftSemiJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, name, amount, price, fact_date_sk], build=[right])
+:- Exchange(distribution=[hash[fact_date_sk]])
+:  +- RuntimeFilter(select=[fact_date_sk], estimatedFilterRatio=[0.99993896484375])
+:     :- Exchange(distribution=[broadcast])
+:     :  +- GlobalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[65536], maxRowCount=[655360])
+:     :     +- Exchange(distribution=[single])
+:     :        +- LocalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[65536], maxRowCount=[655360])
+:     :           +- Calc(select=[dim_date_sk], where=[<(price, 500)])
+:     :              +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[price, dim_date_sk], metadata=[]]], fields=[price, dim_date_sk])
+:     +- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
++- Exchange(distribution=[hash[dim_date_sk]])
    +- Calc(select=[dim_date_sk], where=[<(price, 500)])
       +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[price, dim_date_sk], metadata=[]]], fields=[price, dim_date_sk])
 ]]>
 		</Resource>
 		<Resource name="optimized exec plan">
 			<![CDATA[
-MultipleInput(readOrder=[0,0,1], members=[\nHashJoin(joinType=[LeftSemiJoin], where=[(fact_date_sk = dim_date_sk)], select=[id, name, amount, price, fact_date_sk], isBroadcast=[true], build=[right])\n:- RuntimeFilter(select=[fact_date_sk], estimatedFilterRatio=[0.99993896484375])\n:  :- [#2] Exchange(distribution=[broadcast])\n:  +- [#3] TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])\n+- [#1] Exchange(distribution=[broadcast])\n])
-:- Exchange(distribution=[broadcast])
-:  +- Calc(select=[dim_date_sk], where=[(price < 500)])(reuse_id=[1])
-:     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[price, dim_date_sk], metadata=[]]], fields=[price, dim_date_sk])
-:- Exchange(distribution=[broadcast])
-:  +- GlobalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[65536], maxRowCount=[655360])
-:     +- Exchange(distribution=[single])
-:        +- LocalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[65536], maxRowCount=[655360])
-:           +- Reused(reference_id=[1])
-+- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
+HashJoin(joinType=[LeftSemiJoin], where=[(fact_date_sk = dim_date_sk)], select=[id, name, amount, price, fact_date_sk], build=[right])
+:- Exchange(distribution=[hash[fact_date_sk]])
+:  +- MultipleInput(readOrder=[0,1], members=[\nRuntimeFilter(select=[fact_date_sk], estimatedFilterRatio=[0.99993896484375])\n:- [#1] Exchange(distribution=[broadcast])\n+- [#2] TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])\n])
+:     :- Exchange(distribution=[broadcast])
+:     :  +- GlobalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[65536], maxRowCount=[655360])
+:     :     +- Exchange(distribution=[single])
+:     :        +- LocalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[65536], maxRowCount=[655360])
+:     :           +- Calc(select=[dim_date_sk], where=[(price < 500)])(reuse_id=[1])
+:     :              +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[], project=[price, dim_date_sk], metadata=[]]], fields=[price, dim_date_sk])
+:     +- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
++- Exchange(distribution=[hash[dim_date_sk]])
+   +- Reused(reference_id=[1])
 ]]>
 		</Resource>
 	</TestCase>
@@ -426,6 +429,105 @@ MultipleInput(readOrder=[2,0,1], members=[\nHashJoin(joinType=[InnerJoin], where
    +- MultipleInput(readOrder=[0,1], members=[\nRuntimeFilter(select=[amount], estimatedFilterRatio=[0.99993896484375])\n:- [#1] Exchange(distribution=[broadcast])\n+- [#2] TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])\n])
       :- Reused(reference_id=[2])
       +- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testBuildSideIsJoinWithTwoAggInputs">
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], fact_date_sk=[$4], dim_date_sk=[$5], EXPR$1=[$6], dim_date_sk0=[$7], EXPR$10=[$8])
++- LogicalJoin(condition=[=($4, $5)], joinType=[inner])
+   :- LogicalTableScan(table=[[testCatalog, test_database, fact]])
+   +- LogicalProject(dim_date_sk=[$0], EXPR$1=[$1], dim_date_sk0=[$2], EXPR$10=[$3])
+      +- LogicalJoin(condition=[=($0, $2)], joinType=[inner])
+         :- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+         :  +- LogicalProject(dim_date_sk=[$4], price=[$3])
+         :     +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+         +- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+            +- LogicalProject(dim_date_sk=[$4], amount=[$2])
+               +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(fact_date_sk, dim_date_sk)], select=[id, name, amount, price, fact_date_sk, dim_date_sk, EXPR$1, dim_date_sk0, EXPR$10], build=[right])
+:- Exchange(distribution=[hash[fact_date_sk]])
+:  +- RuntimeFilter(select=[fact_date_sk], estimatedFilterRatio=[0.9998779296875])
+:     :- Exchange(distribution=[broadcast])
+:     :  +- GlobalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[131072], maxRowCount=[436907])
+:     :     +- Exchange(distribution=[single])
+:     :        +- LocalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[131072], maxRowCount=[436907])
+:     :           +- Calc(select=[dim_date_sk, amount])
+:     :              +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[amount, price, dim_date_sk], metadata=[]]], fields=[amount, price, dim_date_sk])
+:     +- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
++- HashJoin(joinType=[InnerJoin], where=[=(dim_date_sk, dim_date_sk0)], select=[dim_date_sk, EXPR$1, dim_date_sk0, EXPR$10], build=[right])
+   :- HashAggregate(isMerge=[false], groupBy=[dim_date_sk], select=[dim_date_sk, SUM(price) AS EXPR$1])
+   :  +- Exchange(distribution=[hash[dim_date_sk]])
+   :     +- Calc(select=[dim_date_sk, price])
+   :        +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[amount, price, dim_date_sk], metadata=[]]], fields=[amount, price, dim_date_sk])
+   +- HashAggregate(isMerge=[false], groupBy=[dim_date_sk], select=[dim_date_sk, SUM(amount) AS EXPR$1])
+      +- Exchange(distribution=[hash[dim_date_sk]])
+         +- Calc(select=[dim_date_sk, amount])
+            +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[amount, price, dim_date_sk], metadata=[]]], fields=[amount, price, dim_date_sk])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[id, name, amount, price, fact_date_sk, dim_date_sk, EXPR$1, dim_date_sk0, EXPR$10], build=[right])\n:- [#1] Exchange(distribution=[hash[fact_date_sk]])\n+- HashJoin(joinType=[InnerJoin], where=[(dim_date_sk = dim_date_sk0)], select=[dim_date_sk, EXPR$1, dim_date_sk0, EXPR$10], build=[right])\n   :- HashAggregate(isMerge=[false], groupBy=[dim_date_sk], select=[dim_date_sk, SUM(price) AS EXPR$1])\n   :  +- [#2] Exchange(distribution=[hash[dim_date_sk]])\n   +- HashAggregate(isMerge=[false], groupBy=[dim_date_sk], select=[dim_date_sk, SUM(amount) AS EXPR$1])\n      +- [#3] Exchange(distribution=[hash[dim_date_sk]])\n])
+:- Exchange(distribution=[hash[fact_date_sk]])
+:  +- MultipleInput(readOrder=[0,1], members=[\nRuntimeFilter(select=[fact_date_sk], estimatedFilterRatio=[0.9998779296875])\n:- [#1] Exchange(distribution=[broadcast])\n+- [#2] TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])\n])
+:     :- Exchange(distribution=[broadcast])
+:     :  +- GlobalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[131072], maxRowCount=[436907])
+:     :     +- Exchange(distribution=[single])
+:     :        +- LocalRuntimeFilterBuilder(select=[dim_date_sk], estimatedRowCount=[131072], maxRowCount=[436907])
+:     :           +- Calc(select=[dim_date_sk, amount])(reuse_id=[2])
+:     :              +- TableSourceScan(table=[[testCatalog, test_database, dim, project=[amount, price, dim_date_sk], metadata=[]]], fields=[amount, price, dim_date_sk])(reuse_id=[1])
+:     +- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
+:- Exchange(distribution=[hash[dim_date_sk]])
+:  +- Calc(select=[dim_date_sk, price])
+:     +- Reused(reference_id=[1])
++- Exchange(distribution=[hash[dim_date_sk]])
+   +- Reused(reference_id=[2])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testBuildSideIsLeftJoinWithoutExchange">
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], amount=[$1], price=[$2], fact_date_sk=[$3], id0=[$4], name=[$5], amount0=[$6], price0=[$7], fact_date_sk0=[$8], id00=[$9], male=[$10], amount00=[$11], price00=[$12], dim_date_sk=[$13])
++- LogicalJoin(condition=[=($1, $6)], joinType=[inner])
+   :- LogicalTableScan(table=[[testCatalog, test_database, fact2]])
+   +- LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], fact_date_sk=[$4], id0=[$5], male=[$6], amount0=[$7], price0=[$8], dim_date_sk=[$9])
+      +- LogicalJoin(condition=[AND(=($7, $2), <($8, 500))], joinType=[left])
+         :- LogicalTableScan(table=[[testCatalog, test_database, fact]])
+         +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+HashJoin(joinType=[InnerJoin], where=[=(amount, amount0)], select=[id, amount, price, fact_date_sk, id0, name, amount0, price0, fact_date_sk0, id00, male, amount00, price00, dim_date_sk], build=[left])
+:- Exchange(distribution=[hash[amount]])
+:  +- TableSourceScan(table=[[testCatalog, test_database, fact2]], fields=[id, amount, price, fact_date_sk])
++- HashJoin(joinType=[LeftOuterJoin], where=[=(amount0, amount)], select=[id, name, amount, price, fact_date_sk, id0, male, amount0, price0, dim_date_sk], build=[right])
+   :- Exchange(distribution=[hash[amount]])
+   :  +- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
+   +- Exchange(distribution=[hash[amount]])
+      +- Calc(select=[id, male, amount, price, dim_date_sk], where=[<(price, 500)])
+         +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+MultipleInput(readOrder=[0,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(amount = amount0)], select=[id, amount, price, fact_date_sk, id0, name, amount0, price0, fact_date_sk0, id00, male, amount00, price00, dim_date_sk], build=[left])\n:- [#1] Exchange(distribution=[hash[amount]])\n+- HashJoin(joinType=[LeftOuterJoin], where=[(amount0 = amount)], select=[id, name, amount, price, fact_date_sk, id0, male, amount0, price0, dim_date_sk], build=[right])\n   :- [#2] Exchange(distribution=[hash[amount]])\n   +- [#3] Exchange(distribution=[hash[amount]])\n])
+:- Exchange(distribution=[hash[amount]])
+:  +- TableSourceScan(table=[[testCatalog, test_database, fact2]], fields=[id, amount, price, fact_date_sk])
+:- Exchange(distribution=[hash[amount]])
+:  +- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
++- Exchange(distribution=[hash[amount]])
+   +- Calc(select=[id, male, amount, price, dim_date_sk], where=[(price < 500)])
+      +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
 ]]>
 		</Resource>
 	</TestCase>
@@ -1044,9 +1146,43 @@ HashJoin(joinType=[InnerJoin], where=[(fact_date_sk = dim_date_sk)], select=[id,
 :  +- Calc(select=[id, male, amount, price, dim_date_sk], where=[(price < 500)])(reuse_id=[1])
 :     +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
 +- Exchange(distribution=[hash[fact_date_sk]])
-   +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
-      +- DynamicFilteringDataCollector(fields=[dim_date_sk])
-         +- Reused(reference_id=[1])
+   +- MultipleInput(members=[\nOrderEnforcer\n:- [#1] Exchange(distribution=[any], shuffle_mode=[BATCH])\n+- [#2] DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])\n])
+      :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+      :  +- DynamicFilteringDataCollector(fields=[dim_date_sk])
+      :     +- Reused(reference_id=[1])
+      +- DynamicFilteringTableSourceScan(table=[[testCatalog, test_database, fact_part]], fields=[id, name, amount, price, fact_date_sk])
+]]>
+		</Resource>
+	</TestCase>
+
+	<TestCase name="testProbeSideIsTableSourceWithoutExchange">
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(id=[$0], name=[$1], amount=[$2], price=[$3], fact_date_sk=[$4], id0=[$5], male=[$6], amount0=[$7], price0=[$8], dim_date_sk=[$9])
++- LogicalFilter(condition=[AND(=($2, $7), =($8, 500))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[testCatalog, test_database, fact]])
+      +- LogicalTableScan(table=[[testCatalog, test_database, dim]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+Calc(select=[id, name, amount, price, fact_date_sk, id0, male, amount0, CAST(500 AS BIGINT) AS price0, dim_date_sk])
++- HashJoin(joinType=[InnerJoin], where=[=(amount, amount0)], select=[id, name, amount, price, fact_date_sk, id0, male, amount0, dim_date_sk], isBroadcast=[true], build=[right])
+   :- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[id, male, amount, dim_date_sk], where=[=(price, 500)])
+         +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
+]]>
+		</Resource>
+		<Resource name="optimized exec plan">
+			<![CDATA[
+Calc(select=[id, name, amount, price, fact_date_sk, id0, male, amount0, CAST(500 AS BIGINT) AS price0, dim_date_sk])
++- MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(amount = amount0)], select=[id, name, amount, price, fact_date_sk, id0, male, amount0, dim_date_sk], isBroadcast=[true], build=[right])\n:- [#1] TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])\n+- [#2] Exchange(distribution=[broadcast])\n])
+   :- TableSourceScan(table=[[testCatalog, test_database, fact]], fields=[id, name, amount, price, fact_date_sk])
+   +- Exchange(distribution=[broadcast])
+      +- Calc(select=[id, male, amount, dim_date_sk], where=[(price = 500)])
+         +- TableSourceScan(table=[[testCatalog, test_database, dim, filter=[]]], fields=[id, male, amount, price, dim_date_sk])
 ]]>
 		</Resource>
 	</TestCase>

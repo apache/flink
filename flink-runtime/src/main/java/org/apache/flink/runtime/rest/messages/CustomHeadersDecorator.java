@@ -96,6 +96,11 @@ public class CustomHeadersDecorator<
         return customHeaders;
     }
 
+    @Override
+    public Collection<Class<?>> getResponseTypeParameters() {
+        return decorated.getResponseTypeParameters();
+    }
+
     /**
      * Sets the custom headers for the message.
      *
@@ -116,5 +121,9 @@ public class CustomHeadersDecorator<
             customHeaders = new ArrayList<>();
         }
         customHeaders.add(httpHeader);
+    }
+
+    public MessageHeaders<R, P, M> getDecorated() {
+        return decorated;
     }
 }

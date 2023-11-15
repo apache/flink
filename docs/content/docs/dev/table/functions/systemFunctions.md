@@ -175,6 +175,7 @@ Column functions are only used in Table API.
 | :--------------------- | :-------------------------- |
 | withColumns(...)         | select the specified columns                  |
 | withoutColumns(...)        | deselect the columns specified                  |
+| withAllColumns()    | select all columns (like `SELECT *` in SQL) |
 
 The detailed syntax is as follows:
 
@@ -182,6 +183,7 @@ The detailed syntax is as follows:
 columnFunction:
     withColumns(columnExprs)
     withoutColumns(columnExprs)
+    withAllColumns()
 
 columnExprs:
     columnExpr [, columnExpr]*

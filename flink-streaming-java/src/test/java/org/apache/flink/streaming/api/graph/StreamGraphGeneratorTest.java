@@ -44,8 +44,8 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -181,7 +181,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         DataStream<Integer> broadcastMap =
                 rebalanceMap.forward().global().broadcast().map(new NoOpIntMap());
 
-        broadcastMap.addSink(new DiscardingSink<>());
+        broadcastMap.sinkTo(new DiscardingSink<>());
 
         DataStream<Integer> broadcastOperator =
                 rebalanceMap.map(new NoOpIntMap()).name("broadcast");
@@ -199,7 +199,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         SingleOutputStreamOperator<Integer> unionedMap =
                 map1.union(map2).union(map3).map(new NoOpIntMap()).name("union");
 
-        unionedMap.addSink(new DiscardingSink<>());
+        unionedMap.sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = env.getStreamGraph();
 
@@ -258,7 +258,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         NoOpUdfOperator<Integer> udfOperator = new NoOpUdfOperator<>(function);
 
         source.transform("no-op udf operator", BasicTypeInfo.INT_TYPE_INFO, udfOperator)
-                .addSink(new DiscardingSink<>());
+                .sinkTo(new DiscardingSink<>());
 
         env.getStreamGraph();
 
@@ -285,7 +285,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
                         BasicTypeInfo.INT_TYPE_INFO,
                         outputTypeConfigurableOperation);
 
-        result.addSink(new DiscardingSink<>());
+        result.sinkTo(new DiscardingSink<>());
 
         env.getStreamGraph();
 
@@ -311,7 +311,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
                         BasicTypeInfo.INT_TYPE_INFO,
                         outputTypeConfigurableOperation);
 
-        result.addSink(new DiscardingSink<>());
+        result.sinkTo(new DiscardingSink<>());
 
         env.getStreamGraph();
 
@@ -473,7 +473,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         DataStream<Integer> keyedResult = source.keyBy(value -> value).map(new NoOpIntMap());
 
-        keyedResult.addSink(new DiscardingSink<>());
+        keyedResult.sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = env.getStreamGraph();
 
@@ -502,7 +502,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
                         .map(new NoOpIntMap())
                         .setMaxParallelism(keyedResult2MaxParallelism);
 
-        keyedResult2.addSink(new DiscardingSink<>());
+        keyedResult2.sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = env.getStreamGraph();
 
@@ -549,7 +549,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
                         .setMaxParallelism(maxParallelism)
                         .setParallelism(mapParallelism);
 
-        keyedResult4.addSink(new DiscardingSink<>());
+        keyedResult4.sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = env.getStreamGraph();
 
@@ -576,7 +576,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
                         .keyBy(value -> value, value -> value)
                         .map(new NoOpIntCoMap());
 
-        keyedResult.addSink(new DiscardingSink<>());
+        keyedResult.sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = env.getStreamGraph();
 
@@ -804,7 +804,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
                 .slotSharingGroup(SlotSharingGroup.newBuilder("ssg4").build())
                 .map(value -> value * 4)
                 .slotSharingGroup(ssg3)
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .slotSharingGroup(ssg1);
 
         final StreamGraph streamGraph = env.getStreamGraph();
@@ -833,7 +833,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         final DataStream<Integer> source = env.fromElements(1).slotSharingGroup(ssg);
         source.map(value -> value)
                 .slotSharingGroup(ssgConflict)
-                .addSink(new DiscardingSink<>())
+                .sinkTo(new DiscardingSink<>())
                 .slotSharingGroup(ssgConflict);
 
         Assertions.assertThatThrownBy(env::getStreamGraph)

@@ -21,9 +21,9 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-public class FullOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
+class FullOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 
-    public FullOuterJoinTaskTest(ExecutionConfig config) {
+    FullOuterJoinTaskTest(ExecutionConfig config) {
         super(config);
     }
 

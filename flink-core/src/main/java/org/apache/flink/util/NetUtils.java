@@ -103,8 +103,15 @@ public class NetUtils {
      * @return URL object for accessing host and port
      */
     private static URL validateHostPortString(String hostPort) {
+        if (StringUtils.isNullOrWhitespaceOnly(hostPort)) {
+            throw new IllegalArgumentException("hostPort should not be null or empty");
+        }
         try {
-            URL u = new URL("http://" + hostPort);
+            URL u =
+                    (hostPort.toLowerCase().startsWith("http://")
+                                    || hostPort.toLowerCase().startsWith("https://"))
+                            ? new URL(hostPort)
+                            : new URL("http://" + hostPort);
             if (u.getHost() == null) {
                 throw new IllegalArgumentException(
                         "The given host:port ('" + hostPort + "') doesn't contain a valid host");
@@ -128,7 +135,16 @@ public class NetUtils {
      * @return a URL object representing the provided socket address with "http://" schema
      */
     public static URL socketToUrl(InetSocketAddress socketAddress) {
-        String hostPort = socketAddress.getHostString() + ":" + socketAddress.getPort();
+        String hostString = socketAddress.getHostString();
+        // If the hostString is an IPv6 address, it needs to be enclosed in square brackets
+        // at the beginning and end.
+        if (socketAddress.getAddress() != null
+                && socketAddress.getAddress() instanceof Inet6Address
+                && hostString.equals(socketAddress.getAddress().getHostAddress())) {
+            hostString = "[" + hostString + "]";
+        }
+        String hostPort = hostString + ":" + socketAddress.getPort();
+
         return validateHostPortString(hostPort);
     }
 
@@ -404,7 +420,7 @@ public class NetUtils {
             int dashIdx = range.indexOf('-');
             if (dashIdx == -1) {
                 // only one port in range:
-                final int port = Integer.valueOf(range);
+                final int port = Integer.parseInt(range);
                 if (!isValidHostPort(port)) {
                     throw new IllegalConfigurationException(
                             "Invalid port configuration. Port must be between 0"
@@ -415,21 +431,29 @@ public class NetUtils {
                 rangeIterator = Collections.singleton(Integer.valueOf(range)).iterator();
             } else {
                 // evaluate range
-                final int start = Integer.valueOf(range.substring(0, dashIdx));
+                final int start = Integer.parseInt(range.substring(0, dashIdx));
                 if (!isValidHostPort(start)) {
                     throw new IllegalConfigurationException(
                             "Invalid port configuration. Port must be between 0"
-                                    + "and 65535, but was "
+                                    + "and 65535, but range start was "
                                     + start
                                     + ".");
                 }
-                final int end = Integer.valueOf(range.substring(dashIdx + 1, range.length()));
+                final int end = Integer.parseInt(range.substring(dashIdx + 1));
                 if (!isValidHostPort(end)) {
                     throw new IllegalConfigurationException(
                             "Invalid port configuration. Port must be between 0"
-                                    + "and 65535, but was "
+                                    + "and 65535, but range end was "
                                     + end
                                     + ".");
+                }
+                if (start >= end) {
+                    throw new IllegalConfigurationException(
+                            "Invalid port configuration."
+                                    + " Port range end must be bigger than port range start."
+                                    + " If you wish to use single port please provide the value directly, not as a range."
+                                    + " Given range: "
+                                    + range);
                 }
                 rangeIterator =
                         new Iterator<Integer>() {

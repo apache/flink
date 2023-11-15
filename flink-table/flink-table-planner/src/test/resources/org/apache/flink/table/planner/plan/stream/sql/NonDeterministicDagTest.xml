@@ -1095,6 +1095,39 @@ Sink(table=[default_catalog.default_database.t_join_sink], fields=[order_id, ord
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCdcLeftJoinDimWithNonDeterministicPreFilter[nonDeterministicUpdateStrategy=IGNORE]">
+    <Resource name="sql">
+      <![CDATA[
+insert into sink_with_pk
+select t1.a, t2.b as version, t2.c
+from (
+  select *, proctime() proctime from cdc
+) t1 left join dim_with_pk for system_time as of t1.proctime as t2
+on t1.a = t2.a
+  and t1.b > UNIX_TIMESTAMP() - 300
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c])
++- LogicalProject(a=[$0], version=[$6], c=[$7])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0, 1, 4}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc]])
+      +- LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.b, -(UNIX_TIMESTAMP(), 300)))])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, dim_with_pk]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, version, c], upsertMaterialize=[true])
++- Calc(select=[a, b0 AS version, c])
+   +- LookupJoin(table=[default_catalog.default_database.dim_with_pk], joinType=[LeftOuterJoin], lookup=[a=a], joinCondition=[(b > (UNIX_TIMESTAMP() - 300))], select=[a, b, a0, b0, c])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc, project=[a, b], metadata=[]]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCdcLeftJoinDimWithoutPkSinkWithoutPk[nonDeterministicUpdateStrategy=IGNORE]">
     <Resource name="sql">
       <![CDATA[
@@ -1496,7 +1529,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
 +- LogicalProject(a=[CAST($0):INTEGER], b=[CAST($4):BIGINT], c=[$7])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
       +- LogicalTableFunctionScan(invocation=[str_split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 ]]>
     </Resource>
@@ -1505,7 +1538,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b,
 Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, c], upsertMaterialize=[true])
 +- Calc(select=[CAST(a AS INTEGER) AS a, CAST(metadata_1 AS BIGINT) AS b, EXPR$0 AS c])
    +- Correlate(invocation=[str_split($cor0.c)], correlate=[table(str_split($cor0.c))], select=[a,b,c,d,metadata_1,metadata_2,metadata_3,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, BOOLEAN d, INTEGER metadata_1, VARCHAR(2147483647) metadata_2, BIGINT metadata_3, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta]], fields=[a, b, c, d, metadata_1, metadata_2, metadata_3])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]], fields=[a, b, c, d, metadata_1, metadata_2, metadata_3])
 ]]>
     </Resource>
   </TestCase>
@@ -1522,7 +1555,7 @@ from cdc_with_meta
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`legacy_retract_sink`], fields=[a, b, c])
 +- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1546,7 +1579,7 @@ from cdc_with_meta
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`legacy_upsert_sink`], fields=[a, b, c])
 +- LogicalProject(a=[CAST($0):INTEGER], b=[$6], c=[CAST($2):VARCHAR(100) CHARACTER SET "UTF-16LE"])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1571,7 +1604,7 @@ from cdc_with_meta
 LogicalLegacySink(name=[`default_catalog`.`default_database`.`legacy_upsert_sink`], fields=[a, b, c])
 +- LogicalProject(a=[CAST($0):INTEGER], b=[$6], c=[CAST($2):VARCHAR(100) CHARACTER SET "UTF-16LE"])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1595,7 +1628,7 @@ select a, b, c, e from cdc_with_meta_rename
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, e])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], e=[$5])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_3=[$4], e=[$4])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta_rename]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta_rename, metadata=[metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1618,7 +1651,7 @@ from cdc_with_meta
 LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fields=[a, b, c, metadata_3])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], metadata_3=[$6])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1641,7 +1674,7 @@ from cdc_with_meta
 LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a, metadata_3, c])
 +- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1665,7 +1698,7 @@ from cdc_with_meta
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, metadata_3, c])
 +- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -1690,7 +1723,7 @@ from cdc_with_meta
 LogicalSink(table=[default_catalog.default_database.sink_with_pk], fields=[a, metadata_3, c])
 +- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -2478,14 +2511,14 @@ LogicalSink(table=[default_catalog.default_database.sink1], fields=[a, b, d])
          +- LogicalProject(a=[$1], b=[$3], day=[DATE_FORMAT(CURRENT_TIMESTAMP, _UTF-16LE'yyMMdd')])
             +- LogicalProject(id=[$0], a=[$1.nested2.num], name=[$1.nested1.name], b=[+(+($1.nested1.value, $1.nested2.num), $3)])
                +- LogicalProject(id=[$0], deepNested=[$1], name=[$2], metadata_1=[$3], metadata_2=[$4])
-                  +- LogicalTableScan(table=[[default_catalog, default_database, nested_src]])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, nested_src, metadata=[metadata_1, metadata_2]]])
 
 LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, b, d])
 +- LogicalProject(a=[$1], b=[$2], d=[CAST($3):BIGINT])
    +- LogicalFilter(condition=[>($3, 100)])
       +- LogicalProject(id=[$0], a=[$1.nested2.num], name=[$1.nested1.name], b=[+(+($1.nested1.value, $1.nested2.num), $3)])
          +- LogicalProject(id=[$0], deepNested=[$1], name=[$2], metadata_1=[$3], metadata_2=[$4])
-            +- LogicalTableScan(table=[[default_catalog, default_database, nested_src]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, nested_src, metadata=[metadata_1, metadata_2]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -3040,7 +3073,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
    :  +- LogicalTableScan(table=[[default_catalog, default_database, src]])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], metadata_3=[$6])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-         +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -3072,7 +3105,7 @@ LogicalSink(table=[default_catalog.default_database.sink_without_pk], fields=[a,
    :  +- LogicalTableScan(table=[[default_catalog, default_database, src]])
    +- LogicalProject(a=[$0], metadata_3=[$6], c=[$2])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-         +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -3104,7 +3137,7 @@ LogicalSink(table=[default_catalog.default_database.sink_with_composite_pk], fie
    :  +- LogicalTableScan(table=[[default_catalog, default_database, src]])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], metadata_3=[$6])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], metadata_1=[$4], metadata_2=[$5], metadata_3=[$6])
-         +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, cdc_with_meta, metadata=[metadata_1, metadata_2, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">

@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.common.CalcMergeTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 /** Plan test for calc merge. */
-public class CalcMergeTest extends CalcMergeTestBase {
+class CalcMergeTest extends CalcMergeTestBase {
     @Override
     protected boolean isBatchMode() {
         return true;

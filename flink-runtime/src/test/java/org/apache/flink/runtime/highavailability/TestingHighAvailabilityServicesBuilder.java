@@ -74,7 +74,7 @@ public class TestingHighAvailabilityServicesBuilder {
 
     private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
-    private CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
+    private CompletableFuture<Void> cleanupAllDataFuture = new CompletableFuture<>();
 
     public TestingHighAvailabilityServices build() {
         final TestingHighAvailabilityServices testingHighAvailabilityServices =
@@ -102,8 +102,7 @@ public class TestingHighAvailabilityServicesBuilder {
         testingHighAvailabilityServices.setJobResultStore(jobResultStore);
 
         testingHighAvailabilityServices.setCloseFuture(closeFuture);
-        testingHighAvailabilityServices.setCloseAndCleanupAllDataFuture(
-                closeAndCleanupAllDataFuture);
+        testingHighAvailabilityServices.setCleanupAllDataFuture(cleanupAllDataFuture);
 
         return testingHighAvailabilityServices;
     }
@@ -178,9 +177,9 @@ public class TestingHighAvailabilityServicesBuilder {
         return this;
     }
 
-    public TestingHighAvailabilityServicesBuilder setCloseAndCleanupAllDataFuture(
-            CompletableFuture<Void> closeAndCleanupAllDataFuture) {
-        this.closeAndCleanupAllDataFuture = closeAndCleanupAllDataFuture;
+    public TestingHighAvailabilityServicesBuilder setCleanupAllDataFuture(
+            CompletableFuture<Void> cleanupAllDataFuture) {
+        this.cleanupAllDataFuture = cleanupAllDataFuture;
         return this;
     }
 }

@@ -135,7 +135,7 @@ public class EventReceivingTasks implements SubtaskAccess.SubtaskAccessFactory {
     // ------------------------------------------------------------------------
 
     /** A combination of an {@link OperatorEvent} and the target subtask it is sent to. */
-    public static final class EventWithSubtask {
+    static final class EventWithSubtask {
 
         public final OperatorEvent event;
         public final int subtask;

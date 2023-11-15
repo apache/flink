@@ -18,6 +18,10 @@
 package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 
@@ -25,11 +29,12 @@ import java.io.File;
  * Tests for the keyed state backend and operator state backend, as created by the {@link
  * FsStateBackend}.
  */
+@ExtendWith(NoOpTestExtension.class)
 public class FileStateBackendMigrationTest extends StateBackendMigrationTestBase<FsStateBackend> {
 
     @Override
     protected FsStateBackend getStateBackend() throws Exception {
-        File checkpointPath = tempFolder.newFolder();
+        File checkpointPath = TempDirUtils.newFolder(tempFolder);
         return new FsStateBackend(checkpointPath.toURI(), false);
     }
 }

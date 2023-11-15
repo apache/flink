@@ -64,9 +64,9 @@ public class BatchPhysicalRuntimeFilter extends BiRel implements BatchPhysicalRe
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
         return new BatchPhysicalRuntimeFilter(
                 getCluster(),
-                getTraitSet(),
-                getLeft(),
-                getRight(),
+                traitSet,
+                inputs.get(0),
+                inputs.get(1),
                 probeIndices,
                 estimatedFilterRatio);
     }

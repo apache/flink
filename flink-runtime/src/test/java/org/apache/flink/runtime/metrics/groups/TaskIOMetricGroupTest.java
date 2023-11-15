@@ -190,7 +190,7 @@ class TaskIOMetricGroupTest {
         Map<IntermediateResultPartitionID, ResultPartitionBytes> resultPartitionBytes =
                 taskIO.createSnapshot().getResultPartitionBytes();
 
-        assertThat(resultPartitionBytes.size()).isEqualTo(2);
+        assertThat(resultPartitionBytes).hasSize(2);
         assertThat(resultPartitionBytes.get(resultPartitionID1).getSubpartitionBytes())
                 .containsExactly(32L, 64L);
         assertThat(resultPartitionBytes.get(resultPartitionID2).getSubpartitionBytes())

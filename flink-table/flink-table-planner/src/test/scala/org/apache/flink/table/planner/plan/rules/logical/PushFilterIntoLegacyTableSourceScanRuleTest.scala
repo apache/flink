@@ -26,13 +26,13 @@ import org.apache.flink.types.Row
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[PushFilterIntoLegacyTableSourceScanRule]]. */
 class PushFilterIntoLegacyTableSourceScanRuleTest
   extends PushFilterIntoTableSourceScanRuleTestBase {
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util = batchTestUtil()
     util.asInstanceOf[BatchTableTestUtil].buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)

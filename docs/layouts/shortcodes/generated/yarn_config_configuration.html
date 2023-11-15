@@ -162,13 +162,13 @@
             <td><h5>yarn.ship-archives</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>A semicolon-separated list of archives to be shipped to the YARN cluster. These archives will be un-packed when localizing and they can be any of the following types: ".tar.gz", ".tar", ".tgz", ".dst", ".jar", ".zip".</td>
+            <td>A semicolon-separated list of archives to be shipped to the YARN cluster. These archives can come from the local path of flink client or HDFS. They will be un-packed when localizing and they can be any of the following types: ".tar.gz", ".tar", ".tgz", ".dst", ".jar", ".zip". For example, "/path/to/local/archive.jar;hdfs://$namenode_address/path/to/archive.jar"</td>
         </tr>
         <tr>
             <td><h5>yarn.ship-files</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;String&gt;</td>
-            <td>A semicolon-separated list of files and/or directories to be shipped to the YARN cluster.</td>
+            <td>A semicolon-separated list of files and/or directories to be shipped to the YARN cluster. These files/directories can come from the local path of flink client or HDFS. For example, "/path/to/local/file;/path/to/local/directory;hdfs://$namenode_address/path/of/file;hdfs://$namenode_address/path/of/directory"</td>
         </tr>
         <tr>
             <td><h5>yarn.staging-directory</h5></td>

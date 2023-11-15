@@ -69,8 +69,7 @@ object TimeTestUtil {
 
     override def snapshotState(context: StateSnapshotContext): Unit = {
       super.snapshotState(context)
-      watermarkState.clear()
-      watermarkState.add(currentWatermark)
+      watermarkState.update(java.util.Collections.singletonList(currentWatermark))
     }
 
     override def initializeState(context: StateInitializationContext): Unit = {

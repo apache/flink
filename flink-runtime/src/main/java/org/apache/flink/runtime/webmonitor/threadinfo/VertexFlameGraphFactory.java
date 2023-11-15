@@ -105,6 +105,9 @@ public class VertexFlameGraphFactory {
     private static final Pattern LAMBDA_CLASS_NAME =
             Pattern.compile("(\\$Lambda\\$)\\d+/(0x)?\\p{XDigit}+$");
 
+    private static final Pattern JDK21_LAMBDA_CLASS_NAME =
+            Pattern.compile("(\\$\\$Lambda)/(0x)?\\p{XDigit}+$");
+
     // Drops stack trace elements with class names matching the above regular expression.
     // These elements are useless, because they don't provide any additional information
     // except the fact that a lambda is used (they don't have source information, for example),
@@ -115,9 +118,12 @@ public class VertexFlameGraphFactory {
     // lambdas, so we have to clean them up explicitly.
     private static StackTraceElement[] cleanLambdaNames(StackTraceElement[] stackTrace) {
         StackTraceElement[] result = new StackTraceElement[stackTrace.length];
+        final String javaVersion = System.getProperty("java.version");
+        final Pattern lambdaClassName =
+                javaVersion.compareTo("21") >= 0 ? JDK21_LAMBDA_CLASS_NAME : LAMBDA_CLASS_NAME;
         for (int i = 0; i < stackTrace.length; i++) {
             StackTraceElement element = stackTrace[i];
-            Matcher matcher = LAMBDA_CLASS_NAME.matcher(element.getClassName());
+            Matcher matcher = lambdaClassName.matcher(element.getClassName());
             if (matcher.find()) {
                 // org.apache.flink.streaming.runtime.io.RecordProcessorUtils$$Lambda$773/0x00000001007f84a0
                 //  -->

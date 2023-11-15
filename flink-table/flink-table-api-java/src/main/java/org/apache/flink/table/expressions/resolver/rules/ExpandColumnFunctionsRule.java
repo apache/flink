@@ -20,6 +20,8 @@ package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions.ColumnExpansionStrategy;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -47,19 +49,24 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.WITH_C
  */
 @Internal
 final class ExpandColumnFunctionsRule implements ResolverRule {
+
     @Override
     public List<Expression> apply(List<Expression> expression, ResolutionContext context) {
-        ColumnFunctionsExpander columnFunctionsExpander =
+        final List<ColumnExpansionStrategy> strategies =
+                context.configuration().get(TableConfigOptions.TABLE_COLUMN_EXPANSION_STRATEGY);
+
+        final ColumnFunctionsExpander columnFunctionsExpander =
                 new ColumnFunctionsExpander(
-                        context.referenceLookup().getAllInputFields().stream()
+                        context.referenceLookup().getInputFields(strategies).stream()
                                 .map(p -> unresolvedRef(p.getName()))
                                 .collect(Collectors.toList()));
+
         return expression.stream()
                 .flatMap(expr -> expr.accept(columnFunctionsExpander).stream())
                 .collect(Collectors.toList());
     }
 
-    /** Expands column functions to it's real parent's input references. */
+    /** Expands column functions to its real parent's input references. */
     private static class ColumnFunctionsExpander
             extends ApiExpressionDefaultVisitor<List<Expression>> {
 

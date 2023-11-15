@@ -20,17 +20,15 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** A test for {@link KeyGroupsStateHandle} */
-public class KeyGroupsStateHandleTest {
+class KeyGroupsStateHandleTest {
 
     @Test
-    public void testNonEmptyIntersection() {
+    void testNonEmptyIntersection() {
         KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(0, 7);
         byte[] dummy = new byte[10];
         StreamStateHandle streamHandle = new ByteStreamStateHandle("test", dummy);
@@ -38,20 +36,20 @@ public class KeyGroupsStateHandleTest {
 
         KeyGroupRange expectedRange = new KeyGroupRange(0, 3);
         KeyGroupsStateHandle newHandle = handle.getIntersection(expectedRange);
-        assertNotNull(newHandle);
-        assertEquals(streamHandle, newHandle.getDelegateStateHandle());
-        assertEquals(expectedRange, newHandle.getKeyGroupRange());
-        assertEquals(handle.getStateHandleId(), newHandle.getStateHandleId());
+        assertThat(newHandle).isNotNull();
+        assertThat(newHandle.getDelegateStateHandle()).isEqualTo(streamHandle);
+        assertThat(newHandle.getKeyGroupRange()).isEqualTo(expectedRange);
+        assertThat(newHandle.getStateHandleId()).isEqualTo(handle.getStateHandleId());
     }
 
     @Test
-    public void testEmptyIntersection() {
+    void testEmptyIntersection() {
         KeyGroupRangeOffsets offsets = new KeyGroupRangeOffsets(0, 7);
         byte[] dummy = new byte[10];
         StreamStateHandle streamHandle = new ByteStreamStateHandle("test", dummy);
         KeyGroupsStateHandle handle = new KeyGroupsStateHandle(offsets, streamHandle);
         // return null if the keygroup intersection is empty.
         KeyGroupRange newRange = new KeyGroupRange(8, 11);
-        assertNull(handle.getIntersection(newRange));
+        assertThat(handle.getIntersection(newRange)).isNull();
     }
 }

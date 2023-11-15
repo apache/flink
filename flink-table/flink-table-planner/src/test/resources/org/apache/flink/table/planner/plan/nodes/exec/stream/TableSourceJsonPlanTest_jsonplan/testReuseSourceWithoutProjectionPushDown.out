@@ -9,12 +9,12 @@
       },
       "abilities" : [ {
         "type" : "ReadingMetadata",
-        "metadataKeys" : [ "ts", "tags" ],
-        "producedType" : "ROW<`x` VARCHAR(2147483647), `y` VARCHAR(2147483647), `ts` TIMESTAMP(3), `tags` VARCHAR(1)> NOT NULL"
+        "metadataKeys" : [ "tags", "ts" ],
+        "producedType" : "ROW<`x` VARCHAR(2147483647), `y` VARCHAR(2147483647), `tags` VARCHAR(1), `ts` TIMESTAMP(3)> NOT NULL"
       } ]
     },
-    "outputType" : "ROW<`x` VARCHAR(2147483647), `y` VARCHAR(2147483647), `ts` TIMESTAMP(3), `tags` VARCHAR(1)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, src, metadata=[ts, tags]]], fields=[x, y, ts, tags])",
+    "outputType" : "ROW<`x` VARCHAR(2147483647), `y` VARCHAR(2147483647), `tags` VARCHAR(1), `ts` TIMESTAMP(3)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, src, metadata=[tags, ts]]], fields=[x, y, tags, ts])",
     "inputProperties" : [ ]
   }, {
     "id" : 2,
@@ -25,7 +25,7 @@
       "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 2,
+      "inputIndex" : 3,
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
@@ -76,7 +76,7 @@
       "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 3,
+        "inputIndex" : 2,
         "type" : "VARCHAR(1)"
       } ],
       "type" : "VARCHAR(2147483647)"

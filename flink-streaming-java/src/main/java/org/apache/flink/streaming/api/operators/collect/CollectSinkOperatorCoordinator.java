@@ -17,8 +17,7 @@
 
 package org.apache.flink.streaming.api.operators.collect;
 
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandler;
@@ -41,7 +40,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -64,14 +62,18 @@ public class CollectSinkOperatorCoordinator
     private final int socketTimeout;
 
     private InetSocketAddress address;
-    private Socket socket;
-    private DataInputViewStreamWrapper inStream;
-    private DataOutputViewStreamWrapper outStream;
+
+    private SocketConnection socketConnection;
 
     private final Set<CompletableFuture<CoordinationResponse>> ongoingRequests =
             ConcurrentHashMap.newKeySet();
 
     private ExecutorService executorService;
+
+    @VisibleForTesting
+    CollectSinkOperatorCoordinator() {
+        this(0);
+    }
 
     public CollectSinkOperatorCoordinator(int socketTimeout) {
         this.socketTimeout = socketTimeout;
@@ -89,6 +91,11 @@ public class CollectSinkOperatorCoordinator
     public void close() throws Exception {
         LOG.info("Closing the CollectSinkOperatorCoordinator.");
         this.executorService.shutdownNow();
+
+        // cancelling all ongoing requests explicitly
+        ongoingRequests.forEach(ft -> ft.cancel(true));
+        ongoingRequests.clear();
+
         closeConnection();
     }
 
@@ -157,25 +164,18 @@ public class CollectSinkOperatorCoordinator
             throw new NullPointerException("No sinkAddress available.");
         }
 
-        if (socket == null) {
-            socket = new Socket();
-            socket.setSoTimeout(socketTimeout);
-            socket.setKeepAlive(true);
-            socket.setTcpNoDelay(true);
-
-            socket.connect(sinkAddress);
-            inStream = new DataInputViewStreamWrapper(socket.getInputStream());
-            outStream = new DataOutputViewStreamWrapper(socket.getOutputStream());
+        if (socketConnection == null) {
+            socketConnection = SocketConnection.create(socketTimeout, sinkAddress);
             LOG.info("Sink connection established");
         }
 
         // send version and offset to sink server
         LOG.debug("Forwarding request to sink socket server");
-        request.serialize(outStream);
+        request.serialize(socketConnection.getDataOutputView());
 
         // fetch back serialized results
         LOG.debug("Fetching serialized result from sink socket server");
-        return new CollectCoordinationResponse(inStream);
+        return new CollectCoordinationResponse(socketConnection.getDataInputView());
     }
 
     private CollectCoordinationResponse createEmptyResponse(CollectCoordinationRequest request) {
@@ -189,14 +189,14 @@ public class CollectSinkOperatorCoordinator
     }
 
     private void closeConnection() {
-        if (socket != null) {
+        if (socketConnection != null) {
             try {
-                socket.close();
-            } catch (IOException e) {
+                socketConnection.close();
+            } catch (Exception e) {
                 LOG.warn("Failed to close sink socket server connection", e);
             }
+            socketConnection = null;
         }
-        socket = null;
     }
 
     @Override

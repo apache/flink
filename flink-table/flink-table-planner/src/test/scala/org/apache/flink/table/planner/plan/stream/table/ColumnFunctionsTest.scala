@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.planner.utils.{CountAggFunction, TableFunc0, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /** Tests for column functions which includes tests for different column functions. */
 class ColumnFunctionsTest extends TableTestBase {

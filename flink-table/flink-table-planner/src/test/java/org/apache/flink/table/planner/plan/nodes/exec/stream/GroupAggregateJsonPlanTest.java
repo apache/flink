@@ -27,32 +27,34 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Var
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
 /** Test json serialization/deserialization for group aggregate. */
-@RunWith(Parameterized.class)
-public class GroupAggregateJsonPlanTest extends TableTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class GroupAggregateJsonPlanTest extends TableTestBase {
 
-    @Parameterized.Parameter public boolean isMiniBatchEnabled;
+    @Parameter private boolean isMiniBatchEnabled;
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Parameterized.Parameters(name = "isMiniBatchEnabled={0}")
-    public static List<Boolean> testData() {
+    @Parameters(name = "isMiniBatchEnabled={0}")
+    private static List<Boolean> testData() {
         return Arrays.asList(true, false);
     }
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
         if (isMiniBatchEnabled) {
@@ -78,8 +80,8 @@ public class GroupAggregateJsonPlanTest extends TableTestBase {
         tEnv.executeSql(srcTableDdl);
     }
 
-    @Test
-    public void testSimpleAggCallsWithGroupBy() {
+    @TestTemplate
+    void testSimpleAggCallsWithGroupBy() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  b bigint,\n"
@@ -99,8 +101,8 @@ public class GroupAggregateJsonPlanTest extends TableTestBase {
                         + "from MyTable group by b");
     }
 
-    @Test
-    public void testSimpleAggWithoutGroupBy() {
+    @TestTemplate
+    void testSimpleAggWithoutGroupBy() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  avg_a double,\n"
@@ -123,8 +125,8 @@ public class GroupAggregateJsonPlanTest extends TableTestBase {
                         + "from MyTable");
     }
 
-    @Test
-    public void testDistinctAggCalls() {
+    @TestTemplate
+    void testDistinctAggCalls() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  d bigint,\n"
@@ -150,8 +152,8 @@ public class GroupAggregateJsonPlanTest extends TableTestBase {
                         + "from MyTable group by d");
     }
 
-    @Test
-    public void testUserDefinedAggCalls() {
+    @TestTemplate
+    void testUserDefinedAggCalls() {
         tEnv.createTemporaryFunction("my_sum1", new VarSum1AggFunction());
         tEnv.createFunction("my_avg", WeightedAvg.class);
         tEnv.createTemporarySystemFunction("my_sum2", VarSum2AggFunction.class);

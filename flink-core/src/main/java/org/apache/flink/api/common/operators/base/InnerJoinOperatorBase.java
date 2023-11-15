@@ -20,6 +20,7 @@ package org.apache.flink.api.common.operators.base;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.functions.DefaultOpenContext;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.functions.util.CopyingListCollector;
@@ -88,7 +89,7 @@ public class InnerJoinOperatorBase<IN1, IN2, OUT, FT extends FlatJoinFunction<IN
         FlatJoinFunction<IN1, IN2, OUT> function = userFunction.getUserCodeObject();
 
         FunctionUtils.setFunctionRuntimeContext(function, runtimeContext);
-        FunctionUtils.openFunction(function, this.parameters);
+        FunctionUtils.openFunction(function, DefaultOpenContext.INSTANCE);
 
         TypeInformation<IN1> leftInformation = getOperatorInfo().getFirstInputType();
         TypeInformation<IN2> rightInformation = getOperatorInfo().getSecondInputType();

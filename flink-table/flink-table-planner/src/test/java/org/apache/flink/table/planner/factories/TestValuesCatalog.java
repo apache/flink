@@ -92,7 +92,7 @@ public class TestValuesCatalog extends GenericInMemoryCatalog {
                             Function<String, Comparable<?>> getter =
                                     getValueGetter(partition.getPartitionSpec(), schema);
                             return FilterUtils.isRetainedAfterApplyingFilterPredicates(
-                                    resolvedExpressions, getter);
+                                    resolvedExpressions, getter, null);
                         })
                 .collect(Collectors.toList());
     }

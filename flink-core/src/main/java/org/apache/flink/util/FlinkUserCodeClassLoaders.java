@@ -139,6 +139,11 @@ public class FlinkUserCodeClassLoaders {
         static {
             ClassLoader.registerAsParallelCapable();
         }
+
+        @Override
+        public MutableURLClassLoader copy() {
+            return new ParentFirstClassLoader(getURLs(), getParent(), classLoadingExceptionHandler);
+        }
     }
 
     /**
@@ -201,6 +206,12 @@ public class FlinkUserCodeClassLoaders {
         @Override
         public void addURL(URL url) {
             ensureInner().addURL(url);
+        }
+
+        @Override
+        public MutableURLClassLoader copy() {
+            return new SafetyNetWrapperClassLoader(
+                    (FlinkUserCodeClassLoader) inner.copy(), getParent());
         }
 
         @Override

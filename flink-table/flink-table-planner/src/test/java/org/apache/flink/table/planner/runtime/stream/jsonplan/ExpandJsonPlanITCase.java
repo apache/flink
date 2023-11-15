@@ -26,16 +26,16 @@ import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
 /** Test for expand json plan. */
-public class ExpandJsonPlanITCase extends JsonPlanTestBase {
+class ExpandJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testExpand() throws Exception {
+    void testExpand() throws Exception {
         tableEnv.getConfig()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
@@ -58,7 +58,7 @@ public class ExpandJsonPlanITCase extends JsonPlanTestBase {
                                 + "from MyTable group by b")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(Arrays.asList("+I[1, 1, Hi]", "+I[2, 2, Hello world]"), result);
     }
 }

@@ -26,6 +26,7 @@ import org.apache.flink.table.data.RowData.FieldGetter;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.ResultSetImpl;
+import org.apache.flink.table.gateway.rest.util.RowDataLocalTimeZoneConverter;
 import org.apache.flink.table.gateway.rest.util.RowFormat;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
@@ -33,6 +34,8 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -64,12 +67,21 @@ public class ResultInfo {
         this.rowFormat = rowFormat;
     }
 
-    public static ResultInfo createResultInfo(ResultSet resultSet, RowFormat rowFormat) {
+    public static ResultInfo createResultInfo(
+            ResultSet resultSet,
+            RowFormat rowFormat,
+            @Nullable RowDataLocalTimeZoneConverter timeZoneConverter) {
         Preconditions.checkArgument(resultSet.getResultType() != ResultSet.ResultType.NOT_READY);
         List<RowData> data = resultSet.getData();
 
         switch (rowFormat) {
             case JSON:
+                if (timeZoneConverter != null && timeZoneConverter.hasTimeZoneData()) {
+                    data =
+                            data.stream()
+                                    .map(timeZoneConverter::convertTimeZoneRowData)
+                                    .collect(Collectors.toList());
+                }
                 break;
             case PLAIN_TEXT:
                 RowDataToStringConverter converter = ((ResultSetImpl) resultSet).getConverter();

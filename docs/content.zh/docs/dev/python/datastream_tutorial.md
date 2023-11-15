@@ -48,7 +48,7 @@ Apache Flink 提供了 DataStream API，用于构建健壮的、有状态的流�
 首先，你需要在你的电脑上准备以下环境：
 
 * Java 11
-* Python 3.7, 3.8, 3.9 or 3.10
+* Python 3.8, 3.9 or 3.10
 
 使用 Python DataStream API 需要安装 PyFlink，PyFlink 发布在 [PyPI](https://pypi.org/project/apache-flink/)上，可以通过 `pip` 快速安装。 
 

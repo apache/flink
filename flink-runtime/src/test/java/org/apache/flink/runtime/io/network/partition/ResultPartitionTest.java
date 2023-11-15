@@ -478,6 +478,27 @@ class ResultPartitionTest {
     }
 
     @Test
+    void testEmitRecordExpandsLastBuffer() throws IOException {
+        int recordSize = 10;
+        int maxBufferSize = 2 * recordSize;
+        // create a pool with just 1 buffer - so that the test times out in case of back-pressure
+        NetworkBufferPool globalPool = new NetworkBufferPool(1, maxBufferSize);
+        BufferPool localPool = globalPool.createBufferPool(1, 1, 1, Integer.MAX_VALUE, 0);
+        ResultPartition resultPartition =
+                new ResultPartitionBuilder().setBufferPoolFactory(() -> localPool).build();
+        resultPartition.setup();
+        // emulate BufferDebloater - and suggest small buffer size
+        resultPartition.createSubpartitionView(0, () -> {}).notifyNewBufferSize(1);
+        // need to insert two records: the 1st one expands the buffer regardless of back-pressure
+        resultPartition.emitRecord(ByteBuffer.allocate(recordSize), 0);
+        // insert the 2nd record:
+        // - the buffer should still be available for writing after the previous record
+        // - it should be resized again to fit the new record fully
+        // - so no new buffer is necessary and there is no back-pressure
+        resultPartition.emitRecord(ByteBuffer.allocate(recordSize), 0);
+    }
+
+    @Test
     void testBroadcastRecordWithRecordSpanningMultipleBuffers() throws Exception {
         BufferWritingResultPartition bufferWritingResultPartition =
                 createResultPartition(ResultPartitionType.PIPELINED);

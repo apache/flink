@@ -190,13 +190,13 @@ Calc(select=[ts, a, b, my_ts, PROCTIME_MATERIALIZE(proc) AS proc], where=[(a > 1
       <![CDATA[
 LogicalProject(a=[$0], other_metadata=[$1], b=[$2], c=[$3], metadata_1=[$4], computed=[$5])
 +- LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3], computed=[UPPER($3)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, CAST(other_metadata AS INTEGER) AS other_metadata, b, c, metadata_1, UPPER(metadata_1) AS computed])
-+- TableSourceScan(table=[[default_catalog, default_database, MetadataTable]], fields=[a, b, c, metadata_1, other_metadata])
++- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]], fields=[a, b, c, metadata_1, other_metadata])
 ]]>
     </Resource>
   </TestCase>
@@ -208,7 +208,7 @@ Calc(select=[a, CAST(other_metadata AS INTEGER) AS other_metadata, b, c, metadat
       <![CDATA[
 LogicalProject(b=[$2], other_metadata=[$1])
 +- LogicalProject(a=[$0], other_metadata=[CAST($4):INTEGER], b=[$1], c=[$2], metadata_1=[$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[metadata_1, metadata_3]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
@@ -226,13 +226,13 @@ Calc(select=[b, CAST(other_metadata AS INTEGER) AS other_metadata])
       <![CDATA[
 LogicalProject(timestamp=[$0], metadata_timestamp=[$1], other=[$2], computed_other=[$3], computed_timestamp=[$4])
 +- LogicalProject(timestamp=[$0], metadata_timestamp=[$2], other=[$1], computed_other=[UPPER($1)], computed_timestamp=[CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MetadataTable, metadata=[other, timestamp]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[timestamp, metadata_timestamp, other, UPPER(other) AS computed_other, CAST(metadata_timestamp AS VARCHAR(2147483647)) AS computed_timestamp])
-+- TableSourceScan(table=[[default_catalog, default_database, MetadataTable]], fields=[timestamp, other, metadata_timestamp])
++- TableSourceScan(table=[[default_catalog, default_database, MetadataTable, metadata=[other, timestamp]]], fields=[timestamp, other, metadata_timestamp])
 ]]>
     </Resource>
   </TestCase>

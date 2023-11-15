@@ -19,6 +19,7 @@
 
 : ${HADOOP_PREFIX:=/usr/local/hadoop}
 
+export CRYPTOGRAPHY_OPENSSL_NO_LEGACY=1
 $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
 
 MAX_RETRY_SECONDS=800

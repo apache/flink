@@ -30,6 +30,7 @@ import org.apache.flink.table.gateway.api.results.FetchOrientation;
 import org.apache.flink.table.gateway.api.results.ResultSet;
 import org.apache.flink.table.gateway.api.results.ResultSetImpl;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
+import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
@@ -39,6 +40,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -78,6 +80,7 @@ public class ResultFetcher {
 
     private long currentToken = 0;
     private boolean noMoreResults = false;
+    @Nullable private ResourceManager resourceManager;
 
     private ResultFetcher(
             OperationHandle operationHandle,
@@ -181,8 +184,20 @@ public class ResultFetcher {
         return new ResultFetcher(operationHandle, resultSchema, results, jobID, resultKind);
     }
 
+    public ResultFetcher withResourceManager(ResourceManager resourceManager) {
+        this.resourceManager = resourceManager;
+        return this;
+    }
+
     public void close() {
         resultStore.close();
+        if (resourceManager != null) {
+            try {
+                resourceManager.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public ResolvedSchema getResultSchema() {

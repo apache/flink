@@ -160,7 +160,7 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
         checkArgument(firstBufferInRegion.subpartitionId == lastBufferInRegion.subpartitionId);
         checkArgument(firstBufferInRegion.bufferIndex <= lastBufferInRegion.bufferIndex);
         internalRegionsBySubpartition
-                .computeIfAbsent(firstBufferInRegion.subpartitionId, ArrayList::new)
+                .computeIfAbsent(firstBufferInRegion.subpartitionId, k -> new ArrayList<>())
                 .add(
                         new InternalRegion(
                                 firstBufferInRegion.bufferIndex,
@@ -220,8 +220,13 @@ public class HsFileDataIndexImpl implements HsFileDataIndex {
         }
 
         @Override
-        public long getRegionFileOffset() {
+        public long getRegionStartOffset() {
             return regionFileOffset;
+        }
+
+        @Override
+        public long getRegionEndOffset() {
+            throw new UnsupportedOperationException("This method is not supported.");
         }
 
         @Override

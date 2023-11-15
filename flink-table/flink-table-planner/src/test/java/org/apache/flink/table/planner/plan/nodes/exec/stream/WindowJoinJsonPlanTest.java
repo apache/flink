@@ -23,17 +23,17 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for window join. */
-public class WindowJoinJsonPlanTest extends TableTestBase {
+class WindowJoinJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -63,7 +63,7 @@ public class WindowJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testEventTimeTumbleWindow() {
+    void testEventTimeTumbleWindow() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + " l_a INT,\n"

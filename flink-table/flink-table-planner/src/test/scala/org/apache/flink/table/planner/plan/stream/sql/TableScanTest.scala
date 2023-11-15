@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory.MockedLoo
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class TableScanTest extends TableTestBase {
 
@@ -667,13 +667,15 @@ class TableScanTest extends TableTestBase {
                     |  'changelog-mode' = 'I,UB,D'
                     |)
       """.stripMargin)
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Invalid source for table 'default_catalog.default_database.src'. A ScanTableSource " +
-        "doesn't support a changelog stream that contains UPDATE_BEFORE but no UPDATE_AFTER. " +
-        "Please adapt the implementation of class 'org.apache.flink.table.planner.factories." +
-        "TestValuesTableFactory$TestValuesScanLookupTableSource'.")
-    util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+
+    assertThatThrownBy(
+      () => util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE))
+      .hasMessageContaining(
+        "Invalid source for table 'default_catalog.default_database.src'. A ScanTableSource " +
+          "doesn't support a changelog stream that contains UPDATE_BEFORE but no UPDATE_AFTER. " +
+          "Please adapt the implementation of class 'org.apache.flink.table.planner.factories." +
+          "TestValuesTableFactory$TestValuesScanLookupTableSource'.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -688,12 +690,14 @@ class TableScanTest extends TableTestBase {
                     |  'changelog-mode' = 'I,UA,D'
                     |)
       """.stripMargin)
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Table 'default_catalog.default_database.src' produces a " +
-        "changelog stream that contains UPDATE_AFTER but no UPDATE_BEFORE. " +
-        "This requires defining a primary key constraint on the table.")
-    util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+
+    assertThatThrownBy(
+      () => util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE))
+      .hasMessageContaining(
+        "Table 'default_catalog.default_database.src' produces a " +
+          "changelog stream that contains UPDATE_AFTER but no UPDATE_BEFORE. " +
+          "This requires defining a primary key constraint on the table.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -711,12 +715,13 @@ class TableScanTest extends TableTestBase {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, Boolean.box(true))
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Configuration 'table.exec.source.cdc-events-duplicate' is enabled " +
-        "which requires the changelog sources to define a PRIMARY KEY. " +
-        "However, table 'default_catalog.default_database.src' doesn't have a primary key.")
-    util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE)
+    assertThatThrownBy(
+      () => util.verifyRelPlan("SELECT * FROM src WHERE a > 1", ExplainDetail.CHANGELOG_MODE))
+      .hasMessageContaining(
+        "Configuration 'table.exec.source.cdc-events-duplicate' is enabled " +
+          "which requires the changelog sources to define a PRIMARY KEY. " +
+          "However, table 'default_catalog.default_database.src' doesn't have a primary key.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -731,28 +736,29 @@ class TableScanTest extends TableTestBase {
                      |  'table-source-class' = '${classOf[MockedLookupTableSource].getName}'
                      |)
       """.stripMargin)
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Cannot generate a valid execution plan for the given query")
-    util.verifyRelPlan("SELECT * FROM src", ExplainDetail.CHANGELOG_MODE)
+
+    assertThatThrownBy(() => util.verifyRelPlan("SELECT * FROM src", ExplainDetail.CHANGELOG_MODE))
+      .hasMessageContaining("Cannot generate a valid execution plan for the given query")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
   def testInvalidWatermarkOutputType(): Unit = {
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Invalid data type of expression for watermark definition. " +
-        "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), " +
-        "the supported precision 'p' is from 0 to 3, but the watermark " +
-        "expression type is CHAR(0) NOT NULL")
-    util.addTable("""
-                    |CREATE TABLE src (
-                    |  ts TIMESTAMP(3),
-                    |  a INT,
-                    |  b DOUBLE,
-                    |  WATERMARK FOR `ts` AS ''
-                    |) WITH (
-                    |  'connector' = 'values'
-                    |)
-      """.stripMargin)
+    assertThatThrownBy(() => util.addTable("""
+                                             |CREATE TABLE src (
+                                             |  ts TIMESTAMP(3),
+                                             |  a INT,
+                                             |  b DOUBLE,
+                                             |  WATERMARK FOR `ts` AS ''
+                                             |) WITH (
+                                             |  'connector' = 'values'
+                                             |)
+      """.stripMargin))
+      .hasMessageContaining(
+        "Invalid data type of expression for watermark definition. " +
+          "The field must be of type TIMESTAMP(p) or TIMESTAMP_LTZ(p), " +
+          "the supported precision 'p' is from 0 to 3, but the watermark " +
+          "expression type is CHAR(0) NOT NULL")
+      .isInstanceOf[ValidationException]
   }
 }

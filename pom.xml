@@ -141,8 +141,10 @@ under the License.
 		<chill.version>0.7.6</chill.version>
 		<!-- keep FlinkTestcontainersConfigurator.configureZookeeperContainer in sync -->
 		<zookeeper.version>3.7.1</zookeeper.version>
+		<!-- Project `flink-benchmarks` uses zk testing server in `curator-test` for performance
+		benchmark, please confirm it will not affect the benchmarks when the version is bumped. -->
 		<curator.version>5.4.0</curator.version>
-		<avro.version>1.11.1</avro.version>
+		<avro.version>1.11.3</avro.version>
 		<!-- Version for transitive Jackson dependencies that are not used within Flink itself.-->
 		<jackson-bom.version>2.14.3</jackson-bom.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
@@ -158,7 +160,7 @@ under the License.
 		<beam.version>2.43.0</beam.version>
 		<protoc.version>3.21.7</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
-		<testcontainers.version>1.18.3</testcontainers.version>
+		<testcontainers.version>1.19.1</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
@@ -205,6 +207,7 @@ under the License.
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
+		<test.exclusion.pattern>**/Java17*.java</test.exclusion.pattern>
 	</properties>
 
 	<dependencies>
@@ -538,7 +541,7 @@ under the License.
 			<dependency>
 				<groupId>org.xerial.snappy</groupId>
 				<artifactId>snappy-java</artifactId>
-				<version>1.1.10.1</version>
+				<version>1.1.10.4</version>
 				<exclusions>
 					<exclusion>
 						<!-- Causes unnecessary dependency convergence errors; see MENFORCER-437 -->
@@ -718,7 +721,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-compress</artifactId>
-				<version>1.21</version>
+				<version>1.24.0</version>
 				<exclusions>
 					<exclusion>
 						<!-- Causes unnecessary dependency convergence errors; see MENFORCER-437 -->
@@ -885,7 +888,7 @@ under the License.
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-bom</artifactId>
-				<version>4.1.70.Final</version>
+				<version>4.1.100.Final</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
@@ -1102,6 +1105,12 @@ under the License.
 
 		<profile>
 			<id>java17-target</id>
+
+			<!-- Include Java 17 specific tests (by not excluding them) -->
+			<properties>
+				<test.exclusion.pattern>nothing</test.exclusion.pattern>
+			</properties>
+
 			<build>
 				<plugins>
 					<plugin>
@@ -1119,6 +1128,35 @@ under the License.
 						</configuration>
 					</plugin>
 				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>java21</id>
+			<activation>
+				<jdk>[21,)</jdk>
+			</activation>
+
+			<properties>
+				<!-- Bump Scala because before 2.12.18 doesn't compile on Java 21. -->
+				<scala.version>2.12.18</scala.version>
+			</properties>
+
+			<build>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>com.diffplug.spotless</groupId>
+							<artifactId>spotless-maven-plugin</artifactId>
+							<configuration>
+								<!-- Current google format does not run on Java 21.
+									 Don't upgrade it in this profile because it formats code differently.
+									 Re-evaluate once support for Java 8 is dropped. -->
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
 			</build>
 		</profile>
 
@@ -1168,7 +1206,7 @@ under the License.
 							</configuration>
 						</plugin>
 						<plugin>
-							<groupId>io.github.zentol.japicmp</groupId>
+							<groupId>com.github.siom79.japicmp</groupId>
 							<artifactId>japicmp-maven-plugin</artifactId>
 							<configuration>
 								<skip>true</skip>
@@ -1363,11 +1401,10 @@ under the License.
 								</goals>
 								<configuration>
 									<rules>
-										<requireMavenVersion>
-											<version>3.8.6</version>
-										</requireMavenVersion>
+										<!-- versions for certain build tools are enforced to match the CI setup -->
+										<!-- the rules below should stay in sync with Flink Release wiki documentation and the CI scripts -->
 										<requireJavaVersion>
-											<version>1.8.0</version>
+											<version>[1.8.0,1.8.1)</version>
 										</requireJavaVersion>
 									</rules>
 								</configuration>
@@ -1440,7 +1477,7 @@ under the License.
 
 			<plugin>
 				<!-- activate API compatibility checks -->
-				<groupId>io.github.zentol.japicmp</groupId>
+				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
 			</plugin>
 
@@ -1558,6 +1595,8 @@ under the License.
 						<exclude>flink-table/flink-sql-client/src/test/resources/**/*.out</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/**/*.out</exclude>
 						<exclude>flink-table/flink-table-planner/src/test/resources/json/*.json</exclude>
+						<exclude>flink-table/flink-table-planner/src/test/resources/jsonplan/*.json</exclude>
+						<exclude>flink-table/flink-table-planner/src/test/resources/restore-tests/**</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/hadoop/config/keystore.jks</exclude>
@@ -1764,8 +1803,7 @@ under the License.
 						<configuration>
 							<rules>
 								<requireMavenVersion>
-									<!-- enforce at least mvn version 3.1.1 (see FLINK-12447) -->
-									<version>[3.1.1,)</version>
+									<version>[3.8.6]</version>
 								</requireMavenVersion>
 								<requireJavaVersion>
 									<version>${target.java.version}</version>
@@ -2029,6 +2067,9 @@ under the License.
 							<!-- Prevents recompilation due to missing package-info.class, see MCOMPILER-205 -->
 							<arg>-Xpkginfo:always</arg>
 						</compilerArgs>
+						<testExcludes>
+							<testExclude>${test.exclusion.pattern}</testExclude>
+						</testExcludes>
 					</configuration>
 				</plugin>
 
@@ -2209,9 +2250,9 @@ under the License.
 
 				<!-- Configuration for the binary compatibility checker -->
 				<plugin>
-					<groupId>io.github.zentol.japicmp</groupId>
+					<groupId>com.github.siom79.japicmp</groupId>
 					<artifactId>japicmp-maven-plugin</artifactId>
-					<version>0.17.1.1_m325</version>
+					<version>0.17.1</version>
 					<configuration>
 						<oldVersion>
 							<dependency>

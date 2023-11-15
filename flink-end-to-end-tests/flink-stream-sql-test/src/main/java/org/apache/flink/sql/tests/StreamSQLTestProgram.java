@@ -314,8 +314,7 @@ public class StreamSQLTestProgram {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.add(ms);
+            state.update(Collections.singletonList(ms));
         }
     }
 
@@ -367,8 +366,7 @@ public class StreamSQLTestProgram {
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            state.clear();
-            state.add(saveRecordCnt);
+            state.update(Collections.singletonList(saveRecordCnt));
         }
     }
 }

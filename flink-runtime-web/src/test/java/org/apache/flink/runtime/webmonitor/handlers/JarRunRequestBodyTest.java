@@ -21,6 +21,9 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.NoOpTestExtension;
+
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,7 +31,8 @@ import java.util.Collections;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link JarRunRequestBody}. */
-public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRunRequestBody> {
+@ExtendWith(NoOpTestExtension.class)
+class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRunRequestBody> {
 
     @Override
     protected Class<JarRunRequestBody> getTestRequestClass() {

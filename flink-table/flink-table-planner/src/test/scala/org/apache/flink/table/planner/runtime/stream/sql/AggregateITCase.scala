@@ -28,7 +28,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.{changelogRow, registerData}
-import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSumAggFunction
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{UserDefinedObjectUDAF, UserDefinedObjectUDAF2, VarSumAggFunction}
 import org.apache.flink.table.planner.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverloadedMaxFunction
@@ -87,6 +87,55 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     env.execute()
     val expected = List()
     assertEquals(expected, sink.getRetractResults)
+  }
+
+  @Test
+  def testMaxAggRetractWithCondition(): Unit = {
+    val data = new mutable.MutableList[(Int, Int)]
+    data.+=((1, 10))
+    data.+=((1, 10))
+    data.+=((2, 5))
+    data.+=((1, 10))
+
+    val t = failingDataSource(data).toTable(tEnv, 'id, 'price)
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        |SELECT MAX(price) FROM(
+        |   SELECT id, count(*) as c, price FROM T GROUP BY id, price)
+        |WHERE c > 0 and c < 3""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("5")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testMinAggRetractWithCondition(): Unit = {
+    val data = new mutable.MutableList[(Int, Int)]
+    data.+=((1, 5))
+    data.+=((2, 6))
+    data.+=((1, 5))
+
+    val t = failingDataSource(data).toTable(tEnv, 'id, 'price)
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      """
+        |SELECT MIN(price) FROM(
+        |   SELECT id, count(*) as c, price FROM T GROUP BY id, price)
+        |WHERE c < 2""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("6")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
   @Test
@@ -1356,6 +1405,34 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
     val expected = List(
       "Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi," +
         "Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testUserDefinedObjectAgg(): Unit = {
+    tEnv.createTemporaryFunction("user_define_object", new UserDefinedObjectUDAF)
+    tEnv.createTemporaryFunction("user_define_object2", new UserDefinedObjectUDAF2)
+    val sqlQuery =
+      s"""
+         |select t1.a, user_define_object2(t1.d) from 
+         |(SELECT a, user_define_object(b) as d
+         |FROM MyTable GROUP BY a) t1
+         |group by t1.a
+         |""".stripMargin
+    val data = new mutable.MutableList[(Int, String)]
+    data.+=((1, "Sam"))
+    data.+=((1, "Jerry"))
+    data.+=((2, "Ali"))
+    data.+=((3, "Grace"))
+    data.+=((3, "Lucas"))
+
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporaryView("MyTable", t)
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink)
+    env.execute()
+    val expected = List("1,Jerry", "2,Ali", "3,Lucas")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

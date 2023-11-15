@@ -52,6 +52,7 @@ import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -229,13 +230,17 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testCreateTemporarySystemFunctionByUsingJar() {
+    public void testCreateTemporarySystemFunctionByUsingJar() throws Exception {
         String ddl =
                 String.format(
                         "CREATE TEMPORARY SYSTEM FUNCTION f10 AS '%s' USING JAR '%s'",
                         udfClassName, jarPath);
         tEnv().executeSql(ddl);
         assertThat(Arrays.asList(tEnv().listFunctions())).contains("f10");
+
+        try (CloseableIterator<Row> itor = tEnv().executeSql("SHOW JARS").collect()) {
+            assertThat(itor.hasNext()).isFalse();
+        }
 
         tEnv().executeSql("DROP TEMPORARY SYSTEM FUNCTION f10");
         assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f10");

@@ -50,7 +50,7 @@ Apache Flink 提供 Table API 关系型 API 来统一处理流和批，即查询
 如果要继续我们的旅程，你需要一台具有以下功能的计算机：
 
 * Java 11
-* Python 3.7, 3.8, 3.9 or 3.10
+* Python 3.8, 3.9 or 3.10
 
 使用 Python Table API 需要安装 PyFlink，它已经被发布到 [PyPi](https://pypi.org/project/apache-flink/)，你可以通过如下方式安装 PyFlink：
 

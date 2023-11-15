@@ -21,35 +21,38 @@ package org.apache.flink.table.planner.plan.optimize;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 
+import static org.assertj.core.api.Assumptions.assumeThat;
+
 /** Test push project into source with sub plan reuse. */
-@RunWith(Parameterized.class)
-public class ScanReuseTest extends TableTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+class ScanReuseTest extends TableTestBase {
 
     private final boolean isStreaming;
     private final TableTestUtil util;
 
-    public ScanReuseTest(boolean isStreaming) {
+    ScanReuseTest(boolean isStreaming) {
         this.isStreaming = isStreaming;
         TableConfig config = TableConfig.getDefault();
         this.util = isStreaming ? streamTestUtil(config) : batchTestUtil(config);
     }
 
-    @Parameterized.Parameters(name = "isStreaming: {0}")
-    public static Collection<Boolean> parameters() {
+    @Parameters(name = "isStreaming: {0}")
+    private static Collection<Boolean> parameters() {
         return Arrays.asList(true, false);
     }
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         String table =
                 isStreaming
                         ? "CREATE TABLE MyTable (\n"
@@ -87,29 +90,29 @@ public class ScanReuseTest extends TableTestBase {
         util.tableEnv().executeSql(table);
     }
 
-    @Test
-    public void testProject() {
+    @TestTemplate
+    void testProject() {
         String sqlQuery = "SELECT T1.a, T1.c, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProject1() {
+    @TestTemplate
+    void testProject1() {
         // One side projection
         String sqlQuery =
                 "SELECT T1.a, T1.b, T1.c, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProject2() {
+    @TestTemplate
+    void testProject2() {
         // Two side projection
         String sqlQuery = "SELECT T1.a, T1.b, T2.c FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectNested1() {
+    @TestTemplate
+    void testProjectNested1() {
         String sqlQuery =
                 "SELECT T1.a, T1.i, T2.j FROM"
                         + " (SELECT a, nested.i as i FROM MyTable) T1,"
@@ -117,8 +120,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectNested2() {
+    @TestTemplate
+    void testProjectNested2() {
         String sqlQuery =
                 "SELECT T1.a, T1.i, T2.i FROM"
                         + " (SELECT a, nested.i as i FROM MyTable) T1,"
@@ -126,8 +129,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectNestedWithWholeField() {
+    @TestTemplate
+    void testProjectNestedWithWholeField() {
         String sqlQuery =
                 "SELECT * FROM"
                         + " (SELECT a, nested.i FROM MyTable) T1,"
@@ -135,16 +138,16 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithExpr() {
+    @TestTemplate
+    void testProjectWithExpr() {
         String sqlQuery =
                 "SELECT T1.a, T1.b, T2.c FROM"
                         + " (SELECT a, b + 1 as b FROM MyTable) T1, MyTable T2 WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithFilter() {
+    @TestTemplate
+    void testProjectWithFilter() {
         String sqlQuery =
                 "SELECT T1.a, T1.b, T2.c FROM"
                         + " (SELECT * FROM MyTable WHERE b = 2) T1,"
@@ -152,8 +155,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithMeta1() {
+    @TestTemplate
+    void testProjectWithMeta1() {
         // One side meta
         String sqlQuery =
                 "SELECT T1.a, T1.b, T1.metadata_1, T1.metadata_2, T2.c, T2.metadata_2"
@@ -161,8 +164,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithMeta2() {
+    @TestTemplate
+    void testProjectWithMeta2() {
         // One side meta
         String sqlQuery =
                 "SELECT T1.a, T1.b, T1.metadata_1, T2.c, T2.metadata_2"
@@ -170,8 +173,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithMeta3() {
+    @TestTemplate
+    void testProjectWithMeta3() {
         // meta projection
         String sqlQuery =
                 "SELECT T1.a, T1.b, T1.metadata_1, T2.c, T2.metadata_1"
@@ -179,16 +182,16 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithMetaAndCompute() {
+    @TestTemplate
+    void testProjectWithMetaAndCompute() {
         String sqlQuery =
                 "SELECT T1.a, T1.b, T1.metadata_1, T1.compute_metadata, T2.c, T2.metadata_2"
                         + " FROM MyTable T1, MyTable T2 WHERE T1.a = T2.a";
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithHints() {
+    @TestTemplate
+    void testProjectWithHints() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1,"
@@ -197,8 +200,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectReuseWithHints() {
+    @TestTemplate
+    void testProjectReuseWithHints() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1,"
@@ -207,8 +210,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithDifferentHints() {
+    @TestTemplate
+    void testProjectWithDifferentHints() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */ T1,"
@@ -217,8 +220,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithFilterPushDown() {
+    @TestTemplate
+    void testProjectWithFilterPushDown() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " (SELECT * FROM"
@@ -229,8 +232,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectReuseWithFilterPushDown() {
+    @TestTemplate
+    void testProjectReuseWithFilterPushDown() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " (SELECT * FROM"
@@ -241,8 +244,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectReuseWithWatermark() {
+    @TestTemplate
+    void testProjectReuseWithWatermark() {
         if (isStreaming) {
             String ddl =
                     "CREATE TABLE W_T (\n"
@@ -269,8 +272,8 @@ public class ScanReuseTest extends TableTestBase {
         }
     }
 
-    @Test
-    public void testProjectWithLimitPushDown() {
+    @TestTemplate
+    void testProjectWithLimitPushDown() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " (SELECT * FROM"
@@ -281,8 +284,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectReuseWithLimitPushDown() {
+    @TestTemplate
+    void testProjectReuseWithLimitPushDown() {
         String sqlQuery =
                 "SELECT T1.a, T1.c, T2.c FROM"
                         + " (SELECT * FROM"
@@ -293,8 +296,8 @@ public class ScanReuseTest extends TableTestBase {
         util.verifyExecPlan(sqlQuery);
     }
 
-    @Test
-    public void testProjectWithPartitionPushDown() {
+    @TestTemplate
+    void testProjectWithPartitionPushDown() {
         if (!isStreaming) {
             String sqlQuery =
                     "SELECT T1.a, T1.c, T2.c FROM"
@@ -309,8 +312,8 @@ public class ScanReuseTest extends TableTestBase {
         }
     }
 
-    @Test
-    public void testProjectReuseWithPartitionPushDown() {
+    @TestTemplate
+    void testProjectReuseWithPartitionPushDown() {
         if (!isStreaming) {
             String sqlQuery =
                     "SELECT T1.a, T1.c, T2.c FROM"
@@ -323,5 +326,79 @@ public class ScanReuseTest extends TableTestBase {
                             + " WHERE T1.a = T2.a";
             util.verifyExecPlan(sqlQuery);
         }
+    }
+
+    @TestTemplate
+    void testReuseWithReadMetadataAndWatermarkPushDown1() {
+        assumeThat(isStreaming).isTrue();
+        String ddl =
+                "CREATE TABLE MyTable1 (\n"
+                        + "  metadata_0 int METADATA VIRTUAL,\n"
+                        + "  a0 int,\n"
+                        + "  a1 int,\n"
+                        + "  a2 int,\n"
+                        + "  ts STRING,\n "
+                        + "  rowtime as TO_TIMESTAMP(`ts`),\n"
+                        + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'readable-metadata' = 'metadata_0:int',\n"
+                        + " 'enable-watermark-push-down' = 'true',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        // join left side value source without projection spec.
+        String sqlQuery =
+                "SELECT T1.a1, T1.a2 FROM"
+                        + " (SELECT a0, window_start, window_end,"
+                        + " MIN(a1) as a1, MIN(a2) as a2, MIN(metadata_0) as metadata_0"
+                        + " FROM TABLE("
+                        + "   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND)) "
+                        + " GROUP BY a0, window_start, window_end) T1,"
+                        + " (SELECT a0, window_start, window_end, MIN(a1) as a1"
+                        + "  FROM TABLE("
+                        + "   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND)) "
+                        + " GROUP BY a0, window_start, window_end) T2"
+                        + " WHERE T1.a1 = T2.a1";
+        util.verifyExecPlan(sqlQuery);
+    }
+
+    @TestTemplate
+    void testReuseWithReadMetadataAndWatermarkPushDown2() {
+        assumeThat(isStreaming).isTrue();
+        String ddl =
+                "CREATE TABLE MyTable1 (\n"
+                        + "  metadata_0 int METADATA VIRTUAL,\n"
+                        + "  a0 int,\n"
+                        + "  a1 int,\n"
+                        + "  a2 int,\n"
+                        + "  ts STRING,\n "
+                        + "  rowtime as TO_TIMESTAMP(`ts`),\n"
+                        + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
+                        + ") WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'false',\n"
+                        + " 'readable-metadata' = 'metadata_0:int',\n"
+                        + " 'enable-watermark-push-down' = 'true',\n"
+                        + " 'disable-lookup' = 'true'"
+                        + ")";
+        util.tableEnv().executeSql(ddl);
+
+        // join right side value source without projection spec.
+        String sqlQuery =
+                "SELECT T1.a1, T2.a2 FROM"
+                        + " (SELECT a0, window_start, window_end, MIN(a1) as a1"
+                        + "  FROM TABLE("
+                        + "   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND)) "
+                        + " GROUP BY a0, window_start, window_end) T1,"
+                        + " (SELECT a0, window_start, window_end,"
+                        + " MIN(a1) as a1, MIN(a2) as a2, MIN(metadata_0) as metadata_0"
+                        + " FROM TABLE("
+                        + "   TUMBLE(TABLE MyTable1, DESCRIPTOR(rowtime), INTERVAL '1' SECOND)) "
+                        + " GROUP BY a0, window_start, window_end) T2"
+                        + " WHERE T1.a1 = T2.a1";
+        util.verifyExecPlan(sqlQuery);
     }
 }

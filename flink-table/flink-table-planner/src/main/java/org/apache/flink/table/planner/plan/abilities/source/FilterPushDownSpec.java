@@ -45,6 +45,8 @@ import java.util.Optional;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
 
+import scala.Option;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -104,7 +106,10 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
                             context.getFunctionCatalog(),
                             context.getCatalogManager(),
                             TimeZone.getTimeZone(
-                                    TableConfigUtils.getLocalTimeZone(context.getTableConfig())));
+                                    TableConfigUtils.getLocalTimeZone(context.getTableConfig())),
+                            Option.apply(
+                                    context.getTypeFactory()
+                                            .buildRelNodeRowType(context.getSourceRowType())));
             List<Expression> filters =
                     predicates.stream()
                             .map(

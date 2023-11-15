@@ -43,12 +43,10 @@ import org.apache.flink.types.NullKeyFieldException;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.MutableObjectIterator;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -56,10 +54,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
-public class HashTableITCase extends TestLogger {
+class HashTableITCase {
 
     private static final AbstractInvokable MEM_OWNER = new DummyInvokable();
 
@@ -78,8 +76,8 @@ public class HashTableITCase extends TestLogger {
     private TypeComparator<IntPair> pairProbeSideComparator;
     private TypePairComparator<IntPair, IntPair> pairComparator;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         final int[] keyPos = new int[] {0};
         @SuppressWarnings("unchecked")
         final Class<? extends Value>[] keyType =
@@ -101,40 +99,41 @@ public class HashTableITCase extends TestLogger {
         this.ioManager = new IOManagerAsync();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterEach
+    void tearDown() throws Exception {
         // shut down I/O manager and Memory Manager and verify the correct shutdown
         this.ioManager.close();
-        if (!this.memManager.verifyEmpty()) {
-            fail("Not all memory was properly released to the memory manager --> Memory Leak.");
-        }
+        assertThat(this.memManager.verifyEmpty())
+                .withFailMessage(
+                        "Not all memory was properly released to the memory manager --> Memory Leak.")
+                .isTrue();
     }
 
     @Test
-    public void testIOBufferCountComputation() {
-        assertEquals(1, MutableHashTable.getNumWriteBehindBuffers(32));
-        assertEquals(1, MutableHashTable.getNumWriteBehindBuffers(33));
-        assertEquals(1, MutableHashTable.getNumWriteBehindBuffers(40));
-        assertEquals(1, MutableHashTable.getNumWriteBehindBuffers(64));
-        assertEquals(1, MutableHashTable.getNumWriteBehindBuffers(127));
-        assertEquals(2, MutableHashTable.getNumWriteBehindBuffers(128));
-        assertEquals(2, MutableHashTable.getNumWriteBehindBuffers(129));
-        assertEquals(2, MutableHashTable.getNumWriteBehindBuffers(511));
-        assertEquals(3, MutableHashTable.getNumWriteBehindBuffers(512));
-        assertEquals(3, MutableHashTable.getNumWriteBehindBuffers(513));
-        assertEquals(3, MutableHashTable.getNumWriteBehindBuffers(2047));
-        assertEquals(4, MutableHashTable.getNumWriteBehindBuffers(2048));
-        assertEquals(4, MutableHashTable.getNumWriteBehindBuffers(2049));
-        assertEquals(4, MutableHashTable.getNumWriteBehindBuffers(8191));
-        assertEquals(5, MutableHashTable.getNumWriteBehindBuffers(8192));
-        assertEquals(5, MutableHashTable.getNumWriteBehindBuffers(8193));
-        assertEquals(5, MutableHashTable.getNumWriteBehindBuffers(32767));
-        assertEquals(6, MutableHashTable.getNumWriteBehindBuffers(32768));
-        assertEquals(6, MutableHashTable.getNumWriteBehindBuffers(Integer.MAX_VALUE));
+    void testIOBufferCountComputation() {
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(32)).isOne();
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(33)).isOne();
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(40)).isOne();
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(64)).isOne();
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(127)).isOne();
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(128)).isEqualTo(2);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(129)).isEqualTo(2);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(511)).isEqualTo(2);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(512)).isEqualTo(3);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(513)).isEqualTo(3);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(2047)).isEqualTo(3);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(2048)).isEqualTo(4);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(2049)).isEqualTo(4);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(8191)).isEqualTo(4);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(8192)).isEqualTo(5);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(8193)).isEqualTo(5);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(32767)).isEqualTo(5);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(32768)).isEqualTo(6);
+        assertThat(MutableHashTable.getNumWriteBehindBuffers(Integer.MAX_VALUE)).isEqualTo(6);
     }
 
     @Test
-    public void testInMemoryMutableHashTable() throws IOException {
+    void testInMemoryMutableHashTable() throws IOException {
         final int NUM_KEYS = 100000;
         final int BUILD_VALS_PER_KEY = 3;
         final int PROBE_VALS_PER_KEY = 10;
@@ -178,10 +177,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .describedAs("Wrong number of records in join result.")
+                .isEqualTo(NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
 
@@ -191,7 +189,7 @@ public class HashTableITCase extends TestLogger {
     }
 
     @Test
-    public void testSpillingHashJoinOneRecursionPerformance() throws IOException {
+    void testSpillingHashJoinOneRecursionPerformance() throws IOException {
         final int NUM_KEYS = 1000000;
         final int BUILD_VALS_PER_KEY = 3;
         final int PROBE_VALS_PER_KEY = 10;
@@ -235,10 +233,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .describedAs("Wrong number of records in join result.")
+                .isEqualTo(NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
 
@@ -248,7 +245,7 @@ public class HashTableITCase extends TestLogger {
     }
 
     @Test
-    public void testSpillingHashJoinOneRecursionValidity() throws IOException {
+    void testSpillingHashJoinOneRecursionValidity() throws IOException {
         final int NUM_KEYS = 1000000;
         final int BUILD_VALS_PER_KEY = 3;
         final int PROBE_VALS_PER_KEY = 10;
@@ -310,10 +307,9 @@ public class HashTableITCase extends TestLogger {
             }
 
             Record pr = join.getCurrentProbeRecord();
-            Assert.assertEquals(
-                    "Probe-side key was different than build-side key.",
-                    key,
-                    pr.getField(0, IntValue.class).getValue());
+            assertThat(pr.getField(0, IntValue.class).getValue())
+                    .withFailMessage("Probe-side key was different than build-side key.")
+                    .isEqualTo(key);
 
             Long contained = map.get(key);
             if (contained == null) {
@@ -327,15 +323,15 @@ public class HashTableITCase extends TestLogger {
 
         join.close();
 
-        Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+        assertThat(map).withFailMessage("Wrong number of keys").hasSize(NUM_KEYS);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+            assertThat(val)
+                    .withFailMessage(
+                            "Wrong number of values in per-key cross product for key %d", key)
+                    .isEqualTo(PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -344,7 +340,7 @@ public class HashTableITCase extends TestLogger {
     }
 
     @Test
-    public void testSpillingHashJoinWithMassiveCollisions() throws IOException {
+    void testSpillingHashJoinWithMassiveCollisions() throws IOException {
         // the following two values are known to have a hash-code collision on the initial level.
         // we use them to make sure one partition grows over-proportionally large
         final int REPEATED_VALUE_1 = 40559;
@@ -422,19 +418,17 @@ public class HashTableITCase extends TestLogger {
             MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
             if ((record = buildSide.next(recordReuse)) != null) {
                 numBuildValues = 1;
-                Assert.assertEquals(
-                        "Probe-side key was different than build-side key.",
-                        key,
-                        record.getField(0, IntValue.class).getValue());
+                assertThat(record.getField(0, IntValue.class).getValue())
+                        .withFailMessage("Probe-side key was different than build-side key.")
+                        .isEqualTo(key);
             } else {
                 fail("No build side values found for a probe key.");
             }
             while ((record = buildSide.next(recordReuse)) != null) {
                 numBuildValues++;
-                Assert.assertEquals(
-                        "Probe-side key was different than build-side key.",
-                        key,
-                        record.getField(0, IntValue.class).getValue());
+                assertThat(record.getField(0, IntValue.class).getValue())
+                        .withFailMessage("Probe-side key was different than build-side key.")
+                        .isEqualTo(key);
             }
 
             Long contained = map.get(key);
@@ -449,18 +443,19 @@ public class HashTableITCase extends TestLogger {
 
         join.close();
 
-        Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+        assertThat(map).withFailMessage("Wrong number of keys").hasSize(NUM_KEYS);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
-                            ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
-                                    * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
-                            : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+            assertThat(val)
+                    .withFailMessage(
+                            "Wrong number of values in per-key cross product for key %d", key)
+                    .isEqualTo(
+                            (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
+                                    ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
+                                            * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
+                                    : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -474,7 +469,7 @@ public class HashTableITCase extends TestLogger {
      * fits into memory by itself and needs to be repartitioned in the recursion again.
      */
     @Test
-    public void testSpillingHashJoinWithTwoRecursions() throws IOException {
+    void testSpillingHashJoinWithTwoRecursions() throws IOException {
         // the following two values are known to have a hash-code collision on the first recursion
         // level.
         // we use them to make sure one partition grows over-proportionally large
@@ -553,19 +548,17 @@ public class HashTableITCase extends TestLogger {
             MutableObjectIterator<Record> buildSide = join.getBuildSideIterator();
             if ((record = buildSide.next(recordReuse)) != null) {
                 numBuildValues = 1;
-                Assert.assertEquals(
-                        "Probe-side key was different than build-side key.",
-                        key,
-                        record.getField(0, IntValue.class).getValue());
+                assertThat(record.getField(0, IntValue.class).getValue())
+                        .withFailMessage("Probe-side key was different than build-side key.")
+                        .isEqualTo(key);
             } else {
                 fail("No build side values found for a probe key.");
             }
             while ((record = buildSide.next(recordReuse)) != null) {
                 numBuildValues++;
-                Assert.assertEquals(
-                        "Probe-side key was different than build-side key.",
-                        key,
-                        record.getField(0, IntValue.class).getValue());
+                assertThat(record.getField(0, IntValue.class).getValue())
+                        .withFailMessage("Probe-side key was different than build-side key.")
+                        .isEqualTo(key);
             }
 
             Long contained = map.get(key);
@@ -580,18 +573,19 @@ public class HashTableITCase extends TestLogger {
 
         join.close();
 
-        Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+        assertThat(map).withFailMessage("Wrong number of keys").hasSize(NUM_KEYS);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
-                            ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
-                                    * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
-                            : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+            assertThat(val)
+                    .withFailMessage(
+                            "Wrong number of values in per-key cross product for key " + key)
+                    .isEqualTo(
+                            (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
+                                    ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
+                                            * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
+                                    : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -605,7 +599,7 @@ public class HashTableITCase extends TestLogger {
      * fits into memory by itself and needs to be repartitioned in the recursion again.
      */
     @Test
-    public void testFailingHashJoinTooManyRecursions() throws IOException {
+    void testFailingHashJoinTooManyRecursions() throws IOException {
         // the following two values are known to have a hash-code collision on the first recursion
         // level.
         // we use them to make sure one partition grows over-proportionally large
@@ -694,7 +688,7 @@ public class HashTableITCase extends TestLogger {
      * few probe records are used that some partitions remain empty.
      */
     @Test
-    public void testSparseProbeSpilling() throws IOException, MemoryAllocationException {
+    void testSparseProbeSpilling() throws IOException {
         final int NUM_BUILD_KEYS = 1000000;
         final int NUM_BUILD_VALS = 1;
         final int NUM_PROBE_KEYS = 20;
@@ -735,10 +729,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                expectedNumResults,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(expectedNumResults);
 
         join.close();
 
@@ -750,8 +743,7 @@ public class HashTableITCase extends TestLogger {
      * that requires spilled build-side records to be returned and counted.
      */
     @Test
-    public void testSparseProbeSpillingWithOuterJoin()
-            throws IOException, MemoryAllocationException {
+    void testSparseProbeSpillingWithOuterJoin() throws IOException {
         final int NUM_BUILD_KEYS = 1000000;
         final int NUM_BUILD_VALS = 1;
         final int NUM_PROBE_KEYS = 20;
@@ -793,10 +785,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                expectedNumResults,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(expectedNumResults);
 
         join.close();
 
@@ -808,7 +799,7 @@ public class HashTableITCase extends TestLogger {
      * during an insert into the same.
      */
     @Test
-    public void validateSpillingDuringInsertion() throws IOException, MemoryAllocationException {
+    void validateSpillingDuringInsertion() throws IOException {
         final int NUM_BUILD_KEYS = 500000;
         final int NUM_BUILD_VALS = 1;
         final int NUM_PROBE_KEYS = 10;
@@ -849,10 +840,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                expectedNumResults,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(expectedNumResults);
 
         join.close();
 
@@ -864,7 +854,7 @@ public class HashTableITCase extends TestLogger {
     // ============================================================================================
 
     @Test
-    public void testInMemoryMutableHashTableIntPair() throws IOException {
+    void testInMemoryMutableHashTableIntPair() throws IOException {
         final int NUM_KEYS = 100000;
         final int BUILD_VALS_PER_KEY = 3;
         final int PROBE_VALS_PER_KEY = 10;
@@ -908,10 +898,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
 
@@ -921,7 +910,7 @@ public class HashTableITCase extends TestLogger {
     }
 
     @Test
-    public void testSpillingHashJoinOneRecursionPerformanceIntPair() throws IOException {
+    void testSpillingHashJoinOneRecursionPerformanceIntPair() throws IOException {
         final int NUM_KEYS = 1000000;
         final int BUILD_VALS_PER_KEY = 3;
         final int PROBE_VALS_PER_KEY = 10;
@@ -965,10 +954,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
 
@@ -978,7 +966,7 @@ public class HashTableITCase extends TestLogger {
     }
 
     @Test
-    public void testSpillingHashJoinOneRecursionValidityIntPair() throws IOException {
+    void testSpillingHashJoinOneRecursionValidityIntPair() throws IOException {
         final int NUM_KEYS = 1000000;
         final int BUILD_VALS_PER_KEY = 3;
         final int PROBE_VALS_PER_KEY = 10;
@@ -1040,8 +1028,9 @@ public class HashTableITCase extends TestLogger {
             }
 
             IntPair pr = join.getCurrentProbeRecord();
-            Assert.assertEquals(
-                    "Probe-side key was different than build-side key.", key, pr.getKey());
+            assertThat(pr.getKey())
+                    .withFailMessage("Probe-side key was different than build-side key.")
+                    .isEqualTo(key);
 
             Long contained = map.get(key);
             if (contained == null) {
@@ -1055,15 +1044,15 @@ public class HashTableITCase extends TestLogger {
 
         join.close();
 
-        Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+        assertThat(map).withFailMessage("Wrong number of keys").hasSize(NUM_KEYS);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+            assertThat(val)
+                    .withFailMessage(
+                            "Wrong number of values in per-key cross product for key %d", key)
+                    .isEqualTo(PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -1072,7 +1061,7 @@ public class HashTableITCase extends TestLogger {
     }
 
     @Test
-    public void testSpillingHashJoinWithMassiveCollisionsIntPair() throws IOException {
+    void testSpillingHashJoinWithMassiveCollisionsIntPair() throws IOException {
         // the following two values are known to have a hash-code collision on the initial level.
         // we use them to make sure one partition grows over-proportionally large
         final int REPEATED_VALUE_1 = 40559;
@@ -1150,15 +1139,17 @@ public class HashTableITCase extends TestLogger {
             MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
             if ((record = buildSide.next(recordReuse)) != null) {
                 numBuildValues = 1;
-                Assert.assertEquals(
-                        "Probe-side key was different than build-side key.", key, record.getKey());
+                assertThat(record.getKey())
+                        .withFailMessage("Probe-side key was different than build-side key.")
+                        .isEqualTo(key);
             } else {
                 fail("No build side values found for a probe key.");
             }
             while ((record = buildSide.next(recordReuse)) != null) {
                 numBuildValues++;
-                Assert.assertEquals(
-                        "Probe-side key was different than build-side key.", key, record.getKey());
+                assertThat(record.getKey())
+                        .withFailMessage("Probe-side key was different than build-side key.")
+                        .isEqualTo(key);
             }
 
             Long contained = map.get(key);
@@ -1173,18 +1164,19 @@ public class HashTableITCase extends TestLogger {
 
         join.close();
 
-        Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+        assertThat(map).withFailMessage("Wrong number of keys").hasSize(NUM_KEYS);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
-                            ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
-                                    * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
-                            : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+            assertThat(val)
+                    .withFailMessage(
+                            "Wrong number of values in per-key cross product for key %d", key)
+                    .isEqualTo(
+                            (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
+                                    ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
+                                            * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
+                                    : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -1198,7 +1190,7 @@ public class HashTableITCase extends TestLogger {
      * fits into memory by itself and needs to be repartitioned in the recursion again.
      */
     @Test
-    public void testSpillingHashJoinWithTwoRecursionsIntPair() throws IOException {
+    void testSpillingHashJoinWithTwoRecursionsIntPair() throws IOException {
         // the following two values are known to have a hash-code collision on the first recursion
         // level.
         // we use them to make sure one partition grows over-proportionally large
@@ -1277,15 +1269,17 @@ public class HashTableITCase extends TestLogger {
             MutableObjectIterator<IntPair> buildSide = join.getBuildSideIterator();
             if ((record = buildSide.next(recordReuse)) != null) {
                 numBuildValues = 1;
-                Assert.assertEquals(
-                        "Probe-side key was different than build-side key.", key, record.getKey());
+                assertThat(record.getKey())
+                        .withFailMessage("Probe-side key was different than build-side key.")
+                        .isEqualTo(key);
             } else {
                 fail("No build side values found for a probe key.");
             }
             while ((record = buildSide.next(recordReuse)) != null) {
                 numBuildValues++;
-                Assert.assertEquals(
-                        "Probe-side key was different than build-side key.", key, record.getKey());
+                assertThat(record.getKey())
+                        .withFailMessage("Probe-side key was different than build-side key.")
+                        .isEqualTo(key);
             }
 
             Long contained = map.get(key);
@@ -1300,18 +1294,19 @@ public class HashTableITCase extends TestLogger {
 
         join.close();
 
-        Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+        assertThat(map).withFailMessage("Wrong number of keys").hasSize(NUM_KEYS);
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
-            Assert.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
-                    (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
-                            ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
-                                    * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
-                            : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+            assertThat(val)
+                    .withFailMessage(
+                            "Wrong number of values in per-key cross product for key %d", key)
+                    .isEqualTo(
+                            (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
+                                    ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
+                                            * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
+                                    : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -1325,7 +1320,7 @@ public class HashTableITCase extends TestLogger {
      * fits into memory by itself and needs to be repartitioned in the recursion again.
      */
     @Test
-    public void testFailingHashJoinTooManyRecursionsIntPair() throws IOException {
+    void testFailingHashJoinTooManyRecursionsIntPair() throws IOException {
         // the following two values are known to have a hash-code collision on the first recursion
         // level.
         // we use them to make sure one partition grows over-proportionally large
@@ -1416,7 +1411,7 @@ public class HashTableITCase extends TestLogger {
      * few probe records are used that some partitions remain empty.
      */
     @Test
-    public void testSparseProbeSpillingIntPair() throws IOException, MemoryAllocationException {
+    void testSparseProbeSpillingIntPair() throws IOException {
         final int NUM_BUILD_KEYS = 1000000;
         final int NUM_BUILD_VALS = 1;
         final int NUM_PROBE_KEYS = 20;
@@ -1457,10 +1452,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                expectedNumResults,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(expectedNumResults);
 
         join.close();
 
@@ -1472,8 +1466,7 @@ public class HashTableITCase extends TestLogger {
      * during an insert into the same.
      */
     @Test
-    public void validateSpillingDuringInsertionIntPair()
-            throws IOException, MemoryAllocationException {
+    void validateSpillingDuringInsertionIntPair() throws IOException {
         final int NUM_BUILD_KEYS = 500000;
         final int NUM_BUILD_VALS = 1;
         final int NUM_PROBE_KEYS = 10;
@@ -1514,10 +1507,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                expectedNumResults,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(expectedNumResults);
 
         join.close();
 
@@ -1525,7 +1517,7 @@ public class HashTableITCase extends TestLogger {
     }
 
     @Test
-    public void testInMemoryReOpen() throws IOException {
+    void testInMemoryReOpen() throws IOException {
         final int NUM_KEYS = 100000;
         final int BUILD_VALS_PER_KEY = 3;
         final int PROBE_VALS_PER_KEY = 10;
@@ -1569,10 +1561,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
 
@@ -1595,10 +1586,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
 
@@ -1612,7 +1602,7 @@ public class HashTableITCase extends TestLogger {
      * validates a bug fix MutableHashTable memory leakage with small memory segments.
      */
     @Test
-    public void testInMemoryReOpenWithSmallMemory() throws Exception {
+    void testInMemoryReOpenWithSmallMemory() throws Exception {
         final int NUM_KEYS = 10000;
         final int BUILD_VALS_PER_KEY = 3;
         final int PROBE_VALS_PER_KEY = 10;
@@ -1657,10 +1647,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
 
@@ -1683,10 +1672,9 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
 
@@ -1696,7 +1684,7 @@ public class HashTableITCase extends TestLogger {
     }
 
     @Test
-    public void testBucketsNotFulfillSegment() throws Exception {
+    void testBucketsNotFulfillSegment() throws Exception {
         final int NUM_KEYS = 10000;
         final int BUILD_VALS_PER_KEY = 3;
         final int PROBE_VALS_PER_KEY = 10;
@@ -1757,17 +1745,16 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
         this.memManager.release(join.getFreedMemory());
     }
 
     @Test
-    public void testHashWithBuildSideOuterJoin1() throws Exception {
+    void testHashWithBuildSideOuterJoin1() throws Exception {
         final int NUM_KEYS = 20000;
         final int BUILD_VALS_PER_KEY = 1;
         final int PROBE_VALS_PER_KEY = 1;
@@ -1812,17 +1799,16 @@ public class HashTableITCase extends TestLogger {
                 numRecordsInJoinResult++;
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                2 * NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(2 * NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
         this.memManager.release(join.getFreedMemory());
     }
 
     @Test
-    public void testHashWithBuildSideOuterJoin2() throws Exception {
+    void testHashWithBuildSideOuterJoin2() throws Exception {
         final int NUM_KEYS = 40000;
         final int BUILD_VALS_PER_KEY = 2;
         final int PROBE_VALS_PER_KEY = 1;
@@ -1876,10 +1862,9 @@ public class HashTableITCase extends TestLogger {
                 next = buildSide.next(recordReuse);
             }
         }
-        Assert.assertEquals(
-                "Wrong number of records in join result.",
-                NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY,
-                numRecordsInJoinResult);
+        assertThat(numRecordsInJoinResult)
+                .withFailMessage("Wrong number of records in join result.")
+                .isEqualTo(NUM_KEYS * BUILD_VALS_PER_KEY * PROBE_VALS_PER_KEY);
 
         join.close();
         this.memManager.release(join.getFreedMemory());

@@ -18,11 +18,11 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichFilterFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -145,7 +145,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             step = getRuntimeContext().getNumberOfParallelSubtasks();
             if (index == 0) {
                 index = getRuntimeContext().getIndexOfThisSubtask();
@@ -256,7 +256,7 @@ public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
         }
 
         @Override
-        public void open(Configuration parameters) throws IOException {
+        public void open(OpenContext openContext) throws IOException {
             long failurePosMin =
                     (long) (0.4 * numElements / getRuntimeContext().getNumberOfParallelSubtasks());
             long failurePosMax =

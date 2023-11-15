@@ -59,12 +59,9 @@ public final class SpecificTypeStrategies {
     public static final TypeStrategy ARRAY = new ArrayTypeStrategy();
 
     /** Type strategy specific for array element. */
-    public static final TypeStrategy ARRAY_ELEMENT =
-            callContext ->
-                    Optional.of(
-                            ((CollectionDataType) callContext.getArgumentDataTypes().get(0))
-                                    .getElementDataType());
+    public static final TypeStrategy ARRAY_ELEMENT = new ArrayElementTypeStrategy();
 
+    public static final TypeStrategy ITEM_AT = new ItemAtTypeStrategy();
     /** See {@link GetTypeStrategy}. */
     public static final TypeStrategy GET = new GetTypeStrategy();
 
@@ -94,6 +91,9 @@ public final class SpecificTypeStrategies {
 
     /** See {@link CurrentWatermarkTypeStrategy}. */
     public static final TypeStrategy CURRENT_WATERMARK = new CurrentWatermarkTypeStrategy();
+
+    /** See {@link RowtimeTypeStrategy}. */
+    public static final TypeStrategy ROWTIME = new RowtimeTypeStrategy();
 
     /** See {@link InternalReplicateRowsTypeStrategy}. */
     public static final TypeStrategy INTERNAL_REPLICATE_ROWS =

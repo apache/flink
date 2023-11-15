@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.runtime.operators.join.lookup;
 
+import org.apache.flink.api.common.functions.DefaultOpenContext;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
@@ -80,10 +81,10 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
     }
 
     @Override
-    public void open(Configuration parameters) throws Exception {
-        super.open(parameters);
+    public void open(OpenContext openContext) throws Exception {
+        super.open(openContext);
         lookupJoinRunner.setRuntimeContext(getRuntimeContext());
-        lookupJoinRunner.open(parameters);
+        lookupJoinRunner.open(DefaultOpenContext.INSTANCE);
 
         if (lookupKeyContainsPrimaryKey) {
             ValueStateDescriptor<RowData> valueStateDescriptor =
@@ -134,7 +135,7 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
             // fetcher has copied the input field when object reuse is enabled
             lookupJoinRunner.doFetch(in);
 
-            // update state will empty row if lookup miss
+            // update state with empty row if lookup miss or pre-filtered
             if (!collectListener.collected) {
                 updateState(emptyRow);
             }

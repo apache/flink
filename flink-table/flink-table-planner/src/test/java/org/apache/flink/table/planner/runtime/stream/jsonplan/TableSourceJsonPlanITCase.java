@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Arrays;
@@ -32,10 +32,10 @@ import java.util.List;
 import static org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime;
 
 /** Test for table source json plan. */
-public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
+class TableSourceJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
-    public void testProjectPushDown() throws Exception {
+    void testProjectPushDown() throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
         createTestCsvSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createTestCsvSinkTable("MySink", "a bigint", "b int");
@@ -46,7 +46,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testReadingMetadata() throws Exception {
+    void testReadingMetadata() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.smallData3()),
@@ -65,7 +65,27 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testFilterPushDown() throws Exception {
+    void testReadingMetadataWithProjectionPushDownDisabled() throws Exception {
+        createTestValuesSourceTable(
+                "MyTable",
+                JavaScalaConversionUtil.toJava(TestData.smallData3()),
+                new String[] {"a int", "b bigint", "m varchar metadata"},
+                new HashMap<String, String>() {
+                    {
+                        put("readable-metadata", "m:STRING");
+                        put("enable-projection-push-down", "false");
+                    }
+                });
+
+        File sinkPath = createTestCsvSinkTable("MySink", "a int", "m varchar");
+
+        compileSqlAndExecutePlan("insert into MySink select a, m from MyTable").await();
+
+        assertResult(Arrays.asList("1,Hi", "2,Hello", "3,Hello world"), sinkPath);
+    }
+
+    @Test
+    void testFilterPushDown() throws Exception {
         List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
         createTestCsvSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createTestCsvSinkTable("MySink", "a bigint", "b int", "c varchar");
@@ -76,7 +96,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testPartitionPushDown() throws Exception {
+    void testPartitionPushDown() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.smallData3()),
@@ -95,7 +115,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testWatermarkPushDown() throws Exception {
+    void testWatermarkPushDown() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.data3WithTimestamp()),
@@ -126,7 +146,7 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testPushDowns() throws Exception {
+    void testPushDowns() throws Exception {
         createTestValuesSourceTable(
                 "MyTable",
                 JavaScalaConversionUtil.toJava(TestData.data3WithTimestamp()),

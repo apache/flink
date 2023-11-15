@@ -24,20 +24,22 @@ import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackendMigrationTestBase;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 
 /** Tests for the partitioned state part of {@link ChangelogStateBackend}. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class ChangelogStateBackendMigrationTest
         extends StateBackendMigrationTestBase<ChangelogStateBackend> {
 
-    @Parameterized.Parameters
+    @Parameters
     public static List<Supplier<AbstractStateBackend>> modes() {
         return Arrays.asList(
                 HashMapStateBackend::new,
@@ -45,7 +47,7 @@ public class ChangelogStateBackendMigrationTest
                 () -> new EmbeddedRocksDBStateBackend(true));
     }
 
-    @Parameterized.Parameter public Supplier<AbstractStateBackend> delegatedStateBackendSupplier;
+    @Parameter public Supplier<AbstractStateBackend> delegatedStateBackendSupplier;
 
     @Override
     protected ChangelogStateBackend getStateBackend() throws Exception {

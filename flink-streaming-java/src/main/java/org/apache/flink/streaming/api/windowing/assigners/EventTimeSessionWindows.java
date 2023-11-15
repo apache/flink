@@ -65,6 +65,12 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 
     @Override
     public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException(
+                "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
+    }
+
+    @Override
+    public Trigger<Object, TimeWindow> getDefaultTrigger() {
         return EventTimeTrigger.create();
     }
 

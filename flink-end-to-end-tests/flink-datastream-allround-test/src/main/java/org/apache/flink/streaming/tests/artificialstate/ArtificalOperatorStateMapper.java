@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.util.Preconditions;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -176,8 +177,7 @@ public class ArtificalOperatorStateMapper<IN, OUT> extends RichMapFunction<IN, O
         }
 
         // each subtask only stores its own subtask index as a subset of the union set
-        unionElementsState.clear();
-        unionElementsState.add(thisSubtaskIndex);
+        unionElementsState.update(Collections.singletonList(thisSubtaskIndex));
     }
 
     private String getBroadcastStateEntryValue(int thisSubtaskIndex) {

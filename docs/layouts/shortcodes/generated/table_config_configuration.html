@@ -27,10 +27,16 @@
             <td>A (semicolon-separated) list of factories that creates listener for catalog modification which will be notified in catalog manager after it performs database and table ddl operations successfully.</td>
         </tr>
         <tr>
+            <td><h5>table.column-expansion-strategy</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;"></td>
+            <td><p>List&lt;Enum&gt;</p></td>
+            <td>Configures the default expansion behavior of 'SELECT *'. By default, all top-level columns of the table's schema are selected and nested fields are retained.<br /><br />Possible values:<ul><li>"EXCLUDE_ALIASED_VIRTUAL_METADATA_COLUMNS": Excludes virtual metadata columns that reference a metadata key via an alias. For example, a column declared as 'c METADATA VIRTUAL FROM k' is not selected by default if the strategy is applied.</li><li>"EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS": Excludes virtual metadata columns that directly reference a metadata key. For example, a column declared as 'k METADATA VIRTUAL' is not selected by default if the strategy is applied.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.display.max-column-width</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">30</td>
             <td>Integer</td>
-            <td>When printing the query results to the client console, this parameter determines the number of characters shown on screen before truncating. This only applies to columns with variable-length types (e.g. STRING) in the streaming mode. Fixed-length types are printed in the batch mode using a deterministic column width.</td>
+            <td>When printing the query results to the client console, this parameter determines the number of characters shown on screen before truncating. This only applies to columns with variable-length types (e.g. CHAR, VARCHAR, STRING) in the streaming mode. Fixed-length types are printed in the batch mode using a deterministic column width.</td>
         </tr>
         <tr>
             <td><h5>table.dml-sync</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

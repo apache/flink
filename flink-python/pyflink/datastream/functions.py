@@ -1524,7 +1524,7 @@ class KeyedBroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[KEY, I
             pass
 
         @abstractmethod
-        def get_current_key(self) -> KEY:
+        def get_current_key(self) -> KEY:  # type: ignore[type-var]
             """
             Get key of the element being processed.
             """
@@ -1544,7 +1544,7 @@ class KeyedBroadcastProcessFunction(BaseBroadcastProcessFunction, Generic[KEY, I
             pass
 
         @abstractmethod
-        def get_current_key(self) -> KEY:
+        def get_current_key(self) -> KEY:  # type: ignore[type-var]
             """
             Get the key of the firing timer.
             """

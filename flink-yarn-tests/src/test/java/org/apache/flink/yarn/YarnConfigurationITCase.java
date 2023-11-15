@@ -53,7 +53,9 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -93,7 +95,10 @@ class YarnConfigurationITCase extends YarnTestBase {
                                     true);
 
                     clusterDescriptor.setLocalJarPath(new Path(flinkUberjar.getAbsolutePath()));
-                    clusterDescriptor.addShipFiles(Arrays.asList(flinkLibFolder.listFiles()));
+                    clusterDescriptor.addShipFiles(
+                            Arrays.stream(Objects.requireNonNull(flinkLibFolder.listFiles()))
+                                    .map(file -> new Path(file.toURI()))
+                                    .collect(Collectors.toList()));
 
                     final File streamingWordCountFile = getTestJarPath("WindowJoin.jar");
 

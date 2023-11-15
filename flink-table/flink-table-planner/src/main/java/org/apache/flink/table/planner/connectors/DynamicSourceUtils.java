@@ -41,6 +41,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata
 import org.apache.flink.table.connector.source.abilities.SupportsRowLevelModificationScan;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
+import org.apache.flink.table.planner.plan.abilities.source.ReadingMetadataSpec;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
@@ -61,6 +62,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -121,12 +123,25 @@ public final class DynamicSourceUtils {
         final String tableDebugName = contextResolvedTable.getIdentifier().asSummaryString();
         final ResolvedCatalogTable resolvedCatalogTable = contextResolvedTable.getResolvedTable();
 
+        final List<SourceAbilitySpec> sourceAbilities = new ArrayList<>();
         // 1. prepare table source
         prepareDynamicSource(
-                tableDebugName, resolvedCatalogTable, tableSource, isBatchMode, config);
+                tableDebugName,
+                resolvedCatalogTable,
+                tableSource,
+                isBatchMode,
+                config,
+                sourceAbilities);
 
         // 2. push table scan
-        pushTableScan(isBatchMode, relBuilder, contextResolvedTable, statistic, hints, tableSource);
+        pushTableScan(
+                isBatchMode,
+                relBuilder,
+                contextResolvedTable,
+                statistic,
+                hints,
+                tableSource,
+                sourceAbilities);
 
         // 3. push project for non-physical columns
         final ResolvedSchema schema = contextResolvedTable.getResolvedSchema();
@@ -152,10 +167,11 @@ public final class DynamicSourceUtils {
             ResolvedCatalogTable table,
             DynamicTableSource source,
             boolean isBatchMode,
-            ReadableConfig config) {
+            ReadableConfig config,
+            List<SourceAbilitySpec> sourceAbilities) {
         final ResolvedSchema schema = table.getResolvedSchema();
 
-        validateAndApplyMetadata(tableDebugName, schema, source);
+        validateAndApplyMetadata(tableDebugName, schema, source, sourceAbilities);
 
         if (source instanceof ScanTableSource) {
             validateScanSource(
@@ -174,7 +190,7 @@ public final class DynamicSourceUtils {
      *
      * <p>This method assumes that source and schema have been validated via {@link
      * #prepareDynamicSource(String, ResolvedCatalogTable, DynamicTableSource, boolean,
-     * ReadableConfig)}.
+     * ReadableConfig, List)}.
      */
     public static List<MetadataColumn> createRequiredMetadataColumns(
             ResolvedSchema schema, DynamicTableSource source) {
@@ -357,7 +373,8 @@ public final class DynamicSourceUtils {
             ContextResolvedTable contextResolvedTable,
             FlinkStatistic statistic,
             List<RelHint> hints,
-            DynamicTableSource tableSource) {
+            DynamicTableSource tableSource,
+            List<SourceAbilitySpec> sourceAbilities) {
         final RowType producedType =
                 createProducedType(contextResolvedTable.getResolvedSchema(), tableSource);
         final RelDataType producedRelDataType =
@@ -373,7 +390,7 @@ public final class DynamicSourceUtils {
                         contextResolvedTable,
                         ShortcutUtils.unwrapContext(relBuilder),
                         ShortcutUtils.unwrapTypeFactory(relBuilder),
-                        new SourceAbilitySpec[0]);
+                        sourceAbilities.toArray(new SourceAbilitySpec[0]));
 
         final LogicalTableScan scan =
                 LogicalTableScan.create(relBuilder.getCluster(), tableSourceTable, hints);
@@ -395,7 +412,10 @@ public final class DynamicSourceUtils {
     }
 
     public static void validateAndApplyMetadata(
-            String tableDebugName, ResolvedSchema schema, DynamicTableSource source) {
+            String tableDebugName,
+            ResolvedSchema schema,
+            DynamicTableSource source,
+            List<SourceAbilitySpec> sourceAbilities) {
         final List<MetadataColumn> metadataColumns = extractMetadataColumns(schema);
 
         if (metadataColumns.isEmpty()) {
@@ -461,11 +481,15 @@ public final class DynamicSourceUtils {
                     }
                 });
 
-        metadataSource.applyReadableMetadata(
+        final List<String> metadataKeys =
                 createRequiredMetadataColumns(schema, source).stream()
                         .map(column -> column.getMetadataKey().orElse(column.getName()))
-                        .collect(Collectors.toList()),
-                TypeConversions.fromLogicalToDataType(createProducedType(schema, source)));
+                        .collect(Collectors.toList());
+        final DataType producedDataType =
+                TypeConversions.fromLogicalToDataType(createProducedType(schema, source));
+        sourceAbilities.add(
+                new ReadingMetadataSpec(metadataKeys, (RowType) producedDataType.getLogicalType()));
+        metadataSource.applyReadableMetadata(metadataKeys, producedDataType);
     }
 
     private static void validateScanSource(

@@ -28,12 +28,12 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 
 import org.apache.calcite.rel.core.Aggregate
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[EnforceLocalSortAggRule]]. */
 class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
 
-  @Before
+  @BeforeEach
   override def setup(): Unit = {
     super.setup()
     util.addFunction("weightedAvg", new WeightedAvg)

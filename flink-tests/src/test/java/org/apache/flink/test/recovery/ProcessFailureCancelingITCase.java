@@ -247,7 +247,7 @@ class ProcessFailureCancelingITCase {
 
             RpcUtils.terminateRpcService(rpcService);
 
-            haServices.closeAndCleanupAllData();
+            haServices.closeWithOptionalClean(true);
         }
     }
 

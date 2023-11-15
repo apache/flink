@@ -108,7 +108,20 @@ class FailureEnricherUtilsTest {
                 FailureEnricherUtils.getFailureEnrichers(configuration, createPluginManager());
         assertThat(enrichers).hasSize(1);
         // verify that the failure enricher was created and returned
-        assertThat(enrichers.iterator().next()).isInstanceOf(TestEnricher.class);
+        assertThat(enrichers)
+                .satisfiesExactly(
+                        enricher -> assertThat(enricher).isInstanceOf(TestEnricher.class));
+
+        // Valid plus Invalid Name combination
+        configuration.set(
+                JobManagerOptions.FAILURE_ENRICHERS_LIST,
+                FailureEnricherUtilsTest.class.getName() + "," + TestEnricher.class.getName());
+        final Collection<FailureEnricher> validInvalidEnrichers =
+                FailureEnricherUtils.getFailureEnrichers(configuration, createPluginManager());
+        assertThat(validInvalidEnrichers).hasSize(1);
+        assertThat(validInvalidEnrichers)
+                .satisfiesExactly(
+                        enricher -> assertThat(enricher).isInstanceOf(TestEnricher.class));
     }
 
     @Test
@@ -203,6 +216,38 @@ class FailureEnricherUtilsTest {
     }
 
     @Test
+    public void testLabelFailureWithValidAndThrowingEnricher() {
+        // A failing enricher shouldn't affect remaining enrichers with valid labels
+        final Throwable cause = new RuntimeException("test exception");
+        final FailureEnricher validEnricher = new TestEnricher("enricherKey");
+        final FailureEnricher throwingEnricher = new ThrowingEnricher("throwingKey");
+
+        final Set<FailureEnricher> enrichers =
+                new HashSet<FailureEnricher>() {
+                    {
+                        add(validEnricher);
+                        add(throwingEnricher);
+                    }
+                };
+
+        final CompletableFuture<Map<String, String>> result =
+                FailureEnricherUtils.labelFailure(
+                        cause,
+                        null,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        enrichers);
+
+        assertThatFuture(result)
+                .eventuallySucceeds()
+                .satisfies(
+                        labels -> {
+                            assertThat(labels).hasSize(1);
+                            assertThat(labels).containsKey("enricherKey");
+                            assertThat(labels).containsValue("enricherKeyValue");
+                        });
+    }
+
+    @Test
     public void testLabelFailureMergeException() {
         // Throwing exception labelFailure when merging duplicate keys
         final Throwable cause = new RuntimeException("test failure");
@@ -250,6 +295,20 @@ class FailureEnricherUtilsTest {
         @Override
         public FailureEnricher createFailureEnricher(Configuration conf) {
             return new TestEnricher();
+        }
+    }
+
+    private static class ThrowingEnricher extends TestEnricher {
+        ThrowingEnricher(String... outputKeys) {
+            super(outputKeys);
+        }
+
+        @Override
+        public CompletableFuture<Map<String, String>> processFailure(
+                Throwable cause, Context context) {
+            final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+            future.completeExceptionally(new RuntimeException("test failure"));
+            return future;
         }
     }
 

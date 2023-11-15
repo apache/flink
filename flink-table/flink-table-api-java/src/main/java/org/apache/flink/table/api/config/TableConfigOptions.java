@@ -122,8 +122,40 @@ public class TableConfigOptions {
                     .defaultValue(30)
                     .withDescription(
                             "When printing the query results to the client console, this parameter determines the number of characters shown on screen before truncating. "
-                                    + "This only applies to columns with variable-length types (e.g. STRING) in the streaming mode. "
+                                    + "This only applies to columns with variable-length types (e.g. CHAR, VARCHAR, STRING) in the streaming mode. "
                                     + "Fixed-length types are printed in the batch mode using a deterministic column width.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    @Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
+    public static final ConfigOption<String> RESOURCES_DOWNLOAD_DIR =
+            key("table.resources.download-dir")
+                    .stringType()
+                    .defaultValue(System.getProperty("java.io.tmpdir"))
+                    .withDescription(
+                            "Local directory that is used by planner for storing downloaded resources.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_RTAS_CTAS_ATOMICITY_ENABLED =
+            key("table.rtas-ctas.atomicity-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Specifies if the CREATE TABLE/REPLACE TABLE/CREATE OR REPLACE AS SELECT statement is executed atomically. By default, the statement is non-atomic. "
+                                    + "The target table is created/replaced on the client side, and it will not be rolled back even though the job fails or is canceled. "
+                                    + "If set this option to true and the underlying DynamicTableSink implements the SupportsStaging interface, "
+                                    + "the statement is expected to be executed atomically, the behavior of which depends on the actual DynamicTableSink.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<List<ColumnExpansionStrategy>>
+            TABLE_COLUMN_EXPANSION_STRATEGY =
+                    key("table.column-expansion-strategy")
+                            .enumType(ColumnExpansionStrategy.class)
+                            .asList()
+                            .defaultValues()
+                            .withDescription(
+                                    "Configures the default expansion behavior of 'SELECT *'. "
+                                            + "By default, all top-level columns of the table's "
+                                            + "schema are selected and nested fields are retained.");
 
     // ------------------------------------------------------------------------------------------
     // Options for plan handling
@@ -200,26 +232,6 @@ public class TableConfigOptions {
                     .defaultValue(10000)
                     .withDescription(
                             "Specifies a threshold where class members of generated code will be grouped into arrays by types.");
-
-    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    @Documentation.OverrideDefault("System.getProperty(\"java.io.tmpdir\")")
-    public static final ConfigOption<String> RESOURCES_DOWNLOAD_DIR =
-            key("table.resources.download-dir")
-                    .stringType()
-                    .defaultValue(System.getProperty("java.io.tmpdir"))
-                    .withDescription(
-                            "Local directory that is used by planner for storing downloaded resources.");
-
-    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<Boolean> TABLE_RTAS_CTAS_ATOMICITY_ENABLED =
-            key("table.rtas-ctas.atomicity-enabled")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Specifies if the CREATE TABLE/REPLACE TABLE/CREATE OR REPLACE AS SELECT statement is executed atomically. By default, the statement is non-atomic. "
-                                    + "The target table is created/replaced on the client side, and it will not be rolled back even though the job fails or is canceled. "
-                                    + "If set this option to true and the underlying DynamicTableSink implements the SupportsStaging interface, "
-                                    + "the statement is expected to be executed atomically, the behavior of which depends on the actual DynamicTableSink.");
 
     // ------------------------------------------------------------------------------------------
     // Enum option types
@@ -304,6 +316,34 @@ public class TableConfigOptions {
         private final InlineElement description;
 
         CatalogPlanRestore(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Strategy to expand columns in {@code SELECT *} queries. */
+    @PublicEvolving
+    public enum ColumnExpansionStrategy implements DescribedEnum {
+        EXCLUDE_ALIASED_VIRTUAL_METADATA_COLUMNS(
+                text(
+                        "Excludes virtual metadata columns that reference a metadata key via an alias. "
+                                + "For example, a column declared as 'c METADATA VIRTUAL FROM k' "
+                                + "is not selected by default if the strategy is applied.")),
+
+        EXCLUDE_DEFAULT_VIRTUAL_METADATA_COLUMNS(
+                text(
+                        "Excludes virtual metadata columns that directly reference a metadata key. "
+                                + "For example, a column declared as 'k METADATA VIRTUAL' "
+                                + "is not selected by default if the strategy is applied."));
+
+        private final InlineElement description;
+
+        ColumnExpansionStrategy(InlineElement description) {
             this.description = description;
         }
 

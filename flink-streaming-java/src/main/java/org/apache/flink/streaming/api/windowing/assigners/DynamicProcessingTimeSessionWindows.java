@@ -70,6 +70,13 @@ public class DynamicProcessingTimeSessionWindows<T> extends MergingWindowAssigne
     @SuppressWarnings("unchecked")
     @Override
     public Trigger<T, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+        throw new UnsupportedOperationException(
+                "This method is deprecated and shouldn't be invoked. Please use getDefaultTrigger() instead.");
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Trigger<T, TimeWindow> getDefaultTrigger() {
         return (Trigger<T, TimeWindow>) ProcessingTimeTrigger.create();
     }
 

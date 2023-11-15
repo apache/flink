@@ -84,6 +84,13 @@ public class ClusterOptions {
                                     + "By default it will use 4 * the number of CPU cores (hardware contexts) that the cluster process has access to. "
                                     + "Increasing the pool size allows to run more IO operations concurrently.");
 
+    /**
+     * @deprecated Please use {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE} instead.
+     *     Note: The 'taskmanager.load-balance.mode: SLOTS' is equal to
+     *     'cluster.evenly-spread-out-slots: true'. The 'taskmanager.load-balance.mode: NONE' is
+     *     equal to 'cluster.evenly-spread-out-slots: false'.
+     */
+    @Deprecated
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Boolean> EVENLY_SPREAD_OUT_SLOTS_STRATEGY =
             ConfigOptions.key("cluster.evenly-spread-out-slots")

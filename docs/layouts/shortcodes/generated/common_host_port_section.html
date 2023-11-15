@@ -9,10 +9,22 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>jobmanager.bind-host</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The local address of the network interface that the job manager binds to. If not configured, '0.0.0.0' will be used.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.rpc.address</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The config parameter defining the network address to connect to for communication with the job manager. This value is only interpreted in setups where a single JobManager with static name or address exists (simple standalone setups, or container setups with dynamic service name resolution). It is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.rpc.bind-port</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The local RPC port that the JobManager binds to. If not configured, the external port (configured by 'jobmanager.rpc.port') will be used.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.rpc.port</h5></td>
@@ -45,10 +57,28 @@
             <td>The port that the server binds itself. Accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. It is recommended to set a range of ports to avoid collisions when multiple Rest servers are running on the same machine.</td>
         </tr>
         <tr>
+            <td><h5>rest.path</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The path that should be used by clients to interact to the server which is accessible via URL.</td>
+        </tr>
+        <tr>
             <td><h5>rest.port</h5></td>
             <td style="word-wrap: break-word;">8081</td>
             <td>Integer</td>
             <td>The port that the client connects to. If rest.bind-port has not been specified, then the REST server will bind to this port. Attention: This option is respected only if the high-availability configuration is NONE.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.bind-host</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The local address of the network interface that the task manager binds to. If not configured, '0.0.0.0' will be used.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.data.bind-port</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The task manager's bind port used for data exchange operations. Also accepts a list of ports (“50100,50101”), ranges (“50100-50200”) or a combination of both. If not configured, 'taskmanager.data.port' will be used.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.data.port</h5></td>
@@ -61,6 +91,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The external address of the network interface where the TaskManager is exposed. Because different TaskManagers need different values for this option, usually it is specified in an additional non-shared TaskManager-specific config file.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.rpc.bind-port</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The local RPC port that the TaskManager binds to. If not configured, the external port (configured by 'taskmanager.rpc.port') will be used.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.rpc.port</h5></td>

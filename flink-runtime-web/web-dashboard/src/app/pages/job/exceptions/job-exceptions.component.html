@@ -81,8 +81,8 @@
               <td class="clickable" (click)="navigateTo(item.selected.taskManagerId)">
                 <a>
                   {{
-                    item.selected.location
-                      ? item.selected.taskManagerId + '(' + item.selected.location + ')'
+                    item.selected.endpoint
+                      ? item.selected.taskManagerId + '(' + item.selected.endpoint + ')'
                       : '(unassigned)'
                   }}
                 </a>

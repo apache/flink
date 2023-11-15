@@ -27,20 +27,20 @@ import org.apache.flink.table.planner.factories.TestValuesCatalog;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for rules that extend {@link FlinkDynamicPartitionPruningProgram} to create {@link
  * org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalDynamicFilteringTableSourceScan}.
  */
-public class DynamicPartitionPruningProgramTest extends TableTestBase {
+class DynamicPartitionPruningProgramTest extends TableTestBase {
     private final BatchTableTestUtil util = batchTestUtil(TableConfig.getDefault());
     private final TestValuesCatalog catalog =
             new TestValuesCatalog("testCatalog", "test_database", true);
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         catalog.open();
         util.tableEnv().registerCatalog("testCatalog", catalog);
         util.tableEnv().useCatalog("testCatalog");
@@ -82,7 +82,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDimTableFilteringFieldsNotInJoinKey() {
+    void testDimTableFilteringFieldsNotInJoinKey() {
         // fact_part.id not in dynamic-filtering-fields, so dynamic partition pruning will not
         // succeed.
         String query =
@@ -91,7 +91,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDimTableWithoutFilter() {
+    void testDimTableWithoutFilter() {
         // If dim side without filters, dynamic partition pruning will not succeed.
         String query =
                 "Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk"
@@ -100,7 +100,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDimTableWithUnsuitableFilter() {
+    void testDimTableWithUnsuitableFilter() {
         // For filters in dim table side, they need to filter enough partitions. Like NOT NULL will
         // not succeed for dynamic partition pruning.
         String query =
@@ -109,7 +109,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testFactTableIsNotPartitionTable() {
+    void testFactTableIsNotPartitionTable() {
         // non-partition fact table. Dynamic partition pruning will not succeed if fact side is not
         // partition table.
         util.tableEnv()
@@ -134,7 +134,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testFactTableIsLegacySource() {
+    void testFactTableIsLegacySource() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE legacy_source (\n"
@@ -158,7 +158,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDimTableWithFilterPushDown() {
+    void testDimTableWithFilterPushDown() {
         // Even though have filter push down, dynamic partition pruning will succeed.
         String query =
                 "Select * from fact_part join (Select * from dim) t1"
@@ -167,7 +167,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinKeyIsDynamicFilterFieldNotPartitionKey() {
+    void testJoinKeyIsDynamicFilterFieldNotPartitionKey() {
         // Not only partition key, but also dynamic filtering field in join key will succeed in
         // dynamic partition pruning.
         String query =
@@ -176,7 +176,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDynamicFilteringFactInRightRule() throws TableNotExistException {
+    void testDynamicFilteringFactInRightRule() throws TableNotExistException {
         // Base rule.
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
@@ -187,7 +187,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDynamicFilteringFactInLeftRule() throws TableNotExistException {
+    void testDynamicFilteringFactInLeftRule() throws TableNotExistException {
         // Base rule.
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
@@ -198,7 +198,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDynamicFilteringFactInRightWithExchangeRule() {
+    void testDynamicFilteringFactInRightWithExchangeRule() {
         // Base rule.
         String query =
                 "Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk and dim.price < 500";
@@ -206,7 +206,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDynamicFilteringFactInLeftWithExchangeRule() {
+    void testDynamicFilteringFactInLeftWithExchangeRule() {
         // Base rule.
         String query =
                 "Select * from fact_part, dim where fact_part.fact_date_sk = dim.dim_date_sk and dim.price < 500";
@@ -214,7 +214,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDynamicFilteringFactInRightWithCalcRule() throws TableNotExistException {
+    void testDynamicFilteringFactInRightWithCalcRule() throws TableNotExistException {
         // Base rule.
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
@@ -226,7 +226,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDynamicFilteringFactInLeftWithCalcRule() throws TableNotExistException {
+    void testDynamicFilteringFactInLeftWithCalcRule() throws TableNotExistException {
         // Base rule.
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
@@ -238,7 +238,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDynamicFilteringFactInRightWithExchangeAndCalcRule() {
+    void testDynamicFilteringFactInRightWithExchangeAndCalcRule() {
         // Base rule.
         String query =
                 "Select * from dim, fact_part where fact_part.fact_date_sk = dim.dim_date_sk"
@@ -247,7 +247,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDynamicFilteringFactInLeftWithExchangeAndCalcRule() {
+    void testDynamicFilteringFactInLeftWithExchangeAndCalcRule() {
         // Base rule.
         String query =
                 "Select * from fact_part, dim where fact_part.fact_date_sk = dim.dim_date_sk"
@@ -256,7 +256,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testComplexCalcInFactSide() {
+    void testComplexCalcInFactSide() {
         // Although the partition key is converted, Dynamic Partition pruning can be successfully
         // applied.
         String query =
@@ -266,7 +266,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testPartitionKeysIsComputeColumnsInFactSide() {
+    void testPartitionKeysIsComputeColumnsInFactSide() {
         // Dynamic filtering will not succeed for this query.
         String query =
                 "Select * from dim join (select fact_date_sk + 1 as fact_date_sk1, price + 1 as price1 from fact_part) t1"
@@ -275,7 +275,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testPartitionKeysOrderIsChangedInFactSide() {
+    void testPartitionKeysOrderIsChangedInFactSide() {
         // Dynamic filtering will succeed for this query.
         String query =
                 "Select * from dim join (select fact_date_sk, id, name, amount, price from fact_part) t1"
@@ -284,7 +284,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testPartitionKeysNameIsChangedInFactSide() {
+    void testPartitionKeysNameIsChangedInFactSide() {
         // Dynamic filtering will succeed for this query.
         String query =
                 "Select * from dim join (select id, name, amount, price, fact_date_sk as fact_date_sk1 from fact_part) t1"
@@ -293,8 +293,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDynamicFilteringFieldIsComputeColumnsInFactSide()
-            throws TableNotExistException {
+    void testDynamicFilteringFieldIsComputeColumnsInFactSide() throws TableNotExistException {
         CatalogTableStatistics tableStatistics = new CatalogTableStatistics(1, 1, 1, 1);
         catalog.alterTableStatistics(
                 new ObjectPath("test_database", "dim"), tableStatistics, false);
@@ -306,7 +305,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testLeftOuterJoinWithFactInLeft() {
+    void testLeftOuterJoinWithFactInLeft() {
         // left outer join with fact in left will not succeed. Because if fact in left, filtering
         // condition is useless.
         String query =
@@ -316,7 +315,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testLeftOutJoinWithFactInRight() {
+    void testLeftOutJoinWithFactInRight() {
         // left outer join with fact in right will succeed.
         String query =
                 "Select * from dim left outer join fact_part on fact_part.fact_date_sk = dim.dim_date_sk"
@@ -325,7 +324,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testSemiJoin() {
+    void testSemiJoin() {
         // Now dynamic partition pruning support semi join, this query will succeed.
         String query =
                 "Select * from fact_part where fact_part.fact_date_sk in"
@@ -334,7 +333,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testFullOuterJoin() {
+    void testFullOuterJoin() {
         // Now dynamic partition pruning don't support full outer join.
         String query =
                 "Select * from fact_part full outer join"
@@ -343,7 +342,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testAntiJoin() {
+    void testAntiJoin() {
         // Now dynamic partition prune don't support anti join.
         String query =
                 "Select * from fact_part where not exists"
@@ -352,7 +351,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testMultiJoin() {
+    void testMultiJoin() {
         // Another table.
         util.tableEnv()
                 .executeSql(
@@ -372,7 +371,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testComplexDimSideWithJoinInDimSide() {
+    void testComplexDimSideWithJoinInDimSide() {
         // TODO, Dpp will not success with complex dim side.
         util.tableEnv()
                 .executeSql(
@@ -405,7 +404,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testComplexDimSideWithAggInDimSide() {
+    void testComplexDimSideWithAggInDimSide() {
         // Dim side contains agg will not succeed in this version, it will improve later.
         util.tableEnv()
                 .executeSql(
@@ -427,7 +426,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDppWithoutJoinReorder() {
+    void testDppWithoutJoinReorder() {
         // Dpp will success
         String ddl =
                 "CREATE TABLE test_database.item (\n"
@@ -453,7 +452,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDppWithSubQuery() {
+    void testDppWithSubQuery() {
         // Dpp will success
         String ddl =
                 "CREATE TABLE test_database.item (\n"
@@ -478,7 +477,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDppWithUnionInFactSide() {
+    void testDppWithUnionInFactSide() {
         // Dpp will success.
         String ddl =
                 "CREATE TABLE test_database.item (\n"
@@ -501,7 +500,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDppWithAggInFactSideAndJoinKeyInGrouping() {
+    void testDppWithAggInFactSideAndJoinKeyInGrouping() {
         // Dpp will success
         String ddl =
                 "CREATE TABLE test_database.item (\n"
@@ -522,7 +521,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDppWithAggInFactSideAndJoinKeyInGroupFunction() {
+    void testDppWithAggInFactSideAndJoinKeyInGroupFunction() {
         // Dpp will not success because join key in group function.
         String ddl =
                 "CREATE TABLE test_database.item (\n"
@@ -544,7 +543,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDppWithAggInFactSideWithAggPushDownEnable() {
+    void testDppWithAggInFactSideWithAggPushDownEnable() {
         // Dpp will not success while fact side source support agg push down and source agg push
         // down enabled is true.
         String ddl =
@@ -566,7 +565,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDppWithAggInFactSideWithAggPushDownDisable() {
+    void testDppWithAggInFactSideWithAggPushDownDisable() {
         // Dpp will success while fact side source support agg push down but source agg push down
         // enabled is false.
         TableConfig tableConfig = util.tableEnv().getConfig();
@@ -593,7 +592,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDPPWithFactSideJoinKeyChanged() {
+    void testDPPWithFactSideJoinKeyChanged() {
         // If partition keys changed in fact side. DPP factor will not success.
         String ddl =
                 "CREATE TABLE test_database.item (\n"
@@ -615,7 +614,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDPPWithDimSideJoinKeyChanged() {
+    void testDPPWithDimSideJoinKeyChanged() {
         // Although partition keys changed in dim side. DPP will success.
         String ddl =
                 "CREATE TABLE test_database.item (\n"
@@ -637,7 +636,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDPPWithJoinKeysNotIncludePartitionKeys() {
+    void testDPPWithJoinKeysNotIncludePartitionKeys() {
         // If join keys of partition table join with dim table not include partition keys, dpp will
         // not success.
         String ddl =
@@ -661,7 +660,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDppFactSideCannotReuseWithSameCommonSource() {
+    void testDppFactSideCannotReuseWithSameCommonSource() {
         String query =
                 "SELECT * FROM(\n"
                         + " Select fact_part.id, fact_part.price, fact_part.amount from fact_part join (Select * from dim) t1"
@@ -671,7 +670,7 @@ public class DynamicPartitionPruningProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDimSideReuseAfterProjectionPushdown() {
+    void testDimSideReuseAfterProjectionPushdown() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE fact_part2 (\n"

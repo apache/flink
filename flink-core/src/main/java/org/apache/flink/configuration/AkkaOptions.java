@@ -115,7 +115,7 @@ public class AkkaOptions {
                     .defaultValue(true)
                     .withDeprecatedKeys("akka.ssl.enabled")
                     .withDescription(
-                            "Turns on SSL for Akka’s remote communication. This is applicable only when the global ssl flag"
+                            "Turns on SSL for Pekko’s remote communication. This is applicable only when the global ssl flag"
                                     + " security.ssl.enabled is set to true.");
 
     /** Maximum framesize of Pekko messages. */

@@ -46,9 +46,9 @@
           },
           "partitionKeys" : [ ],
           "options" : {
-            "disable-lookup" : "true",
-            "connector" : "values",
             "bounded" : "false",
+            "connector" : "values",
+            "disable-lookup" : "true",
             "enable-watermark-push-down" : "true"
           }
         }

@@ -43,12 +43,12 @@ jobs:
 
           if [ "${currentBranch}" = "master" ]; then
             echo "flink_alias=release-1.19" >> ${GITHUB_ENV}
-          elif [ "${currentBranch}" = "release-1.17" ]; then
+          elif [ "${currentBranch}" = "release-1.18" ]; then
             echo "flink_alias=stable" >> ${GITHUB_ENV}
           fi
       - name: Build documentation
         run: |
-          docker run  --rm --volume "$PWD:/root/flink" chesnay/flink-ci:java_8_11 bash -c "cd /root/flink && ./.github/workflows/docs.sh"
+          docker run --rm --volume "$PWD:/root/flink" chesnay/flink-ci:java_8_11_17_maven_386_v2 bash -c "cd /root/flink && ./.github/workflows/docs.sh"
       - name: Upload documentation
         uses: burnett01/rsync-deployments@5.2
         with:

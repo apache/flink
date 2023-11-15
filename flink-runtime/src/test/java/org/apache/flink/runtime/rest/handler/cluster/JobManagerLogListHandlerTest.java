@@ -29,14 +29,12 @@ import org.apache.flink.runtime.rest.messages.cluster.JobManagerLogListHeaders;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nullable;
 
@@ -49,22 +47,19 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for {@link JobManagerLogListHandler}. */
-public class JobManagerLogListHandlerTest extends TestLogger {
+class JobManagerLogListHandlerTest {
 
     private static HandlerRequest<EmptyRequestBody> testRequest;
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private java.nio.file.Path temporaryFolder;
 
     private DispatcherGateway dispatcherGateway;
 
-    @BeforeClass
-    public static void setupClass() throws HandlerRequestException {
+    @BeforeAll
+    static void setupClass() throws HandlerRequestException {
         testRequest =
                 HandlerRequest.create(
                         EmptyRequestBody.getInstance(),
@@ -72,14 +67,14 @@ public class JobManagerLogListHandlerTest extends TestLogger {
                         Collections.emptyList());
     }
 
-    @Before
-    public void setUp() {
+    @BeforeEach
+    void setUp() {
         dispatcherGateway = TestingDispatcherGateway.newBuilder().build();
     }
 
     @Test
-    public void testGetJobManagerLogsList() throws Exception {
-        File logRoot = temporaryFolder.getRoot();
+    void testGetJobManagerLogsList() throws Exception {
+        File logRoot = temporaryFolder.toFile();
         List<LogInfo> expectedLogInfo =
                 Arrays.asList(
                         new LogInfo("jobmanager.log", 5, 1632844800000L),
@@ -91,18 +86,16 @@ public class JobManagerLogListHandlerTest extends TestLogger {
         LogListInfo logListInfo =
                 jobManagerLogListHandler.handleRequest(testRequest, dispatcherGateway).get();
 
-        assertThat(
-                logListInfo.getLogInfos(),
-                containsInAnyOrder(expectedLogInfo.toArray(new LogInfo[0])));
+        assertThat(logListInfo.getLogInfos()).containsExactlyInAnyOrderElementsOf(expectedLogInfo);
     }
 
     @Test
-    public void testGetJobManagerLogsListWhenLogDirIsNull() throws Exception {
+    void testGetJobManagerLogsListWhenLogDirIsNull() throws Exception {
         JobManagerLogListHandler jobManagerLogListHandler = createHandler(null);
         LogListInfo logListInfo =
                 jobManagerLogListHandler.handleRequest(testRequest, dispatcherGateway).get();
 
-        assertThat(logListInfo.getLogInfos(), is(empty()));
+        assertThat(logListInfo.getLogInfos()).isEmpty();
     }
 
     private JobManagerLogListHandler createHandler(@Nullable final File jobManagerLogRoot) {

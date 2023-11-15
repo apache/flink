@@ -208,7 +208,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     @Deprecated
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
-            Sink.InitContext context,
+            Sink.WriterInitContext context,
             int maxBatchSize,
             int maxInFlightRequests,
             int maxBufferedRequests,
@@ -234,7 +234,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     @Deprecated
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
-            Sink.InitContext context,
+            Sink.WriterInitContext context,
             int maxBatchSize,
             int maxInFlightRequests,
             int maxBufferedRequests,
@@ -258,7 +258,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     public AsyncSinkWriter(
             ElementConverter<InputT, RequestEntryT> elementConverter,
-            Sink.InitContext context,
+            Sink.WriterInitContext context,
             AsyncSinkWriterConfiguration configuration,
             Collection<BufferedRequestState<RequestEntryT>> states) {
         this.elementConverter = elementConverter;

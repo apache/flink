@@ -108,34 +108,26 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
     }
 
     @Override
-    public Iterable<V> get() {
+    public Iterable<V> get() throws IOException, RocksDBException {
         return getInternal();
     }
 
     @Override
-    public List<V> getInternal() {
-        try {
-            byte[] key = serializeCurrentKeyWithGroupAndNamespace();
-            byte[] valueBytes = backend.db.get(columnFamily, key);
-            return listSerializer.deserializeList(valueBytes, elementSerializer);
-        } catch (RocksDBException e) {
-            throw new FlinkRuntimeException("Error while retrieving data from RocksDB", e);
-        }
+    public List<V> getInternal() throws IOException, RocksDBException {
+        byte[] key = serializeCurrentKeyWithGroupAndNamespace();
+        byte[] valueBytes = backend.db.get(columnFamily, key);
+        return listSerializer.deserializeList(valueBytes, elementSerializer);
     }
 
     @Override
-    public void add(V value) {
+    public void add(V value) throws IOException, RocksDBException {
         Preconditions.checkNotNull(value, "You cannot add null to a ListState.");
 
-        try {
-            backend.db.merge(
-                    columnFamily,
-                    writeOptions,
-                    serializeCurrentKeyWithGroupAndNamespace(),
-                    serializeValue(value, elementSerializer));
-        } catch (Exception e) {
-            throw new FlinkRuntimeException("Error while adding data to RocksDB", e);
-        }
+        backend.db.merge(
+                columnFamily,
+                writeOptions,
+                serializeCurrentKeyWithGroupAndNamespace(),
+                serializeValue(value, elementSerializer));
     }
 
     @Override
@@ -169,43 +161,35 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
     }
 
     @Override
-    public void update(List<V> valueToStore) {
+    public void update(List<V> valueToStore) throws IOException, RocksDBException {
         updateInternal(valueToStore);
     }
 
     @Override
-    public void updateInternal(List<V> values) {
+    public void updateInternal(List<V> values) throws IOException, RocksDBException {
         Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 
         if (!values.isEmpty()) {
-            try {
-                backend.db.put(
-                        columnFamily,
-                        writeOptions,
-                        serializeCurrentKeyWithGroupAndNamespace(),
-                        listSerializer.serializeList(values, elementSerializer));
-            } catch (IOException | RocksDBException e) {
-                throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
-            }
+            backend.db.put(
+                    columnFamily,
+                    writeOptions,
+                    serializeCurrentKeyWithGroupAndNamespace(),
+                    listSerializer.serializeList(values, elementSerializer));
         } else {
             clear();
         }
     }
 
     @Override
-    public void addAll(List<V> values) {
+    public void addAll(List<V> values) throws IOException, RocksDBException {
         Preconditions.checkNotNull(values, "List of values to add cannot be null.");
 
         if (!values.isEmpty()) {
-            try {
-                backend.db.merge(
-                        columnFamily,
-                        writeOptions,
-                        serializeCurrentKeyWithGroupAndNamespace(),
-                        listSerializer.serializeList(values, elementSerializer));
-            } catch (IOException | RocksDBException e) {
-                throw new FlinkRuntimeException("Error while updating data to RocksDB", e);
-            }
+            backend.db.merge(
+                    columnFamily,
+                    writeOptions,
+                    serializeCurrentKeyWithGroupAndNamespace(),
+                    listSerializer.serializeList(values, elementSerializer));
         }
     }
 
@@ -309,19 +293,21 @@ class RocksDBListState<K, N, V> extends AbstractRocksDBState<K, N, List<V>>
             in.setBuffer(value);
             T next;
             int prevPosition = 0;
-            while ((next = ListDelimitedSerializer.deserializeNextElement(in, elementSerializer))
-                    != null) {
-                T transformedElement = elementTransformer.filterOrTransform(next);
-                if (transformedElement != null) {
-                    if (transformStrategy == STOP_ON_FIRST_INCLUDED) {
-                        return Arrays.copyOfRange(value, prevPosition, value.length);
-                    } else {
-                        result.add(transformedElement);
-                    }
-                }
-                prevPosition = in.getPosition();
-            }
             try {
+                while ((next =
+                                ListDelimitedSerializer.deserializeNextElement(
+                                        in, elementSerializer))
+                        != null) {
+                    T transformedElement = elementTransformer.filterOrTransform(next);
+                    if (transformedElement != null) {
+                        if (transformStrategy == STOP_ON_FIRST_INCLUDED) {
+                            return Arrays.copyOfRange(value, prevPosition, value.length);
+                        } else {
+                            result.add(transformedElement);
+                        }
+                    }
+                    prevPosition = in.getPosition();
+                }
                 return result.isEmpty()
                         ? null
                         : listSerializer.serializeList(result, elementSerializer);

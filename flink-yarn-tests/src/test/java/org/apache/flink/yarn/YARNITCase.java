@@ -30,7 +30,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.testjob.YarnTestArchiveJob;
 import org.apache.flink.yarn.testjob.YarnTestCacheJob;
@@ -204,7 +204,7 @@ class YARNITCase extends YarnTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(2);
 
-        env.addSource(new NoDataSource()).shuffle().addSink(new DiscardingSink<>());
+        env.addSource(new NoDataSource()).shuffle().sinkTo(new DiscardingSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }

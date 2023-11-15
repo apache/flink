@@ -28,6 +28,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 
 /**
@@ -40,6 +41,9 @@ import java.util.Deque;
  *
  * <p>This strategy guarantees that each element will be emitted exactly-once, but elements will not
  * necessarily be emitted in ascending order, even for the same tasks.
+ *
+ * <p>NOTE: this source will be removed together with the deprecated
+ * StreamExecutionEnvironmetn#generateSequence() method.
  *
  * @deprecated This class is based on the {@link
  *     org.apache.flink.streaming.api.functions.source.SourceFunction} API, which is due to be
@@ -130,10 +134,7 @@ public class StatefulSequenceSource extends RichParallelSourceFunction<Long>
                 this.checkpointedState != null,
                 "The " + getClass().getSimpleName() + " state has not been properly initialized.");
 
-        this.checkpointedState.clear();
-        for (Long v : this.valuesToEmit) {
-            this.checkpointedState.add(v);
-        }
+        this.checkpointedState.update(new ArrayList<>(valuesToEmit));
     }
 
     private static int safeDivide(long left, long right) {

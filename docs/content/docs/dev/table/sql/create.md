@@ -616,6 +616,7 @@ INSERT INTO my_rtas_table SELECT id, name, age FROM source_table WHERE mod(id, 1
 * Does not support specifying primary key constraints yet.
 
 **Note:** By default, RTAS is non-atomic which means the table won't be dropped or restored to its origin automatically if occur errors while inserting data into the table.
+**Note:** RTAS will drop the table first, then create the table and insert the data. But if the table is in the in-memory catalog, dropping table will only remove it from the catalog without removing the data in the physical table. So, the data before executing RTAS statement will still exist.
 
 ### Atomicity
 

@@ -25,16 +25,20 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
@@ -120,13 +124,13 @@ class StreamExecutionEnvironmentTest {
             assertThatThrownBy(() -> dataStream1.setParallelism(4))
                     .isInstanceOf(IllegalArgumentException.class);
 
-            dataStream1.addSink(new DiscardingSink<Integer>());
+            dataStream1.sinkTo(new DiscardingSink<>());
 
             DataStreamSource<Integer> dataStream2 =
                     env.fromParallelCollection(new DummySplittableIterator<Integer>(), typeInfo)
                             .setParallelism(4);
 
-            dataStream2.addSink(new DiscardingSink<Integer>());
+            dataStream2.sinkTo(new DiscardingSink<>());
 
             final StreamGraph streamGraph = env.getStreamGraph();
             streamGraph.getStreamingPlanAsJSON();
@@ -158,7 +162,7 @@ class StreamExecutionEnvironmentTest {
                     public void cancel() {}
                 };
         DataStreamSource<Integer> src1 = env.addSource(srcFun);
-        src1.addSink(new DiscardingSink<Integer>());
+        src1.sinkTo(new DiscardingSink<>());
         assertThat(getFunctionFromDataSource(src1)).isEqualTo(srcFun);
 
         List<Long> list = Arrays.asList(0L, 1L, 2L);
@@ -275,7 +279,7 @@ class StreamExecutionEnvironmentTest {
         env.registerSlotSharingGroup(SlotSharingGroup.newBuilder("ssg3").build());
 
         final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
-        source.map(value -> value).slotSharingGroup(ssg2).addSink(new DiscardingSink<>());
+        source.map(value -> value).slotSharingGroup(ssg2).sinkTo(new DiscardingSink<>());
 
         final StreamGraph streamGraph = env.getStreamGraph();
         assertThat(streamGraph.getSlotSharingGroupResource("ssg1").get())
@@ -295,7 +299,7 @@ class StreamExecutionEnvironmentTest {
         env.registerSlotSharingGroup(ssg);
 
         final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
-        source.map(value -> value).slotSharingGroup(ssgConflict).addSink(new DiscardingSink<>());
+        source.map(value -> value).slotSharingGroup(ssgConflict).sinkTo(new DiscardingSink<>());
 
         assertThatThrownBy(env::getStreamGraph).isInstanceOf(IllegalArgumentException.class);
     }
@@ -308,22 +312,22 @@ class StreamExecutionEnvironmentTest {
 
             DataStreamSource<Integer> dataStream1 =
                     env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream1.addSink(new DiscardingSink<Integer>());
+            dataStream1.sinkTo(new DiscardingSink<>());
             assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(2);
 
             DataStreamSource<Integer> dataStream2 =
                     env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream2.addSink(new DiscardingSink<Integer>());
+            dataStream2.sinkTo(new DiscardingSink<>());
             assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(2);
 
             DataStreamSource<Integer> dataStream3 =
                     env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream3.addSink(new DiscardingSink<Integer>());
+            dataStream3.sinkTo(new DiscardingSink<>());
             // Does not clear the transformations.
             env.getExecutionPlan();
             DataStreamSource<Integer> dataStream4 =
                     env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream4.addSink(new DiscardingSink<Integer>());
+            dataStream4.sinkTo(new DiscardingSink<>());
             assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(4);
         } catch (Exception e) {
             e.printStackTrace();
@@ -473,6 +477,21 @@ class StreamExecutionEnvironmentTest {
         }
     }
 
+    @Test
+    void testConfigureCheckpointStorage() {
+        Configuration configuration = new Configuration();
+        String path = "file:///valid";
+        configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "jobmanager");
+        configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, path);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+
+        CheckpointStorage storage = env.getCheckpointConfig().getCheckpointStorage();
+        assertThat(storage).isInstanceOf(JobManagerCheckpointStorage.class);
+        assertThat(((JobManagerCheckpointStorage) storage).getCheckpointPath())
+                .isEqualTo(new Path(path));
+    }
+
     /////////////////////////////////////////////////////////////
     // Utilities
     /////////////////////////////////////////////////////////////
@@ -486,7 +505,7 @@ class StreamExecutionEnvironmentTest {
     @SuppressWarnings("unchecked")
     private static <T> SourceFunction<T> getFunctionFromDataSource(
             DataStreamSource<T> dataStreamSource) {
-        dataStreamSource.addSink(new DiscardingSink<T>());
+        dataStreamSource.sinkTo(new DiscardingSink<>());
         AbstractUdfStreamOperator<?, ?> operator =
                 (AbstractUdfStreamOperator<?, ?>) getOperatorFromDataStream(dataStreamSource);
         return (SourceFunction<T>) operator.getUserFunction();

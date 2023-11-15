@@ -19,25 +19,28 @@ package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.runtime.state.KeyGroupRange;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link InternalKeyContextImpl}. */
-public class InternalKeyContextImplTest {
+class InternalKeyContextImplTest {
 
     @Test
-    public void testSetKeyGroupIndexWithinRange() {
+    void testSetKeyGroupIndexWithinRange() {
         InternalKeyContextImpl<Integer> integerInternalKeyContext =
                 new InternalKeyContextImpl<>(KeyGroupRange.of(0, 128), 4096);
         // There will be no exception thrown since the key group index is within the range.
         integerInternalKeyContext.setCurrentKeyGroupIndex(64);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testSetKeyGroupIndexOutOfRange() {
+    @Test
+    void testSetKeyGroupIndexOutOfRange() {
         InternalKeyContextImpl<Integer> integerInternalKeyContext =
                 new InternalKeyContextImpl<>(KeyGroupRange.of(0, 128), 4096);
         // There will be an IllegalArgumentException thrown since the key group index is out of the
         // range.
-        integerInternalKeyContext.setCurrentKeyGroupIndex(2048);
+        assertThatThrownBy(() -> integerInternalKeyContext.setCurrentKeyGroupIndex(2048))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

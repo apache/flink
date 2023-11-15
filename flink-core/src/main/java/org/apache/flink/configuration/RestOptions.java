@@ -80,6 +80,15 @@ public class RestOptions {
                     .withDescription(
                             "The address that should be used by clients to connect to the server. Attention: This option is respected only if the high-availability configuration is NONE.");
 
+    /** The path that should be used by clients to interact with the server. */
+    @Documentation.Section(Documentation.Sections.COMMON_HOST_PORT)
+    public static final ConfigOption<String> PATH =
+            key("rest.path")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "The path that should be used by clients to interact to the server which is accessible via URL.");
+
     /**
      * The port that the REST client connects to and the REST server binds to if {@link #BIND_PORT}
      * has not been specified.

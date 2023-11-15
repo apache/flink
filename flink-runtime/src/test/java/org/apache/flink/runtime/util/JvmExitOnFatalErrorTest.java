@@ -218,6 +218,7 @@ class JvmExitOnFatalErrorTest {
                                 jid,
                                 executionAttemptID,
                                 localStateStore,
+                                null,
                                 changelogStorage,
                                 new TaskExecutorStateChangelogStoragesManager(),
                                 null,

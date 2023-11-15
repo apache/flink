@@ -21,6 +21,7 @@ package org.apache.flink.test.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.operators.Order;
@@ -1507,7 +1508,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
         private String f2Replace = "";
 
         @Override
-        public void open(Configuration config) {
+        public void open(OpenContext openContext) {
 
             Collection<Integer> ints = this.getRuntimeContext().getBroadcastVariable("ints");
             int sum = 0;

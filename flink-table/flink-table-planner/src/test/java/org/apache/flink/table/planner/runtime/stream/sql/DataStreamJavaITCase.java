@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -734,10 +735,10 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         // submits all source-to-sink pipelines
         testResult(env.fromElements(3, 4, 5), 3, 4, 5);
 
-        assertThat(TestValuesTableFactory.getResults("OutputTable1"))
+        assertThat(TestValuesTableFactory.getResultsAsStrings("OutputTable1"))
                 .containsExactlyInAnyOrder("+I[1, a]", "+I[2, b]");
 
-        assertThat(TestValuesTableFactory.getResults("OutputTable2"))
+        assertThat(TestValuesTableFactory.getResultsAsStrings("OutputTable2"))
                 .containsExactlyInAnyOrder("+I[1]", "+I[2]", "+I[3]");
     }
 
@@ -900,7 +901,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                                     ValueState<Long> count;
 
                                     @Override
-                                    public void open(Configuration parameters) {
+                                    public void open(OpenContext openContext) {
                                         count =
                                                 getRuntimeContext()
                                                         .getState(

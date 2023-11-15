@@ -237,7 +237,8 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     val rightUniqueKeys = FlinkRelMdUniqueKeys.INSTANCE.getUniqueKeysOfTemporalTable(join)
 
     val remainingConditionNonDeterministic =
-      join.remainingCondition.exists(c => !RexUtil.isDeterministic(c))
+      join.finalPreFilterCondition.exists(c => !RexUtil.isDeterministic(c)) ||
+        join.finalRemainingCondition.exists(c => !RexUtil.isDeterministic(c))
     lazy val calcOnTemporalTableNonDeterministic =
       join.calcOnTemporalTable.exists(p => !FlinkRexUtil.isDeterministic(p))
 

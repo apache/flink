@@ -22,9 +22,9 @@
           },
           "partitionKeys" : [ "p" ],
           "options" : {
+            "bounded" : "false",
             "connector" : "values",
-            "partition-list" : "p:A",
-            "bounded" : "false"
+            "partition-list" : "p:A"
           }
         }
       },

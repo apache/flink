@@ -21,8 +21,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.hamcrest.Matchers.containsString
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 
@@ -128,25 +128,23 @@ class TemporalFunctionJoinTest extends TableTestBase {
 
   @Test
   def testUncorrelatedJoin(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(containsString("Cannot generate a valid execution plan"))
-
     val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
       "FROM Orders AS o, " +
       "LATERAL TABLE (Rates(TIMESTAMP '2016-06-27 10:10:42.123')) AS r " +
       "WHERE currency = o_currency"
 
-    util.verifyExplain(sqlQuery)
+    assertThatThrownBy(() => util.verifyExplain(sqlQuery))
+      .hasMessageContaining("Cannot generate a valid execution plan")
+      .isInstanceOf[TableException]
   }
 
   @Test
   def testTemporalTableFunctionScan(): Unit = {
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(containsString("Cannot generate a valid execution plan"))
-
     val sqlQuery = "SELECT * FROM LATERAL TABLE (Rates(TIMESTAMP '2016-06-27 10:10:42.123'))"
 
-    util.verifyExplain(sqlQuery)
+    assertThatThrownBy(() => util.verifyExplain(sqlQuery))
+      .hasMessageContaining("Cannot generate a valid execution plan")
+      .isInstanceOf[TableException]
   }
 }

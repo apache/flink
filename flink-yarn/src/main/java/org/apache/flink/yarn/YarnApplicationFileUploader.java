@@ -23,6 +23,7 @@ import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -344,6 +345,8 @@ class YarnApplicationFileUploader implements AutoCloseable {
         checkNotNull(localResources);
 
         final ArrayList<String> classPaths = new ArrayList<>();
+        final Set<String> resourcesJar = new HashSet<>();
+        final Set<String> resourcesDir = new HashSet<>();
         providedSharedLibs.forEach(
                 (fileName, fileStatus) -> {
                     final Path filePath = fileStatus.getPath();
@@ -360,11 +363,21 @@ class YarnApplicationFileUploader implements AutoCloseable {
                     envShipResourceList.add(descriptor);
 
                     if (!isFlinkDistJar(filePath.getName()) && !isPlugin(filePath)) {
-                        classPaths.add(fileName);
+                        if (fileName.endsWith("jar")) {
+                            resourcesJar.add(fileName);
+                        } else {
+                            resourcesDir.add(new Path(fileName).getParent().toString());
+                        }
                     } else if (isFlinkDistJar(filePath.getName())) {
                         flinkDist = descriptor;
                     }
                 });
+
+        // Construct classpath where resource directories go first followed
+        // by resource files. Sort both resources and resource directories in
+        // order to make classpath deterministic.
+        resourcesDir.stream().sorted().forEach(classPaths::add);
+        resourcesJar.stream().sorted().forEach(classPaths::add);
         return classPaths;
     }
 
@@ -388,13 +401,20 @@ class YarnApplicationFileUploader implements AutoCloseable {
                 (relativeDstPath.isEmpty() ? "" : relativeDstPath + "/") + localSrcPath.getName();
         final Path dst = new Path(applicationDir, suffix);
 
+        final Path localSrcPathWithScheme;
+        if (StringUtils.isNullOrWhitespaceOnly(localSrcPath.toUri().getScheme())) {
+            localSrcPathWithScheme = new Path(URI.create("file:///").resolve(localSrcPath.toUri()));
+        } else {
+            localSrcPathWithScheme = localSrcPath;
+        }
+
         LOG.debug(
                 "Copying from {} to {} with replication factor {}",
-                localSrcPath,
+                localSrcPathWithScheme,
                 dst,
                 replicationFactor);
 
-        fileSystem.copyFromLocalFile(false, true, localSrcPath, dst);
+        fileSystem.copyFromLocalFile(false, true, localSrcPathWithScheme, dst);
         fileSystem.setReplication(dst, (short) replicationFactor);
         return dst;
     }

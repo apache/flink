@@ -35,11 +35,10 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -51,10 +50,10 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED_BOUNDED;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link NettyShuffleUtils}. */
-public class NettyShuffleUtilsTest extends TestLogger {
+class NettyShuffleUtilsTest {
 
     /**
      * This test verifies that the {@link NettyShuffleEnvironment} requires buffers as expected, so
@@ -62,7 +61,7 @@ public class NettyShuffleUtilsTest extends TestLogger {
      * ShuffleMaster#computeShuffleMemorySizeForTask(TaskInputsOutputsDescriptor)} is correct.
      */
     @Test
-    public void testComputeRequiredNetworkBuffers() throws Exception {
+    void testComputeRequiredNetworkBuffers() throws Exception {
         int numBuffersPerChannel = 5;
         int numBuffersPerGate = 8;
         Optional<Integer> maxRequiredBuffersPerGate = Optional.of(Integer.MAX_VALUE);
@@ -134,7 +133,7 @@ public class NettyShuffleUtilsTest extends TestLogger {
                         + calculateBuffersConsumption(resultPartition1)
                         + calculateBuffersConsumption(resultPartition2)
                         + calculateBuffersConsumption(resultPartition3);
-        assertEquals(expected, numTotalBuffers);
+        assertThat(numTotalBuffers).isEqualTo(expected);
 
         inputGate1.close();
         inputGate2.close();
