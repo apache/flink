@@ -245,6 +245,17 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
         }
     }
 
+    @Override
+    public boolean tryAdvanceWatermark(
+            Watermark watermark, ShouldStopAdvancingFn shouldStopAdvancingFn) throws Exception {
+        for (InternalTimerServiceImpl<?, ?> service : timerServices.values()) {
+            if (!service.tryAdvanceWatermark(watermark.getTimestamp(), shouldStopAdvancingFn)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     //////////////////				Fault Tolerance Methods				///////////////////
 
     @Override

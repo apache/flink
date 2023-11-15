@@ -632,6 +632,14 @@ public class CheckpointingOptions {
                                             "Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
                                     .build());
 
+    @Experimental
+    public static final ConfigOption<Boolean> ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS =
+            ConfigOptions.key("execution.checkpointing.unaligned.interruptible-timers.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Allows unaligned checkpoints to skip timers that are currently being fired.");
+
     public static final ConfigOption<Boolean> ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH =
             ConfigOptions.key("execution.checkpointing.checkpoints-after-tasks-finish.enabled")
                     .booleanType()
