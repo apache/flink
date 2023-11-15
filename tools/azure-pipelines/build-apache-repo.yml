@@ -37,9 +37,12 @@ trigger:
 resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
-  # see https://github.com/flink-ci/flink-ci-docker
+  # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
+  # The Docker image was customized for 1.17 to cover the changes of FLINK-18356
+  # (Docker images with updated Maven binaries are used in branches for Flink 1.18+)
+  # but still use Maven 3.2.5 (to avoid backporting FLINK-28016)
   - container: flink-build-container
-    image: chesnay/flink-ci:java_8_11_17
+    image: chesnay/flink-ci:java_8_11_17_maven_325
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
