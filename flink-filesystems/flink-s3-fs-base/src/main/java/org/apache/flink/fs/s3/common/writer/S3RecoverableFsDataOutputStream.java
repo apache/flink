@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.fs.Syncable;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
@@ -126,15 +127,10 @@ public final class S3RecoverableFsDataOutputStream extends RecoverableFsDataOutp
 
     @Override
     public void sync() throws IOException {
-        lock();
-        try {
-            fileStream.flush();
-            openNewPartIfNecessary(userDefinedMinPartSize);
-            Committer committer = upload.snapshotAndGetCommitter();
-            committer.commitAfterRecovery();
-            closeForCommit();
-        } finally {
-            unlock();
+        if (this.fileStream instanceof Syncable) {
+            ((Syncable) this.fileStream).hsync();
+        } else {
+            persist();
         }
     }
 
