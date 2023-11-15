@@ -21,16 +21,14 @@ package org.apache.flink.table.planner.plan.optimize;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.hint.JoinHintsRelShuttle;
 import org.apache.flink.table.planner.hint.JoinStrategy;
 
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.logical.LogicalCorrelate;
-import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
@@ -52,7 +50,7 @@ import static org.apache.flink.table.planner.hint.LookupJoinHintOptions.LOOKUP_T
  *
  * <p>Note: duplicate join hints are not checked here.
  */
-public class JoinHintResolver extends RelShuttleImpl {
+public class JoinHintsResolver extends JoinHintsRelShuttle {
     private final Set<RelHint> allHints = new HashSet<>();
     private final Set<RelHint> validHints = new HashSet<>();
 
@@ -79,16 +77,7 @@ public class JoinHintResolver extends RelShuttleImpl {
     }
 
     @Override
-    public RelNode visit(LogicalJoin join) {
-        return visitBiRel(join);
-    }
-
-    @Override
-    public RelNode visit(LogicalCorrelate correlate) {
-        return visitBiRel(correlate);
-    }
-
-    private RelNode visitBiRel(BiRel biRel) {
+    protected RelNode visitBiRel(BiRel biRel) {
         Optional<String> leftName = extractAliasOrTableName(biRel.getLeft());
         Optional<String> rightName = extractAliasOrTableName(biRel.getRight());
 
