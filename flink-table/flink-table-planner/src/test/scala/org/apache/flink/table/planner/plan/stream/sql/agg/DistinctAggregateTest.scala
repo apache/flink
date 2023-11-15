@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggr
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.{BeforeEach, Test, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
