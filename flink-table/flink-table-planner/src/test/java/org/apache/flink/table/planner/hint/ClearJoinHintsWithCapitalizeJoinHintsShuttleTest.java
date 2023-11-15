@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.alias;
+package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintTestUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
@@ -37,8 +36,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Collections;
 
 /** Tests clearing lookup join hint case-insensitive in stream. */
-class ClearJoinHintWithCapitalizeJoinHintShuttleTest
-        extends ClearJoinHintWithInvalidPropagationShuttleTestBase {
+class ClearJoinHintsWithCapitalizeJoinHintsShuttleTest
+        extends ClearJoinHintsWithInvalidPropagationShuttleTestBase {
 
     @Override
     TableTestUtil getTableTestUtil() {
@@ -143,7 +142,7 @@ class ClearJoinHintWithCapitalizeJoinHintShuttleTest
         util.assertEqualsOrExpand("afterCapitalizeJoinHints", plan, true);
 
         RelNode rootAfterClearingJoinHintWithInvalidPropagation =
-                rootAfterHintCapitalize.accept(new ClearJoinHintWithInvalidPropagationShuttle());
+                rootAfterHintCapitalize.accept(new ClearJoinHintsWithInvalidPropagationShuttle());
         plan = buildRelPlanWithQueryBlockAlias(rootAfterClearingJoinHintWithInvalidPropagation);
         util.assertEqualsOrExpand("afterClearingJoinHints", plan, false);
     }

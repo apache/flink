@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.alias;
+package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintTestUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
@@ -44,8 +43,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Collections;
 
 /** Tests clearing lookup join hint with invalid propagation in stream. */
-class ClearLookupJoinHintWithInvalidPropagationShuttleTest
-        extends ClearJoinHintWithInvalidPropagationShuttleTestBase {
+class ClearLookupJoinHintsWithInvalidPropagationShuttleTest
+        extends ClearJoinHintsWithInvalidPropagationShuttleTestBase {
     @Override
     TableTestUtil getTableTestUtil() {
         return streamTestUtil(TableConfig.getDefault());
@@ -79,7 +78,7 @@ class ClearLookupJoinHintWithInvalidPropagationShuttleTest
         util.tableEnv()
                 .createTemporarySystemFunction(
                         "MockOffset",
-                        new ClearLookupJoinHintWithInvalidPropagationShuttleTest
+                        new ClearLookupJoinHintsWithInvalidPropagationShuttleTest
                                 .MockOffsetTableFunction());
     }
 

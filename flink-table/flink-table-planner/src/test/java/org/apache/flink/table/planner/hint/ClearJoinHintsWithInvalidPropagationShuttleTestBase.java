@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.alias;
+package org.apache.flink.table.planner.hint;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.Configuration;
@@ -39,7 +39,7 @@ import org.junit.jupiter.api.BeforeEach;
 import java.util.Collections;
 
 /** A base class for testing clearing join hint with invalid propagation. */
-abstract class ClearJoinHintWithInvalidPropagationShuttleTestBase extends TableTestBase {
+abstract class ClearJoinHintsWithInvalidPropagationShuttleTestBase extends TableTestBase {
 
     protected final TableTestUtil util = getTableTestUtil();
 
@@ -121,7 +121,7 @@ abstract class ClearJoinHintWithInvalidPropagationShuttleTestBase extends TableT
         util.assertEqualsOrExpand("afterPropagatingHints", plan, true);
 
         RelNode rootAfterClearingJoinHintWithInvalidPropagation =
-                rootAfterHintPropagation.accept(new ClearJoinHintWithInvalidPropagationShuttle());
+                rootAfterHintPropagation.accept(new ClearJoinHintsWithInvalidPropagationShuttle());
         plan = buildRelPlanWithQueryBlockAlias(rootAfterClearingJoinHintWithInvalidPropagation);
         util.assertEqualsOrExpand("afterClearingJoinHints", plan, false);
     }

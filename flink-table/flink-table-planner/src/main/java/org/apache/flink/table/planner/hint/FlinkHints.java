@@ -23,25 +23,24 @@ import org.apache.flink.table.planner.plan.rules.logical.WrapJsonAggFunctionArgu
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase;
 
 import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
-import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalSnapshot;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.rex.RexSubQuery;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** Utility class for Flink hints. */
@@ -175,7 +174,7 @@ public abstract class FlinkHints {
      * Get all query block alias hints.
      *
      * <p>Because query block alias hints will be propagated from root to leaves, so maybe one node
-     * will contain multi alias hints. But only the first one is the really query block name where
+     * will contain multi alias hints. But only the first one is the real query block name where
      * this node is.
      */
     public static List<RelHint> getQueryBlockAliasHints(List<RelHint> allHints) {
@@ -185,53 +184,60 @@ public abstract class FlinkHints {
     }
 
     public static RelNode capitalizeJoinHints(RelNode root) {
-        return root.accept(new CapitalizeJoinHintShuttle());
+        return root.accept(new CapitalizeJoinHintsShuttle());
     }
 
-    private static class CapitalizeJoinHintShuttle extends RelShuttleImpl {
-
-        @Override
-        public RelNode visit(LogicalCorrelate correlate) {
-            return visitBiRel(correlate);
-        }
-
-        @Override
-        public RelNode visit(LogicalJoin join) {
-            return visitBiRel(join);
-        }
-
-        private RelNode visitBiRel(BiRel biRel) {
-            Hintable hBiRel = (Hintable) biRel;
-            AtomicBoolean changed = new AtomicBoolean(false);
-            List<RelHint> hintsWithCapitalJoinHints =
-                    hBiRel.getHints().stream()
-                            .map(
-                                    hint -> {
-                                        String capitalHintName =
-                                                hint.hintName.toUpperCase(Locale.ROOT);
-                                        if (JoinStrategy.isJoinStrategy(capitalHintName)) {
-                                            changed.set(true);
-                                            if (JoinStrategy.isLookupHint(hint.hintName)) {
-                                                return RelHint.builder(capitalHintName)
-                                                        .hintOptions(hint.kvOptions)
-                                                        .inheritPath(hint.inheritPath)
-                                                        .build();
-                                            }
-                                            return RelHint.builder(capitalHintName)
-                                                    .hintOptions(hint.listOptions)
-                                                    .inheritPath(hint.inheritPath)
-                                                    .build();
-                                        } else {
-                                            return hint;
-                                        }
-                                    })
+    /** Resolve the RelNode of the sub query in the node and return a new node. */
+    public static RelNode resolveSubQuery(RelNode node, Function<RelNode, RelNode> resolver) {
+        if (node instanceof LogicalProject) {
+            LogicalProject project = (LogicalProject) node;
+            List<RexNode> newProjects =
+                    project.getProjects().stream()
+                            .map(p -> resolveSubQuery(p, resolver))
                             .collect(Collectors.toList());
+            return project.copy(
+                    project.getTraitSet(), project.getInput(), newProjects, project.getRowType());
 
-            if (changed.get()) {
-                return super.visit(hBiRel.withHints(hintsWithCapitalJoinHints));
-            } else {
-                return super.visit(biRel);
-            }
+        } else if (node instanceof LogicalFilter) {
+            LogicalFilter filter = (LogicalFilter) node;
+            RexNode newCondition = resolveSubQuery(filter.getCondition(), resolver);
+            return filter.copy(filter.getTraitSet(), filter.getInput(), newCondition);
+
+        } else if (node instanceof LogicalJoin) {
+            LogicalJoin join = (LogicalJoin) node;
+            RexNode newCondition = resolveSubQuery(join.getCondition(), resolver);
+            return join.copy(
+                    join.getTraitSet(),
+                    newCondition,
+                    join.getLeft(),
+                    join.getRight(),
+                    join.getJoinType(),
+                    join.isSemiJoinDone());
+
+        } else {
+            return node;
         }
+    }
+
+    /** Resolve the RelNode of the sub query in conditions. */
+    private static RexNode resolveSubQuery(RexNode rexNode, Function<RelNode, RelNode> resolver) {
+        return rexNode.accept(
+                new RexShuttle() {
+                    @Override
+                    public RexNode visitSubQuery(RexSubQuery subQuery) {
+                        RelNode oldRel = subQuery.rel;
+                        RelNode newRel = resolver.apply(oldRel);
+                        if (oldRel != newRel) {
+                            return super.visitSubQuery(subQuery.clone(newRel));
+                        }
+                        return subQuery;
+                    }
+                });
+    }
+
+    /** Clear the join hints on some nodes where these hints should not be attached. */
+    public static RelNode clearJoinHintsOnUnmatchedNodes(RelNode root) {
+        return root.accept(
+                new ClearJoinHintsOnUnmatchedNodesShuttle(root.getCluster().getHintStrategies()));
     }
 }
