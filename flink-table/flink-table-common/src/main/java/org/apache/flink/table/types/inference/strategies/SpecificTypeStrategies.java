@@ -49,6 +49,9 @@ public final class SpecificTypeStrategies {
     /** See {@link MapTypeStrategy}. */
     public static final TypeStrategy MAP = new MapTypeStrategy();
 
+    /** See {@link CollectTypeStrategy}. */
+    public static final TypeStrategy COLLECT = new CollectTypeStrategy();
+
     /** See {@link IfNullTypeStrategy}. */
     public static final TypeStrategy IF_NULL = new IfNullTypeStrategy();
 

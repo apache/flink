@@ -48,39 +48,6 @@ case class ApiResolvedAggregateCallExpression(resolvedCall: CallExpression) exte
     .fromDataTypeToLegacyInfo(resolvedCall.getOutputDataType)
 }
 
-case class DistinctAgg(child: PlannerExpression) extends Aggregation {
-
-  def distinct: PlannerExpression = DistinctAgg(child)
-
-  override private[flink] def resultType: TypeInformation[_] = child.resultType
-
-  override private[flink] def validateInput(): ValidationResult = {
-    super.validateInput()
-    child match {
-      case agg: Aggregation =>
-        child.validateInput()
-      case _ =>
-        ValidationFailure(
-          s"Distinct modifier cannot be applied to $child! " +
-            s"It can only be applied to an aggregation expression, for example, " +
-            s"'a.count.distinct which is equivalent with COUNT(DISTINCT a).")
-    }
-  }
-
-  override private[flink] def children = Seq(child)
-}
-
-/** Returns a multiset aggregates. */
-case class Collect(child: PlannerExpression) extends Aggregation {
-
-  override private[flink] def children: Seq[PlannerExpression] = Seq(child)
-
-  override private[flink] def resultType: TypeInformation[_] =
-    MultisetTypeInfo.getInfoFor(child.resultType)
-
-  override def toString: String = s"collect($child)"
-}
-
 /** Expression for calling a user-defined (table)aggregate function. */
 case class AggFunctionCall(
     aggregateFunction: ImperativeAggregateFunction[_, _],
