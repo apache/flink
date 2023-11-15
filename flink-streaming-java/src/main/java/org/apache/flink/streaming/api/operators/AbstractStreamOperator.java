@@ -24,6 +24,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.IndexedCombinedWatermarkStatus;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.state.KeyedStateStore;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
@@ -63,6 +64,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
@@ -93,6 +96,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 public abstract class AbstractStreamOperator<OUT>
         implements StreamOperator<OUT>,
                 SetupableStreamOperator<OUT>,
+                YieldingOperator<OUT>,
                 CheckpointedStreamOperator,
                 KeyContextHandler,
                 Serializable {
@@ -119,6 +123,10 @@ public abstract class AbstractStreamOperator<OUT>
 
     /** The runtime context for UDFs. */
     private transient StreamingRuntimeContext runtimeContext;
+
+    private transient @Nullable MailboxExecutor mailboxExecutor;
+
+    private transient @Nullable MailboxWatermarkProcessor watermarkProcessor;
 
     // ---------------- key/value state ------------------
 
@@ -311,6 +319,37 @@ public abstract class AbstractStreamOperator<OUT>
         return false;
     }
 
+    @Internal
+    @Override
+    public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
+        this.mailboxExecutor = mailboxExecutor;
+    }
+
+    /**
+     * Can be overridden to disable splittable timers for this particular operator even if config
+     * option is enabled. By default, splittable timers are disabled.
+     *
+     * @return {@code true} if splittable timers should be used (subject to {@link
+     *     StreamConfig#isUnalignedCheckpointsEnabled()} and {@link
+     *     StreamConfig#isUnalignedCheckpointsSplittableTimersEnabled()}. {@code false} if
+     *     splittable timers should never be used.
+     */
+    @Internal
+    public boolean useSplittableTimers() {
+        return false;
+    }
+
+    @Internal
+    private boolean areSplittableTimersConfigured() {
+        return areSplittableTimersConfigured(config);
+    }
+
+    static boolean areSplittableTimersConfigured(StreamConfig config) {
+        return config.isCheckpointingEnabled()
+                && config.isUnalignedCheckpointsEnabled()
+                && config.isUnalignedCheckpointsSplittableTimersEnabled();
+    }
+
     /**
      * This method is called immediately before any elements are processed, it should contain the
      * operator's initialization logic, e.g. state initialization.
@@ -320,7 +359,15 @@ public abstract class AbstractStreamOperator<OUT>
      * @throws Exception An exception in this method causes the operator to fail.
      */
     @Override
-    public void open() throws Exception {}
+    public void open() throws Exception {
+        if (useSplittableTimers()
+                && areSplittableTimersConfigured()
+                && getTimeServiceManager().isPresent()) {
+            this.watermarkProcessor =
+                    new MailboxWatermarkProcessor(
+                            output, mailboxExecutor, getTimeServiceManager().get());
+        }
+    }
 
     @Override
     public void finish() throws Exception {}
@@ -618,6 +665,14 @@ public abstract class AbstractStreamOperator<OUT>
     }
 
     public void processWatermark(Watermark mark) throws Exception {
+        if (watermarkProcessor != null) {
+            watermarkProcessor.emitWatermarkInsideMailbox(mark);
+        } else {
+            emitWatermarkDirectly(mark);
+        }
+    }
+
+    private void emitWatermarkDirectly(Watermark mark) throws Exception {
         if (timeServiceManager != null) {
             timeServiceManager.advanceWatermark(mark);
         }

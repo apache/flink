@@ -52,12 +52,6 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
         this.ctx = new ContextImpl(getProcessingTimeService());
     }
 
-    @Override
-    public void processWatermark(Watermark mark) throws Exception {
-        super.processWatermark(mark);
-        currentWatermark = mark.getTimestamp();
-    }
-
     /** Compute memory size from memory faction. */
     public long computeMemorySize() {
         final Environment environment = getContainingTask().getEnvironment();
@@ -72,6 +66,11 @@ public abstract class TableStreamOperator<OUT> extends AbstractStreamOperator<OU
                                         environment.getUserCodeClassLoader().asClassLoader()));
     }
 
+    @Override
+    public void processWatermark(Watermark mark) throws Exception {
+        currentWatermark = mark.getTimestamp();
+        super.processWatermark(mark);
+    }
     /** Information available in an invocation of processElement. */
     protected class ContextImpl implements TimerService {
 
