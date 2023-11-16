@@ -50,6 +50,7 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
     private static final int TAG_WATERMARK = 2;
     private static final int TAG_LATENCY_MARKER = 3;
     private static final int TAG_STREAM_STATUS = 4;
+    private static final int TAG_RECORD_ATTRIBUTES = 5;
 
     private final TypeSerializer<T> typeSerializer;
 
@@ -146,6 +147,8 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             target.writeLong(source.readLong());
             target.writeLong(source.readLong());
             target.writeInt(source.readInt());
+        } else if (tag == TAG_RECORD_ATTRIBUTES) {
+            target.writeBoolean(source.readBoolean());
         } else {
             throw new IOException("Corrupt stream, found tag: " + tag);
         }
@@ -175,6 +178,9 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
             target.writeLong(value.asLatencyMarker().getOperatorId().getLowerPart());
             target.writeLong(value.asLatencyMarker().getOperatorId().getUpperPart());
             target.writeInt(value.asLatencyMarker().getSubtaskIndex());
+        } else if (value.isRecordAttributes()) {
+            target.write(TAG_RECORD_ATTRIBUTES);
+            target.writeBoolean(value.asRecordAttributes().isBacklog());
         } else {
             throw new RuntimeException();
         }
@@ -197,6 +203,8 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
                     source.readLong(),
                     new OperatorID(source.readLong(), source.readLong()),
                     source.readInt());
+        } else if (tag == TAG_RECORD_ATTRIBUTES) {
+            return new RecordAttributes(source.readBoolean());
         } else {
             throw new IOException("Corrupt stream, found tag: " + tag);
         }
@@ -223,6 +231,8 @@ public final class StreamElementSerializer<T> extends TypeSerializer<StreamEleme
                     source.readLong(),
                     new OperatorID(source.readLong(), source.readLong()),
                     source.readInt());
+        } else if (tag == TAG_RECORD_ATTRIBUTES) {
+            return new RecordAttributes(source.readBoolean());
         } else {
             throw new IOException("Corrupt stream, found tag: " + tag);
         }
