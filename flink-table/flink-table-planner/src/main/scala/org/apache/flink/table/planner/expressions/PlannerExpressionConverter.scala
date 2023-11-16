@@ -69,16 +69,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     // special case: requires individual handling of child expressions
     func match {
 
-      case WINDOW_START =>
-        assert(children.size == 1)
-        val windowReference = translateWindowReference(children.head)
-        return WindowStart(windowReference)
-
-      case WINDOW_END =>
-        assert(children.size == 1)
-        val windowReference = translateWindowReference(children.head)
-        return WindowEnd(windowReference)
-
       case THROW_EXCEPTION =>
         assert(children.size == 2)
         return ThrowException(

@@ -32,6 +32,8 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -44,7 +46,8 @@ import java.util.Optional;
 public final class WindowTimeIndictorInputTypeStrategy implements InputTypeStrategy {
     private final TimestampKind timestampKind;
 
-    public WindowTimeIndictorInputTypeStrategy(TimestampKind timestampKind) {
+    /** @param timestampKind if null the window can be either proctime or rowtime window. */
+    public WindowTimeIndictorInputTypeStrategy(@Nullable TimestampKind timestampKind) {
         this.timestampKind = timestampKind;
     }
 

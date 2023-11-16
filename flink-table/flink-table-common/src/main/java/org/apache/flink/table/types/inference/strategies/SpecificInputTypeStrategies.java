@@ -65,6 +65,11 @@ public final class SpecificInputTypeStrategies {
         return new WindowTimeIndictorInputTypeStrategy(timestampKind);
     }
 
+    /** See {@link WindowTimeIndictorInputTypeStrategy}. */
+    public static InputTypeStrategy windowTimeIndicator() {
+        return new WindowTimeIndictorInputTypeStrategy(null);
+    }
+
     /** Argument type representing all types supported in a JSON context. */
     public static final ArgumentTypeStrategy JSON_ARGUMENT =
             or(
