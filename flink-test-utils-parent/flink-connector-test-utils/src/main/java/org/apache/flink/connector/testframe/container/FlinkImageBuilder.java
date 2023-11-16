@@ -292,7 +292,7 @@ public class FlinkImageBuilder {
         Path flinkConfFile = tempDirectory.resolve(GlobalConfiguration.FLINK_CONF_FILENAME);
         Files.write(
                 flinkConfFile,
-                finalConfiguration.toMap().entrySet().stream()
+                finalConfiguration.toFileWritableMap().entrySet().stream()
                         .map(entry -> entry.getKey() + ": " + entry.getValue())
                         .collect(Collectors.toList()));
 

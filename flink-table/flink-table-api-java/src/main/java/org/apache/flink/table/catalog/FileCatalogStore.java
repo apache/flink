@@ -125,7 +125,7 @@ public class FileCatalogStore extends AbstractCatalogStore {
             }
 
             try (FSDataOutputStream os = fs.create(catalogPath, WriteMode.NO_OVERWRITE)) {
-                YAML_MAPPER.writeValue(os, catalog.getConfiguration().toMap());
+                YAML_MAPPER.writeValue(os, catalog.getConfiguration().toFileWritableMap());
             }
 
             LOG.info("Catalog {}'s configuration saved to file {}", catalogName, catalogPath);
