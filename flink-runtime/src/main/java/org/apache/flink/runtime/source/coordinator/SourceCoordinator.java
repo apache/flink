@@ -33,6 +33,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.source.event.IsProcessingBacklogEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
@@ -607,6 +608,12 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         context.registerSourceReader(subtask, attemptNumber, event.location());
         if (!subtaskReaderExisted) {
             enumerator.addReader(event.subtaskId());
+
+            final Boolean isBacklog = context.isBacklog().getAsBoolean();
+            if (isBacklog != null) {
+                context.sendEventToSourceOperatorIfTaskReady(
+                        subtask, new IsProcessingBacklogEvent(isBacklog));
+            }
         }
     }
 
