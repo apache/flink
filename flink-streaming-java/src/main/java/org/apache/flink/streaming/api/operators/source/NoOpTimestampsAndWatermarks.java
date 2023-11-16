@@ -63,6 +63,11 @@ public class NoOpTimestampsAndWatermarks<T> implements TimestampsAndWatermarks<T
         // no periodic watermarks
     }
 
+    @Override
+    public void emitImmediateWatermark(long wallClockTimestamp) {
+        // do nothing
+    }
+
     // ------------------------------------------------------------------------
 
     /**
