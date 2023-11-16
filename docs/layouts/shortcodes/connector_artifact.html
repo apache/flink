@@ -27,17 +27,35 @@ under the License.
 {{ $version := $connector.version  }}
 {{ $path := .Page.Path }}
 
+{{ $connector := index .Site.Data $name }}
+{{ $flink_compatibility := $connector.flink_compatibility  }}
+{{ $flink_version := .Site.Params.VersionTitle }}
+
 {{ $hash := md5 now }}
 
+{{ $containsVersion := false }}
+{{ range $flink_compatibility }}
+    {{ if in . $flink_version }}
+        {{ $containsVersion = true }}
+        {{ printf "Fine" }}
+        {{ break }}
+    {{ end }}
+{{ end }}
+
+
 {{ if $.Site.Params.IsStable }}
-<div id="{{ $hash }}" onclick="selectTextAndCopy('{{ $hash }}')"class="highlight"><pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&ltdependency&gt</span>
-    <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
-    <span class="nt">&ltartifactId&gt</span>{{- $artifactId -}}<span class="nt">&lt/artifactId&gt</span>
-    <span class="nt">&ltversion&gt</span>{{- $version -}}-{{- site.Params.VersionTitle -}}<span class="nt">&lt/version&gt</span>
-<span class="nt">&lt/dependency&gt</span></code></pre></div>
-<div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">
-  Copied to clipboard!
-</div>
+    {{ if $containsVersion }}
+    <div id="{{ $hash }}" onclick="selectTextAndCopy('{{ $hash }}')"class="highlight"><pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&ltdependency&gt</span>
+        <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
+        <span class="nt">&ltartifactId&gt</span>{{- $artifactId -}}<span class="nt">&lt/artifactId&gt</span>
+        <span class="nt">&ltversion&gt</span>{{- $version -}}-{{- site.Params.VersionTitle -}}<span class="nt">&lt/version&gt</span>
+    <span class="nt">&lt/dependency&gt</span></code></pre></div>
+    <div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">
+      Copied to clipboard!
+    </div>
+    {{ else }}
+    <p style="font-weight: bold">There is no connector (yet) available for Flink version {{ printf $flink_version }}.</p>
+    {{ end }}
 {{ else }}
-Only available for stable versions.
+    <p style="font-weight: bold">Only available for stable versions.</p>
 {{ end }}
