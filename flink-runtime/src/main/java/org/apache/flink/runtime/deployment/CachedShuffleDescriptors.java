@@ -87,7 +87,7 @@ public class CachedShuffleDescriptors {
                     new ShuffleDescriptorGroup(
                             toBeSerialized.toArray(new ShuffleDescriptorAndIndex[0]));
             MaybeOffloaded<ShuffleDescriptorGroup> serializedShuffleDescriptorGroup =
-                    shuffleDescriptorSerializer.serializeAndTryOffloadShuffleDescriptor(
+                    shuffleDescriptorSerializer.trySerializeAndOffloadShuffleDescriptor(
                             shuffleDescriptorGroup, numConsumers);
 
             toBeSerialized.clear();

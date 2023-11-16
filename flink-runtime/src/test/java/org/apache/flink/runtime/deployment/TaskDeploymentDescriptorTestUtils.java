@@ -21,7 +21,7 @@ package org.apache.flink.runtime.deployment;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.TestingBlobWriter;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloadedRaw;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
@@ -47,11 +47,8 @@ public class TaskDeploymentDescriptorTestUtils {
         int maxIndex = 0;
         for (MaybeOffloaded<ShuffleDescriptorGroup> sd : maybeOffloaded) {
             ShuffleDescriptorGroup shuffleDescriptorGroup;
-            if (sd instanceof NonOffloaded) {
-                shuffleDescriptorGroup =
-                        ((NonOffloaded<ShuffleDescriptorGroup>) sd)
-                                .serializedValue.deserializeValue(
-                                        ClassLoader.getSystemClassLoader());
+            if (sd instanceof NonOffloadedRaw) {
+                shuffleDescriptorGroup = ((NonOffloadedRaw<ShuffleDescriptorGroup>) sd).value;
 
             } else {
                 final CompressedSerializedValue<ShuffleDescriptorGroup> compressedSerializedValue =
