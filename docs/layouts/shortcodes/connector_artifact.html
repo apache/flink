@@ -37,7 +37,6 @@ under the License.
 {{ range $flink_compatibility }}
     {{ if in . $flink_version }}
         {{ $containsVersion = true }}
-        {{ printf "Fine" }}
         {{ break }}
     {{ end }}
 {{ end }}
