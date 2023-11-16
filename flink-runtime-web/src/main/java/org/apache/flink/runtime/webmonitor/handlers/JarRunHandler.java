@@ -142,7 +142,7 @@ public class JarRunHandler
                         log);
         final String savepointPath =
                 fromRequestBodyOrQueryParameter(
-                        requestBody.getSavepointPath(),
+                        emptyToNull(requestBody.getSavepointPath()),
                         () ->
                                 emptyToNull(
                                         getQueryParameter(
