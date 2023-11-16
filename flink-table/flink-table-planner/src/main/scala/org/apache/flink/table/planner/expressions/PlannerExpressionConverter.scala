@@ -117,14 +117,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       case fd: FunctionDefinition =>
         fd match {
 
-          case ORDER_ASC =>
-            assert(args.size == 1)
-            Asc(args.head)
-
-          case ORDER_DESC =>
-            assert(args.size == 1)
-            Desc(args.head)
-
           case OVER =>
             assert(args.size >= 4)
             OverCall(
