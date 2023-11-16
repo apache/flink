@@ -23,7 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloadedRaw;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
@@ -98,9 +98,7 @@ public class InputGateDeploymentDescriptor implements Serializable {
                 new IndexRange(consumedSubpartitionIndex, consumedSubpartitionIndex),
                 inputChannels.length,
                 Collections.singletonList(
-                        new NonOffloaded<>(
-                                CompressedSerializedValue.fromObject(
-                                        new ShuffleDescriptorGroup(inputChannels)))));
+                        new NonOffloadedRaw<>(new ShuffleDescriptorGroup(inputChannels))));
     }
 
     public InputGateDeploymentDescriptor(
@@ -147,18 +145,14 @@ public class InputGateDeploymentDescriptor implements Serializable {
             // This is only for testing scenarios, in a production environment we always call
             // tryLoadAndDeserializeShuffleDescriptors to deserialize ShuffleDescriptors first.
             inputChannels = new ShuffleDescriptor[numberOfInputChannels];
-            try {
-                for (MaybeOffloaded<ShuffleDescriptorGroup> serializedShuffleDescriptors :
-                        serializedInputChannels) {
-                    checkState(
-                            serializedShuffleDescriptors instanceof NonOffloaded,
-                            "Trying to work with offloaded serialized shuffle descriptors.");
-                    NonOffloaded<ShuffleDescriptorGroup> nonOffloadedSerializedValue =
-                            (NonOffloaded<ShuffleDescriptorGroup>) serializedShuffleDescriptors;
-                    tryDeserializeShuffleDescriptorGroup(nonOffloadedSerializedValue);
-                }
-            } catch (ClassNotFoundException | IOException e) {
-                throw new RuntimeException("Could not deserialize shuffle descriptors.", e);
+            for (MaybeOffloaded<ShuffleDescriptorGroup> rawShuffleDescriptors :
+                    serializedInputChannels) {
+                checkState(
+                        rawShuffleDescriptors instanceof NonOffloadedRaw,
+                        "Trying to work with offloaded serialized shuffle descriptors.");
+                NonOffloadedRaw<ShuffleDescriptorGroup> nonOffloadedRawValue =
+                        (NonOffloadedRaw<ShuffleDescriptorGroup>) rawShuffleDescriptors;
+                putOrReplaceShuffleDescriptors(nonOffloadedRawValue.value);
             }
         }
         return inputChannels;
@@ -213,19 +207,10 @@ public class InputGateDeploymentDescriptor implements Serializable {
             }
             putOrReplaceShuffleDescriptors(shuffleDescriptorGroup);
         } else {
-            NonOffloaded<ShuffleDescriptorGroup> nonOffloadedSerializedValue =
-                    (NonOffloaded<ShuffleDescriptorGroup>) serializedShuffleDescriptors;
-            tryDeserializeShuffleDescriptorGroup(nonOffloadedSerializedValue);
+            NonOffloadedRaw<ShuffleDescriptorGroup> nonOffloadedSerializedValue =
+                    (NonOffloadedRaw<ShuffleDescriptorGroup>) serializedShuffleDescriptors;
+            putOrReplaceShuffleDescriptors(nonOffloadedSerializedValue.value);
         }
-    }
-
-    private void tryDeserializeShuffleDescriptorGroup(
-            NonOffloaded<ShuffleDescriptorGroup> nonOffloadedShuffleDescriptorGroup)
-            throws IOException, ClassNotFoundException {
-        ShuffleDescriptorGroup shuffleDescriptorGroup =
-                nonOffloadedShuffleDescriptorGroup.serializedValue.deserializeValue(
-                        getClass().getClassLoader());
-        putOrReplaceShuffleDescriptors(shuffleDescriptorGroup);
     }
 
     private void putOrReplaceShuffleDescriptors(ShuffleDescriptorGroup shuffleDescriptorGroup) {
