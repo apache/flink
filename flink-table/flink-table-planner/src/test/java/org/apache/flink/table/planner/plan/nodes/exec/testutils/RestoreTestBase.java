@@ -81,9 +81,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class RestoreTestBase implements TableTestProgramRunner {
 
     private final Class<? extends ExecNode> execNodeUnderTest;
+    private final AfterRestoreSource afterRestoreSource;
 
     protected RestoreTestBase(Class<? extends ExecNode> execNodeUnderTest) {
         this.execNodeUnderTest = execNodeUnderTest;
+        this.afterRestoreSource = AfterRestoreSource.FINITE;
+    }
+
+    protected RestoreTestBase(
+            Class<? extends ExecNode> execNodeUnderTest, AfterRestoreSource state) {
+        this.execNodeUnderTest = execNodeUnderTest;
+        this.afterRestoreSource = state;
+    }
+
+    /**
+     * AfterRestoreSource defines the source behavior while running {@link
+     * RestoreTestBase#testRestore}.
+     */
+    protected enum AfterRestoreSource {
+        FINITE,
+        INFINITE
     }
 
     @Override
@@ -116,6 +133,31 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                                 supportedPrograms().stream().map(p -> Arguments.of(p, metadata)));
     }
 
+    private void registerSinkObserver(
+            final List<CompletableFuture<?>> futures,
+            final SinkTestStep sinkTestStep,
+            final boolean ignoreAfter) {
+        final CompletableFuture<Object> future = new CompletableFuture<>();
+        futures.add(future);
+        final String tableName = sinkTestStep.name;
+        TestValuesTableFactory.registerLocalRawResultsObserver(
+                tableName,
+                (integer, strings) -> {
+                    List<String> results = new ArrayList<>();
+                    results.addAll(sinkTestStep.getExpectedBeforeRestoreAsStrings());
+                    if (!ignoreAfter) {
+                        results.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
+                    }
+                    final boolean shouldComplete =
+                            CollectionUtils.isEqualCollection(
+                                    TestValuesTableFactory.getRawResultsAsStrings(tableName),
+                                    results);
+                    if (shouldComplete) {
+                        future.complete(null);
+                    }
+                });
+    }
+
     /**
      * Execute this test to generate test files. Remember to be using the correct branch when
      * generating the test files.
@@ -143,20 +185,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
 
         final List<CompletableFuture<?>> futures = new ArrayList<>();
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-            final CompletableFuture<Object> future = new CompletableFuture<>();
-            futures.add(future);
-            final String tableName = sinkTestStep.name;
-            TestValuesTableFactory.registerLocalRawResultsObserver(
-                    tableName,
-                    (integer, strings) -> {
-                        final boolean shouldTakeSavepoint =
-                                CollectionUtils.isEqualCollection(
-                                        TestValuesTableFactory.getRawResultsAsStrings(tableName),
-                                        sinkTestStep.getExpectedBeforeRestoreAsStrings());
-                        if (shouldTakeSavepoint) {
-                            future.complete(null);
-                        }
-                    });
+            registerSinkObserver(futures, sinkTestStep, true);
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("disable-lookup", "true");
@@ -200,6 +229,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 .set(
                         TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
                         TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
+
         for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
             final String id = TestValuesTableFactory.registerData(sourceTestStep.dataAfterRestore);
             final Map<String, String> options = new HashMap<>();
@@ -207,10 +237,18 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             options.put("data-id", id);
             options.put("disable-lookup", "true");
             options.put("runtime-source", "NewSource");
+            if (afterRestoreSource == AfterRestoreSource.INFINITE) {
+                options.put("terminating", "false");
+            }
             sourceTestStep.apply(tEnv, options);
         }
 
+        final List<CompletableFuture<?>> futures = new ArrayList<>();
+
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
+            if (afterRestoreSource == AfterRestoreSource.INFINITE) {
+                registerSinkObserver(futures, sinkTestStep, false);
+            }
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("disable-lookup", "true");
@@ -222,16 +260,23 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
 
         final CompiledPlan compiledPlan =
                 tEnv.loadPlan(PlanReference.fromFile(getPlanPath(program, metadata)));
-        compiledPlan.execute().await();
-        for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-            assertThat(TestValuesTableFactory.getRawResultsAsStrings(sinkTestStep.name))
-                    .containsExactlyInAnyOrder(
-                            Stream.concat(
-                                            sinkTestStep.getExpectedBeforeRestoreAsStrings()
-                                                    .stream(),
-                                            sinkTestStep.getExpectedAfterRestoreAsStrings()
-                                                    .stream())
-                                    .toArray(String[]::new));
+
+        if (afterRestoreSource == AfterRestoreSource.INFINITE) {
+            final TableResult tableResult = compiledPlan.execute();
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+            tableResult.getJobClient().get().cancel().get();
+        } else {
+            compiledPlan.execute().await();
+            for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
+                assertThat(TestValuesTableFactory.getRawResultsAsStrings(sinkTestStep.name))
+                        .containsExactlyInAnyOrder(
+                                Stream.concat(
+                                                sinkTestStep.getExpectedBeforeRestoreAsStrings()
+                                                        .stream(),
+                                                sinkTestStep.getExpectedAfterRestoreAsStrings()
+                                                        .stream())
+                                        .toArray(String[]::new));
+            }
         }
     }
 
