@@ -106,10 +106,6 @@ class HiveTemporalJoinITCase extends TableTestBase {
         tableEnv.executeSql("insert into build values (1,'a',10),(2,'a',21),(2,'b',22),(3,'c',33)")
                 .await();
 
-        tableEnv.executeSql(
-                "select p.x, p.y, b.z from "
-                        + " default_catalog.default_database.probe as p "
-                        + " join build for system_time as of p.p as b on p.x=b.x and p.y=b.y");
         assertThatThrownBy(
                         () ->
                                 tableEnv.executeSql(
