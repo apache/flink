@@ -1987,14 +1987,16 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("start")
                     .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.windowTimeIndicator())
+                    .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
                     .build();
 
     public static final BuiltInFunctionDefinition WINDOW_END =
             BuiltInFunctionDefinition.newBuilder()
                     .name("end")
                     .kind(OTHER)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.windowTimeIndicator())
+                    .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
                     .build();
 
     // --------------------------------------------------------------------------------------------

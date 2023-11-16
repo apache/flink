@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
@@ -64,22 +64,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       func: FunctionDefinition,
       children: Seq[Expression],
       unknownFunctionHandler: () => PlannerExpression): PlannerExpression = {
-
-    // special case: requires individual handling of child expressions
-    func match {
-
-      case WINDOW_START =>
-        assert(children.size == 1)
-        val windowReference = translateWindowReference(children.head)
-        return WindowStart(windowReference)
-
-      case WINDOW_END =>
-        assert(children.size == 1)
-        val windowReference = translateWindowReference(children.head)
-        return WindowEnd(windowReference)
-
-      case _ =>
-    }
 
     val args = children.map(_.accept(this))
 
@@ -229,26 +213,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       case _ =>
         throw new TableException("Unrecognized expression: " + other)
     }
-  }
-
-  private def getValue[T](literal: PlannerExpression): T = {
-    literal.asInstanceOf[Literal].value.asInstanceOf[T]
-  }
-
-  private def assert(condition: Boolean): Unit = {
-    if (!condition) {
-      throw new ValidationException("Invalid number of arguments for function.")
-    }
-  }
-
-  private def translateWindowReference(reference: Expression): PlannerExpression = reference match {
-    case expr: LocalReferenceExpression =>
-      WindowReference(expr.getName, Some(fromDataTypeToTypeInfo(expr.getOutputDataType)))
-    // just because how the datastream is converted to table
-    case expr: UnresolvedReferenceExpression =>
-      UnresolvedFieldReference(expr.getName)
-    case _ =>
-      throw new ValidationException(s"Expected LocalReferenceExpression. Got: $reference")
   }
 }
 
