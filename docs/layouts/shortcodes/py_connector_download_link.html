@@ -21,8 +21,17 @@ Generates an XML snippet for the externalized connector python download table.
 {{ $name := .Get 0 }}
 {{ $connector := index .Site.Data $name }}
 {{ $connector_version := $connector.version  }}
+{{ $flink_compatibility := $connector.flink_compatibility  }}
 {{ $flink_version := .Site.Params.VersionTitle }}
 {{ $full_version := printf "%s-%s" $connector_version $flink_version }}
+
+{{ $containsVersion := false }}
+{{ range $flink_compatibility }}
+    {{ if in . $flink_version }}
+        {{ $containsVersion = true }}
+        {{ break }}
+    {{ end }}
+{{ end }}
 
 <p>
 {{ if eq $.Site.Language.Lang "en" }}
@@ -41,11 +50,15 @@ dependencies are required:
     <tr>
         <td style="text-align: left">{{- .maven -}}</td>
         {{ if $.Site.Params.IsStable }}
-        {{ if eq .sql_url nil}}
-        <td style="text-align:left">There is no sql jar available yet.</td>
-        {{ else }}
-        <td style="text-align:left"><a href="{{ replace .sql_url "$full_version" $full_version}}">Download</a></td>
-        {{ end }}
+            {{ if $containsVersion }}
+                {{ if eq .sql_url nil}}
+                <td style="text-align:left">There is no SQL jar (yet) available.</td>
+                {{ else }}
+                <td style="text-align:left"><a href="{{ replace .sql_url "$full_version" $full_version}}">Download</a></td>
+                {{ end }}
+            {{ else }}
+            <td>There is no SQL jar (yet) available for Flink version {{ printf $flink_version }}.</td>
+            {{ end }}
         {{ else }}
         <td>Only available for stable releases.</td>
         {{ end }}
