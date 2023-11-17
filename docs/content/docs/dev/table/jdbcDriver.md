@@ -28,6 +28,8 @@ under the License.
 
 The Flink JDBC Driver is a Java library for enabling clients to send Flink SQL to your Flink cluster via the [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
 
+You can also use the [Hive JDBC Driver]({{< ref "docs/dev/table/sql-gateway/hiveserver2#hive-jdbc" >}}) with Flink. This is beneficial if you are running [Hive dialect SQL]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview">}}) and want to make use of the Hive Catalog. To use Hive JDBC with Flink you need to run the [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) with the [HiveServer2 endpoint]({{<ref "docs/dev/table/sql-gateway/hiveserver2">}}).
+
 ## Usage
 
 Before using the Flink JDBC driver you need to start a SQL Gateway with REST endpoint. This acts as the JDBC server and binds it with your Flink cluster.
@@ -55,7 +57,9 @@ You can also add dependency of Flink JDBC driver in your maven or gradle project
 
 ## JDBC Clients
 
-The Flink JDBC driver is not included with the Flink distribution. You can download it from [Maven](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-jdbc-driver-bundle/).
+The Flink JDBC driver is not included with the Flink distribution. You can download it from [Maven](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-jdbc-driver-bundle/). 
+
+You may also need the [SLF4J](https://repo1.maven.org/maven2/org/slf4j/slf4j-api/) (`slf4j-api-{slf4j.version}.jar`) jar.
 
 ### SQLLine
 

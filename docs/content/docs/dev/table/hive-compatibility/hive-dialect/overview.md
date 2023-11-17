@@ -64,7 +64,7 @@ Flink SQL> SET table.sql-dialect = default; -- to use Flink default dialect
 
 ### SQL Gateway Configured With HiveServer2 Endpoint
 
-When using the SQL Gateway configured with HiveServer2 Endpoint, the dialect will be Hive dialect by default, so you don't need to do anything if you want to use Hive dialect. But you can still
+When using the [SQL Gateway configured with HiveServer2 Endpoint]({{<ref "docs/dev/table/sql-gateway/hiveserver2">}}), the dialect will be Hive dialect by default, so you don't need to do anything if you want to use Hive dialect. But you can still
 change the dialect to Flink default dialect.
 
 ```bash
