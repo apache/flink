@@ -57,17 +57,17 @@ under the License.
 
 {{ if $.Site.Params.IsStable }}
     {{ if $containsVersion }}
-    <div id="{{ $hash }}" onclick="selectTextAndCopy('{{ $hash }}')"class="highlight"><pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&ltdependency&gt</span>
-        <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
-        <span class="nt">&ltartifactId&gt</span>{{- $artifactId -}}<span class="nt">&lt/artifactId&gt</span>
-        <span class="nt">&ltversion&gt</span>{{- $version -}}-{{- site.Params.VersionTitle -}}<span class="nt">&lt/version&gt</span>
+<div id="{{ $hash }}" onclick="selectTextAndCopy('{{ $hash }}')"class="highlight"><pre class="chroma"><code class="language-xml" data-lang="xml"><span class="nt">&ltdependency&gt</span>
+    <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
+    <span class="nt">&ltartifactId&gt</span>{{- $artifactId -}}<span class="nt">&lt/artifactId&gt</span>
+    <span class="nt">&ltversion&gt</span>{{- $version -}}-{{- site.Params.VersionTitle -}}<span class="nt">&lt/version&gt</span>
 <span class="nt">&lt/dependency&gt</span></code></pre></div>
-    <div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">
-      Copied to clipboard!
-    </div>
+<div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">
+  Copied to clipboard!
+</div>
     {{ else }}
-    <p style="font-weight: bold">There is no connector (yet) available for Flink version {{ printf $flink_version }}.</p>
+<p style="font-weight: bold">There is no connector (yet) available for Flink version {{ printf $flink_version }}.</p>
     {{ end }}
 {{ else }}
-    <p style="font-weight: bold">Only available for stable versions.</p>
+<p style="font-weight: bold">Only available for stable versions.</p>
 {{ end }}
