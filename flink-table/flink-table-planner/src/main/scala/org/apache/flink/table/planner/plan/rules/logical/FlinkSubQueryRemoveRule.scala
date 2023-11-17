@@ -17,9 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkRelFactories}
-import org.apache.flink.table.planner.hint.FlinkHints
+import org.apache.flink.table.planner.hint.{ClearJoinHintsWithInvalidPropagationShuttle, FlinkHints}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand, RelOptUtil}
@@ -101,7 +100,7 @@ class FlinkSubQueryRemoveRule(
         val nodeWithHint = RelOptUtil.propagateRelHints(newNode, false)
         val nodeWithCapitalizedJoinHints = FlinkHints.capitalizeJoinHints(nodeWithHint)
         val finalNode =
-          nodeWithCapitalizedJoinHints.accept(new ClearJoinHintWithInvalidPropagationShuttle)
+          nodeWithCapitalizedJoinHints.accept(new ClearJoinHintsWithInvalidPropagationShuttle)
         call.transformTo(finalNode)
       case _ => // do nothing
     }

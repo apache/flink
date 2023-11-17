@@ -16,8 +16,9 @@
  */
 package org.apache.calcite.sql2rel;
 
-import org.apache.flink.table.planner.alias.ClearJoinHintWithInvalidPropagationShuttle;
+import org.apache.flink.table.planner.hint.ClearJoinHintsWithInvalidPropagationShuttle;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -219,10 +220,10 @@ import static org.apache.calcite.sql.SqlUtil.stripAs;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682: Lines 633 ~ 643
- *   <li>Added in FLINK-28682: Lines 2095 ~ 2112
- *   <li>Added in FLINK-28682: Lines 2149 ~ 2177
- *   <li>Added in FLINK-20873: Lines 5198 ~ 5207
+ *   <li>Added in FLINK-29081, FLINK-28682: Lines 632 ~ 649
+ *   <li>Added in FLINK-28682: Lines 2101 ~ 2118
+ *   <li>Added in FLINK-28682: Lines 2155 ~ 2183
+ *   <li>Added in FLINK-20873: Lines 5204 ~ 5213
  * </ol>
  */
 @SuppressWarnings("UnstableApiUsage")
@@ -627,10 +628,12 @@ public class SqlToRelConverter {
                 hints = SqlUtil.getRelHint(hintStrategies, select.getHints());
             }
         }
-        // propagate the hints.
-        result = RelOptUtil.propagateRelHints(result, false);
 
         // ----- FLINK MODIFICATION BEGIN -----
+        // propagate the hints.
+        // The method FlinkRelOptUtil#propagateRelHints not only finds and propagates hints
+        // throughout the entire rel tree but also within subqueries.
+        result = FlinkRelOptUtil.propagateRelHints(result, false);
 
         // replace all join hints with upper case
         result = FlinkHints.capitalizeJoinHints(result);
@@ -638,7 +641,10 @@ public class SqlToRelConverter {
         // clear join hints which are propagated into wrong query block
         // The hint QueryBlockAlias will be added when building a RelNode tree before. It is used to
         // distinguish the query block in the SQL.
-        result = result.accept(new ClearJoinHintWithInvalidPropagationShuttle());
+        result = result.accept(new ClearJoinHintsWithInvalidPropagationShuttle());
+
+        // clear the hints on some nodes where these hints should not be attached
+        result = FlinkHints.clearJoinHintsOnUnmatchedNodes(result);
 
         // ----- FLINK MODIFICATION END -----
 
