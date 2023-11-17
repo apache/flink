@@ -122,7 +122,7 @@ under the License.
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
 		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m</flink.surefire.baseArgLine>
-		<flink.shaded.version>16.1</flink.shaded.version>
+		<flink.shaded.version>16.2</flink.shaded.version>
 		<flink.shaded.jackson.version>2.13.4</flink.shaded.jackson.version>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.36</slf4j.version>
@@ -375,7 +375,7 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty</artifactId>
-				<version>4.1.82.Final-${flink.shaded.version}</version>
+				<version>4.1.83.Final-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
