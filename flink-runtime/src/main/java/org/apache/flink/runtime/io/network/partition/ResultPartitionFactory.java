@@ -373,6 +373,7 @@ public class ResultPartitionFactory {
 
             return bufferPoolFactory.createBufferPool(
                     pair.getLeft(),
+                    4,
                     pair.getRight(),
                     numberOfSubpartitions,
                     maxBuffersPerChannel,

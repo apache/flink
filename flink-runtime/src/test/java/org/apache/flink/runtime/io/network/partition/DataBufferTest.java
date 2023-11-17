@@ -376,7 +376,8 @@ public class DataBufferTest {
         int recordSize = (bufferPoolSize - 1) * bufferSize;
 
         NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, bufferSize);
-        BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
+        BufferPool bufferPool =
+                globalPool.createBufferPool(bufferPoolSize, bufferPoolSize, bufferPoolSize);
 
         LinkedList<MemorySegment> segments = new LinkedList<>();
         for (int i = 0; i < bufferPoolSize; ++i) {
@@ -408,7 +409,8 @@ public class DataBufferTest {
             int bufferPoolSize, int bufferSize, int numSubpartitions, int[] customReadOrder)
             throws Exception {
         NetworkBufferPool globalPool = new NetworkBufferPool(bufferPoolSize, bufferSize);
-        BufferPool bufferPool = globalPool.createBufferPool(bufferPoolSize, bufferPoolSize);
+        BufferPool bufferPool =
+                globalPool.createBufferPool(bufferPoolSize, bufferPoolSize, bufferPoolSize);
 
         LinkedList<MemorySegment> segments = new LinkedList<>();
         for (int i = 0; i < bufferPoolSize; ++i) {

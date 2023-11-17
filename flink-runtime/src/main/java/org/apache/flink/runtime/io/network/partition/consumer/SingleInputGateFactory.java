@@ -379,7 +379,7 @@ public class SingleInputGateFactory {
             int minFloatingBuffersPerGate,
             int maxFloatingBuffersPerGate) {
         Pair<Integer, Integer> pair = Pair.of(minFloatingBuffersPerGate, maxFloatingBuffersPerGate);
-        return () -> bufferPoolFactory.createBufferPool(pair.getLeft(), pair.getRight());
+        return () -> bufferPoolFactory.createBufferPool(pair.getLeft(), 2, pair.getRight());
     }
 
     /** Statistics of input channels. */

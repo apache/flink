@@ -138,7 +138,7 @@ public class RemoteInputChannelTest {
         try {
             SingleInputGate inputGate =
                     new SingleInputGateBuilder()
-                            .setBufferPoolFactory(networkBufferPool.createBufferPool(1, 1))
+                            .setBufferPoolFactory(networkBufferPool.createBufferPool(1, 1, 1))
                             .build();
             inputGate.setup();
             RemoteInputChannel channel =
@@ -509,7 +509,9 @@ public class RemoteInputChannelTest {
         Throwable thrown = null;
         try {
             final BufferPool bufferPool =
-                    spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
+                    spy(
+                            networkBufferPool.createBufferPool(
+                                    numFloatingBuffers, numFloatingBuffers, numFloatingBuffers));
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();
@@ -697,7 +699,9 @@ public class RemoteInputChannelTest {
         Throwable thrown = null;
         try {
             final BufferPool bufferPool =
-                    spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
+                    spy(
+                            networkBufferPool.createBufferPool(
+                                    numFloatingBuffers, numFloatingBuffers, numFloatingBuffers));
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();
@@ -793,7 +797,9 @@ public class RemoteInputChannelTest {
         Throwable thrown = null;
         try {
             final BufferPool bufferPool =
-                    spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
+                    spy(
+                            networkBufferPool.createBufferPool(
+                                    numFloatingBuffers, numFloatingBuffers, numFloatingBuffers));
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();
@@ -914,7 +920,9 @@ public class RemoteInputChannelTest {
         Throwable thrown = null;
         try {
             final BufferPool bufferPool =
-                    spy(networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers));
+                    spy(
+                            networkBufferPool.createBufferPool(
+                                    numFloatingBuffers, numFloatingBuffers, numFloatingBuffers));
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputGate.requestPartitions();
@@ -991,7 +999,8 @@ public class RemoteInputChannelTest {
         Throwable thrown = null;
         try {
             final BufferPool bufferPool =
-                    networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+                    networkBufferPool.createBufferPool(
+                            numFloatingBuffers, numFloatingBuffers, numFloatingBuffers);
             inputGate.setBufferPool(bufferPool);
 
             buffer = checkNotNull(bufferPool.requestBuffer());
@@ -1046,7 +1055,8 @@ public class RemoteInputChannelTest {
         Throwable thrown = null;
         try {
             final BufferPool bufferPool =
-                    networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+                    networkBufferPool.createBufferPool(
+                            numFloatingBuffers, numFloatingBuffers, numFloatingBuffers);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();
@@ -1118,7 +1128,8 @@ public class RemoteInputChannelTest {
         Throwable thrown = null;
         try {
             final BufferPool bufferPool =
-                    networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+                    networkBufferPool.createBufferPool(
+                            numFloatingBuffers, numFloatingBuffers, numFloatingBuffers);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();
@@ -1182,7 +1193,8 @@ public class RemoteInputChannelTest {
         Throwable thrown = null;
         try {
             final BufferPool bufferPool =
-                    networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+                    networkBufferPool.createBufferPool(
+                            numFloatingBuffers, numFloatingBuffers, numFloatingBuffers);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();
@@ -1249,7 +1261,8 @@ public class RemoteInputChannelTest {
         Throwable thrown = null;
         try {
             final BufferPool bufferPool =
-                    networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+                    networkBufferPool.createBufferPool(
+                            numFloatingBuffers, numFloatingBuffers, numFloatingBuffers);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();
@@ -1331,7 +1344,8 @@ public class RemoteInputChannelTest {
         Throwable thrown = null;
         try {
             BufferPool bufferPool =
-                    networkBufferPool.createBufferPool(numFloatingBuffers, numFloatingBuffers);
+                    networkBufferPool.createBufferPool(
+                            numFloatingBuffers, numFloatingBuffers, numFloatingBuffers);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();
@@ -1783,7 +1797,7 @@ public class RemoteInputChannelTest {
         SingleInputGate inputGate =
                 new SingleInputGateBuilder()
                         .setChannelFactory(InputChannelBuilder::buildRemoteChannel)
-                        .setBufferPoolFactory(networkBufferPool.createBufferPool(1, 4))
+                        .setBufferPoolFactory(networkBufferPool.createBufferPool(1, 1, 4))
                         .setSegmentProvider(networkBufferPool)
                         .build();
         inputGate.setup();

@@ -107,7 +107,7 @@ class TieredResultPartitionTest {
     void testClose() throws Exception {
         final int numBuffers = 1;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         TieredResultPartition partition = createTieredStoreResultPartition(1, bufferPool, false);
 
         partition.close();
@@ -119,7 +119,7 @@ class TieredResultPartitionTest {
         final int numSubpartitions = 2;
         final int numBuffers = 10;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         TieredResultPartition partition =
                 createTieredStoreResultPartition(numSubpartitions, bufferPool, false);
 
@@ -157,7 +157,7 @@ class TieredResultPartitionTest {
     @Test
     void testCreateSubpartitionViewAfterRelease() throws Exception {
         final int numBuffers = 10;
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         TieredResultPartition resultPartition =
                 createTieredStoreResultPartition(2, bufferPool, false);
         resultPartition.release();
@@ -170,7 +170,7 @@ class TieredResultPartitionTest {
 
     @Test
     void testEmitRecords() throws Exception {
-        BufferPool bufferPool = globalPool.createBufferPool(3, 3);
+        BufferPool bufferPool = globalPool.createBufferPool(3, 3, 3);
         int bufferSize = NETWORK_BUFFER_SIZE;
         try (TieredResultPartition partition =
                 createTieredStoreResultPartition(2, bufferPool, false)) {
@@ -187,7 +187,7 @@ class TieredResultPartitionTest {
 
     @Test
     void testMetricsUpdateForBroadcastOnlyResultPartition() throws Exception {
-        BufferPool bufferPool = globalPool.createBufferPool(3, 3);
+        BufferPool bufferPool = globalPool.createBufferPool(3, 3, 3);
         int bufferSize = NETWORK_BUFFER_SIZE;
         try (TieredResultPartition partition =
                 createTieredStoreResultPartition(2, bufferPool, true)) {

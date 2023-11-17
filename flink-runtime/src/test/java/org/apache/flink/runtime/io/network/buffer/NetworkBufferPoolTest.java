@@ -77,21 +77,21 @@ public class NetworkBufferPoolTest extends TestLogger {
             assertTrue(globalPool.isDestroyed());
 
             try {
-                globalPool.createBufferPool(2, 2);
+                globalPool.createBufferPool(2, 2, 2);
                 fail("Should throw an IllegalStateException");
             } catch (IllegalStateException e) {
                 // yippie!
             }
 
             try {
-                globalPool.createBufferPool(2, 10);
+                globalPool.createBufferPool(2, 2, 10);
                 fail("Should throw an IllegalStateException");
             } catch (IllegalStateException e) {
                 // yippie!
             }
 
             try {
-                globalPool.createBufferPool(2, Integer.MAX_VALUE);
+                globalPool.createBufferPool(2, 2, Integer.MAX_VALUE);
                 fail("Should throw an IllegalStateException");
             } catch (IllegalStateException e) {
                 // yippie!
@@ -159,13 +159,13 @@ public class NetworkBufferPoolTest extends TestLogger {
     public void testDestroyAll() throws IOException {
         NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
 
-        BufferPool fixedPool = globalPool.createBufferPool(2, 2);
-        BufferPool boundedPool = globalPool.createBufferPool(1, 1);
-        BufferPool nonFixedPool = globalPool.createBufferPool(5, Integer.MAX_VALUE);
+        BufferPool fixedPool = globalPool.createBufferPool(2, 2, 2);
+        BufferPool boundedPool = globalPool.createBufferPool(1, 1, 1);
+        BufferPool nonFixedPool = globalPool.createBufferPool(5, 5, Integer.MAX_VALUE);
 
-        assertEquals(2, fixedPool.getNumberOfRequiredMemorySegments());
-        assertEquals(1, boundedPool.getNumberOfRequiredMemorySegments());
-        assertEquals(5, nonFixedPool.getNumberOfRequiredMemorySegments());
+        assertEquals(2, fixedPool.getNumberOfExpectedMemorySegments());
+        assertEquals(1, boundedPool.getNumberOfExpectedMemorySegments());
+        assertEquals(5, nonFixedPool.getNumberOfExpectedMemorySegments());
 
         // actually, the buffer pool sizes may be different due to rounding and based on the
         // internal order of
@@ -237,7 +237,7 @@ public class NetworkBufferPoolTest extends TestLogger {
         }
 
         // can create a new pool now
-        assertNotNull(globalPool.createBufferPool(10, Integer.MAX_VALUE));
+        assertNotNull(globalPool.createBufferPool(10, 10, Integer.MAX_VALUE));
     }
 
     /**
@@ -340,20 +340,21 @@ public class NetworkBufferPoolTest extends TestLogger {
             NetworkBufferPool globalPool = new NetworkBufferPool(50, 128);
             closeableRegistry.registerCloseable(globalPool::destroy);
 
-            BufferPool bufferPool1 = globalPool.createBufferPool(10, 20);
+            BufferPool bufferPool1 = globalPool.createBufferPool(10, 10, 20);
 
             assertEquals(20, globalPool.getEstimatedNumberOfRequestedMemorySegments());
             assertEquals(40, globalPool.getEstimatedRequestedSegmentsUsage());
             assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
 
             closeableRegistry.registerCloseable(
-                    (globalPool.createBufferPool(5, Integer.MAX_VALUE))::lazyDestroy);
+                    (globalPool.createBufferPool(5, 5, Integer.MAX_VALUE))::lazyDestroy);
 
             assertEquals(30, globalPool.getEstimatedNumberOfRequestedMemorySegments());
             assertEquals(60, globalPool.getEstimatedRequestedSegmentsUsage());
             assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
 
-            closeableRegistry.registerCloseable((globalPool.createBufferPool(10, 30))::lazyDestroy);
+            closeableRegistry.registerCloseable(
+                    (globalPool.createBufferPool(10, 10, 30))::lazyDestroy);
 
             assertEquals(60, globalPool.getEstimatedNumberOfRequestedMemorySegments());
             assertEquals(120, globalPool.getEstimatedRequestedSegmentsUsage());
@@ -370,7 +371,7 @@ public class NetworkBufferPoolTest extends TestLogger {
                                             + "missingMemory=1.250kb (1280 bytes))")));
             assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
 
-            BufferPool bufferPool2 = globalPool.createBufferPool(10, 20);
+            BufferPool bufferPool2 = globalPool.createBufferPool(10, 10, 20);
 
             assertEquals(80, globalPool.getEstimatedNumberOfRequestedMemorySegments());
             assertEquals(160, globalPool.getEstimatedRequestedSegmentsUsage());
@@ -429,7 +430,7 @@ public class NetworkBufferPoolTest extends TestLogger {
         Thread bufferRecycler = null;
         BufferPool lbp1 = null;
         try {
-            lbp1 = networkBufferPool.createBufferPool(numBuffers / 2, numBuffers);
+            lbp1 = networkBufferPool.createBufferPool(numBuffers / 2, numBuffers / 2, numBuffers);
 
             // take all buffers (more than the minimum required)
             for (int i = 0; i < numBuffers; ++i) {
@@ -551,7 +552,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 
             // test indirectly for NetworkBufferPool#numTotalRequiredBuffers being correct:
             // -> creating a new buffer pool should not fail
-            globalPool.createBufferPool(10, 10);
+            globalPool.createBufferPool(10, 10, 10);
         } finally {
             globalPool.destroy();
         }
@@ -570,7 +571,7 @@ public class NetworkBufferPoolTest extends TestLogger {
         NetworkBufferPool globalPool =
                 new NetworkBufferPool(numBuffers, 128, requestSegmentsTimeout);
 
-        BufferPool localBufferPool = globalPool.createBufferPool(1, numBuffers);
+        BufferPool localBufferPool = globalPool.createBufferPool(1, 1, numBuffers);
         for (int i = 0; i < numBuffers; ++i) {
             localBufferPool.requestBuffer();
         }
@@ -709,7 +710,8 @@ public class NetworkBufferPoolTest extends TestLogger {
             // create local buffer pools
             for (int i = 0; i < numLocalBufferPool; ++i) {
                 final BufferPool localPool =
-                        globalPool.createBufferPool(localPoolRequiredSize, localPoolMaxSize);
+                        globalPool.createBufferPool(
+                                localPoolRequiredSize, localPoolRequiredSize, localPoolMaxSize);
                 localBufferPools.add(localPool);
                 assertTrue(localPool.getAvailableFuture().isDone());
             }

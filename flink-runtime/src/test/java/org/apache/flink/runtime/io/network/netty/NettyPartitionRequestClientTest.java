@@ -113,7 +113,7 @@ public class NettyPartitionRequestClientTest {
 
         try {
             inputGate.setInputChannels(inputChannel);
-            final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
+            final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6, 6);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
@@ -179,7 +179,7 @@ public class NettyPartitionRequestClientTest {
 
         try {
             inputGate.setInputChannels(inputChannel);
-            final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
+            final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6, 6);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();
@@ -216,7 +216,7 @@ public class NettyPartitionRequestClientTest {
         final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
 
         try {
-            final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
+            final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6, 6);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();
@@ -255,7 +255,7 @@ public class NettyPartitionRequestClientTest {
         RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate, client);
 
         try {
-            BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6);
+            BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6, 6);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
             inputChannel.requestSubpartition();

@@ -123,7 +123,7 @@ class HsResultPartitionTest {
         int numRecords = 1000;
         Random random = new Random();
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
 
         try (HsResultPartition partition = createHsResultPartition(numSubpartitions, bufferPool)) {
             Queue<Tuple2<ByteBuffer, Buffer.DataType>>[] dataWritten = new Queue[numSubpartitions];
@@ -199,7 +199,7 @@ class HsResultPartitionTest {
     @Test
     void testBroadcastEvent() throws Exception {
         final int numBuffers = 1;
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         try (HsResultPartition resultPartition = createHsResultPartition(2, bufferPool)) {
             resultPartition.broadcastEvent(EndOfPartitionEvent.INSTANCE, false);
             // broadcast event does not request buffer
@@ -237,7 +237,7 @@ class HsResultPartitionTest {
         final int targetChannel = 0;
         final Random random = new Random();
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         try (HsResultPartition resultPartition = createHsResultPartition(2, bufferPool)) {
             List<ByteBuffer> dataWritten = new ArrayList<>();
             for (int i = 0; i < numRecords; i++) {
@@ -292,7 +292,7 @@ class HsResultPartitionTest {
         final int numConsumers = 2;
         final Random random = new Random();
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         try (HsResultPartition resultPartition = createHsResultPartition(2, bufferPool, true)) {
             List<ByteBuffer> dataWritten = new ArrayList<>();
             for (int i = 0; i < numRecords; i++) {
@@ -343,7 +343,7 @@ class HsResultPartitionTest {
     void testClose() throws Exception {
         final int numBuffers = 1;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         HsResultPartition partition = createHsResultPartition(1, bufferPool);
 
         partition.close();
@@ -356,7 +356,7 @@ class HsResultPartitionTest {
         final int numSubpartitions = 2;
         final int numBuffers = 10;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         HsResultPartition partition =
                 createHsResultPartition(
                         numSubpartitions,
@@ -385,7 +385,7 @@ class HsResultPartitionTest {
     @Test
     void testCreateSubpartitionViewAfterRelease() throws Exception {
         final int numBuffers = 10;
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         HsResultPartition resultPartition = createHsResultPartition(2, bufferPool);
         resultPartition.release();
         assertThatThrownBy(
@@ -398,7 +398,7 @@ class HsResultPartitionTest {
     @Test
     void testCreateSubpartitionViewLostData() throws Exception {
         final int numBuffers = 10;
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         HsResultPartition resultPartition = createHsResultPartition(2, bufferPool);
         IOUtils.deleteFilesRecursively(tempDataPath);
         assertThatThrownBy(
@@ -413,7 +413,7 @@ class HsResultPartitionTest {
         final int numBuffers = 2;
         final int numSubpartitions = 1;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         HsResultPartition partition =
                 createHsResultPartition(
                         numSubpartitions,
@@ -436,7 +436,7 @@ class HsResultPartitionTest {
 
     @Test
     void testMetricsUpdate() throws Exception {
-        BufferPool bufferPool = globalPool.createBufferPool(3, 3);
+        BufferPool bufferPool = globalPool.createBufferPool(3, 3, 3);
         try (HsResultPartition partition = createHsResultPartition(2, bufferPool)) {
             partition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
             partition.broadcastRecord(ByteBuffer.allocate(bufferSize));
@@ -455,7 +455,7 @@ class HsResultPartitionTest {
     @Test
     void testSelectiveSpillingStrategyRegisterMultipleConsumer() throws Exception {
         final int numSubpartitions = 2;
-        BufferPool bufferPool = globalPool.createBufferPool(2, 2);
+        BufferPool bufferPool = globalPool.createBufferPool(2, 2, 2);
         try (HsResultPartition partition =
                 createHsResultPartition(
                         2,
@@ -478,7 +478,7 @@ class HsResultPartitionTest {
     @Test
     void testFullSpillingStrategyRegisterMultipleConsumer() throws Exception {
         final int numSubpartitions = 2;
-        BufferPool bufferPool = globalPool.createBufferPool(2, 2);
+        BufferPool bufferPool = globalPool.createBufferPool(2, 2, 2);
         try (HsResultPartition partition =
                 createHsResultPartition(
                         2,
@@ -499,7 +499,7 @@ class HsResultPartitionTest {
 
     @Test
     void testMetricsUpdateForBroadcastOnlyResultPartition() throws Exception {
-        BufferPool bufferPool = globalPool.createBufferPool(3, 3);
+        BufferPool bufferPool = globalPool.createBufferPool(3, 3, 3);
         try (HsResultPartition partition = createHsResultPartition(2, bufferPool, true)) {
             partition.broadcastRecord(ByteBuffer.allocate(bufferSize));
             assertThat(taskIOMetricGroup.getNumBuffersOutCounter().getCount()).isEqualTo(1);

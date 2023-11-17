@@ -80,7 +80,17 @@ public class NoOpBufferPool implements BufferPool {
     }
 
     @Override
-    public int getNumberOfRequiredMemorySegments() {
+    public void setNumberOfExpectedMemorySegments(int numberOfExpectedMemorySegments) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getNumberOfExpectedMemorySegments() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getMinNumberOfMemorySegments() {
         throw new UnsupportedOperationException();
     }
 

@@ -169,7 +169,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 
             // after setup
             assertThat(inputGate.getBufferPool()).isNotNull();
-            assertThat(inputGate.getBufferPool().getNumberOfRequiredMemorySegments()).isEqualTo(1);
+            assertThat(inputGate.getBufferPool().getNumberOfExpectedMemorySegments()).isEqualTo(1);
             for (InputChannel inputChannel : inputGate.getInputChannels().values()) {
                 if (inputChannel instanceof RemoteRecoveredInputChannel) {
                     assertThat(
@@ -186,7 +186,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 
             inputGate.convertRecoveredInputChannels();
             assertThat(inputGate.getBufferPool()).isNotNull();
-            assertThat(inputGate.getBufferPool().getNumberOfRequiredMemorySegments()).isEqualTo(1);
+            assertThat(inputGate.getBufferPool().getNumberOfExpectedMemorySegments()).isEqualTo(1);
             for (InputChannel inputChannel : inputGate.getInputChannels().values()) {
                 if (inputChannel instanceof RemoteInputChannel) {
                     assertThat(((RemoteInputChannel) inputChannel).getNumberOfAvailableBuffers())
@@ -961,7 +961,7 @@ public class SingleInputGateTest extends InputGateTestBase {
         // test setup
         gate.setup();
         assertThat(gate.getBufferPool()).isNotNull();
-        assertThat(gate.getBufferPool().getNumberOfRequiredMemorySegments()).isEqualTo(1);
+        assertThat(gate.getBufferPool().getNumberOfExpectedMemorySegments()).isEqualTo(1);
 
         gate.finishReadRecoveredState();
         while (!gate.getStateConsumedFuture().isDone()) {
@@ -1272,7 +1272,7 @@ public class SingleInputGateTest extends InputGateTestBase {
             requiredFloatingBuffersPerGate = 1;
             totalFloatingBuffersPerGate = 8;
         }
-        assertThat(gate.getBufferPool().getNumberOfRequiredMemorySegments())
+        assertThat(gate.getBufferPool().getNumberOfExpectedMemorySegments())
                 .isEqualTo(requiredFloatingBuffersPerGate);
         assertThat(gate.getBufferPool().getMaxNumberOfMemorySegments())
                 .isEqualTo(totalFloatingBuffersPerGate);

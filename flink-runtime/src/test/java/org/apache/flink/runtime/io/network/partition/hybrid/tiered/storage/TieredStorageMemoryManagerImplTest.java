@@ -75,7 +75,7 @@ public class TieredStorageMemoryManagerImplTest {
     void testRequestAndRecycleBuffers() throws IOException {
         int numBuffers = 1;
 
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers, numBuffers);
         TieredStorageMemoryManagerImpl storageMemoryManager =
                 createStorageMemoryManager(
                         bufferPool,
@@ -277,7 +277,8 @@ public class TieredStorageMemoryManagerImplTest {
             int numBuffersInBufferPool, List<TieredStorageMemorySpec> storageMemorySpecs)
             throws IOException {
         BufferPool bufferPool =
-                globalPool.createBufferPool(numBuffersInBufferPool, numBuffersInBufferPool);
+                globalPool.createBufferPool(
+                        numBuffersInBufferPool, numBuffersInBufferPool, numBuffersInBufferPool);
         return createStorageMemoryManager(bufferPool, storageMemorySpecs);
     }
 
