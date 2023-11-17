@@ -965,9 +965,7 @@ under the License.
 				<scala.binary.version>2.12</scala.binary.version>
 			</properties>
 			<activation>
-				<property>
-					<name>!old-and-unsupported-scala-version</name>
-				</property>
+				<activeByDefault>true</activeByDefault>
 			</activation>
 			<build>
 				<plugins>

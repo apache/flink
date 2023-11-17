@@ -125,7 +125,7 @@ Since version 1.15 Flink dropped the support of Scala 2.11 and it will use Scala
 
 To build against a specific binary Scala version you can use:
 ```bash
-mvn clean install -DskipTests -Dscala-2.12 -Dscala.version=<scala version>
+mvn clean install -DskipTests -Dscala.version=<scala version>
 ```
 
 
