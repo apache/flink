@@ -491,21 +491,6 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     }
 
     @Test
-    void testDeleteConfigMapByLabels() throws Exception {
-        this.flinkKubeClient.createConfigMap(buildTestingConfigMap()).get();
-        assertThat(this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME)).isPresent();
-        this.flinkKubeClient.deleteConfigMapsByLabels(TESTING_LABELS).get();
-        assertThat(this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME)).isNotPresent();
-    }
-
-    @Test
-    void testDeleteNotExistingConfigMapByLabels() throws Exception {
-        assertThat(this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME)).isNotPresent();
-        this.flinkKubeClient.deleteConfigMapsByLabels(TESTING_LABELS).get();
-        assertThat(this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME)).isNotPresent();
-    }
-
-    @Test
     void testDeleteConfigMapByName() throws Exception {
         this.flinkKubeClient.createConfigMap(buildTestingConfigMap()).get();
         assertThat(this.flinkKubeClient.getConfigMap(TESTING_CONFIG_MAP_NAME)).isPresent();
