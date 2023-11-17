@@ -140,7 +140,7 @@ under the License.
 		<scala.binary.version>2.12</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
 		<!-- keep FlinkTestcontainersConfigurator.configureZookeeperContainer in sync -->
-		<zookeeper.version>3.7.1</zookeeper.version>
+		<zookeeper.version>3.7.2</zookeeper.version>
 		<!-- Project `flink-benchmarks` uses zk testing server in `curator-test` for performance
 		benchmark, please confirm it will not affect the benchmarks when the version is bumped. -->
 		<curator.version>5.4.0</curator.version>
