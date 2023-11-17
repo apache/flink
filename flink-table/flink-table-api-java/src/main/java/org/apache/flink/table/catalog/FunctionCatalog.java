@@ -26,7 +26,6 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.ProcedureNotExistException;
-import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -44,7 +43,6 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.procedures.Procedure;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceUri;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
@@ -81,12 +79,6 @@ public final class FunctionCatalog {
     private final Map<String, CatalogFunction> tempSystemFunctions;
     private final Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions;
 
-    /**
-     * Temporary utility until the new type inference is fully functional. It needs to be set by the
-     * planner.
-     */
-    private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
-
     public FunctionCatalog(
             ReadableConfig config,
             ResourceManager resourceManager,
@@ -98,8 +90,7 @@ public final class FunctionCatalog {
                 catalogManager,
                 moduleManager,
                 new LinkedHashMap<>(),
-                new LinkedHashMap<>(),
-                null);
+                new LinkedHashMap<>());
     }
 
     private FunctionCatalog(
@@ -108,19 +99,13 @@ public final class FunctionCatalog {
             CatalogManager catalogManager,
             ModuleManager moduleManager,
             Map<String, CatalogFunction> tempSystemFunctions,
-            Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions,
-            PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
+            Map<ObjectIdentifier, CatalogFunction> tempCatalogFunctions) {
         this.config = checkNotNull(config);
         this.resourceManager = checkNotNull(resourceManager);
         this.catalogManager = checkNotNull(catalogManager);
         this.moduleManager = checkNotNull(moduleManager);
         this.tempSystemFunctions = tempSystemFunctions;
         this.tempCatalogFunctions = tempCatalogFunctions;
-        this.plannerTypeInferenceUtil = plannerTypeInferenceUtil;
-    }
-
-    public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
-        this.plannerTypeInferenceUtil = plannerTypeInferenceUtil;
     }
 
     /** Registers a temporary system function. */
@@ -430,14 +415,6 @@ public final class FunctionCatalog {
             public Optional<ContextResolvedFunction> lookupFunction(
                     UnresolvedIdentifier identifier) {
                 return FunctionCatalog.this.lookupFunction(identifier);
-            }
-
-            @Override
-            public PlannerTypeInferenceUtil getPlannerTypeInferenceUtil() {
-                Preconditions.checkNotNull(
-                        plannerTypeInferenceUtil,
-                        "A planner should have set the type inference utility.");
-                return plannerTypeInferenceUtil;
             }
         };
     }
@@ -807,8 +784,7 @@ public final class FunctionCatalog {
                 catalogManager,
                 moduleManager,
                 tempSystemFunctions,
-                tempCatalogFunctions,
-                plannerTypeInferenceUtil);
+                tempCatalogFunctions);
     }
 
     private void registerCatalogFunction(
