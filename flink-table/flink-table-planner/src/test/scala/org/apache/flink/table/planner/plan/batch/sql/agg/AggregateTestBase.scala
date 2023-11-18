@@ -224,13 +224,13 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @TestTemplate
   def testAggNotSupportMerge(): Unit = {
-    util.addFunction("var_sum", new VarSum2AggFunction)
+    util.addTemporarySystemFunction("var_sum", new VarSum2AggFunction)
     util.verifyExecPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
   }
 
   @TestTemplate
   def testPojoAccumulator(): Unit = {
-    util.addFunction("var_sum", new VarSum1AggFunction)
+    util.addTemporarySystemFunction("var_sum", new VarSum1AggFunction)
     util.verifyExecPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
   }
 

@@ -181,7 +181,7 @@ class CalcValidationTest extends TableTestBase {
   def testInvalidMapFunctionTypeUDAGG2(): Unit = {
     val util = streamTestUtil()
 
-    util.addFunction("weightedAvg", new WeightedAvg)
+    util.addTemporarySystemFunction("weightedAvg", new WeightedAvg)
 
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(
@@ -195,7 +195,7 @@ class CalcValidationTest extends TableTestBase {
   def testInvalidMapFunctionTypeTableFunction(): Unit = {
     val util = streamTestUtil()
 
-    util.addFunction("func", new TableFunc0)
+    util.addTemporarySystemFunction("func", new TableFunc0)
 
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(

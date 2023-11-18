@@ -56,8 +56,8 @@ class SplitPythonConditionFromCorrelateRuleTest extends TableTestBase {
     util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)
-    util.addFunction("func", new TableFunc2)
-    util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    util.addTemporarySystemFunction("func", new TableFunc2)
+    util.addTemporarySystemFunction("pyFunc", new PythonScalarFunction("pyFunc"))
   }
 
   @Test

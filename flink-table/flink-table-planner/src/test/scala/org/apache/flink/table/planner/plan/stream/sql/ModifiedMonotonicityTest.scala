@@ -168,7 +168,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
 
   @Test
   def testMultiOperandsForCalc(): Unit = {
-    util.addFunction("func1", new Func1)
+    util.addTemporarySystemFunction("func1", new Func1)
     val sql = "SELECT func1(func1(a1, a3)) from " +
       "(SELECT last_value(a1) as a1, last_value(a3) as a3 FROM AA group by a2) "
     verifyMonotonicity(sql, new RelModifiedMonotonicity(Array(NOT_MONOTONIC)))

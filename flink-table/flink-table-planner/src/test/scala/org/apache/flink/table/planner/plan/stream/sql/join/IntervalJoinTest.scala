@@ -139,7 +139,7 @@ class IntervalJoinTest extends TableTestBase {
    */
   @Test
   def testWindowOuterJoinWithPythonFunctionInCondition(): Unit = {
-    util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    util.addTemporarySystemFunction("pyFunc", new PythonScalarFunction("pyFunc"))
     val sql =
       """
         |SELECT t1.a, t2.b FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON

@@ -139,7 +139,7 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase {
 
   @TestTemplate
   def testPythonUDFInJoinCondition(): Unit = {
-    testUtil.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    testUtil.addTemporarySystemFunction("pyFunc", new PythonScalarFunction("pyFunc"))
     val sql =
       """
         |SELECT * FROM MyTable AS T

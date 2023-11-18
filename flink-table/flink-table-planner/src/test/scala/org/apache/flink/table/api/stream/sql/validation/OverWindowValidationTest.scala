@@ -49,7 +49,7 @@ class OverWindowValidationTest extends TableTestBase {
   /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test
   def testInvalidOverAggregation(): Unit = {
-    streamUtil.addFunction("overAgg", new OverAgg0)
+    streamUtil.addTemporarySystemFunction("overAgg", new OverAgg0)
 
     val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
 

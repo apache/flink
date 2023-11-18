@@ -212,7 +212,7 @@ class AggregateValidationTest extends TableTestBase {
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
-    util.addFunction("myWeightedAvg", myWeightedAvg)
+    util.addTemporarySystemFunction("myWeightedAvg", myWeightedAvg)
 
     // must fail. UDAGG does not accept String type
     assertThatExceptionOfType(classOf[ValidationException])
@@ -225,7 +225,7 @@ class AggregateValidationTest extends TableTestBase {
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
-    util.addFunction("myWeightedAvg", myWeightedAvg)
+    util.addTemporarySystemFunction("myWeightedAvg", myWeightedAvg)
 
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(

@@ -138,7 +138,7 @@ class ProjectSemiAntiJoinTransposeRuleTest extends TableTestBase {
   @Test
   def testTransposeProject_EmptyProject(): Unit = {
     util.addTableSource[(Int, Long, String)]("MyTable3", 'i, 'j, 'k)
-    util.addFunction("table_func", new StringSplit)
+    util.addTemporarySystemFunction("table_func", new StringSplit)
 
     val sqlQuery = "SELECT * FROM MyTable1 WHERE EXISTS (" +
       "SELECT * FROM MyTable2, " +

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.utils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -297,7 +298,7 @@ public class JavaUserDefinedAggFunctions {
         }
 
         // Overloaded accumulate method
-        public void accumulate(CountDistinctAccum accumulator, String id) {
+        public void accumulate(CountDistinctAccum accumulator, @DataTypeHint("STRING") String id) {
             try {
                 Integer cnt = accumulator.map.get(id);
                 if (cnt != null) {
@@ -313,7 +314,7 @@ public class JavaUserDefinedAggFunctions {
         }
 
         // Overloaded accumulate method
-        public void accumulate(CountDistinctAccum accumulator, long id) {
+        public void accumulate(CountDistinctAccum accumulator, @DataTypeHint("BIGINT") long id) {
             try {
                 Integer cnt = accumulator.map.get(String.valueOf(id));
                 if (cnt != null) {

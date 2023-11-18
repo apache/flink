@@ -264,7 +264,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnCorrelate(): Unit = {
-    util.addFunction("str_split", new StringSplit())
+    util.addTemporarySystemFunction("str_split", new StringSplit())
     val sqlQuery =
       """
         |WITH r AS (SELECT a, b, c, v FROM x, LATERAL TABLE(str_split(c, '-')) AS T(v))
@@ -277,7 +277,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnCorrelateWithNonDeterministicUDTF(): Unit = {
-    util.addFunction("TableFun", new NonDeterministicTableFunc)
+    util.addTemporarySystemFunction("TableFun", new NonDeterministicTableFunc)
 
     val sqlQuery =
       """

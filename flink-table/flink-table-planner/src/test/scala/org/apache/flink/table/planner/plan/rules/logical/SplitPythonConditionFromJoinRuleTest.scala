@@ -55,7 +55,7 @@ class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
 
     util.addTableSource[(Int, Int, Int)]("leftTable", 'a, 'b, 'c)
     util.addTableSource[(Int, Int, Int)]("rightTable", 'd, 'e, 'f)
-    util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    util.addTemporarySystemFunction("pyFunc", new PythonScalarFunction("pyFunc"))
   }
 
   @Test
