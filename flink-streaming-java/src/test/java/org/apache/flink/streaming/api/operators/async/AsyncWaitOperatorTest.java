@@ -551,7 +551,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
         // the input is only used to construct a chained operator, and they will not be used in the
         // real tests.
-        DataStream<Integer> input = chainEnv.fromElements(1, 2, 3);
+        DataStream<Integer> input = chainEnv.fromData(1, 2, 3);
 
         input =
                 AsyncDataStream.orderedWait(

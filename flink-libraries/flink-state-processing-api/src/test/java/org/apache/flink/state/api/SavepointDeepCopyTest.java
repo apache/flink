@@ -143,7 +143,7 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
     public void testSavepointDeepCopy() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<String> words = env.fromElements(TEXT.split(" "));
+        DataStream<String> words = env.fromData(TEXT.split(" "));
 
         StateBootstrapTransformation<String> transformation =
                 OperatorTransformation.bootstrapWith(words)

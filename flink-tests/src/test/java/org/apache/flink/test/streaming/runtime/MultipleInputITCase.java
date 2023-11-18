@@ -71,9 +71,9 @@ public class MultipleInputITCase extends AbstractTestBase {
 
         TestListResultSink<Long> resultSink = new TestListResultSink<>();
 
-        DataStream<Long> source1 = env.fromElements(1L, 10L);
-        DataStream<Long> source2 = env.fromElements(2L, 11L);
-        DataStream<String> source3 = env.fromElements("42", "44");
+        DataStream<Long> source1 = env.fromData(1L, 10L);
+        DataStream<Long> source2 = env.fromData(2L, 11L);
+        DataStream<String> source3 = env.fromData("42", "44");
 
         MultipleInputTransformation<Long> multipleInput =
                 new MultipleInputTransformation<>(
@@ -116,9 +116,9 @@ public class MultipleInputITCase extends AbstractTestBase {
 
         TestListResultSink<Long> resultSink = new TestListResultSink<>();
 
-        DataStream<Long> source1 = env.fromElements(0L, 3L);
-        DataStream<Long> source2 = env.fromElements(13L, 16L);
-        DataStream<Long> source3 = env.fromElements(101L, 104L);
+        DataStream<Long> source1 = env.fromData(0L, 3L);
+        DataStream<Long> source2 = env.fromData(13L, 16L);
+        DataStream<Long> source3 = env.fromData(101L, 104L);
 
         KeyedMultipleInputTransformation<Long> transform =
                 new KeyedMultipleInputTransformation<>(

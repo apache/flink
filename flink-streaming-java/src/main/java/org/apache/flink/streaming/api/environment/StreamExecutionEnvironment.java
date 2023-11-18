@@ -1295,8 +1295,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param data The array of elements to create the data stream from.
      * @param <OUT> The type of the returned data stream
      * @return The data stream representing the given array of elements
+     * @deprecated This method will be removed a future release, possibly as early as version 2.0.
+     *     Use {@link #fromData(OUT...)} instead.
      */
     @SafeVarargs
+    @Deprecated
     public final <OUT> DataStreamSource<OUT> fromElements(OUT... data) {
         if (data.length == 0) {
             throw new IllegalArgumentException(
@@ -1328,8 +1331,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param data The array of elements to create the data stream from.
      * @param <OUT> The type of the returned data stream
      * @return The data stream representing the given array of elements
+     * @deprecated This method will be removed a future release, possibly as early as version 2.0.
+     *     Use {@link #fromData(OUT...)} instead.
      */
     @SafeVarargs
+    @Deprecated
     public final <OUT> DataStreamSource<OUT> fromElements(Class<OUT> type, OUT... data) {
         if (data.length == 0) {
             throw new IllegalArgumentException(

@@ -30,7 +30,7 @@ public class TestUserClassLoaderJob {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final DataStreamSource<Integer> source =
-                env.fromElements(new TestUserClassLoaderJobLib().getValue(), 1, 2, 3, 4);
+                env.fromData(new TestUserClassLoaderJobLib().getValue(), 1, 2, 3, 4);
         final SingleOutputStreamOperator<Integer> mapper = source.map(element -> 2 * element);
         mapper.sinkTo(new DiscardingSink<>());
 

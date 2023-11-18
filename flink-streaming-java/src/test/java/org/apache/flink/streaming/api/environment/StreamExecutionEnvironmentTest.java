@@ -72,7 +72,7 @@ class StreamExecutionEnvironmentTest {
     @Test
     void fromElementsWithBaseTypeTest1() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(ParentClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
+        env.fromData(ParentClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
     }
 
     @Test
@@ -80,7 +80,7 @@ class StreamExecutionEnvironmentTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         assertThatThrownBy(
                         () ->
-                                env.fromElements(
+                                env.fromData(
                                         SubClass.class,
                                         new SubClass(1, "Java"),
                                         new ParentClass(1, "hello")))
@@ -90,7 +90,7 @@ class StreamExecutionEnvironmentTest {
     @Test
     void testFromElementsDeducedType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<String> source = env.fromElements("a", "b");
+        DataStreamSource<String> source = env.fromData("a", "b");
 
         DataGeneratorSource<String> generatorSource = getSourceFromStream(source);
 
@@ -100,7 +100,7 @@ class StreamExecutionEnvironmentTest {
     @Test
     void testFromElementsPostConstructionType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<String> source = env.fromElements("a", "b");
+        DataStreamSource<String> source = env.fromData("a", "b");
         TypeInformation<String> customType = new GenericTypeInfo<>(String.class);
 
         source.returns(customType);
@@ -117,7 +117,7 @@ class StreamExecutionEnvironmentTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     void testFromElementsPostConstructionTypeIncompatible() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<String> source = env.fromElements("a", "b");
+        DataStreamSource<String> source = env.fromData("a", "b");
         source.returns((TypeInformation) BasicTypeInfo.INT_TYPE_INFO);
         source.sinkTo(new DiscardingSink<>());
 
@@ -129,7 +129,7 @@ class StreamExecutionEnvironmentTest {
     @Test
     void testFromElementsNullElement() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        assertThatThrownBy(() -> env.fromElements("a", null, "c"))
+        assertThatThrownBy(() -> env.fromData("a", null, "c"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("contains a null element");
     }
@@ -193,7 +193,7 @@ class StreamExecutionEnvironmentTest {
         DataStreamSource<Long> src2 = env.generateSequence(0, 2);
         assertThat(getFunctionFromDataSource(src2)).isInstanceOf(StatefulSequenceSource.class);
 
-        DataStreamSource<Long> src3 = env.fromElements(0L, 1L, 2L);
+        DataStreamSource<Long> src3 = env.fromData(0L, 1L, 2L);
         assertThat(getSourceFromDataSourceTyped(src3)).isInstanceOf(DataGeneratorSource.class);
 
         DataStreamSource<Long> src4 = env.fromCollection(list);
@@ -301,7 +301,7 @@ class StreamExecutionEnvironmentTest {
         env.registerSlotSharingGroup(ssg2);
         env.registerSlotSharingGroup(SlotSharingGroup.newBuilder("ssg3").build());
 
-        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
+        final DataStream<Integer> source = env.fromData(1).slotSharingGroup("ssg1");
         source.map(value -> value).slotSharingGroup(ssg2).sinkTo(new DiscardingSink<>());
 
         final StreamGraph streamGraph = env.getStreamGraph();
@@ -321,7 +321,7 @@ class StreamExecutionEnvironmentTest {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.registerSlotSharingGroup(ssg);
 
-        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
+        final DataStream<Integer> source = env.fromData(1).slotSharingGroup("ssg1");
         source.map(value -> value).slotSharingGroup(ssgConflict).sinkTo(new DiscardingSink<>());
 
         assertThatThrownBy(env::getStreamGraph).isInstanceOf(IllegalArgumentException.class);
@@ -388,7 +388,7 @@ class StreamExecutionEnvironmentTest {
     }
 
     private void testJobName(String expectedJobName, StreamExecutionEnvironment env) {
-        env.fromElements(1, 2, 3).print();
+        env.fromData(1, 2, 3).print();
         StreamGraph streamGraph = env.getStreamGraph();
         assertThat(streamGraph.getJobName()).isEqualTo(expectedJobName);
     }

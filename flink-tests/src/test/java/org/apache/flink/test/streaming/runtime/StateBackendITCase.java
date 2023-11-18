@@ -68,7 +68,7 @@ public class StateBackendITCase extends AbstractTestBase {
         see.getConfig().setRestartStrategy(RestartStrategies.noRestart());
         see.setStateBackend(new FailingStateBackend());
 
-        see.fromElements(new Tuple2<>("Hello", 1))
+        see.fromData(new Tuple2<>("Hello", 1))
                 .keyBy(0)
                 .map(
                         new RichMapFunction<Tuple2<String, Integer>, String>() {

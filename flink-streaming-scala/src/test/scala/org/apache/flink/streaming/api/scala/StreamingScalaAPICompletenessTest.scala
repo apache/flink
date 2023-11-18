@@ -107,13 +107,6 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
     checkMethods("DataStream", "DataStream", classOf[JavaStream[_]], classOf[DataStream[_]])
 
     checkMethods(
-      "StreamExecutionEnvironment",
-      "StreamExecutionEnvironment",
-      classOf[org.apache.flink.streaming.api.environment.StreamExecutionEnvironment],
-      classOf[StreamExecutionEnvironment]
-    )
-
-    checkMethods(
       "SingleOutputStreamOperator",
       "DataStream",
       classOf[org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator[_]],

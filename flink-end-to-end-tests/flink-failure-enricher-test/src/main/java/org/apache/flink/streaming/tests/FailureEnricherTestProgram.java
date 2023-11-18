@@ -37,7 +37,7 @@ public class FailureEnricherTestProgram {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        env.fromElements("Hello")
+        env.fromData("Hello")
                 .map(
                         (MapFunction<String, String>)
                                 value -> {

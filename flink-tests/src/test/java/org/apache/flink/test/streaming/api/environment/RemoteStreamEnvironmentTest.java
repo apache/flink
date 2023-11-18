@@ -84,7 +84,7 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
                         null,
                         null,
                         null);
-        env.fromElements(1).map(x -> x * 2);
+        env.fromData(1).map(x -> x * 2);
 
         JobExecutionResult actualResult = env.execute("fakeJobName");
         TestClusterClient testClient = testExecutorServiceLoader.getCreatedClusterClient();
@@ -109,7 +109,7 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
                         null,
                         restoreSettings);
 
-        env.fromElements(1).map(x -> x * 2);
+        env.fromData(1).map(x -> x * 2);
 
         JobExecutionResult actualResult = env.execute("fakeJobName");
         assertThat(actualResult.getJobID(), is(jobID));

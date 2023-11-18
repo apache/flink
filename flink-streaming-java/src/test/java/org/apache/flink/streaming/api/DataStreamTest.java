@@ -116,7 +116,7 @@ public class DataStreamTest extends TestLogger {
     public void testErgonomicWatermarkStrategy() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<String> input = env.fromElements("bonjour");
+        DataStream<String> input = env.fromData("bonjour");
 
         // as soon as you have a chain of methods the first call needs a generic
         input.assignTimestampsAndWatermarks(
@@ -383,8 +383,8 @@ public class DataStreamTest extends TestLogger {
     public void testPartitioning() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Tuple2<Long, Long>> src1 = env.fromElements(new Tuple2<>(0L, 0L));
-        DataStream<Tuple2<Long, Long>> src2 = env.fromElements(new Tuple2<>(0L, 0L));
+        DataStream<Tuple2<Long, Long>> src1 = env.fromData(new Tuple2<>(0L, 0L));
+        DataStream<Tuple2<Long, Long>> src2 = env.fromData(new Tuple2<>(0L, 0L));
         ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connected = src1.connect(src2);
 
         // Testing DataStream grouping
@@ -599,7 +599,7 @@ public class DataStreamTest extends TestLogger {
     public void testParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Tuple2<Long, Long>> src = env.fromElements(new Tuple2<>(0L, 0L));
+        DataStreamSource<Tuple2<Long, Long>> src = env.fromData(new Tuple2<>(0L, 0L));
         env.setParallelism(10);
 
         SingleOutputStreamOperator<Long> map =
@@ -1015,7 +1015,7 @@ public class DataStreamTest extends TestLogger {
                         .keyBy((KeySelector<Long, Long>) value -> value);
 
         final DataStream<String> srcTwo =
-                env.fromElements("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
+                env.fromData("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<String>() {
                                     @Override
@@ -1068,7 +1068,7 @@ public class DataStreamTest extends TestLogger {
                                 });
 
         final DataStream<String> srcTwo =
-                env.fromElements("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
+                env.fromData("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<String>() {
                                     @Override
@@ -1327,8 +1327,8 @@ public class DataStreamTest extends TestLogger {
     public void testKeyedConnectedStreamsType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Integer> stream1 = env.fromElements(1, 2);
-        DataStreamSource<Integer> stream2 = env.fromElements(1, 2);
+        DataStreamSource<Integer> stream1 = env.fromData(1, 2);
+        DataStreamSource<Integer> stream2 = env.fromData(1, 2);
 
         ConnectedStreams<Integer, Integer> connectedStreams =
                 stream1.connect(stream2).keyBy(v -> v, v -> v);
@@ -1549,7 +1549,7 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<Integer[], String>> input =
-                env.fromElements(new Tuple2<>(new Integer[] {1, 2}, "barfoo"));
+                env.fromData(new Tuple2<>(new Integer[] {1, 2}, "barfoo"));
 
         Assert.assertEquals(
                 expectedKeyType, TypeExtractor.getKeySelectorTypes(keySelector, input.getType()));
@@ -1569,7 +1569,7 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<TestEnum, String>> input =
-                env.fromElements(Tuple2.of(TestEnum.FOO, "Foo"), Tuple2.of(TestEnum.BAR, "Bar"));
+                env.fromData(Tuple2.of(TestEnum.FOO, "Foo"), Tuple2.of(TestEnum.BAR, "Bar"));
 
         expectedException.expect(InvalidProgramException.class);
         expectedException.expectMessage(
@@ -1585,8 +1585,7 @@ public class DataStreamTest extends TestLogger {
     public void testPOJOWithNestedArrayNoHashCodeKeyRejection() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<POJOWithHashCode> input =
-                env.fromElements(new POJOWithHashCode(new int[] {1, 2}));
+        DataStream<POJOWithHashCode> input = env.fromData(new POJOWithHashCode(new int[] {1, 2}));
 
         TypeInformation<?> expectedTypeInfo =
                 new TupleTypeInfo<Tuple1<int[]>>(
@@ -1604,8 +1603,7 @@ public class DataStreamTest extends TestLogger {
     public void testPOJOWithNestedArrayAndHashCodeWorkAround() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<POJOWithHashCode> input =
-                env.fromElements(new POJOWithHashCode(new int[] {1, 2}));
+        DataStream<POJOWithHashCode> input = env.fromData(new POJOWithHashCode(new int[] {1, 2}));
 
         input.keyBy(
                         new KeySelector<POJOWithHashCode, POJOWithHashCode>() {
@@ -1638,7 +1636,7 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<POJOWithoutHashCode> input =
-                env.fromElements(new POJOWithoutHashCode(new int[] {1, 2}));
+                env.fromData(new POJOWithoutHashCode(new int[] {1, 2}));
 
         // adjust the rule
         expectedException.expect(InvalidProgramException.class);
@@ -1653,7 +1651,7 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<Integer[], String>> input =
-                env.fromElements(new Tuple2<>(new Integer[] {1, 2}, "test-test"));
+                env.fromData(new Tuple2<>(new Integer[] {1, 2}, "test-test"));
 
         TypeInformation<?> expectedTypeInfo =
                 new TupleTypeInfo<Tuple2<Integer[], String>>(
@@ -1680,7 +1678,7 @@ public class DataStreamTest extends TestLogger {
         env.setParallelism(1);
         env.setMaxParallelism(1);
 
-        DataStream<Integer> input = env.fromElements(new Integer(10000));
+        DataStream<Integer> input = env.fromData(new Integer(10000));
 
         KeyedStream<Integer, Object> keyedStream =
                 input.keyBy(

@@ -201,7 +201,7 @@ public class PackagedProgramUtilsPipelineTest {
     public static class DataStreamTestProgram {
         public static void main(String[] args) throws Exception {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.fromElements("hello").print();
+            env.fromData("hello").print();
             env.execute();
         }
     }

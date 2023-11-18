@@ -63,7 +63,7 @@ class EnvironmentTest {
                                         ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
                                         Duration.ofSeconds(30)));
 
-        tEnv.createTemporaryView("test", env.fromElements(1, 2, 3));
+        tEnv.createTemporaryView("test", env.fromData(1, 2, 3));
 
         // trigger translation
         Table table = tEnv.sqlQuery("SELECT * FROM test");

@@ -240,7 +240,7 @@ public class AvroTypesITCase extends AbstractTestBase {
     }
 
     private DataStream<User> testData(StreamExecutionEnvironment env) {
-        return env.fromElements(USER_1, USER_2, USER_3);
+        return env.fromData(USER_1, USER_2, USER_3);
     }
 
     private static <T> Expression[] selectFields(DataStream<T> ds) {

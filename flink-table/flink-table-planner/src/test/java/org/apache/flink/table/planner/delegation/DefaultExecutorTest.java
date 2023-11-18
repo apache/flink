@@ -46,9 +46,7 @@ public class DefaultExecutorTest {
         final Executor executor = new DefaultExecutor(env);
         final List<Transformation<?>> dummyTransformations =
                 Collections.singletonList(
-                        env.fromElements(1, 2, 3)
-                                .sinkTo(new DiscardingSink<>())
-                                .getTransformation());
+                        env.fromData(1, 2, 3).sinkTo(new DiscardingSink<>()).getTransformation());
 
         final Configuration configuration = new Configuration();
         configuration.set(PipelineOptions.NAME, "Custom Name");
@@ -77,9 +75,7 @@ public class DefaultExecutorTest {
 
         final List<Transformation<?>> dummyTransformations =
                 Collections.singletonList(
-                        env.fromElements(1, 2, 3)
-                                .sinkTo(new DiscardingSink<>())
-                                .getTransformation());
+                        env.fromData(1, 2, 3).sinkTo(new DiscardingSink<>()).getTransformation());
 
         final Configuration configuration = new Configuration();
         configuration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
