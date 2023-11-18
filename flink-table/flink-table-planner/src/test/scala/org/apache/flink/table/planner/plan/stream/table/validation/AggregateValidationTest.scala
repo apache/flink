@@ -87,15 +87,13 @@ class AggregateValidationTest extends TableTestBase {
   def testTableFunctionInSelection(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
-    util.addFunction("func", new TableFunc0)
+    util.addTemporarySystemFunction("func", new TableFunc0)
     val resultTable = table
       .groupBy('a)
       .aggregate('b.sum.as('d))
-      // must fail. Cannot use TableFunction in select after aggregate
       .select(call("func", "abc"))
 
-    assertThatExceptionOfType(classOf[RuntimeException])
-      .isThrownBy(() => util.verifyExecPlan(resultTable))
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -116,7 +114,7 @@ class AggregateValidationTest extends TableTestBase {
   def testInvalidTableFunctionInAggregate(): Unit = {
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
-    util.addFunction("func", new TableFunc0)
+    util.addTemporarySystemFunction("func", new TableFunc0)
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(
         () =>

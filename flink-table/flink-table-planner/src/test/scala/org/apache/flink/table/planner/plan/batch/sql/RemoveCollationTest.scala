@@ -303,7 +303,7 @@ class RemoveCollationTest extends TableTestBase {
       Array("id", "name"),
       FlinkStatistic.builder().uniqueKeys(ImmutableSet.of(ImmutableSet.of("id"))).build()
     )
-    util.addFunction("split", new StringSplit())
+    util.addTemporarySystemFunction("split", new StringSplit())
 
     val sql =
       """
@@ -353,7 +353,7 @@ class RemoveCollationTest extends TableTestBase {
   def testRemoveCollation_Correlate1(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin,HashAgg")
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
@@ -367,7 +367,7 @@ class RemoveCollationTest extends TableTestBase {
   def testRemoveCollation_Correlate2(): Unit = {
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin,HashAgg")
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
@@ -382,7 +382,7 @@ class RemoveCollationTest extends TableTestBase {
     // do not remove shuffle
     util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin,HashAgg")
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),

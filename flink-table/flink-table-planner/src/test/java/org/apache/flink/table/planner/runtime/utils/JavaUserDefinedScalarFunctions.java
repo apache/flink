@@ -127,7 +127,7 @@ public class JavaUserDefinedScalarFunctions {
             return random.nextInt();
         }
 
-        public int eval(int v) {
+        public int eval(@DataTypeHint("INT") int v) {
             return v + random.nextInt();
         }
 

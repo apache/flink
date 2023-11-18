@@ -36,7 +36,7 @@ class CalcTest extends TableTestBase {
   @BeforeEach
   def setup(): Unit = {
     util.addTableSource[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
-    util.addFunction("random_udf", new NonDeterministicUdf)
+    util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf)
   }
 
   @Test

@@ -42,7 +42,7 @@ class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase
   def before(): Unit = {
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
-    util.addFunction("countFun", new CountAggFunction)
+    util.addTemporarySystemFunction("countFun", new CountAggFunction)
     util.addTableSource[(Int, Timestamp, Int, Long)]("MyTable", 'a, 'b, 'c, 'd)
     util.addTableSource[(Timestamp, Long, Int, String)]("MyTable1", 'ts, 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String, Int, Timestamp)]("MyTable2", 'a, 'b, 'c, 'd, 'ts)
@@ -90,14 +90,14 @@ class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase
   @TestTemplate
   def testTumbleWindowWithInvalidUdAggArgs(): Unit = {
     val weightedAvg = new WeightedAvgWithMerge
-    util.addFunction("weightedAvg", weightedAvg)
+    util.addTemporarySystemFunction("weightedAvg", weightedAvg)
 
     val sql = "SELECT weightedAvg(c, a) AS wAvg FROM MyTable2 " +
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
 
     assertThatThrownBy(() => util.verifyExecPlan(sql))
-      .hasMessageContaining("SQL validation failed. "
-        + "Given parameters of function 'weightedAvg' do not match any signature.")
+      .hasMessageContaining(
+        "SQL validation failed. Invalid function call:\nweightedAvg(STRING, INT)")
       .isInstanceOf[ValidationException]
   }
 
@@ -183,7 +183,7 @@ class GroupWindowTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase
 
   @TestTemplate
   def testTumblingWindowWithUdAgg(): Unit = {
-    util.addFunction("weightedAvg", new WeightedAvgWithMerge)
+    util.addTemporarySystemFunction("weightedAvg", new WeightedAvgWithMerge)
     val sql = "SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 " +
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
     util.verifyExecPlan(sql)

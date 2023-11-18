@@ -55,8 +55,8 @@ class CalcPythonCorrelateTransposeRuleTest extends TableTestBase {
     util.replaceStreamProgram(programs)
 
     util.addTableSource[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
-    util.addFunction("func", new MockPythonTableFunction)
-    util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    util.addTemporarySystemFunction("func", new MockPythonTableFunction)
+    util.addTemporarySystemFunction("pyFunc", new PythonScalarFunction("pyFunc"))
   }
 
   @Test

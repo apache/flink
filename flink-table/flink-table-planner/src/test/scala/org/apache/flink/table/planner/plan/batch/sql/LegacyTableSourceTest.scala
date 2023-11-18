@@ -171,7 +171,7 @@ class LegacyTableSourceTest extends TableTestBase {
 
   @Test
   def testFilterPushDownWithUdf(): Unit = {
-    util.addFunction("myUdf", Func1)
+    util.addTemporarySystemFunction("myUdf", Func1)
     util.verifyExecPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
   }
 
@@ -183,7 +183,7 @@ class LegacyTableSourceTest extends TableTestBase {
 
   @Test
   def testPartitionTableSourceWithUdf(): Unit = {
-    util.addFunction("MyUdf", Func1)
+    util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 

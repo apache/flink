@@ -97,7 +97,7 @@ class DagOptimizationTest extends TableTestBase {
   @Test
   def testSingleSinkWithUDTF(): Unit = {
     util.addTableSource[(Int, Long, Int, String, Long)]("MyTable2", 'i, 'j, 'k, 'l, 'm)
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
 
     val sqlQuery =
       """
@@ -274,7 +274,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.getConfig.set(
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
       Boolean.box(false))
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery1 =
       """
         |SELECT  a, b - MOD(b, 300) AS b, c FROM MyTable

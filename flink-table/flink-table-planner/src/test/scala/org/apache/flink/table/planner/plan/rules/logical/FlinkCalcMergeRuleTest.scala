@@ -63,7 +63,7 @@ class FlinkCalcMergeRuleTest extends TableTestBase {
     util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)
-    util.addFunction("random_udf", new NonDeterministicUdf)
+    util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf)
   }
 
   @Test

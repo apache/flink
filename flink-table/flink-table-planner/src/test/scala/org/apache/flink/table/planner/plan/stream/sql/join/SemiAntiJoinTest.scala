@@ -30,7 +30,7 @@ class SemiAntiJoinTest extends TableTestBase {
   util.addTableSource[(Int, Long, String)]("l", 'a, 'b, 'c)
   util.addTableSource[(Int, Long, String)]("r", 'd, 'e, 'f)
   util.addTableSource[(Int, Long, String)]("t", 'i, 'j, 'k)
-  util.addFunction("table_func", new StringSplit)
+  util.addTemporarySystemFunction("table_func", new StringSplit)
 
   @Test
   def testInWithUncorrelated_SimpleCondition1(): Unit = {
