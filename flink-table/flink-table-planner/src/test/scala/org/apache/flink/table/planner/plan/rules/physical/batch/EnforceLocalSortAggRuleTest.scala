@@ -36,7 +36,7 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
   @BeforeEach
   override def setup(): Unit = {
     super.setup()
-    util.addFunction("weightedAvg", new WeightedAvg)
+    util.addTemporarySystemFunction("weightedAvg", new WeightedAvg)
 
     val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig)
     // remove the original BatchExecSortAggRule and add BatchExecSortAggRuleForOnePhase

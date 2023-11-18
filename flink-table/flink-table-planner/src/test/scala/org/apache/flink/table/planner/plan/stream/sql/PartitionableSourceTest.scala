@@ -126,7 +126,7 @@ class PartitionableSourceTest(val sourceFetchPartitions: Boolean, val useCatalog
 
   @TestTemplate
   def testWithUdfAndVirtualColumn(): Unit = {
-    util.addFunction("MyUdf", Func1)
+    util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyExecPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 

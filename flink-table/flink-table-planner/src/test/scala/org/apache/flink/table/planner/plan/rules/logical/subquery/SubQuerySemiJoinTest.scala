@@ -35,7 +35,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
   util.addTableSource[(Int, Long)]("x", 'a, 'b)
   util.addTableSource[(Int, Long)]("y", 'c, 'd)
   util.addTableSource[(Int, Long)]("z", 'e, 'f)
-  util.addFunction("table_func", new StringSplit)
+  util.addTemporarySystemFunction("table_func", new StringSplit)
 
   @Test
   def testInOnWhere_NotSubQuery(): Unit = {

@@ -53,7 +53,8 @@ public abstract class CalcMergeTestBase extends TableTestBase {
                                 + isBatchMode()
                                 + "'\n"
                                 + ")");
-        util.addFunction("random_udf", new JavaUserDefinedScalarFunctions.NonDeterministicUdf());
+        util.addTemporarySystemFunction(
+                "random_udf", new JavaUserDefinedScalarFunctions.NonDeterministicUdf());
     }
 
     @Test

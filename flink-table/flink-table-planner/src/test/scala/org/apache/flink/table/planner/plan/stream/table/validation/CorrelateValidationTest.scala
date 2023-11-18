@@ -35,7 +35,9 @@ class CorrelateValidationTest extends TableTestBase {
     val t = util.addTableSource[(Int, Long, String)]('a, 'b, 'c)
 
     // check scala object is forbidden
-    expectExceptionThrown(util.addFunction("func3", ObjectTableFunction), "Scala object")
+    expectExceptionThrown(
+      util.addTemporarySystemFunction("func3", ObjectTableFunction),
+      "Could not register temporary system function 'func3' due to implementation errors.")
     expectExceptionThrown(t.joinLateral(ObjectTableFunction('a, 1)), "Scala object")
   }
 
@@ -46,9 +48,13 @@ class CorrelateValidationTest extends TableTestBase {
 
     // =================== check scala object is forbidden =====================
     // Scala table environment register
-    expectExceptionThrown(util.addFunction("udtf", ObjectTableFunction), "Scala object")
+    expectExceptionThrown(
+      util.addTemporarySystemFunction("udtf", ObjectTableFunction),
+      "Could not register temporary system function 'udtf' due to implementation errors.")
     // Java table environment register
-    expectExceptionThrown(util.addFunction("udtf", ObjectTableFunction), "Scala object")
+    expectExceptionThrown(
+      util.addTemporarySystemFunction("udtf", ObjectTableFunction),
+      "Could not register temporary system function 'udtf' due to implementation errors.")
     // Scala Table API directly call
     expectExceptionThrown(t.joinLateral(ObjectTableFunction('a, 1)), "Scala object")
 
@@ -61,7 +67,7 @@ class CorrelateValidationTest extends TableTestBase {
       "No match found for function signature nonexist(<NUMERIC>)")
 
     // ========= throw exception when the called function is a scalar function ====
-    util.addFunction("func0", Func0)
+    util.addTemporarySystemFunction("func0", Func0)
 
     // SQL API call
     expectExceptionThrown(
@@ -71,14 +77,14 @@ class CorrelateValidationTest extends TableTestBase {
 
     // ========== throw exception when the parameters is not correct ===============
     // Java Table API call
-    util.addFunction("func2", new TableFunc2)
+    util.addTemporarySystemFunction("func2", new TableFunc2)
     expectExceptionThrown(
       t.joinLateral(call("func2", $"c", $"c")),
-      "Given parameters of function 'func2' do not match any signature")
+      "Invalid function call:\nfunc2(STRING, STRING)")
     // SQL API call
     expectExceptionThrown(
       util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(func2(c, c))"),
-      "Given parameters of function 'func2' do not match any signature.")
+      "No match found for function signature func2(<CHARACTER>, <CHARACTER>).")
   }
 
   /**
@@ -90,7 +96,7 @@ class CorrelateValidationTest extends TableTestBase {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val function = new TableFunc1
-    util.addFunction("func1", function)
+    util.addTemporarySystemFunction("func1", function)
 
     expectExceptionThrown(
       {
@@ -131,7 +137,7 @@ class CorrelateValidationTest extends TableTestBase {
   def testInvalidMapFunctionTypeUDAGG2(): Unit = {
     val util = streamTestUtil()
 
-    util.addFunction("weightedAvg", new WeightedAvg)
+    util.addTemporarySystemFunction("weightedAvg", new WeightedAvg)
 
     expectExceptionThrown(
       util

@@ -175,13 +175,13 @@ class PushPartitionIntoLegacyTableSourceScanRuleTest(
 
   @TestTemplate
   def testWithUdf(): Unit = {
-    util.addFunction("MyUdf", Func1)
+    util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyRelPlan("SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
   @TestTemplate
   def testWithUdfAndVirtualColumn(): Unit = {
-    util.addFunction("MyUdf", Func1)
+    util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 }

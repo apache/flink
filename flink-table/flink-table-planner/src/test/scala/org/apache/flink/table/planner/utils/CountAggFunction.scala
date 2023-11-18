@@ -20,8 +20,10 @@ package org.apache.flink.table.planner.utils
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.table.annotation.{DataTypeHint, FunctionHint}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.planner.JInt
 
 import java.lang.{Iterable => JIterable, Long => JLong}
 
@@ -33,17 +35,15 @@ class CountAccumulator extends JTuple1[JLong] {
 /** built-in count aggregate function */
 class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
 
-  def accumulate(acc: CountAccumulator, value: Any): Unit = {
-    if (value != null) {
-      acc.f0 += 1L
-    }
+  def accumulate(acc: CountAccumulator, @DataTypeHint("INT") value: Any): Unit = {
+    if (value != null) acc.f0 += 1L
   }
 
   def accumulate(acc: CountAccumulator): Unit = {
     acc.f0 += 1L
   }
 
-  def retract(acc: CountAccumulator, value: Any): Unit = {
+  def retract(acc: CountAccumulator, @DataTypeHint("INT") value: Any): Unit = {
     if (value != null) {
       acc.f0 -= 1L
     }

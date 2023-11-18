@@ -53,9 +53,9 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
     )
     util.replaceStreamProgram(programs)
 
-    util.addFunction("func", new MockPythonTableFunction)
-    util.addFunction("javaFunc", new TableFunc1)
-    util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+    util.addTemporarySystemFunction("func", new MockPythonTableFunction)
+    util.addTemporarySystemFunction("javaFunc", new TableFunc1)
+    util.addTemporarySystemFunction("pyFunc", new PythonScalarFunction("pyFunc"))
   }
 
   @Test

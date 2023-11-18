@@ -58,7 +58,7 @@ class OverAggregateTest extends TableTestBase {
   /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test
   def testInvalidOverAggregation(): Unit = {
-    util.addFunction("overAgg", new OverAgg0)
+    util.addTemporarySystemFunction("overAgg", new OverAgg0)
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => util.verifyExecPlan("SELECT overAgg(c, a) FROM MyTable"))
   }
@@ -66,7 +66,7 @@ class OverAggregateTest extends TableTestBase {
   /** OVER clause is necessary for [[OverAgg0]] window function. */
   @Test
   def testInvalidOverAggregation2(): Unit = {
-    util.addFunction("overAgg", new OverAgg0)
+    util.addTemporarySystemFunction("overAgg", new OverAgg0)
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => util.verifyExecPlan("SELECT overAgg(c, a) FROM MyTable"))
   }

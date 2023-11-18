@@ -96,7 +96,10 @@ public class JavaUserDefinedAggFunctions {
         }
 
         // overloaded accumulate method
-        public void accumulate(WeightedAvgAccum accumulator, long iValue, int iWeight) {
+        public void accumulate(
+                WeightedAvgAccum accumulator,
+                @DataTypeHint("BIGINT") long iValue,
+                @DataTypeHint("INT") int iWeight) {
             accumulator.sum += iValue * iWeight;
             accumulator.count += iWeight;
         }

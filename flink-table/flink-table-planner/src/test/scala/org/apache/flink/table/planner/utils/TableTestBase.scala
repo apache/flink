@@ -292,18 +292,6 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     getTableEnv.from(name)
   }
 
-  /**
-   * Registers a [[ScalarFunction]] under given name into the TableEnvironment's catalog.
-   *
-   * @deprecated
-   *   Use [[addTemporarySystemFunction]].
-   */
-  @deprecated
-  @Deprecated
-  def addFunction(name: String, function: ScalarFunction): Unit = {
-    getTableEnv.registerFunction(name, function)
-  }
-
   /** Registers a [[UserDefinedFunction]] according to FLIP-65. */
   def addTemporarySystemFunction(name: String, function: UserDefinedFunction): Unit = {
     getTableEnv.createTemporarySystemFunction(name, function)
@@ -1226,28 +1214,6 @@ abstract class TableTestUtil(
     testingTableEnv.createTemporaryView(name, table)
     testingTableEnv.from(name)
   }
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    testingTableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = {
-    testingTableEnv.registerFunction(name, function)
-  }
 }
 
 abstract class ScalaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
@@ -1258,26 +1224,6 @@ abstract class ScalaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
   val tableEnv: ScalaStreamTableEnv = ScalaStreamTableEnv.create(env, setting)
 
   override def getTableEnv: TableEnvironment = tableEnv
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    tableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
 abstract class JavaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
@@ -1288,26 +1234,6 @@ abstract class JavaTableTestUtil(test: TableTestBase, isStreamingMode: Boolean)
   val tableEnv: JavaStreamTableEnv = JavaStreamTableEnv.create(env, setting)
 
   override def getTableEnv: TableEnvironment = tableEnv
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation](name: String, function: TableFunction[T]): Unit =
-    tableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
-
-  /** @deprecated Use [[addTemporarySystemFunction()]] for the new type inference. */
-  @deprecated
-  @Deprecated
-  def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
 /** Utility for stream table test. */

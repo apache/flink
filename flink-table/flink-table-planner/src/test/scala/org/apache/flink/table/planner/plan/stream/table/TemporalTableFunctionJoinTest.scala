@@ -110,7 +110,7 @@ class TemporalTableFunctionJoinTest extends TableTestBase {
     val rates = ratesHistory
       .filter('rate > 110L)
       .createTemporalTableFunction('rowtime, 'currency)
-    util.addFunction("Rates", rates)
+    util.addTemporarySystemFunction("Rates", rates)
 
     val result = orders
       .joinLateral(rates('o_rowtime))

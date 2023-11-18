@@ -518,7 +518,7 @@ class RemoveShuffleTest extends TableTestBase {
     // disable BroadcastHashJoin
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(-1))
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
@@ -536,7 +536,7 @@ class RemoveShuffleTest extends TableTestBase {
     // disable BroadcastHashJoin
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(-1))
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
@@ -555,7 +555,7 @@ class RemoveShuffleTest extends TableTestBase {
     // disable BroadcastHashJoin
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(-1))
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery =
       """
         |WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
