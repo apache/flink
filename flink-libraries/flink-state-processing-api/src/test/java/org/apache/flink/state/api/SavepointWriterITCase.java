@@ -170,7 +170,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         StateBootstrapTransformation<Integer> transformation =
-                OperatorTransformation.bootstrapWith(env.fromElements(1, 2, 3))
+                OperatorTransformation.bootstrapWith(env.fromData(1, 2, 3))
                         .transform(new ModifyProcessFunction());
 
         SavepointWriter writer =

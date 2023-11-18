@@ -132,7 +132,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         SingleOutputStreamOperator<Integer> process =
-                env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
+                env.fromData(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
         DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = getStreamGraphInBatchMode(sink);
@@ -154,7 +154,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     public void testCustomManagedMemoryWeights() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         SingleOutputStreamOperator<Integer> process =
-                env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
+                env.fromData(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
         DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         final Configuration configuration = new Configuration();
@@ -178,7 +178,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         SingleOutputStreamOperator<Integer> process =
-                env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
+                env.fromData(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
         DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         StreamGraph graph = getStreamGraphInBatchMode(sink);
@@ -200,7 +200,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         SingleOutputStreamOperator<Integer> process =
-                env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
+                env.fromData(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
         DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         Configuration configuration = new Configuration();
@@ -224,7 +224,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         SingleOutputStreamOperator<Integer> process =
-                env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
+                env.fromData(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
         DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         Configuration configuration = new Configuration();
@@ -244,7 +244,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         SingleOutputStreamOperator<Integer> process =
-                env.fromElements(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
+                env.fromData(1, 2).keyBy(Integer::intValue).process(DUMMY_PROCESS_FUNCTION);
         DataStreamSink<Integer> sink = process.sinkTo(new DiscardingSink<>());
 
         Configuration configuration = new Configuration();
@@ -260,8 +260,8 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     public void testTwoInputTransformation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Integer> elements1 = env.fromElements(1, 2);
-        DataStreamSource<Integer> elements2 = env.fromElements(1, 2);
+        DataStreamSource<Integer> elements1 = env.fromData(1, 2);
+        DataStreamSource<Integer> elements2 = env.fromData(1, 2);
         SingleOutputStreamOperator<Integer> process =
                 elements1
                         .connect(elements2)
@@ -290,8 +290,8 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     public void testDisablingStateBackendTwoInputTransformation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Integer> elements1 = env.fromElements(1, 2);
-        DataStreamSource<Integer> elements2 = env.fromElements(1, 2);
+        DataStreamSource<Integer> elements1 = env.fromData(1, 2);
+        DataStreamSource<Integer> elements2 = env.fromData(1, 2);
         SingleOutputStreamOperator<Integer> process =
                 elements1
                         .connect(elements2)
@@ -322,8 +322,8 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     public void testDisablingSortingInputsTwoInputTransformation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Integer> elements1 = env.fromElements(1, 2);
-        DataStreamSource<Integer> elements2 = env.fromElements(1, 2);
+        DataStreamSource<Integer> elements1 = env.fromData(1, 2);
+        DataStreamSource<Integer> elements2 = env.fromData(1, 2);
         SingleOutputStreamOperator<Integer> process =
                 elements1
                         .connect(elements2)
@@ -348,8 +348,8 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     public void testDisablingSortingInputsWithoutBatchStateBackendTwoInputTransformation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Integer> elements1 = env.fromElements(1, 2);
-        DataStreamSource<Integer> elements2 = env.fromElements(1, 2);
+        DataStreamSource<Integer> elements1 = env.fromData(1, 2);
+        DataStreamSource<Integer> elements2 = env.fromData(1, 2);
         SingleOutputStreamOperator<Integer> process =
                 elements1
                         .connect(elements2)
@@ -370,8 +370,8 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     public void testInputSelectableTwoInputTransformation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Integer> elements1 = env.fromElements(1, 2);
-        DataStreamSource<Integer> elements2 = env.fromElements(1, 2);
+        DataStreamSource<Integer> elements1 = env.fromData(1, 2);
+        DataStreamSource<Integer> elements2 = env.fromData(1, 2);
         SingleOutputStreamOperator<Integer> process =
                 elements1
                         .connect(elements2)
@@ -398,9 +398,9 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     public void testMultiInputTransformation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Integer> elements1 = env.fromElements(1, 2);
-        DataStreamSource<Integer> elements2 = env.fromElements(1, 2);
-        DataStreamSource<Integer> elements3 = env.fromElements(1, 2);
+        DataStreamSource<Integer> elements1 = env.fromData(1, 2);
+        DataStreamSource<Integer> elements2 = env.fromData(1, 2);
+        DataStreamSource<Integer> elements3 = env.fromData(1, 2);
 
         MultipleInputOperatorFactory selectableOperator =
                 new MultipleInputOperatorFactory(3, false);
@@ -441,9 +441,9 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     public void testInputSelectableMultiInputTransformation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Integer> elements1 = env.fromElements(1, 2);
-        DataStreamSource<Integer> elements2 = env.fromElements(1, 2);
-        DataStreamSource<Integer> elements3 = env.fromElements(1, 2);
+        DataStreamSource<Integer> elements1 = env.fromData(1, 2);
+        DataStreamSource<Integer> elements2 = env.fromData(1, 2);
+        DataStreamSource<Integer> elements3 = env.fromData(1, 2);
 
         MultipleInputOperatorFactory selectableOperator = new MultipleInputOperatorFactory(3, true);
         KeyedMultipleInputTransformation<Integer> multipleInputTransformation =
@@ -536,7 +536,7 @@ public class StreamGraphGeneratorBatchExecutionTest extends TestLogger {
     }
 
     private DataStreamSink<Integer> addDummyPipeline(StreamExecutionEnvironment env) {
-        return env.fromElements(1, 2)
+        return env.fromData(1, 2)
                 .keyBy(Integer::intValue)
                 .process(DUMMY_PROCESS_FUNCTION)
                 .sinkTo(new DiscardingSink<>());

@@ -141,7 +141,7 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
     @Test
     public void testGlobalExchangeModeDoesNotOverrideSpecifiedExchangeMode() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        final DataStream<Integer> source = env.fromElements(1, 2, 3).setParallelism(1);
+        final DataStream<Integer> source = env.fromData(1, 2, 3).setParallelism(1);
         final DataStream<Integer> forward =
                 new DataStream<>(
                         env,
@@ -182,7 +182,7 @@ public class StreamingJobGraphGeneratorWithGlobalStreamExchangeModeTest extends 
             env.setBufferTimeout(-1);
         }
 
-        final DataStream<Integer> source = env.fromElements(1, 2, 3).setParallelism(1);
+        final DataStream<Integer> source = env.fromData(1, 2, 3).setParallelism(1);
 
         final DataStream<Integer> forward =
                 new DataStream<>(

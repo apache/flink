@@ -190,7 +190,7 @@ class DataStreamJavaITCase {
     void testFromDataStreamAtomic() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
-        final DataStream<Integer> dataStream = env.fromElements(1, 2, 3, 4, 5);
+        final DataStream<Integer> dataStream = env.fromData(1, 2, 3, 4, 5);
 
         // wraps the atomic type
         final TableResult result = tableEnv.fromDataStream(dataStream).execute();
@@ -263,7 +263,7 @@ class DataStreamJavaITCase {
             ComplexPojo.of(42, null, null)
         };
 
-        final DataStream<ComplexPojo> dataStream = env.fromElements(pojos);
+        final DataStream<ComplexPojo> dataStream = env.fromData(pojos);
 
         // reorders columns and enriches the immutable type
         final Table table =
@@ -396,7 +396,7 @@ class DataStreamJavaITCase {
     void testFromAndToDataStreamBypassConversion() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
-        DataStream<Row> dataStream = env.fromElements(Row.of(1L, "a"));
+        DataStream<Row> dataStream = env.fromData(Row.of(1L, "a"));
         Table table = tableEnv.fromDataStream(dataStream);
         DataStream<Row> convertedDataStream = tableEnv.toDataStream(table);
 
@@ -499,7 +499,7 @@ class DataStreamJavaITCase {
                         output(RowKind.UPDATE_BEFORE, "alice", 1),
                         output(RowKind.UPDATE_AFTER, "alice", 101));
 
-        final DataStream<Row> changelogStream = env.fromElements(getInput(inputOrOutput));
+        final DataStream<Row> changelogStream = env.fromData(getInput(inputOrOutput));
         tableEnv.createTemporaryView("t", tableEnv.fromChangelogStream(changelogStream));
 
         final Table result = tableEnv.sqlQuery("SELECT f0, SUM(f1) FROM t GROUP BY f0");
@@ -535,7 +535,7 @@ class DataStreamJavaITCase {
                         output(RowKind.UPDATE_BEFORE, "alice", 2),
                         output(RowKind.UPDATE_AFTER, "alice", 100));
 
-        final DataStream<Row> changelogStream = env.fromElements(getInput(inputOrOutput));
+        final DataStream<Row> changelogStream = env.fromData(getInput(inputOrOutput));
         tableEnv.createTemporaryView(
                 "t",
                 tableEnv.fromChangelogStream(
@@ -571,7 +571,7 @@ class DataStreamJavaITCase {
                         input(RowKind.UPDATE_AFTER, "alice", 100),
                         output(RowKind.UPDATE_AFTER, "alice", 100));
 
-        final DataStream<Row> changelogStream = env.fromElements(getInput(inputOrOutput));
+        final DataStream<Row> changelogStream = env.fromData(getInput(inputOrOutput));
         tableEnv.createTemporaryView(
                 "t",
                 tableEnv.fromChangelogStream(
@@ -603,7 +603,7 @@ class DataStreamJavaITCase {
         final LocalDateTime localDateTime2 = LocalDateTime.parse("1970-01-01T01:00:00.000");
 
         final DataStream<Tuple2<LocalDateTime, String>> dataStream =
-                env.fromElements(
+                env.fromData(
                         new Tuple2<>(localDateTime1, "alice"), new Tuple2<>(localDateTime2, "bob"));
 
         final Table table =
@@ -664,7 +664,7 @@ class DataStreamJavaITCase {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStreamSource<Row> streamSource =
-                env.fromElements(
+                env.fromData(
                         Row.of("Alice"),
                         Row.of("alice"),
                         Row.of("lily"),
@@ -733,7 +733,7 @@ class DataStreamJavaITCase {
                                         .build())
                         .build());
 
-        tableEnv.createTemporaryView("InputTable2", env.fromElements(1, 2, 3));
+        tableEnv.createTemporaryView("InputTable2", env.fromData(1, 2, 3));
 
         tableEnv.createTemporaryTable(
                 "OutputTable2",
@@ -747,7 +747,7 @@ class DataStreamJavaITCase {
                 .attachAsDataStream();
 
         // submits all source-to-sink pipelines
-        testResult(env.fromElements(3, 4, 5), 3, 4, 5);
+        testResult(env.fromData(3, 4, 5), 3, 4, 5);
 
         assertThat(TestValuesTableFactory.getResultsAsStrings("OutputTable1"))
                 .containsExactlyInAnyOrder("+I[1, a]", "+I[2, b]");
@@ -890,7 +890,7 @@ class DataStreamJavaITCase {
 
     private Table getComplexUnifiedPipeline(StreamExecutionEnvironment env) {
 
-        final DataStream<String> allowedNamesStream = env.fromElements("Bob", "Alice");
+        final DataStream<String> allowedNamesStream = env.fromData("Bob", "Alice");
 
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -990,7 +990,7 @@ class DataStreamJavaITCase {
                         .toArray(String[]::new);
         final TypeInformation<?>[] fieldTypes = fieldTypeInfo.toArray(new TypeInformation[0]);
         final DataStream<Row> dataStream =
-                env.fromElements(elements).returns(Types.ROW_NAMED(fieldNames, fieldTypes));
+                env.fromData(elements).returns(Types.ROW_NAMED(fieldNames, fieldTypes));
         final Table table = tableEnv.fromChangelogStream(dataStream, schema, changelogMode);
         tableEnv.createTemporaryView(name, table);
     }

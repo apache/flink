@@ -42,7 +42,7 @@ public class GetOperatorUniqueIDTest extends TestLogger {
     public void testGetOperatorUniqueID() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
 
-        env.fromElements(1, 2, 3)
+        env.fromData(1, 2, 3)
                 .map(new VerifyOperatorIDMapFunction("6c4f323f22da8fb6e34f80c61be7a689"))
                 .uid("42")
                 .map(new VerifyOperatorIDMapFunction("3e129e83691e7737fbf876b47452acbc"))

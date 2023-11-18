@@ -63,7 +63,7 @@ public class StateDescriptorPassingTest {
         env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
         DataStream<File> src =
-                env.fromElements(new File("/"))
+                env.fromData(new File("/"))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<File>forMonotonousTimestamps()
                                         .withTimestampAssigner(
@@ -96,7 +96,7 @@ public class StateDescriptorPassingTest {
         env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
         DataStream<File> src =
-                env.fromElements(new File("/"))
+                env.fromData(new File("/"))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<File>forMonotonousTimestamps()
                                         .withTimestampAssigner(
@@ -130,7 +130,7 @@ public class StateDescriptorPassingTest {
         env.registerTypeWithKryoSerializer(File.class, JavaSerializer.class);
 
         DataStream<File> src =
-                env.fromElements(new File("/"))
+                env.fromData(new File("/"))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<File>forMonotonousTimestamps()
                                         .withTimestampAssigner(
@@ -165,7 +165,7 @@ public class StateDescriptorPassingTest {
 
         // simulate ingestion time
         DataStream<File> src =
-                env.fromElements(new File("/"))
+                env.fromData(new File("/"))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<File>forMonotonousTimestamps()
                                         .withTimestampAssigner(
@@ -192,7 +192,7 @@ public class StateDescriptorPassingTest {
 
         // simulate ingestion time
         DataStream<File> src =
-                env.fromElements(new File("/"))
+                env.fromData(new File("/"))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<File>forMonotonousTimestamps()
                                         .withTimestampAssigner(
@@ -219,7 +219,7 @@ public class StateDescriptorPassingTest {
 
         // simulate ingestion time
         DataStream<File> src =
-                env.fromElements(new File("/"))
+                env.fromData(new File("/"))
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<File>forMonotonousTimestamps()
                                         .withTimestampAssigner(

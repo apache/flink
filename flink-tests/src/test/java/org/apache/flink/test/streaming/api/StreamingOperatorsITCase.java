@@ -223,7 +223,7 @@ public class StreamingOperatorsITCase extends AbstractTestBase {
     public void testOperatorChainWithObjectReuseAndNoOutputOperators() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableObjectReuse();
-        DataStream<Integer> input = env.fromElements(1, 2, 3);
+        DataStream<Integer> input = env.fromData(1, 2, 3);
         input.flatMap(
                 new FlatMapFunction<Integer, Integer>() {
                     @Override

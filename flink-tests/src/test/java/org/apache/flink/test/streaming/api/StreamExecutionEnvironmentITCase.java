@@ -64,7 +64,7 @@ public class StreamExecutionEnvironmentITCase {
         // of the base environment, though.
         StreamExecutionEnvironment env = new StreamExecutionEnvironment(config);
 
-        env.fromElements("hello")
+        env.fromData("hello")
                 .map(
                         in -> {
                             throw new RuntimeException("Failing");
@@ -85,7 +85,7 @@ public class StreamExecutionEnvironmentITCase {
                 new GenericRecordBuilder(schema).set("name", "Bar").set("age", 45).build();
         GenericRecord[] data = {user1, user2};
         DataStream<GenericRecord> stream =
-                env.fromElements(new GenericRecordAvroTypeInfo(schema), data);
+                env.fromData(new GenericRecordAvroTypeInfo(schema), data);
 
         List<GenericRecord> result = stream.executeAndCollect(data.length + 1);
 
@@ -104,7 +104,7 @@ public class StreamExecutionEnvironmentITCase {
                 new GenericRecordBuilder(schema).set("name", "Bar").set("age", 45).build();
         GenericRecord[] data = {user1, user2};
         DataStream<GenericRecord> stream =
-                env.fromElements(data).returns(new GenericRecordAvroTypeInfo(schema));
+                env.fromData(data).returns(new GenericRecordAvroTypeInfo(schema));
 
         List<GenericRecord> result = stream.executeAndCollect(data.length + 1);
 

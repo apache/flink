@@ -174,7 +174,7 @@ public class CacheITCase extends AbstractTestBase {
             throws Exception {
 
         final DataStreamSource<Tuple2<Integer, Integer>> ds =
-                env.fromElements(new Tuple2<>(1, 1), new Tuple2<>(2, 1), new Tuple2<>(2, 1));
+                env.fromData(new Tuple2<>(1, 1), new Tuple2<>(2, 1), new Tuple2<>(2, 1));
 
         final CachedDataStream<Tuple2<Integer, Integer>> cacheSource = ds.cache();
         SingleOutputStreamOperator<Tuple2<Integer, Integer>> result =
@@ -192,7 +192,7 @@ public class CacheITCase extends AbstractTestBase {
     void testCacheSideOutput(@TempDir java.nio.file.Path tmpDir) throws Exception {
         OutputTag<Integer> tag = new OutputTag<Integer>("2") {};
         final DataStreamSource<Tuple2<Integer, Integer>> ds =
-                env.fromElements(new Tuple2<>(1, 1), new Tuple2<>(2, 1), new Tuple2<>(2, 2));
+                env.fromData(new Tuple2<>(1, 1), new Tuple2<>(2, 1), new Tuple2<>(2, 2));
 
         final SingleOutputStreamOperator<Integer> processed =
                 ds.process(

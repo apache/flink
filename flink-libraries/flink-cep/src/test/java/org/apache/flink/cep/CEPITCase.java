@@ -95,7 +95,7 @@ public class CEPITCase extends AbstractTestBase {
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                         new Event(1, "barfoo", 1.0),
                         new Event(2, "start", 2.0),
                         new Event(3, "foobar", 3.0),
@@ -146,7 +146,7 @@ public class CEPITCase extends AbstractTestBase {
         env.setParallelism(2);
 
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                                 new Event(1, "barfoo", 1.0),
                                 new Event(2, "start", 2.0),
                                 new Event(3, "start", 2.1),
@@ -212,7 +212,7 @@ public class CEPITCase extends AbstractTestBase {
 
         // (Event, timestamp)
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(new Event(1, "start", 1.0), 5L),
                                 Tuple2.of(new Event(2, "middle", 2.0), 1L),
                                 Tuple2.of(new Event(3, "end", 3.0), 3L),
@@ -289,7 +289,7 @@ public class CEPITCase extends AbstractTestBase {
 
         // (Event, timestamp)
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(new Event(1, "start", 1.0), 5L),
                                 Tuple2.of(new Event(1, "middle", 2.0), 1L),
                                 Tuple2.of(new Event(2, "middle", 2.0), 4L),
@@ -376,7 +376,7 @@ public class CEPITCase extends AbstractTestBase {
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStream<Tuple2<Integer, Integer>> input =
-                env.fromElements(new Tuple2<>(0, 1), new Tuple2<>(0, 2));
+                env.fromData(new Tuple2<>(0, 1), new Tuple2<>(0, 2));
 
         Pattern<Tuple2<Integer, Integer>, ?> pattern =
                 Pattern.<Tuple2<Integer, Integer>>begin("start")
@@ -419,7 +419,7 @@ public class CEPITCase extends AbstractTestBase {
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(1);
 
-        DataStream<Integer> input = env.fromElements(1, 2);
+        DataStream<Integer> input = env.fromData(1, 2);
 
         Pattern<Integer, ?> pattern =
                 Pattern.<Integer>begin("start")
@@ -454,7 +454,7 @@ public class CEPITCase extends AbstractTestBase {
 
         // (Event, timestamp)
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(new Event(1, "start", 1.0), 1L),
                                 Tuple2.of(new Event(1, "middle", 2.0), 5L),
                                 Tuple2.of(new Event(1, "start", 2.0), 4L),
@@ -544,7 +544,7 @@ public class CEPITCase extends AbstractTestBase {
 
         // (Event, timestamp)
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(new Event(1, "start", 1.0), 1L),
                                 Tuple2.of(new Event(1, "middle", 2.0), 5L),
                                 Tuple2.of(new Event(1, "start", 2.0), 4L),
@@ -637,7 +637,7 @@ public class CEPITCase extends AbstractTestBase {
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                         new Event(1, "start", 1.0),
                         new Event(2, "middle", 2.0),
                         new Event(3, "end", 3.0),
@@ -699,7 +699,7 @@ public class CEPITCase extends AbstractTestBase {
 
         // (Event, timestamp)
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(new Event(1, "start", 1.0), 5L),
                                 Tuple2.of(new Event(2, "middle", 2.0), 1L),
                                 Tuple2.of(new Event(3, "end", 3.0), 3L),
@@ -788,7 +788,7 @@ public class CEPITCase extends AbstractTestBase {
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStream<Tuple2<Integer, String>> input =
-                env.fromElements(
+                env.fromData(
                         new Tuple2<>(1, "a"),
                         new Tuple2<>(2, "a"),
                         new Tuple2<>(3, "a"),
@@ -833,7 +833,7 @@ public class CEPITCase extends AbstractTestBase {
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                         new Event(1, "barfoo", 1.0),
                         new Event(2, "start", 2.0),
                         new Event(3, "foobar", 3.0),
@@ -916,7 +916,7 @@ public class CEPITCase extends AbstractTestBase {
         env.setParallelism(2);
 
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                                 new Event(1, "barfoo", 1.0),
                                 new Event(2, "start", 2.0),
                                 new Event(3, "start", 2.1),
@@ -1011,7 +1011,7 @@ public class CEPITCase extends AbstractTestBase {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
-        DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
+        DataStreamSource<Integer> elements = env.fromData(1, 2, 3);
         OutputTag<Integer> outputTag = new OutputTag<Integer>("AAA") {};
         CEP.pattern(elements, Pattern.begin("A"))
                 .inProcessingTime()
@@ -1042,7 +1042,7 @@ public class CEPITCase extends AbstractTestBase {
 
         // (Event, timestamp)
         DataStream<Event> input =
-                env.fromElements(
+                env.fromData(
                                 Tuple2.of(new Event(1, "start", 1.0), 0L),
                                 Tuple2.of(new Event(2, "start", 2.0), 1L),
                                 Tuple2.of(new Event(3, "start", 3.0), 2L),

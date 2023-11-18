@@ -45,7 +45,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -70,7 +70,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -95,7 +95,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -120,7 +120,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
-        DataStream<Integer> input = env.fromElements(0);
+        DataStream<Integer> input = env.fromData(0);
 
         StateBootstrapTransformation<Integer> transformation =
                 OperatorTransformation.bootstrapWith(input)
@@ -144,7 +144,7 @@ public class StateBootstrapTransformationTest extends AbstractTestBase {
     @Test
     public void testStreamConfig() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStream<String> input = env.fromElements("");
+        DataStream<String> input = env.fromData("");
 
         StateBootstrapTransformation<String> transformation =
                 OperatorTransformation.bootstrapWith(input)

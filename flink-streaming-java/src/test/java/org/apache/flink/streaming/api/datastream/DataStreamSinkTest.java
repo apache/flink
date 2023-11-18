@@ -33,7 +33,7 @@ public class DataStreamSinkTest {
     public void testGettingTransformationWithNewSinkAPI() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final Transformation<?> transformation =
-                env.fromElements(1, 2)
+                env.fromData(1, 2)
                         .sinkTo(TestSinkV2.<Integer>newBuilder().build())
                         .getTransformation();
         assertTrue(transformation instanceof SinkTransformation);
@@ -42,6 +42,6 @@ public class DataStreamSinkTest {
     @Test(expected = UnsupportedOperationException.class)
     public void throwExceptionWhenSetUidWithNewSinkAPI() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(1, 2).sinkTo(TestSinkV2.<Integer>newBuilder().build()).setUidHash("Test");
+        env.fromData(1, 2).sinkTo(TestSinkV2.<Integer>newBuilder().build()).setUidHash("Test");
     }
 }

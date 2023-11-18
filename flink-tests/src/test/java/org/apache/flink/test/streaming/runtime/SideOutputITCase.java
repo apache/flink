@@ -1088,7 +1088,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(3);
 
-        DataStream<Integer> input = env.fromElements(1, 2, 3, 4);
+        DataStream<Integer> input = env.fromData(1, 2, 3, 4);
 
         OutputTag<Integer> oddTag = new OutputTag<Integer>("odds") {};
         OutputTag<Integer> evenTag = new OutputTag<Integer>("even") {};
@@ -1122,7 +1122,7 @@ public class SideOutputITCase extends AbstractTestBase implements Serializable {
         odds.union(odds).addSink(oddsUOddsResultSink);
         evens.union(evens).addSink(evensUEvensResultSink);
 
-        odds.union(env.fromElements(2, 4)).addSink(oddsUEvensExternalResultSink);
+        odds.union(env.fromData(2, 4)).addSink(oddsUEvensExternalResultSink);
 
         env.execute();
 

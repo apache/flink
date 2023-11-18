@@ -164,7 +164,7 @@ public class TimestampITCase extends TestLogger {
     public void testSelfUnionWatermarkPropagation() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
-        DataStream<Integer> dataStream1 = env.fromElements(1, 2, 3);
+        DataStream<Integer> dataStream1 = env.fromData(1, 2, 3);
 
         dataStream1
                 .union(dataStream1)
@@ -697,7 +697,7 @@ public class TimestampITCase extends TestLogger {
         env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
         DataStream<Tuple2<String, Integer>> source1 =
-                env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
+                env.fromData(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
 
         source1.keyBy(0)
                 .window(TumblingEventTimeWindows.of(Time.seconds(5)))
@@ -727,7 +727,7 @@ public class TimestampITCase extends TestLogger {
         env.setParallelism(2);
 
         DataStream<Tuple2<String, Integer>> source1 =
-                env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
+                env.fromData(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
 
         source1.keyBy(0)
                 .window(TumblingEventTimeWindows.of(Time.seconds(5)))

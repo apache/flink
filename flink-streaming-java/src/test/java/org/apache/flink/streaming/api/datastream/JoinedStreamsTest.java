@@ -40,8 +40,8 @@ public class JoinedStreamsTest {
     @Before
     public void setUp() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        dataStream1 = env.fromElements("a1", "a2", "a3");
-        dataStream2 = env.fromElements("a1", "a2");
+        dataStream1 = env.fromData("a1", "a2", "a3");
+        dataStream2 = env.fromData("a1", "a2");
         keySelector = element -> element;
         tsAssigner = TumblingEventTimeWindows.of(Time.milliseconds(1));
         joinFunction = (first, second) -> first + second;

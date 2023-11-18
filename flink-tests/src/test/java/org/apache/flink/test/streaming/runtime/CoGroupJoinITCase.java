@@ -387,9 +387,9 @@ public class CoGroupJoinITCase extends AbstractTestBase {
         env.setParallelism(1);
 
         DataStream<Tuple2<String, Integer>> source1 =
-                env.fromElements(Tuple2.of("a", 0), Tuple2.of("b", 3));
+                env.fromData(Tuple2.of("a", 0), Tuple2.of("b", 3));
         DataStream<Tuple2<String, Integer>> source2 =
-                env.fromElements(Tuple2.of("a", 1), Tuple2.of("b", 6));
+                env.fromData(Tuple2.of("a", 1), Tuple2.of("b", 6));
 
         DataStream<String> coGroupWindow =
                 source1.coGroup(source2)
