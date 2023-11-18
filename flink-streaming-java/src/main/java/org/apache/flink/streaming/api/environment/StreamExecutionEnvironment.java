@@ -789,9 +789,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param restartStrategyConfiguration Restart strategy configuration to be set
      */
     @PublicEvolving
-    public void setRestartStrategy(
+    public StreamExecutionEnvironment setRestartStrategy(
             RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
         config.setRestartStrategy(restartStrategyConfiguration);
+        return this;
     }
 
     /**
