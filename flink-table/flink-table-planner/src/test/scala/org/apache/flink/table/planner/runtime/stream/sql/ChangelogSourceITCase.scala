@@ -40,7 +40,6 @@ import java.lang.{Long => JLong}
 import java.util
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
 /** Integration tests for operations on changelog source, including upsert source. */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))

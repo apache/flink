@@ -62,7 +62,7 @@ class SourceWatermarkTest extends TableTestBase {
 
     JavaFunc5.closeCalled = false
     JavaFunc5.openCalled = false
-    util.tableEnv.createTemporarySystemFunction("func", new JavaFunc5)
+    util.addTemporarySystemFunction("func", new JavaFunc5)
     util.tableEnv.executeSql(s"""
                                 | CREATE Table UdfTable (
                                 |   a INT,

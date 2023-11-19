@@ -34,8 +34,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.{Instant, LocalDateTime}
 
-import scala.collection.Seq
-
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 

@@ -36,8 +36,7 @@ import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.time.{LocalDateTime, ZoneId}
-import java.util.{Collection => JCollection}
-import java.util.TimeZone
+import java.util.{Collection => JCollection, TimeZone}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.JavaConversions._

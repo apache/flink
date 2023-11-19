@@ -557,7 +557,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
-    tEnv.registerFunction("LTCNT", new LargerThanCount)
+    tEnv.createTemporarySystemFunction("LTCNT", new LargerThanCount)
 
     val sqlQuery = "SELECT " +
       " c, a, " +

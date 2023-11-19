@@ -35,7 +35,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 import java.util
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
 /** IT cases for window aggregates with distinct aggregates. */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))

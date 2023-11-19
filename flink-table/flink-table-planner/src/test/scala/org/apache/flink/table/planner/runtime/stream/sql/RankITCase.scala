@@ -34,8 +34,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{Disabled, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
-import scala.collection.Seq
-
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 

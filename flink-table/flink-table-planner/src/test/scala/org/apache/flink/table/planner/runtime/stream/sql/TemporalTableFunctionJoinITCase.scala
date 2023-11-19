@@ -156,7 +156,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     tEnv.createTemporaryView("Orders2", orders2)
     tEnv.createTemporaryView("RatesHistory", ratesHistory)
 
-    tEnv.registerFunction(
+    tEnv.createTemporaryFunction(
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
     tEnv.createTemporaryView(

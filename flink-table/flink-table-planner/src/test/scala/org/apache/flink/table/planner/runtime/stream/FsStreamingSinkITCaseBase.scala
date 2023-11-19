@@ -42,7 +42,6 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
 /** Streaming sink ITCase base, test checkpoint. */
 @Timeout(value = 240, unit = TimeUnit.SECONDS)

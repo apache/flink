@@ -819,7 +819,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
       .fromCollection(data)
       .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", t)
-    tEnv.registerFunction("prefix", new PrefixingScalarFunc)
+    tEnv.createTemporarySystemFunction("prefix", new PrefixingScalarFunc)
     tEnv.registerFunction("countFrom", new RichAggFunc)
     val prefix = "PREF"
     val startFrom = 4
