@@ -20,12 +20,12 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE, StreamOptimizeContext}
-import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
-import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[LogicalCorrelateToJoinFromTemporalTableRule]]. */

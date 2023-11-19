@@ -21,7 +21,7 @@ import org.apache.flink.api.common.functions.OpenContext
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.configuration.{BatchExecutionOptions, Configuration}
+import org.apache.flink.configuration.BatchExecutionOptions
 import org.apache.flink.connector.file.table.FileSystemConnectorOptions
 import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}

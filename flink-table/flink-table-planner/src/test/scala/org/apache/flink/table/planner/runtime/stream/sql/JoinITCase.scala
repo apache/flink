@@ -1430,7 +1430,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
 
     tEnv.createTemporaryView("T3", ds1)
     tEnv.createTemporaryView("T5", ds2)
-    tEnv.registerFunction("funcWithOpen", new FuncWithOpen)
+    tEnv.createTemporarySystemFunction("funcWithOpen", new FuncWithOpen)
 
     val sql = "SELECT c, g FROM T3 join T5 on funcWithOpen(a + d) where b = e"
 

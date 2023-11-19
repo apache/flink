@@ -18,11 +18,10 @@
 package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
-import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
-import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.{AggregateFunction, FunctionDefinition, ScalarFunctionDefinition}
 import org.apache.flink.table.module.{CoreModule, Module}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
@@ -30,6 +29,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.IsNullUDF
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
+import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
 import org.apache.flink.types.Row
 
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -58,7 +58,7 @@ class OverAggregateITCase extends BatchTestBase {
   @Test
   def testOverWindowWithUDAGG(): Unit = {
 
-    registerFunction("countFun", new CountAggFunction())
+    tEnv.createTemporarySystemFunction("countFun", new CountAggFunction())
 
     checkResult(
       "SELECT sd, sf, sh, countFun(sh) " +
@@ -2946,11 +2946,14 @@ class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
     new CountAccumulator
   }
 
-  override def getAccumulatorType: TypeInformation[CountAccumulator] = {
-    new TupleTypeInfo(classOf[CountAccumulator], Types.LONG)
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.BIGINT())
+      .accumulatorTypeStrategy(TypeStrategies.explicit(
+        DataTypes.STRUCTURED(classOf[CountAccumulator], DataTypes.FIELD("f0", DataTypes.BIGINT()))))
+      .outputTypeStrategy(TypeStrategies.explicit(DataTypes.BIGINT()))
+      .build
   }
-
-  override def getResultType: TypeInformation[JLong] = Types.LONG
 }
 
 private class TestModule extends Module {

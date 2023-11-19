@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
-import org.apache.flink.api.common.functions.{DefaultOpenContext, OpenContext}
+import org.apache.flink.api.common.functions.DefaultOpenContext
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext

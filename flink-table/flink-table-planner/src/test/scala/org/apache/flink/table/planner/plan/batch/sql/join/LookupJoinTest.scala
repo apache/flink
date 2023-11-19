@@ -29,7 +29,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedT
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util.{Collection => JCollection}
 import _root_.scala.collection.JavaConversions._
-import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, assertThatThrownBy, catchThrowable}
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
 import org.assertj.core.api.Assumptions.assumeThat
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}

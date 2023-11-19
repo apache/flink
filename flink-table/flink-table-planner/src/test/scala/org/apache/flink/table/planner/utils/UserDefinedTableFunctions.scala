@@ -22,10 +22,12 @@ import org.apache.flink.api.java.tuple.Tuple3
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.annotation.DataTypeHint
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction, TableFunction}
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.planner.JList
+import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
 import org.apache.flink.types.Row
 
 import org.junit.Assert
@@ -429,11 +431,24 @@ abstract class SplittableTableFunction[A, B] extends TableFunction[Tuple3[String
 
 @SerialVersionUID(1L)
 class PojoTableFunc extends TableFunction[PojoUser] {
-  def eval(user: String) {
+  def eval(user: String): Unit = {
     if (user.contains("#")) {
       val splits = user.split("#")
       collect(new PojoUser(splits(0), splits(1).toInt))
     }
+  }
+
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.STRING())
+      .outputTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.STRUCTURED(
+            classOf[PojoUser],
+            DataTypes.FIELD("name", DataTypes.STRING()),
+            DataTypes.FIELD("age", DataTypes.INT())
+          )))
+      .build
   }
 }
 

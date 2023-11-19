@@ -51,8 +51,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   def testFunctionSplitWhenCodegenOverLengthLimit(): Unit = {
     // test function split
     val udfLen = TestUDFLength
-    tEnv.registerFunction("RichFunc1", new RichFunc1)
-    tEnv.registerFunction("RichFunc2", new RichFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc1", new RichFunc1)
+    tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     val result = env
@@ -270,7 +270,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testUserDefinedFunctionWithParameter(): Unit = {
-    tEnv.registerFunction("RichFunc2", new RichFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
     val ds = env
       .fromCollection(tupleData3)
@@ -288,8 +288,8 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
   @TestTemplate
   def testMultipleUserDefinedFunctions(): Unit = {
-    tEnv.registerFunction("RichFunc1", new RichFunc1)
-    tEnv.registerFunction("RichFunc2", new RichFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc1", new RichFunc1)
+    tEnv.createTemporarySystemFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     val result = env

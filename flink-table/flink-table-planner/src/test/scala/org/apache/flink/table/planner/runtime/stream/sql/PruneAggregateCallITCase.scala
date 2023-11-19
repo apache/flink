@@ -37,7 +37,6 @@ import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
 
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class PruneAggregateCallITCase(

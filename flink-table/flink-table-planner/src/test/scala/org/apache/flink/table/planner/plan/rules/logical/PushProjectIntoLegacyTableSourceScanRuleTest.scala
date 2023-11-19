@@ -102,7 +102,7 @@ class PushProjectIntoLegacyTableSourceScanRuleTest extends TableTestBase {
 
   @Test
   def testProjectWithUdfWithVirtualColumn(): Unit = {
-    util.tableEnv.registerFunction("my_udf", Func0)
+    util.addTemporarySystemFunction("my_udf", Func0)
     util.verifyRelPlan("SELECT a, my_udf(d) FROM VirtualTable")
   }
 

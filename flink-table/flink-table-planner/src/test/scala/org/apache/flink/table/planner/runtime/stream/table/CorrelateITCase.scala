@@ -134,7 +134,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   @TestTemplate
   def testUserDefinedTableFunctionWithParameter(): Unit = {
     val tableFunc1 = new RichTableFunc1
-    tEnv.registerFunction("RichTableFunc1", tableFunc1)
+    tEnv.createTemporarySystemFunction("RichTableFunc1", tableFunc1)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("word_separator" -> " "))
 
     val result = failingDataSource(smallTupleData3)
@@ -154,8 +154,8 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   def testUserDefinedTableFunctionWithUserDefinedScalarFunction(): Unit = {
     val tableFunc1 = new RichTableFunc1
     val richFunc2 = new RichFunc2
-    tEnv.registerFunction("RichTableFunc1", tableFunc1)
-    tEnv.registerFunction("RichFunc2", richFunc2)
+    tEnv.createTemporarySystemFunction("RichTableFunc1", tableFunc1)
+    tEnv.createTemporarySystemFunction("RichFunc2", richFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(
       env,
       Map("word_separator" -> "#", "string.value" -> "test"))
@@ -209,7 +209,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   @TestTemplate
   def testTableFunctionWithVariableArguments(): Unit = {
     val varArgsFunc0 = new VarArgsFunc0
-    tEnv.registerFunction("VarArgsFunc0", varArgsFunc0)
+    tEnv.createTemporarySystemFunction("VarArgsFunc0", varArgsFunc0)
 
     val result = testData(env)
       .toTable(tEnv, 'a, 'b, 'c)
@@ -297,7 +297,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val t = testData(env).toTable(tEnv).as("a", "b", "c")
     val func0 = new TableFunc0
     val func26 = new FuncWithOpen
-    tEnv.registerFunction("func26", func26)
+    tEnv.createTemporarySystemFunction("func26", func26)
     val result = t
       .joinLateral(func0('c).as('d, 'e))
       .where(func26('e))

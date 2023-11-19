@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil._
 
