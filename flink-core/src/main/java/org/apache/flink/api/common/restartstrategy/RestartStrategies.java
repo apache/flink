@@ -35,7 +35,25 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>The RestartStrategyConfigurations are used to decouple the core module from the runtime
  * module.
+ *
+ * @deprecated The {@link RestartStrategies} class is marked as deprecated because starting from
+ *     Flink 1.19, all complex Java objects related to configuration should be replaced by
+ *     ConfigOption. In a future major version of Flink, this class will be removed entirely. It is
+ *     recommended to switch to using the ConfigOptions provided by {@link
+ *     org.apache.flink.configuration.RestartStrategyOptions} for configuring restart strategies
+ *     like the following code snippet:
+ *     <pre>{@code
+ * Configuration config = new Configuration();
+ * config.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+ * config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 3);
+ * config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofMinutes(1));
+ * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+ * }</pre>
+ *     For more details on using ConfigOption for restart strategies, please refer to the Flink
+ *     documentation: <a
+ *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/task_failure_recovery/#restart-strategies">restart-strategies</a>
  */
+@Deprecated
 @PublicEvolving
 public class RestartStrategies {
 
