@@ -27,6 +27,8 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.utils.ParameterTool;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
@@ -82,20 +84,24 @@ public class StateMachineExample {
         final ParameterTool params = ParameterTool.fromArgs(args);
 
         // create the environment to create streams and configure execution
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(2000L);
+        Configuration configuration = new Configuration();
 
         final String stateBackend = params.get("backend", "memory");
         if ("hashmap".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
             env.setStateBackend(new HashMapStateBackend());
-            env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
+            configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+            configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         } else if ("rocks".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
             boolean incrementalCheckpoints = params.getBoolean("incremental-checkpoints", false);
             env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
-            env.getCheckpointConfig().setCheckpointStorage(checkpointDir);
+            configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+            configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         }
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.enableCheckpointing(2000L);
 
         if (params.has("kafka-topic")) {
             // set up the Kafka reader

@@ -747,8 +747,23 @@ public class CheckpointConfig implements java.io.Serializable {
      * terabytes while providing a highly available foundation for stateful applications. This
      * checkpoint storage policy is recommended for most production deployments.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided for configuring checkpoint storage like the following code snippet:
+     *     <pre>{@code
+     * Configuration config = new Configuration();
+     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+     * }</pre>
+     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
+     *     to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
      * @param storage The checkpoint storage policy.
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(CheckpointStorage storage) {
         Preconditions.checkNotNull(storage, "Checkpoint storage must not be null");
@@ -759,9 +774,24 @@ public class CheckpointConfig implements java.io.Serializable {
      * Configures the application to write out checkpoint snapshots to the configured directory. See
      * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided for configuring checkpoint storage like the following code snippet:
+     *     <pre>{@code
+     * Configuration config = new Configuration();
+     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+     * }</pre>
+     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
+     *     to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
      * @param checkpointDirectory The path to write checkpoint metadata to.
      * @see #setCheckpointStorage(CheckpointStorage)
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(String checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
@@ -772,9 +802,24 @@ public class CheckpointConfig implements java.io.Serializable {
      * Configures the application to write out checkpoint snapshots to the configured directory. See
      * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided for configuring checkpoint storage like the following code snippet:
+     *     <pre>{@code
+     * Configuration config = new Configuration();
+     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+     * }</pre>
+     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
+     *     to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
      * @param checkpointDirectory The path to write checkpoint metadata to.
      * @see #setCheckpointStorage(CheckpointStorage)
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(URI checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
@@ -785,9 +830,24 @@ public class CheckpointConfig implements java.io.Serializable {
      * Configures the application to write out checkpoint snapshots to the configured directory. See
      * {@link FileSystemCheckpointStorage} for more details on checkpointing to a file system.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided for configuring checkpoint storage like the following code snippet:
+     *     <pre>{@code
+     * Configuration config = new Configuration();
+     * config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+     * config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "file:///flink/checkpoints");
+     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+     * }</pre>
+     *     For more details on using ConfigOption for checkpoint storage configuration, please refer
+     *     to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
      * @param checkpointDirectory The path to write checkpoint metadata to.
      * @see #setCheckpointStorage(String)
      */
+    @Deprecated
     @PublicEvolving
     public void setCheckpointStorage(Path checkpointDirectory) {
         Preconditions.checkNotNull(checkpointDirectory, "Checkpoint directory must not be null");
@@ -795,10 +855,18 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to find which checkpoint storage is
+     *     used by checkpoint storage ConfigOption. For more details on using ConfigOption for
+     *     checkpoint storage configuration, please refer to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/checkpoints">Checkpoints</a>
      * @return The {@link CheckpointStorage} that has been configured for the job. Or {@code null}
      *     if none has been set.
      * @see #setCheckpointStorage(CheckpointStorage)
      */
+    @Deprecated
     @Nullable
     @PublicEvolving
     public CheckpointStorage getCheckpointStorage() {
