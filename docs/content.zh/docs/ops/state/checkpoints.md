@@ -131,7 +131,11 @@ state.checkpoints.dir: hdfs:///checkpoints/
 #### 创建 state backend 对单个作业进行配置
 
 ```java
-env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/"));
+Configuration config = new Configuration();
+config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "hdfs:///checkpoints-data/");
+env.configure(config);
 ```
 
 ### 从保留的 checkpoint 中恢复状态

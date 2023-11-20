@@ -196,7 +196,12 @@ Flink 的 [checkpointing 机制]({{< ref "docs/learn-flink/fault_tolerance" >}})
 Checkpoint 存储在哪里取决于所配置的 **State Backend**（比如 JobManager memory、 file system、 database）。
 
 默认情况下，状态是保持在 TaskManagers 的内存中，checkpoint 保存在 JobManager 的内存中。为了合适地持久化大体量状态，
-Flink 支持各种各样的途径去存储 checkpoint 状态到其他的 state backends 上。通过 `StreamExecutionEnvironment.setStateBackend(…)` 来配置所选的 state backends。
+Flink 支持各种各样的途径去存储 checkpoint 状态到其他的 state backends 上。可以通过如下代码块来配置：
+```java
+Configuration config = new Configuration();
+config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+env.configure(config);
+```
 
 阅读 [state backends]({{< ref "docs/ops/state/state_backends" >}}) 来查看在 job 范围和集群范围上可用的 state backends 与选项的更多细节。
 

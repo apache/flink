@@ -48,8 +48,11 @@ env.readTextFile("oss://<your-bucket>/<object-name>");
 // 写入 OSS bucket
 stream.writeAsText("oss://<your-bucket>/<object-name>");
 
-// 将 OSS 用作 FsStatebackend
-env.setStateBackend(new FsStateBackend("oss://<your-bucket>/<object-name>"));
+// 将 OSS 用作 checkpoint storage
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "oss://<your-bucket>/<object-name>");
+env.configure(config);
 ```
 
 ### Shaded Hadoop OSS 文件系统

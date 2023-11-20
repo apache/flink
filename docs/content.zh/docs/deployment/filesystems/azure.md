@@ -63,8 +63,11 @@ env.readTextFile("wasb://<your-container>@$<your-azure-account>.blob.core.window
 // 写入 Azure Blob 存储
 stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
 
-// 将 Azure Blob 存储用作 FsStatebackend
-env.setStateBackend(new FsStateBackend("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>"));
+// 将 Azure Blob 存储用作 checkpoint storage
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+env.configure(config);
 ```
 
 ## Shaded Hadoop Azure Blob 存储文件系统
