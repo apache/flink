@@ -23,10 +23,8 @@ import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.scala._
 import org.apache.flink.core.io.GenericInputSplit
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -72,8 +70,8 @@ class CollectionInputFormatTest {
     val in = new ObjectInputStream(new ByteArrayInputStream(buffer.toByteArray))
     val serializationResult: AnyRef = in.readObject
 
-    assertNotNull(serializationResult)
-    assertTrue(serializationResult.isInstanceOf[CollectionInputFormat[_]])
+    assertThat(serializationResult).isNotNull
+    assertThat(serializationResult).isInstanceOf(classOf[CollectionInputFormat[_]])
 
     val result = serializationResult.asInstanceOf[CollectionInputFormat[ElementType]]
     val inputSplit = new GenericInputSplit(0, 1)
@@ -83,7 +81,7 @@ class CollectionInputFormatTest {
     while (!inputFormat.reachedEnd && !result.reachedEnd) {
       val expectedElement = inputFormat.nextRecord(null)
       val actualElement = result.nextRecord(null)
-      assertEquals(expectedElement, actualElement)
+      assertThat(expectedElement).isEqualTo(actualElement)
     }
   }
 
@@ -148,15 +146,15 @@ class CollectionInputFormatTest {
     val ois = new ObjectInputStream(bais)
     val result: AnyRef = ois.readObject
 
-    assertTrue(result.isInstanceOf[CollectionInputFormat[_]])
+    assertThat(result).isInstanceOf(classOf[CollectionInputFormat[_]])
     var i: Int = 0
     val in = result.asInstanceOf[CollectionInputFormat[String]]
     in.open(new GenericInputSplit(0, 1))
 
     while (!in.reachedEnd) {
-      assertEquals(data(i), in.nextRecord(""))
+      assertThat(data(i)).isEqualTo(in.nextRecord(""))
       i += 1
     }
-    assertEquals(data.length, i)
+    assertThat(data.length).isEqualTo(i)
   }
 }
