@@ -38,6 +38,7 @@ public class JoinTestPrograms {
     static final TableTestProgram RIGHT_JOIN;
     static final TableTestProgram SEMI_JOIN;
     static final TableTestProgram ANTI_JOIN;
+    static final TableTestProgram JOIN_WITH_STATE_TTL_HINT;
 
     static final SourceTestStep EMPLOYEE =
             SourceTestStep.newBuilder("EMPLOYEE")
@@ -446,6 +447,23 @@ public class JoinTestPrograms {
                         .runSql(
                                 "insert into MySink "
                                         + "SELECT name FROM EMPLOYEE WHERE deptno NOT IN (SELECT department_num FROM DEPARTMENT)")
+                        .build();
+
+        JOIN_WITH_STATE_TTL_HINT =
+                TableTestProgram.of("join-with-state-ttl-hint", "join with state ttl hint")
+                        .setupTableSource(EMPLOYEE)
+                        .setupTableSource(DEPARTMENT)
+                        .setupTableSink(
+                                SinkTestStep.newBuilder("MySink")
+                                        .addSchema("deptno int", "department_num int")
+                                        .consumedBeforeRestore(
+                                                Row.of(1, 1), Row.of(2, 2), Row.of(3, 3))
+                                        .consumedAfterRestore(Row.of(4, 4))
+                                        .build())
+                        .runSql(
+                                String.format(
+                                        "INSERT INTO MySink SELECT /*+ STATE_TTL('v1' = '1d', 'v2' = '8d') */deptno, department_num FROM (%s) v1 JOIN (%s) v2 ON deptno = department_num",
+                                        query1, query2))
                         .build();
     }
 }

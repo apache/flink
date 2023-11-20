@@ -38,10 +38,18 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.util.Collections;
 
-/** A base class for testing clearing join hint with invalid propagation. */
-abstract class ClearJoinHintsWithInvalidPropagationShuttleTestBase extends TableTestBase {
+/** A base class for testing clearing query hint with invalid propagation. */
+abstract class ClearQueryHintsWithInvalidPropagationShuttleTestBase extends TableTestBase {
 
     protected final TableTestUtil util = getTableTestUtil();
+
+    // TODO merge ClearJoinHintsWithCapitalizeQueryHintsShuttleTest and
+    // ClearLookupJoinHintsWithInvalidPropagationShuttleTest
+    private boolean enableCapitalize = false;
+
+    protected void enableCapitalize() {
+        this.enableCapitalize = true;
+    }
 
     abstract TableTestUtil getTableTestUtil();
 
@@ -120,8 +128,19 @@ abstract class ClearJoinHintsWithInvalidPropagationShuttleTestBase extends Table
         plan = buildRelPlanWithQueryBlockAlias(rootAfterHintPropagation);
         util.assertEqualsOrExpand("afterPropagatingHints", plan, true);
 
+        RelNode rootBeforeClearingJoinHintWithInvalidPropagation = rootAfterHintPropagation;
+        if (enableCapitalize) {
+            rootBeforeClearingJoinHintWithInvalidPropagation =
+                    FlinkHints.capitalizeQueryHints(rootAfterHintPropagation);
+            plan =
+                    buildRelPlanWithQueryBlockAlias(
+                            rootBeforeClearingJoinHintWithInvalidPropagation);
+            util.assertEqualsOrExpand("afterCapitalizeJoinHints", plan, true);
+        }
+
         RelNode rootAfterClearingJoinHintWithInvalidPropagation =
-                rootAfterHintPropagation.accept(new ClearJoinHintsWithInvalidPropagationShuttle());
+                rootBeforeClearingJoinHintWithInvalidPropagation.accept(
+                        new ClearQueryHintsWithInvalidPropagationShuttle());
         plan = buildRelPlanWithQueryBlockAlias(rootAfterClearingJoinHintWithInvalidPropagation);
         util.assertEqualsOrExpand("afterClearingJoinHints", plan, false);
     }

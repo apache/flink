@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Tests for configuring operator-level state TTL via {@link
@@ -43,6 +44,57 @@ class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
 
     @Test
     void testDifferentStateTtlForDifferentOneInputOperator() throws Exception {
+        innerTestDeduplicateAndGroupAggregate(
+                "INSERT INTO OrdersStats \n"
+                        + "SELECT buyer, COUNT(1) AS ord_cnt, SUM(quantity) AS quantity_cnt, SUM(amount) AS total_amount FROM (\n"
+                        + "SELECT *, ROW_NUMBER() OVER(PARTITION BY order_id, buyer, quantity, amount ORDER BY proctime() ASC) AS rk FROM Orders) tmp\n"
+                        + "WHERE rk = 1\n"
+                        + "GROUP BY buyer",
+                json -> {
+                    try {
+                        JsonNode target = JsonTestUtils.readFromString(json);
+                        JsonTestUtils.setExecNodeStateMetadata(
+                                target, "stream-exec-deduplicate", 0, 6000L);
+                        JsonTestUtils.setExecNodeStateMetadata(
+                                target, "stream-exec-group-aggregate", 0, 9000L);
+                        return JsonTestUtils.writeToString(target);
+                    } catch (IOException e) {
+                        throw new TableException("Cannot modify compiled json plan.", e);
+                    }
+                });
+    }
+
+    @Test
+    void testDifferentStateTtlForSameTwoInputStreamOperator() throws Exception {
+        innerTestRegularJoin(
+                "INSERT INTO OrdersShipInfo \n"
+                        + "SELECT a.order_id, a.line_order_id, b.ship_mode FROM Orders a JOIN LineOrders b ON a.line_order_id = b.line_order_id",
+                json -> {
+                    try {
+                        JsonNode target = JsonTestUtils.readFromString(json);
+                        JsonTestUtils.setExecNodeStateMetadata(
+                                target, "stream-exec-join", 0, 3000L);
+                        JsonTestUtils.setExecNodeStateMetadata(
+                                target, "stream-exec-join", 1, 9000L);
+                        return JsonTestUtils.writeToString(target);
+                    } catch (IOException e) {
+                        throw new TableException("Cannot modify compiled json plan.", e);
+                    }
+                });
+    }
+
+    @Test
+    void testDifferentStateTtlThroughSqlHintForSameTwoInputStreamOperator() throws Exception {
+        innerTestRegularJoin(
+                "INSERT INTO OrdersShipInfo \n"
+                        + "SELECT /*+ STATE_TTL('a' = '3s', 'b' = '9s') */\n"
+                        + " a.order_id, a.line_order_id, b.ship_mode "
+                        + "FROM Orders a JOIN LineOrders b ON a.line_order_id = b.line_order_id",
+                json -> json);
+    }
+
+    private void innerTestDeduplicateAndGroupAggregate(
+            String sql, Function<String, String> jsonPlanTransformer) throws Exception {
         String dataId =
                 TestValuesTableFactory.registerRowData(
                         Arrays.asList(
@@ -69,43 +121,8 @@ class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
                 "`ord_cnt` BIGINT",
                 "`quantity_cnt` BIGINT",
                 "`total_amount` DOUBLE");
-        compileSqlAndExecutePlan(
-                        "INSERT INTO OrdersStats \n"
-                                + "SELECT buyer, COUNT(1) AS ord_cnt, SUM(quantity) AS quantity_cnt, SUM(amount) AS total_amount FROM (\n"
-                                + "SELECT *, ROW_NUMBER() OVER(PARTITION BY order_id, buyer, quantity, amount ORDER BY proctime() ASC) AS rk FROM Orders) tmp\n"
-                                + "WHERE rk = 1\n"
-                                + "GROUP BY buyer",
-                        json -> {
-                            try {
-                                JsonNode target = JsonTestUtils.readFromString(json);
-                                JsonTestUtils.setExecNodeStateMetadata(
-                                        target, "stream-exec-deduplicate", 0, 6000L);
-                                JsonTestUtils.setExecNodeStateMetadata(
-                                        target, "stream-exec-group-aggregate", 0, 9000L);
-                                return JsonTestUtils.writeToString(target);
-                            } catch (IOException e) {
-                                throw new TableException("Cannot modify compiled json plan.", e);
-                            }
-                        })
-                .await();
-        // with deduplicate state's TTL as 6s, record (+I,2,Jerry,2,99.9) will duplicate itself
-        // +-------------------+--------------------------------------+------------------+
-        // |        data       | diff(last_arriving, first_arriving) | within_time_range |
-        // +-------------------+-------------------------------------+-------------------+
-        // | 1,Tom,1,199.9     |                 4s                  |         Y         |
-        // +-------------------+-------------------------------------+-------------------+
-        // | 2,Jerry,2,99.9    |                 10s                  |        N         |
-        // +-------------------+-------------------------------------+-------------------+
-        // | 3,Tom,1,29.9      |                 0s                  |         Y         |
-        // +-------------------+-------------------------------------+-------------------+
-        // | 4,Olivia,1,100    |                 2s                  |         Y         |
-        // +-------------------+-------------------------------------+-------------------+
-        // | 5,Michael,3,599.9 |                 0s                  |         Y         |
-        // +-------------------+-------------------------------------+-------------------+
-        // | 6,Olivia,3,1000   |                 0s                  |         Y         |
-        // +-------------------+-------------------------------------+-------------------+
 
-        // with group-aggregate state's TTL as 9s, record (+I,2,Jerry,2,99.9) will be counted twice
+        compileSqlAndExecutePlan(sql, jsonPlanTransformer).await();
         List<String> expected =
                 Arrays.asList(
                         "+I[Tom, 2, 2, 229.8]",
@@ -116,8 +133,8 @@ class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
         assertResult(expected, TestValuesTableFactory.getResultsAsStrings("OrdersStats"));
     }
 
-    @Test
-    void testDifferentStateTtlForSameTwoInputStreamOperator() throws Exception {
+    private void innerTestRegularJoin(String sql, Function<String, String> jsonPlanTransformer)
+            throws Exception {
         String leftTableDataId =
                 TestValuesTableFactory.registerRowData(
                         Arrays.asList(
@@ -150,22 +167,7 @@ class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
 
         createTestValuesSinkTable(
                 "OrdersShipInfo", "`order_id` INT", "`line_order_id` INT", "`ship_mode` STRING");
-        compileSqlAndExecutePlan(
-                        "INSERT INTO OrdersShipInfo \n"
-                                + "SELECT a.order_id, a.line_order_id, b.ship_mode FROM Orders a JOIN LineOrders b ON a.line_order_id = b.line_order_id",
-                        json -> {
-                            try {
-                                JsonNode target = JsonTestUtils.readFromString(json);
-                                JsonTestUtils.setExecNodeStateMetadata(
-                                        target, "stream-exec-join", 0, 3000L);
-                                JsonTestUtils.setExecNodeStateMetadata(
-                                        target, "stream-exec-join", 1, 9000L);
-                                return JsonTestUtils.writeToString(target);
-                            } catch (IOException e) {
-                                throw new TableException("Cannot modify compiled json plan.", e);
-                            }
-                        })
-                .await();
+        compileSqlAndExecutePlan(sql, jsonPlanTransformer).await();
 
         // with left-state TTL as 3s and right-state TTL as 9s
         // +--------------+--------------+-------------------------------------+-------------------+

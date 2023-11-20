@@ -28,8 +28,8 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
-/** A shuttle to capitalize all join hints on corresponding nodes. */
-public class CapitalizeJoinHintsShuttle extends JoinHintsRelShuttle {
+/** A shuttle to capitalize all query hints on corresponding nodes. */
+public class CapitalizeQueryHintsShuttle extends QueryHintsRelShuttle {
 
     @Override
     protected RelNode visitBiRel(BiRel biRel) {
@@ -40,8 +40,13 @@ public class CapitalizeJoinHintsShuttle extends JoinHintsRelShuttle {
                         .map(
                                 hint -> {
                                     String capitalHintName = hint.hintName.toUpperCase(Locale.ROOT);
+                                    if (!FlinkHints.isQueryHint(capitalHintName)
+                                            || hint.hintName.equals(capitalHintName)) {
+                                        return hint;
+                                    }
+
+                                    changed.set(true);
                                     if (JoinStrategy.isJoinStrategy(capitalHintName)) {
-                                        changed.set(true);
                                         if (JoinStrategy.isLookupHint(hint.hintName)) {
                                             return RelHint.builder(capitalHintName)
                                                     .hintOptions(hint.kvOptions)
@@ -52,9 +57,14 @@ public class CapitalizeJoinHintsShuttle extends JoinHintsRelShuttle {
                                                 .hintOptions(hint.listOptions)
                                                 .inheritPath(hint.inheritPath)
                                                 .build();
-                                    } else {
-                                        return hint;
+                                    } else if (StateTtlHint.isStateTtlHint(hint.hintName)) {
+                                        return RelHint.builder(capitalHintName)
+                                                .hintOptions(hint.kvOptions)
+                                                .inheritPath(hint.inheritPath)
+                                                .build();
                                     }
+                                    throw new IllegalStateException(
+                                            "Unknown hint: " + hint.hintName);
                                 })
                         .collect(Collectors.toList());
 

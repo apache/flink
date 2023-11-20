@@ -21,8 +21,9 @@ package org.apache.flink.table.planner.plan.optimize;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.hint.FlinkHints;
-import org.apache.flink.table.planner.hint.JoinHintsRelShuttle;
 import org.apache.flink.table.planner.hint.JoinStrategy;
+import org.apache.flink.table.planner.hint.QueryHintsRelShuttle;
+import org.apache.flink.table.planner.hint.StateTtlHint;
 
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
@@ -46,27 +47,27 @@ import static java.util.Collections.singletonList;
 import static org.apache.flink.table.planner.hint.LookupJoinHintOptions.LOOKUP_TABLE;
 
 /**
- * Resolve and validate the join hints.
+ * Resolve and validate the query hints.
  *
- * <p>Note: duplicate join hints are not checked here.
+ * <p>Note: duplicate query hints are not checked here.
  */
-public class JoinHintsResolver extends JoinHintsRelShuttle {
+public class QueryHintsResolver extends QueryHintsRelShuttle {
     private final Set<RelHint> allHints = new HashSet<>();
     private final Set<RelHint> validHints = new HashSet<>();
 
     // hintName -> hintOptions -> whether this option has been checked
-    private final Map<String, Map<String, Boolean>> allOptionsInJoinHints = new HashMap<>();
+    private final Map<String, Map<String, Boolean>> allOptionsInQueryHints = new HashMap<>();
 
     /**
-     * Resolves and validates join hints in the given {@link RelNode} list, an {@link
+     * Resolves and validates query hints in the given {@link RelNode} list, an {@link
      * ValidationException} will be raised for invalid hints.
      *
-     * <p>After resolving join hints, the options of the join hints (declared table name or query
-     * block name) will be replaced to {@link JoinStrategy#LEFT_INPUT} or {@link
-     * JoinStrategy#RIGHT_INPUT}
+     * <p>After resolving query hints, the options of the query hints (declared table name or query
+     * block name) will be replaced to {@link FlinkHints#LEFT_INPUT} or {@link
+     * FlinkHints#RIGHT_INPUT}
      *
-     * <p>If the declared table name or query name in a join hint could not match the left side or
-     * right side of this join, that means this join hint is invalid and a {@link
+     * <p>If the declared table name or query name in a query hint could not match the left side or
+     * right side of this query, that means this query hint is invalid and a {@link
      * ValidationException} will be thrown.
      */
     final List<RelNode> resolve(List<RelNode> roots) {
@@ -84,6 +85,12 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
         Set<RelHint> existentKVHints = new HashSet<>();
 
         List<RelHint> oldHints = ((Hintable) biRel).getHints();
+        List<RelHint> oldQueryHints = FlinkHints.getAllQueryHints(oldHints);
+        // has no hints, return directly.
+        if (oldQueryHints.isEmpty()) {
+            return super.visitChildren(biRel);
+        }
+
         List<RelHint> newHints = new ArrayList<>();
 
         for (RelHint hint : oldHints) {
@@ -94,7 +101,7 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
                 String lookupTable = conf.get(LOOKUP_TABLE);
 
                 // add options about this hint for finally checking
-                initOptionInfoAboutJoinHintsForCheck(
+                initOptionInfoAboutQueryHintsForCheck(
                         hint.hintName, Collections.singletonList(lookupTable));
 
                 assert null != lookupTable;
@@ -106,14 +113,14 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
             } else if (JoinStrategy.isJoinStrategy(hint.hintName)) {
                 allHints.add(trimInheritPath(hint));
                 // add options about this hint for finally checking
-                initOptionInfoAboutJoinHintsForCheck(hint.hintName, hint.listOptions);
+                initOptionInfoAboutQueryHintsForCheck(hint.hintName, hint.listOptions);
 
                 // the declared table name or query block name is replaced by
-                // JoinStrategy#LEFT_INPUT or JoinStrategy#RIGHT_INPUT
+                // FlinkHints#LEFT_INPUT or FlinkHints#RIGHT_INPUT
                 List<String> newOptions =
                         getNewJoinHintOptions(leftName, rightName, hint.listOptions, hint.hintName);
 
-                // check whether the join hints options are valid
+                // check whether the join hint options are valid
                 boolean isValidOption = JoinStrategy.validOptions(hint.hintName, newOptions);
                 if (isValidOption) {
                     validHints.add(trimInheritPath(hint));
@@ -124,6 +131,19 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
                                     .hintOptions(singletonList(newOptions.get(0)))
                                     .build());
                 }
+            } else if (StateTtlHint.isStateTtlHint(hint.hintName)) {
+                List<String> definedTables = new ArrayList<>(hint.kvOptions.keySet());
+                initOptionInfoAboutQueryHintsForCheck(hint.hintName, definedTables);
+                // the declared table name or query block name is replaced by
+                // FlinkHints#LEFT_INPUT or FlinkHints#RIGHT_INPUT
+                Map<String, String> newKvOptions =
+                        getNewStateTtlHintOptions(
+                                leftName, rightName, hint.kvOptions, hint.hintName);
+                if (!newKvOptions.isEmpty()) {
+                    // only accept a matched hint
+                    validHints.add(trimInheritPath(hint));
+                    newHints.add(RelHint.builder(hint.hintName).hintOptions(newKvOptions).build());
+                }
             } else {
                 if (!existentKVHints.contains(hint)) {
                     existentKVHints.add(hint);
@@ -133,14 +153,8 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
         }
 
         RelNode newNode = super.visitChildren(biRel);
-
-        List<RelHint> oldJoinHints = FlinkHints.getAllJoinHints(oldHints);
-        if (!oldJoinHints.isEmpty()) {
-            // replace the table name as LEFT or RIGHT
-            return ((Hintable) newNode).withHints(newHints);
-        }
-        // has no hints, return original node directly.
-        return newNode;
+        // replace new query hints
+        return ((Hintable) newNode).withHints(newHints);
     }
 
     private List<String> getNewJoinHintOptions(
@@ -162,21 +176,49 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
                                     && matchIdentifier(option, rightName.get())) {
                                 throw new ValidationException(
                                         String.format(
-                                                "Ambitious option: %s in hint: %s, the input "
+                                                "Ambitious option: %s in join hint: %s, the input "
                                                         + "relations are: %s, %s",
                                                 option, hintName, leftName, rightName));
                             } else if (leftName.isPresent()
                                     && matchIdentifier(option, leftName.get())) {
-                                return JoinStrategy.LEFT_INPUT;
+                                return FlinkHints.LEFT_INPUT;
                             } else if (rightName.isPresent()
                                     && matchIdentifier(option, rightName.get())) {
-                                return JoinStrategy.RIGHT_INPUT;
+                                return FlinkHints.RIGHT_INPUT;
                             } else {
                                 return "";
                             }
                         })
                 .filter(StringUtils::isNotEmpty)
                 .collect(Collectors.toList());
+    }
+
+    private Map<String, String> getNewStateTtlHintOptions(
+            Optional<String> leftName,
+            Optional<String> rightName,
+            Map<String, String> kvOptions,
+            String hintName) {
+        updateInfoForOptionCheck(hintName, leftName);
+        updateInfoForOptionCheck(hintName, rightName);
+        Map<String, String> newOptions = new HashMap<>();
+        kvOptions.forEach(
+                (input, ttl) -> {
+                    if (leftName.isPresent()
+                            && rightName.isPresent()
+                            && matchIdentifier(input, leftName.get())
+                            && matchIdentifier(input, rightName.get())) {
+                        throw new ValidationException(
+                                String.format(
+                                        "Ambitious option: %s in state ttl hint: %s, the input "
+                                                + "relations are: %s, %s",
+                                        input, hintName, leftName, rightName));
+                    } else if (leftName.isPresent() && matchIdentifier(input, leftName.get())) {
+                        newOptions.put(FlinkHints.LEFT_INPUT, ttl);
+                    } else if (rightName.isPresent() && matchIdentifier(input, rightName.get())) {
+                        newOptions.put(FlinkHints.RIGHT_INPUT, ttl);
+                    }
+                });
+        return newOptions;
     }
 
     private void validateHints() {
@@ -190,8 +232,8 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
                         + "input tables or views: %s";
         StringBuilder errorMsgSb = new StringBuilder();
         AtomicBoolean containsInvalidOptions = new AtomicBoolean(false);
-        for (String hintName : allOptionsInJoinHints.keySet()) {
-            Map<String, Boolean> optionCheckedStatus = allOptionsInJoinHints.get(hintName);
+        for (String hintName : allOptionsInQueryHints.keySet()) {
+            Map<String, Boolean> optionCheckedStatus = allOptionsInQueryHints.get(hintName);
             errorMsgSb.append("\n");
             errorMsgSb.append(
                     String.format(
@@ -221,8 +263,9 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
                             .map(
                                     hint -> {
                                         String hintName = hint.hintName;
-                                        if (JoinStrategy.isLookupHint(hintName)) {
-                                            // lookup join
+                                        if (JoinStrategy.isLookupHint(hintName)
+                                                || StateTtlHint.isStateTtlHint(hintName)) {
+                                            // lookup join hint or state ttl hint
                                             return hint.hintName;
                                         } else {
                                             // join hint
@@ -299,9 +342,10 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
         return true;
     }
 
-    private void initOptionInfoAboutJoinHintsForCheck(String hintName, List<String> definedTables) {
-        if (allOptionsInJoinHints.containsKey(hintName)) {
-            Map<String, Boolean> optionCheckedStatus = allOptionsInJoinHints.get(hintName);
+    private void initOptionInfoAboutQueryHintsForCheck(
+            String hintName, List<String> definedTables) {
+        if (allOptionsInQueryHints.containsKey(hintName)) {
+            Map<String, Boolean> optionCheckedStatus = allOptionsInQueryHints.get(hintName);
             definedTables.forEach(
                     table -> {
                         if (!optionCheckedStatus.containsKey(table)) {
@@ -310,7 +354,7 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
                         }
                     });
         } else {
-            allOptionsInJoinHints.put(
+            allOptionsInQueryHints.put(
                     hintName,
                     new HashSet<>(definedTables)
                             .stream()
@@ -321,11 +365,11 @@ public class JoinHintsResolver extends JoinHintsRelShuttle {
 
     private void updateInfoForOptionCheck(String hintName, Optional<String> tableName) {
         if (tableName.isPresent()) {
-            Map<String, Boolean> optionMapper = allOptionsInJoinHints.get(hintName);
+            Map<String, Boolean> optionMapper = allOptionsInQueryHints.get(hintName);
             for (String option : optionMapper.keySet()) {
                 if (matchIdentifier(option, tableName.get())) {
                     // if the hint has not been checked before, update it
-                    allOptionsInJoinHints.get(hintName).put(option, true);
+                    allOptionsInQueryHints.get(hintName).put(option, true);
                 }
             }
         }

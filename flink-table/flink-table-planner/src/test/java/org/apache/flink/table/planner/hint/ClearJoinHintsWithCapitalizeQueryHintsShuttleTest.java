@@ -23,7 +23,6 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.LookupJoinHintTestUtil;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -35,9 +34,13 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
-/** Tests clearing lookup join hint case-insensitive in stream. */
-class ClearJoinHintsWithCapitalizeJoinHintsShuttleTest
-        extends ClearJoinHintsWithInvalidPropagationShuttleTestBase {
+/**
+ * Tests clearing lookup join hint case-insensitive in stream.
+ *
+ * <p>TODO move these tests to ClearLookupJoinHintsWithInvalidPropagationShuttleTest.
+ */
+class ClearJoinHintsWithCapitalizeQueryHintsShuttleTest
+        extends ClearQueryHintsWithInvalidPropagationShuttleTestBase {
 
     @Override
     TableTestUtil getTableTestUtil() {
@@ -68,6 +71,8 @@ class ClearJoinHintsWithCapitalizeJoinHintsShuttleTest
                                 + ") WITH (\n"
                                 + " 'connector' = 'values'\n"
                                 + ")");
+
+        enableCapitalize();
     }
 
     @Test
@@ -94,7 +99,7 @@ class ClearJoinHintsWithCapitalizeJoinHintsShuttleTest
                                                 .createProctimeIndicatorType(false)),
                                 Collections.singletonList("pts"));
         RelNode root =
-                FlinkHints.capitalizeJoinHints(
+                FlinkHints.capitalizeQueryHints(
                         builder.scan("src")
                                 .scan("lookup")
                                 .snapshot(
@@ -126,24 +131,5 @@ class ClearJoinHintsWithCapitalizeJoinHintsShuttleTest
                                                 .build())
                                 .build());
         verifyRelPlan(root);
-    }
-
-    @Override
-    protected void verifyRelPlan(RelNode node) {
-        String plan = buildRelPlanWithQueryBlockAlias(node);
-        util.assertEqualsOrExpand("beforePropagatingHints", plan, true);
-
-        RelNode rootAfterHintPropagation = RelOptUtil.propagateRelHints(node, false);
-        plan = buildRelPlanWithQueryBlockAlias(rootAfterHintPropagation);
-        util.assertEqualsOrExpand("afterPropagatingHints", plan, true);
-
-        RelNode rootAfterHintCapitalize = FlinkHints.capitalizeJoinHints(rootAfterHintPropagation);
-        plan = buildRelPlanWithQueryBlockAlias(rootAfterHintCapitalize);
-        util.assertEqualsOrExpand("afterCapitalizeJoinHints", plan, true);
-
-        RelNode rootAfterClearingJoinHintWithInvalidPropagation =
-                rootAfterHintCapitalize.accept(new ClearJoinHintsWithInvalidPropagationShuttle());
-        plan = buildRelPlanWithQueryBlockAlias(rootAfterClearingJoinHintWithInvalidPropagation);
-        util.assertEqualsOrExpand("afterClearingJoinHints", plan, false);
     }
 }

@@ -25,6 +25,8 @@ import org.apache.calcite.rel.hint.Hintable;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
 import org.apache.calcite.rel.logical.LogicalJoin;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql2rel.SqlToRelConverter;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -36,16 +38,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Due to Calcite will expand the whole SQL RelNode tree that contains query block, join hints will
- * be propagated from root to leaves in the whole RelNode tree. This shuttle is used to clear the
- * join hints that are propagated into the query block incorrectly.
+ * Due to Calcite will expand the whole SQL RelNode tree that contains query block, query hints
+ * (including join hints and state ttl hints) will be propagated from root to leaves in the whole
+ * RelNode tree. This shuttle is used to clear the query hints that are propagated into the query
+ * block incorrectly.
  *
- * <p>See more at {@see org.apache.calcite.sql2rel.SqlToRelConverter#convertFrom()}.
- *
- * <p>TODO some node will be attached join hints when parse SqlNode to RelNode such as Project and
- * etc. The join hints on these node can also be cleared.
+ * <p>See more at {@link
+ * org.apache.calcite.sql2rel.SqlToRelConverter#convertFrom(SqlToRelConverter.Blackboard, SqlNode,
+ * List)}.
  */
-public class ClearJoinHintsWithInvalidPropagationShuttle extends JoinHintsRelShuttle {
+public class ClearQueryHintsWithInvalidPropagationShuttle extends QueryHintsRelShuttle {
 
     @Override
     protected RelNode visitBiRel(BiRel biRel) {
@@ -54,8 +56,8 @@ public class ClearJoinHintsWithInvalidPropagationShuttle extends JoinHintsRelShu
         Set<String> allHintNames =
                 hints.stream().map(hint -> hint.hintName).collect(Collectors.toSet());
 
-        // there are no join hints on this Join/Correlate node
-        if (allHintNames.stream().noneMatch(JoinStrategy::isJoinStrategy)) {
+        // there are no query hints on this Join/Correlate node
+        if (allHintNames.stream().noneMatch(FlinkHints::isQueryHint)) {
             return super.visit(biRel);
         }
 
@@ -69,48 +71,51 @@ public class ClearJoinHintsWithInvalidPropagationShuttle extends JoinHintsRelShu
             return super.visit(biRel);
         }
 
-        List<RelHint> joinHintsFromOuterQueryBlock =
+        List<RelHint> queryHintsFromOuterQueryBlock =
                 hints.stream()
                         .filter(
                                 hint ->
-                                        JoinStrategy.isJoinStrategy(hint.hintName)
+                                        FlinkHints.isQueryHint(hint.hintName)
                                                 // if the size of inheritPath is bigger than 0, it
-                                                // means that this join hint is propagated from its
+                                                // means that this query hint is propagated from its
                                                 // parent
                                                 && hint.inheritPath.size()
                                                         > firstAliasHint.get().inheritPath.size())
                         .collect(Collectors.toList());
 
-        if (joinHintsFromOuterQueryBlock.isEmpty()) {
+        if (queryHintsFromOuterQueryBlock.isEmpty()) {
             return super.visit(biRel);
         }
 
-        RelNode newJoin = biRel;
-        ClearOuterJoinHintShuttle clearOuterJoinHintShuttle;
+        RelNode newRelNode = biRel;
+        ClearOuterQueryHintShuttle clearOuterQueryHintShuttle;
 
-        for (RelHint outerJoinHint : joinHintsFromOuterQueryBlock) {
-            clearOuterJoinHintShuttle = new ClearOuterJoinHintShuttle(outerJoinHint);
-            newJoin = newJoin.accept(clearOuterJoinHintShuttle);
+        for (RelHint outerQueryHint : queryHintsFromOuterQueryBlock) {
+            clearOuterQueryHintShuttle = new ClearOuterQueryHintShuttle(outerQueryHint);
+            newRelNode = newRelNode.accept(clearOuterQueryHintShuttle);
         }
 
-        return super.visit(newJoin);
+        return super.visit(newRelNode);
     }
 
     /**
-     * A shuttle to clean the join hints which are in outer query block and should not affect the
+     * A shuttle to clean the query hints which are in outer query block and should not affect the
      * query-block inside.
+     *
+     * <p>Only the nodes that query hints could attach may be cleared. See more at {@link
+     * FlinkHintStrategies}.
      */
-    private static class ClearOuterJoinHintShuttle extends RelShuttleImpl {
-        // the current inheritPath about the join hint that need be removed
+    private static class ClearOuterQueryHintShuttle extends RelShuttleImpl {
+        // the current inheritPath about the query hint that need be removed
         private final Deque<Integer> currentInheritPath;
 
-        // the join hint that need be removed
-        private final RelHint joinHintNeedRemove;
+        // the query hint that need be removed
+        private final RelHint queryHintNeedRemove;
 
-        public ClearOuterJoinHintShuttle(RelHint joinHintNeedRemove) {
-            this.joinHintNeedRemove = joinHintNeedRemove;
+        public ClearOuterQueryHintShuttle(RelHint queryHintNeedRemove) {
+            this.queryHintNeedRemove = queryHintNeedRemove;
             this.currentInheritPath = new ArrayDeque<>();
-            this.currentInheritPath.addAll(joinHintNeedRemove.inheritPath);
+            this.currentInheritPath.addAll(queryHintNeedRemove.inheritPath);
         }
 
         @Override
@@ -134,11 +139,11 @@ public class ClearJoinHintsWithInvalidPropagationShuttle extends JoinHintsRelShu
         private RelNode visitBiRel(BiRel biRel) {
             Hintable hBiRel = (Hintable) biRel;
             List<RelHint> hints = new ArrayList<>(hBiRel.getHints());
-            Optional<RelHint> invalidJoinHint = getInvalidJoinHint(hints);
+            Optional<RelHint> invalidQueryHint = getInvalidQueryHint(hints);
 
-            // if this join node contains the join hint that needs to be removed
-            if (invalidJoinHint.isPresent()) {
-                hints.remove(invalidJoinHint.get());
+            // if this node contains the query hint that needs to be removed
+            if (invalidQueryHint.isPresent()) {
+                hints.remove(invalidQueryHint.get());
                 return super.visit(hBiRel.withHints(hints));
             }
 
@@ -146,24 +151,24 @@ public class ClearJoinHintsWithInvalidPropagationShuttle extends JoinHintsRelShu
         }
 
         /**
-         * Get the invalid join hint in this node.
+         * Get the invalid query hint in this node.
          *
-         * <p>The invalid join meets the following requirement:
+         * <p>The invalid node meets the following requirement:
          *
-         * <p>1. This hint name is same with the join hint that needs to be removed
+         * <p>1. This hint name is same with the query hint that needs to be removed
          *
          * <p>2.The length of this hint should be same with the length of propagating this removed
-         * join hint.
+         * query hint.
          *
          * <p>3. The inherited path of this hint should match the inherited path of this removed
-         * join hint.
+         * query hint.
          *
          * @param hints all hints
-         * @return return the invalid join hint if exists, else return empty
+         * @return return the invalid query hint if exists, else return empty
          */
-        private Optional<RelHint> getInvalidJoinHint(List<RelHint> hints) {
+        private Optional<RelHint> getInvalidQueryHint(List<RelHint> hints) {
             for (RelHint hint : hints) {
-                if (hint.hintName.equals(joinHintNeedRemove.hintName)
+                if (hint.hintName.equals(queryHintNeedRemove.hintName)
                         && isMatchInvalidInheritPath(
                                 new ArrayList<>(currentInheritPath), hint.inheritPath)) {
                     return Optional.of(hint);

@@ -55,6 +55,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -107,6 +108,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             List<int[]> rightUpsertKeys,
             InputProperty leftInputProperty,
             InputProperty rightInputProperty,
+            Map<Integer, Long> stateTtlFromHint,
             RowType outputType,
             String description) {
         this(
@@ -117,7 +119,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 leftUpsertKeys,
                 rightUpsertKeys,
                 StateMetadata.getMultiInputOperatorDefaultMeta(
-                        tableConfig, LEFT_STATE_NAME, RIGHT_STATE_NAME),
+                        stateTtlFromHint, tableConfig, LEFT_STATE_NAME, RIGHT_STATE_NAME),
                 Lists.newArrayList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
