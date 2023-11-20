@@ -76,7 +76,7 @@ To use SQLLine you will need to clone [the GitHub repository](https://github.com
     Since the Flink SQL gateway currently ignores user names and passwords just leave them empty.
 
     ```sql
-	sqlline version 1.13.0
+	sqlline version 1.13.0-SNAPSHOT
     sqlline> !connect jdbc:flink://localhost:8083
     Enter username for jdbc:flink://localhost:8083:
     Enter password for jdbc:flink://localhost:8083:
