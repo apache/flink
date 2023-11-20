@@ -70,6 +70,8 @@ import org.apache.hadoop.hive.conf.VariableSubstitution;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.processors.HiveCommand;
 import org.apache.hadoop.hive.ql.session.SessionState;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCollectList;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFFirstValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -236,6 +238,7 @@ public class HiveParser implements Parser {
             HiveSessionState.startSessionState(hiveConfCopy, catalogRegistry);
             // We override Hive's grouping function. Refer to the implementation for more details.
             hiveShim.registerTemporaryFunction("grouping", HiveGenericUDFGrouping.class);
+            hiveShim.registerTemporaryFunction("first", GenericUDAFFirstValue.class);
             return processCmd(statement, hiveConfCopy, hiveShim, currentCatalog);
         } finally {
             HiveSessionState.clearSessionState();

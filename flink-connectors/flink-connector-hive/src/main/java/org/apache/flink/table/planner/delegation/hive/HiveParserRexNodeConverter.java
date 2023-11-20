@@ -65,6 +65,7 @@ import org.apache.hadoop.hive.common.type.HiveIntervalYearMonth;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.ql.ErrorMsg;
 import org.apache.hadoop.hive.ql.exec.FunctionRegistry;
+import org.apache.hadoop.hive.ql.optimizer.ConstantPropagateProcFactory;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
@@ -211,7 +212,7 @@ public class HiveParserRexNodeConverter {
 
     public RexNode convert(ExprNodeDesc expr) throws SemanticException {
         if (expr instanceof ExprNodeGenericFuncDesc) {
-            return convertGenericFunc((ExprNodeGenericFuncDesc) expr);
+            return convertGenericFunc((ExprNodeGenericFuncDesc) expr, cluster);
         } else if (expr instanceof ExprNodeConstantDesc) {
             return convertConstant((ExprNodeConstantDesc) expr, cluster);
         } else if (expr instanceof ExprNodeColumnDesc) {
@@ -518,13 +519,18 @@ public class HiveParserRexNodeConverter {
         return calciteLiteral;
     }
 
-    private RexNode convertGenericFunc(ExprNodeGenericFuncDesc func) throws SemanticException {
+    private RexNode convertGenericFunc(ExprNodeGenericFuncDesc func, RelOptCluster cluster)
+            throws SemanticException {
         ExprNodeDesc tmpExprNode;
         RexNode tmpRN;
 
         List<RexNode> childRexNodeLst = new ArrayList<>();
         List<RelDataType> argTypes = new ArrayList<>();
 
+        ExprNodeDesc afterFoldDesc = ConstantPropagateProcFactory.foldExpr(func);
+        if (afterFoldDesc instanceof ExprNodeConstantDesc) {
+            return convertConstant((ExprNodeConstantDesc) afterFoldDesc, cluster);
+        }
         // TODO: 1) Expand to other functions as needed 2) What about types other than primitive.
         TypeInfo tgtDT = null;
         GenericUDF tgtUdf = func.getGenericUDF();

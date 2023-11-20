@@ -31,3 +31,7 @@ select dep,count(1) from employee where salary<5000 and age>=38 and dep='Sales' 
 select x,null as n from foo group by x,'a',null;
 
 [+I[1, null], +I[2, null], +I[3, null], +I[4, null], +I[5, null]]
+
+select dep, sum(salary) from employee group by dep, UNIX_TIMESTAMP();
+
+[+I[Management, 12900], +I[Production, 18600], +I[Sales, 8400], +I[Service, 4100]]

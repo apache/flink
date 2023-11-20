@@ -40,6 +40,7 @@ import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFToDecimal;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFFirstValue;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -138,6 +139,7 @@ public class HiveModule implements Module {
             functionNames.add(GenericUDFLegacyGroupingID.NAME);
             functionNames.add(HiveGenericUDFArrayAccessStructField.NAME);
             functionNames.add(HiveGenericUDFToDecimal.NAME);
+            functionNames.add("first");
         }
         return functionNames;
     }
@@ -159,6 +161,11 @@ public class HiveModule implements Module {
             return Optional.of(
                     factory.createFunctionDefinitionFromHiveFunction(
                             name, HiveGenericUDFGrouping.class.getName(), context));
+        }
+        if (name.equalsIgnoreCase("first")) {
+            return Optional.of(
+                    factory.createFunctionDefinitionFromHiveFunction(
+                            name, GenericUDAFFirstValue.class.getName(), context));
         }
 
         // this function is used to generate legacy GROUPING__ID value for old hive versions

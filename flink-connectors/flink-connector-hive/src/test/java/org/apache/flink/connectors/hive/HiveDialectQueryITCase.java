@@ -164,6 +164,8 @@ public class HiveDialectQueryITCase {
         tableEnv.executeSql(
                 "create function hiveudf as 'org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs'");
         tableEnv.executeSql(
+                "create function hiveudaf as 'org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCollectList'");
+        tableEnv.executeSql(
                 "create function hiveudtf as 'org.apache.hadoop.hive.ql.udf.generic.GenericUDTFExplode'");
         tableEnv.executeSql("create function myudtf as '" + MyUDTF.class.getName() + "'");
 
@@ -178,6 +180,13 @@ public class HiveDialectQueryITCase {
         for (File qfile : qfiles) {
             runQFile(qfile);
         }
+    }
+
+    @Test
+    public void testCommonTest() throws Exception {
+        tableEnv.executeSql("select first_value(id, true) over (partition by name order by dep) from employee")
+                .collect().forEachRemaining(
+                r -> System.out.println(r.toString()));
     }
 
     @Test
