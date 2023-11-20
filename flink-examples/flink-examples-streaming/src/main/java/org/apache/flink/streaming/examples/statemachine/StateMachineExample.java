@@ -30,15 +30,14 @@ import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
@@ -89,13 +88,16 @@ public class StateMachineExample {
         final String stateBackend = params.get("backend", "memory");
         if ("hashmap".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
-            env.setStateBackend(new HashMapStateBackend());
+            configuration.set(StateBackendOptions.STATE_BACKEND, "hashmap");
             configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
             configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         } else if ("rocks".equals(stateBackend)) {
             final String checkpointDir = params.get("checkpoint-dir");
             boolean incrementalCheckpoints = params.getBoolean("incremental-checkpoints", false);
-            env.setStateBackend(new EmbeddedRocksDBStateBackend(incrementalCheckpoints));
+            configuration.set(
+                    StateBackendOptions.STATE_BACKEND,
+                    "org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackendFactory");
+            configuration.set(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incrementalCheckpoints);
             configuration.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
             configuration.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir);
         }
