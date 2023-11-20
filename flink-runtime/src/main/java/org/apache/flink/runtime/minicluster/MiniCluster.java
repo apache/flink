@@ -891,6 +891,26 @@ public class MiniCluster implements AutoCloseableAsync {
                                 rpcTimeout));
     }
 
+    public CompletableFuture<String> triggerDetachedSavepoint(
+            JobID jobId,
+            String targetDirectory,
+            boolean cancelJob,
+            SavepointFormatType formatType) {
+        return runDispatcherCommand(
+                dispatcherGateway -> {
+                    dispatcherGateway.triggerSavepointAndGetLocation(
+                            jobId,
+                            targetDirectory,
+                            formatType,
+                            cancelJob
+                                    ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
+                                    : TriggerSavepointMode.SAVEPOINT,
+                            rpcTimeout);
+                    // return immediately, no need to wait for the future savepoint path
+                    return CompletableFuture.completedFuture("");
+                });
+    }
+
     public CompletableFuture<String> triggerCheckpoint(JobID jobID) {
         return runDispatcherCommand(
                 dispatcherGateway -> dispatcherGateway.triggerCheckpoint(jobID, rpcTimeout));
