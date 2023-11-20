@@ -116,6 +116,12 @@ public class MiniClusterClient implements ClusterClient<MiniClusterClient.MiniCl
     }
 
     @Override
+    public CompletableFuture<String> triggerDetachedSavepoint(
+            JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
+        return miniCluster.triggerDetachedSavepoint(jobId, savepointDirectory, false, formatType);
+    }
+
+    @Override
     public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) {
         return miniCluster.disposeSavepoint(savepointPath);
     }

@@ -539,7 +539,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     @Override
     public CompletableFuture<String> cancelWithSavepoint(
             JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
-        return triggerSavepoint(jobId, savepointDirectory, true, formatType);
+        return triggerSavepoint(jobId, savepointDirectory, true, formatType, false);
     }
 
     @Override
@@ -547,7 +547,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             final JobID jobId,
             final @Nullable String savepointDirectory,
             final SavepointFormatType formatType) {
-        return triggerSavepoint(jobId, savepointDirectory, false, formatType);
+        return triggerSavepoint(jobId, savepointDirectory, false, formatType, false);
     }
 
     @Override
@@ -578,6 +578,14 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                             }
                             return checkpointInfo.getCheckpointId();
                         });
+    }
+
+    @Override
+    public CompletableFuture<String> triggerDetachedSavepoint(
+            final JobID jobId,
+            final @Nullable String savepointDirectory,
+            final SavepointFormatType formatType) {
+        return triggerSavepoint(jobId, savepointDirectory, false, formatType, true);
     }
 
     @Override
@@ -615,7 +623,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             final JobID jobId,
             final @Nullable String savepointDirectory,
             final boolean cancelJob,
-            final SavepointFormatType formatType) {
+            final SavepointFormatType formatType,
+            final boolean isDetachedMode) {
         final SavepointTriggerHeaders savepointTriggerHeaders =
                 SavepointTriggerHeaders.getInstance();
         final SavepointTriggerMessageParameters savepointTriggerMessageParameters =
@@ -629,20 +638,34 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         new SavepointTriggerRequestBody(
                                 savepointDirectory, cancelJob, formatType, null));
 
-        return responseFuture
-                .thenCompose(
-                        savepointTriggerResponseBody -> {
-                            final TriggerId savepointTriggerId =
-                                    savepointTriggerResponseBody.getTriggerId();
-                            return pollSavepointAsync(jobId, savepointTriggerId);
-                        })
-                .thenApply(
-                        savepointInfo -> {
-                            if (savepointInfo.getFailureCause() != null) {
-                                throw new CompletionException(savepointInfo.getFailureCause());
-                            }
-                            return savepointInfo.getLocation();
-                        });
+        CompletableFuture<String> futureResult;
+        if (isDetachedMode) {
+            // we just return the savepoint trigger id in detached savepoint,
+            // that means the client could exit immediately
+            futureResult =
+                    responseFuture.thenApply((TriggerResponse tr) -> tr.getTriggerId().toString());
+        } else {
+            // otherwise we need to wait the savepoint to be succeeded
+            // and return the savepoint path
+            futureResult =
+                    responseFuture
+                            .thenCompose(
+                                    savepointTriggerResponseBody -> {
+                                        final TriggerId savepointTriggerId =
+                                                savepointTriggerResponseBody.getTriggerId();
+                                        return pollSavepointAsync(jobId, savepointTriggerId);
+                                    })
+                            .thenApply(
+                                    savepointInfo -> {
+                                        if (savepointInfo.getFailureCause() != null) {
+                                            throw new CompletionException(
+                                                    savepointInfo.getFailureCause());
+                                        }
+                                        return savepointInfo.getLocation();
+                                    });
+        }
+
+        return futureResult;
     }
 
     @Override

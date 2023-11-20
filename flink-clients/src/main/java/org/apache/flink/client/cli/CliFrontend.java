@@ -781,13 +781,26 @@ public class CliFrontend {
             runClusterAction(
                     activeCommandLine,
                     commandLine,
-                    (clusterClient, effectiveConfiguration) ->
+                    (clusterClient, effectiveConfiguration) -> {
+                        // Trigger savepoint in detached mode
+                        if (savepointOptions.isDetached()) {
+                            // trigger savepoint in detached mode and
+                            // return the trigger id immediately
+                            triggerDetachedSavepoint(
+                                    clusterClient,
+                                    jobId,
+                                    savepointDirectory,
+                                    savepointOptions.getFormatType(),
+                                    getClientTimeout(effectiveConfiguration));
+                        } else {
                             triggerSavepoint(
                                     clusterClient,
                                     jobId,
                                     savepointDirectory,
                                     savepointOptions.getFormatType(),
-                                    getClientTimeout(effectiveConfiguration)));
+                                    getClientTimeout(effectiveConfiguration));
+                        }
+                    });
         }
     }
 
@@ -816,6 +829,30 @@ public class CliFrontend {
             Throwable cause = ExceptionUtils.stripExecutionException(e);
             throw new FlinkException(
                     "Failed to trigger a savepoint for the job " + jobId + ".", cause);
+        }
+    }
+
+    /** Sends a SavepointTriggerMessage to the job manager in detached mode. */
+    private void triggerDetachedSavepoint(
+            ClusterClient<?> clusterClient,
+            JobID jobId,
+            String savepointDirectory,
+            SavepointFormatType formatType,
+            Duration clientTimeout)
+            throws FlinkException {
+        logAndSysout("Triggering savepoint in detached mode for job " + jobId + '.');
+
+        try {
+            final String triggerId =
+                    clusterClient
+                            .triggerDetachedSavepoint(jobId, savepointDirectory, formatType)
+                            .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+
+            logAndSysout("Successfully trigger manual savepoint, triggerId: " + triggerId);
+        } catch (Exception e) {
+            Throwable cause = ExceptionUtils.stripExecutionException(e);
+            throw new FlinkException(
+                    "Triggering a detached savepoint for the job " + jobId + " failed.", cause);
         }
     }
 

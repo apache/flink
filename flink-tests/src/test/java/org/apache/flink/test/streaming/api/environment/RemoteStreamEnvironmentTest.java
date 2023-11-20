@@ -282,6 +282,14 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
         }
 
         @Override
+        public CompletableFuture<String> triggerDetachedSavepoint(
+                JobID jobId,
+                @org.jetbrains.annotations.Nullable String savepointDirectory,
+                SavepointFormatType formatType) {
+            return null;
+        }
+
+        @Override
         public CompletableFuture<CoordinationResponse> sendCoordinationRequest(
                 JobID jobId, OperatorID operatorId, CoordinationRequest request) {
             return null;
