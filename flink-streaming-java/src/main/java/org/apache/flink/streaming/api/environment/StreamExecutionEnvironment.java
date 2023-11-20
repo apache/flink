@@ -200,8 +200,15 @@ public class StreamExecutionEnvironment implements AutoCloseable {
 
     private boolean isChainingOfOperatorsWithDifferentMaxParallelismEnabled = true;
 
-    /** The state backend used for storing k/v state and state snapshots. */
-    private StateBackend defaultStateBackend;
+    /**
+     * The state backend used for storing k/v state and state snapshots.
+     *
+     * @deprecated The field is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     field will be removed entirely.
+     */
+    @Deprecated private StateBackend defaultStateBackend;
 
     /** Whether to enable ChangelogStateBackend, default value is unset. */
     private TernaryBoolean changelogStateBackendEnabled = TernaryBoolean.UNDEFINED;
@@ -663,10 +670,24 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * org.apache.flink.runtime.state.CheckpointStorage} which configures how and where state
      * backends persist during a checkpoint.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided for configuring state backend like the following code snippet:
+     *     <pre>{@code
+     * Configuration config = new Configuration();
+     * config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
+     * StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+     * }</pre>
+     *     For more details on using ConfigOption for state backend configuration, please refer to
+     *     the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/state_backends">state-backends</a>
      * @return This StreamExecutionEnvironment itself, to allow chaining of function calls.
      * @see #getStateBackend()
      * @see CheckpointConfig#setCheckpointStorage( org.apache.flink.runtime.state.CheckpointStorage)
      */
+    @Deprecated
     @PublicEvolving
     public StreamExecutionEnvironment setStateBackend(StateBackend backend) {
         this.defaultStateBackend = Preconditions.checkNotNull(backend);
@@ -676,8 +697,16 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     /**
      * Gets the state backend that defines how to store and checkpoint state.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to find which state backend is used by
+     *     state backend ConfigOption. For more details on using ConfigOption for state backend
+     *     configuration, please refer to the Flink documentation: <a
+     *     href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/state_backends">state-backends</a>
      * @see #setStateBackend(StateBackend)
      */
+    @Deprecated
     @PublicEvolving
     public StateBackend getStateBackend() {
         return defaultStateBackend;
