@@ -18,68 +18,112 @@
 
 package org.apache.flink.runtime.fs.hdfs;
 
+import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileStatus;
+import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.OperatingSystem;
 
-import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
+import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.mockito.Mockito;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.assertTrue;
 
 /** Test for {@link org.apache.hadoop.fs.FileSystem} globStatus API support. */
 public class HadoopFileSystemGlobTest {
 
-    private FileSystem mockHadoopFileSystem;
-    private HadoopFileSystem testFileSystem;
+    @ClassRule public static final TemporaryFolder TMP = new TemporaryFolder();
+    private static final String TEST_FILE = "test-file-1";
+    private static MiniDFSCluster hdfsCluster;
+    private static org.apache.flink.core.fs.FileSystem fs;
+    private static Path basePath;
+
+    // ------------------------------------------------------------------------
+
+    @BeforeClass
+    public static void verifyOS() {
+        Assume.assumeTrue(
+                "HDFS cluster cannot be started on Windows without extensions.",
+                !OperatingSystem.isWindows());
+    }
+
+    @BeforeClass
+    public static void createHDFS() throws Exception {
+        final File baseDir = TMP.newFolder();
+
+        Configuration hdConf = new Configuration();
+        hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, baseDir.getAbsolutePath());
+        MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(hdConf);
+        hdfsCluster = builder.build();
+
+        org.apache.hadoop.fs.FileSystem hdfs = hdfsCluster.getFileSystem();
+        fs = new HadoopFileSystem(hdfs);
+
+        basePath = new Path(hdfs.getUri().toString() + "/tests");
+    }
+
+    @AfterClass
+    public static void destroyHDFS() throws Exception {
+        if (hdfsCluster != null) {
+            hdfsCluster
+                    .getFileSystem()
+                    .delete(new org.apache.hadoop.fs.Path(basePath.toUri()), true);
+            hdfsCluster.shutdown();
+        }
+    }
+
+    // ------------------------------------------------------------------------
 
     @Before
     public void setUp() throws Exception {
-        mockHadoopFileSystem = Mockito.mock(FileSystem.class);
-        testFileSystem = new HadoopFileSystem(mockHadoopFileSystem);
+        fs.mkdirs(basePath);
+        try (FSDataOutputStream os =
+                fs.create(basePath.suffix("/" + TEST_FILE), WriteMode.OVERWRITE)) {
+            os.write("DummyDataForA".getBytes(StandardCharsets.UTF_8));
+            os.flush();
+        }
     }
 
     @Test
     public void testGlobStatusSupported() {
-        assertEquals(testFileSystem.isGlobStatusSupported(), true);
+        assertTrue(fs.isGlobStatusSupported());
     }
 
     @Test
     public void testGlobStatusWhenMatchingFilesFound() throws IOException {
-        final String globPattern = "hdfs://abc/*";
-        final String absFilePath = "hdfs://abc/a";
+        final Path globPattern = basePath.suffix("/*");
+        final Path expectedFilePath = basePath.suffix("/" + TEST_FILE);
 
-        org.apache.hadoop.fs.FileStatus mockFileStatusHadoop =
-                new org.apache.hadoop.fs.FileStatus();
-        mockFileStatusHadoop.setPath(new org.apache.hadoop.fs.Path(absFilePath));
-        org.apache.hadoop.fs.FileStatus[] mockFileStatusResult =
-                new org.apache.hadoop.fs.FileStatus[] {mockFileStatusHadoop};
-        when(mockHadoopFileSystem.globStatus(new org.apache.hadoop.fs.Path(globPattern)))
-                .thenReturn(mockFileStatusResult);
-
-        FileStatus[] fileStatusResult = testFileSystem.globStatus(new Path(globPattern));
-        assertEquals(fileStatusResult.length, 1);
-        assertEquals(fileStatusResult[0].getPath(), new Path(absFilePath));
+        FileStatus[] fileStatusResult = fs.globStatus(globPattern);
+        assertEquals(1, fileStatusResult.length);
+        assertEquals(expectedFilePath, fileStatusResult[0].getPath());
     }
 
     @Test
     public void testGlobStatusWhenNoMatchingFilesFound() throws IOException {
-        when(mockHadoopFileSystem.globStatus(any())).thenReturn(null);
+        FileStatus[] fileStatusResult1 = fs.globStatus(basePath.suffix("/invalid_file_name"));
+        assertNull(fileStatusResult1);
 
-        FileStatus[] fileStatusResult = testFileSystem.globStatus(new Path("hdfs://abc/*"));
-        assertNull(fileStatusResult);
+        FileStatus[] fileStatusResult2 = fs.globStatus(basePath.suffix("/invalid_dir/*"));
+        assertEquals(fileStatusResult2.length, 0);
     }
 
     @Test(expected = IOException.class)
-    public void testGlobStatusWhenException() throws IOException {
-        when(mockHadoopFileSystem.globStatus(any(org.apache.hadoop.fs.Path.class)))
-                .thenThrow(IOException.class);
-        testFileSystem.globStatus(new Path("hdfs://abc/*"));
+    public void testGlobStatusThrowsIOExceptionWhenInvalidInput() throws IOException {
+        Path invalidGlobPattern = basePath.suffix("[unclosed_parenthesis");
+        fs.globStatus(invalidGlobPattern);
     }
 }
