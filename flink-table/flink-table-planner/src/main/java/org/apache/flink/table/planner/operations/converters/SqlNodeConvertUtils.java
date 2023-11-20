@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterView;
+import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -33,9 +34,14 @@ import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.Con
 
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -63,6 +69,32 @@ class SqlNodeConvertUtils {
         // This bug is fixed in CALCITE-3877 of Calcite 1.23.0.
         String originalQuery = context.toQuotedSqlString(query);
         SqlNode validateQuery = context.getSqlValidator().validate(query);
+
+        // Check name is unique.
+        // Don't rely on the calcite because if the field names are duplicate, calcite will add
+        // index to identify the duplicate names.
+        SqlValidatorNamespace namespace = context.getSqlValidator().getNamespace(validateQuery);
+        Map<String, Integer> nameToPos = new HashMap<>();
+        for (int i = 0;
+                i < Objects.requireNonNull(namespace).getType().getFieldList().size();
+                i++) {
+            String columnName = namespace.getType().getFieldList().get(i).getName();
+            if (nameToPos.containsKey(columnName)) {
+                SqlSelect select = (SqlSelect) query;
+                SqlParserPos errorPos = select.getSelectList().get(i).getParserPosition();
+                String msg =
+                        String.format(
+                                "A column with the same name `%s` has been defined at %s.",
+                                columnName,
+                                select.getSelectList()
+                                        .get(nameToPos.get(columnName))
+                                        .getParserPosition());
+                throw new ValidationException(
+                        "SQL validation failed. " + msg, new SqlValidateException(errorPos, msg));
+            }
+            nameToPos.put(columnName, i);
+        }
+
         // The LATERAL operator was eliminated during sql validation, thus the unparsed SQL
         // does not contain LATERAL which is problematic,
         // the issue was resolved in CALCITE-4077
