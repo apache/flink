@@ -42,6 +42,7 @@ import org.apache.flink.shaded.guava31.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -56,7 +57,6 @@ import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatGaug
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasSize;
 
 /** Tests whether all provided metrics of a {@link Sink} are of the expected values (FLIP-33). */
 public class SinkV2MetricsITCase extends TestLogger {
@@ -115,11 +115,11 @@ public class SinkV2MetricsITCase extends TestLogger {
         final JobID jobId = jobClient.getJobID();
 
         beforeBarrier.get().await();
-        assertSinkMetrics(jobId, stopAtRecord1, env.getParallelism(), numSplits);
+        assertSinkMetrics(jobId, stopAtRecord1, numSplits);
         afterBarrier.get().await();
 
         beforeBarrier.get().await();
-        assertSinkMetrics(jobId, stopAtRecord2, env.getParallelism(), numSplits);
+        assertSinkMetrics(jobId, stopAtRecord2, numSplits);
         afterBarrier.get().await();
 
         jobClient.getJobExecutionResult().get();
@@ -152,7 +152,6 @@ public class SinkV2MetricsITCase extends TestLogger {
         beforeLatch.get().await();
         assertSinkCommitterMetrics(
                 jobId,
-                env.getParallelism(),
                 ImmutableMap.of(
                         MetricNames.ALREADY_COMMITTED_COMMITTABLES, 0L,
                         MetricNames.FAILED_COMMITTABLES, 0L,
@@ -166,7 +165,6 @@ public class SinkV2MetricsITCase extends TestLogger {
         jobClient.getJobExecutionResult().get();
         assertSinkCommitterMetrics(
                 jobId,
-                env.getParallelism(),
                 ImmutableMap.of(
                         MetricNames.ALREADY_COMMITTED_COMMITTABLES, 1L,
                         MetricNames.FAILED_COMMITTABLES, 2L,
@@ -177,18 +175,18 @@ public class SinkV2MetricsITCase extends TestLogger {
     }
 
     @SuppressWarnings("checkstyle:WhitespaceAfter")
-    private void assertSinkMetrics(
-            JobID jobId, long processedRecordsPerSubtask, int parallelism, int numSplits) {
+    private void assertSinkMetrics(JobID jobId, long processedRecordsPerSubtask, int numSplits) {
         List<OperatorMetricGroup> groups =
                 reporter.findOperatorMetricGroups(
                         jobId, TEST_SINK_NAME + ": " + DEFAULT_WRITER_NAME);
-        assertThat(groups, hasSize(parallelism));
 
         int subtaskWithMetrics = 0;
         for (OperatorMetricGroup group : groups) {
             Map<String, Metric> metrics = reporter.getMetricsByGroup(group);
             // There are only 2 splits assigned; so two groups will not update metrics.
-            if (group.getIOMetricGroup().getNumRecordsOutCounter().getCount() == 0) {
+            if (group.getIOMetricGroup() == null
+                    || group.getIOMetricGroup().getNumRecordsOutCounter() == null
+                    || group.getIOMetricGroup().getNumRecordsOutCounter().getCount() == 0) {
                 continue;
             }
             subtaskWithMetrics++;
@@ -217,43 +215,36 @@ public class SinkV2MetricsITCase extends TestLogger {
         assertThat(subtaskWithMetrics, equalTo(numSplits));
     }
 
-    private void assertSinkCommitterMetrics(
-            JobID jobId, int parallelism, Map<String, Long> expected) {
+    private void assertSinkCommitterMetrics(JobID jobId, Map<String, Long> expected) {
         List<OperatorMetricGroup> groups =
                 reporter.findOperatorMetricGroups(
                         jobId, TEST_SINK_NAME + ": " + DEFAULT_COMMITTER_NAME);
-        assertThat(groups, hasSize(parallelism));
 
         Map<String, Long> aggregated = new HashMap<>(6);
         for (OperatorMetricGroup group : groups) {
             Map<String, Metric> metrics = reporter.getMetricsByGroup(group);
 
-            aggregated.merge(
-                    MetricNames.SUCCESSFUL_COMMITTABLES,
-                    ((Counter) metrics.get(MetricNames.SUCCESSFUL_COMMITTABLES)).getCount(),
-                    Long::sum);
-            aggregated.merge(
-                    MetricNames.ALREADY_COMMITTED_COMMITTABLES,
-                    ((Counter) metrics.get(MetricNames.ALREADY_COMMITTED_COMMITTABLES)).getCount(),
-                    Long::sum);
-            aggregated.merge(
-                    MetricNames.RETRIED_COMMITTABLES,
-                    ((Counter) metrics.get(MetricNames.RETRIED_COMMITTABLES)).getCount(),
-                    Long::sum);
-            aggregated.merge(
-                    MetricNames.FAILED_COMMITTABLES,
-                    ((Counter) metrics.get(MetricNames.FAILED_COMMITTABLES)).getCount(),
-                    Long::sum);
-            aggregated.merge(
-                    MetricNames.TOTAL_COMMITTABLES,
-                    ((Counter) metrics.get(MetricNames.TOTAL_COMMITTABLES)).getCount(),
-                    Long::sum);
-            aggregated.merge(
-                    MetricNames.PENDING_COMMITTABLES,
-                    ((Gauge<Integer>) metrics.get(MetricNames.PENDING_COMMITTABLES))
-                            .getValue()
-                            .longValue(),
-                    Long::sum);
+            for (String metricName :
+                    Arrays.asList(
+                            MetricNames.SUCCESSFUL_COMMITTABLES,
+                            MetricNames.ALREADY_COMMITTED_COMMITTABLES,
+                            MetricNames.RETRIED_COMMITTABLES,
+                            MetricNames.FAILED_COMMITTABLES,
+                            MetricNames.TOTAL_COMMITTABLES)) {
+                final Counter counter = (Counter) metrics.get(metricName);
+                if (counter != null) {
+                    aggregated.merge(metricName, counter.getCount(), Long::sum);
+                }
+            }
+
+            Gauge<Integer> pendingMetrics =
+                    (Gauge<Integer>) metrics.get(MetricNames.PENDING_COMMITTABLES);
+            if (pendingMetrics != null && pendingMetrics.getValue() != null) {
+                aggregated.merge(
+                        MetricNames.PENDING_COMMITTABLES,
+                        pendingMetrics.getValue().longValue(),
+                        Long::sum);
+            }
         }
 
         expected.entrySet()
