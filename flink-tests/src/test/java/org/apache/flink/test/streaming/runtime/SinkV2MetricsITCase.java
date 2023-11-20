@@ -57,7 +57,6 @@ import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatGaug
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.hasSize;
 
 /** Tests whether all provided metrics of a {@link Sink} are of the expected values (FLIP-33). */
 public class SinkV2MetricsITCase extends TestLogger {
