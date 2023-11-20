@@ -57,6 +57,7 @@ import static org.apache.flink.metrics.testutils.MetricAssertions.assertThatGaug
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasSize;
 
 /** Tests whether all provided metrics of a {@link Sink} are of the expected values (FLIP-33). */
 public class SinkV2MetricsITCase extends TestLogger {
@@ -224,13 +225,6 @@ public class SinkV2MetricsITCase extends TestLogger {
         for (OperatorMetricGroup group : groups) {
             Map<String, Metric> metrics = reporter.getMetricsByGroup(group);
 
-            if (metrics == null) {
-                continue;
-            }
-
-            Gauge<Integer> pendingMetrics =
-                    (Gauge<Integer>) metrics.get(MetricNames.PENDING_COMMITTABLES);
-
             for (String metricName :
                     Arrays.asList(
                             MetricNames.SUCCESSFUL_COMMITTABLES,
@@ -244,6 +238,8 @@ public class SinkV2MetricsITCase extends TestLogger {
                 }
             }
 
+            Gauge<Integer> pendingMetrics =
+                    (Gauge<Integer>) metrics.get(MetricNames.PENDING_COMMITTABLES);
             if (pendingMetrics != null && pendingMetrics.getValue() != null) {
                 aggregated.merge(
                         MetricNames.PENDING_COMMITTABLES,
