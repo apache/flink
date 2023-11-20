@@ -89,6 +89,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     @Override
     public EnumSet<TestKind> supportedSetupSteps() {
         return EnumSet.of(
+                TestKind.CONFIG,
                 TestKind.FUNCTION,
                 TestKind.SOURCE_WITH_RESTORE_DATA,
                 TestKind.SINK_WITH_RESTORE_DATA);
@@ -126,6 +127,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
     public void generateTestSetupFiles(TableTestProgram program) throws Exception {
         final TableEnvironment tEnv =
                 TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
         tEnv.getConfig()
                 .set(
                         TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS,
