@@ -149,6 +149,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     @Deprecated private long executionRetryDelay = DEFAULT_RESTART_DELAY;
 
+    /**
+     * @deprecated The field is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
+     */
+    @Deprecated
     private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
             new RestartStrategies.FallbackRestartStrategyConfiguration();
 
@@ -434,8 +443,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * 	1000 // delay between retries));
      * }</pre>
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
      * @param restartStrategyConfiguration Configuration defining the restart strategy to use
      */
+    @Deprecated
     @PublicEvolving
     public void setRestartStrategy(
             RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
@@ -446,10 +462,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     /**
      * Returns the restart strategy which has been set for the current job.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
      * @return The specified restart configuration
      */
+    @Deprecated
     @PublicEvolving
-    @SuppressWarnings("deprecation")
     public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
         if (restartStrategyConfiguration
                 instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
