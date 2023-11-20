@@ -197,9 +197,9 @@ class TypeInformationGenTest {
     assertThat(ti).isInstanceOf(classOf[TupleTypeInfoBase[_]])
     val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
     assertThat(tti.getTypeClass).isEqualTo(classOf[(_, _, _)])
-    assertThat(tti.getTypeAt(0).isTupleType)
-    assertThat(tti.getTypeAt(1).isTupleType)
-    assertThat(tti.getTypeAt(2).isTupleType)
+    assertThat(tti.getTypeAt(0).isTupleType).isTrue
+    assertThat(tti.getTypeAt(1).isTupleType).isTrue
+    assertThat(tti.getTypeAt(2).isTupleType).isTrue
     assertThat(tti.getTypeAt(0).getTypeClass).isEqualTo(classOf[Tuple1[_]])
     assertThat(tti.getTypeAt(1).getTypeClass).isEqualTo(classOf[Tuple1[_]])
     assertThat(tti.getTypeAt(2).getTypeClass).isEqualTo(classOf[(_, _)])

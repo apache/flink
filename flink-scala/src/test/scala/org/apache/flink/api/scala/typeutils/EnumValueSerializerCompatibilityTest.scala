@@ -21,23 +21,18 @@ import org.apache.flink.api.common.typeutils.{TypeSerializerSchemaCompatibility,
 import org.apache.flink.core.memory.{DataInputViewStreamWrapper, DataOutputViewStreamWrapper}
 
 import org.assertj.core.api.Assertions.{assertThat, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
 import java.io._
 import java.net.{URL, URLClassLoader}
-import java.nio.file.Files
+import java.nio.file.{Files, Path}
 
 import scala.reflect.NameTransformer
 import scala.tools.nsc.{Global, Settings}
 import scala.tools.nsc.reporters.ConsoleReporter
 
 class EnumValueSerializerCompatibilityTest {
-
-  private val _tempFolder = Files.createTempDirectory("")
-
-  @TempDir
-  private def tempFolder = _tempFolder
 
   val enumName = "EnumValueSerializerUpgradeTestEnum"
 
@@ -80,39 +75,40 @@ class EnumValueSerializerCompatibilityTest {
 
   /** Check that identical enums don't require migration */
   @Test
-  def checkIdenticalEnums(): Unit = {
-    assertThat(checkCompatibility(enumA, enumA).isCompatibleAsIs).isTrue
+  def checkIdenticalEnums(@TempDir tempFolder: Path): Unit = {
+    assertThat(checkCompatibility(enumA, enumA, tempFolder).isCompatibleAsIs).isTrue
   }
 
   /** Check that appending fields to the enum does not require migration */
   @Test
-  def checkAppendedField(): Unit = {
-    assertThat(checkCompatibility(enumA, enumB).isCompatibleAsIs).isTrue
+  def checkAppendedField(@TempDir tempFolder: Path): Unit = {
+    assertThat(checkCompatibility(enumA, enumB, tempFolder).isCompatibleAsIs).isTrue
   }
 
   /** Check that removing enum fields makes the snapshot incompatible. */
   @Test
-  def checkRemovedField(): Unit = {
-    assertThat(checkCompatibility(enumA, enumC).isIncompatible).isTrue
+  def checkRemovedField(@TempDir tempFolder: Path): Unit = {
+    assertThat(checkCompatibility(enumA, enumC, tempFolder).isIncompatible).isTrue
   }
 
   /** Check that changing the enum field order makes the snapshot incompatible. */
   @Test
-  def checkDifferentFieldOrder(): Unit = {
-    assertThat(checkCompatibility(enumA, enumD).isIncompatible).isTrue
+  def checkDifferentFieldOrder(@TempDir tempFolder: Path): Unit = {
+    assertThat(checkCompatibility(enumA, enumD, tempFolder).isIncompatible).isTrue
   }
 
   /** Check that changing the enum ids causes a migration */
   @Test
-  def checkDifferentIds(): Unit = {
-    assertThat(checkCompatibility(enumA, enumE).isIncompatible)
+  def checkDifferentIds(@TempDir tempFolder: Path): Unit = {
+    assertThat(checkCompatibility(enumA, enumE, tempFolder).isIncompatible)
       .as("Different ids should be incompatible.")
       .isTrue
   }
 
   def checkCompatibility(
       enumSourceA: String,
-      enumSourceB: String): TypeSerializerSchemaCompatibility[Enumeration#Value] = {
+      enumSourceB: String,
+      tempFolder: Path): TypeSerializerSchemaCompatibility[Enumeration#Value] = {
     import EnumValueSerializerCompatibilityTest._
 
     val classLoader = compileAndLoadEnum(

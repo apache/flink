@@ -60,9 +60,8 @@ class TypeInfoFactoryTest {
     val ti2 = createTypeInformation[MyScalaTupleClass]
     assertThat(ti2).isInstanceOf(classOf[MyTupleTypeInfo[_, _]])
     val mtti2 = ti2.asInstanceOf[MyTupleTypeInfo[_, _]]
-    // TODO: should it be mtti2?
-    assertThat(mtti.getField0).isEqualTo(STRING_TYPE_INFO)
-    assertThat(mtti.getField1).isEqualTo(BOOLEAN_TYPE_INFO)
+    assertThat(mtti2.getField0).isEqualTo(STRING_TYPE_INFO)
+    assertThat(mtti2.getField1).isEqualTo(BOOLEAN_TYPE_INFO)
   }
 
   @Test
