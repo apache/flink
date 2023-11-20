@@ -30,9 +30,12 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.Quantity;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -141,6 +144,21 @@ class KubernetesUtilsTest extends KubernetesTestBase {
         assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getInitContainers()).hasSize(1);
         assertThat(flinkPod.getPodWithoutMainContainer().getSpec().getInitContainers().get(0))
                 .isEqualTo(KubernetesPodTemplateTestUtils.createInitContainer());
+    }
+
+    @Test
+    void testPodTemplateResourceLimitUtilisation() {
+        final FlinkPod flinkPod =
+                KubernetesUtils.loadPodFromTemplateFile(
+                        flinkKubeClient,
+                        KubernetesPodTemplateTestUtils.getPodTemplateFileWithResourceLimit(),
+                        KubernetesPodTemplateTestUtils.TESTING_MAIN_CONTAINER_NAME);
+        Container mainContainer = flinkPod.getMainContainer();
+        Map<String, Quantity> limits = mainContainer.getResources().getLimits();
+
+        // New reousce limit should be equal to the value confogured in template
+        assertThat(limits.get(Constants.RESOURCE_NAME_MEMORY).equals("15Mi"));
+        assertThat(limits.get(Constants.RESOURCE_NAME_CPU).equals("0.02"));
     }
 
     @Test

@@ -367,10 +367,24 @@ public class KubernetesUtils {
             Map<String, ExternalResource> externalResources,
             Map<String, String> externalResourceConfigKeys) {
         final Quantity cpuQuantity = new Quantity(String.valueOf(cpu));
-        final Quantity cpuLimitQuantity = new Quantity(String.valueOf(cpu * cpuLimitFactor));
+        final Quantity cpuLimitQuantity =
+                new Quantity(
+                        String.valueOf(
+                                getLimit(
+                                        cpu,
+                                        cpuLimitFactor,
+                                        resourceRequirements,
+                                        Constants.RESOURCE_NAME_CPU)));
         final Quantity memQuantity = new Quantity(mem + Constants.RESOURCE_UNIT_MB);
         final Quantity memQuantityLimit =
-                new Quantity(((int) (mem * memoryLimitFactor)) + Constants.RESOURCE_UNIT_MB);
+                new Quantity(
+                        ((int)
+                                        (getLimit(
+                                                mem,
+                                                memoryLimitFactor,
+                                                resourceRequirements,
+                                                Constants.RESOURCE_NAME_MEMORY)))
+                                + Constants.RESOURCE_UNIT_MB);
 
         ResourceRequirementsBuilder resourceRequirementsBuilder =
                 new ResourceRequirementsBuilder(resourceRequirements)
@@ -397,6 +411,40 @@ public class KubernetesUtils {
         }
 
         return resourceRequirementsBuilder.build();
+    }
+
+    /**
+     * Calculates the final limit value for a resource based on the new value, limit factor, and
+     * existing resource requirements.
+     *
+     * @param newValue The new value for the resource.
+     * @param limitFactor The limit factor for the resource.
+     * @param resourceRequirements Existing resource requirements.
+     * @param resourceName The name of the resource.
+     * @return The final limit value for the resource.
+     */
+    private static double getLimit(
+            double newValue,
+            double limitFactor,
+            ResourceRequirements resourceRequirements,
+            String resourceName) {
+        Map<String, Quantity> limits = resourceRequirements.getLimits();
+        double limit = newValue * limitFactor;
+        if (limits != null) {
+            Quantity quantity = limits.get(resourceName);
+            if (quantity != null) {
+                try {
+                    return Math.max(Double.parseDouble(quantity.getAmount()), limit);
+                } catch (NumberFormatException e) {
+                    LOG.warn(
+                            String.format(
+                                    "Failed to get the existing limit value for resource %s for Pod",
+                                    resourceName),
+                            e);
+                }
+            }
+        }
+        return limit;
     }
 
     public static List<String> getStartCommandWithBashWrapper(String command) {
