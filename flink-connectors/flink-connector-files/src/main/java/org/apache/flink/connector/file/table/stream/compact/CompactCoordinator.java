@@ -152,6 +152,10 @@ public class CompactCoordinator extends AbstractStreamOperator<CoordinatorOutput
         for (Map.Entry<Long, Map<String, List<Path>>> entry : headMap.entrySet()) {
             coordinate(entry.getKey(), entry.getValue());
         }
+        if (checkpointId == Long.MAX_VALUE) {
+            coordinate(checkpointId, currentInputFiles);
+            currentInputFiles.clear();
+        }
         headMap.clear();
     }
 
