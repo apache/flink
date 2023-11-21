@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
+import org.apache.flink.streaming.api.operators.InternalBacklogAwareTimerServiceManagerImpl;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionCheckpointStorage;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionStateBackend;
@@ -93,6 +94,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -415,6 +417,12 @@ public class StreamGraphGenerator {
         graph.setCheckpointStorage(checkpointStorage);
         graph.setSavepointDirectory(savepointDir);
         graph.setGlobalStreamExchangeMode(deriveGlobalStreamExchangeModeStreaming());
+
+        if (Duration.ZERO.equals(
+                configuration.get(
+                        ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG))) {
+            graph.setTimerServiceProvider(InternalBacklogAwareTimerServiceManagerImpl::create);
+        }
     }
 
     private String deriveJobName(String defaultJobName) {
