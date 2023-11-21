@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -30,7 +29,6 @@ import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
 import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
 import org.junit.Assert;
@@ -51,6 +49,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import static org.apache.flink.streaming.api.operators.TimeServiceTestUtils.createInternalTimerService;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -963,21 +962,6 @@ public class InternalTimerServiceImplTest {
         assertEquals(0, timerService2.numEventTimeTimers());
     }
 
-    private static class TestKeyContext implements KeyContext {
-
-        private Object key;
-
-        @Override
-        public void setCurrentKey(Object key) {
-            this.key = key;
-        }
-
-        @Override
-        public Object getCurrentKey() {
-            return key;
-        }
-    }
-
     private static int getKeyInKeyGroup(int keyGroup, int maxParallelism) {
         Random rand = new Random(System.currentTimeMillis());
         int result = rand.nextInt();
@@ -1082,27 +1066,6 @@ public class InternalTimerServiceImplTest {
                     {2, 5, 100},
                     {2, 5, 6}
                 });
-    }
-
-    private static <K, N> InternalTimerServiceImpl<K, N> createInternalTimerService(
-            KeyGroupRange keyGroupsList,
-            KeyContext keyContext,
-            ProcessingTimeService processingTimeService,
-            TypeSerializer<K> keySerializer,
-            TypeSerializer<N> namespaceSerializer,
-            PriorityQueueSetFactory priorityQueueSetFactory) {
-
-        TimerSerializer<K, N> timerSerializer =
-                new TimerSerializer<>(keySerializer, namespaceSerializer);
-
-        return new InternalTimerServiceImpl<>(
-                keyGroupsList,
-                keyContext,
-                processingTimeService,
-                createTimerQueue(
-                        "__test_processing_timers", timerSerializer, priorityQueueSetFactory),
-                createTimerQueue("__test_event_timers", timerSerializer, priorityQueueSetFactory),
-                StreamTaskCancellationContext.alwaysRunning());
     }
 
     private static <K, N>

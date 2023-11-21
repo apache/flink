@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
+import org.apache.flink.streaming.api.operators.TestTrigger;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
@@ -50,7 +51,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -103,8 +103,7 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
 
         BatchExecutionInternalTimeService<Object, Object> timeService =
                 new BatchExecutionInternalTimeService<>(
-                        new TestProcessingTimeService(),
-                        LambdaTrigger.eventTimeTrigger(timer -> {}));
+                        new TestProcessingTimeService(), TestTrigger.eventTimeTrigger(timer -> {}));
 
         timeService.forEachEventTimeTimer(
                 (o, aLong) -> fail("The forEachEventTimeTimer() should not be supported"));
@@ -118,8 +117,7 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
 
         BatchExecutionInternalTimeService<Object, Object> timeService =
                 new BatchExecutionInternalTimeService<>(
-                        new TestProcessingTimeService(),
-                        LambdaTrigger.eventTimeTrigger(timer -> {}));
+                        new TestProcessingTimeService(), TestTrigger.eventTimeTrigger(timer -> {}));
 
         timeService.forEachEventTimeTimer(
                 (o, aLong) -> fail("The forEachProcessingTimeTimer() should not be supported"));
@@ -145,7 +143,7 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         "test",
                         KEY_SERIALIZER,
                         new VoidNamespaceSerializer(),
-                        LambdaTrigger.eventTimeTrigger(timer -> timers.add(timer.getTimestamp())));
+                        TestTrigger.eventTimeTrigger(timer -> timers.add(timer.getTimestamp())));
 
         keyedStatedBackend.setCurrentKey(1);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 123);
@@ -181,7 +179,7 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         "test",
                         KEY_SERIALIZER,
                         new VoidNamespaceSerializer(),
-                        LambdaTrigger.eventTimeTrigger(timer -> timers.add(timer.getTimestamp())));
+                        TestTrigger.eventTimeTrigger(timer -> timers.add(timer.getTimestamp())));
 
         keyedStatedBackend.setCurrentKey(1);
         timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, 123);
@@ -257,7 +255,7 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                         "test",
                         KEY_SERIALIZER,
                         new VoidNamespaceSerializer(),
-                        LambdaTrigger.processingTimeTrigger(
+                        TestTrigger.processingTimeTrigger(
                                 timer -> timers.add(timer.getTimestamp())));
 
         keyedStatedBackend.setCurrentKey(1);
@@ -393,43 +391,6 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
         @Override
         public void onProcessingTime(InternalTimer<K, N> timer) throws Exception {
             this.processingTimeHandler.accept(timer, timerService);
-        }
-    }
-
-    private static class LambdaTrigger<K, N> implements Triggerable<K, N> {
-
-        private final Consumer<InternalTimer<K, N>> eventTimeHandler;
-        private final Consumer<InternalTimer<K, N>> processingTimeHandler;
-
-        public static <K, N> LambdaTrigger<K, N> eventTimeTrigger(
-                Consumer<InternalTimer<K, N>> eventTimeHandler) {
-            return new LambdaTrigger<>(
-                    eventTimeHandler,
-                    timer -> Assert.fail("We did not expect processing timer to be triggered."));
-        }
-
-        public static <K, N> LambdaTrigger<K, N> processingTimeTrigger(
-                Consumer<InternalTimer<K, N>> processingTimeHandler) {
-            return new LambdaTrigger<>(
-                    timer -> Assert.fail("We did not expect event timer to be triggered."),
-                    processingTimeHandler);
-        }
-
-        private LambdaTrigger(
-                Consumer<InternalTimer<K, N>> eventTimeHandler,
-                Consumer<InternalTimer<K, N>> processingTimeHandler) {
-            this.eventTimeHandler = eventTimeHandler;
-            this.processingTimeHandler = processingTimeHandler;
-        }
-
-        @Override
-        public void onEventTime(InternalTimer<K, N> timer) throws Exception {
-            this.eventTimeHandler.accept(timer);
-        }
-
-        @Override
-        public void onProcessingTime(InternalTimer<K, N> timer) throws Exception {
-            this.processingTimeHandler.accept(timer);
         }
     }
 

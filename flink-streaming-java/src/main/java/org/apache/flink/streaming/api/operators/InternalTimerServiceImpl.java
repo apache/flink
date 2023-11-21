@@ -396,6 +396,10 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N> {
         return countTimersInNamespaceInternal(namespace, eventTimeTimersQueue);
     }
 
+    public KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> getEventTimeTimersQueue() {
+        return eventTimeTimersQueue;
+    }
+
     private int countTimersInNamespaceInternal(
             N namespace, InternalPriorityQueue<TimerHeapInternalTimer<K, N>> queue) {
         int count = 0;

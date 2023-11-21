@@ -40,38 +40,47 @@ public class BatchExecutionInternalTimeService<K, N> implements InternalTimerSer
     private static final Logger LOG =
             LoggerFactory.getLogger(BatchExecutionInternalTimeService.class);
 
-    private final ProcessingTimeService processingTimeService;
+    protected final ProcessingTimeService processingTimeService;
 
     /** Processing time timers that are currently in-flight. */
-    private final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>>
+    protected final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>>
             processingTimeTimersQueue;
 
     /** Event time timers that are currently in-flight. */
-    private final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>>
+    protected final KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>>
             eventTimeTimersQueue;
 
     /**
      * The local event time, as denoted by the last received {@link
      * org.apache.flink.streaming.api.watermark.Watermark Watermark}.
      */
-    private long currentWatermark = Long.MIN_VALUE;
+    protected long currentWatermark = Long.MIN_VALUE;
 
-    private final Triggerable<K, N> triggerTarget;
+    protected final Triggerable<K, N> triggerTarget;
 
-    private K currentKey;
+    protected K currentKey;
 
     BatchExecutionInternalTimeService(
             ProcessingTimeService processingTimeService, Triggerable<K, N> triggerTarget) {
+        this(
+                processingTimeService,
+                triggerTarget,
+                new BatchExecutionInternalPriorityQueueSet<>(
+                        PriorityComparator.forPriorityComparableObjects(), 128),
+                new BatchExecutionInternalPriorityQueueSet<>(
+                        PriorityComparator.forPriorityComparableObjects(), 128));
+    }
 
+    protected BatchExecutionInternalTimeService(
+            ProcessingTimeService processingTimeService,
+            Triggerable<K, N> triggerTarget,
+            KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> eventTimeTimersQueue,
+            KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>>
+                    processingTimeTimersQueue) {
         this.processingTimeService = checkNotNull(processingTimeService);
         this.triggerTarget = checkNotNull(triggerTarget);
-
-        this.processingTimeTimersQueue =
-                new BatchExecutionInternalPriorityQueueSet<>(
-                        PriorityComparator.forPriorityComparableObjects(), 128);
-        this.eventTimeTimersQueue =
-                new BatchExecutionInternalPriorityQueueSet<>(
-                        PriorityComparator.forPriorityComparableObjects(), 128);
+        this.eventTimeTimersQueue = eventTimeTimersQueue;
+        this.processingTimeTimersQueue = processingTimeTimersQueue;
     }
 
     @Override

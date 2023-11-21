@@ -69,12 +69,12 @@ public class InternalTimeServiceManagerImpl<K> implements InternalTimeServiceMan
     private final KeyGroupRange localKeyGroupRange;
     private final KeyContext keyContext;
     private final PriorityQueueSetFactory priorityQueueSetFactory;
-    private final ProcessingTimeService processingTimeService;
+    protected final ProcessingTimeService processingTimeService;
     private final StreamTaskCancellationContext cancellationContext;
 
     private final Map<String, InternalTimerServiceImpl<K, ?>> timerServices;
 
-    private InternalTimeServiceManagerImpl(
+    protected InternalTimeServiceManagerImpl(
             KeyGroupRange localKeyGroupRange,
             KeyContext keyContext,
             PriorityQueueSetFactory priorityQueueSetFactory,
