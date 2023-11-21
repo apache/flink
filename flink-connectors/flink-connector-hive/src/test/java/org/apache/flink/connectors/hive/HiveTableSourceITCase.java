@@ -18,6 +18,7 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -25,11 +26,11 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connector.datagen.source.DataGenerators;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
@@ -979,25 +980,28 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
         List<Row> rows = generateRows();
         List<Row> expectedRows = generateExpectedRows(rows);
+
+        RowTypeInfo typeInfo =
+                new RowTypeInfo(
+                        new TypeInformation[] {
+                            Types.INT,
+                            Types.STRING,
+                            new RowTypeInfo(
+                                    new TypeInformation[] {Types.STRING, Types.INT, Types.INT},
+                                    new String[] {"c1", "c2", "c3"}),
+                            new MapTypeInfo<>(Types.STRING, Types.STRING),
+                            Types.OBJECT_ARRAY(Types.STRING),
+                            Types.STRING
+                        },
+                        new String[] {"a", "b", "c", "d", "e", "f"});
+
         DataStream<Row> stream =
-                env.addSource(
-                                new FiniteTestSource<>(rows),
-                                new RowTypeInfo(
-                                        new TypeInformation[] {
-                                            Types.INT,
-                                            Types.STRING,
-                                            new RowTypeInfo(
-                                                    new TypeInformation[] {
-                                                        Types.STRING, Types.INT, Types.INT
-                                                    },
-                                                    new String[] {"c1", "c2", "c3"}),
-                                            new MapTypeInfo<>(Types.STRING, Types.STRING),
-                                            Types.OBJECT_ARRAY(Types.STRING),
-                                            Types.STRING
-                                        },
-                                        new String[] {"a", "b", "c", "d", "e", "f"}))
+                env.fromSource(
+                                DataGenerators.fromDataWithSnapshotsLatch(rows, typeInfo),
+                                WatermarkStrategy.noWatermarks(),
+                                "Test Source")
                         .filter((FilterFunction<Row>) value -> true)
-                        .setParallelism(3); // to parallel tasks
+                        .setParallelism(3);
 
         tEnv.createTemporaryView("my_table", stream);
         assertResults(executeAndGetResult(tEnv), expectedRows);

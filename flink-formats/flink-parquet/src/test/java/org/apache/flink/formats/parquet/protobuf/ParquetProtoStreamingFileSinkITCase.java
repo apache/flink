@@ -18,13 +18,14 @@
 
 package org.apache.flink.formats.parquet.protobuf;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.datagen.source.DataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import com.google.protobuf.Message;
@@ -66,8 +67,11 @@ class ParquetProtoStreamingFileSinkITCase {
         env.enableCheckpointing(100);
 
         DataStream<SimpleProtoRecord> stream =
-                env.addSource(
-                        new FiniteTestSource<>(data), TypeInformation.of(SimpleProtoRecord.class));
+                env.fromSource(
+                        DataGenerators.fromDataWithSnapshotsLatch(
+                                data, TypeInformation.of(SimpleProtoRecord.class)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
 
         stream.addSink(
                 StreamingFileSink.forBulkFormat(
