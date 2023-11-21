@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -49,7 +50,10 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateHandler.CheckpointedStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.InternalRecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributesBuilder;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -61,6 +65,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -147,6 +154,9 @@ public abstract class AbstractStreamOperator<OUT>
     // ---------------- time handler ------------------
 
     protected transient ProcessingTimeService processingTimeService;
+
+    protected transient RecordAttributes lastRecordAttributes1;
+    protected transient RecordAttributes lastRecordAttributes2;
 
     // ------------------------------------------------------------------------
     //  Life Cycle
@@ -648,5 +658,53 @@ public abstract class AbstractStreamOperator<OUT>
 
     protected Optional<InternalTimeServiceManager<?>> getTimeServiceManager() {
         return Optional.ofNullable(timeServiceManager);
+    }
+
+    @Experimental
+    public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+        lastRecordAttributes1 = recordAttributes;
+        if (timeServiceManager != null
+                && timeServiceManager instanceof InternalBacklogAwareTimerServiceManagerImpl) {
+            final InternalBacklogAwareTimerServiceManagerImpl<?> backlogAwareTimerServiceManager =
+                    (InternalBacklogAwareTimerServiceManagerImpl<?>) timeServiceManager;
+            if (recordAttributes instanceof InternalRecordAttributes) {
+                backlogAwareTimerServiceManager.setMaxWatermarkDuringBacklog(
+                        ((InternalRecordAttributes) recordAttributes)
+                                .getMaxWatermarkDuringBacklog());
+            }
+            backlogAwareTimerServiceManager.setBacklog(recordAttributes.isBacklog());
+        }
+        output.emitRecordAttributes(
+                new RecordAttributesBuilder(Collections.singletonList(recordAttributes)).build());
+    }
+
+    @Experimental
+    public void processRecordAttributes1(RecordAttributes recordAttributes) throws Exception {
+        lastRecordAttributes1 = recordAttributes;
+        List<RecordAttributes> lastRecordAttributes = getTwoInputsLastRecordAttributes();
+        output.emitRecordAttributes(new RecordAttributesBuilder(lastRecordAttributes).build());
+    }
+
+    @Experimental
+    public void processRecordAttributes2(RecordAttributes recordAttributes) throws Exception {
+        lastRecordAttributes2 = recordAttributes;
+        List<RecordAttributes> lastRecordAttributes = getTwoInputsLastRecordAttributes();
+        output.emitRecordAttributes(new RecordAttributesBuilder(lastRecordAttributes).build());
+    }
+
+    private List<RecordAttributes> getTwoInputsLastRecordAttributes() {
+        Preconditions.checkState(
+                lastRecordAttributes1 != null || lastRecordAttributes2 != null,
+                "lastRecordAttributes1 and lastRecordAttributes2 cannot be both null.");
+
+        List<RecordAttributes> lastRecordAttributes;
+        if (lastRecordAttributes1 != null && lastRecordAttributes2 != null) {
+            lastRecordAttributes = Arrays.asList(lastRecordAttributes1, lastRecordAttributes2);
+        } else if (lastRecordAttributes1 != null) {
+            lastRecordAttributes = Collections.singletonList(lastRecordAttributes1);
+        } else {
+            lastRecordAttributes = Collections.singletonList(lastRecordAttributes2);
+        }
+        return lastRecordAttributes;
     }
 }
