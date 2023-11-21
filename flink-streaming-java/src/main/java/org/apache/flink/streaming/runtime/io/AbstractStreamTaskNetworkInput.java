@@ -60,6 +60,7 @@ public abstract class AbstractStreamTaskNetworkInput<
     protected final StatusWatermarkValve statusWatermarkValve;
 
     protected final int inputIndex;
+    private final RecordAttributesValve recordAttributesValve;
     private InputChannelInfo lastChannel = null;
     private R currentRecordDeserializer = null;
 
@@ -87,6 +88,8 @@ public abstract class AbstractStreamTaskNetworkInput<
         this.inputIndex = inputIndex;
         this.recordDeserializers = checkNotNull(recordDeserializers);
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
+        this.recordAttributesValve =
+                new RecordAttributesValve(checkpointedInputGate.getNumberOfInputChannels());
     }
 
     @Override
@@ -107,8 +110,9 @@ public abstract class AbstractStreamTaskNetworkInput<
                 }
 
                 if (result.isFullRecord()) {
-                    processElement(deserializationDelegate.getInstance(), output);
-                    if (canEmitBatchOfRecords.check()) {
+                    final boolean canContinue =
+                            processElement(deserializationDelegate.getInstance(), output);
+                    if (canEmitBatchOfRecords.check() && canContinue) {
                         continue;
                     }
                     return DataInputStatus.MORE_AVAILABLE;
@@ -141,19 +145,34 @@ public abstract class AbstractStreamTaskNetworkInput<
         }
     }
 
-    private void processElement(StreamElement recordOrMark, DataOutput<T> output) throws Exception {
-        if (recordOrMark.isRecord()) {
-            output.emitRecord(recordOrMark.asRecord());
-        } else if (recordOrMark.isWatermark()) {
+    /**
+     * Process the given stream element and returns whether to continue processing the next stream
+     * element without returning from the emitNext method.
+     */
+    private boolean processElement(StreamElement streamElement, DataOutput<T> output)
+            throws Exception {
+        if (streamElement.isRecord()) {
+            output.emitRecord(streamElement.asRecord());
+            return true;
+        } else if (streamElement.isWatermark()) {
             statusWatermarkValve.inputWatermark(
-                    recordOrMark.asWatermark(), flattenedChannelIndices.get(lastChannel), output);
-        } else if (recordOrMark.isLatencyMarker()) {
-            output.emitLatencyMarker(recordOrMark.asLatencyMarker());
-        } else if (recordOrMark.isWatermarkStatus()) {
+                    streamElement.asWatermark(), flattenedChannelIndices.get(lastChannel), output);
+            return true;
+        } else if (streamElement.isLatencyMarker()) {
+            output.emitLatencyMarker(streamElement.asLatencyMarker());
+            return true;
+        } else if (streamElement.isWatermarkStatus()) {
             statusWatermarkValve.inputWatermarkStatus(
-                    recordOrMark.asWatermarkStatus(),
+                    streamElement.asWatermarkStatus(),
                     flattenedChannelIndices.get(lastChannel),
                     output);
+            return true;
+        } else if (streamElement.isRecordAttributes()) {
+            recordAttributesValve.inputRecordAttributes(
+                    streamElement.asRecordAttributes(),
+                    flattenedChannelIndices.get(lastChannel),
+                    output);
+            return false;
         } else {
             throw new UnsupportedOperationException("Unknown type of StreamElement");
         }
