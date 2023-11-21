@@ -20,6 +20,7 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
@@ -88,5 +89,13 @@ public class TwoInputStreamOperatorTestHarness<IN1, IN2, OUT>
 
     public void processWatermarkStatus2(WatermarkStatus watermarkStatus) throws Exception {
         twoInputOperator.processWatermarkStatus2(watermarkStatus);
+    }
+
+    public void processRecordAttributes1(RecordAttributes recordAttributes) throws Exception {
+        twoInputOperator.processRecordAttributes1(recordAttributes);
+    }
+
+    public void processRecordAttributes2(RecordAttributes recordAttributes) throws Exception {
+        twoInputOperator.processRecordAttributes2(recordAttributes);
     }
 }

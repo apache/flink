@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
@@ -61,6 +62,11 @@ public class MultiInputStreamOperatorTestHarness<OUT>
 
     public void processWatermarkStatus(int idx, WatermarkStatus watermarkStatus) throws Exception {
         getCastedOperator().getInputs().get(idx).processWatermarkStatus(watermarkStatus);
+    }
+
+    public void processRecordAttributes(int idx, RecordAttributes recordAttributes)
+            throws Exception {
+        getCastedOperator().getInputs().get(idx).processRecordAttributes(recordAttributes);
     }
 
     private MultipleInputStreamOperator<OUT> getCastedOperator() {

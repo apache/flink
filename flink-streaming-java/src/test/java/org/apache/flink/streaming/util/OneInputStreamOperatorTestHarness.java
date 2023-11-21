@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.Preconditions;
@@ -256,6 +257,16 @@ public class OneInputStreamOperatorTestHarness<IN, OUT>
     public void endInput() throws Exception {
         if (operator instanceof BoundedOneInput) {
             ((BoundedOneInput) operator).endInput();
+        }
+    }
+
+    public void processRecordAttributes(RecordAttributes recordAttributes) throws Exception {
+        if (inputs.isEmpty()) {
+            getOneInputOperator().processRecordAttributes(recordAttributes);
+        } else {
+            checkState(inputs.size() == 1);
+            Input input = inputs.get(0);
+            input.processRecordAttributes(recordAttributes);
         }
     }
 
