@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.connector.datagen.source.DataGenerators;
 import org.apache.flink.streaming.api.scala.DataStream;
-import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
@@ -70,16 +71,19 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
         this.expectedRows.addAll(rows);
         this.expectedRows.sort(Comparator.comparingInt(o -> (Integer) o.getField(0)));
 
+        RowTypeInfo rowTypeInfo =
+                new RowTypeInfo(
+                        new TypeInformation[] {Types.INT, Types.STRING, Types.STRING},
+                        new String[] {"a", "b", "c"});
+
         DataStream<Row> stream =
                 new DataStream<>(
                                 env().getJavaEnv()
-                                        .addSource(
-                                                new FiniteTestSource<>(rows),
-                                                new RowTypeInfo(
-                                                        new TypeInformation[] {
-                                                            Types.INT, Types.STRING, Types.STRING
-                                                        },
-                                                        new String[] {"a", "b", "c"})))
+                                        .fromSource(
+                                                DataGenerators.fromDataWithSnapshotsLatch(
+                                                        rows, rowTypeInfo),
+                                                WatermarkStrategy.noWatermarks(),
+                                                "Test Source"))
                         .filter((FilterFunction<Row>) value -> true)
                         .setParallelism(3); // to parallel tasks
 

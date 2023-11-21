@@ -18,13 +18,14 @@
 
 package org.apache.flink.formats.hadoop.bulk;
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.connector.datagen.source.DataGenerators;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.HadoopPathBasedBulkFormatBuilder;
 import org.apache.flink.streaming.api.functions.sink.filesystem.TestStreamingFileSinkFactory;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
-import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.hadoop.conf.Configuration;
@@ -79,10 +80,14 @@ public class HadoopPathBasedPartFileWriterITCase extends AbstractTestBase {
         env.setParallelism(1);
         env.enableCheckpointing(100);
 
-        // FiniteTestSource will generate two elements with a checkpoint trigger in between the two
-        // elements
+        // This data generator source will emit data elements twice with two checkpoints completed
+        // in between
         DataStream<String> stream =
-                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(String.class));
+                env.fromSource(
+                        DataGenerators.fromDataWithSnapshotsLatch(data, Types.STRING),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
+
         Configuration configuration = new Configuration();
         // Elements from source are going to be assigned to one bucket
         HadoopPathBasedBulkFormatBuilder<String, String, ?> builder =

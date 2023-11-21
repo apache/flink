@@ -58,19 +58,19 @@ public abstract class IteratorSourceReaderBase<
     private final SourceReaderContext context;
 
     /** The availability future. This reader is available as soon as a split is assigned. */
-    private CompletableFuture<Void> availability;
+    protected CompletableFuture<Void> availability;
 
     /**
      * The iterator producing data. Non-null after a split has been assigned. This field is null or
      * non-null always together with the {@link #currentSplit} field.
      */
-    @Nullable private IterT iterator;
+    @Nullable protected IterT iterator;
 
     /**
      * The split whose data we return. Non-null after a split has been assigned. This field is null
      * or non-null always together with the {@link #iterator} field.
      */
-    @Nullable private SplitT currentSplit;
+    @Nullable protected SplitT currentSplit;
 
     /** The remaining splits that were assigned but not yet processed. */
     private final Queue<SplitT> remainingSplits;
@@ -115,7 +115,7 @@ public abstract class IteratorSourceReaderBase<
 
     protected abstract O convert(E value);
 
-    private void finishSplit() {
+    protected void finishSplit() {
         iterator = null;
         currentSplit = null;
 
@@ -127,7 +127,7 @@ public abstract class IteratorSourceReaderBase<
         }
     }
 
-    private InputStatus tryMoveToNextSplit() {
+    protected InputStatus tryMoveToNextSplit() {
         currentSplit = remainingSplits.poll();
         if (currentSplit != null) {
             iterator = currentSplit.getIterator();

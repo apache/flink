@@ -18,7 +18,9 @@
 
 package org.apache.flink.formats.parquet.avro;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.datagen.source.DataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
 import org.apache.flink.formats.parquet.generated.Address;
@@ -26,7 +28,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.avro.Schema;
@@ -76,7 +77,11 @@ class AvroParquetStreamingFileSinkITCase {
         env.enableCheckpointing(100);
 
         DataStream<Address> stream =
-                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Address.class));
+                env.fromSource(
+                        DataGenerators.fromDataWithSnapshotsLatch(
+                                data, TypeInformation.of(Address.class)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
 
         stream.addSink(
                 StreamingFileSink.forBulkFormat(
@@ -102,7 +107,11 @@ class AvroParquetStreamingFileSinkITCase {
         env.enableCheckpointing(100);
 
         DataStream<GenericRecord> stream =
-                env.addSource(new FiniteTestSource<>(data), new GenericRecordAvroTypeInfo(schema));
+                env.fromSource(
+                        DataGenerators.fromDataWithSnapshotsLatch(
+                                data, new GenericRecordAvroTypeInfo(schema)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
 
         stream.addSink(
                 StreamingFileSink.forBulkFormat(
@@ -132,7 +141,11 @@ class AvroParquetStreamingFileSinkITCase {
         env.enableCheckpointing(100);
 
         DataStream<Datum> stream =
-                env.addSource(new FiniteTestSource<>(data), TypeInformation.of(Datum.class));
+                env.fromSource(
+                        DataGenerators.fromDataWithSnapshotsLatch(
+                                data, TypeInformation.of(Datum.class)),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
 
         stream.addSink(
                 StreamingFileSink.forBulkFormat(

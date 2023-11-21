@@ -18,16 +18,17 @@
 
 package org.apache.flink.formats.sequencefile;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.connector.datagen.source.DataGenerators;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
-import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.hadoop.conf.Configuration;
@@ -67,9 +68,12 @@ class SequenceStreamingFileSinkITCase {
         env.enableCheckpointing(100);
 
         DataStream<Tuple2<Long, String>> stream =
-                env.addSource(
-                        new FiniteTestSource<>(testData),
-                        TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {}));
+                env.fromSource(
+                        DataGenerators.fromDataWithSnapshotsLatch(
+                                testData,
+                                TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {})),
+                        WatermarkStrategy.noWatermarks(),
+                        "Test Source");
 
         stream.map(
                         new MapFunction<Tuple2<Long, String>, Tuple2<LongWritable, Text>>() {
