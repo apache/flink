@@ -44,7 +44,10 @@ env.readTextFile("gs://<bucket>/<endpoint>");
 stream.writeAsText("gs://<bucket>/<endpoint>");
 
 // Use GCS as checkpoint storage
-env.getCheckpointConfig().setCheckpointStorage("gs://<bucket>/<endpoint>");
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "gs://<bucket>/<endpoint>");
+env.configure(config);
 
 ```
 

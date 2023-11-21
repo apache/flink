@@ -67,7 +67,10 @@ env.readTextFile("wasb://<your-container>@$<your-azure-account>.blob.core.window
 stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
 
 // Use Azure Blob Storage as checkpoint storage
-env.getCheckpointConfig().setCheckpointStorage("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>");
+env.configure(config);
 ```
 
 ### Shaded Hadoop Azure Blob Storage file system

@@ -506,8 +506,8 @@ env.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage)
 ```python
 config = Configuration()
 config.set_string('state.backend.type', 'hashmap')
+config.set_string('state.checkpoint-storage', 'jobmanager')
 env = StreamExecutionEnvironment.get_execution_environment(config)
-env.get_checkpoint_config().set_checkpoint_storage(JobManagerCheckpointStorage())
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -540,8 +540,9 @@ env.configure(config);
 
 
 // Advanced FsStateBackend configurations, such as write buffer size
-// can be set by manually instantiating a FileSystemCheckpointStorage object.
-env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"));
+// can be set manually by using CheckpointingOptions.
+config.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 4 * 1024);
+env.configure(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -560,13 +561,15 @@ env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("
 ```python
 config = Configuration()
 config.set_string('state.backend.type', 'hashmap')
+config.set_string('state.checkpoint-storage', 'filesystem')
+config.set_string('state.checkpoints.dir', 'file:///checkpoint-dir')
 env = StreamExecutionEnvironment.get_execution_environment(config)
-env.get_checkpoint_config().set_checkpoint_storage_dir("file:///checkpoint-dir")
 
 
 # Advanced FsStateBackend configurations, such as write buffer size
-# can be set by manually instantiating a FileSystemCheckpointStorage object.
-env.get_checkpoint_config().set_checkpoint_storage(FileSystemCheckpointStorage("file:///checkpoint-dir"))
+# can be set manually by using CheckpointingOptions.
+config.set_string('state.storage.fs.write-buffer-size', '4096');
+env.configure(config);
 ```
 {{< /tab >}}
 {{< /tabs>}}
@@ -600,8 +603,9 @@ env.configure(config);
 
 // If you manually passed FsStateBackend into the RocksDBStateBackend constructor
 // to specify advanced checkpointing configurations such as write buffer size,
-// you can achieve the same results by using manually instantiating a FileSystemCheckpointStorage object.
-env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("file:///checkpoint-dir"));
+// you can achieve the same results by using CheckpointingOptions.
+config.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 4 * 1024);
+env.configure(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -621,14 +625,16 @@ env.getCheckpointConfig().setCheckpointStorage(new FileSystemCheckpointStorage("
 ```python
 config = Configuration()
 config.set_string('state.backend.type', 'rocksdb')
+config.set_string('state.checkpoint-storage', 'filesystem')
+config.set_string('state.checkpoints.dir', 'file:///checkpoint-dir')
 env = StreamExecutionEnvironment.get_execution_environment(config)
-env.get_checkpoint_config().set_checkpoint_storage_dir("file:///checkpoint-dir")
 
 
 # If you manually passed FsStateBackend into the RocksDBStateBackend constructor
 # to specify advanced checkpointing configurations such as write buffer size,
-# you can achieve the same results by using manually instantiating a FileSystemCheckpointStorage object.
-env.get_checkpoint_config().set_checkpoint_storage(FileSystemCheckpointStorage("file:///checkpoint-dir"))
+# you can achieve the same results by using CheckpointingOptions.
+config.set_string('state.storage.fs.write-buffer-size', '4096');
+env.configure(config);
 ```
 {{< /tab >}}
 {{< /tabs>}}

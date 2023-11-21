@@ -37,14 +37,17 @@ gs://<your-bucket>/<endpoint>
 The endpoint can either be a single file or a directory, for example:
 
 ```java
-// Read from GCS bucket
+// 读取 GCS bucket
 env.readTextFile("gs://<bucket>/<endpoint>");
 
-// Write to GCS bucket
+// 写入 GCS bucket
 stream.writeAsText("gs://<bucket>/<endpoint>");
 
-// Use GCS as checkpoint storage
-env.getCheckpointConfig().setCheckpointStorage("gs://<bucket>/<endpoint>");
+// 将 GCS 用作 checkpoint storage
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "gs://<bucket>/<endpoint>");
+env.configure(config);
 
 ```
 

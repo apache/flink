@@ -123,7 +123,10 @@ env.getCheckpointConfig().setExternalizedCheckpointCleanup(
 env.getCheckpointConfig().enableUnalignedCheckpoints();
 
 // sets the checkpoint storage where checkpoint snapshots will be written
-env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir");
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "hdfs:///my/checkpoint/dir");
+env.configure(config);
 
 // enable checkpointing with finished tasks
 Configuration config = new Configuration();
@@ -222,7 +225,13 @@ Where the checkpoints are stored (e.g., JobManager memory, file system, database
 
 By default, checkpoints are stored in memory in the JobManager. For proper persistence of large state,
 Flink supports various approaches for checkpointing state in other locations.
-The choice of checkpoint storage can be configured via `StreamExecutionEnvironment.getCheckpointConfig().setCheckpointStorage(…)`.
+The choice of checkpoint storage can be configured like the following code snippet.
+```java
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "...");
+env.configure(config);
+```
 It is strongly encouraged that checkpoints be stored in a highly-available filesystem for production deployments. 
 
 See [checkpoint storage]({{< ref "docs/ops/state/checkpoints#checkpoint-storage" >}}) for more details on the available options for job-wide and cluster-wide configuration.
