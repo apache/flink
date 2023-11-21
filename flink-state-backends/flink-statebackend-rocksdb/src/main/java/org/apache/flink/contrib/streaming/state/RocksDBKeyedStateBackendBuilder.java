@@ -118,6 +118,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
     private RocksDBNativeMetricOptions nativeMetricOptions;
 
     private int numberOfTransferingThreads;
+    private boolean enableSstFileChecksum;
     private long writeBatchSize =
             RocksDBConfigurableOptions.WRITE_BATCH_SIZE.defaultValue().getBytes();
 
@@ -237,6 +238,11 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 injectRocksDBStateUploader == null,
                 "numberOfTransferingThreads can be set only when injectRocksDBStateUploader is null.");
         this.numberOfTransferingThreads = numberOfTransferingThreads;
+        return this;
+    }
+
+    RocksDBKeyedStateBackendBuilder<K> setEnableSstFileChecksum(boolean enableSstFileChecksum) {
+        this.enableSstFileChecksum = enableSstFileChecksum;
         return this;
     }
 
@@ -531,6 +537,11 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                 injectRocksDBStateUploader == null
                         ? new RocksDBStateUploader(numberOfTransferingThreads)
                         : injectRocksDBStateUploader;
+
+        RocksDBStateFileVerifier stateFileVerifier =
+                enableSstFileChecksum
+                        ? new RocksDBStateFileVerifier(optionsContainer.getSstFileReaderOptions())
+                        : null;
         if (enableIncrementalCheckpointing) {
             checkpointSnapshotStrategy =
                     new RocksIncrementalSnapshotStrategy<>(
@@ -546,6 +557,7 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             backendUID,
                             materializedSstFiles,
                             stateUploader,
+                            stateFileVerifier,
                             lastCompletedCheckpointId);
         } else {
             checkpointSnapshotStrategy =
@@ -559,7 +571,8 @@ public class RocksDBKeyedStateBackendBuilder<K> extends AbstractKeyedStateBacken
                             localRecoveryConfig,
                             instanceBasePath,
                             backendUID,
-                            stateUploader);
+                            stateUploader,
+                            stateFileVerifier);
         }
         return checkpointSnapshotStrategy;
     }

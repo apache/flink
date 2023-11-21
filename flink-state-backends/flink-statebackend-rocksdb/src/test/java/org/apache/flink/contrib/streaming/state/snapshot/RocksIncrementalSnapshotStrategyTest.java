@@ -23,7 +23,9 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBExtension;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
+import org.apache.flink.contrib.streaming.state.RocksDBStateFileVerifier;
 import org.apache.flink.contrib.streaming.state.RocksDBStateUploader;
+import org.apache.flink.contrib.streaming.state.RocksdbStateFileVerifierTest;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.state.ArrayListSerializer;
@@ -35,8 +37,10 @@ import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.ResourceGuard;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -48,15 +52,20 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.SST_FILE_SUFFIX;
 import static org.apache.flink.core.fs.Path.fromLocalFile;
 import static org.apache.flink.core.fs.local.LocalFileSystem.getSharedInstance;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.fail;
 
 /** Tests for {@link RocksIncrementalSnapshotStrategy}. */
 class RocksIncrementalSnapshotStrategyTest {
@@ -96,6 +105,46 @@ class RocksIncrementalSnapshotStrategyTest {
         }
     }
 
+    @Test
+    void testCheckpointFailIfSstFileCorrupted() throws Exception {
+
+        try (CloseableRegistry closeableRegistry = new CloseableRegistry();
+                RocksIncrementalSnapshotStrategy checkpointSnapshotStrategy =
+                        createSnapshotStrategy(closeableRegistry)) {
+            FsCheckpointStreamFactory checkpointStreamFactory = createFsCheckpointStreamFactory();
+
+            RocksIncrementalSnapshotStrategy.NativeRocksDBSnapshotResources snapshotResources =
+                    checkpointSnapshotStrategy.syncPrepareResources(1L);
+
+            // Corrupt Sst Files
+            List<Path> sstFiles =
+                    Arrays.stream(
+                                    FileUtils.listDirectory(
+                                            snapshotResources.snapshotDirectory.getDirectory()))
+                            .filter(file -> file.getFileName().toString().endsWith(SST_FILE_SUFFIX))
+                            .collect(Collectors.toList());
+
+            RocksdbStateFileVerifierTest.corruptSstFile(sstFiles.get(0), sstFiles.get(0));
+
+            try {
+                checkpointSnapshotStrategy
+                        .asyncSnapshot(
+                                snapshotResources,
+                                1L,
+                                1L,
+                                checkpointStreamFactory,
+                                CheckpointOptions.forCheckpointWithDefaultLocation())
+                        .get(closeableRegistry)
+                        .getJobManagerOwnedSnapshot();
+
+                fail("verifySstFilesChecksum should failed");
+            } catch (Exception e) {
+                Assertions.assertTrue(
+                        e.getMessage().contains("Error while verifying Checksum of Sst File"));
+            }
+        }
+    }
+
     public RocksIncrementalSnapshotStrategy createSnapshotStrategy(
             CloseableRegistry closeableRegistry) throws IOException, RocksDBException {
 
@@ -115,6 +164,9 @@ class RocksIncrementalSnapshotStrategyTest {
         RocksDBStateUploader rocksDBStateUploader =
                 new RocksDBStateUploader(
                         RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue());
+
+        RocksDBStateFileVerifier rocksDBStateFileVerifier =
+                new RocksDBStateFileVerifier(rocksDBExtension.getSstFileReaderOptions());
 
         int keyGroupPrefixBytes =
                 CompositeKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(2);
@@ -143,6 +195,7 @@ class RocksIncrementalSnapshotStrategyTest {
                 UUID.randomUUID(),
                 materializedSstFiles,
                 rocksDBStateUploader,
+                rocksDBStateFileVerifier,
                 lastCompletedCheckpointId);
     }
 

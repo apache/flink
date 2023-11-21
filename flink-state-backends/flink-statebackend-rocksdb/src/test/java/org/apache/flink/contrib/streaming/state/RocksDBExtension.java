@@ -30,6 +30,7 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.InfoLogLevel;
+import org.rocksdb.Options;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.RocksDB;
 import org.rocksdb.Statistics;
@@ -77,6 +78,9 @@ public class RocksDBExtension implements BeforeEachCallback, AfterEachCallback {
 
     /** Wrapper for batched writes to the RocksDB instance. */
     private RocksDBWriteBatchWrapper batchWrapper;
+
+    /** The options for SstFileReader. */
+    private Options sstFileReaderOptions;
 
     /** Resources to close. */
     private final ArrayList<AutoCloseable> handlesToClose = new ArrayList<>();
@@ -151,6 +155,10 @@ public class RocksDBExtension implements BeforeEachCallback, AfterEachCallback {
         return dbOptions;
     }
 
+    public Options getSstFileReaderOptions() {
+        return sstFileReaderOptions;
+    }
+
     public RocksDBWriteBatchWrapper getBatchWrapper() {
         return batchWrapper;
     }
@@ -192,6 +200,7 @@ public class RocksDBExtension implements BeforeEachCallback, AfterEachCallback {
         this.writeOptions.disableWAL();
         this.readOptions = new ReadOptions();
         this.columnFamilyHandles = new ArrayList<>(1);
+        this.sstFileReaderOptions = new Options(dbOptions, columnFamilyOptions);
         this.rocksDB =
                 RocksDB.open(
                         dbOptions,
@@ -214,6 +223,7 @@ public class RocksDBExtension implements BeforeEachCallback, AfterEachCallback {
         IOUtils.closeQuietly(this.writeOptions);
         IOUtils.closeQuietly(this.columnFamilyOptions);
         IOUtils.closeQuietly(this.dbOptions);
+        IOUtils.closeQuietly(this.sstFileReaderOptions);
         handlesToClose.forEach(IOUtils::closeQuietly);
         temporaryFolder.delete();
     }

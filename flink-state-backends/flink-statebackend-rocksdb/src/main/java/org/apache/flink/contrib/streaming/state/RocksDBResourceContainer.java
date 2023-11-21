@@ -33,6 +33,7 @@ import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.Filter;
 import org.rocksdb.IndexType;
+import org.rocksdb.Options;
 import org.rocksdb.PlainTableConfig;
 import org.rocksdb.ReadOptions;
 import org.rocksdb.Statistics;
@@ -240,6 +241,12 @@ public final class RocksDBResourceContainer implements AutoCloseable {
             opt = optionsFactory.createReadOptions(opt, handlesToClose);
         }
 
+        return opt;
+    }
+
+    public Options getSstFileReaderOptions() {
+        Options opt = new Options(getDbOptions(), getColumnOptions());
+        handlesToClose.add(opt);
         return opt;
     }
 

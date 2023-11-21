@@ -20,6 +20,7 @@ package org.apache.flink.contrib.streaming.state.snapshot;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
+import org.apache.flink.contrib.streaming.state.RocksDBStateFileVerifier;
 import org.apache.flink.contrib.streaming.state.RocksDBStateUploader;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -89,6 +90,8 @@ public class RocksIncrementalSnapshotStrategy<K>
     /** The help class used to upload state files. */
     private final RocksDBStateUploader stateUploader;
 
+    private final RocksDBStateFileVerifier stateFileVerifier;
+
     public RocksIncrementalSnapshotStrategy(
             @Nonnull RocksDB db,
             @Nonnull ResourceGuard rocksDBResourceGuard,
@@ -102,6 +105,7 @@ public class RocksIncrementalSnapshotStrategy<K>
             @Nonnull UUID backendUID,
             @Nonnull SortedMap<Long, Collection<HandleAndLocalPath>> uploadedStateHandles,
             @Nonnull RocksDBStateUploader rocksDBStateUploader,
+            RocksDBStateFileVerifier stateFileVerifier,
             long lastCompletedCheckpointId) {
 
         super(
@@ -118,6 +122,7 @@ public class RocksIncrementalSnapshotStrategy<K>
 
         this.uploadedSstFiles = new TreeMap<>(uploadedStateHandles);
         this.stateUploader = rocksDBStateUploader;
+        this.stateFileVerifier = stateFileVerifier;
         this.lastCompletedCheckpointId = lastCompletedCheckpointId;
     }
 
@@ -189,6 +194,9 @@ public class RocksIncrementalSnapshotStrategy<K>
     @Override
     public void close() {
         stateUploader.close();
+        if (stateFileVerifier != null) {
+            stateFileVerifier.close();
+        }
     }
 
     @Override
@@ -349,6 +357,10 @@ public class RocksIncrementalSnapshotStrategy<K>
                         sharingFilesStrategy == SnapshotType.SharingFilesStrategy.NO_SHARING
                                 ? CheckpointedStateScope.EXCLUSIVE
                                 : CheckpointedStateScope.SHARED;
+
+                if (stateFileVerifier != null) {
+                    stateFileVerifier.verifySstFilesChecksum(sstFilePaths);
+                }
 
                 List<HandleAndLocalPath> sstFilesUploadResult =
                         stateUploader.uploadFilesToCheckpointFs(

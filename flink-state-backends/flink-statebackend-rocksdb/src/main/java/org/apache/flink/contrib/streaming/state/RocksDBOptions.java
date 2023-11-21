@@ -86,6 +86,18 @@ public class RocksDBOptions {
                     .withDescription(
                             "The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.");
 
+    /**
+     * Whether to verify the Checksum of the incremental sst file during Checkpoint in
+     * RocksDBStateBackend.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
+    public static final ConfigOption<Boolean> CHECKPOINT_VERIFY_CHECKSUM_ENABLE =
+            ConfigOptions.key("state.backend.rocksdb.checkpoint.verify.checksum.enable")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to verify the Checksum of the incremental sst file during Checkpoint in RocksDBStateBackend");
+
     /** The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. */
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
     public static final ConfigOption<String> PREDEFINED_OPTIONS =
