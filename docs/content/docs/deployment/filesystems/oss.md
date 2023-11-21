@@ -50,7 +50,10 @@ env.readTextFile("oss://<your-bucket>/<object-name>");
 stream.writeAsText("oss://<your-bucket>/<object-name>");
 
 // Use OSS as checkpoint storage
-env.getCheckpointConfig().setCheckpointStorage("oss://<your-bucket>/<object-name>");
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "oss://<your-bucket>/<object-name>");
+env.configure(config);
 ```
 
 ### Shaded Hadoop OSS file system

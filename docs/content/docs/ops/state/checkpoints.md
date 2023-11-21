@@ -144,7 +144,10 @@ state.checkpoints.dir: hdfs:///checkpoints/
 #### Configure for per job on the checkpoint configuration
 
 ```java
-env.getCheckpointConfig().setCheckpointStorage("hdfs:///checkpoints-data/");
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "hdfs:///checkpoints-data/");
+env.configure(config);
 ```
 
 #### Configure with checkpoint storage instance
@@ -152,8 +155,11 @@ env.getCheckpointConfig().setCheckpointStorage("hdfs:///checkpoints-data/");
 Alternatively, checkpoint storage can be set by specifying the desired checkpoint storage instance which allows for setting low level configurations such as write buffer sizes. 
 
 ```java
-env.getCheckpointConfig().setCheckpointStorage(
-  new FileSystemCheckpointStorage("hdfs:///checkpoints-data/", FILE_SIZE_THESHOLD));
+Configuration config = new Configuration();
+config.set(CheckpointingOptions.CHECKPOINT_STORAGE, "filesystem");
+config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, "hdfs:///checkpoints-data/");
+config.set(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, FILE_SIZE_THESHOLD);
+env.configure(config);
 ```
 
 ### Resuming from a retained checkpoint
