@@ -28,7 +28,7 @@ import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link FileSystemTableFactory}. */
-public class FileSystemTableFactoryTest {
+class FileSystemTableFactoryTest {
 
     private static final ResolvedSchema SCHEMA =
             ResolvedSchema.of(
@@ -50,7 +50,7 @@ public class FileSystemTableFactoryTest {
                     Column.physical("f2", DataTypes.BIGINT()));
 
     @Test
-    public void testSourceSink() {
+    void testSourceSink() {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
@@ -67,7 +67,7 @@ public class FileSystemTableFactoryTest {
     }
 
     @Test
-    public void testLackOptionSource() {
+    void testLackOptionSource() {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
@@ -80,7 +80,7 @@ public class FileSystemTableFactoryTest {
     }
 
     @Test
-    public void testLackOptionSink() {
+    void testLackOptionSink() {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
@@ -93,7 +93,7 @@ public class FileSystemTableFactoryTest {
     }
 
     @Test
-    public void testUnsupportedOptionSource() {
+    void testUnsupportedOptionSource() {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
@@ -107,7 +107,7 @@ public class FileSystemTableFactoryTest {
     }
 
     @Test
-    public void testUnsupportedOptionSink() {
+    void testUnsupportedOptionSink() {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
@@ -121,7 +121,7 @@ public class FileSystemTableFactoryTest {
     }
 
     @Test
-    public void testUnsupportedWatermarkTimeZone() {
+    void testUnsupportedWatermarkTimeZone() {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
@@ -136,7 +136,7 @@ public class FileSystemTableFactoryTest {
     }
 
     @Test
-    public void testNoFormatFactoryFound() {
+    void testNoFormatFactoryFound() {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
@@ -156,7 +156,7 @@ public class FileSystemTableFactoryTest {
     }
 
     @Test
-    public void testFormatOptionsError() {
+    void testFormatOptionsError() {
         DescriptorProperties descriptor = new DescriptorProperties();
         descriptor.putString(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.putString("path", "/tmp");
@@ -180,7 +180,7 @@ public class FileSystemTableFactoryTest {
     }
 
     @Test
-    public void testSupportsMetadata() {
+    void testSupportsMetadata() {
         Map<String, String> descriptor = new HashMap<>();
         descriptor.put(FactoryUtil.CONNECTOR.key(), "filesystem");
         descriptor.put("path", "/tmp");

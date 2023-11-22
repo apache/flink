@@ -24,9 +24,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 
-import org.assertj.core.api.Assertions
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
@@ -118,7 +116,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
     val result = TestValuesTableFactory.getResultsAsStrings("JoinDisorderChangeLog")
     val expected = List("+I[jason, 4, 22.5, 22]")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
@@ -143,7 +141,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
     val result = TestValuesTableFactory.getResultsAsStrings("SinkDisorderChangeLog")
     val expected = List("+I[jason, 4, 22.5]")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
@@ -172,7 +170,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
     val result = TestValuesTableFactory.getResultsAsStrings("SinkRankChangeLog")
     val expected = List("+I[jason, 4]")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
@@ -204,7 +202,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       "+I[user1, Tom, tom123@gmail.com, 8.10]",
       "+I[user3, Bailey, bailey@qq.com, 9.99]",
       "+I[user4, Tina, tina@gmail.com, 11.30]")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
 
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("sink_with_pk")
     val expectedRaw = List(
@@ -218,7 +216,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       "-D[user3, Bailey, bailey@gmail.com, 9.99]",
       "+I[user3, Bailey, bailey@qq.com, 9.99]"
     )
-    assertEquals(expectedRaw, rawResult.toList)
+    assertThat(rawResult.toList).isEqualTo(expectedRaw)
   }
 
   @TestTemplate
@@ -255,7 +253,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       "+I[jason, 1, null, null, null, null]",
       "+I[jason, 1, null, null, null, null]"
     )
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
@@ -281,7 +279,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       "+I[jason, 1]",
       "+I[jason, 1]"
     )
-    Assertions.assertThat(actual.sorted).isEqualTo(expected.sorted)
+    assertThat(actual.sorted).isEqualTo(expected.sorted)
     // test statement set
     val statementSet = tEnv.createStatementSet()
     statementSet.addInsertSql("""
@@ -298,7 +296,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                                 |""".stripMargin)
     statementSet.execute().await()
     val actualUseStatement = TestValuesTableFactory.getResultsAsStrings("MyCtasTableUseStatement")
-    Assertions.assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
+    assertThat(actualUseStatement.sorted).isEqualTo(expected.sorted)
   }
 
   @TestTemplate
@@ -307,9 +305,8 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     // If the connector option is not specified, Flink will creates a Managed table.
     // Managed table requires two layers of log storage and file storage
     // and depends on the flink table store, CTAS will support Managed Table in the future.
-    Assertions
-      .assertThatThrownBy(
-        () => tEnv.executeSql("CREATE TABLE MyCtasTable AS SELECT `person`, `votes` FROM src"))
+    assertThatThrownBy(
+      () => tEnv.executeSql("CREATE TABLE MyCtasTable AS SELECT `person`, `votes` FROM src"))
       .hasMessage("You should enable the checkpointing for sinking to managed table " +
         "'default_catalog.default_database.MyCtasTable'," +
         " managed table relies on checkpoint to commit and the data is visible only after commit.")
@@ -366,7 +363,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       "+I[1, jason, 3, null, null]",
       "+I[2, andy, 2, null, null]",
       "+I[3, clark, 1, null, null]")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
 
     tEnv
       .executeSql("""
@@ -383,6 +380,6 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val result2 = TestValuesTableFactory.getResultsAsStrings("test_sink")
     val expected2 =
       List("+I[1, jason, 3, X, 43]", "+I[2, andy, 2, Y, 32]", "+I[3, clark, 1, Z, 29]")
-    assertEquals(expected2.sorted, result2.sorted)
+    assertThat(result2.sorted).isEqualTo(expected2.sorted)
   }
 }

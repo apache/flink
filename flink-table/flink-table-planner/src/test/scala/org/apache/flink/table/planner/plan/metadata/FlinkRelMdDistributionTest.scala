@@ -25,8 +25,8 @@ import org.apache.flink.table.types.logical.{BigIntType, DoubleType}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._
 

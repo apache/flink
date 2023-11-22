@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpe
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -40,10 +40,10 @@ import java.util.function.Consumer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link InputPriorityConflictResolver}. */
-public class InputPriorityConflictResolverTest {
+class InputPriorityConflictResolverTest {
 
     @Test
-    public void testDetectAndResolve() {
+    void testDetectAndResolve() {
         // P = InputProperty.DamBehavior.PIPELINED, E = InputProperty.DamBehavior.END_INPUT
         // P100 = PIPELINED + priority 100
         //
@@ -103,7 +103,7 @@ public class InputPriorityConflictResolverTest {
     }
 
     @Test
-    public void testDeadlockCausedByExchange() {
+    void testDeadlockCausedByExchange() {
         // P1 = PIPELINED + priority 1
         //
         // 0 -(P0)-> exchange --(P0)-> 1
@@ -153,7 +153,7 @@ public class InputPriorityConflictResolverTest {
     }
 
     @Test
-    public void testWithDynamicFilteringPlan() {
+    void testWithDynamicFilteringPlan() {
         // no conflicts for dpp pattern
         // 2 --------------------------------------(P1)--- 1 --(P0)--> 0
         //   \                                            /

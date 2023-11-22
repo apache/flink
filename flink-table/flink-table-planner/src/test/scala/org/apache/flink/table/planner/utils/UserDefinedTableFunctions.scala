@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.JList
 import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
 import org.apache.flink.types.Row
 
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions.fail
 
 import java.util
 
@@ -484,17 +484,17 @@ class RichTableFunc0 extends TableFunction[String] {
   override def open(context: FunctionContext): Unit = {
     super.open(context)
     if (closeCalled) {
-      Assert.fail("Close called before open.")
+      fail("Close called before open.")
     }
     openCalled = true
   }
 
   def eval(str: String): Unit = {
     if (!openCalled) {
-      Assert.fail("Open was not called before eval.")
+      fail("Open was not called before eval.")
     }
     if (closeCalled) {
-      Assert.fail("Close called before eval.")
+      fail("Close called before eval.")
     }
 
     if (!str.contains("#")) {
@@ -505,7 +505,7 @@ class RichTableFunc0 extends TableFunction[String] {
   override def close(): Unit = {
     super.close()
     if (!openCalled) {
-      Assert.fail("Open was not called before close.")
+      fail("Open was not called before close.")
     }
     closeCalled = true
   }

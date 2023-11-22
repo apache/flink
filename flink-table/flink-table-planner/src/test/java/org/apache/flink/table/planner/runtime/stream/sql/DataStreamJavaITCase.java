@@ -33,6 +33,7 @@ import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -63,7 +64,11 @@ import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -73,15 +78,15 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.UserClassLoaderJarTestUtils;
 
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -113,8 +118,16 @@ import static org.apache.flink.table.utils.UserDefinedFunctions.GENERATED_UPPER_
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for connecting to the {@link DataStream} API. */
-@RunWith(Parameterized.class)
-public class DataStreamJavaITCase extends AbstractTestBase {
+@ExtendWith(ParameterizedTestExtension.class)
+public class DataStreamJavaITCase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(4)
+                            .build());
 
     private StreamExecutionEnvironment env;
 
@@ -124,23 +137,23 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Parameters(name = "objectReuse = {0}")
-    public static ObjectReuse[] objectReuse() {
+    private static ObjectReuse[] objectReuse() {
         return ObjectReuse.values();
     }
 
-    @Parameter public ObjectReuse objectReuse;
+    @Parameter private ObjectReuse objectReuse;
 
     private static String udfClassName1;
     private static String jarPath1;
     private static String udfClassName2;
     private static String jarPath2;
 
-    @BeforeClass
-    public static void beforeClass() throws IOException {
+    @BeforeAll
+    static void beforeClass(@TempDir Path tempFolder) throws IOException {
         udfClassName1 = GENERATED_LOWER_UDF_CLASS;
         jarPath1 =
                 UserClassLoaderJarTestUtils.createJarFile(
-                                TEMPORARY_FOLDER.newFolder("test-jar1"),
+                                TempDirUtils.newFolder(tempFolder, "test-jar1"),
                                 "test-classloader-udf1.jar",
                                 udfClassName1,
                                 String.format(GENERATED_LOWER_UDF_CODE, udfClassName1))
@@ -149,7 +162,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         udfClassName2 = GENERATED_UPPER_UDF_CLASS;
         jarPath2 =
                 UserClassLoaderJarTestUtils.createJarFile(
-                                TEMPORARY_FOLDER.newFolder("test-jar2"),
+                                TempDirUtils.newFolder(tempFolder, "test-jar2"),
                                 "test-classloader-udf2.jar",
                                 udfClassName2,
                                 String.format(GENERATED_UPPER_UDF_CODE, udfClassName2))
@@ -157,8 +170,8 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         .toString();
     }
 
-    @Before
-    public void before() throws IOException {
+    @BeforeEach
+    void before() throws IOException {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
         env.setParallelism(4);
@@ -173,7 +186,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromDataStreamAtomic() {
+    void testFromDataStreamAtomic() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final DataStream<Integer> dataStream = env.fromElements(1, 2, 3, 4, 5);
@@ -187,7 +200,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testToDataStreamAtomic() throws Exception {
+    void testToDataStreamAtomic() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final Table table = tableEnv.fromValues(1, 2, 3, 4, 5);
@@ -196,7 +209,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromDataStreamWithRow() {
+    void testFromDataStreamWithRow() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final TypeInformation<Row> typeInfo =
@@ -226,7 +239,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testToDataStreamWithRow() throws Exception {
+    void testToDataStreamWithRow() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final Row[] rows =
@@ -241,7 +254,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromAndToDataStreamWithPojo() throws Exception {
+    void testFromAndToDataStreamWithPojo() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final ComplexPojo[] pojos = {
@@ -283,7 +296,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromAndToDataStreamWithRaw() throws Exception {
+    void testFromAndToDataStreamWithRaw() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final List<Tuple2<DayOfWeek, ZoneOffset>> rawRecords =
@@ -317,7 +330,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromAndToDataStreamEventTime() throws Exception {
+    void testFromAndToDataStreamEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final DataStream<Tuple3<Long, Integer, String>> dataStream = getWatermarkedDataStream();
@@ -379,7 +392,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromAndToDataStreamBypassConversion() throws Exception {
+    void testFromAndToDataStreamBypassConversion() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         DataStream<Row> dataStream = env.fromElements(Row.of(1L, "a"));
@@ -392,7 +405,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromAndToChangelogStreamEventTime() throws Exception {
+    void testFromAndToChangelogStreamEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final DataStream<Tuple3<Long, Integer, String>> dataStream = getWatermarkedDataStream();
@@ -448,7 +461,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromAndToChangelogStreamRetract() throws Exception {
+    void testFromAndToChangelogStreamRetract() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final List<Either<Row, Row>> inputOrOutput =
@@ -496,7 +509,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromChangelogStreamUpsert() {
+    void testFromChangelogStreamUpsert() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final List<Either<Row, Row>> inputOrOutput =
@@ -535,7 +548,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testFromAndToChangelogStreamUpsert() throws Exception {
+    void testFromAndToChangelogStreamUpsert() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final List<Either<Row, Row>> inputOrOutput =
@@ -576,7 +589,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testToDataStreamCustomEventTime() throws Exception {
+    void testToDataStreamCustomEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final TableConfig tableConfig = tableEnv.getConfig();
@@ -637,7 +650,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testComplexUnifiedPipelineBatch() {
+    void testComplexUnifiedPipelineBatch() {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         final Table resultTable = getComplexUnifiedPipeline(env);
@@ -646,7 +659,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testTableStreamConversionBatch() throws Exception {
+    void testTableStreamConversionBatch() throws Exception {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         DataStreamSource<Row> streamSource =
@@ -679,7 +692,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testComplexUnifiedPipelineStreaming() {
+    void testComplexUnifiedPipelineStreaming() {
         final Table resultTable = getComplexUnifiedPipeline(env);
 
         // more rows than in batch mode due to incremental computations
@@ -692,7 +705,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testAttachAsDataStream() throws Exception {
+    void testAttachAsDataStream() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         final String input1DataId =
@@ -743,7 +756,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testMultiChangelogStreamUpsert() throws Exception {
+    void testMultiChangelogStreamUpsert() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
         createTableFromElements(
@@ -817,7 +830,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     @Test
-    public void testResourcePropagation() throws Exception {
+    void testResourcePropagation() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         assertStreamJarsOf(0);
         assertTableJarsOf(tableEnv, 0);

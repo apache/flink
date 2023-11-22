@@ -24,16 +24,16 @@ import org.apache.flink.util.jackson.JacksonMapperFactory;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test SortSpec json ser/de. */
-public class SortSpecSerdeTest {
+class SortSpecSerdeTest {
     private static final ObjectMapper OBJECT_MAPPER = JacksonMapperFactory.createObjectMapper();
 
     @Test
-    public void testSortSpec() throws JsonProcessingException {
+    void testSortSpec() throws JsonProcessingException {
         SortSpec sortSpec =
                 SortSpec.builder()
                         .addField(1, true, true)
@@ -48,7 +48,7 @@ public class SortSpecSerdeTest {
     }
 
     @Test
-    public void testAny() throws JsonProcessingException {
+    void testAny() throws JsonProcessingException {
         assertThat(
                         OBJECT_MAPPER.readValue(
                                 OBJECT_MAPPER.writeValueAsString(SortSpec.ANY), SortSpec.class))

@@ -28,12 +28,14 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.factories.TestUpdateDeleteTableFactory;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,23 +47,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The IT case for UPDATE statement in batch mode. */
-@RunWith(Parameterized.class)
-public class UpdateTableITCase extends BatchTestBase {
-    private final SupportsRowLevelUpdate.RowLevelUpdateMode updateMode;
+@ExtendWith(ParameterizedTestExtension.class)
+class UpdateTableITCase extends BatchTestBase {
 
-    @Parameterized.Parameters(name = "updateMode = {0}")
-    public static Collection<SupportsRowLevelUpdate.RowLevelUpdateMode> data() {
+    @Parameter private SupportsRowLevelUpdate.RowLevelUpdateMode updateMode;
+
+    @Parameters(name = "updateMode = {0}")
+    private static Collection<SupportsRowLevelUpdate.RowLevelUpdateMode> data() {
         return Arrays.asList(
                 SupportsRowLevelUpdate.RowLevelUpdateMode.UPDATED_ROWS,
                 SupportsRowLevelUpdate.RowLevelUpdateMode.ALL_ROWS);
     }
 
-    public UpdateTableITCase(SupportsRowLevelUpdate.RowLevelUpdateMode updateMode) {
-        this.updateMode = updateMode;
-    }
-
-    @Test
-    public void testUpdate() throws Exception {
+    @TestTemplate
+    void testUpdate() throws Exception {
         String dataId = registerData();
         tEnv().executeSql(
                         String.format(
@@ -85,8 +84,8 @@ public class UpdateTableITCase extends BatchTestBase {
                 .isEqualTo("[+I[0, b_0, 0.0], +I[1, uaa, 4.0], +I[2, uab, 16.0]]");
     }
 
-    @Test
-    public void testPartialUpdate() throws Exception {
+    @TestTemplate
+    void testPartialUpdate() throws Exception {
         String dataId = registerData();
         tEnv().executeSql(
                         String.format(
@@ -125,8 +124,8 @@ public class UpdateTableITCase extends BatchTestBase {
                 .isEqualTo("[+I[0, b_0, 0.0], +I[1, uaa, 2.0], +I[2, uaa, 4.0]]");
     }
 
-    @Test
-    public void testStatementSetContainUpdateAndInsert() throws Exception {
+    @TestTemplate
+    void testStatementSetContainUpdateAndInsert() {
         tEnv().executeSql(
                         "CREATE TABLE t (a int, b string, c double) WITH"
                                 + " ('connector' = 'test-update-delete')");
@@ -140,8 +139,8 @@ public class UpdateTableITCase extends BatchTestBase {
                         "Unsupported SQL query! Only accept a single SQL statement of type UPDATE.");
     }
 
-    @Test
-    public void testCompilePlanSql() throws Exception {
+    @TestTemplate
+    void testCompilePlanSql() {
         tEnv().executeSql(
                         "CREATE TABLE t (a int, b string, c double) WITH"
                                 + " ('connector' = 'test-update-delete')");
@@ -152,8 +151,8 @@ public class UpdateTableITCase extends BatchTestBase {
                         "Unsupported SQL query! compilePlanSql() only accepts a single SQL statement of type INSERT");
     }
 
-    @Test
-    public void testUpdateWithLegacyTableSink() {
+    @TestTemplate
+    void testUpdateWithLegacyTableSink() {
         tEnv().executeSql(
                         "CREATE TABLE t (a int, b string, c double) WITH"
                                 + " ('connector' = 'COLLECTION')");
