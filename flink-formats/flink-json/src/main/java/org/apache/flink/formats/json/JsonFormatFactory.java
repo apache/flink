@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.common.TimestampFormat;
+import org.apache.flink.formats.json.JsonFormatOptions.ZeroTimestampBehavior;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
@@ -51,6 +52,7 @@ import static org.apache.flink.formats.json.JsonFormatOptions.IGNORE_PARSE_ERROR
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_LITERAL;
 import static org.apache.flink.formats.json.JsonFormatOptions.MAP_NULL_KEY_MODE;
 import static org.apache.flink.formats.json.JsonFormatOptions.TIMESTAMP_FORMAT;
+import static org.apache.flink.formats.json.JsonFormatOptions.ZERO_TIMESTAMP_BEHAVIOR;
 
 /**
  * Table format factory for providing configured instances of JSON to RowData {@link
@@ -66,11 +68,14 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
             DynamicTableFactory.Context context, ReadableConfig formatOptions) {
         FactoryUtil.validateFactoryOptions(this, formatOptions);
         JsonFormatOptionsUtil.validateDecodingFormatOptions(formatOptions);
+        JsonFormatOptionsUtil.validateZeroTimestampBehavior(formatOptions);
 
         final boolean failOnMissingField = formatOptions.get(FAIL_ON_MISSING_FIELD);
         final boolean ignoreParseErrors = formatOptions.get(IGNORE_PARSE_ERRORS);
         final boolean jsonParserEnabled = formatOptions.get(DECODE_JSON_PARSER_ENABLED);
         TimestampFormat timestampOption = JsonFormatOptionsUtil.getTimestampFormat(formatOptions);
+        ZeroTimestampBehavior zeroTimestampBehavior =
+                JsonFormatOptionsUtil.getZeroTimestampBehavior(formatOptions);
 
         return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
             @Override
@@ -90,6 +95,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                             failOnMissingField,
                             ignoreParseErrors,
                             timestampOption,
+                            zeroTimestampBehavior,
                             toProjectedNames(
                                     (RowType) physicalDataType.getLogicalType(), projections));
                 } else {
@@ -98,7 +104,8 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                             rowDataTypeInfo,
                             failOnMissingField,
                             ignoreParseErrors,
-                            timestampOption);
+                            timestampOption,
+                            zeroTimestampBehavior);
                 }
             }
 
@@ -184,6 +191,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         options.add(FAIL_ON_MISSING_FIELD);
         options.add(IGNORE_PARSE_ERRORS);
         options.add(TIMESTAMP_FORMAT);
+        options.add(ZERO_TIMESTAMP_BEHAVIOR);
         options.add(MAP_NULL_KEY_MODE);
         options.add(MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
@@ -194,6 +202,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
     public Set<ConfigOption<?>> forwardOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(TIMESTAMP_FORMAT);
+        options.add(ZERO_TIMESTAMP_BEHAVIOR);
         options.add(MAP_NULL_KEY_MODE);
         options.add(MAP_NULL_KEY_LITERAL);
         options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);

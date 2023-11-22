@@ -55,7 +55,8 @@ CREATE TABLE user_behavior (
  'properties.group.id' = 'testGroup',
  'format' = 'json',
  'json.fail-on-missing-field' = 'false',
- 'json.ignore-parse-errors' = 'true'
+ 'json.ignore-parse-errors' = 'true' ,
+ 'json.zero-timestamp.behavior' = 'CONVERT_TO_NULL'
 )
 ```
 
@@ -105,6 +106,18 @@ Format 参数
         以 "yyyy-MM-dd HH:mm:ss.s{precision}'Z'" 的格式解析 TIMESTAMP_LTZ, 例如 "2020-12-30 12:13:14.123Z" 且会以相同的格式输出。</li>
         <li>可选参数 <code>'ISO-8601'</code> 将会以 "yyyy-MM-ddTHH:mm:ss.s{precision}" 的格式解析输入 TIMESTAMP, 例如 "2020-12-30T12:13:14.123" ，
         以 "yyyy-MM-ddTHH:mm:ss.s{precision}'Z'" 的格式解析 TIMESTAMP_LTZ, 例如 "2020-12-30T12:13:14.123Z" 且会以相同的格式输出。</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><h5>json.zero-timestamp.behavior</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+      <td>String</td>
+      <td>指定如何反序列化JSON中出现的<code>TIMESTAMP</code>类型的零值，例如 "0000-00-00 00:00:00" 和 "0000-00-00"。当前支持的选项有<code>'FAIL'</code> 以及 <code>'CONVERT_TO_NULL'</code>：
+      <ul>
+        <li>可选参数 <code>'FAIL'</code> 将会抛出异常当遇到零值。</li>
+        <li>可选参数 <code>'CONVERT_TO_NULL'</code> 遇到零值时，会将字段值转换为<code>null</code>并返回。</li>
       </ul>
       </td>
     </tr>
