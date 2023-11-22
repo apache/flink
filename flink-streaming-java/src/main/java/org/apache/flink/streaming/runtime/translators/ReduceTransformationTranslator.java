@@ -18,7 +18,9 @@
 
 package org.apache.flink.streaming.runtime.translators;
 
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.operators.BatchGroupedReduceOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -72,12 +74,20 @@ public class ReduceTransformationTranslator<IN, KEY>
 
         SimpleOperatorFactory<IN> operatorFactory = SimpleOperatorFactory.of(groupedReduce);
         operatorFactory.setChainingStrategy(transformation.getChainingStrategy());
-        return translateInternal(
-                transformation,
-                operatorFactory,
-                transformation.getInputType(),
-                transformation.getKeySelector(),
-                transformation.getKeyTypeInfo(),
-                context);
+
+        final KeySelector<IN, KEY> keySelector = transformation.getKeySelector();
+        final Collection<Integer> ids =
+                translateInternal(
+                        transformation,
+                        operatorFactory,
+                        transformation.getInputType(),
+                        keySelector,
+                        transformation.getKeyTypeInfo(),
+                        context);
+        final StreamNode node = context.getStreamGraph().getStreamNode(transformation.getId());
+        if (keySelector != null && BacklogUtils.isCheckpointDisableDuringBacklog(context)) {
+            BacklogUtils.applyBacklogProcessingSettings(transformation, context, node);
+        }
+        return ids;
     }
 }

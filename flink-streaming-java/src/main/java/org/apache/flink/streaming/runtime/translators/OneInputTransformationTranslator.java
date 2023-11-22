@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.translators;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 
@@ -62,12 +63,19 @@ public final class OneInputTransformationTranslator<IN, OUT>
     @Override
     public Collection<Integer> translateForStreamingInternal(
             final OneInputTransformation<IN, OUT> transformation, final Context context) {
-        return translateInternal(
-                transformation,
-                transformation.getOperatorFactory(),
-                transformation.getInputType(),
-                transformation.getStateKeySelector(),
-                transformation.getStateKeyType(),
-                context);
+        final KeySelector<IN, ?> keySelector = transformation.getStateKeySelector();
+        final Collection<Integer> ids =
+                translateInternal(
+                        transformation,
+                        transformation.getOperatorFactory(),
+                        transformation.getInputType(),
+                        keySelector,
+                        transformation.getStateKeyType(),
+                        context);
+        final StreamNode node = context.getStreamGraph().getStreamNode(transformation.getId());
+        if (keySelector != null && BacklogUtils.isCheckpointDisableDuringBacklog(context)) {
+            BacklogUtils.applyBacklogProcessingSettings(transformation, context, node);
+        }
+        return ids;
     }
 }

@@ -800,7 +800,13 @@ public class StreamConfig implements Serializable {
          * records from {@link #SORTED} inputs. There are no guarantees on ordering between and
          * within the different {@link #PASS_THROUGH} inputs.
          */
-        PASS_THROUGH;
+        PASS_THROUGH,
+
+        /**
+         * Backlog records are grouped (sorted) by key and then fed to the operator one group at a
+         * time. Non-backlog records are passed to the operator directly.
+         */
+        SORTED_DURING_BACKLOG;
     }
 
     /** Interface representing chained inputs. */
@@ -878,5 +884,11 @@ public class StreamConfig implements Serializable {
         return inputConfig instanceof StreamConfig.NetworkInputConfig
                 && ((StreamConfig.NetworkInputConfig) inputConfig).getInputRequirement()
                         == StreamConfig.InputRequirement.SORTED;
+    }
+
+    public static boolean requiresSortingDuringBacklog(StreamConfig.InputConfig inputConfig) {
+        return inputConfig instanceof StreamConfig.NetworkInputConfig
+                && ((StreamConfig.NetworkInputConfig) inputConfig).getInputRequirement()
+                        == InputRequirement.SORTED_DURING_BACKLOG;
     }
 }
