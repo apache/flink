@@ -190,9 +190,11 @@ public abstract class DriverTestBase<S extends Function> implements TaskContext<
         this.numFileHandles = numFileHandles;
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    protected void testDriver(Driver driver, Class stubClass) throws Exception {
-        testDriver(driver, (S) stubClass.newInstance());
+    /** @deprecated Use {@link #testDriver(Driver, Function)} instead. */
+    @Deprecated
+    @SuppressWarnings({"rawtypes"})
+    protected void testDriver(Driver driver, Class<? extends S> stubClass) throws Exception {
+        testDriver(driver, stubClass.getDeclaredConstructor().newInstance());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

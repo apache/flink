@@ -333,13 +333,13 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
         addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 
-        final OneShotLatch closeLatch = new OneShotLatch();
+        final OneShotLatch delayedLatch = new OneShotLatch();
 
         CheckedThread taskRunner =
                 new CheckedThread() {
                     @Override
                     public void go() throws Exception {
-                        testDriver(testTask, new MockDelayingCoGroupStub(closeLatch));
+                        testDriver(testTask, new MockDelayingCoGroupStub(delayedLatch));
                     }
                 };
         taskRunner.start();
@@ -348,7 +348,7 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         tct.start();
 
         tct.join();
-        closeLatch.trigger();
+        delayedLatch.trigger();
         taskRunner.sync();
     }
 
@@ -392,19 +392,17 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
             extends RichCoGroupFunction<Record, Record, Record> {
         private static final long serialVersionUID = 1L;
 
-        private final OneShotLatch closeLatch;
+        private final OneShotLatch delayedLatch;
 
-        public MockDelayingCoGroupStub(OneShotLatch closeLatch) {
-            this.closeLatch = closeLatch;
+        public MockDelayingCoGroupStub(OneShotLatch delayedLatch) {
+            this.delayedLatch = delayedLatch;
         }
 
         @Override
         public void coGroup(
-                Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out) {}
-
-        @Override
-        public void close() throws InterruptedException {
-            closeLatch.await();
+                Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out)
+                throws InterruptedException {
+            delayedLatch.await();
         }
     }
 }
