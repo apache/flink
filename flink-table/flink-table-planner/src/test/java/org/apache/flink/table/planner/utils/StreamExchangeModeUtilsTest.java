@@ -48,6 +48,17 @@ class StreamExchangeModeUtilsTest {
                 .isEqualTo(StreamExchangeMode.BATCH);
 
         configuration.set(
+                ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_HYBRID_FULL);
+        assertThat(getBatchStreamExchangeMode(configuration, null))
+                .isEqualTo(StreamExchangeMode.HYBRID_FULL);
+
+        configuration.set(
+                ExecutionOptions.BATCH_SHUFFLE_MODE,
+                BatchShuffleMode.ALL_EXCHANGES_HYBRID_SELECTIVE);
+        assertThat(getBatchStreamExchangeMode(configuration, null))
+                .isEqualTo(StreamExchangeMode.HYBRID_SELECTIVE);
+
+        configuration.set(
                 ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_PIPELINED);
         assertThat(getBatchStreamExchangeMode(configuration, null))
                 .isEqualTo(StreamExchangeMode.UNDEFINED);
