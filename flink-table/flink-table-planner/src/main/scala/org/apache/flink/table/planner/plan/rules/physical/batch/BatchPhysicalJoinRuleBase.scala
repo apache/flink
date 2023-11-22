@@ -248,7 +248,7 @@ trait BatchPhysicalJoinRuleBase {
       val leftIsBuild = if (leftSize == null || rightSize == null || leftSize == rightSize) {
         // use left to build hash table if leftSize or rightSize is unknown or equal size.
         // choose right to build if join is SEMI/ANTI.
-        !join.getJoinType.projectsRight
+        join.getJoinType.projectsRight
       } else {
         leftSize < rightSize
       }
