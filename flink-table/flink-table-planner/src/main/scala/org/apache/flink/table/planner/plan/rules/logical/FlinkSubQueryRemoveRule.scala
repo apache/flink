@@ -216,14 +216,14 @@ class FlinkSubQueryRemoveRule(
 
       // EXISTS and NOT EXISTS
       case SqlKind.EXISTS =>
-        // If the sub-query is guaranteed to produce at least one row, just return TRUE.
-        // If the sub-query is guaranteed to produce no rows then return FALSE.
         val mq = subQuery.rel.getCluster.getMetadataQuery
         val minRowCount = mq.getMinRowCount(subQuery.rel)
+        // If the sub-query is guaranteed to produce at least one row, just return TRUE.
         if (minRowCount != null && minRowCount >= 1d) {
           return Option.apply(relBuilder.literal(!withNot))
         }
         val maxRowCount = mq.getMaxRowCount(subQuery.rel)
+        // If the sub-query is guaranteed to produce no rows then return FALSE.
         if (maxRowCount != null && maxRowCount < 1d) {
           return Option.apply(relBuilder.literal(withNot))
         }
