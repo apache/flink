@@ -79,6 +79,20 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testDDLWithRowTypeComputedColumn(): Unit = {
+    util.addTable(s"""
+                     |create table t1(
+                     |  a int,
+                     |  b varchar,
+                     |  c as row(a, b)
+                     |) with (
+                     |  'connector' = 'values'
+                     |)
+       """.stripMargin)
+    util.verifyExecPlan("SELECT * FROM t1")
+  }
+
+  @Test
   def testDDLWithMetadataColumn(): Unit = {
     // tests reordering, skipping, and casting of metadata
     util.addTable(
