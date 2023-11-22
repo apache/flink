@@ -73,27 +73,9 @@ class SqlNodeConvertUtils {
         // Check name is unique.
         // Don't rely on the calcite because if the field names are duplicate, calcite will add
         // index to identify the duplicate names.
-        SqlValidatorNamespace namespace = context.getSqlValidator().getNamespace(validateQuery);
-        Map<String, Integer> nameToPos = new HashMap<>();
-        for (int i = 0;
-                i < Objects.requireNonNull(namespace).getType().getFieldList().size();
-                i++) {
-            String columnName = namespace.getType().getFieldList().get(i).getName();
-            if (nameToPos.containsKey(columnName)) {
-                SqlSelect select = (SqlSelect) query;
-                SqlParserPos errorPos = select.getSelectList().get(i).getParserPosition();
-                String msg =
-                        String.format(
-                                "A column with the same name `%s` has been defined at %s.",
-                                columnName,
-                                select.getSelectList()
-                                        .get(nameToPos.get(columnName))
-                                        .getParserPosition());
-                throw new ValidationException(
-                        "SQL validation failed. " + msg, new SqlValidateException(errorPos, msg));
-            }
-            nameToPos.put(columnName, i);
-        }
+        SqlValidatorNamespace validatedNamespace =
+                context.getSqlValidator().getNamespace(validateQuery);
+        validateDuplicatedColumnNames(query, validatedNamespace);
 
         // The LATERAL operator was eliminated during sql validation, thus the unparsed SQL
         // does not contain LATERAL which is problematic,
@@ -151,5 +133,29 @@ class SqlNodeConvertUtils {
             throw new ValidationException("ALTER VIEW for a table is not allowed");
         }
         return (CatalogView) baseTable;
+    }
+
+    private static void validateDuplicatedColumnNames(
+            SqlNode query, SqlValidatorNamespace namespace) {
+        Map<String, Integer> nameToPos = new HashMap<>();
+        for (int i = 0;
+                i < Objects.requireNonNull(namespace).getType().getFieldList().size();
+                i++) {
+            String columnName = namespace.getType().getFieldList().get(i).getName();
+            if (nameToPos.containsKey(columnName)) {
+                SqlSelect select = (SqlSelect) query;
+                SqlParserPos errorPos = select.getSelectList().get(i).getParserPosition();
+                String msg =
+                        String.format(
+                                "A column with the same name `%s` has been defined at %s.",
+                                columnName,
+                                select.getSelectList()
+                                        .get(nameToPos.get(columnName))
+                                        .getParserPosition());
+                throw new ValidationException(
+                        "SQL validation failed. " + msg, new SqlValidateException(errorPos, msg));
+            }
+            nameToPos.put(columnName, i);
+        }
     }
 }
