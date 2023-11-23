@@ -256,4 +256,4 @@ public class Sample {
 
 In addition to Java, the Flink JDBC driver can be used by any JVM language such as Scala, Kotlin etc. Add the dependency of Flink JDBC driver in your project and use it directly.
 
-Most applications may use data access frameworks to access data, for example, JOOQ, MyBatis and Spring Data. You can configure the Flink JDBC driver in them to perform Flink queries on an existing Flink cluster, just like a regular database.
+Many applications access data in SQL databases, either directly, or through frameworks like JOOQ, MyBatis, and Spring Data. You can configure these applications and frameworks to use the Flink JDBC driver so that they perform SQL queries on a Flink cluster instead of a regular database.
