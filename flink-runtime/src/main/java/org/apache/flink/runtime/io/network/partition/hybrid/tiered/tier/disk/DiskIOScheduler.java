@@ -48,6 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -79,12 +80,6 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
      * The buffer pool is specifically designed for reading from disk and shared in the TaskManager.
      */
     private final BatchShuffleReadBufferPool bufferPool;
-
-    /**
-     * The maximum number of buffers that can be allocated and still not recycled for a
-     * subpartition, which ensures that each subpartition can be consumed evenly.
-     */
-    private final int maxBufferReadAhead;
 
     /**
      * The maximum number of buffers that can be allocated and still not recycled by a single {@link
@@ -126,7 +121,6 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
             Duration bufferRequestTimeout,
-            int maxBufferReadAhead,
             BiFunction<Integer, Integer, Integer> firstBufferIndexInSegmentRetriever,
             PartitionFileReader partitionFileReader) {
         this.partitionId = partitionId;
@@ -134,7 +128,6 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
         this.ioExecutor = checkNotNull(ioExecutor);
         this.maxRequestedBuffers = maxRequestedBuffers;
         this.bufferRequestTimeout = checkNotNull(bufferRequestTimeout);
-        this.maxBufferReadAhead = maxBufferReadAhead;
         this.firstBufferIndexInSegmentRetriever = firstBufferIndexInSegmentRetriever;
         this.partitionFileReader = partitionFileReader;
         bufferPool.registerRequester(this);
@@ -148,7 +141,11 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
             isRunning = false;
         }
         if (numBuffersRead == 0) {
-            ioExecutor.schedule(this::triggerScheduling, 5, TimeUnit.MILLISECONDS);
+            try {
+                ioExecutor.schedule(this::triggerScheduling, 5, TimeUnit.MILLISECONDS);
+            } catch (RejectedExecutionException e) {
+                ignoreRejectedExecutionOnShutdown(e);
+            }
         } else {
             triggerScheduling();
         }
@@ -302,24 +299,34 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                             <= maxRequestedBuffers
                     && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
                 isRunning = true;
-                ioExecutor.execute(
-                        () -> {
-                            try {
-                                run();
-                            } catch (Throwable throwable) {
-                                LOG.error("Failed to read data.", throwable);
-                                // handle un-expected exception as unhandledExceptionHandler is not
-                                // worked for ScheduledExecutorService.
-                                FatalExitExceptionHandler.INSTANCE.uncaughtException(
-                                        Thread.currentThread(), throwable);
-                            }
-                        });
+                try {
+                    ioExecutor.execute(
+                            () -> {
+                                try {
+                                    run();
+                                } catch (Throwable throwable) {
+                                    LOG.error("Failed to read data.", throwable);
+                                    // handle un-expected exception as unhandledExceptionHandler is
+                                    // not worked for ScheduledExecutorService.
+                                    FatalExitExceptionHandler.INSTANCE.uncaughtException(
+                                            Thread.currentThread(), throwable);
+                                }
+                            });
+                } catch (RejectedExecutionException e) {
+                    ignoreRejectedExecutionOnShutdown(e);
+                }
             }
         }
     }
 
     private long getBufferRequestTimeoutTime() {
         return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toMillis();
+    }
+
+    private void ignoreRejectedExecutionOnShutdown(RejectedExecutionException e) {
+        LOG.warn(
+                "Attempt to submit a task to the shut down batch read thread pool should be ignored. No more tasks should be accepted.",
+                e);
     }
 
     /**

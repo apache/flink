@@ -74,8 +74,7 @@ public class TestingTierFactory implements TierFactory {
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
-            Duration bufferRequestTimeout,
-            int maxBufferReadAhead) {
+            Duration bufferRequestTimeout) {
         return tierProducerAgentSupplier.get();
     }
 

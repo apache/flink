@@ -68,8 +68,7 @@ public class MemoryTierFactory implements TierFactory {
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
-            Duration bufferRequestTimeout,
-            int maxBufferReadAhead) {
+            Duration bufferRequestTimeout) {
         return new MemoryTierProducerAgent(
                 partitionID,
                 numSubpartitions,

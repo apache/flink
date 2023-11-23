@@ -89,8 +89,6 @@ public class TieredStorageConfiguration {
 
     private final float numBuffersTriggerFlushRatio;
 
-    private final int diskIOSchedulerMaxBuffersReadAhead;
-
     private final Duration diskIOSchedulerRequestTimeout;
 
     private final float minReserveDiskSpaceFraction;
@@ -110,7 +108,6 @@ public class TieredStorageConfiguration {
             int diskTierNumBytesPerSegment,
             int remoteTierNumBytesPerSegment,
             float numBuffersTriggerFlushRatio,
-            int diskIOSchedulerMaxBuffersReadAhead,
             Duration diskIOSchedulerRequestTimeout,
             float minReserveDiskSpaceFraction,
             List<TierFactory> tierFactories,
@@ -125,7 +122,6 @@ public class TieredStorageConfiguration {
         this.diskTierNumBytesPerSegment = diskTierNumBytesPerSegment;
         this.remoteTierNumBytesPerSegment = remoteTierNumBytesPerSegment;
         this.numBuffersTriggerFlushRatio = numBuffersTriggerFlushRatio;
-        this.diskIOSchedulerMaxBuffersReadAhead = diskIOSchedulerMaxBuffersReadAhead;
         this.diskIOSchedulerRequestTimeout = diskIOSchedulerRequestTimeout;
         this.minReserveDiskSpaceFraction = minReserveDiskSpaceFraction;
         this.tierFactories = tierFactories;
@@ -242,16 +238,6 @@ public class TieredStorageConfiguration {
     }
 
     /**
-     * The number of buffers to read ahead at most for each subpartition in {@link DiskIOScheduler},
-     * which can be used to prevent other consumers from starving.
-     *
-     * @return buffer number.
-     */
-    public int getDiskIOSchedulerMaxBuffersReadAhead() {
-        return diskIOSchedulerMaxBuffersReadAhead;
-    }
-
-    /**
      * Maximum time to wait when requesting read buffers from the buffer pool before throwing an
      * exception in {@link DiskIOScheduler}.
      *
@@ -321,8 +307,6 @@ public class TieredStorageConfiguration {
         private int remoteTierNumBytesPerSegment = DEFAULT_REMOTE_TIER_NUM_BYTES_PER_SEGMENT;
 
         private float numBuffersTriggerFlushRatio = DEFAULT_NUM_BUFFERS_TRIGGER_FLUSH_RATIO;
-
-        private int diskTierMaxBuffersReadAhead = DEFAULT_DISK_TIER_MAX_BUFFERS_READ_AHEAD;
 
         private Duration diskTierBufferRequestTimeout = DEFAULT_DISK_TIER_BUFFER_REQUEST_TIMEOUT;
 
@@ -395,11 +379,6 @@ public class TieredStorageConfiguration {
             return this;
         }
 
-        public Builder setDiskTierMaxBuffersReadAhead(int diskTierMaxBuffersReadAhead) {
-            this.diskTierMaxBuffersReadAhead = diskTierMaxBuffersReadAhead;
-            return this;
-        }
-
         public Builder setDiskTierBufferRequestTimeout(Duration diskTierBufferRequestTimeout) {
             this.diskTierBufferRequestTimeout = diskTierBufferRequestTimeout;
             return this;
@@ -438,7 +417,6 @@ public class TieredStorageConfiguration {
                     diskTierNumBytesPerSegment,
                     remoteTierNumBytesPerSegment,
                     numBuffersTriggerFlushRatio,
-                    diskTierMaxBuffersReadAhead,
                     diskTierBufferRequestTimeout,
                     minReserveDiskSpaceFraction,
                     tierFactories,
