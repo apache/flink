@@ -333,13 +333,14 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
         addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
 
-        final OneShotLatch delayedLatch = new OneShotLatch();
+        final OneShotLatch delayCoGroupProcessingLatch = new OneShotLatch();
 
         CheckedThread taskRunner =
                 new CheckedThread() {
                     @Override
                     public void go() throws Exception {
-                        testDriver(testTask, new MockDelayingCoGroupStub(delayedLatch));
+                        testDriver(
+                                testTask, new MockDelayingCoGroupStub(delayCoGroupProcessingLatch));
                     }
                 };
         taskRunner.start();
@@ -348,7 +349,7 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
         tct.start();
 
         tct.join();
-        delayedLatch.trigger();
+        delayCoGroupProcessingLatch.trigger();
         taskRunner.sync();
     }
 
@@ -392,17 +393,17 @@ class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Record, Rec
             extends RichCoGroupFunction<Record, Record, Record> {
         private static final long serialVersionUID = 1L;
 
-        private final OneShotLatch delayedLatch;
+        private final OneShotLatch delayCoGroupProcessingLatch;
 
-        public MockDelayingCoGroupStub(OneShotLatch delayedLatch) {
-            this.delayedLatch = delayedLatch;
+        public MockDelayingCoGroupStub(OneShotLatch delayCoGroupProcessingLatch) {
+            this.delayCoGroupProcessingLatch = delayCoGroupProcessingLatch;
         }
 
         @Override
         public void coGroup(
                 Iterable<Record> records1, Iterable<Record> records2, Collector<Record> out)
                 throws InterruptedException {
-            delayedLatch.await();
+            delayCoGroupProcessingLatch.await();
         }
     }
 }
