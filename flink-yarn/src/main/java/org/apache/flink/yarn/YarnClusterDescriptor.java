@@ -1078,7 +1078,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             String flinkConfigKey = "flink-conf.yaml";
             fileUploader.registerSingleLocalResource(
                     flinkConfigKey,
-                    new Path(tmpConfigurationFile.getAbsolutePath()),
+                    new Path(tmpConfigurationFile.toURI()),
                     "",
                     LocalResourceType.FILE,
                     true,
