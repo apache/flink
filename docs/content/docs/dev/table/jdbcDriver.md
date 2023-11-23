@@ -61,6 +61,55 @@ The Flink JDBC driver is not included with the Flink distribution. You can downl
 
 You may also need the [SLF4J](https://repo1.maven.org/maven2/org/slf4j/slf4j-api/) (`slf4j-api-{slf4j.version}.jar`) jar.
 
+### Beeline
+
+Beeline is the command line tool for accessing [Apache Hive](https://hive.apache.org/), but it also supports general JDBC drivers. To install Hive and beeline, see [Hive documentation](https://cwiki.apache.org/confluence/display/Hive/GettingStarted#GettingStarted-RunningHiveServer2andBeeline.1).
+
+1. Download flink-jdbc-driver-bundle-{VERSION}.jar from [download page](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-jdbc-driver-bundle/) and add it to `$HIVE_HOME/lib`.
+2. Run beeline and connect to a Flink SQL gateway. As Flink SQL gateway currently ignores user names and passwords, just leave them empty.
+
+    ```sql
+    beeline> !connect jdbc:flink://localhost:8083
+    ```
+
+3. Execute any statement you want.
+
+**Sample Commands**
+```
+Beeline version 3.1.3 by Apache Hive
+beeline> !connect jdbc:flink://localhost:8083
+Connecting to jdbc:flink://localhost:8083
+Enter username for jdbc:flink://localhost:8083: 
+Enter password for jdbc:flink://localhost:8083: 
+Connected to: Flink JDBC Driver (version 1.18-SNAPSHOT)
+Driver: org.apache.flink.table.jdbc.FlinkDriver (version 1.18-SNAPSHOT)
+0: jdbc:flink://localhost:8083> CREATE TABLE T(
+. . . . . . . . . . . . . . . >     a INT,
+. . . . . . . . . . . . . . . >     b VARCHAR(10)
+. . . . . . . . . . . . . . . > ) WITH (
+. . . . . . . . . . . . . . . >     'connector' = 'filesystem',
+. . . . . . . . . . . . . . . >     'path' = 'file:///tmp/T.csv',
+. . . . . . . . . . . . . . . >     'format' = 'csv'
+. . . . . . . . . . . . . . . > );
+No rows affected (0.108 seconds)
+0: jdbc:flink://localhost:8083> INSERT INTO T VALUES (1, 'Hi'), (2, 'Hello');
++-----------------------------------+
+|              job id               |
++-----------------------------------+
+| da22010cf1c962b377493fc4fc509527  |
++-----------------------------------+
+1 row selected (0.952 seconds)
+0: jdbc:flink://localhost:8083> SELECT * FROM T;
++----+--------+
+| a  |   b    |
++----+--------+
+| 1  | Hi     |
+| 2  | Hello  |
++----+--------+
+2 rows selected (1.142 seconds)
+0: jdbc:flink://localhost:8083> 
+```
+
 ### SQLLine
 
 [SQLLine](https://github.com/julianhyde/sqlline) is a lightweight JDBC command line tool that supports general JDBC drivers. 
@@ -115,55 +164,6 @@ No rows affected (0.122 seconds)
 +---+-------+
 2 rows selected (1.955 seconds)
 0: jdbc:flink://localhost:8083>
-```
-
-### Beeline
-
-Beeline is the command line tool for accessing [Apache Hive](https://hive.apache.org/), but it also supports general JDBC drivers. To install Hive and beeline, see [Hive documentation](https://cwiki.apache.org/confluence/display/Hive/GettingStarted#GettingStarted-RunningHiveServer2andBeeline.1).
-
-1. Download flink-jdbc-driver-bundle-{VERSION}.jar from [download page](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-jdbc-driver-bundle/) and add it to `$HIVE_HOME/lib`.
-2. Run beeline and connect to a Flink SQL gateway. As Flink SQL gateway currently ignores user names and passwords, just leave them empty.
-
-    ```sql
-    beeline> !connect jdbc:flink://localhost:8083
-    ```
-
-3. Execute any statement you want.
-
-**Sample Commands**
-```
-Beeline version 3.1.3 by Apache Hive
-beeline> !connect jdbc:flink://localhost:8083
-Connecting to jdbc:flink://localhost:8083
-Enter username for jdbc:flink://localhost:8083: 
-Enter password for jdbc:flink://localhost:8083: 
-Connected to: Flink JDBC Driver (version 1.18-SNAPSHOT)
-Driver: org.apache.flink.table.jdbc.FlinkDriver (version 1.18-SNAPSHOT)
-0: jdbc:flink://localhost:8083> CREATE TABLE T(
-. . . . . . . . . . . . . . . >     a INT,
-. . . . . . . . . . . . . . . >     b VARCHAR(10)
-. . . . . . . . . . . . . . . > ) WITH (
-. . . . . . . . . . . . . . . >     'connector' = 'filesystem',
-. . . . . . . . . . . . . . . >     'path' = 'file:///tmp/T.csv',
-. . . . . . . . . . . . . . . >     'format' = 'csv'
-. . . . . . . . . . . . . . . > );
-No rows affected (0.108 seconds)
-0: jdbc:flink://localhost:8083> INSERT INTO T VALUES (1, 'Hi'), (2, 'Hello');
-+-----------------------------------+
-|              job id               |
-+-----------------------------------+
-| da22010cf1c962b377493fc4fc509527  |
-+-----------------------------------+
-1 row selected (0.952 seconds)
-0: jdbc:flink://localhost:8083> SELECT * FROM T;
-+----+--------+
-| a  |   b    |
-+----+--------+
-| 1  | Hi     |
-| 2  | Hello  |
-+----+--------+
-2 rows selected (1.142 seconds)
-0: jdbc:flink://localhost:8083> 
 ```
 
 ### Tableau
