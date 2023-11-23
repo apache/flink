@@ -93,7 +93,7 @@ class UnsupportedOpsValidationTest {
   }
 }
 
-object UnsupportedOpsValidationTest extends UnsupportedOpsValidationTest {
+object UnsupportedOpsValidationTest {
   @RegisterExtension
   private val _: MiniClusterExtension = new MiniClusterExtension(
     () =>
