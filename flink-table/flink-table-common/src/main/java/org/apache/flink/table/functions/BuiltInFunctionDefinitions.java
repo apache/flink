@@ -1576,7 +1576,7 @@ public final class BuiltInFunctionDefinitions {
                     .kind(SCALAR)
                     .notDeterministic()
                     .inputTypeStrategy(or(NO_ARGS, sequence(logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(explicit(DataTypes.DOUBLE().notNull()))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.DOUBLE())))
                     .build();
 
     public static final BuiltInFunctionDefinition RAND_INTEGER =
@@ -1590,7 +1590,7 @@ public final class BuiltInFunctionDefinitions {
                                     sequence(
                                             logical(LogicalTypeRoot.INTEGER),
                                             logical(LogicalTypeRoot.INTEGER))))
-                    .outputTypeStrategy(explicit(INT().notNull()))
+                    .outputTypeStrategy(nullableIfArgs(explicit(INT())))
                     .build();
 
     public static final BuiltInFunctionDefinition BIN =
