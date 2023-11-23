@@ -80,7 +80,7 @@ import org.apache.flink.util.UserClassLoaderJarTestUtils;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -93,6 +93,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -119,7 +120,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for connecting to the {@link DataStream} API. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class DataStreamJavaITCase {
+class DataStreamJavaITCase {
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
@@ -137,8 +138,8 @@ public class DataStreamJavaITCase {
     }
 
     @Parameters(name = "objectReuse = {0}")
-    private static ObjectReuse[] objectReuse() {
-        return ObjectReuse.values();
+    private static Collection<ObjectReuse> objectReuse() {
+        return Arrays.asList(ObjectReuse.values());
     }
 
     @Parameter private ObjectReuse objectReuse;
@@ -185,7 +186,7 @@ public class DataStreamJavaITCase {
         env.configure(defaultConfig);
     }
 
-    @Test
+    @TestTemplate
     void testFromDataStreamAtomic() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -199,7 +200,7 @@ public class DataStreamJavaITCase {
         testResult(result, Row.of(1), Row.of(2), Row.of(3), Row.of(4), Row.of(5));
     }
 
-    @Test
+    @TestTemplate
     void testToDataStreamAtomic() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -208,7 +209,7 @@ public class DataStreamJavaITCase {
         testResult(tableEnv.toDataStream(table, Integer.class), 1, 2, 3, 4, 5);
     }
 
-    @Test
+    @TestTemplate
     void testFromDataStreamWithRow() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -238,7 +239,7 @@ public class DataStreamJavaITCase {
         testResult(result, rows);
     }
 
-    @Test
+    @TestTemplate
     void testToDataStreamWithRow() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -253,7 +254,7 @@ public class DataStreamJavaITCase {
         testResult(tableEnv.toDataStream(table), rows);
     }
 
-    @Test
+    @TestTemplate
     void testFromAndToDataStreamWithPojo() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -295,7 +296,7 @@ public class DataStreamJavaITCase {
         testResult(tableEnv.toDataStream(table, ComplexPojo.class), pojos);
     }
 
-    @Test
+    @TestTemplate
     void testFromAndToDataStreamWithRaw() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -329,7 +330,7 @@ public class DataStreamJavaITCase {
                 rawRecords.toArray(new Tuple2[0]));
     }
 
-    @Test
+    @TestTemplate
     void testFromAndToDataStreamEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -391,7 +392,7 @@ public class DataStreamJavaITCase {
                 Row.of("c", 1000));
     }
 
-    @Test
+    @TestTemplate
     void testFromAndToDataStreamBypassConversion() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -404,7 +405,7 @@ public class DataStreamJavaITCase {
         testResult(convertedDataStream, Row.of(1L, "a"));
     }
 
-    @Test
+    @TestTemplate
     void testFromAndToChangelogStreamEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -460,7 +461,7 @@ public class DataStreamJavaITCase {
                 Row.of("C", 1000));
     }
 
-    @Test
+    @TestTemplate
     void testFromAndToChangelogStreamRetract() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -508,7 +509,7 @@ public class DataStreamJavaITCase {
         testResult(tableEnv.toChangelogStream(result), getOutput(inputOrOutput));
     }
 
-    @Test
+    @TestTemplate
     void testFromChangelogStreamUpsert() {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -547,7 +548,7 @@ public class DataStreamJavaITCase {
         testResult(result.execute(), getOutput(inputOrOutput));
     }
 
-    @Test
+    @TestTemplate
     void testFromAndToChangelogStreamUpsert() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -588,7 +589,7 @@ public class DataStreamJavaITCase {
                 getOutput(inputOrOutput));
     }
 
-    @Test
+    @TestTemplate
     void testToDataStreamCustomEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -649,7 +650,7 @@ public class DataStreamJavaITCase {
         tableConfig.setLocalTimeZone(originalZone);
     }
 
-    @Test
+    @TestTemplate
     void testComplexUnifiedPipelineBatch() {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
@@ -658,7 +659,7 @@ public class DataStreamJavaITCase {
         testResult(resultTable.execute(), Row.of("Bob", 1L), Row.of("Alice", 1L));
     }
 
-    @Test
+    @TestTemplate
     void testTableStreamConversionBatch() throws Exception {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
@@ -691,7 +692,7 @@ public class DataStreamJavaITCase {
                 new Tuple2<>("LILY", 3));
     }
 
-    @Test
+    @TestTemplate
     void testComplexUnifiedPipelineStreaming() {
         final Table resultTable = getComplexUnifiedPipeline(env);
 
@@ -704,7 +705,7 @@ public class DataStreamJavaITCase {
                 Row.of("Alice", 1L));
     }
 
-    @Test
+    @TestTemplate
     void testAttachAsDataStream() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -755,7 +756,7 @@ public class DataStreamJavaITCase {
                 .containsExactlyInAnyOrder("+I[1]", "+I[2]", "+I[3]");
     }
 
-    @Test
+    @TestTemplate
     void testMultiChangelogStreamUpsert() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
@@ -829,7 +830,7 @@ public class DataStreamJavaITCase {
                 resultStream, 0, Row.of(2, null, null, null), Row.of(1, 11.0, "1", "A"));
     }
 
-    @Test
+    @TestTemplate
     void testResourcePropagation() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         assertStreamJarsOf(0);
