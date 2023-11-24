@@ -238,6 +238,26 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
             LoadingCache<Environment, WrappedSdkHarnessClient> cache =
                     cacheBuilder.build(
                             new CacheLoader<Environment, WrappedSdkHarnessClient>() {
+
+                                private void close(ServerInfo serverInfo) {
+                                    try (AutoCloseable provisioningServer =
+                                                    serverInfo.getProvisioningServer();
+                                            AutoCloseable retrievalServer =
+                                                    serverInfo.getRetrievalServer();
+                                            AutoCloseable stateServer =
+                                                    serverInfo.getStateServer();
+                                            AutoCloseable dataServer = serverInfo.getDataServer();
+                                            AutoCloseable controlServer =
+                                                    serverInfo.getControlServer();
+                                            // Close the logging server first to prevent spaming the
+                                            // logs with error messages
+                                            AutoCloseable loggingServer =
+                                                    serverInfo.getLoggingServer()) {
+                                    } catch (Exception e) {
+                                        LOG.warn("Error cleaning up servers {}", serverInfo, e);
+                                    }
+                                }
+
                                 @Override
                                 public WrappedSdkHarnessClient load(Environment environment)
                                         throws Exception {
@@ -259,10 +279,15 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                                                     serverInfo.getProvisioningServer(),
                                                     clientPool,
                                                     stageIdGenerator);
-                                    return WrappedSdkHarnessClient.wrapping(
-                                            environmentFactory.createEnvironment(
-                                                    environment, workerId),
-                                            serverInfo);
+                                    try {
+                                        return WrappedSdkHarnessClient.wrapping(
+                                                environmentFactory.createEnvironment(
+                                                        environment, workerId),
+                                                serverInfo);
+                                    } catch (Exception e) {
+                                        close(serverInfo);
+                                        throw e;
+                                    }
                                 }
                             });
 
