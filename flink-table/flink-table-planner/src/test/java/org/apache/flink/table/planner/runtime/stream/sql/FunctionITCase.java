@@ -36,6 +36,8 @@ import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -1142,6 +1144,28 @@ public class FunctionITCase extends StreamingTestBase {
 
     @Test
     void testLookupTableFunction() throws ExecutionException, InterruptedException {
+        testLookupTableFunctionBase(LookupTableFunction.class.getName());
+    }
+
+    @Test
+    void testLookupTableFunctionWithHintLevel1() throws ExecutionException, InterruptedException {
+        testLookupTableFunctionBase(LookupTableWithHintLevel1Function.class.getName());
+    }
+
+    @Test
+    void testLookupTableFunctionWithoutHintLevel0()
+            throws ExecutionException, InterruptedException {
+        testLookupTableFunctionBase(LookupTableWithoutHintLevel0Function.class.getName());
+    }
+
+    @Test
+    void testLookupTableFunctionWithoutHintLevel1()
+            throws ExecutionException, InterruptedException {
+        testLookupTableFunctionBase(LookupTableWithoutHintLevel1Function.class.getName());
+    }
+
+    private void testLookupTableFunctionBase(String lookupTableFunctionClassName)
+            throws ExecutionException, InterruptedException {
         final List<Row> sourceData = Arrays.asList(Row.of("Bob"), Row.of("Alice"));
 
         final List<Row> sinkData =
@@ -1171,7 +1195,7 @@ public class FunctionITCase extends StreamingTestBase {
                                 + "WITH ("
                                 + "  'connector' = 'values',"
                                 + "  'lookup-function-class' = '"
-                                + LookupTableFunction.class.getName()
+                                + lookupTableFunctionClassName
                                 + "'"
                                 + ")");
 
@@ -1697,6 +1721,38 @@ public class FunctionITCase extends StreamingTestBase {
         public void eval(@DataTypeHint("STRING") StringData s) {
             collect(Row.of(s.toString(), new byte[0]));
             collect(Row.of(s.toString(), s.toBytes()));
+        }
+    }
+
+    public static class LookupTableWithHintLevel1Function extends LookupTableFunction {
+        public void eval(@DataTypeHint("STRING") StringData s) {
+            super.eval(s);
+        }
+    }
+
+    /** This is an empty synchronous table function. */
+    private static class LookupTableLevel0Function<T> extends TableFunction<T> {}
+
+    /**
+     * Synchronous table function that uses {@link RowData} type for {@link LookupTableSource} and
+     * inherits {@link TableFunction} at multiple levels.
+     */
+    public static class LookupTableWithoutHintLevel1Function
+            extends LookupTableLevel0Function<RowData> {
+        public void eval(@DataTypeHint("STRING") StringData s) {
+            collect(GenericRowData.of(StringData.fromString(s.toString()), new byte[0]));
+            collect(GenericRowData.of(StringData.fromString(s.toString()), s.toBytes()));
+        }
+    }
+
+    /**
+     * Synchronous table function that uses {@link RowData} type for {@link LookupTableSource} and
+     * inherits {@link TableFunction} at one level.
+     */
+    public static class LookupTableWithoutHintLevel0Function extends TableFunction<RowData> {
+        public void eval(@DataTypeHint("STRING") StringData s) {
+            collect(GenericRowData.of(StringData.fromString(s.toString()), new byte[0]));
+            collect(GenericRowData.of(StringData.fromString(s.toString()), s.toBytes()));
         }
     }
 
