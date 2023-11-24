@@ -38,6 +38,7 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import org.jetbrains.annotations.NotNull;
 import org.jline.terminal.Terminal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -186,13 +187,8 @@ class CliTableauResultViewTest {
 
         ResultDescriptor resultDescriptor =
                 new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
-        TestChangelogResult collectResult =
-                new TestChangelogResult(
-                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
-                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
-                        TypedResult::endOfStream);
         CliTableauResultView view =
-                new CliTableauResultView(terminal, resultDescriptor, collectResult);
+                new CliTableauResultView(terminal, resultDescriptor, createTestChangelogResult());
         view.displayResults();
         assertThat(terminalOutput)
                 .hasToString(
@@ -226,11 +222,7 @@ class CliTableauResultViewTest {
         // adjust the max column width for printing
         testConfig.set(DISPLAY_MAX_COLUMN_WIDTH, 80);
 
-        collectResult =
-                new TestChangelogResult(
-                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
-                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
-                        TypedResult::endOfStream);
+        TestChangelogResult collectResult = createTestChangelogResult();
         view = new CliTableauResultView(terminal, resultDescriptor, collectResult);
         view.displayResults();
         assertThat(terminalOutput.toString()).contains("abcdefghijklmnopqrstuvwxyz12345");
@@ -322,11 +314,7 @@ class CliTableauResultViewTest {
 
         ResultDescriptor resultDescriptor =
                 new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
-        TestChangelogResult collectResult =
-                new TestChangelogResult(
-                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
-                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
-                        TypedResult::endOfStream);
+        TestChangelogResult collectResult = createTestChangelogResult();
         CliTableauResultView view =
                 new CliTableauResultView(terminal, resultDescriptor, collectResult);
         view.displayResults();
@@ -369,11 +357,7 @@ class CliTableauResultViewTest {
         // adjust the max column width for printing
         testConfig.set(DISPLAY_MAX_COLUMN_WIDTH, 80);
 
-        collectResult =
-                new TestChangelogResult(
-                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
-                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
-                        TypedResult::endOfStream);
+        collectResult = createTestChangelogResult();
         view = new CliTableauResultView(terminal, resultDescriptor, collectResult);
         view.displayResults();
         assertThat(terminalOutput.toString()).contains("abcdefghijklmnopqrstuvwxyz12345");
@@ -480,6 +464,16 @@ class CliTableauResultViewTest {
                 .satisfies(anyCauseMatches(SqlExecutionException.class, "query failed"));
         view.close();
         assertThat(changelogResult.closed).isTrue();
+    }
+
+    @NotNull
+    private TestChangelogResult createTestChangelogResult() {
+        TestChangelogResult collectResult =
+                new TestChangelogResult(
+                        () -> TypedResult.payload(data.subList(0, data.size() / 2)),
+                        () -> TypedResult.payload(data.subList(data.size() / 2, data.size())),
+                        TypedResult::endOfStream);
+        return collectResult;
     }
 
     private static class TestChangelogResult implements ChangelogResult {
