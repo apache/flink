@@ -24,7 +24,7 @@ import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.runtime.generated.Projection
 import org.apache.flink.table.types.logical.{BigIntType, DecimalType, IntType, RowType, TimestampType}
 
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 import scala.util.Random
 
@@ -46,8 +46,8 @@ class ProjectionCodeGeneratorTest {
       .newInstance(classLoader)
       .asInstanceOf[Projection[RowData, BinaryRowData]]
     val row: BinaryRowData = projection.apply(GenericRowData.of(ji(5), jl(8)))
-    Assert.assertEquals(5, row.getInt(1))
-    Assert.assertEquals(8, row.getLong(0))
+    Assertions.assertEquals(5, row.getInt(1))
+    Assertions.assertEquals(8, row.getLong(0))
   }
 
   @Test
@@ -64,8 +64,8 @@ class ProjectionCodeGeneratorTest {
       .newInstance(classLoader)
       .asInstanceOf[Projection[RowData, GenericRowData]]
     val row: GenericRowData = projection.apply(GenericRowData.of(ji(5), jl(8)))
-    Assert.assertEquals(5, row.getInt(1))
-    Assert.assertEquals(8, row.getLong(0))
+    Assertions.assertEquals(5, row.getInt(1))
+    Assertions.assertEquals(8, row.getLong(0))
   }
 
   @Test
@@ -85,7 +85,7 @@ class ProjectionCodeGeneratorTest {
     val input = GenericRowData.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
     val row = projection.apply(input)
     for (i <- 0 until 100) {
-      Assert.assertEquals(input.getInt(i), row.getInt(i))
+      Assertions.assertEquals(input.getInt(i), row.getInt(i))
     }
   }
 
@@ -107,7 +107,7 @@ class ProjectionCodeGeneratorTest {
     val input = GenericRowData.of((0 until 100).map(_ => ji(rnd.nextInt())).toArray: _*)
     val row = projection.apply(input)
     for (i <- 0 until 100) {
-      Assert.assertEquals(input.getInt(i), row.getInt(i))
+      Assertions.assertEquals(input.getInt(i), row.getInt(i))
     }
   }
 
@@ -135,7 +135,7 @@ class ProjectionCodeGeneratorTest {
     writer.complete()
 
     val actual: BinaryRowData = projection.apply(GenericRowData.of(decimal, decimal, timestamp))
-    Assert.assertEquals(expected, actual)
+    Assertions.assertEquals(expected, actual)
   }
 
   def ji(i: Int): Integer = {

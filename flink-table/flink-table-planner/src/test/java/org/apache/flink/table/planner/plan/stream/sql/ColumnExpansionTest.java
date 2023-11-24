@@ -22,8 +22,8 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.TableConfigOptions;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,12 +34,12 @@ import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_COLUMN_
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TableConfigOptions#TABLE_COLUMN_EXPANSION_STRATEGY}. */
-public class ColumnExpansionTest {
+class ColumnExpansionTest {
 
     private TableEnvironment tableEnv;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         tableEnv.executeSql(
@@ -83,7 +83,7 @@ public class ColumnExpansionTest {
     }
 
     @Test
-    public void testExcludeDefaultVirtualMetadataColumns() {
+    void testExcludeDefaultVirtualMetadataColumns() {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
@@ -154,7 +154,7 @@ public class ColumnExpansionTest {
     }
 
     @Test
-    public void testExcludeAliasedVirtualMetadataColumns() {
+    void testExcludeAliasedVirtualMetadataColumns() {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
@@ -220,7 +220,7 @@ public class ColumnExpansionTest {
     }
 
     @Test
-    public void testExcludeViaView() {
+    void testExcludeViaView() {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
@@ -234,7 +234,7 @@ public class ColumnExpansionTest {
     }
 
     @Test
-    public void testExplicitTableWithinTableFunction() {
+    void testExplicitTableWithinTableFunction() {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,
@@ -261,7 +261,7 @@ public class ColumnExpansionTest {
     }
 
     @Test
-    public void testExplicitTableWithinTableFunctionWithInsertIntoNamedColumns() {
+    void testExplicitTableWithinTableFunctionWithInsertIntoNamedColumns() {
         tableEnv.getConfig()
                 .set(
                         TABLE_COLUMN_EXPANSION_STRATEGY,

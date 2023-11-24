@@ -22,7 +22,8 @@ import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api.TableException
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.junit.jupiter.api.Test
 
 class PatternTranslatorTest extends PatternTranslatorTestBase {
 
@@ -292,139 +293,150 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
     )
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testWithinClauseWithYearMonthResolution(): Unit = {
-    verifyPattern(
-      """MATCH_RECOGNIZE (
-        |  ORDER BY proctime
-        |  MEASURES
-        |    A.f0 AS aid
-        |  PATTERN (A B) WITHIN INTERVAL '2-10' YEAR TO MONTH
-        |  DEFINE
-        |    A as A.f0 = 1
-        |) AS T
-        |""".stripMargin,
-      null /* don't care */
-    )
+    assertThatThrownBy(
+      () =>
+        verifyPattern(
+          """MATCH_RECOGNIZE (
+            |  ORDER BY proctime
+            |  MEASURES
+            |    A.f0 AS aid
+            |  PATTERN (A B) WITHIN INTERVAL '2-10' YEAR TO MONTH
+            |  DEFINE
+            |    A as A.f0 = 1
+            |) AS T
+            |""".stripMargin,
+          null /* don't care */
+        )).isInstanceOf(classOf[TableException])
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testReluctantOptionalNotSupported(): Unit = {
-    verifyPattern(
-      """MATCH_RECOGNIZE (
-        |   ORDER BY proctime
-        |   MEASURES
-        |     A.f0 as aF0
-        |   PATTERN (A?? B)
-        |   DEFINE
-        |     A as A.f0 = 1
-        |)""".stripMargin,
-      null /* don't care */
-    )
+    assertThatThrownBy(
+      () =>
+        verifyPattern(
+          """MATCH_RECOGNIZE (
+            |   ORDER BY proctime
+            |   MEASURES
+            |     A.f0 as aF0
+            |   PATTERN (A?? B)
+            |   DEFINE
+            |     A as A.f0 = 1
+            |)""".stripMargin,
+          null /* don't care */
+        )).isInstanceOf(classOf[TableException])
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testGroupPatternsAreNotSupported(): Unit = {
-    verifyPattern(
-      """MATCH_RECOGNIZE (
-        |   ORDER BY proctime
-        |   MEASURES
-        |     A.f0 as aF0
-        |   PATTERN ((A B)+ C)
-        |   DEFINE
-        |     A as A.f0 = 1
-        |)""".stripMargin,
-      null /* don't care */
-    )
+    assertThatThrownBy(
+      () =>
+        verifyPattern(
+          """MATCH_RECOGNIZE (
+            |   ORDER BY proctime
+            |   MEASURES
+            |     A.f0 as aF0
+            |   PATTERN ((A B)+ C)
+            |   DEFINE
+            |     A as A.f0 = 1
+            |)""".stripMargin,
+          null /* don't care */
+        )).isInstanceOf(classOf[TableException])
   }
 
   @Test
   def testPermutationsAreNotSupported(): Unit = {
-    thrown.expectMessage("Currently, CEP doesn't support PERMUTE patterns.")
-    thrown.expect(classOf[TableException])
-
-    verifyPattern(
-      """MATCH_RECOGNIZE (
-        |   ORDER BY proctime
-        |   MEASURES
-        |     A.f0 AS aF0
-        |   PATTERN (PERMUTE(A  C))
-        |   DEFINE
-        |     A AS A.f0 = 1
-        |)""".stripMargin,
-      null /* don't care */
-    )
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(
+        () =>
+          verifyPattern(
+            """MATCH_RECOGNIZE (
+              |   ORDER BY proctime
+              |   MEASURES
+              |     A.f0 AS aF0
+              |   PATTERN (PERMUTE(A  C))
+              |   DEFINE
+              |     A AS A.f0 = 1
+              |)""".stripMargin,
+            null /* don't care */
+          ))
+      .withMessageContaining("Currently, CEP doesn't support PERMUTE patterns.")
   }
 
   @Test
   def testExclusionsAreNotSupported(): Unit = {
-    thrown.expectMessage("Currently, CEP doesn't support '{-' '-}' patterns.")
-    thrown.expect(classOf[TableException])
-
-    verifyPattern(
-      """MATCH_RECOGNIZE (
-        |   ORDER BY proctime
-        |   MEASURES
-        |     A.f0 AS aF0
-        |   PATTERN (A { - B - }  C)
-        |   DEFINE
-        |     A AS A.f0 = 1
-        |)""".stripMargin,
-      null /* don't care */
-    )
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(
+        () =>
+          verifyPattern(
+            """MATCH_RECOGNIZE (
+              |   ORDER BY proctime
+              |   MEASURES
+              |     A.f0 AS aF0
+              |   PATTERN (A { - B - }  C)
+              |   DEFINE
+              |     A AS A.f0 = 1
+              |)""".stripMargin,
+            null /* don't care */
+          ))
+      .withMessageContaining("Currently, CEP doesn't support '{-' '-}' patterns.")
   }
 
   @Test
   def testAlternationsAreNotSupported(): Unit = {
-    thrown.expectMessage("Currently, CEP doesn't support branching patterns.")
-    thrown.expect(classOf[TableException])
-
-    verifyPattern(
-      """MATCH_RECOGNIZE (
-        |   ORDER BY proctime
-        |   MEASURES
-        |     A.f0 AS aF0
-        |   PATTERN (( A | B )  C)
-        |   DEFINE
-        |     A AS A.f0 = 1
-        |)""".stripMargin,
-      null /* don't care */
-    )
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(
+        () =>
+          verifyPattern(
+            """MATCH_RECOGNIZE (
+              |   ORDER BY proctime
+              |   MEASURES
+              |     A.f0 AS aF0
+              |   PATTERN (( A | B )  C)
+              |   DEFINE
+              |     A AS A.f0 = 1
+              |)""".stripMargin,
+            null /* don't care */
+          ))
+      .withMessageContaining("Currently, CEP doesn't support branching patterns.")
   }
 
   @Test
   def testPhysicalOffsetsAreNotSupported(): Unit = {
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Flink does not support physical offsets within partition.")
-
-    verifyPattern(
-      """MATCH_RECOGNIZE (
-        |   ORDER BY proctime
-        |   MEASURES
-        |     A.f0 AS aF0
-        |   PATTERN (A)
-        |   DEFINE
-        |     A AS PREV(A.f0) = 1
-        |)""".stripMargin,
-      null /* don't care */
-    )
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(
+        () =>
+          verifyPattern(
+            """MATCH_RECOGNIZE (
+              |   ORDER BY proctime
+              |   MEASURES
+              |     A.f0 AS aF0
+              |   PATTERN (A)
+              |   DEFINE
+              |     A AS PREV(A.f0) = 1
+              |)""".stripMargin,
+            null /* don't care */
+          ))
+      .withMessageContaining("Flink does not support physical offsets within partition.")
   }
 
   @Test
   def testPatternVariablesMustBeUnique(): Unit = {
-    thrown.expectMessage("Pattern variables must be unique. That might change in the future.")
-    thrown.expect(classOf[TableException])
-
-    verifyPattern(
-      """MATCH_RECOGNIZE (
-        |   ORDER BY proctime
-        |   MEASURES
-        |     A.f0 AS aF0
-        |   PATTERN (A B A)
-        |   DEFINE
-        |     A AS A.f0 = 1
-        |)""".stripMargin,
-      null /* don't care */
-    )
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(
+        () =>
+          verifyPattern(
+            """MATCH_RECOGNIZE (
+              |   ORDER BY proctime
+              |   MEASURES
+              |     A.f0 AS aF0
+              |   PATTERN (A B A)
+              |   DEFINE
+              |     A AS A.f0 = 1
+              |)""".stripMargin,
+            null /* don't care */
+          ))
+      .withMessageContaining("Pattern variables must be unique. That might change in the future.")
   }
 }

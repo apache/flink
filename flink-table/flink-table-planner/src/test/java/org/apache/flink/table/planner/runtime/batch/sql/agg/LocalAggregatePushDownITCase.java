@@ -26,16 +26,16 @@ import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.types.Row;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 
 /** Test for local aggregate push down. */
-public class LocalAggregatePushDownITCase extends BatchTestBase {
+class LocalAggregatePushDownITCase extends BatchTestBase {
 
-    @Before
+    @BeforeEach
     public void before() throws Exception {
         super.before();
         env().setParallelism(1); // set sink parallelism to 1
@@ -114,7 +114,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalHashAggWithGroup() {
+    void testPushDownLocalHashAggWithGroup() {
         checkResult(
                 "SELECT\n"
                         + "  avg(deposit) as avg_dep,\n"
@@ -131,7 +131,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testDisablePushDownLocalAgg() {
+    void testDisablePushDownLocalAgg() {
         // disable push down local agg
         tEnv().getConfig()
                 .set(
@@ -154,7 +154,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalHashAggWithoutGroup() {
+    void testPushDownLocalHashAggWithoutGroup() {
         checkResult(
                 "SELECT\n"
                         + "  avg(deposit),\n"
@@ -167,7 +167,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalSortAggWithoutSort() {
+    void testPushDownLocalSortAggWithoutSort() {
         // enable sort agg
         tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
 
@@ -183,7 +183,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalSortAggWithSort() {
+    void testPushDownLocalSortAggWithSort() {
         // enable sort agg
         tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
 
@@ -210,7 +210,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalAggAfterFilterPushDown() {
+    void testPushDownLocalAggAfterFilterPushDown() {
         checkResult(
                 "SELECT\n"
                         + "  avg(deposit),\n"
@@ -228,7 +228,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalAggWithMetadata() {
+    void testPushDownLocalAggWithMetadata() {
         checkResult(
                 "SELECT\n"
                         + "  sum(metadata_1),\n"
@@ -246,7 +246,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalAggWithPartition() {
+    void testPushDownLocalAggWithPartition() {
         checkResult(
                 "SELECT\n"
                         + "  sum(deposit),\n"
@@ -270,7 +270,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalAggWithoutProjectionPushDown() {
+    void testPushDownLocalAggWithoutProjectionPushDown() {
         checkResult(
                 "SELECT\n"
                         + "  avg(deposit),\n"
@@ -288,7 +288,7 @@ public class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
-    public void testPushDownLocalAggWithoutAuxGrouping() {
+    void testPushDownLocalAggWithoutAuxGrouping() {
         // enable two-phase aggregate, otherwise there is no local aggregate
         tEnv().getConfig()
                 .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");

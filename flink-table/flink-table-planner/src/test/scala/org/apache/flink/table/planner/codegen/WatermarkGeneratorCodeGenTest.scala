@@ -30,17 +30,17 @@ import org.apache.flink.table.planner.utils.PlannerMocks
 import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
 import org.apache.flink.table.utils.CatalogManagerMocks
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
-import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{Test, TestTemplate}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.util
 
 /** Tests the generated [[WatermarkGenerator]] from [[WatermarkGeneratorCodeGenerator]]. */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
   val plannerMocks = PlannerMocks.create()
 
@@ -55,7 +55,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
     GenericRowData.of(TimestampData.fromEpochMillis(6000L), JInt.valueOf(8))
   )
 
-  @Test
+  @TestTemplate
   def testAscendingWatermark(): Unit = {
     val generator =
       generateWatermarkGenerator("ts - INTERVAL '0.001' SECOND", useDefinedConstructor)
@@ -70,7 +70,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
     assertEquals(expected, results)
   }
 
-  @Test
+  @TestTemplate
   def testBoundedOutOfOrderWatermark(): Unit = {
     val generator = generateWatermarkGenerator("ts - INTERVAL '5' SECOND", useDefinedConstructor)
     val results = data.map(d => generator.currentWatermark(d))
@@ -84,12 +84,12 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
     assertEquals(expected, results)
   }
 
-  @Test
+  @TestTemplate
   def testLegacyCustomizedWatermark(): Unit = {
     testCustomizedWatermark(true)
   }
 
-  @Test
+  @TestTemplate
   def testCustomizedWatermark(): Unit = {
     testCustomizedWatermark(false)
   }
@@ -182,7 +182,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
 }
 
 object WatermarkGeneratorCodeGenTest {
-  @Parameterized.Parameters(name = "useDefinedConstructor={0}")
+  @Parameters(name = "useDefinedConstructor={0}")
   def parameters(): util.Collection[Boolean] = {
     util.Arrays.asList(
       true,
