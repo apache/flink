@@ -44,11 +44,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
 import org.apache.flink.test.util.MigrationTest;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -63,18 +65,18 @@ import static org.junit.Assert.assertEquals;
  * Migration ITCases for a stateful job. The tests are parameterized to cover migrating for multiple
  * previous Flink versions, as well as for different state backends.
  */
-@RunWith(Parameterized.class)
-public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBase
+@ExtendWith(ParameterizedTestExtension.class)
+class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBase
         implements MigrationTest {
 
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
-    @Parameterized.Parameters(name = "Test snapshot: {0}")
-    public static Collection<SnapshotSpec> createSpecsForTestRuns() {
+    @Parameters(name = "Test snapshot: {0}")
+    private static Collection<SnapshotSpec> createSpecsForTestRuns() {
         return internalParameters(null);
     }
 
-    public static Collection<SnapshotSpec> createSpecsForTestDataGeneration(
+    private static Collection<SnapshotSpec> createSpecsForTestDataGeneration(
             FlinkVersion targetVersion) {
         return internalParameters(targetVersion);
     }
@@ -143,19 +145,15 @@ public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBas
         return parameters;
     }
 
-    private final SnapshotSpec snapshotSpec;
-
-    public StatefulJobSnapshotMigrationITCase(SnapshotSpec snapshotSpec) throws Exception {
-        this.snapshotSpec = snapshotSpec;
-    }
+    @Parameter private SnapshotSpec snapshotSpec;
 
     @ParameterizedSnapshotsGenerator("createSpecsForTestDataGeneration")
-    public void generateSnapshots(SnapshotSpec snapshotSpec) throws Exception {
+    private void generateSnapshots(SnapshotSpec snapshotSpec) throws Exception {
         testOrCreateSavepoint(ExecutionMode.CREATE_SNAPSHOT, snapshotSpec);
     }
 
-    @Test
-    public void testSavepoint() throws Exception {
+    @TestTemplate
+    void testSavepoint() throws Exception {
         testOrCreateSavepoint(ExecutionMode.VERIFY_SNAPSHOT, snapshotSpec);
     }
 

@@ -26,7 +26,6 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend
@@ -42,11 +41,12 @@ import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase.{ExecutionMode, SnapshotSpec, SnapshotType}
 import org.apache.flink.test.util.MigrationTest
 import org.apache.flink.test.util.MigrationTest.ParameterizedSnapshotsGenerator
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 import org.apache.flink.util.Collector
 
-import org.junit.{Assert, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import javax.annotation.Nullable
 
@@ -58,7 +58,7 @@ import scala.util.{Failure, Try}
 
 object StatefulJobWBroadcastStateMigrationITCase {
 
-  @Parameterized.Parameters(name = "Test snapshot: {0}")
+  @Parameters(name = "Test snapshot: {0}")
   def createSpecsForTestRuns: util.Collection[SnapshotSpec] =
     internalParameters(null)
 
@@ -156,11 +156,14 @@ object StatefulJobWBroadcastStateMigrationITCase {
 }
 
 /** ITCase for migration Scala state types across different Flink versions. */
-@RunWith(classOf[Parameterized])
-class StatefulJobWBroadcastStateMigrationITCase(snapshotSpec: SnapshotSpec)
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class StatefulJobWBroadcastStateMigrationITCase
   extends SnapshotMigrationTestBase
   with Serializable
   with MigrationTest {
+
+  @Parameter
+  var snapshotSpec: SnapshotSpec = _
 
   /** Generates all the required states. */
   @ParameterizedSnapshotsGenerator("createSpecsForTestDataGeneration")
@@ -168,7 +171,7 @@ class StatefulJobWBroadcastStateMigrationITCase(snapshotSpec: SnapshotSpec)
     testOrCreateSavepointWithBroadcast(ExecutionMode.CREATE_SNAPSHOT, snapshotSpec)
   }
 
-  @Test
+  @TestTemplate
   def testSavepointWithBroadcast(): Unit = {
     testOrCreateSavepointWithBroadcast(ExecutionMode.VERIFY_SNAPSHOT, snapshotSpec)
   }
@@ -483,20 +486,20 @@ class VerifyingBroadcastProcessFunction(
     import scala.collection.JavaConversions._
     for (entry <- ctx.getBroadcastState(firstBroadcastStateDesc).immutableEntries()) {
       val v = firstExpectedBroadcastState.get(entry.getKey).get
-      Assert.assertEquals(v, entry.getValue)
+      assertThat(v).isEqualTo(entry.getValue)
       actualFirstState += (entry.getKey -> entry.getValue)
     }
 
-    Assert.assertEquals(firstExpectedBroadcastState, actualFirstState)
+    assertThat(actualFirstState).isEqualTo(firstExpectedBroadcastState)
 
     var actualSecondState = Map[String, String]()
     for (entry <- ctx.getBroadcastState(secondBroadcastStateDesc).immutableEntries()) {
       val v = secondExpectedBroadcastState.get(entry.getKey).get
-      Assert.assertEquals(v, entry.getValue)
+      assertThat(v).isEqualTo(entry.getValue)
       actualSecondState += (entry.getKey -> entry.getValue)
     }
 
-    Assert.assertEquals(secondExpectedBroadcastState, actualSecondState)
+    assertThat(actualSecondState).isEqualTo(secondExpectedBroadcastState)
     out.collect(value)
   }
 

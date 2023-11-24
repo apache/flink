@@ -34,23 +34,34 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.api.extension.ParameterResolutionException;
+import org.junit.jupiter.api.extension.ParameterResolver;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -60,8 +71,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test savepoint migration. */
 
@@ -69,15 +79,25 @@ import static org.junit.Assert.fail;
  * Base for testing snapshot migration. The base test supports snapshots types as defined in {@link
  * SnapshotType}.
  */
-public abstract class SnapshotMigrationTestBase extends TestLogger {
-
-    @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
-
-    @Rule public final MiniClusterWithClientResource miniClusterResource;
+@ExtendWith(SnapshotMigrationTestBase.MiniClusterEachCallbackExtension.class)
+public abstract class SnapshotMigrationTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(SnapshotMigrationTestBase.class);
 
     protected static final int DEFAULT_PARALLELISM = 4;
+
+    @TempDir protected static Path tempFolder;
+
+    protected MiniCluster cluster;
+    protected ClusterClient<?> client;
+
+    @BeforeEach
+    void before(
+            @InjectMiniCluster MiniCluster miniCluster,
+            @InjectClusterClient ClusterClient<?> clusterClient) {
+        cluster = miniCluster;
+        client = clusterClient;
+    }
 
     /**
      * Modes for migration test execution. This enum is supposed to serve as a switch between two
@@ -219,17 +239,7 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         return resource.getFile();
     }
 
-    protected SnapshotMigrationTestBase() throws Exception {
-        miniClusterResource =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setConfiguration(getConfiguration())
-                                .setNumberTaskManagers(1)
-                                .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-                                .build());
-    }
-
-    private Configuration getConfiguration() throws Exception {
+    private static Configuration getConfiguration() throws RuntimeException {
         // Flink configuration
         final Configuration config = new Configuration();
 
@@ -237,11 +247,15 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, DEFAULT_PARALLELISM);
 
         UUID id = UUID.randomUUID();
-        final File checkpointDir = TEMP_FOLDER.newFolder("checkpoints_" + id).getAbsoluteFile();
-        final File savepointDir = TEMP_FOLDER.newFolder("savepoints_" + id).getAbsoluteFile();
 
-        if (!checkpointDir.exists() || !savepointDir.exists()) {
-            throw new Exception("Test setup failed: failed to create (temporary) directories.");
+        final File checkpointDir, savepointDir;
+        try {
+            checkpointDir =
+                    TempDirUtils.newFolder(tempFolder, "checkpoints_" + id).getAbsoluteFile();
+            savepointDir = TempDirUtils.newFolder(tempFolder, "savepoints_" + id).getAbsoluteFile();
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Test setup failed: failed to create (temporary) directories.");
         }
 
         LOG.info("Created temporary checkpoint directory: " + checkpointDir + ".");
@@ -266,8 +280,6 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
             throws Exception {
 
         final Deadline deadLine = Deadline.fromNow(Duration.ofMinutes(5));
-
-        ClusterClient<?> client = miniClusterResource.getClusterClient();
 
         // TODO [FLINK-29802] Remove this after ChangelogStateBackend supports native savepoint.
         if (snapshotType == SnapshotType.SAVEPOINT_NATIVE) {
@@ -306,9 +318,9 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
             }
         }
 
-        if (!done) {
-            fail("Did not see the expected accumulator results within time limit.");
-        }
+        assertThat(done)
+                .as("Did not see the expected accumulator results within time limit.")
+                .isTrue();
 
         LOG.info("Triggering snapshot.");
 
@@ -323,7 +335,7 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
                         client.triggerSavepoint(jobID, null, SavepointFormatType.NATIVE);
                 break;
             case CHECKPOINT:
-                snapshotPathFuture = miniClusterResource.getMiniCluster().triggerCheckpoint(jobID);
+                snapshotPathFuture = cluster.triggerCheckpoint(jobID);
                 break;
             default:
                 throw new UnsupportedOperationException("Snapshot type not supported/implemented.");
@@ -350,8 +362,6 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
 
         final Deadline deadLine = Deadline.fromNow(Duration.ofMinutes(5));
 
-        ClusterClient<?> client = miniClusterResource.getClusterClient();
-
         // Submit the job
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
@@ -365,24 +375,20 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
             // try and get a job result, this will fail if the job already failed. Use this
             // to get out of this loop
 
-            try {
-                CompletableFuture<JobStatus> jobStatusFuture = client.getJobStatus(jobID);
+            CompletableFuture<JobStatus> jobStatusFuture = client.getJobStatus(jobID);
 
-                JobStatus jobStatus = jobStatusFuture.get(5, TimeUnit.SECONDS);
+            JobStatus jobStatus = jobStatusFuture.get(5, TimeUnit.SECONDS);
 
-                if (jobStatus == JobStatus.FAILED) {
-                    LOG.warn(
-                            "Job reached status failed",
-                            client.requestJobResult(jobID)
-                                    .get()
-                                    .getSerializedThrowable()
-                                    .get()
-                                    .deserializeError(ClassLoader.getSystemClassLoader()));
-                }
-                assertNotEquals(JobStatus.FAILED, jobStatus);
-            } catch (Exception e) {
-                fail("Could not connect to job: " + e);
+            if (jobStatus == JobStatus.FAILED) {
+                LOG.warn(
+                        "Job reached status failed",
+                        client.requestJobResult(jobID)
+                                .get()
+                                .getSerializedThrowable()
+                                .get()
+                                .deserializeError(ClassLoader.getSystemClassLoader()));
             }
+            assertThat(jobStatus).isNotSameAs(JobStatus.FAILED);
 
             Thread.sleep(100);
             Map<String, Object> accumulators = client.getAccumulators(jobID).get();
@@ -406,8 +412,51 @@ public abstract class SnapshotMigrationTestBase extends TestLogger {
             }
         }
 
-        if (!done) {
-            fail("Did not see the expected accumulator results within time limit.");
+        assertThat(done)
+                .as("Did not see the expected accumulator results within time limit.")
+                .isTrue();
+    }
+
+    /**
+     * An extension that wraps {@link MiniClusterExtension} providing independent MiniCluster
+     * environment for each test case.
+     */
+    static class MiniClusterEachCallbackExtension
+            implements BeforeEachCallback, AfterEachCallback, ParameterResolver {
+
+        private final MiniClusterExtension miniClusterExtension =
+                new MiniClusterExtension(
+                        () ->
+                                new MiniClusterResourceConfiguration.Builder()
+                                        .setConfiguration(getConfiguration())
+                                        .setNumberTaskManagers(1)
+                                        .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                                        .build());
+
+        @Override
+        public void beforeEach(ExtensionContext context) throws Exception {
+            miniClusterExtension.beforeAll(context);
+            miniClusterExtension.beforeEach(context);
+        }
+
+        @Override
+        public void afterEach(ExtensionContext context) throws Exception {
+            miniClusterExtension.afterEach(context);
+            miniClusterExtension.afterAll(context);
+        }
+
+        @Override
+        public boolean supportsParameter(
+                ParameterContext parameterContext, ExtensionContext extensionContext)
+                throws ParameterResolutionException {
+            return miniClusterExtension.supportsParameter(parameterContext, extensionContext);
+        }
+
+        @Override
+        public Object resolveParameter(
+                ParameterContext parameterContext, ExtensionContext extensionContext)
+                throws ParameterResolutionException {
+            return miniClusterExtension.resolveParameter(parameterContext, extensionContext);
         }
     }
 }

@@ -25,7 +25,6 @@ import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
-import org.apache.flink.configuration.Configuration
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend
@@ -40,11 +39,11 @@ import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase.{ExecutionMode, SnapshotSpec, SnapshotType}
 import org.apache.flink.test.util.MigrationTest
 import org.apache.flink.test.util.MigrationTest.ParameterizedSnapshotsGenerator
+import org.apache.flink.testutils.junit.extensions.parameterized.{Parameter, ParameterizedTestExtension, Parameters}
 import org.apache.flink.util.Collector
 
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import javax.annotation.Nullable
 
@@ -56,7 +55,7 @@ import scala.util.{Failure, Try}
 
 object StatefulJobSavepointMigrationITCase {
 
-  @Parameterized.Parameters(name = "Test snapshot: {0}")
+  @Parameters(name = "Test snapshot: {0}")
   def createSpecsForTestRuns: util.Collection[SnapshotSpec] =
     internalParameters(null)
 
@@ -154,11 +153,14 @@ object StatefulJobSavepointMigrationITCase {
 }
 
 /** ITCase for migration Scala state types across different Flink versions. */
-@RunWith(classOf[Parameterized])
-class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class StatefulJobSavepointMigrationITCase
   extends SnapshotMigrationTestBase
   with Serializable
   with MigrationTest {
+
+  @Parameter
+  var snapshotSpec: SnapshotSpec = _
 
   /** Generates all the required states. */
   @ParameterizedSnapshotsGenerator("createSpecsForTestDataGeneration")
@@ -166,7 +168,7 @@ class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
     testOrCreateSavepoint(ExecutionMode.CREATE_SNAPSHOT, snapshotSpec)
   }
 
-  @Test
+  @TestTemplate
   def testSavepoint(): Unit = {
     testOrCreateSavepoint(ExecutionMode.VERIFY_SNAPSHOT, snapshotSpec)
   }

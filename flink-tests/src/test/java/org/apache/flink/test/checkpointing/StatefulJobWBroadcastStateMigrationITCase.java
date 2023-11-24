@@ -37,12 +37,13 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
 import org.apache.flink.test.util.MigrationTest;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -53,23 +54,25 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
  * Migration ITCases for a stateful job with broadcast state. The tests are parameterized to
  * (potentially) cover migrating for multiple previous Flink versions, as well as for different
  * state backends.
  */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigrationTestBase
         implements MigrationTest {
 
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
-    @Parameterized.Parameters(name = "Test snapshot: {0}")
-    public static Collection<SnapshotSpec> createSpecsForTestRuns() {
+    @Parameters(name = "Test snapshot: {0}")
+    private static Collection<SnapshotSpec> createSpecsForTestRuns() {
         return internalParameters(null);
     }
 
-    public static Collection<SnapshotSpec> createSpecsForTestDataGeneration(
+    private static Collection<SnapshotSpec> createSpecsForTestDataGeneration(
             FlinkVersion targetVersion) {
         return internalParameters(targetVersion);
     }
@@ -138,19 +141,15 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
         return parameters;
     }
 
-    private final SnapshotSpec snapshotSpec;
-
-    public StatefulJobWBroadcastStateMigrationITCase(SnapshotSpec snapshotSpec) throws Exception {
-        this.snapshotSpec = snapshotSpec;
-    }
+    @Parameter private SnapshotSpec snapshotSpec;
 
     @ParameterizedSnapshotsGenerator("createSpecsForTestDataGeneration")
-    public void generateSnapshots(SnapshotSpec snapshotSpec) throws Exception {
+    private void generateSnapshots(SnapshotSpec snapshotSpec) throws Exception {
         testOrCreateSavepoint(ExecutionMode.CREATE_SNAPSHOT, snapshotSpec);
     }
 
-    @Test
-    public void testSavepoint() throws Exception {
+    @TestTemplate
+    void testSavepoint() throws Exception {
         testOrCreateSavepoint(ExecutionMode.VERIFY_SNAPSHOT, snapshotSpec);
     }
 
@@ -482,14 +481,14 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
                     ctx.getBroadcastState(firstStateDesc).immutableEntries()) {
                 actualFirstState.put(entry.getKey(), entry.getValue());
             }
-            Assert.assertEquals(expectedFirstState, actualFirstState);
+            assertThat(actualFirstState).isEqualTo(expectedFirstState);
 
             final Map<String, Long> actualSecondState = new HashMap<>();
             for (Map.Entry<String, Long> entry :
                     ctx.getBroadcastState(secondStateDesc).immutableEntries()) {
                 actualSecondState.put(entry.getKey(), entry.getValue());
             }
-            Assert.assertEquals(expectedSecondState, actualSecondState);
+            assertThat(actualSecondState).isEqualTo(expectedSecondState);
 
             out.collect(value);
         }
@@ -540,7 +539,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SnapshotMigration
                     ctx.getBroadcastState(stateDesc).immutableEntries()) {
                 actualState.put(entry.getKey(), entry.getValue());
             }
-            Assert.assertEquals(expectedState, actualState);
+            assertThat(actualState).isEqualTo(expectedState);
 
             out.collect(value);
         }
