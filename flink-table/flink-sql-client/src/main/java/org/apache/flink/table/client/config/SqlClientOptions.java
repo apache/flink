@@ -70,6 +70,14 @@ public class SqlClientOptions {
                                     + "This only applies to columns with variable-length types (e.g. CHAR, VARCHAR, STRING) in streaming mode. "
                                     + "Fixed-length types and all types in batch mode are printed using a deterministic column width.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Boolean> DISPLAY_QUERY_TIME_COST =
+            ConfigOptions.key("sql-client.display.print-time-cost")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Determine whether to display the time consumption of the query. By default, no query time cost will be displayed.");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<String> DISPLAY_DEFAULT_COLOR_SCHEMA =
             ConfigOptions.key("sql-client.display.color-schema")
