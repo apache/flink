@@ -38,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /** Print result in tableau mode. */
 public class CliTableauResultView implements AutoCloseable {
@@ -48,21 +49,26 @@ public class CliTableauResultView implements AutoCloseable {
     private final ChangelogResult collectResult;
     private final ExecutorService displayResultExecutorService;
 
-    public CliTableauResultView(final Terminal terminal, final ResultDescriptor resultDescriptor) {
-        this(terminal, resultDescriptor, resultDescriptor.createResult());
+    private final long queryBeginTime;
+
+    public CliTableauResultView(
+            final Terminal terminal, final ResultDescriptor resultDescriptor, long queryBeginTime) {
+        this(terminal, resultDescriptor, resultDescriptor.createResult(), queryBeginTime);
     }
 
     @VisibleForTesting
     public CliTableauResultView(
             final Terminal terminal,
             final ResultDescriptor resultDescriptor,
-            final ChangelogResult collectResult) {
+            final ChangelogResult collectResult,
+            long queryBeginTime) {
         this.terminal = terminal;
         this.resultDescriptor = resultDescriptor;
         this.collectResult = collectResult;
         this.displayResultExecutorService =
                 Executors.newSingleThreadExecutor(
                         new ExecutorThreadFactory("CliTableauResultView"));
+        this.queryBeginTime = queryBeginTime;
     }
 
     public void displayResults() throws SqlExecutionException {
@@ -122,6 +128,27 @@ public class CliTableauResultView implements AutoCloseable {
     private void printBatchResults(AtomicInteger receivedRowCount) {
         final List<RowData> resultRows = waitBatchResults();
         receivedRowCount.addAndGet(resultRows.size());
+
+        if (resultRows.isEmpty()) {
+            printBatchEmptySet();
+        } else {
+            printBatchTable(resultRows);
+            printBatchFooter(resultRows.size());
+        }
+    }
+
+    private void printBatchEmptySet() {
+        if (!resultDescriptor.isPrintQueryTimeCost()) {
+            terminal.writer().println("Empty set");
+        } else {
+            String timeCost =
+                    calculateTimeCostInPrintFormat(queryBeginTime, System.currentTimeMillis());
+            terminal.writer().println("Empty set" + timeCost);
+        }
+        terminal.writer().flush();
+    }
+
+    private void printBatchTable(List<RowData> resultRows) {
         TableauStyle style =
                 PrintStyle.tableauWithDataInferredColumnWidths(
                         resultDescriptor.getResultSchema(),
@@ -129,7 +156,39 @@ public class CliTableauResultView implements AutoCloseable {
                         resultDescriptor.maxColumnWidth(),
                         false,
                         false);
-        style.print(resultRows.iterator(), terminal.writer());
+
+        List<String[]> content =
+                resultRows.stream().map(style::rowFieldsToString).collect(Collectors.toList());
+        // infer column width from the actual content
+        style.inferColumnWidth(content);
+        // print border line
+        style.printBorderLine(terminal.writer());
+        // print field names
+        style.printColumnNamesTableauRow(terminal.writer());
+        // print border line
+        style.printBorderLine(terminal.writer());
+
+        for (String[] resultRow : content) {
+            if (Thread.currentThread().isInterrupted()) {
+                return;
+            }
+            style.printTableauRow(resultRow, terminal.writer());
+        }
+
+        // print border line
+        style.printBorderLine(terminal.writer());
+    }
+
+    private void printBatchFooter(long numRows) {
+        final String rowTerm = numRows > 1 ? "rows" : "row";
+        if (!resultDescriptor.isPrintQueryTimeCost()) {
+            terminal.writer().println(numRows + " " + rowTerm + " in set");
+        } else {
+            String timeCost =
+                    calculateTimeCostInPrintFormat(queryBeginTime, System.currentTimeMillis());
+            terminal.writer().println(numRows + " " + rowTerm + " in set" + timeCost);
+        }
+        terminal.writer().flush();
     }
 
     private void printStreamingResults(AtomicInteger receivedRowCount) {
@@ -211,5 +270,14 @@ public class CliTableauResultView implements AutoCloseable {
 
     private String getRowTerm(AtomicInteger receivedRowCount) {
         return receivedRowCount.get() > 1 ? "rows" : "row";
+    }
+
+    private String calculateTimeCostInPrintFormat(long queryBeginTime, long stopCountingTime) {
+        if (!resultDescriptor.isPrintQueryTimeCost()) {
+            return "";
+        }
+
+        String timeCost = String.format("%.2f", (stopCountingTime - queryBeginTime) / 1000d);
+        return " (" + timeCost + " seconds)";
     }
 }
