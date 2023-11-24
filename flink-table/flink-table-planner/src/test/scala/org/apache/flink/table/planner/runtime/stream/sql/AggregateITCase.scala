@@ -965,7 +965,7 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
 
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b)
     tEnv.createTemporaryView("MyTable", t)
-    tEnv.registerFunction("pojoFunc", new MyPojoAggFunction)
+    tEnv.createTemporarySystemFunction("pojoFunc", new MyPojoAggFunction)
     tEnv.createTemporarySystemFunction("pojoToInt", MyPojoFunc)
 
     val sql = "SELECT pojoToInt(pojoFunc(b)) FROM MyTable group by a"

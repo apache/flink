@@ -824,7 +824,7 @@ User-defined aggregation function can also be used with `DISTINCT` modifiers. To
 Table orders = tEnv.from("Orders");
 
 // Use distinct aggregation for user-defined aggregate functions
-tEnv.registerFunction("myUdagg", new MyUdagg());
+tEnv.createTemporarySystemFunction("myUdagg", new MyUdagg());
 orders.groupBy("users")
     .select(
         $("users"),
@@ -1026,7 +1026,7 @@ A row of the left (outer) table is dropped, if its table function call returns a
 ```java
 // register User-Defined Table Function
 TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
-tableEnv.registerFunction("split", split);
+tableEnv.createTemporarySystemFunction("split", split);
 
 // join
 Table orders = tableEnv.from("Orders");
@@ -1075,7 +1075,7 @@ Currently, the predicate of a table function left outer join can only be empty o
 ```java
 // register User-Defined Table Function
 TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
-tableEnv.registerFunction("split", split);
+tableEnv.createTemporarySystemFunction("split", split);
 
 // join
 Table orders = tableEnv.from("Orders");
@@ -1127,7 +1127,7 @@ Table ratesHistory = tableEnv.from("RatesHistory");
 TemporalTableFunction rates = ratesHistory.createTemporalTableFunction(
     "r_proctime",
     "r_currency");
-tableEnv.registerFunction("rates", rates);
+tableEnv.createTemporarySystemFunction("rates", rates);
 
 // join with "Orders" based on the time attribute and key
 Table orders = tableEnv.from("Orders");
@@ -2174,19 +2174,15 @@ The row-based operations generate outputs with multiple columns.
 Performs a map operation with a user-defined scalar function or built-in scalar function. The output will be flattened if the output type is a composite type.
 
 ```java
+@FunctionHint(input = @DataTypeHint("STRING"), output = @DataTypeHint("ROW<s1 STRING, s2 STRING>"))
 public class MyMapFunction extends ScalarFunction {
     public Row eval(String a) {
         return Row.of(a, "pre-" + a);
     }
-
-    @Override
-    public TypeInformation<?> getResultType(Class<?>[] signature) {
-        return Types.ROW(Types.STRING, Types.STRING);
-    }
 }
 
 ScalarFunction func = new MyMapFunction();
-tableEnv.registerFunction("func", func);
+tableEnv.createTemporarySystemFunction("func", func);
 
 Table table = input
   .map(call("func", $("c"))).as("a", "b");
@@ -2251,6 +2247,7 @@ table = input.map(pandas_func).alias('a', 'b')
 Performs a `flatMap` operation with a table function.
 
 ```java
+@FunctionHint(output = @DataTypeHint("ROW<s STRING, i INT>"))
 public class MyFlatMapFunction extends TableFunction<Row> {
 
     public void eval(String str) {
@@ -2261,15 +2258,10 @@ public class MyFlatMapFunction extends TableFunction<Row> {
             }
         }
     }
-
-    @Override
-    public TypeInformation<Row> getResultType() {
-        return Types.ROW(Types.STRING, Types.INT);
-    }
 }
 
 TableFunction func = new MyFlatMapFunction();
-tableEnv.registerFunction("func", func);
+tableEnv.createTemporarySystemFunction("func", func);
 
 Table table = input
   .flatMap(call("func", $("c"))).as("a", "b");
@@ -2363,13 +2355,22 @@ public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
     }
 
     @Override
-    public TypeInformation<Row> getResultType() {
-        return new RowTypeInfo(Types.INT, Types.INT);
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        return TypeInference.newBuilder()
+                .typedArguments(DataTypes.INT())
+                .accumulatorTypeStrategy(
+                        TypeStrategies.explicit(
+                                DataTypes.STRUCTURED(
+                                        MyMinMaxAcc.class,
+                                        DataTypes.FIELD("min", DataTypes.INT()),
+                                        DataTypes.FIELD("max", DataTypes.INT()))))
+                .outputTypeStrategy(TypeStrategies.explicit(DataTypes.INT()))
+                .build();
     }
 }
 
 AggregateFunction myAggFunc = new MyMinMax();
-tableEnv.registerFunction("myAggFunc", myAggFunc);
+tableEnv.createTemporarySystemFunction("myAggFunc", myAggFunc);
 Table table = input
   .groupBy($("key"))
   .aggregate(call("myAggFunc", $("a")).as("x", "y"))
@@ -2405,9 +2406,17 @@ class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
     Row.of(Integer.valueOf(acc.min), Integer.valueOf(acc.max))
   }
 
-  override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Types.INT, Types.INT)
-  }
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference =
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.INT)
+      .accumulatorTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.STRUCTURED(
+            classOf[MyMinMaxAcc],
+            DataTypes.FIELD("min", DataTypes.INT),
+            DataTypes.FIELD("max", DataTypes.INT))))
+      .outputTypeStrategy(TypeStrategies.explicit(DataTypes.INT))
+      .build
 }
 
 val myAggFunc = new MyMinMax
@@ -2491,7 +2500,7 @@ Groups and aggregates a table on a [group window](#group-window) and possibly on
 {{< tab "Java" >}}
 ```java
 AggregateFunction myAggFunc = new MyMinMax();
-tableEnv.registerFunction("myAggFunc", myAggFunc);
+tableEnv.createTemporarySystemFunction("myAggFunc", myAggFunc);
 
 Table table = input
     .window(Tumble.over(lit(5).minutes())
@@ -2596,7 +2605,7 @@ public class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2A
     }
 }
 
-tEnv.registerFunction("top2", new Top2());
+tEnv.createTemporarySystemFunction("top2", new Top2());
 Table orders = tableEnv.from("Orders");
 Table result = orders
     .groupBy($("key"))

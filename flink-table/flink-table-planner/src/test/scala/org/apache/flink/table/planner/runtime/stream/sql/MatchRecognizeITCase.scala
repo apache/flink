@@ -23,6 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
@@ -30,6 +31,7 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase,
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.planner.utils.TableTestUtil
+import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies}
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
@@ -727,7 +729,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
           BasicTypeInfo.INT_TYPE_INFO))
       .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", t)
-    tEnv.registerFunction("weightedAvg", new WeightedAvg)
+    tEnv.createTemporarySystemFunction("weightedAvg", new WeightedAvg)
 
     val sqlQuery =
       s"""
@@ -820,7 +822,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
       .toTable(tEnv, 'id, 'name, 'price, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", t)
     tEnv.createTemporarySystemFunction("prefix", new PrefixingScalarFunc)
-    tEnv.registerFunction("countFrom", new RichAggFunc)
+    tEnv.createTemporarySystemFunction("countFrom", new RichAggFunc)
     val prefix = "PREF"
     val startFrom = 4
     UserDefinedFunctionTestUtils
@@ -896,4 +898,13 @@ private class RichAggFunc extends AggregateFunction[Long, CountAcc] {
   override def createAccumulator(): CountAcc = CountAcc(start)
 
   override def getValue(accumulator: CountAcc): Long = accumulator.count
+
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.BIGINT())
+      .accumulatorTypeStrategy(TypeStrategies.explicit(
+        DataTypes.STRUCTURED(classOf[CountAcc], DataTypes.FIELD("count", DataTypes.BIGINT()))))
+      .outputTypeStrategy(TypeStrategies.explicit(DataTypes.BIGINT()))
+      .build
+  }
 }
