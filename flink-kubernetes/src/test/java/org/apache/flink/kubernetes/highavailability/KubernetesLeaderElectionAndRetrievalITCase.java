@@ -42,7 +42,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
 
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -84,9 +83,7 @@ class KubernetesLeaderElectionAndRetrievalITCase {
         final List<AutoCloseable> closeables = new ArrayList<>();
 
         final KubernetesConfigMapSharedWatcher configMapSharedWatcher =
-                flinkKubeClient.createConfigMapSharedWatcher(
-                        KubernetesUtils.getConfigMapLabels(
-                                clusterId, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
+                flinkKubeClient.createConfigMapSharedWatcher(configMapName);
         closeables.add(configMapSharedWatcher);
 
         final TestingLeaderElectionEventHandler electionEventHandler =
