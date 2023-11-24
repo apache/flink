@@ -21,10 +21,9 @@ package org.apache.flink.contrib.streaming.state;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.Checkpoint;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyOptions;
@@ -48,12 +47,12 @@ import static org.junit.Assert.fail;
 /** {@link RocksDBStateFileVerifier} test. */
 public class RocksdbStateFileVerifierTest {
 
-    @Rule public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir java.nio.file.Path folder;
 
     @Test
     public void rocksdbStateFileVerifierTest() throws Exception {
         List columnFamilyHandles = new ArrayList<>(1);
-        String rootPath = folder.newFolder().getAbsolutePath();
+        String rootPath = folder.toAbsolutePath().toString();
         File dbPath = new File(rootPath, "db");
         File cpPath = new File(rootPath, "cp");
 

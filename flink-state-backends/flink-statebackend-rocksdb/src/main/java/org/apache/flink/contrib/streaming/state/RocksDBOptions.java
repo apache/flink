@@ -91,8 +91,8 @@ public class RocksDBOptions {
      * RocksDBStateBackend.
      */
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)
-    public static final ConfigOption<Boolean> CHECKPOINT_VERIFY_CHECKSUM_ENABLE =
-            ConfigOptions.key("state.backend.rocksdb.checkpoint.verify.checksum.enable")
+    public static final ConfigOption<Boolean> CHECKPOINT_VERIFY_CHECKSUM_ENABLED =
+            ConfigOptions.key("state.backend.rocksdb.checkpoint.verify.checksum.enabled")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
