@@ -36,8 +36,6 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sources.StreamTableSource;
 
-import com.esotericsoftware.kryo.Serializer;
-
 import java.io.Serializable;
 import java.util.List;
 
@@ -220,29 +218,30 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     }
 
     @Override
-    public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
-            Class<?> type, T serializer) {
+    public <T extends com.esotericsoftware.kryo.Serializer<?> & Serializable>
+            void addDefaultKryoSerializer(Class<?> type, T serializer) {
         throw new UnsupportedOperationException(
                 "This is a dummy StreamExecutionEnvironment, addDefaultKryoSerializer method is unsupported.");
     }
 
     @Override
     public void addDefaultKryoSerializer(
-            Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+            Class<?> type,
+            Class<? extends com.esotericsoftware.kryo.Serializer<?>> serializerClass) {
         throw new UnsupportedOperationException(
                 "This is a dummy StreamExecutionEnvironment, addDefaultKryoSerializer method is unsupported.");
     }
 
     @Override
-    public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
-            Class<?> type, T serializer) {
+    public <T extends com.esotericsoftware.kryo.Serializer<?> & Serializable>
+            void registerTypeWithKryoSerializer(Class<?> type, T serializer) {
         throw new UnsupportedOperationException(
                 "This is a dummy StreamExecutionEnvironment, registerTypeWithKryoSerializer method is unsupported.");
     }
 
     @Override
     public void registerTypeWithKryoSerializer(
-            Class<?> type, Class<? extends Serializer> serializerClass) {
+            Class<?> type, Class<? extends com.esotericsoftware.kryo.Serializer> serializerClass) {
         throw new UnsupportedOperationException(
                 "This is a dummy StreamExecutionEnvironment, registerTypeWithKryoSerializer method is unsupported.");
     }

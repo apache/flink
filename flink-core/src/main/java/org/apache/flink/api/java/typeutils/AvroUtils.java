@@ -21,8 +21,8 @@ package org.apache.flink.api.java.typeutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.typeutils.runtime.Kryo5Registration;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
-import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
 
 import java.util.LinkedHashMap;
 
@@ -69,6 +69,9 @@ public abstract class AvroUtils {
     public abstract void addAvroGenericDataArrayRegistration(
             LinkedHashMap<String, KryoRegistration> kryoRegistrations);
 
+    public abstract void addAvroGenericDataArrayRegistration5(
+            LinkedHashMap<String, Kryo5Registration> kryoRegistrations);
+
     /**
      * Creates an {@code AvroSerializer} if flink-avro is present, otherwise throws an exception.
      */
@@ -111,8 +114,25 @@ public abstract class AvroUtils {
             kryoRegistrations.put(
                     AVRO_GENERIC_DATA_ARRAY,
                     new KryoRegistration(
-                            Serializers.DummyAvroRegisteredClass.class,
-                            (Class) Serializers.DummyAvroKryoSerializerClass.class));
+                            org.apache.flink.api.java.typeutils.runtime.kryo.Serializers
+                                    .DummyAvroRegisteredClass.class,
+                            (Class)
+                                    org.apache.flink.api.java.typeutils.runtime.kryo.Serializers
+                                            .DummyAvroKryoSerializerClass.class));
+        }
+
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        @Override
+        public void addAvroGenericDataArrayRegistration5(
+                LinkedHashMap<String, Kryo5Registration> kryoRegistrations) {
+            kryoRegistrations.put(
+                    AVRO_GENERIC_DATA_ARRAY,
+                    new Kryo5Registration(
+                            org.apache.flink.api.java.typeutils.runtime.kryo5.Serializers
+                                    .DummyAvroRegisteredClass.class,
+                            (Class)
+                                    org.apache.flink.api.java.typeutils.runtime.kryo5.Serializers
+                                            .DummyAvroKryoSerializerClass.class));
         }
 
         @Override

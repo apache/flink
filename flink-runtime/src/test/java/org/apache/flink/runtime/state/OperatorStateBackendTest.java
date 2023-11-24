@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -106,7 +106,8 @@ class OperatorStateBackendTest {
                         new KryoSerializer<>(File.class, new ExecutionConfig())
                                         .getKryo()
                                         .getDefaultSerializer(registeredType)
-                                instanceof com.esotericsoftware.kryo.serializers.JavaSerializer)
+                                instanceof
+                                com.esotericsoftware.kryo.kryo5.serializers.JavaSerializer)
                 .isFalse();
 
         final ExecutionConfig cfg = new ExecutionConfig();
@@ -137,7 +138,7 @@ class OperatorStateBackendTest {
                         .getPartitionStateSerializer();
         assertThat(serializer).isInstanceOf(KryoSerializer.class);
         assertThat(((KryoSerializer<?>) serializer).getKryo().getSerializer(registeredType))
-                .isInstanceOf(com.esotericsoftware.kryo.serializers.JavaSerializer.class);
+                .isInstanceOf(com.esotericsoftware.kryo.kryo5.serializers.FieldSerializer.class);
 
         Iterator<String> it = listState2.get().iterator();
         assertThat(it).isExhausted();

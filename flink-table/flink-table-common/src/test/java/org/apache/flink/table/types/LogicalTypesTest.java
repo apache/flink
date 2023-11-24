@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -608,7 +608,7 @@ public class LogicalTypesTest {
                         Human.class, new KryoSerializer<>(Human.class, new ExecutionConfig()));
         final String className = "org.apache.flink.table.types.LogicalTypesTest$Human";
         // use rawType.getSerializerString() to regenerate the following string
-        final String serializerString =
+        final String serializerStringKryo2 =
                 "AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1Nlcml"
                         + "hbGl6ZXJTbmFwc2hvdAAAAAIAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNhbFR5cG"
                         + "VzVGVzdCRIdW1hbgAABPLGmj1wAAAAAgAzb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5Mb2dpY"
@@ -620,11 +620,23 @@ public class LogicalTypesTest {
                         + "RHVtbXlBdnJvUmVnaXN0ZXJlZENsYXNzAAAAAQBZb3JnLmFwYWNoZS5mbGluay5hcGkuamF2YS50eXB"
                         + "ldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJzJER1bW15QXZyb0tyeW9TZXJpYWxpemVyQ2xhc3"
                         + "MAAATyxpo9cAAAAAAAAATyxpo9cAAAAAA=";
+        final String serializerStringKryo5 =
+                "AEhvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW81LktyeW9TZXJp"
+                        + "YWxpemVyU25hcHNob3QAAAACADNvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkxvZ2ljYWxUeXBl"
+                        + "c1Rlc3QkSHVtYW4AAATyxpo9cAAAAAIAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNh"
+                        + "bFR5cGVzVGVzdCRIdW1hbgEAAAA1ADNvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnR5cGVzLkxvZ2ljYWxU"
+                        + "eXBlc1Rlc3QkSHVtYW4BAAAAOQAzb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5Mb2dpY2FsVHlw"
+                        + "ZXNUZXN0JEh1bWFuAAAAAAApb3JnLmFwYWNoZS5hdnJvLmdlbmVyaWMuR2VuZXJpY0RhdGEkQXJyYXkB"
+                        + "AAAAKwApb3JnLmFwYWNoZS5hdnJvLmdlbmVyaWMuR2VuZXJpY0RhdGEkQXJyYXkBAAAAuABWb3JnLmFw"
+                        + "YWNoZS5mbGluay5hcGkuamF2YS50eXBldXRpbHMucnVudGltZS5rcnlvNS5TZXJpYWxpemVycyREdW1t"
+                        + "eUF2cm9SZWdpc3RlcmVkQ2xhc3MAAAABAFpvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGls"
+                        + "cy5ydW50aW1lLmtyeW81LlNlcmlhbGl6ZXJzJER1bW15QXZyb0tyeW9TZXJpYWxpemVyQ2xhc3MAAATy"
+                        + "xpo9cAAAAAAAAATyxpo9cAAAAAA=";
 
         assertThat(rawType)
                 .satisfies(
                         baseAssertions(
-                                "RAW('" + className + "', '" + serializerString + "')",
+                                "RAW('" + className + "', '" + serializerStringKryo5 + "')",
                                 "RAW('org.apache.flink.table.types.LogicalTypesTest$Human', '...')",
                                 new Class[] {Human.class, User.class}, // every User is Human
                                 new Class[] {Human.class},
@@ -637,7 +649,7 @@ public class LogicalTypesTest {
                         RawType.restore(
                                 LogicalTypesTest.class.getClassLoader(),
                                 className,
-                                serializerString))
+                                serializerStringKryo5))
                 .isEqualTo(rawType);
     }
 

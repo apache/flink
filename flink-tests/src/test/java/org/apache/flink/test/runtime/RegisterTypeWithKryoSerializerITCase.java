@@ -23,10 +23,10 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.kryo5.Kryo;
+import com.esotericsoftware.kryo.kryo5.Serializer;
+import com.esotericsoftware.kryo.kryo5.io.Input;
+import com.esotericsoftware.kryo.kryo5.io.Output;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -56,7 +56,7 @@ public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBa
         int numElements = 10;
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        env.registerTypeWithKryoSerializer(TestClass.class, new TestClassSerializer());
+        env.getConfig().registerTypeWithKryo5Serializer(TestClass.class, new TestClassSerializer());
 
         DataSet<Long> input = env.generateSequence(0, numElements - 1);
 
@@ -132,7 +132,7 @@ public class RegisterTypeWithKryoSerializerITCase extends MultipleProgramsTestBa
         }
 
         @Override
-        public TestClass read(Kryo kryo, Input input, Class<TestClass> aClass) {
+        public TestClass read(Kryo kryo, Input input, Class<? extends TestClass> type) {
             return new TestClass(input.readLong());
         }
     }

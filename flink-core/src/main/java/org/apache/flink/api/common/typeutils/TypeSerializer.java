@@ -18,7 +18,9 @@
 
 package org.apache.flink.api.common.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoVersion;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
@@ -135,6 +137,23 @@ public abstract class TypeSerializer<T> implements Serializable {
     /**
      * De-serializes a record from the given source input view.
      *
+     * <p>This method takes a kryoVersion hint to suggest which version of Kryo to use.
+     *
+     * @param record The record to serialize.
+     * @param target The output view to write the serialized data to.
+     * @throws IOException Thrown, if the serialization encountered an I/O related error. Typically
+     *     raised by the output view, which may have an underlying I/O channel to which it
+     *     delegates.
+     */
+    @Internal
+    public void serializeWithKryoVersionHint(
+            T record, DataOutputView target, KryoVersion kryoVersion) throws IOException {
+        serialize(record, target);
+    }
+
+    /**
+     * De-serializes a record from the given source input view.
+     *
      * @param source The input view from which to read the data.
      * @return The deserialized element.
      * @throws IOException Thrown, if the de-serialization encountered an I/O related error.
@@ -142,6 +161,23 @@ public abstract class TypeSerializer<T> implements Serializable {
      *     it reads.
      */
     public abstract T deserialize(DataInputView source) throws IOException;
+
+    /**
+     * De-serializes a record from the given source input view.
+     *
+     * <p>This method takes a kryoVersion hint to suggest which version of Kryo to use.
+     *
+     * @param source The input view from which to read the data.
+     * @param kryoVersion The version of Kryo used or unknown for the default version.
+     * @return The deserialized element.
+     * @throws IOException Thrown, if the de-serialization encountered an I/O related error.
+     *     Typically raised by the input view, which may have an underlying I/O channel from which
+     *     it reads.
+     */
+    public T deserializeWithKryoVersionHint(DataInputView source, KryoVersion kryoVersion)
+            throws IOException {
+        return deserialize(source);
+    }
 
     /**
      * De-serializes a record from the given source input view into the given reuse record instance

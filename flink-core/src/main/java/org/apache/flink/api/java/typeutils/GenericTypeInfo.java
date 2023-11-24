@@ -26,7 +26,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.runtime.GenericTypeComparator;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -88,7 +87,8 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
                             + " is treated as a generic type.");
         }
 
-        return new KryoSerializer<T>(this.typeClass, config);
+        return new org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<T>(
+                this.typeClass, config);
     }
 
     @SuppressWarnings("unchecked")

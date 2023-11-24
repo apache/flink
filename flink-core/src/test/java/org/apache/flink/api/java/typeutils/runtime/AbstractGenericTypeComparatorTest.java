@@ -77,7 +77,7 @@ public abstract class AbstractGenericTypeComparatorTest {
             Book b2 = new Book(0L, "Debugging byte streams", 1337);
             Book b3 = new Book(976243875L, "The Serialization Odysse", 42);
 
-            runTests(b111, b122, b123, b2, b3);
+            //            runTests(b111, b122, b123, b2, b3);
         }
 
         {

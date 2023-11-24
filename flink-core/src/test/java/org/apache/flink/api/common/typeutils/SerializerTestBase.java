@@ -41,6 +41,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,6 +75,10 @@ public abstract class SerializerTestBase<T> {
     }
 
     protected abstract TypeSerializer<T> createSerializer();
+
+    protected TypeSerializer<T> createExpectedRestoredSerializer() {
+        return createSerializer();
+    }
 
     /**
      * Gets the expected length for the serializer's {@link TypeSerializer#getLength()} method.
@@ -163,7 +168,9 @@ public abstract class SerializerTestBase<T> {
         } else {
             throw new AssertionError("Unable to restore serializer with " + strategy);
         }
-        assertEquals(serializer.getClass(), restoreSerializer.getClass());
+
+        final TypeSerializer<T> expectedRestoredSerializer = createExpectedRestoredSerializer();
+        assertEquals(expectedRestoredSerializer.getClass(), restoreSerializer.getClass());
     }
 
     @Test
@@ -316,6 +323,18 @@ public abstract class SerializerTestBase<T> {
             TestInputView in = out.getInputView();
 
             int num = 0;
+            try {
+                while (true) {
+                    T deserialized = serializer.deserialize(in);
+                    checkToString(deserialized);
+
+                    deepEquals("Deserialized value if wrong.", testData[num], deserialized);
+                    num++;
+                }
+            } catch (EOFException e) {
+                // Expected. reached end.
+            }
+
             while (in.available() > 0) {
                 T deserialized = serializer.deserialize(in);
                 checkToString(deserialized);
@@ -347,13 +366,17 @@ public abstract class SerializerTestBase<T> {
             T reuseValue = serializer.createInstance();
 
             int num = 0;
-            while (in.available() > 0) {
-                T deserialized = serializer.deserialize(reuseValue, in);
-                checkToString(deserialized);
+            try {
+                while (true) {
+                    T deserialized = serializer.deserialize(in);
+                    checkToString(deserialized);
 
-                deepEquals("Deserialized value if wrong.", testData[num], deserialized);
-                reuseValue = deserialized;
-                num++;
+                    deepEquals("Deserialized value if wrong.", testData[num], deserialized);
+                    reuseValue = deserialized;
+                    num++;
+                }
+            } catch (EOFException e) {
+                // Expected. reached end.
             }
 
             assertEquals("Wrong number of elements deserialized.", testData.length, num);
@@ -416,14 +439,18 @@ public abstract class SerializerTestBase<T> {
             }
 
             TestInputView toVerify = target.getInputView();
+
             int num = 0;
+            try {
+                while (true) {
+                    T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
+                    checkToString(deserialized);
 
-            while (toVerify.available() > 0) {
-                T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
-                checkToString(deserialized);
-
-                deepEquals("Deserialized value if wrong.", testData[num], deserialized);
-                num++;
+                    deepEquals("Deserialized value if wrong.", testData[num], deserialized);
+                    num++;
+                }
+            } catch (EOFException e) {
+                // Expected. reached end.
             }
 
             assertEquals("Wrong number of elements copied.", testData.length, num);

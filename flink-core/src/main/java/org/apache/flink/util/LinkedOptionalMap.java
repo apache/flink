@@ -84,6 +84,63 @@ public final class LinkedOptionalMap<K, V> {
         return new MergeResult<>(merged, isLeftPrefixOfRight(left, right));
     }
 
+    /** Gets a new map with the keys of @keys and corresponding values from @values. */
+    public static <K, V> MergeResult<K, V> mergeKeysAndValues(
+            Set<String> keys, LinkedOptionalMap<K, V> values) {
+        LinkedOptionalMap<K, V> subset = new LinkedOptionalMap<>();
+        for (String key : keys) {
+            KeyValue<K, V> kv = values.underlyingMap.get(key);
+            if (kv == null) {
+                subset.put(key, null, null);
+            } else {
+                subset.put(key, kv.key, kv.value);
+            }
+        }
+
+        return new MergeResult<>(subset, false);
+    }
+
+    /** Gets a new map with the keys of @keys and corresponding values from @values. */
+    public static <K, V> MergeResult<K, V> mergeIntersectionWithKeys(
+            Set<String> keys, LinkedOptionalMap<K, V> map) {
+        LinkedOptionalMap<K, V> subset = new LinkedOptionalMap<>();
+        for (Entry<String, KeyValue<K, V>> entry : map.underlyingMap.entrySet()) {
+            String key = entry.getKey();
+            KeyValue<K, V> kv = entry.getValue();
+            if (keys.contains(key)) {
+                subset.put(key, kv.key, kv.value);
+            }
+        }
+
+        return new MergeResult<>(subset, false);
+    }
+
+    /** Gets a new map with the keys of @keys and corresponding values from @values. */
+    public static <K, V> MergeResult<K, V> mergeValuesWithPrefixKeys(
+            LinkedOptionalMap<K, V> values, Set<String> keys) {
+        LinkedOptionalMap<K, V> subset = new LinkedOptionalMap<>();
+        for (Entry<String, KeyValue<K, V>> entry : values.underlyingMap.entrySet()) {
+            String key = entry.getKey();
+            KeyValue<K, V> kv = entry.getValue();
+            if (keys.contains(key)) {
+                subset.put(key, kv.key, kv.value);
+            } else {
+                subset.put(key, null, null);
+            }
+        }
+
+        //        for (String key : keys) {
+        //            KeyValue<K, V> kv = values.underlyingMap.get(key);
+        //            if (kv == null) {
+        //                break;
+        //            } else {
+        //                subset.put(key, kv.key, kv.value);
+        //            }
+        //        }
+
+        return new MergeResult<>(subset, false);
+    }
+
     // --------------------------------------------------------------------------------------------------------
     // Constructor
     // --------------------------------------------------------------------------------------------------------

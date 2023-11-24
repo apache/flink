@@ -127,6 +127,28 @@ public class KryoPojosForMigrationTests {
         }
     }
 
+    public static class ParrotKryo5Serializer
+            extends com.esotericsoftware.kryo.kryo5.Serializer<Parrot> implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void write(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Output output,
+                Parrot object) {
+            output.writeString(object.getAccent());
+        }
+
+        @Override
+        public Parrot read(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Input input,
+                Class<? extends Parrot> type) {
+            return new Parrot(input.readString());
+        }
+    }
+
     /** A Serializer that was registered during test data generation. */
     public static class DogKryoSerializer extends Serializer<Dog> implements Serializable {
 
@@ -143,6 +165,29 @@ public class KryoPojosForMigrationTests {
         }
     }
 
+    /** A Serializer that was registered during test data generation. */
+    public static class DogKryo5Serializer extends com.esotericsoftware.kryo.kryo5.Serializer<Dog>
+            implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void write(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Output output,
+                Dog object) {
+            output.writeString(object.getName());
+        }
+
+        @Override
+        public Dog read(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Input input,
+                Class<? extends Dog> type) {
+            return new Dog(input.readString());
+        }
+    }
+
     /** A Serializer that is registered in migration tests. */
     public static class DogV2KryoSerializer extends Serializer<Dog> implements Serializable {
 
@@ -155,6 +200,29 @@ public class KryoPojosForMigrationTests {
 
         @Override
         public Dog read(Kryo kryo, Input input, Class<Dog> type) {
+            return new Dog(input.readString());
+        }
+    }
+
+    /** A Serializer that is registered in migration tests. */
+    public static class DogV2Kryo5Serializer extends com.esotericsoftware.kryo.kryo5.Serializer<Dog>
+            implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void write(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Output output,
+                Dog object) {
+            output.writeString(object.getName());
+        }
+
+        @Override
+        public Dog read(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Input input,
+                Class<? extends Dog> type) {
             return new Dog(input.readString());
         }
     }

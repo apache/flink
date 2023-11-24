@@ -23,16 +23,12 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.SerializedValue;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -56,14 +52,19 @@ public class ExecutionConfigTest {
 
         for (Class<?> tpe : types) {
             config.registerKryoType(tpe);
+            config.registerKryo5Type(tpe);
         }
 
         int counter = 0;
-
         for (Class<?> tpe : config.getRegisteredKryoTypes()) {
             assertThat(tpe).isEqualTo(expectedTypes.get(counter++));
         }
+        assertThat(expectedTypes.size()).isEqualTo(counter);
 
+        counter = 0;
+        for (Class<?> tpe : config.getRegisteredKryo5Types()) {
+            assertThat(tpe).isEqualTo(expectedTypes.get(counter++));
+        }
         assertThat(expectedTypes.size()).isEqualTo(counter);
     }
 
@@ -190,7 +191,7 @@ public class ExecutionConfigTest {
     void testLoadingRegisteredKryoTypesFromConfiguration() {
         ExecutionConfig configFromSetters = new ExecutionConfig();
         configFromSetters.registerKryoType(ExecutionConfigTest.class);
-        configFromSetters.registerKryoType(TestSerializer1.class);
+        configFromSetters.registerKryoType(TestKryo2Serializer1.class);
 
         ExecutionConfig configFromConfiguration = new ExecutionConfig();
 
@@ -198,7 +199,28 @@ public class ExecutionConfigTest {
         configuration.setString(
                 "pipeline.registered-kryo-types",
                 "org.apache.flink.api.common.ExecutionConfigTest;"
-                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1");
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestKryo2Serializer1");
+
+        // mutate config according to configuration
+        configFromConfiguration.configure(
+                configuration, Thread.currentThread().getContextClassLoader());
+
+        assertThat(configFromConfiguration).isEqualTo(configFromSetters);
+    }
+
+    @Test
+    void testLoadingRegisteredKryo5TypesFromConfiguration() {
+        ExecutionConfig configFromSetters = new ExecutionConfig();
+        configFromSetters.registerKryo5Type(ExecutionConfigTest.class);
+        configFromSetters.registerKryo5Type(TestKryo5Serializer1.class);
+
+        ExecutionConfig configFromConfiguration = new ExecutionConfig();
+
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                "pipeline.registered-kryo5-types",
+                "org.apache.flink.api.common.ExecutionConfigTest;"
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestKryo5Serializer1");
 
         // mutate config according to configuration
         configFromConfiguration.configure(
@@ -211,7 +233,7 @@ public class ExecutionConfigTest {
     void testLoadingRegisteredPojoTypesFromConfiguration() {
         ExecutionConfig configFromSetters = new ExecutionConfig();
         configFromSetters.registerPojoType(ExecutionConfigTest.class);
-        configFromSetters.registerPojoType(TestSerializer1.class);
+        configFromSetters.registerPojoType(TestKryo2Serializer1.class);
 
         ExecutionConfig configFromConfiguration = new ExecutionConfig();
 
@@ -219,7 +241,7 @@ public class ExecutionConfigTest {
         configuration.setString(
                 "pipeline.registered-pojo-types",
                 "org.apache.flink.api.common.ExecutionConfigTest;"
-                        + "org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1");
+                        + "org.apache.flink.api.common.ExecutionConfigTest$TestKryo2Serializer1");
 
         // mutate config according to configuration
         configFromConfiguration.configure(
@@ -252,8 +274,9 @@ public class ExecutionConfigTest {
     void testLoadingDefaultKryoSerializersFromConfiguration() {
         ExecutionConfig configFromSetters = new ExecutionConfig();
         configFromSetters.addDefaultKryoSerializer(
-                ExecutionConfigTest.class, TestSerializer1.class);
-        configFromSetters.addDefaultKryoSerializer(TestSerializer1.class, TestSerializer2.class);
+                ExecutionConfigTest.class, TestKryo2Serializer1.class);
+        configFromSetters.addDefaultKryoSerializer(
+                TestKryo2Serializer1.class, TestKryo2Serializer2.class);
 
         ExecutionConfig configFromConfiguration = new ExecutionConfig();
 
@@ -261,9 +284,34 @@ public class ExecutionConfigTest {
         configuration.setString(
                 "pipeline.default-kryo-serializers",
                 "class:org.apache.flink.api.common.ExecutionConfigTest,"
-                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1;"
-                        + "class:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer1,"
-                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestSerializer2");
+                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestKryo2Serializer1;"
+                        + "class:org.apache.flink.api.common.ExecutionConfigTest$TestKryo2Serializer1,"
+                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestKryo2Serializer2");
+
+        // mutate config according to configuration
+        configFromConfiguration.configure(
+                configuration, Thread.currentThread().getContextClassLoader());
+
+        assertThat(configFromConfiguration).isEqualTo(configFromSetters);
+    }
+
+    @Test
+    void testLoadingDefaultKryo5SerializersFromConfiguration() {
+        ExecutionConfig configFromSetters = new ExecutionConfig();
+        configFromSetters.addDefaultKryo5Serializer(
+                ExecutionConfigTest.class, TestKryo5Serializer1.class);
+        configFromSetters.addDefaultKryo5Serializer(
+                TestKryo5Serializer1.class, TestKryo5Serializer2.class);
+
+        ExecutionConfig configFromConfiguration = new ExecutionConfig();
+
+        Configuration configuration = new Configuration();
+        configuration.setString(
+                "pipeline.default-kryo5-serializers",
+                "class:org.apache.flink.api.common.ExecutionConfigTest,"
+                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestKryo5Serializer1;"
+                        + "class:org.apache.flink.api.common.ExecutionConfigTest$TestKryo5Serializer1,"
+                        + "serializer:org.apache.flink.api.common.ExecutionConfigTest$TestKryo5Serializer2");
 
         // mutate config according to configuration
         configFromConfiguration.configure(
@@ -295,7 +343,7 @@ public class ExecutionConfigTest {
     void testNotOverridingRegisteredKryoTypesWithDefaultsFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
         config.registerKryoType(ExecutionConfigTest.class);
-        config.registerKryoType(TestSerializer1.class);
+        config.registerKryoType(TestKryo2Serializer1.class);
 
         Configuration configuration = new Configuration();
 
@@ -304,7 +352,7 @@ public class ExecutionConfigTest {
 
         LinkedHashSet<Object> set = new LinkedHashSet<>();
         set.add(ExecutionConfigTest.class);
-        set.add(TestSerializer1.class);
+        set.add(TestKryo2Serializer1.class);
         assertThat(config.getRegisteredKryoTypes()).isEqualTo(set);
     }
 
@@ -312,7 +360,7 @@ public class ExecutionConfigTest {
     void testNotOverridingRegisteredPojoTypesWithDefaultsFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
         config.registerPojoType(ExecutionConfigTest.class);
-        config.registerPojoType(TestSerializer1.class);
+        config.registerPojoType(TestKryo2Serializer1.class);
 
         Configuration configuration = new Configuration();
 
@@ -321,7 +369,7 @@ public class ExecutionConfigTest {
 
         LinkedHashSet<Object> set = new LinkedHashSet<>();
         set.add(ExecutionConfigTest.class);
-        set.add(TestSerializer1.class);
+        set.add(TestKryo2Serializer1.class);
         assertThat(config.getRegisteredPojoTypes()).isEqualTo(set);
     }
 
@@ -341,38 +389,107 @@ public class ExecutionConfigTest {
     @Test
     void testNotOverridingDefaultKryoSerializersFromConfiguration() {
         ExecutionConfig config = new ExecutionConfig();
-        config.addDefaultKryoSerializer(ExecutionConfigTest.class, TestSerializer1.class);
-        config.addDefaultKryoSerializer(TestSerializer1.class, TestSerializer2.class);
+        config.addDefaultKryoSerializer(ExecutionConfigTest.class, TestKryo2Serializer1.class);
+        config.addDefaultKryoSerializer(TestKryo2Serializer1.class, TestKryo2Serializer2.class);
 
         Configuration configuration = new Configuration();
 
         // mutate config according to configuration
         config.configure(configuration, Thread.currentThread().getContextClassLoader());
 
-        LinkedHashMap<Class<?>, Class<? extends Serializer>> serialiers = new LinkedHashMap<>();
-        serialiers.put(ExecutionConfigTest.class, TestSerializer1.class);
-        serialiers.put(TestSerializer1.class, TestSerializer2.class);
+        LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.Serializer>> serialiers =
+                new LinkedHashMap<>();
+        serialiers.put(ExecutionConfigTest.class, TestKryo2Serializer1.class);
+        serialiers.put(TestKryo2Serializer1.class, TestKryo2Serializer2.class);
         assertThat(config.getDefaultKryoSerializerClasses()).isEqualTo(serialiers);
     }
 
-    private static class TestSerializer1 extends Serializer<ExecutionConfigTest>
+    @Test
+    void testNotOverridingDefaultKryo5SerializersFromConfiguration() {
+        ExecutionConfig config = new ExecutionConfig();
+        config.addDefaultKryo5Serializer(ExecutionConfigTest.class, TestKryo5Serializer1.class);
+        config.addDefaultKryo5Serializer(TestKryo5Serializer1.class, TestKryo5Serializer2.class);
+
+        Configuration configuration = new Configuration();
+
+        // mutate config according to configuration
+        config.configure(configuration, Thread.currentThread().getContextClassLoader());
+
+        LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.kryo5.Serializer>>
+                serialiers = new LinkedHashMap<>();
+        serialiers.put(ExecutionConfigTest.class, TestKryo5Serializer1.class);
+        serialiers.put(TestKryo5Serializer1.class, TestKryo5Serializer2.class);
+        assertThat(config.getDefaultKryo5SerializerClasses()).isEqualTo(serialiers);
+    }
+
+    private static class TestKryo2Serializer1
+            extends com.esotericsoftware.kryo.Serializer<ExecutionConfigTest>
             implements Serializable {
         @Override
-        public void write(Kryo kryo, Output output, ExecutionConfigTest object) {}
+        public void write(
+                com.esotericsoftware.kryo.Kryo kryo,
+                com.esotericsoftware.kryo.io.Output output,
+                ExecutionConfigTest object) {}
 
         @Override
-        public ExecutionConfigTest read(Kryo kryo, Input input, Class<ExecutionConfigTest> type) {
+        public ExecutionConfigTest read(
+                com.esotericsoftware.kryo.Kryo kryo,
+                com.esotericsoftware.kryo.io.Input input,
+                Class<ExecutionConfigTest> type) {
             return null;
         }
     }
 
-    private static class TestSerializer2 extends Serializer<TestSerializer1>
+    private static class TestKryo2Serializer2
+            extends com.esotericsoftware.kryo.Serializer<TestKryo2Serializer1>
             implements Serializable {
         @Override
-        public void write(Kryo kryo, Output output, TestSerializer1 object) {}
+        public void write(
+                com.esotericsoftware.kryo.Kryo kryo,
+                com.esotericsoftware.kryo.io.Output output,
+                TestKryo2Serializer1 object) {}
 
         @Override
-        public TestSerializer1 read(Kryo kryo, Input input, Class<TestSerializer1> type) {
+        public TestKryo2Serializer1 read(
+                com.esotericsoftware.kryo.Kryo kryo,
+                com.esotericsoftware.kryo.io.Input input,
+                Class<TestKryo2Serializer1> type) {
+            return null;
+        }
+    }
+
+    private static class TestKryo5Serializer1
+            extends com.esotericsoftware.kryo.kryo5.Serializer<ExecutionConfigTest>
+            implements Serializable {
+        @Override
+        public void write(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Output output,
+                ExecutionConfigTest object) {}
+
+        @Override
+        public ExecutionConfigTest read(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Input input,
+                Class<? extends ExecutionConfigTest> type) {
+            return null;
+        }
+    }
+
+    private static class TestKryo5Serializer2
+            extends com.esotericsoftware.kryo.kryo5.Serializer<TestKryo5Serializer1>
+            implements Serializable {
+        @Override
+        public void write(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Output output,
+                TestKryo5Serializer1 object) {}
+
+        @Override
+        public TestKryo5Serializer1 read(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Input input,
+                Class<? extends TestKryo5Serializer1> type) {
             return null;
         }
     }

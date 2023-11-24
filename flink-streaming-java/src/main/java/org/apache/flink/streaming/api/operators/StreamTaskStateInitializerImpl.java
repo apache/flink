@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoUpgradeConfiguration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.MetricGroup;
@@ -160,6 +161,12 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         InternalTimeServiceManager<?> timeServiceManager;
 
         try {
+            // Kryo Upgrade: This is somewhat of a hack. The deserialization will deserialize
+            // Kryo v2 serializers and will require Kryo v5 parallels which should be in
+            // this ExecutionConfig. Ultimately, once all Kryo state is migrated and Kryo v2
+            // support is dropped, then this can be removed.
+            KryoUpgradeConfiguration.setConfigurationFromExecutionConfig(
+                    environment.getExecutionConfig());
 
             // -------------- Keyed State Backend --------------
             keyedStatedBackend =

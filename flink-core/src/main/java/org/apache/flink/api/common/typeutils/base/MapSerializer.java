@@ -21,6 +21,7 @@ package org.apache.flink.api.common.typeutils.base;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoVersion;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.util.CollectionUtil;
@@ -129,31 +130,46 @@ public final class MapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 
     @Override
     public void serialize(Map<K, V> map, DataOutputView target) throws IOException {
+        serializeWithKryoVersionHint(map, target, KryoVersion.DEFAULT);
+    }
+
+    @Override
+    public void serializeWithKryoVersionHint(
+            Map<K, V> map, DataOutputView target, KryoVersion kryoVersion) throws IOException {
         final int size = map.size();
         target.writeInt(size);
 
         for (Map.Entry<K, V> entry : map.entrySet()) {
-            keySerializer.serialize(entry.getKey(), target);
+            keySerializer.serializeWithKryoVersionHint(entry.getKey(), target, kryoVersion);
 
             if (entry.getValue() == null) {
                 target.writeBoolean(true);
             } else {
                 target.writeBoolean(false);
-                valueSerializer.serialize(entry.getValue(), target);
+                valueSerializer.serializeWithKryoVersionHint(entry.getValue(), target, kryoVersion);
             }
         }
     }
 
     @Override
     public Map<K, V> deserialize(DataInputView source) throws IOException {
+        return deserializeWithKryoVersionHint(source, KryoVersion.DEFAULT);
+    }
+
+    @Override
+    public Map<K, V> deserializeWithKryoVersionHint(DataInputView source, KryoVersion kryoVersion)
+            throws IOException {
         final int size = source.readInt();
 
         final Map<K, V> map = CollectionUtil.newHashMapWithExpectedSize(size);
         for (int i = 0; i < size; ++i) {
-            K key = keySerializer.deserialize(source);
+            K key = keySerializer.deserializeWithKryoVersionHint(source, kryoVersion);
 
             boolean isNull = source.readBoolean();
-            V value = isNull ? null : valueSerializer.deserialize(source);
+            V value =
+                    isNull
+                            ? null
+                            : valueSerializer.deserializeWithKryoVersionHint(source, kryoVersion);
 
             map.put(key, value);
         }

@@ -75,6 +75,12 @@ class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
     }
 
     @Override
+    protected TypeSerializer<Object> createExpectedRestoredSerializer() {
+        return new org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<>(
+                Object.class, new ExecutionConfig());
+    }
+
+    @Override
     protected int getLength() {
         return -1;
     }

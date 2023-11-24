@@ -28,6 +28,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTes
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Cat;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Dog;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTests.Parrot;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoUpgradeConfiguration;
 
 import com.esotericsoftware.kryo.serializers.DefaultSerializers;
 import org.hamcrest.Matcher;
@@ -80,6 +81,17 @@ class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Ob
 
     public static final class KryoTypeSerializerEmptyConfigSetup
             implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Animal> {
+        @Override
+        public void setup() {
+            ExecutionConfig executionConfig = new ExecutionConfig();
+            executionConfig.registerKryo5Type(DummyClassTwo.class);
+            KryoUpgradeConfiguration.setConfigurationFromExecutionConfig(executionConfig);
+        }
+
+        @Override
+        public void cleanup() {
+            KryoUpgradeConfiguration.clearConfiguration();
+        }
 
         @Override
         public TypeSerializer<Animal> createPriorSerializer() {
@@ -94,7 +106,6 @@ class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Ob
 
     public static final class KryoTypeSerializerEmptyConfigVerifier
             implements TypeSerializerUpgradeTestBase.UpgradeVerifier<Animal> {
-
         @Override
         public TypeSerializer<Animal> createUpgradedSerializer() {
             return new KryoSerializer<>(Animal.class, new ExecutionConfig());
@@ -149,6 +160,17 @@ class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Ob
 
     public static final class KryoTypeSerializerChangedRegistrationOrderSetup
             implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Animal> {
+        @Override
+        public void setup() {
+            ExecutionConfig executionConfig = new ExecutionConfig();
+            executionConfig.registerKryo5Type(Dog.class);
+            KryoUpgradeConfiguration.setConfigurationFromExecutionConfig(executionConfig);
+        }
+
+        @Override
+        public void cleanup() {
+            KryoUpgradeConfiguration.clearConfiguration();
+        }
 
         @Override
         public TypeSerializer<Animal> createPriorSerializer() {
@@ -201,6 +223,22 @@ class KryoSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Object, Ob
 
     public static final class KryoCustomTypeSerializerChangedRegistrationOrderSetup
             implements TypeSerializerUpgradeTestBase.PreUpgradeSetup<Animal> {
+        @Override
+        public void setup() {
+            ExecutionConfig executionConfig = new ExecutionConfig();
+            executionConfig.registerTypeWithKryo5Serializer(
+                    Dog.class, KryoPojosForMigrationTests.DogKryo5Serializer.class);
+            executionConfig.registerKryo5Type(Cat.class);
+            executionConfig.registerTypeWithKryo5Serializer(
+                    Parrot.class, KryoPojosForMigrationTests.ParrotKryo5Serializer.class);
+
+            KryoUpgradeConfiguration.setConfigurationFromExecutionConfig(executionConfig);
+        }
+
+        @Override
+        public void cleanup() {
+            KryoUpgradeConfiguration.clearConfiguration();
+        }
 
         @Override
         public TypeSerializer<Animal> createPriorSerializer() {

@@ -127,7 +127,9 @@ For Google Protobuf you need the following Maven dependency:
 
 Please adjust the versions of both libraries as needed.
 
-### Issue with using Kryo's `JavaSerializer` 
+### Issue with using `JavaSerializer` from Kryo 2.x
+
+NOTE: This issues applies to Kryo 2.x and not Kryo 5+.
 
 If you register Kryo's `JavaSerializer` for your custom type, you may
 encounter `ClassNotFoundException`s even though your custom type class is

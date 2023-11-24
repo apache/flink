@@ -142,7 +142,9 @@ public class TestBaseUtils {
         Arrays.sort(result);
 
         String[] expected =
-                expectedResultStr.isEmpty() ? new String[0] : expectedResultStr.split("\n");
+                ((expectedResultStr == null) || expectedResultStr.isEmpty())
+                        ? new String[0]
+                        : expectedResultStr.split("\n");
         Arrays.sort(expected);
 
         if (expected.length != result.length || !Arrays.deepEquals(expected, result)) {

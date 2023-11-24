@@ -45,8 +45,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
-import org.apache.flink.api.java.typeutils.runtime.kryo.JavaSerializer;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
@@ -82,9 +81,6 @@ import org.apache.flink.util.StateMigrationException;
 
 import org.apache.flink.shaded.guava31.com.google.common.base.Joiner;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -537,14 +533,15 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         try {
             // cast because our test serializer is not typed to TestPojo
             env.getExecutionConfig()
-                    .addDefaultKryoSerializer(
-                            TestPojo.class, (Class) ExceptionThrowingTestSerializer.class);
+                    .addDefaultKryo5Serializer(
+                            TestPojo.class, (Class) ExceptionThrowingTestKryo5Serializer.class);
 
             TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
             // make sure that we are in fact using the KryoSerializer
             assertThat(pojoType.createSerializer(env.getExecutionConfig()))
-                    .isInstanceOf(KryoSerializer.class);
+                    .isInstanceOf(
+                            org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer.class);
 
             ValueStateDescriptor<TestPojo> kvId = new ValueStateDescriptor<>("id", pojoType);
 
@@ -610,8 +607,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         try {
             // cast because our test serializer is not typed to TestPojo
             env.getExecutionConfig()
-                    .addDefaultKryoSerializer(
-                            TestPojo.class, (Class) ExceptionThrowingTestSerializer.class);
+                    .addDefaultKryo5Serializer(
+                            TestPojo.class, (Class) ExceptionThrowingTestKryo5Serializer.class);
 
             TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
@@ -680,8 +677,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         CheckpointStreamFactory streamFactory = createStreamFactory();
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
         env.getExecutionConfig()
-                .registerTypeWithKryoSerializer(
-                        TestPojo.class, ExceptionThrowingTestSerializer.class);
+                .registerTypeWithKryo5Serializer(
+                        TestPojo.class, ExceptionThrowingTestKryo5Serializer.class);
 
         TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
@@ -752,8 +749,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         env.getExecutionConfig()
-                .registerTypeWithKryoSerializer(
-                        TestPojo.class, ExceptionThrowingTestSerializer.class);
+                .registerTypeWithKryo5Serializer(
+                        TestPojo.class, ExceptionThrowingTestKryo5Serializer.class);
 
         TypeInformation<TestPojo> pojoType = new GenericTypeInfo<>(TestPojo.class);
 
@@ -950,8 +947,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
             // cast because our test serializer is not typed to TestPojo
             env.getExecutionConfig()
-                    .addDefaultKryoSerializer(
-                            TestPojo.class, (Class) CustomKryoTestSerializer.class);
+                    .addDefaultKryo5Serializer(
+                            TestPojo.class, (Class) CustomKryo5TestSerializer.class);
 
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
 
@@ -985,8 +982,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
 
             // cast because our test serializer is not typed to TestPojo
             env.getExecutionConfig()
-                    .addDefaultKryoSerializer(
-                            TestPojo.class, (Class) CustomKryoTestSerializer.class);
+                    .addDefaultKryo5Serializer(
+                            TestPojo.class, (Class) CustomKryo5TestSerializer.class);
 
             assertRestoreKeyedBackendFail(snapshot2, kvId);
 
@@ -1056,7 +1053,8 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
             // ==========
 
             env.getExecutionConfig()
-                    .registerTypeWithKryoSerializer(TestPojo.class, CustomKryoTestSerializer.class);
+                    .registerTypeWithKryo5Serializer(
+                            TestPojo.class, CustomKryo5TestSerializer.class);
 
             backend = restoreKeyedBackend(IntSerializer.INSTANCE, snapshot, env);
 
@@ -5570,21 +5568,51 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
         }
     }
 
-    /** We throw this in our {@link ExceptionThrowingTestSerializer}. */
+    /** We throw this in our {@link ExceptionThrowingTestKryo2Serializer}. */
     private static class ExpectedKryoTestException extends RuntimeException {}
 
     /**
      * Kryo {@code Serializer} that throws an expected exception. We use this to ensure that the
      * state backend correctly uses a specified Kryo serializer.
      */
-    public static class ExceptionThrowingTestSerializer extends JavaSerializer {
+    public static class ExceptionThrowingTestKryo2Serializer
+            extends org.apache.flink.api.java.typeutils.runtime.kryo.JavaSerializer {
         @Override
-        public void write(Kryo kryo, Output output, Object object) {
+        public void write(
+                com.esotericsoftware.kryo.Kryo kryo,
+                com.esotericsoftware.kryo.io.Output output,
+                Object object) {
             throw new ExpectedKryoTestException();
         }
 
         @Override
-        public Object read(Kryo kryo, Input input, Class type) {
+        public Object read(
+                com.esotericsoftware.kryo.Kryo kryo,
+                com.esotericsoftware.kryo.io.Input input,
+                Class type) {
+            throw new ExpectedKryoTestException();
+        }
+    }
+
+    /**
+     * Kryo {@code Serializer} that throws an expected exception. We use this to ensure that the
+     * state backend correctly uses a specified Kryo serializer.
+     */
+    public static class ExceptionThrowingTestKryo5Serializer
+            extends com.esotericsoftware.kryo.kryo5.serializers.JavaSerializer {
+        @Override
+        public void write(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Output output,
+                Object object) {
+            throw new ExpectedKryoTestException();
+        }
+
+        @Override
+        public Object read(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Input input,
+                Class type) {
             throw new ExpectedKryoTestException();
         }
     }
@@ -5597,14 +5625,48 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> {
      * that state that was serialized without a registered {@code Serializer} is in fact not
      * restored with a {@code Serializer} that was later registered.
      */
-    public static class CustomKryoTestSerializer extends JavaSerializer {
+    public static class CustomKryoTestSerializer
+            extends org.apache.flink.api.java.typeutils.runtime.kryo.JavaSerializer {
         @Override
-        public void write(Kryo kryo, Output output, Object object) {
+        public void write(
+                com.esotericsoftware.kryo.Kryo kryo,
+                com.esotericsoftware.kryo.io.Output output,
+                Object object) {
             super.write(kryo, output, object);
         }
 
         @Override
-        public Object read(Kryo kryo, Input input, Class type) {
+        public Object read(
+                com.esotericsoftware.kryo.Kryo kryo,
+                com.esotericsoftware.kryo.io.Input input,
+                Class type) {
+            throw new ExpectedKryoTestException();
+        }
+    }
+
+    /**
+     * Our custom version of {@link JavaSerializer} for checking whether restore with a registered
+     * serializer works when no serializer was previously registered.
+     *
+     * <p>This {@code Serializer} can only be used for writing, not for reading. With this we verify
+     * that state that was serialized without a registered {@code Serializer} is in fact not
+     * restored with a {@code Serializer} that was later registered.
+     */
+    public static class CustomKryo5TestSerializer
+            extends com.esotericsoftware.kryo.kryo5.serializers.JavaSerializer {
+        @Override
+        public void write(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Output output,
+                Object object) {
+            super.write(kryo, output, object);
+        }
+
+        @Override
+        public Object read(
+                com.esotericsoftware.kryo.kryo5.Kryo kryo,
+                com.esotericsoftware.kryo.kryo5.io.Input input,
+                Class type) {
             throw new ExpectedKryoTestException();
         }
     }

@@ -18,13 +18,17 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig.SerializableSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.java.typeutils.runtime.Kryo5Registration;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistration;
+import org.apache.flink.api.java.typeutils.runtime.kryo5.KryoUpgradeConfiguration;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.LinkedOptionalMap;
 import org.apache.flink.util.LinkedOptionalMap.MergeResult;
 
 import com.esotericsoftware.kryo.Serializer;
@@ -33,7 +37,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializerSnapshotData.createFrom;
 import static org.apache.flink.util.LinkedOptionalMap.mergeRightIntoLeft;
@@ -51,6 +57,7 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
     @SuppressWarnings("unused")
     public KryoSerializerSnapshot() {}
 
+    @SuppressWarnings("deprecation")
     KryoSerializerSnapshot(
             Class<T> typeClass,
             LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers,
@@ -82,27 +89,60 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public TypeSerializer<T> restoreSerializer() {
-        return new KryoSerializer<>(
+        LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> defaultSerializersV2 =
+                snapshotData.getDefaultKryoSerializers().unwrapOptionals();
+        LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultSerializerClassesV2 =
+                snapshotData.getDefaultKryoSerializerClasses().unwrapOptionals();
+        LinkedHashMap<String, KryoRegistration> registrationsV2 =
+                snapshotData.getKryoRegistrations().unwrapOptionals();
+
+        KryoUpgradeConfiguration upgradeConfiguration = KryoUpgradeConfiguration.getActive();
+        LinkedHashMap<Class<?>, ExecutionConfig.SerializableKryo5Serializer<?>>
+                defaultSerializersV5 =
+                        upgradeConfiguration.upgradeDefaultSerializers(defaultSerializersV2);
+        LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>>>
+                defaultSerializerClassesV5 =
+                        upgradeConfiguration.upgradeDefaultSerializerClasses(
+                                defaultSerializerClassesV2);
+        LinkedHashMap<String, Kryo5Registration> registrationsV5 =
+                upgradeConfiguration.upgradeRegistrations(registrationsV2);
+
+        return org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer.createReturnV2(
                 snapshotData.getTypeClass(),
-                snapshotData.getDefaultKryoSerializers().unwrapOptionals(),
-                snapshotData.getDefaultKryoSerializerClasses().unwrapOptionals(),
-                snapshotData.getKryoRegistrations().unwrapOptionals());
+                defaultSerializersV2,
+                defaultSerializerClassesV2,
+                registrationsV2,
+                defaultSerializersV5,
+                defaultSerializerClassesV5,
+                registrationsV5);
     }
 
     @Override
     public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
             TypeSerializer<T> newSerializer) {
-        if (!(newSerializer instanceof KryoSerializer)) {
+        if (newSerializer instanceof KryoSerializer) {
+            KryoSerializer<T> kryoSerializer = (KryoSerializer<T>) newSerializer;
+            if (kryoSerializer.getType() != snapshotData.getTypeClass()) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            }
+            return resolveSchemaCompatibility(kryoSerializer);
+        } else if (newSerializer
+                instanceof org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer) {
+            org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<T> kryoSerializer =
+                    (org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<T>)
+                            newSerializer;
+            if (kryoSerializer.getType() != snapshotData.getTypeClass()) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            }
+            return resolveForwardSchemaCompatibility(kryoSerializer);
+        } else {
             return TypeSerializerSchemaCompatibility.incompatible();
         }
-        KryoSerializer<T> kryoSerializer = (KryoSerializer<T>) newSerializer;
-        if (kryoSerializer.getType() != snapshotData.getTypeClass()) {
-            return TypeSerializerSchemaCompatibility.incompatible();
-        }
-        return resolveSchemaCompatibility(kryoSerializer);
     }
 
+    @SuppressWarnings("deprecation")
     private TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
             KryoSerializer<T> newSerializer) {
         // merge the default serializers
@@ -141,20 +181,6 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
             return TypeSerializerSchemaCompatibility.incompatible();
         }
 
-        // there are no missing keys, now we have to decide whether we are compatible as-is or we
-        // require reconfiguration.
-        return resolveSchemaCompatibility(
-                reconfiguredDefaultKryoSerializers,
-                reconfiguredDefaultKryoSerializerClasses,
-                reconfiguredRegistrations);
-    }
-
-    private TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-            MergeResult<Class<?>, SerializableSerializer<?>> reconfiguredDefaultKryoSerializers,
-            MergeResult<Class<?>, Class<? extends Serializer<?>>>
-                    reconfiguredDefaultKryoSerializerClasses,
-            MergeResult<String, KryoRegistration> reconfiguredRegistrations) {
-
         if (reconfiguredDefaultKryoSerializers.isOrderedSubset()
                 && reconfiguredDefaultKryoSerializerClasses.isOrderedSubset()
                 && reconfiguredRegistrations.isOrderedSubset()) {
@@ -168,7 +194,84 @@ public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
                         snapshotData.getTypeClass(),
                         reconfiguredDefaultKryoSerializers.getMerged(),
                         reconfiguredDefaultKryoSerializerClasses.getMerged(),
-                        reconfiguredRegistrations.getMerged());
+                        reconfiguredRegistrations.getMerged(),
+                        null);
+
+        return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
+                reconfiguredSerializer);
+    }
+
+    @SuppressWarnings("deprecation")
+    private TypeSerializerSchemaCompatibility<T> resolveForwardSchemaCompatibility(
+            org.apache.flink.api.java.typeutils.runtime.kryo5.KryoSerializer<T> kryo5Serializer) {
+        // Default Kryo Serializers
+        LinkedOptionalMap<Class<?>, ExecutionConfig.SerializableSerializer<?>>
+                defaultSnapshotKryo2Serializers = snapshotData.getDefaultKryoSerializers();
+
+        LinkedHashMap<Class<?>, ExecutionConfig.SerializableKryo5Serializer<?>>
+                defaultKryo5SerializersRaw = kryo5Serializer.getDefaultKryoSerializers();
+        Set<String> defaultKryo5SerializersClassNames =
+                defaultKryo5SerializersRaw.keySet().stream()
+                        .map(Class::getName)
+                        .collect(Collectors.toSet());
+
+        MergeResult<Class<?>, SerializableSerializer<?>> defaultKryo5SerializersMergeResult =
+                LinkedOptionalMap.mergeValuesWithPrefixKeys(
+                        defaultSnapshotKryo2Serializers, defaultKryo5SerializersClassNames);
+
+        if (defaultKryo5SerializersMergeResult.hasMissingKeys()) {
+            logMissingKeys(defaultKryo5SerializersMergeResult);
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+
+        // Default Serializer Classes
+        LinkedOptionalMap<Class<?>, Class<? extends com.esotericsoftware.kryo.Serializer<?>>>
+                defaultSnapshotKryo2SerializerClasses =
+                        snapshotData.getDefaultKryoSerializerClasses();
+
+        LinkedHashMap<Class<?>, Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>>>
+                kryo5SerializerClassesRaw = kryo5Serializer.getDefaultKryoSerializerClasses();
+        Set<String> kryo5SerializerClassesClassNames =
+                kryo5SerializerClassesRaw.keySet().stream()
+                        .map(Class::getName)
+                        .collect(Collectors.toSet());
+
+        MergeResult<Class<?>, Class<? extends com.esotericsoftware.kryo.Serializer<?>>>
+                kryoSerializersClassesMergeResult =
+                        LinkedOptionalMap.mergeValuesWithPrefixKeys(
+                                defaultSnapshotKryo2SerializerClasses,
+                                kryo5SerializerClassesClassNames);
+
+        if (kryoSerializersClassesMergeResult.hasMissingKeys()) {
+            logMissingKeys(kryoSerializersClassesMergeResult);
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+
+        // Kryo Registrations
+        LinkedOptionalMap<String, KryoRegistration> snapshotKryo2Registrations =
+                snapshotData.getKryoRegistrations();
+
+        LinkedHashMap<String, Kryo5Registration> kryo5RegistrationsRaw =
+                kryo5Serializer.getKryoRegistrations();
+        Set<String> kryo5RegistrationKeys = kryo5RegistrationsRaw.keySet();
+
+        MergeResult<String, KryoRegistration> kryo5RegistrationsMergeResult =
+                LinkedOptionalMap.mergeValuesWithPrefixKeys(
+                        snapshotKryo2Registrations, kryo5RegistrationKeys);
+
+        if (kryo5RegistrationsMergeResult.hasMissingKeys()) {
+            logMissingKeys(kryo5RegistrationsMergeResult);
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+
+        // reconfigure a new KryoSerializer
+        KryoSerializer<T> reconfiguredSerializer =
+                new KryoSerializer<>(
+                        snapshotData.getTypeClass(),
+                        defaultKryo5SerializersMergeResult.getMerged(),
+                        kryoSerializersClassesMergeResult.getMerged(),
+                        kryo5RegistrationsMergeResult.getMerged(),
+                        kryo5Serializer);
 
         return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
                 reconfiguredSerializer);

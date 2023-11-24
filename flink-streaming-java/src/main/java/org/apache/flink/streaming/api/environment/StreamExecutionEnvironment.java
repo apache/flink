@@ -113,8 +113,6 @@ import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.WrappingRuntimeException;
 
-import com.esotericsoftware.kryo.Serializer;
-
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -847,9 +845,26 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param type The class of the types serialized with the given serializer.
      * @param serializer The serializer to use.
      */
-    public <T extends Serializer<?> & Serializable> void addDefaultKryoSerializer(
-            Class<?> type, T serializer) {
+    @Deprecated
+    public <T extends com.esotericsoftware.kryo.Serializer<?> & Serializable>
+            void addDefaultKryoSerializer(Class<?> type, T serializer) {
         config.addDefaultKryoSerializer(type, serializer);
+    }
+
+    /**
+     * Adds a new Kryo 5 default serializer to the Runtime.
+     *
+     * <p>Note that the serializer instance must be serializable (as defined by
+     * java.io.Serializable), because it may be distributed to the worker nodes by java
+     * serialization.
+     *
+     * @param type The class of the types serialized with the given serializer.
+     * @param serializer The serializer to use.
+     */
+    @PublicEvolving
+    public <T extends com.esotericsoftware.kryo.kryo5.Serializer<?> & Serializable>
+            void addDefaultKryo5Serializer(Class<?> type, T serializer) {
+        config.addDefaultKryo5Serializer(type, serializer);
     }
 
     /**
@@ -859,8 +874,22 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param serializerClass The class of the serializer to use.
      */
     public void addDefaultKryoSerializer(
-            Class<?> type, Class<? extends Serializer<?>> serializerClass) {
+            Class<?> type,
+            Class<? extends com.esotericsoftware.kryo.Serializer<?>> serializerClass) {
         config.addDefaultKryoSerializer(type, serializerClass);
+    }
+
+    /**
+     * Adds a new Kryo default serializer to the Runtime.
+     *
+     * @param type The class of the types serialized with the given serializer.
+     * @param serializerClass The class of the serializer to use.
+     */
+    @PublicEvolving
+    public void addDefaultKryo5Serializer(
+            Class<?> type,
+            Class<? extends com.esotericsoftware.kryo.kryo5.Serializer<?>> serializerClass) {
+        config.addDefaultKryo5Serializer(type, serializerClass);
     }
 
     /**
@@ -873,9 +902,26 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param type The class of the types serialized with the given serializer.
      * @param serializer The serializer to use.
      */
-    public <T extends Serializer<?> & Serializable> void registerTypeWithKryoSerializer(
-            Class<?> type, T serializer) {
+    @Deprecated
+    public <T extends com.esotericsoftware.kryo.Serializer<?> & Serializable>
+            void registerTypeWithKryoSerializer(Class<?> type, T serializer) {
         config.registerTypeWithKryoSerializer(type, serializer);
+    }
+
+    /**
+     * Registers the given type with a Kryo Serializer.
+     *
+     * <p>Note that the serializer instance must be serializable (as defined by
+     * java.io.Serializable), because it may be distributed to the worker nodes by java
+     * serialization.
+     *
+     * @param type The class of the types serialized with the given serializer.
+     * @param serializer The serializer to use.
+     */
+    @PublicEvolving
+    public <T extends com.esotericsoftware.kryo.kryo5.Serializer<?> & Serializable>
+            void registerTypeWithKryo5Serializer(Class<?> type, T serializer) {
+        config.registerTypeWithKryo5Serializer(type, serializer);
     }
 
     /**
@@ -886,9 +932,25 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      * @param serializerClass The class of the serializer to use.
      */
     @SuppressWarnings("rawtypes")
+    @Deprecated
     public void registerTypeWithKryoSerializer(
-            Class<?> type, Class<? extends Serializer> serializerClass) {
+            Class<?> type, Class<? extends com.esotericsoftware.kryo.Serializer> serializerClass) {
         config.registerTypeWithKryoSerializer(type, serializerClass);
+    }
+
+    /**
+     * Registers the given Serializer via its class as a serializer for the given type at the
+     * KryoSerializer.
+     *
+     * @param type The class of the types serialized with the given serializer.
+     * @param serializerClass The class of the serializer to use.
+     */
+    @SuppressWarnings("rawtypes")
+    @PublicEvolving
+    public void registerTypeWithKryo5Serializer(
+            Class<?> type,
+            Class<? extends com.esotericsoftware.kryo.kryo5.Serializer> serializerClass) {
+        config.registerTypeWithKryo5Serializer(type, serializerClass);
     }
 
     /**
