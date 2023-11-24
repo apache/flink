@@ -70,7 +70,7 @@ Checkpoint 其他的属性包括：
     该选项不能和 "checkpoints 间的最小时间"同时使用。
     
   - *externalized checkpoints*: 你可以配置周期存储 checkpoint 到外部系统中。Externalized checkpoints 将他们的元数据写到持久化存储上并且在 job 失败的时候*不会*被自动删除。
-    这种方式下，如果你的 job 失败，你将会有一个现有的 checkpoint 去恢复。更多的细节请看 [Externalized checkpoints 的部署文档]({{< ref "docs/ops/state/checkpoints" >}}#externalized-checkpoints)。
+    这种方式下，如果你的 job 失败，你将会有一个现有的 checkpoint 去恢复。更多的细节请看 [保留 checkpoints 的部署文档]({{< ref "docs/ops/state/checkpoints" >}}#保留-checkpoint)。
     
 {{< tabs "5ef78d6e-3c62-43e9-b0a8-a987df37a8da" >}}
 {{< tab "Java" >}}
