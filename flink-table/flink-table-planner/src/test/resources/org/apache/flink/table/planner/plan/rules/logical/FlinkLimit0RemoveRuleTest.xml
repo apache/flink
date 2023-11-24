@@ -34,12 +34,7 @@ LogicalSort(fetch=[0])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[$3], joinType=[semi])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-   +- LogicalProject($f0=[IS NOT NULL($0)])
-      +- LogicalAggregate(group=[{}], m=[MIN($0)])
-         +- LogicalProject(i=[true])
-            +- LogicalValues(tuples=[[]])
++- LogicalValues(tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -93,7 +88,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
   </TestCase>
   <TestCase name="testLimitZeroWithJoin">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable INNER JOIN (SELECT * FROM MyTable Limit 0) ON TRUE]]>
+      <![CDATA[SELECT * FROM MyTable INNER JOIN (SELECT * FROM MyTable LIMIT 0) ON TRUE]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -132,12 +127,7 @@ LogicalSort(fetch=[0])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[$3], joinType=[anti])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
-   +- LogicalProject($f0=[IS NOT NULL($0)])
-      +- LogicalAggregate(group=[{}], m=[MIN($0)])
-         +- LogicalProject(i=[true])
-            +- LogicalValues(tuples=[[]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
   </TestCase>

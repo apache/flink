@@ -131,7 +131,6 @@ class FlinkAggregateRemoveRuleTest extends TableTestBase {
 
   @Test
   def testAggRemove_WithoutGroupBy3(): Unit = {
-    // can not remove agg
     util.verifyRelPlan(
       "SELECT * FROM MyTable2 WHERE EXISTS (SELECT SUM(a) FROM MyTable1 WHERE 1=2)")
   }
