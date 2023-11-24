@@ -25,6 +25,7 @@ import org.apache.flink.table.client.cli.parser.SqlCommandParserImpl;
 import org.apache.flink.table.client.cli.parser.SqlMultiLineParser;
 import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
+import org.apache.flink.table.client.config.SqlClientOptions;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.SingleSessionManager;
 import org.apache.flink.table.data.GenericRowData;
@@ -271,7 +272,8 @@ class CliClientITCase {
                                 // Make sure we use the new cast behaviour
                                 .set(
                                         ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
-                                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED),
+                                        ExecutionConfigOptions.LegacyCastBehaviour.DISABLED)
+                                .set(SqlClientOptions.DISPLAY_QUERY_TIME_COST, false),
                         Collections.emptyList());
 
         InputStream inputStream = new ByteArrayInputStream(sqlContent.getBytes());
