@@ -82,7 +82,11 @@ import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestMessage;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.OperatorEventMessage;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateClientProxy;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -134,12 +138,15 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.util.GroupCache;
+import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.runtime.webmonitor.threadinfo.ThreadInfoSamplesRequest;
+import org.apache.flink.types.Either;
 import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkExpectedException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalConsumer;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
@@ -158,6 +165,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -178,11 +186,13 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static org.apache.flink.configuration.TaskManagerOptions.TASK_STATE_SYNC_DELAY;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -305,6 +315,11 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     private final GroupCache<JobID, PermanentBlobKey, ShuffleDescriptorGroup>
             shuffleDescriptorsCache;
 
+    private final ScheduledExecutorService scheduledExecutor =
+            Executors.newScheduledThreadPool(Hardware.getNumberCPUCores());
+
+    private final long taskStateSyncDelay;
+
     public TaskExecutor(
             RpcService rpcService,
             TaskManagerConfiguration taskManagerConfiguration,
@@ -383,6 +398,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         this.jobInformationCache = taskExecutorServices.getJobInformationCache();
         this.taskInformationCache = taskExecutorServices.getTaskInformationCache();
         this.shuffleDescriptorsCache = taskExecutorServices.getShuffleDescriptorCache();
+        this.taskStateSyncDelay =
+                taskManagerConfiguration.getConfiguration().get(TASK_STATE_SYNC_DELAY);
     }
 
     private HeartbeatManager<Void, TaskExecutorHeartbeatPayload>
@@ -515,6 +532,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         jobInformationCache.clear();
         taskInformationCache.clear();
         shuffleDescriptorsCache.clear();
+
+        scheduledExecutor.shutdown();
 
         Preconditions.checkState(jobTable.isEmpty());
 
@@ -723,16 +742,16 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                             tdd.getExecutionAttemptId(),
                             taskManagerConfiguration.getRpcTimeout());
 
-            final TaskOperatorEventGateway taskOperatorEventGateway =
-                    new RpcTaskOperatorEventGateway(
-                            jobManagerConnection.getJobManagerGateway(),
-                            executionAttemptID,
-                            (t) -> runAsync(() -> failTask(executionAttemptID, t)));
-
             TaskManagerActions taskManagerActions = jobManagerConnection.getTaskManagerActions();
             CheckpointResponder checkpointResponder = jobManagerConnection.getCheckpointResponder();
             GlobalAggregateManager aggregateManager =
                     jobManagerConnection.getGlobalAggregateManager();
+
+            final TaskOperatorEventGateway taskOperatorEventGateway =
+                    new RpcTaskOperatorEventGateway(
+                            taskManagerActions,
+                            executionAttemptID,
+                            (t) -> runAsync(() -> failTask(executionAttemptID, t)));
 
             LibraryCacheManager.ClassLoaderHandle classLoaderHandle =
                     jobManagerConnection.getClassLoaderHandle();
@@ -1827,7 +1846,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         checkNotNull(resourceID);
         checkNotNull(jobMasterGateway);
 
-        TaskManagerActions taskManagerActions = new TaskManagerActionsImpl(jobMasterGateway);
+        TaskManagerActions taskManagerActions =
+                taskStateSyncDelay > 0
+                        ? new BatchTaskManagerActions(jobMasterGateway)
+                        : new DefaultTaskManagerActions(jobMasterGateway);
 
         CheckpointResponder checkpointResponder = new RpcCheckpointResponder(jobMasterGateway);
         GlobalAggregateManager aggregateManager = new RpcGlobalAggregateManager(jobMasterGateway);
@@ -1970,55 +1992,75 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         }
     }
 
-    private void updateTaskExecutionState(
-            final JobMasterGateway jobMasterGateway, final TaskExecutionState taskExecutionState) {
-        final ExecutionAttemptID executionAttemptID = taskExecutionState.getID();
+    private void updateTaskExecutionStates(
+            final JobMasterGateway jobMasterGateway,
+            final List<TaskExecutionState> taskExecutionStates) {
+        final List<ExecutionAttemptID> executionAttemptIDs =
+                taskExecutionStates.stream()
+                        .map(TaskExecutionState::getID)
+                        .collect(Collectors.toList());
 
-        CompletableFuture<Acknowledge> futureAcknowledge =
-                jobMasterGateway.updateTaskExecutionState(taskExecutionState);
+        CompletableFuture<List<Either<Acknowledge, Throwable>>> futureAcknowledge =
+                jobMasterGateway.updateTaskExecutionStates(taskExecutionStates);
 
         futureAcknowledge.whenCompleteAsync(
-                (ack, throwable) -> {
+                (acks, throwable) -> {
                     if (throwable != null) {
-                        failTask(executionAttemptID, throwable);
+                        for (ExecutionAttemptID executionAttemptID : executionAttemptIDs) {
+                            failTask(executionAttemptID, throwable);
+                        }
+                    } else {
+                        for (int i = 0; i < executionAttemptIDs.size(); ++i) {
+                            final ExecutionAttemptID executionAttemptID =
+                                    executionAttemptIDs.get(i);
+                            if (acks.get(i).isRight()) {
+                                failTask(executionAttemptID, acks.get(i).right());
+                            }
+                        }
                     }
                 },
                 getMainThreadExecutor());
     }
 
-    private void unregisterTaskAndNotifyFinalState(
-            final JobMasterGateway jobMasterGateway, final ExecutionAttemptID executionAttemptID) {
+    private void unregisterTaskAndNotifyFinalStates(
+            final JobMasterGateway jobMasterGateway,
+            final List<ExecutionAttemptID> executionAttemptIDs) {
+        List<TaskExecutionState> finalStates = new ArrayList<>();
 
-        Task task = taskSlotTable.removeTask(executionAttemptID);
-        if (task != null) {
-            if (!task.getExecutionState().isTerminal()) {
-                try {
-                    task.failExternally(
-                            new IllegalStateException("Task is being remove from TaskManager."));
-                } catch (Exception e) {
-                    log.error("Could not properly fail task.", e);
+        for (ExecutionAttemptID executionAttemptID : executionAttemptIDs) {
+            Task task = taskSlotTable.removeTask(executionAttemptID);
+            if (task != null) {
+                if (!task.getExecutionState().isTerminal()) {
+                    try {
+                        task.failExternally(
+                                new IllegalStateException(
+                                        "Task is being remove from TaskManager."));
+                    } catch (Exception e) {
+                        log.error("Could not properly fail task.", e);
+                    }
                 }
+
+                log.info(
+                        "Un-registering task and sending final execution state {} to JobManager for task {} {}.",
+                        task.getExecutionState(),
+                        task.getTaskInfo().getTaskNameWithSubtasks(),
+                        task.getExecutionId());
+
+                AccumulatorSnapshot accumulatorSnapshot =
+                        task.getAccumulatorRegistry().getSnapshot();
+
+                finalStates.add(
+                        new TaskExecutionState(
+                                task.getExecutionId(),
+                                task.getExecutionState(),
+                                task.getFailureCause(),
+                                accumulatorSnapshot,
+                                task.getMetricGroup().getIOMetricGroup().createSnapshot()));
+            } else {
+                log.error("Cannot find task with ID {} to unregister.", executionAttemptID);
             }
-
-            log.info(
-                    "Un-registering task and sending final execution state {} to JobManager for task {} {}.",
-                    task.getExecutionState(),
-                    task.getTaskInfo().getTaskNameWithSubtasks(),
-                    task.getExecutionId());
-
-            AccumulatorSnapshot accumulatorSnapshot = task.getAccumulatorRegistry().getSnapshot();
-
-            updateTaskExecutionState(
-                    jobMasterGateway,
-                    new TaskExecutionState(
-                            task.getExecutionId(),
-                            task.getExecutionState(),
-                            task.getFailureCause(),
-                            accumulatorSnapshot,
-                            task.getMetricGroup().getIOMetricGroup().createSnapshot()));
-        } else {
-            log.error("Cannot find task with ID {} to unregister.", executionAttemptID);
         }
+        updateTaskExecutionStates(jobMasterGateway, finalStates);
     }
 
     private void freeSlotInternal(AllocationID allocationId, Throwable cause) {
@@ -2478,10 +2520,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         }
     }
 
-    private final class TaskManagerActionsImpl implements TaskManagerActions {
+    private final class DefaultTaskManagerActions implements TaskManagerActions {
         private final JobMasterGateway jobMasterGateway;
 
-        private TaskManagerActionsImpl(JobMasterGateway jobMasterGateway) {
+        private DefaultTaskManagerActions(JobMasterGateway jobMasterGateway) {
             this.jobMasterGateway = checkNotNull(jobMasterGateway);
         }
 
@@ -2507,16 +2549,201 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             if (taskExecutionState.getExecutionState().isTerminal()) {
                 runAsync(
                         () ->
-                                unregisterTaskAndNotifyFinalState(
-                                        jobMasterGateway, taskExecutionState.getID()));
+                                unregisterTaskAndNotifyFinalStates(
+                                        jobMasterGateway,
+                                        Collections.singletonList(taskExecutionState.getID())));
             } else {
-                TaskExecutor.this.updateTaskExecutionState(jobMasterGateway, taskExecutionState);
+                TaskExecutor.this.updateTaskExecutionStates(
+                        jobMasterGateway, Collections.singletonList(taskExecutionState));
             }
         }
 
         @Override
         public void notifyEndOfData(final ExecutionAttemptID executionAttemptID) {
-            runAsync(() -> jobMasterGateway.notifyEndOfData(executionAttemptID));
+            runAsync(
+                    () ->
+                            jobMasterGateway.notifyEndOfData(
+                                    Collections.singletonList(executionAttemptID)));
+        }
+
+        @Override
+        public CompletableFuture<Acknowledge> sendOperatorEventToCoordinator(
+                ExecutionAttemptID task,
+                OperatorID operatorID,
+                SerializedValue<OperatorEvent> event) {
+            return jobMasterGateway
+                    .sendOperatorEventsToCoordinators(
+                            Collections.singletonList(
+                                    new OperatorEventMessage(task, operatorID, event)))
+                    .thenApply(
+                            result -> {
+                                Preconditions.checkState(result.size() == 1);
+                                if (result.get(0).isLeft()) {
+                                    return result.get(0).left();
+                                } else {
+                                    throw new FlinkRuntimeException(result.get(0).right());
+                                }
+                            });
+        }
+
+        @Override
+        public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+                OperatorID operatorID, SerializedValue<CoordinationRequest> request) {
+            return jobMasterGateway.sendRequestToCoordinator(
+                    new CoordinationRequestMessage(operatorID, request));
+        }
+    }
+
+    private final class BatchTaskManagerActions implements TaskManagerActions {
+        private final JobMasterGateway jobMasterGateway;
+        private final List<TaskExecutionState> pendingStates = new ArrayList<>();
+        private final List<OperatorEventMessageWithFuture> operatorEvents = new ArrayList<>();
+        private final List<CoordinationRequestMessageWithFuture> coordinationRequests =
+                new ArrayList<>();
+        private final List<ExecutionAttemptID> executionFinalNotification = new ArrayList<>();
+        private boolean hasPendingSync = false;
+
+        private BatchTaskManagerActions(JobMasterGateway jobMasterGateway) {
+            this.jobMasterGateway = checkNotNull(jobMasterGateway);
+        }
+
+        @Override
+        public void notifyFatalError(String message, Throwable cause) {
+            try {
+                log.error(message, cause);
+            } catch (Throwable ignored) {
+            }
+
+            // The fatal error handler implementation should make sure that this call is
+            // non-blocking
+            fatalErrorHandler.onFatalError(cause);
+        }
+
+        @Override
+        public void failTask(final ExecutionAttemptID executionAttemptID, final Throwable cause) {
+            runAsync(() -> TaskExecutor.this.failTask(executionAttemptID, cause));
+        }
+
+        @Override
+        public synchronized void notifyEndOfData(final ExecutionAttemptID executionAttemptID) {
+            executionFinalNotification.add(executionAttemptID);
+            if (!hasPendingSync) {
+                TaskExecutor.this.scheduledExecutor.schedule(
+                        this::syncMessagesWithJobMaster, taskStateSyncDelay, TimeUnit.MILLISECONDS);
+                hasPendingSync = true;
+            }
+        }
+
+        @Override
+        public synchronized void updateTaskExecutionState(
+                final TaskExecutionState taskExecutionState) {
+            pendingStates.add(taskExecutionState);
+            if (!hasPendingSync) {
+                TaskExecutor.this.scheduledExecutor.schedule(
+                        this::syncMessagesWithJobMaster, taskStateSyncDelay, TimeUnit.MILLISECONDS);
+                hasPendingSync = true;
+            }
+        }
+
+        @Override
+        public synchronized CompletableFuture<Acknowledge> sendOperatorEventToCoordinator(
+                ExecutionAttemptID task,
+                OperatorID operatorID,
+                SerializedValue<OperatorEvent> event) {
+            CompletableFuture<Acknowledge> future = new CompletableFuture<>();
+            operatorEvents.add(
+                    new OperatorEventMessageWithFuture(
+                            new OperatorEventMessage(task, operatorID, event), future));
+            if (!hasPendingSync) {
+                TaskExecutor.this.scheduledExecutor.schedule(
+                        this::syncMessagesWithJobMaster, taskStateSyncDelay, TimeUnit.MILLISECONDS);
+                hasPendingSync = true;
+            }
+            return future;
+        }
+
+        @Override
+        public synchronized CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+                OperatorID operatorID, SerializedValue<CoordinationRequest> request) {
+            CompletableFuture<CoordinationResponse> future = new CompletableFuture<>();
+            coordinationRequests.add(
+                    new CoordinationRequestMessageWithFuture(
+                            new CoordinationRequestMessage(operatorID, request), future));
+            if (!hasPendingSync) {
+                TaskExecutor.this.scheduledExecutor.schedule(
+                        this::syncMessagesWithJobMaster, taskStateSyncDelay, TimeUnit.MILLISECONDS);
+                hasPendingSync = true;
+            }
+            return future;
+        }
+
+        private synchronized void syncMessagesWithJobMaster() {
+            final List<TaskExecutionState> currentStates = new ArrayList<>(pendingStates);
+            pendingStates.clear();
+            final List<ExecutionAttemptID> currentNotifies =
+                    new ArrayList<>(executionFinalNotification);
+            executionFinalNotification.clear();
+
+            TaskExecutor.this.updateTaskExecutionStates(
+                    jobMasterGateway,
+                    currentStates.stream()
+                            .filter(state -> !state.getExecutionState().isTerminal())
+                            .collect(Collectors.toList()));
+
+            jobMasterGateway
+                    .sendOperatorEventsToCoordinators(
+                            operatorEvents.stream()
+                                    .map(x -> x.operatorEventMessage)
+                                    .collect(Collectors.toList()))
+                    .whenComplete(
+                            (results, throwable) -> {
+                                if (throwable != null) {
+                                    operatorEvents.forEach(
+                                            x -> x.future.completeExceptionally(throwable));
+                                    return;
+                                }
+                                for (int i = 0; i < results.size(); ++i) {
+                                    final CompletableFuture<Acknowledge> future =
+                                            operatorEvents.get(i).future;
+                                    if (results.get(i).isLeft()) {
+                                        future.complete(results.get(i).left());
+                                    } else {
+                                        future.completeExceptionally(results.get(i).right());
+                                    }
+                                }
+                            });
+            operatorEvents.clear();
+
+            coordinationRequests.forEach(
+                    coordinationRequestMessageWithFuture ->
+                            jobMasterGateway
+                                    .sendRequestToCoordinator(
+                                            coordinationRequestMessageWithFuture
+                                                    .coordinationRequestMessage)
+                                    .whenComplete(
+                                            (result, throwable) -> {
+                                                if (throwable != null) {
+                                                    coordinationRequestMessageWithFuture.future
+                                                            .completeExceptionally(throwable);
+                                                } else {
+                                                    coordinationRequestMessageWithFuture.future
+                                                            .complete(result);
+                                                }
+                                            }));
+            coordinationRequests.clear();
+
+            TaskExecutor.this.runAsync(
+                    () -> {
+                        jobMasterGateway.notifyEndOfData(currentNotifies);
+                        TaskExecutor.this.unregisterTaskAndNotifyFinalStates(
+                                jobMasterGateway,
+                                currentStates.stream()
+                                        .filter(state -> state.getExecutionState().isTerminal())
+                                        .map(TaskExecutionState::getID)
+                                        .collect(Collectors.toList()));
+                    });
+
+            hasPendingSync = false;
         }
     }
 
@@ -2669,6 +2896,31 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             return new TaskExecutorHeartbeatPayload(
                     taskSlotTable.createSlotReport(getResourceID()),
                     partitionTracker.createClusterPartitionReport());
+        }
+    }
+
+    private static final class OperatorEventMessageWithFuture implements Serializable {
+        private static final long serialVersionUID = 1L;
+        private final OperatorEventMessage operatorEventMessage;
+        private final CompletableFuture<Acknowledge> future;
+
+        private OperatorEventMessageWithFuture(
+                OperatorEventMessage operatorEventMessage, CompletableFuture<Acknowledge> future) {
+            this.operatorEventMessage = operatorEventMessage;
+            this.future = future;
+        }
+    }
+
+    private static final class CoordinationRequestMessageWithFuture implements Serializable {
+        private static final long serialVersionUID = 1L;
+        private final CoordinationRequestMessage coordinationRequestMessage;
+        private final CompletableFuture<CoordinationResponse> future;
+
+        private CoordinationRequestMessageWithFuture(
+                CoordinationRequestMessage coordinationRequestMessage,
+                CompletableFuture<CoordinationResponse> future) {
+            this.coordinationRequestMessage = coordinationRequestMessage;
+            this.future = future;
         }
     }
 

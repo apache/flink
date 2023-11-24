@@ -834,6 +834,18 @@ public class TaskManagerOptions {
         }
     }
 
+    /**
+     * The Time in milliseconds that we wait for the task to synchronize its state with the
+     * JobMaster in batch.
+     */
+    @Documentation.ExcludeFromDocumentation
+    public static final ConfigOption<Long> TASK_STATE_SYNC_DELAY =
+            key("taskmanager.task-state-sync.delay")
+                    .longType()
+                    .defaultValue(0L)
+                    .withDescription(
+                            "The time in milliseconds that we wait for the task to synchronize its state with the JobMaster in batch.");
+
     // ------------------------------------------------------------------------
 
     /** Not intended to be instantiated. */

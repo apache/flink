@@ -42,6 +42,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testutils.CancelableInvokable;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 
@@ -169,11 +170,9 @@ class TaskExecutorOperatorEventHandlingTest {
                                 new TestingJobMasterGatewayBuilder()
                                         .setFencingTokenSupplier(() -> token)
                                         .setOperatorEventSender(
-                                                (eio, oid, value) -> {
-                                                    throw new RuntimeException();
-                                                })
+                                                ignore -> Either.Right(new RuntimeException()))
                                         .setDeliverCoordinationRequestFunction(
-                                                (oid, value) -> {
+                                                ignore -> {
                                                     throw new RuntimeException();
                                                 })
                                         .build())

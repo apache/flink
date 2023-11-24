@@ -23,16 +23,19 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestMessage;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.operators.coordination.OperatorEventMessage;
+import org.apache.flink.types.Either;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Gateway to send an {@link OperatorEvent} or {@link CoordinationRequest} from the Task Manager to
- * to the {@link OperatorCoordinator} on the JobManager side.
+ * Gateway to send a list of {@link OperatorEvent} or {@link CoordinationRequest} from the Task
+ * Manager to the {@link OperatorCoordinator} on the JobManager side.
  *
  * <p>This is the first step in the chain of sending Operator Events from Operator to Coordinator.
  * Each layer adds further context, so that the inner layers do not need to know about the complete
@@ -48,9 +51,9 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface JobMasterOperatorEventGateway {
 
-    CompletableFuture<Acknowledge> sendOperatorEventToCoordinator(
-            ExecutionAttemptID task, OperatorID operatorID, SerializedValue<OperatorEvent> event);
+    CompletableFuture<List<Either<Acknowledge, Throwable>>> sendOperatorEventsToCoordinators(
+            List<OperatorEventMessage> operatorEvents);
 
     CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
-            OperatorID operatorID, SerializedValue<CoordinationRequest> request);
+            CoordinationRequestMessage coordinationRequest);
 }

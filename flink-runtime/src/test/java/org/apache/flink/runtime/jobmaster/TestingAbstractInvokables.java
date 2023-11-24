@@ -25,6 +25,8 @@ import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.types.IntValue;
 
+import java.util.concurrent.CompletableFuture;
+
 /** {@link AbstractInvokable} for testing purposes. */
 public class TestingAbstractInvokables {
 
@@ -35,6 +37,16 @@ public class TestingAbstractInvokables {
 
     /** Basic sender {@link AbstractInvokable} which sends 42 and 1337 down stream. */
     public static class Sender extends AbstractInvokable {
+        private static CompletableFuture<Boolean> gotCanceledFuture =
+                CompletableFuture.completedFuture(true);
+
+        public static void resetGotCanceledFuture() {
+            gotCanceledFuture = new CompletableFuture<>();
+        }
+
+        public static CompletableFuture<Boolean> gotCanceled() {
+            return gotCanceledFuture;
+        }
 
         public Sender(Environment environment) {
             super(environment);
@@ -49,6 +61,7 @@ public class TestingAbstractInvokables {
                 writer.emit(new IntValue(42));
                 writer.emit(new IntValue(1337));
                 writer.flushAll();
+                gotCanceledFuture.get();
             } finally {
                 writer.close();
             }
@@ -62,6 +75,16 @@ public class TestingAbstractInvokables {
      * <p>This invokable must not run with a higher parallelism than {@link Sender}.
      */
     public static class Receiver extends AbstractInvokable {
+        private static CompletableFuture<Boolean> gotCanceledFuture =
+                CompletableFuture.completedFuture(true);
+
+        public static void resetGotCanceledFuture() {
+            gotCanceledFuture = new CompletableFuture<>();
+        }
+
+        public static CompletableFuture<Boolean> gotCanceled() {
+            return gotCanceledFuture;
+        }
 
         public Receiver(Environment environment) {
             super(environment);
@@ -82,6 +105,7 @@ public class TestingAbstractInvokables {
             if (i1.getValue() != 42 || i2.getValue() != 1337 || i3 != null) {
                 throw new Exception("Wrong data received.");
             }
+            gotCanceledFuture.get();
         }
     }
 }

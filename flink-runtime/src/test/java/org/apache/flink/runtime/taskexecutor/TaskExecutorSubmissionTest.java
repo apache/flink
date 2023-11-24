@@ -57,10 +57,10 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -338,6 +338,8 @@ class TaskExecutorSubmissionTest {
                 createRemoteWithIdAndLocation(
                         new IntermediateResultPartitionID(), producerLocation);
 
+        TestingAbstractInvokables.Sender.resetGotCanceledFuture();
+        TestingAbstractInvokables.Receiver.resetGotCanceledFuture();
         TaskDeploymentDescriptor tdd1 = createSender(sdd);
         TaskDeploymentDescriptor tdd2 = createReceiver(sdd);
         ExecutionAttemptID eid1 = tdd1.getExecutionAttemptId();
@@ -358,13 +360,13 @@ class TaskExecutorSubmissionTest {
                                             && taskExecutionState.getID().equals(eid1)
                                             && taskExecutionState.getExecutionState()
                                                     == ExecutionState.RUNNING) {
-                                        return FutureUtils.completedExceptionally(
+                                        return Either.Right(
                                                 new ExecutionGraphException(
                                                         "The execution attempt "
                                                                 + eid2
                                                                 + " was not found."));
                                     } else {
-                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                        return Either.Left(Acknowledge.get());
                                     }
                                 })
                         .build();
@@ -403,8 +405,12 @@ class TaskExecutorSubmissionTest {
             tmGateway.cancelTask(eid2, timeout);
 
             task2CanceledFuture.get();
+
             assertThat(taskSlotTable.getTask(eid2).getExecutionState())
                     .isEqualTo(ExecutionState.CANCELED);
+
+            TestingAbstractInvokables.Sender.gotCanceled().complete(true);
+            TestingAbstractInvokables.Receiver.gotCanceled().complete(true);
         }
     }
 
@@ -418,8 +424,9 @@ class TaskExecutorSubmissionTest {
 
             Configuration config = new Configuration();
             config.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
-            config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-            config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+            config.set(
+                    NettyShuffleEnvironmentOptions.NETWORK_PARTITION_REQUEST_TIMEOUT,
+                    Duration.ofMillis(200));
 
             // Remote location (on the same TM though) for the partition
             NettyShuffleDescriptor sdd =

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.util.SerializedValue;
 
 import java.util.concurrent.CompletableFuture;
@@ -37,18 +38,18 @@ import java.util.function.Consumer;
  */
 public class RpcTaskOperatorEventGateway implements TaskOperatorEventGateway {
 
-    private final JobMasterOperatorEventGateway rpcGateway;
+    private final TaskManagerActions taskManagerActions;
 
     private final ExecutionAttemptID taskExecutionId;
 
     private final Consumer<Throwable> errorHandler;
 
     public RpcTaskOperatorEventGateway(
-            JobMasterOperatorEventGateway rpcGateway,
+            TaskManagerActions taskManagerActions,
             ExecutionAttemptID taskExecutionId,
             Consumer<Throwable> errorHandler) {
 
-        this.rpcGateway = rpcGateway;
+        this.taskManagerActions = taskManagerActions;
         this.taskExecutionId = taskExecutionId;
         this.errorHandler = errorHandler;
     }
@@ -57,7 +58,7 @@ public class RpcTaskOperatorEventGateway implements TaskOperatorEventGateway {
     public void sendOperatorEventToCoordinator(
             OperatorID operator, SerializedValue<OperatorEvent> event) {
         final CompletableFuture<Acknowledge> result =
-                rpcGateway.sendOperatorEventToCoordinator(taskExecutionId, operator, event);
+                taskManagerActions.sendOperatorEventToCoordinator(taskExecutionId, operator, event);
 
         result.whenComplete(
                 (success, exception) -> {
@@ -70,6 +71,6 @@ public class RpcTaskOperatorEventGateway implements TaskOperatorEventGateway {
     @Override
     public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
             OperatorID operator, SerializedValue<CoordinationRequest> request) {
-        return rpcGateway.sendRequestToCoordinator(operator, request);
+        return taskManagerActions.sendRequestToCoordinator(operator, request);
     }
 }

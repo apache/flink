@@ -37,8 +37,12 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.FixedRetryStrategy;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.Assume;
 import org.junit.Rule;
@@ -49,8 +53,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -116,6 +122,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
                 JobGraphBuilder.newStreamingJobGraphBuilder()
                         .addJobVertex(vertex)
                         .setJobCheckpointingSettings(jobCheckpointingSettings)
+                        .setJobName(UUID.randomUUID().toString())
                         .build();
 
         clusterClient.submitJob(jobGraph).get();
@@ -273,11 +280,14 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
     }
 
     private String cancelWithSavepoint() throws Exception {
-        return clusterClient
-                .cancelWithSavepoint(
-                        jobGraph.getJobID(),
-                        savepointDirectory.toAbsolutePath().toString(),
-                        SavepointFormatType.CANONICAL)
+        return FutureUtils.retryWithDelay(
+                        () ->
+                                clusterClient.cancelWithSavepoint(
+                                        jobGraph.getJobID(),
+                                        savepointDirectory.toAbsolutePath().toString(),
+                                        SavepointFormatType.CANONICAL),
+                        new FixedRetryStrategy(3, Duration.ofMillis(50L)),
+                        new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService()))
                 .get();
     }
 }

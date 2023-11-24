@@ -22,13 +22,12 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
-import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
 /**
  * This interface enables subscribing to failures that are detected from the JobMaster side (e.g.,
  * from within the {@link ExecutionGraph}). In contrast, there are also failures that are detected
  * by the TaskManager, which are communicated via {@link
- * JobMasterGateway#updateTaskExecutionState(TaskExecutionState)}.
+ * JobMasterGateway#updateTaskExecutionStates}.
  */
 public interface InternalFailuresListener {
 

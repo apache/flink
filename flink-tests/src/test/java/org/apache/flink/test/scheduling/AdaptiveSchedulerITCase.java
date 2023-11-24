@@ -147,6 +147,8 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         JobClient client = env.executeAsync();
 
         DummySource.awaitRunning();
+        CommonTestUtils.waitForAllTaskRunning(
+                MINI_CLUSTER_WITH_CLIENT_RESOURCE.getMiniCluster(), client.getJobID(), false);
 
         final File savepointDirectory = tempFolder.newFolder("savepoint");
         final String savepoint =
@@ -170,6 +172,8 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         JobClient client = env.executeAsync();
 
         DummySource.awaitRunning();
+        CommonTestUtils.waitForAllTaskRunning(
+                MINI_CLUSTER_WITH_CLIENT_RESOURCE.getMiniCluster(), client.getJobID(), false);
         try {
             client.stopWithSavepoint(
                             false,
@@ -195,6 +199,8 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         JobClient client = env.executeAsync();
 
         DummySource.awaitRunning();
+        CommonTestUtils.waitForAllTaskRunning(
+                MINI_CLUSTER_WITH_CLIENT_RESOURCE.getMiniCluster(), client.getJobID(), false);
         final CompletableFuture<String> savepointCompleted =
                 client.stopWithSavepoint(
                         false,
@@ -230,6 +236,8 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
         DummySource.awaitRunning();
         DummySource.resetForParallelism(PARALLELISM);
+        CommonTestUtils.waitForAllTaskRunning(
+                MINI_CLUSTER_WITH_CLIENT_RESOURCE.getMiniCluster(), client.getJobID(), false);
         final File savepointDirectory = tempFolder.newFolder("savepoint");
         try {
             client.stopWithSavepoint(
@@ -248,6 +256,9 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         // We execute this in a retry loop with a timeout, because the savepoint deletion happens
         // asynchronously and is not bound to the job lifecycle. See FLINK-22493 for more details.
         CommonTestUtils.waitUntilCondition(() -> isDirectoryEmpty(savepointDirectory));
+
+        CommonTestUtils.waitForAllTaskRunning(
+                MINI_CLUSTER_WITH_CLIENT_RESOURCE.getMiniCluster(), client.getJobID(), false);
 
         // trigger second savepoint
         final String savepoint =

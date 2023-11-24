@@ -189,9 +189,11 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
             // this should trigger the job to finish
             final TaskDeploymentDescriptor taskDeploymentDescriptor =
                     taskDeploymentDescriptorFuture.get();
-            jobMasterGateway.updateTaskExecutionState(
-                    new TaskExecutionState(
-                            taskDeploymentDescriptor.getExecutionAttemptId(), finalExecutionState));
+            jobMasterGateway.updateTaskExecutionStates(
+                    Collections.singletonList(
+                            new TaskExecutionState(
+                                    taskDeploymentDescriptor.getExecutionAttemptId(),
+                                    finalExecutionState)));
             assertThat(
                     callSelector.apply(testSetup).get(),
                     containsInAnyOrder(partitionID0, partitionID1));

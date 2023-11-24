@@ -19,7 +19,14 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.util.SerializedValue;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -61,6 +68,18 @@ public class TestingTaskManagerActions implements TaskManagerActions {
 
     public static Builder newBuilder() {
         return new Builder();
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> sendOperatorEventToCoordinator(
+            ExecutionAttemptID task, OperatorID operatorID, SerializedValue<OperatorEvent> event) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+            OperatorID operatorID, SerializedValue<CoordinationRequest> request) {
+        throw new UnsupportedOperationException();
     }
 
     public static final class Builder {

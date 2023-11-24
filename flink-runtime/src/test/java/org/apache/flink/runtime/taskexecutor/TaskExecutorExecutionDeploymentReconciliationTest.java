@@ -61,6 +61,7 @@ import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -286,7 +287,7 @@ class TaskExecutorExecutionDeploymentReconciliationTest {
                             if (taskExecutionState.getExecutionState() == ExecutionState.FINISHED) {
                                 taskFinishedFuture.complete(null);
                             }
-                            return CompletableFuture.completedFuture(Acknowledge.get());
+                            return Either.Left(Acknowledge.get());
                         })
                 .build();
     }

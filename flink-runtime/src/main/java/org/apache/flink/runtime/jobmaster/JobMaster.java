@@ -57,7 +57,6 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.OnCompletionActions;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
@@ -73,8 +72,10 @@ import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestMessage;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.OperatorEventMessage;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegisteredRpcConnection;
@@ -100,10 +101,12 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation.ResolutionMode;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -114,9 +117,11 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -141,7 +146,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * remotely:
  *
  * <ul>
- *   <li>{@link #updateTaskExecutionState} updates the task execution state for given task
+ *   <li>{@link #updateTaskExecutionStates} updates the task execution state for given task
  * </ul>
  */
 public class JobMaster extends FencedRpcEndpoint<JobMasterId>
@@ -473,39 +478,46 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     /**
-     * Updates the task execution state for a given task.
+     * Updates the task execution states for given tasks.
      *
-     * @param taskExecutionState New task execution state for a given task
-     * @return Acknowledge the task execution state update
+     * @param taskExecutionStates New task execution states for given tasks
+     * @return List of flag of the task execution state update result
      */
     @Override
-    public CompletableFuture<Acknowledge> updateTaskExecutionState(
-            final TaskExecutionState taskExecutionState) {
+    public CompletableFuture<List<Either<Acknowledge, Throwable>>> updateTaskExecutionStates(
+            final List<TaskExecutionState> taskExecutionStates) {
         FlinkException taskExecutionException;
-        try {
-            checkNotNull(taskExecutionState, "taskExecutionState");
-
-            if (schedulerNG.updateTaskExecutionState(taskExecutionState)) {
-                return CompletableFuture.completedFuture(Acknowledge.get());
-            } else {
+        List<Either<Acknowledge, Throwable>> updateResults = new ArrayList<>();
+        for (TaskExecutionState taskExecutionState : taskExecutionStates) {
+            try {
+                checkNotNull(taskExecutionState, "taskExecutionState");
+                if (schedulerNG.updateTaskExecutionState(taskExecutionState)) {
+                    updateResults.add(Either.Left(Acknowledge.get()));
+                } else {
+                    taskExecutionException =
+                            new ExecutionGraphException(
+                                    "The execution attempt "
+                                            + taskExecutionState.getID()
+                                            + " was not found.");
+                    updateResults.add(Either.Right(taskExecutionException));
+                }
+            } catch (Exception e) {
                 taskExecutionException =
-                        new ExecutionGraphException(
-                                "The execution attempt "
-                                        + taskExecutionState.getID()
-                                        + " was not found.");
+                        new JobMasterException(
+                                "Could not update the state of task execution for JobMaster.", e);
+                handleJobMasterError(taskExecutionException);
+                updateResults.add(Either.Right(taskExecutionException));
             }
-        } catch (Exception e) {
-            taskExecutionException =
-                    new JobMasterException(
-                            "Could not update the state of task execution for JobMaster.", e);
-            handleJobMasterError(taskExecutionException);
         }
-        return FutureUtils.completedExceptionally(taskExecutionException);
+        Preconditions.checkState(updateResults.size() == taskExecutionStates.size());
+        return CompletableFuture.completedFuture(updateResults);
     }
 
     @Override
-    public void notifyEndOfData(final ExecutionAttemptID executionAttempt) {
-        schedulerNG.notifyEndOfData(executionAttempt);
+    public void notifyEndOfData(final List<ExecutionAttemptID> executionAttempts) {
+        for (ExecutionAttemptID executionAttempt : executionAttempts) {
+            schedulerNG.notifyEndOfData(executionAttempt);
+        }
     }
 
     @Override
@@ -594,26 +606,34 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
     }
 
     @Override
-    public CompletableFuture<Acknowledge> sendOperatorEventToCoordinator(
-            final ExecutionAttemptID task,
-            final OperatorID operatorID,
-            final SerializedValue<OperatorEvent> serializedEvent) {
-
-        try {
-            final OperatorEvent evt = serializedEvent.deserializeValue(userCodeLoader);
-            schedulerNG.deliverOperatorEventToCoordinator(task, operatorID, evt);
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        } catch (Exception e) {
-            return FutureUtils.completedExceptionally(e);
+    public CompletableFuture<List<Either<Acknowledge, Throwable>>> sendOperatorEventsToCoordinators(
+            List<OperatorEventMessage> operatorEvents) {
+        List<Either<Acknowledge, Throwable>> results = new ArrayList<>();
+        for (OperatorEventMessage operatorEvent : operatorEvents) {
+            try {
+                final OperatorEvent evt =
+                        operatorEvent.getSerializedEvent().deserializeValue(userCodeLoader);
+                schedulerNG.deliverOperatorEventToCoordinator(
+                        operatorEvent.getTask(), operatorEvent.getOperatorID(), evt);
+                results.add(Either.Left(Acknowledge.get()));
+            } catch (Exception e) {
+                results.add(Either.Right(e));
+            }
         }
+        Preconditions.checkState(operatorEvents.size() == results.size());
+        return CompletableFuture.completedFuture(results);
     }
 
     @Override
     public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
-            OperatorID operatorID, SerializedValue<CoordinationRequest> serializedRequest) {
+            CoordinationRequestMessage coordinationRequestMessage) {
         try {
-            final CoordinationRequest request = serializedRequest.deserializeValue(userCodeLoader);
-            return schedulerNG.deliverCoordinationRequestToCoordinator(operatorID, request);
+            final CoordinationRequest request =
+                    coordinationRequestMessage
+                            .getSerializedRequest()
+                            .deserializeValue(userCodeLoader);
+            return schedulerNG.deliverCoordinationRequestToCoordinator(
+                    coordinationRequestMessage.getOperatorID(), request);
         } catch (Exception e) {
             return FutureUtils.completedExceptionally(e);
         }
@@ -931,10 +951,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
     @Override
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
-            OperatorID operatorId,
-            SerializedValue<CoordinationRequest> serializedRequest,
-            Time timeout) {
-        return this.sendRequestToCoordinator(operatorId, serializedRequest);
+            CoordinationRequestMessage coordinationRequestMessage, Time timeout) {
+        return this.sendRequestToCoordinator(coordinationRequestMessage);
     }
 
     @Override

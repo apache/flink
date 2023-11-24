@@ -19,7 +19,15 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.taskexecutor.TaskExecutor;
+import org.apache.flink.util.SerializedValue;
+
+import java.util.concurrent.CompletableFuture;
 
 /** Interface for the communication of the {@link Task} with the {@link TaskExecutor}. */
 public interface TaskManagerActions {
@@ -53,4 +61,21 @@ public interface TaskManagerActions {
      * @param executionAttemptID Execution attempt ID of the task.
      */
     void notifyEndOfData(ExecutionAttemptID executionAttemptID);
+
+    /**
+     * Tells the task manager to send operator event to the coordinator on the specific JobManager.
+     *
+     * @return Future acknowledge
+     */
+    CompletableFuture<Acknowledge> sendOperatorEventToCoordinator(
+            ExecutionAttemptID task, OperatorID operatorID, SerializedValue<OperatorEvent> event);
+
+    /**
+     * Tells the task manager to send coordination request to the coordinator on the specific
+     * JobManager.
+     *
+     * @return The future of the coordination response
+     */
+    CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+            OperatorID operatorID, SerializedValue<CoordinationRequest> request);
 }

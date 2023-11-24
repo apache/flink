@@ -38,7 +38,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
@@ -46,9 +45,9 @@ import org.apache.flink.runtime.jobmaster.TaskManagerRegistrationInformation;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestMessage;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
-import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.operators.coordination.OperatorEventMessage;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
@@ -59,7 +58,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
@@ -84,9 +83,8 @@ public class TestingJobMasterGatewayBuilder {
     private String hostname = "localhost";
     private Supplier<CompletableFuture<Acknowledge>> cancelFunction =
             () -> CompletableFuture.completedFuture(Acknowledge.get());
-    private Function<TaskExecutionState, CompletableFuture<Acknowledge>>
-            updateTaskExecutionStateFunction =
-                    ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+    private Function<TaskExecutionState, Either<Acknowledge, Throwable>>
+            updateTaskExecutionStateFunction = ignored -> Either.Left(Acknowledge.get());
     private BiFunction<JobVertexID, ExecutionAttemptID, CompletableFuture<SerializedInputSplit>>
             requestNextInputSplitFunction =
                     (ignoredA, ignoredB) ->
@@ -161,18 +159,11 @@ public class TestingJobMasterGatewayBuilder {
                     ignored -> CompletableFuture.completedFuture(Acknowledge.get());
     private TriFunction<String, Object, byte[], CompletableFuture<Object>> updateAggregateFunction =
             (a, b, c) -> CompletableFuture.completedFuture(new Object());
-    private TriFunction<
-                    ExecutionAttemptID,
-                    OperatorID,
-                    SerializedValue<OperatorEvent>,
-                    CompletableFuture<Acknowledge>>
-            operatorEventSender = (a, b, c) -> CompletableFuture.completedFuture(Acknowledge.get());
-    private BiFunction<
-                    OperatorID,
-                    SerializedValue<CoordinationRequest>,
-                    CompletableFuture<CoordinationResponse>>
+    private Function<OperatorEventMessage, Either<Acknowledge, Throwable>> operatorEventSender =
+            ignore -> Either.Left(Acknowledge.get());
+    private Function<CoordinationRequestMessage, CompletableFuture<CoordinationResponse>>
             deliverCoordinationRequestFunction =
-                    (a, b) ->
+                    ignored ->
                             FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private Consumer<Collection<ResourceRequirement>> notifyNotEnoughResourcesConsumer =
             ignored -> {};
@@ -209,7 +200,7 @@ public class TestingJobMasterGatewayBuilder {
     }
 
     public TestingJobMasterGatewayBuilder setUpdateTaskExecutionStateFunction(
-            Function<TaskExecutionState, CompletableFuture<Acknowledge>>
+            Function<TaskExecutionState, Either<Acknowledge, Throwable>>
                     updateTaskExecutionStateFunction) {
         this.updateTaskExecutionStateFunction = updateTaskExecutionStateFunction;
         return this;
@@ -383,21 +374,13 @@ public class TestingJobMasterGatewayBuilder {
     }
 
     public TestingJobMasterGatewayBuilder setOperatorEventSender(
-            TriFunction<
-                            ExecutionAttemptID,
-                            OperatorID,
-                            SerializedValue<OperatorEvent>,
-                            CompletableFuture<Acknowledge>>
-                    operatorEventSender) {
+            Function<OperatorEventMessage, Either<Acknowledge, Throwable>> operatorEventSender) {
         this.operatorEventSender = operatorEventSender;
         return this;
     }
 
     public TestingJobMasterGatewayBuilder setDeliverCoordinationRequestFunction(
-            BiFunction<
-                            OperatorID,
-                            SerializedValue<CoordinationRequest>,
-                            CompletableFuture<CoordinationResponse>>
+            Function<CoordinationRequestMessage, CompletableFuture<CoordinationResponse>>
                     deliverCoordinationRequestFunction) {
         this.deliverCoordinationRequestFunction = deliverCoordinationRequestFunction;
         return this;

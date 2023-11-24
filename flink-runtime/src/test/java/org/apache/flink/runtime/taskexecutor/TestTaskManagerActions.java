@@ -21,12 +21,18 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
+import org.apache.flink.types.Either;
+import org.apache.flink.util.SerializedValue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,6 +40,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /** Customized {@link TaskManagerActions} that wait for ExecutionState changes. */
 public class TestTaskManagerActions implements TaskManagerActions {
@@ -42,6 +52,10 @@ public class TestTaskManagerActions implements TaskManagerActions {
     private final TaskSlotTable<Task> taskSlotTable;
     private final TaskManagerActionListeners taskManagerActionListeners =
             new TaskManagerActionListeners();
+
+    private final ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
+    private boolean hasPendingSync = false;
+    private final List<TaskExecutionState> pendingStates = new ArrayList<>();
 
     public TestTaskManagerActions(
             TaskSlotTable<Task> taskSlotTable, JobMasterGateway jobMasterGateway) {
@@ -65,24 +79,64 @@ public class TestTaskManagerActions implements TaskManagerActions {
     }
 
     @Override
-    public void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
+    public synchronized void updateTaskExecutionState(TaskExecutionState taskExecutionState) {
         Optional<CompletableFuture<Void>> listenerFuture =
                 taskManagerActionListeners.getListenerFuture(
                         taskExecutionState.getID(), taskExecutionState.getExecutionState());
         if (listenerFuture.isPresent()) {
             listenerFuture.get().complete(null);
         }
-        if (jobMasterGateway != null) {
-            CompletableFuture<Acknowledge> futureAcknowledge =
-                    jobMasterGateway.updateTaskExecutionState(taskExecutionState);
 
-            futureAcknowledge.whenComplete(
-                    (ack, throwable) -> {
+        if (!hasPendingSync) {
+            scheduledExecutor.schedule(this::syncMessagesWithJobMaster, 20, TimeUnit.MILLISECONDS);
+            hasPendingSync = true;
+        }
+        pendingStates.add(taskExecutionState);
+    }
+
+    private synchronized void syncMessagesWithJobMaster() {
+        List<TaskExecutionState> currentStates;
+        currentStates = new ArrayList<>(pendingStates);
+        pendingStates.clear();
+
+        final List<ExecutionAttemptID> executionAttemptIDs =
+                currentStates.stream().map(TaskExecutionState::getID).collect(Collectors.toList());
+
+        if (jobMasterGateway != null) {
+            CompletableFuture<List<Either<Acknowledge, Throwable>>> futureAcknowledge =
+                    jobMasterGateway.updateTaskExecutionStates(currentStates);
+
+            futureAcknowledge.whenCompleteAsync(
+                    (acks, throwable) -> {
                         if (throwable != null) {
-                            failTask(taskExecutionState.getID(), throwable);
+                            for (ExecutionAttemptID executionAttemptID : executionAttemptIDs) {
+                                failTask(executionAttemptID, throwable);
+                            }
+                        } else {
+                            for (int i = 0; i < executionAttemptIDs.size(); ++i) {
+                                final ExecutionAttemptID executionAttemptID =
+                                        executionAttemptIDs.get(i);
+                                if (acks.get(i).isRight()) {
+                                    failTask(executionAttemptID, acks.get(i).right());
+                                }
+                            }
                         }
                     });
         }
+
+        hasPendingSync = false;
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> sendOperatorEventToCoordinator(
+            ExecutionAttemptID task, OperatorID operatorID, SerializedValue<OperatorEvent> event) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+            OperatorID operatorID, SerializedValue<CoordinationRequest> request) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

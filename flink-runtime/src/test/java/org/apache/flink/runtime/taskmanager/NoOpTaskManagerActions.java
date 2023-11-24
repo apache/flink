@@ -19,6 +19,14 @@
 package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.util.SerializedValue;
+
+import java.util.concurrent.CompletableFuture;
 
 /** Dummy implementation of {@link TaskManagerActions}. */
 public class NoOpTaskManagerActions implements TaskManagerActions {
@@ -34,4 +42,16 @@ public class NoOpTaskManagerActions implements TaskManagerActions {
 
     @Override
     public void notifyEndOfData(ExecutionAttemptID executionAttemptID) {}
+
+    @Override
+    public CompletableFuture<Acknowledge> sendOperatorEventToCoordinator(
+            ExecutionAttemptID task, OperatorID operatorID, SerializedValue<OperatorEvent> event) {
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
+    public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+            OperatorID operatorID, SerializedValue<CoordinationRequest> request) {
+        return CompletableFuture.completedFuture(null);
+    }
 }

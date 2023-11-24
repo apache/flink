@@ -1112,8 +1112,10 @@ class JobMasterTest {
 
             // fail the first execution to trigger a failover
             jobMasterGateway
-                    .updateTaskExecutionState(
-                            new TaskExecutionState(initialAttemptId, ExecutionState.FAILED))
+                    .updateTaskExecutionStates(
+                            Collections.singletonList(
+                                    new TaskExecutionState(
+                                            initialAttemptId, ExecutionState.FAILED)))
                     .get();
 
             // wait until the job has been recovered
@@ -1371,9 +1373,10 @@ class JobMasterTest {
 
             // finish the producer task
             jobMasterGateway
-                    .updateTaskExecutionState(
-                            SchedulerTestingUtils.createFinishedTaskExecutionState(
-                                    executionAttemptId))
+                    .updateTaskExecutionStates(
+                            Collections.singletonList(
+                                    SchedulerTestingUtils.createFinishedTaskExecutionState(
+                                            executionAttemptId)))
                     .get();
 
             // request the state of the result partition of the producer
@@ -1952,12 +1955,13 @@ class JobMasterTest {
 
             // 1 slot reserved, 1 slot free
             jobMasterGateway
-                    .updateTaskExecutionState(
-                            SchedulerTestingUtils.createFinishedTaskExecutionState(
-                                    getExecutions(jobMasterGateway)
-                                            .iterator()
-                                            .next()
-                                            .getAttemptId()))
+                    .updateTaskExecutionStates(
+                            Collections.singletonList(
+                                    SchedulerTestingUtils.createFinishedTaskExecutionState(
+                                            getExecutions(jobMasterGateway)
+                                                    .iterator()
+                                                    .next()
+                                                    .getAttemptId())))
                     .get();
 
             BlockedNode blockedNode =
@@ -2227,12 +2231,16 @@ class JobMasterTest {
             final ExecutionAttemptID executionAttemptId = taskDeploymentFuture.get();
 
             jobMasterGateway
-                    .updateTaskExecutionState(
-                            new TaskExecutionState(executionAttemptId, ExecutionState.INITIALIZING))
+                    .updateTaskExecutionStates(
+                            Collections.singletonList(
+                                    new TaskExecutionState(
+                                            executionAttemptId, ExecutionState.INITIALIZING)))
                     .get();
             jobMasterGateway
-                    .updateTaskExecutionState(
-                            new TaskExecutionState(executionAttemptId, ExecutionState.RUNNING))
+                    .updateTaskExecutionStates(
+                            Collections.singletonList(
+                                    new TaskExecutionState(
+                                            executionAttemptId, ExecutionState.RUNNING)))
                     .get();
 
             jobReachedRunningState.accept(taskManagerUnresolvedLocation, jobMasterGateway);
@@ -2352,9 +2360,11 @@ class JobMasterTest {
                 new TestingTaskExecutorGatewayBuilder()
                         .setCancelTaskFunction(
                                 executionAttemptId -> {
-                                    jobMasterGateway.updateTaskExecutionState(
-                                            new TaskExecutionState(
-                                                    executionAttemptId, ExecutionState.CANCELED));
+                                    jobMasterGateway.updateTaskExecutionStates(
+                                            Collections.singletonList(
+                                                    new TaskExecutionState(
+                                                            executionAttemptId,
+                                                            ExecutionState.CANCELED)));
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
                         .createTestingTaskExecutorGateway();

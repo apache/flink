@@ -45,6 +45,7 @@ import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
@@ -136,15 +137,14 @@ public class JobMasterTester implements Closeable {
 
     public CompletableFuture<Acknowledge> transitionTo(
             List<TaskDeploymentDescriptor> descriptors, ExecutionState state) {
-        final List<CompletableFuture<Acknowledge>> futures =
-                descriptors.stream()
-                        .map(TaskDeploymentDescriptor::getExecutionAttemptId)
-                        .map(
-                                attemptId ->
-                                        jobMasterGateway.updateTaskExecutionState(
-                                                new TaskExecutionState(attemptId, state)))
-                        .collect(Collectors.toList());
-        return FutureUtils.completeAll(futures).thenApply(ignored -> Acknowledge.get());
+        final CompletableFuture<List<Either<Acknowledge, Throwable>>> future =
+                jobMasterGateway.updateTaskExecutionStates(
+                        descriptors.stream()
+                                .map(TaskDeploymentDescriptor::getExecutionAttemptId)
+                                .map(attemptId -> new TaskExecutionState(attemptId, state))
+                                .collect(Collectors.toList()));
+
+        return future.thenApply(ignored -> Acknowledge.get());
     }
 
     public CompletableFuture<List<TaskDeploymentDescriptor>> deployVertices(int numSlots) {

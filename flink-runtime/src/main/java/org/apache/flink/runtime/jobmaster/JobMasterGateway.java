@@ -37,10 +37,9 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequestMessage;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
@@ -51,11 +50,12 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.types.Either;
 
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** {@link JobMaster} rpc gateway interface. */
@@ -76,13 +76,13 @@ public interface JobMasterGateway
     CompletableFuture<Acknowledge> cancel(@RpcTimeout Time timeout);
 
     /**
-     * Updates the task execution state for a given task.
+     * Updates the task execution states for given tasks.
      *
-     * @param taskExecutionState New task execution state for a given task
-     * @return Future flag of the task execution state update result
+     * @param taskExecutionStates New task execution states for given tasks
+     * @return List of flag of the task execution state update result
      */
-    CompletableFuture<Acknowledge> updateTaskExecutionState(
-            final TaskExecutionState taskExecutionState);
+    CompletableFuture<List<Either<Acknowledge, Throwable>>> updateTaskExecutionStates(
+            final List<TaskExecutionState> taskExecutionStates);
 
     /**
      * Requests the next input split for the {@link ExecutionJobVertex}. The next input split is
@@ -290,17 +290,15 @@ public interface JobMasterGateway
     /**
      * Deliver a coordination request to a specified coordinator and return the response.
      *
-     * @param operatorId identifying the coordinator to receive the request
-     * @param serializedRequest serialized request to deliver
+     * @param coordinationRequestMessage including the identifier of the coordinator and serialized
+     *     request to deliver
      * @return A future containing the response. The response will fail with a {@link
      *     org.apache.flink.util.FlinkException} if the task is not running, or no
      *     operator/coordinator exists for the given ID, or the coordinator cannot handle client
      *     events.
      */
     CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
-            OperatorID operatorId,
-            SerializedValue<CoordinationRequest> serializedRequest,
-            @RpcTimeout Time timeout);
+            CoordinationRequestMessage coordinationRequestMessage, @RpcTimeout Time timeout);
 
     /**
      * Notifies the {@link org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker}
@@ -329,7 +327,7 @@ public interface JobMasterGateway
     /**
      * Notifies that the task has reached the end of data.
      *
-     * @param executionAttempt The execution attempt id.
+     * @param executionAttempts The execution attempt id.
      */
-    void notifyEndOfData(final ExecutionAttemptID executionAttempt);
+    void notifyEndOfData(final List<ExecutionAttemptID> executionAttempts);
 }
