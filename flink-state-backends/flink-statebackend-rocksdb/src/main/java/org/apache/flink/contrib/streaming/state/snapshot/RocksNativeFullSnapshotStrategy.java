@@ -43,6 +43,7 @@ import org.rocksdb.RocksDB;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -87,7 +88,7 @@ public class RocksNativeFullSnapshotStrategy<K>
             @Nonnull File instanceBasePath,
             @Nonnull UUID backendUID,
             @Nonnull RocksDBStateUploader rocksDBStateUploader,
-            RocksDBStateFileVerifier stateFileVerifier) {
+            @Nullable RocksDBStateFileVerifier stateFileVerifier) {
         super(
                 DESCRIPTION,
                 db,
@@ -145,7 +146,9 @@ public class RocksNativeFullSnapshotStrategy<K>
     @Override
     public void close() {
         stateUploader.close();
-        stateFileVerifier.close();
+        if (stateFileVerifier != null) {
+            stateFileVerifier.close();
+        }
     }
 
     /** Encapsulates the process to perform a full snapshot of a RocksDBKeyedStateBackend. */

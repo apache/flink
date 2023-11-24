@@ -96,7 +96,7 @@ public class RocksDBOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Whether to verify the Checksum of the incremental sst file during Checkpoint in RocksDBStateBackend");
+                            "If set. RocksDBStateBackend will verify the Checksum of the incremental sst file during Checkpoint. If the Checksum fails, the Checkpoint will fail. This process may cause some overhead, but it can improve the availability of Checkpoint.");
 
     /** The predefined settings for RocksDB DBOptions and ColumnFamilyOptions by Flink community. */
     @Documentation.Section(Documentation.Sections.EXPERT_ROCKSDB)

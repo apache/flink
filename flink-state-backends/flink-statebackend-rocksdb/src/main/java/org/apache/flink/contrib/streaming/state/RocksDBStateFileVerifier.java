@@ -24,13 +24,12 @@ import org.rocksdb.SstFileReader;
 
 import javax.annotation.Nonnull;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
 /** Help class for verify Checksum RocksDB state files. */
-public class RocksDBStateFileVerifier implements Closeable {
+public class RocksDBStateFileVerifier implements AutoCloseable {
 
     private final SstFileReader sstFileReader;
 

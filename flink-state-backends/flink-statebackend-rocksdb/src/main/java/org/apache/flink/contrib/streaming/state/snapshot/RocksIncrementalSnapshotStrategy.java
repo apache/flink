@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -105,7 +106,7 @@ public class RocksIncrementalSnapshotStrategy<K>
             @Nonnull UUID backendUID,
             @Nonnull SortedMap<Long, Collection<HandleAndLocalPath>> uploadedStateHandles,
             @Nonnull RocksDBStateUploader rocksDBStateUploader,
-            RocksDBStateFileVerifier stateFileVerifier,
+            @Nullable RocksDBStateFileVerifier stateFileVerifier,
             long lastCompletedCheckpointId) {
 
         super(

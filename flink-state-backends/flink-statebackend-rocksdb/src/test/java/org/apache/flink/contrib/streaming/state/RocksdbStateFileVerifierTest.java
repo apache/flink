@@ -52,7 +52,7 @@ public class RocksdbStateFileVerifierTest {
 
     @Test
     public void rocksdbStateFileVerifierTest() throws Exception {
-        ArrayList columnFamilyHandles = new ArrayList<>(1);
+        List columnFamilyHandles = new ArrayList<>(1);
         String rootPath = folder.newFolder().getAbsolutePath();
         File dbPath = new File(rootPath, "db");
         File cpPath = new File(rootPath, "cp");
@@ -85,7 +85,7 @@ public class RocksdbStateFileVerifierTest {
                             .filter(file -> file.getFileName().toString().endsWith(SST_FILE_SUFFIX))
                             .collect(Collectors.toList());
 
-            Assert.assertEquals(sstFiles.isEmpty(), false);
+            Assert.assertFalse(sstFiles.isEmpty());
 
             try {
                 rocksDBStateFileVerifier.verifySstFilesChecksum(sstFiles);
