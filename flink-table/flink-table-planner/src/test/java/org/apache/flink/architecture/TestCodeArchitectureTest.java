@@ -42,5 +42,8 @@ import com.tngtech.archunit.junit.ArchTests;
         })
 public class TestCodeArchitectureTest {
 
+    @ArchTest
+    public static final ArchTests COMMON_TESTS = ArchTests.in(TestCodeArchitectureTestBase.class);
+
     @ArchTest public static final ArchTests BAN_JUNIT4_TESTS = ArchTests.in(BanJunit4Rules.class);
 }

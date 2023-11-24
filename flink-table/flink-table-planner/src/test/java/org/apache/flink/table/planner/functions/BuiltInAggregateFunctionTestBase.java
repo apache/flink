@@ -41,7 +41,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -66,8 +66,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test base for testing aggregate {@link BuiltInFunctionDefinition built-in functions}. */
 @Execution(ExecutionMode.CONCURRENT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ExtendWith(MiniClusterExtension.class)
 abstract class BuiltInAggregateFunctionTestBase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION = new MiniClusterExtension();
 
     abstract Stream<TestSpec> getTestCaseSpecs();
 

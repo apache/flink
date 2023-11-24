@@ -23,13 +23,14 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.connector.sink.abilities.SupportsStaging;
 import org.apache.flink.table.planner.factories.TestSupportsStagingTableFactory;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
-import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -42,7 +43,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 /** The base case of atomic ctas ITCase. */
-public abstract class AtomicCtasITCaseBase extends TestLogger {
+public abstract class AtomicCtasITCaseBase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION = new MiniClusterExtension();
 
     protected TableEnvironment tEnv;
 

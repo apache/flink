@@ -38,7 +38,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -73,8 +73,10 @@ import static org.assertj.core.api.Assertions.catchThrowable;
  */
 @Execution(ExecutionMode.CONCURRENT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ExtendWith(MiniClusterExtension.class)
 abstract class BuiltInFunctionTestBase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION = new MiniClusterExtension();
 
     Configuration getConfiguration() {
         return new Configuration();
