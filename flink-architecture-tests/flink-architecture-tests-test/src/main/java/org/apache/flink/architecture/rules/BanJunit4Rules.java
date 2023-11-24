@@ -28,7 +28,7 @@ import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
 public class BanJunit4Rules {
 
     @ArchTest
-    public static final ArchRule NO_JUNIT4_DEPENDENCIES_RULE =
+    public static final ArchRule NO_NEW_ADDED_JUNIT4_TEST_RULE =
             freeze(
                     noClasses()
                             .that()
