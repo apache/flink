@@ -1355,7 +1355,7 @@ class WeightedAvg extends AggregateFunction[JLong, CountAccumulator] {
 
 // 注册函数
 val tEnv: StreamTableEnvironment = ???
-tEnv.createTemporarySystemFunction("wAvg", new WeightedAvg())
+tEnv.createTemporarySystemFunction("wAvg", WeightedAvg.class)
 
 // 使用函数
 tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GROUP BY user")
@@ -1797,7 +1797,7 @@ public static class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>
 
 // 注册函数
 StreamTableEnvironment tEnv = ...
-tEnv.createTemporarySystemFunction("top2", new Top2());
+tEnv.createTemporarySystemFunction("top2", Top2.class);
 
 // 初始化表
 Table tab = ...;
@@ -1940,7 +1940,7 @@ public static class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>
 
 // 注册函数
 StreamTableEnvironment tEnv = ...
-tEnv.createTemporarySystemFunction("top2", new Top2());
+tEnv.createTemporarySystemFunction("top2", Top2.class);
 
 // 初始化表
 Table tab = ...;

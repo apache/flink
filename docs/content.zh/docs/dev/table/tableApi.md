@@ -825,7 +825,7 @@ result = orders.over_window(Over
 Table orders = tEnv.from("Orders");
 
 // 对 user-defined aggregate functions 使用互异（互不相同、去重）聚合
-tEnv.createTemporarySystemFunction("myUdagg", new MyUdagg());
+tEnv.createTemporarySystemFunction("myUdagg", MyUdagg.class);
 orders.groupBy("users")
     .select(
         $("users"),
@@ -1026,8 +1026,7 @@ join 表和表函数的结果。左（外部）表的每一行都会 join 表函
 {{< tab "Java" >}}
 ```java
 // 注册 User-Defined Table Function
-TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
-tableEnv.createTemporarySystemFunction("split", split);
+tableEnv.createTemporarySystemFunction("split", MySplitUDTF.class);
 
 // join
 Table orders = tableEnv.from("Orders");
@@ -1075,8 +1074,7 @@ join 表和表函数的结果。左（外部）表的每一行都会 join 表函
 {{< tab "Java" >}}
 ```java
 // 注册 User-Defined Table Function
-TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
-tableEnv.createTemporarySystemFunction("split", split);
+tableEnv.createTemporarySystemFunction("split", MySplitUDTF.class);
 
 // join
 Table orders = tableEnv.from("Orders");
@@ -2182,8 +2180,7 @@ public class MyMapFunction extends ScalarFunction {
     }
 }
 
-ScalarFunction func = new MyMapFunction();
-tableEnv.createTemporarySystemFunction("func", func);
+tableEnv.createTemporarySystemFunction("func", MyMapFunction.class);
 
 Table table = input
   .map(call("func", $("c")).as("a", "b"));
@@ -2261,8 +2258,7 @@ public class MyFlatMapFunction extends TableFunction<Row> {
     }
 }
 
-TableFunction func = new MyFlatMapFunction();
-tableEnv.createTemporarySystemFunction("func", func);
+tableEnv.createTemporarySystemFunction("func", MyFlatMapFunction.class);
 
 Table table = input
   .flatMap(call("func", $("c")).as("a", "b"));
@@ -2370,8 +2366,7 @@ public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
     }
 }
 
-AggregateFunction myAggFunc = new MyMinMax();
-tableEnv.createTemporarySystemFunction("myAggFunc", myAggFunc);
+tableEnv.createTemporarySystemFunction("myAggFunc", MyMinMax.class);
 Table table = input
   .groupBy($("key"))
   .aggregate(call("myAggFunc", $("a")).as("x", "y"))
@@ -2500,8 +2495,7 @@ t.aggregate(pandas_udaf.alias("a", "b")) \
 {{< tabs "group-window-agg" >}}
 {{< tab "Java" >}}
 ```java
-AggregateFunction myAggFunc = new MyMinMax();
-tableEnv.createTemporarySystemFunction("myAggFunc", myAggFunc);
+tableEnv.createTemporarySystemFunction("myAggFunc", MyMinMax.class);
 
 Table table = input
     .window(Tumble.over(lit(5).minutes())
@@ -2605,7 +2599,7 @@ public class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2A
     }
 }
 
-tEnv.createTemporarySystemFunction("top2", new Top2());
+tEnv.createTemporarySystemFunction("top2", Top2.class);
 Table orders = tableEnv.from("Orders");
 Table result = orders
     .groupBy($("key"))
