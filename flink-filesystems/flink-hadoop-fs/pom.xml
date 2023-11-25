@@ -49,6 +49,14 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<!-- ArchUnit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Hadoop as an optional dependency, so we can hard depend on this without -->
 		<!-- pulling in Hadoop by default -->
 
