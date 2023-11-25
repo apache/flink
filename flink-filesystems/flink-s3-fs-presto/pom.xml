@@ -45,6 +45,14 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- ArchUnit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		
 		<!-- S3 base (bundled) -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
