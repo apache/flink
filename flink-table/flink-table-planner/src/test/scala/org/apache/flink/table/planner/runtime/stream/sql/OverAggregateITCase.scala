@@ -485,7 +485,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
-    tEnv.createTemporarySystemFunction("LTCNT", new LargerThanCount)
+    tEnv.createTemporarySystemFunction("LTCNT", classOf[LargerThanCount])
 
     val sqlQuery = "SELECT " +
       "  c, b, " +
@@ -557,7 +557,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
-    tEnv.createTemporarySystemFunction("LTCNT", new LargerThanCount)
+    tEnv.createTemporarySystemFunction("LTCNT", classOf[LargerThanCount])
 
     val sqlQuery = "SELECT " +
       " c, a, " +
@@ -846,7 +846,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     tEnv.createTemporaryView("T1", t1)
-    tEnv.createTemporarySystemFunction("LTCNT", new LargerThanCount)
+    tEnv.createTemporarySystemFunction("LTCNT", classOf[LargerThanCount])
 
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
@@ -1283,7 +1283,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val table = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'proctime.proctime)
     tEnv.createTemporaryView("MyTable", table)
-    tEnv.createTemporarySystemFunction("PairCount", new CountPairs)
+    tEnv.createTemporarySystemFunction("PairCount", classOf[CountPairs])
 
     val sqlQuery = "SELECT a, b, " +
       "  PairCount(a, b) OVER (ORDER BY proctime RANGE UNBOUNDED preceding), " +
