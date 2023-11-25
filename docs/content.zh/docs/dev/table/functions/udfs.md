@@ -1282,7 +1282,7 @@ public static class WeightedAvg extends AggregateFunction<Long, WeightedAvgAccum
 
 // 注册函数
 StreamTableEnvironment tEnv = ...
-tEnv.createTemporarySystemFunction("wAvg", new WeightedAvg());
+tEnv.createTemporarySystemFunction("wAvg", WeightedAvg.class);
 
 // 使用函数
 tEnv.sqlQuery("SELECT user, wAvg(points, level) AS avgPoints FROM userScores GROUP BY user");
