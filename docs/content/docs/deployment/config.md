@@ -132,6 +132,10 @@ The default restart strategy will only take effect if no job specific restart st
 
 {{< generated/fixed_delay_restart_strategy_configuration >}}
 
+**Exponential Delay Restart Strategy**
+
+{{< generated/exponential_delay_restart_strategy_configuration >}}
+
 **Failure Rate Restart Strategy**
 
 {{< generated/failure_rate_restart_strategy_configuration >}}
