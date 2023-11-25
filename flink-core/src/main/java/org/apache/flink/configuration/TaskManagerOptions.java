@@ -720,7 +720,7 @@ public class TaskManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Mode for the redirection of %s or %s for %s.",
+                                            "Redirection mode of %s and %s for all %s.",
                                             code("System.out"),
                                             code("System.err"),
                                             code("TaskManagers"))
@@ -751,9 +751,11 @@ public class TaskManagerOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            String.format(
-                                    "Whether log the thread name when %s is LOG.",
-                                    TASK_MANAGER_SYSTEM_OUT_MODE.key()));
+                            Description.builder()
+                                    .text(
+                                            "Whether to log the thread name when %s is LOG.",
+                                            code(TASK_MANAGER_SYSTEM_OUT_MODE.key()))
+                                    .build());
 
     @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
     public static final ConfigOption<MemorySize> TASK_MANAGER_SYSTEM_OUT_LOG_CACHE_SIZE =
@@ -761,10 +763,14 @@ public class TaskManagerOptions {
                     .memoryType()
                     .defaultValue(MemorySize.parse("100 kb"))
                     .withDescription(
-                            String.format(
-                                    "The cache upper size when Flink caches current line context "
-                                            + "of  System.out or System.out when %s is LOG.",
-                                    TASK_MANAGER_SYSTEM_OUT_MODE.key()));
+                            Description.builder()
+                                    .text(
+                                            "The cache upper size when Flink caches current line context "
+                                                    + "of %s or %s when %s is LOG.",
+                                            code("System.out"),
+                                            code("System.err"),
+                                            code(TASK_MANAGER_SYSTEM_OUT_MODE.key()))
+                                    .build());
 
     @Documentation.Section({
         Documentation.Sections.EXPERT_SCHEDULING,
@@ -792,13 +798,13 @@ public class TaskManagerOptions {
     /** Type of redirection of {@link System#out} and {@link System#err}. */
     public enum SystemOutMode {
 
-        /** Don't change the System.out and System.err, it's the default value. */
+        /** Don't change the {@link System#out} and {@link System#err}, it's the default value. */
         DEFAULT,
 
-        /** Redirect System.out and err to LOG. */
+        /** Redirect all {@link System#out} and {@link System#err} to LOG. */
         LOG,
 
-        /** Ignore all System.out and err directly. */
+        /** Ignore all {@link System#out} and {@link System#err} directly. */
         IGNORE
     }
 
