@@ -45,6 +45,14 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- ArchUnit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Hadoop's file system abstraction (bundled) -->
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
