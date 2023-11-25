@@ -711,6 +711,61 @@ public class TaskManagerOptions {
                             "Time we wait for the timers in milliseconds to finish all pending timer threads"
                                     + " when the stream task is cancelled.");
 
+    /** This configures how to redirect the {@link System#out} and {@link System#err}. */
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<SystemOutMode> TASK_MANAGER_SYSTEM_OUT_MODE =
+            ConfigOptions.key("taskmanager.system-out.mode")
+                    .enumType(SystemOutMode.class)
+                    .defaultValue(SystemOutMode.DEFAULT)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Mode for the redirection of %s or %s for %s.",
+                                            code("System.out"),
+                                            code("System.err"),
+                                            code("TaskManagers"))
+                                    .list(
+                                            text(
+                                                    "%s: %s don't redirect the %s and %s, it's the default value.",
+                                                    code(SystemOutMode.DEFAULT.name()),
+                                                    code("TaskManagers"),
+                                                    code("System.out"),
+                                                    code("System.err")),
+                                            text(
+                                                    "%s: %s redirect %s and %s to LOG.info and LOG.error.",
+                                                    code(SystemOutMode.LOG.name()),
+                                                    code("TaskManagers"),
+                                                    code("System.out"),
+                                                    code("System.err")),
+                                            text(
+                                                    "%s: %s ignore %s and %s directly.",
+                                                    code(SystemOutMode.IGNORE.name()),
+                                                    code("TaskManagers"),
+                                                    code("System.out"),
+                                                    code("System.err")))
+                                    .build());
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Boolean> TASK_MANAGER_SYSTEM_OUT_LOG_THREAD_NAME =
+            ConfigOptions.key("taskmanager.system-out.log.thread-name.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            String.format(
+                                    "Whether log the thread name when %s is LOG.",
+                                    TASK_MANAGER_SYSTEM_OUT_MODE.key()));
+
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<MemorySize> TASK_MANAGER_SYSTEM_OUT_LOG_CACHE_SIZE =
+            ConfigOptions.key("taskmanager.system-out.log.cache-upper-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("100 kb"))
+                    .withDescription(
+                            String.format(
+                                    "The cache upper size when Flink caches current line context "
+                                            + "of  System.out or System.out when %s is LOG.",
+                                    TASK_MANAGER_SYSTEM_OUT_MODE.key()));
+
     @Documentation.Section({
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_TASK_MANAGER
@@ -733,6 +788,19 @@ public class TaskManagerOptions {
                                                     "The %s mode is the default mode without any specified strategy.",
                                                     code(TaskManagerLoadBalanceMode.NONE.name())))
                                     .build());
+
+    /** Type of redirection of {@link System#out} and {@link System#err}. */
+    public enum SystemOutMode {
+
+        /** Don't change the System.out and System.err, it's the default value. */
+        DEFAULT,
+
+        /** Redirect System.out and err to LOG. */
+        LOG,
+
+        /** Ignore all System.out and err directly. */
+        IGNORE
+    }
 
     /** Type of {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE}. */
     public enum TaskManagerLoadBalanceMode {

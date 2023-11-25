@@ -606,6 +606,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
         LOG.info("Starting TaskManager with ResourceID: {}", resourceID.getStringWithMetadata());
 
+        SystemOutRedirectionUtils.redirectSystemOutAndError(configuration);
+
         String externalAddress = rpcService.getAddress();
 
         final TaskExecutorResourceSpec taskExecutorResourceSpec =
