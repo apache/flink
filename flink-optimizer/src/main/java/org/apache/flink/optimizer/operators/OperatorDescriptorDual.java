@@ -91,8 +91,7 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
             LocalProperties in1, LocalProperties in2);
 
     protected boolean checkCompatibilityBasedOnDiversePartitioningProperty(
-            GlobalProperties produced1,
-            GlobalProperties produced2) {
+            GlobalProperties produced1, GlobalProperties produced2) {
         if (produced1.getPartitioning() == PartitioningProperty.HASH_PARTITIONED
                 && produced2.getPartitioning() == PartitioningProperty.HASH_PARTITIONED) {
 
@@ -106,9 +105,9 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
                 && produced2.getDataDistribution() != null) {
 
             return produced1.getPartitioningFields().size()
-                    == produced2.getPartitioningFields().size()
+                            == produced2.getPartitioningFields().size()
                     && checkSameOrdering(
-                    produced1, produced2, produced1.getPartitioningFields().size())
+                            produced1, produced2, produced1.getPartitioningFields().size())
                     && produced1.getDataDistribution().equals(produced2.getDataDistribution());
 
         } else if (produced1.getPartitioning() == PartitioningProperty.CUSTOM_PARTITIONING
@@ -120,9 +119,7 @@ public abstract class OperatorDescriptorDual implements AbstractOperatorDescript
                     && produced2.getPartitioningFields().isExactMatch(this.keys2)
                     && produced1.getCustomPartitioner() != null
                     && produced2.getCustomPartitioner() != null
-                    && produced1
-                    .getCustomPartitioner()
-                    .equals(produced2.getCustomPartitioner());
+                    && produced1.getCustomPartitioner().equals(produced2.getCustomPartitioner());
 
         } else {
 
