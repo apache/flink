@@ -86,8 +86,6 @@ The `FileSystemCheckpointStorage` is encouraged for:
 
   - All high-availability setups.
 
-It is also recommended to set [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) to zero.
-This will ensure that the maximum amount of memory is allocated for user code on the JVM.
 
 ## Retained Checkpoints
 
