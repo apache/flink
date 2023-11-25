@@ -178,6 +178,16 @@ object UserDefinedFunctionTestUtils {
     override def createAccumulator(): Tuple1[Long] = Tuple1.of(0L)
 
     override def getValue(acc: Tuple1[Long]): Long = acc.f0
+
+    override def getTypeInference(typeFactory: DataTypeFactory): TypeInference = {
+      TypeInference.newBuilder
+        .typedArguments(DataTypes.STRING(), DataTypes.STRING())
+        .accumulatorTypeStrategy(TypeStrategies.explicit(
+          DataTypes.STRUCTURED(classOf[Tuple1[Long]], DataTypes.FIELD("f0", DataTypes.BIGINT()))))
+        .outputTypeStrategy(TypeStrategies.explicit(DataTypes.BIGINT()))
+        .build
+    }
+
   }
 
   // ------------------------------------------------------------------------------------

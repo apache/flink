@@ -452,7 +452,7 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
 
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("T", t)
-    tEnv.createTemporarySystemFunction("CntNullNonNull", new CountNullNonNull)
+    tEnv.createTemporarySystemFunction("CntNullNonNull", classOf[CountNullNonNull])
     val t1 = tEnv.sqlQuery("SELECT b, count(*), CntNullNonNull(DISTINCT c)  FROM T GROUP BY b")
 
     val sink = new TestingRetractSink
@@ -965,7 +965,7 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
 
     val t = failingDataSource(data).toTable(tEnv, 'a, 'b)
     tEnv.createTemporaryView("MyTable", t)
-    tEnv.registerFunction("pojoFunc", new MyPojoAggFunction)
+    tEnv.createTemporarySystemFunction("pojoFunc", classOf[MyPojoAggFunction])
     tEnv.createTemporarySystemFunction("pojoToInt", MyPojoFunc)
 
     val sql = "SELECT pojoToInt(pojoFunc(b)) FROM MyTable group by a"
