@@ -142,6 +142,64 @@ env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
 {{< /tab >}}
 {{< /tabs >}}
 
+### Exponential Delay Restart Strategy
+
+指数延迟重启策略无限地重启作业，作业永远不失败。
+在两次连续的重新启动尝试之间，重新启动的延迟时间不断呈指数增长，直到达到最大延迟时间。
+然后，延迟时间将保持在最大延迟时间。
+
+当作业正确地执行后，指数延迟时间会在一些时间后被重置为初始值，这些阈值可以被配置。
+
+```yaml
+restart-strategy.type: exponential-delay
+```
+
+{{< generated/exponential_delay_restart_strategy_configuration >}}
+
+例如:
+
+```yaml
+restart-strategy.exponential-delay.initial-backoff: 10 s
+restart-strategy.exponential-delay.max-backoff: 2 min
+restart-strategy.exponential-delay.backoff-multiplier: 2.0
+restart-strategy.exponential-delay.reset-backoff-threshold: 10 min
+restart-strategy.exponential-delay.jitter-factor: 0.1
+```
+
+指数延迟重启策略可以在代码中被指定：
+
+{{< tabs "e433f119-50e2-4eae-9977-7e6e44acab61" >}}
+{{< tab "Java" >}}
+```java
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
+  Time.milliseconds(1),
+  Time.milliseconds(1000),
+  1.1, // exponential multiplier
+  Time.milliseconds(2000), // 重置延迟时间到初始值的阈值
+  0.1 // jitter
+));
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
+  Time.of(1, TimeUnit.MILLISECONDS), // initial delay between restarts
+  Time.of(1000, TimeUnit.MILLISECONDS), // maximum delay between restarts
+  1.1, // exponential multiplier
+  Time.of(2, TimeUnit.SECONDS), // 重置延迟时间到初始值的阈值
+  0.1 // jitter
+))
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+Python API 不支持。
+```
+{{< /tab >}}
+{{< /tabs >}}
+
 
 ### Failure Rate Restart Strategy
 
