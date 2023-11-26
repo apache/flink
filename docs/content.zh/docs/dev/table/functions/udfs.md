@@ -224,6 +224,20 @@ env.from("MyTable").select(call(classOf[MyConcatFunction], $"a", $"b", $"c"));
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< hint info >}}
+`TableEnvironment` 提供两个重载方法使用用户自定义函数来注册临时系统函数:
+
+- *createTemporarySystemFunction(
+  String name, Class<? extends UserDefinedFunction> functionClass)*
+- *createTemporarySystemFunction(String name, UserDefinedFunction functionInstance)*
+
+在用户自定义函数类支持无参数构造器时，建议尽量使用 `functionClass` 而不是 `functionInstance`, 
+因为 Flink 作为底层框架可以增加额外的内部功能来控制用户自定义函数实例的创建工作。
+目前， `TableEnvironmentImpl` 里默认的实现会在创建实例之前对不同的 `UserDefinedFunction` 子类类型, 
+例如`ScalaFunction`, `TableFunction`， 进行具体的类和方法实现验证。
+未来还可以在不影响用户代码的情况下在系统底层添加更多的功能和自动优化。
+{{< /hint >}}
+
 {{< top >}}
 
 开发指南
