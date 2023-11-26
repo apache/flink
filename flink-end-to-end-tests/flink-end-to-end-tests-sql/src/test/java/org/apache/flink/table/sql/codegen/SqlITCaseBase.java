@@ -183,7 +183,7 @@ public abstract class SqlITCaseBase extends TestLogger {
         return result;
     }
 
-    private void checkResultFile(
+    private static void checkResultFile(
             Path resultPath,
             List<String> expectedItems,
             Function<List<String>, List<String>> resultFormatter)
@@ -219,7 +219,7 @@ public abstract class SqlITCaseBase extends TestLogger {
                         "Did not get expected results before timeout, actual result: %s.", lines));
     }
 
-    private List<String> readResultFiles(Path path) throws Exception {
+    private static List<String> readResultFiles(Path path) throws Exception {
         File filePath = path.toFile();
         // list all the non-hidden files
         File[] files = filePath.listFiles((dir, name) -> !name.startsWith("."));
@@ -262,7 +262,7 @@ public abstract class SqlITCaseBase extends TestLogger {
             Row key = Row.project(row, schema.getPrimaryKeyIndexes());
             key.setKind(RowKind.INSERT);
 
-            final Row upsertRow = Row.copy(row);
+            Row upsertRow = Row.copy(row);
             upsertRow.setKind(RowKind.INSERT);
 
             if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
