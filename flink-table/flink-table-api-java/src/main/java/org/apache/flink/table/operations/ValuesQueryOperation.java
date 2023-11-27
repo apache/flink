@@ -22,12 +22,14 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Table operation that computes new table using given {@link Expression}s from its input relational
@@ -61,6 +63,26 @@ public class ValuesQueryOperation implements QueryOperation {
 
         return OperationUtils.formatWithChildren(
                 "Values", args, getChildren(), Operation::asSummaryString);
+    }
+
+    @Override
+    public String asSerializableString() {
+        return String.format(
+                "SELECT * FROM (VALUES %s\n) $VAL0(%s)",
+                OperationUtils.indent(
+                        values.stream()
+                                .map(
+                                        row ->
+                                                row.stream()
+                                                        .map(
+                                                                ResolvedExpression
+                                                                        ::asSerializableString)
+                                                        .collect(
+                                                                Collectors.joining(", ", "(", ")")))
+                                .collect(Collectors.joining(",\n"))),
+                resolvedSchema.getColumnNames().stream()
+                        .map(EncodingUtils::escapeIdentifier)
+                        .collect(Collectors.joining(", ")));
     }
 
     @Override

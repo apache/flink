@@ -43,9 +43,7 @@ public class OperationUtils {
      * @return string with increased indentation
      */
     static String indent(String item) {
-        return "\n"
-                + OPERATION_INDENT
-                + item.replace("\n" + OPERATION_INDENT, "\n" + OPERATION_INDENT + OPERATION_INDENT);
+        return "\n" + OPERATION_INDENT + item.replaceAll("\n", "\n" + OPERATION_INDENT);
     }
 
     /**

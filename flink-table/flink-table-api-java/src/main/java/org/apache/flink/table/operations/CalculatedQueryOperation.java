@@ -23,11 +23,13 @@ import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /** Describes a relational operation that was created from applying a {@link TableFunction}. */
 @Internal
@@ -67,6 +69,18 @@ public class CalculatedQueryOperation implements QueryOperation {
 
         return OperationUtils.formatWithChildren(
                 "CalculatedTable", args, getChildren(), Operation::asSummaryString);
+    }
+
+    @Override
+    public String asSerializableString() {
+        return String.format(
+                "LATERAL TABLE(%s) $T(%s)",
+                resolvedFunction
+                        .toCallExpression(arguments, resolvedSchema.toPhysicalRowDataType())
+                        .asSerializableString(),
+                resolvedSchema.getColumnNames().stream()
+                        .map(EncodingUtils::escapeIdentifier)
+                        .collect(Collectors.joining(", ")));
     }
 
     @Override

@@ -22,7 +22,9 @@ import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -76,7 +78,7 @@ public final class SinkTestStep extends TableTestStep {
             return expectedBeforeRestore.stream().map(Row::toString).collect(Collectors.toList());
         }
 
-        return null;
+        return Collections.emptyList();
     }
 
     public List<String> getExpectedAfterRestoreAsStrings() {
@@ -88,7 +90,13 @@ public final class SinkTestStep extends TableTestStep {
             return expectedAfterRestore.stream().map(Row::toString).collect(Collectors.toList());
         }
 
-        return null;
+        return Collections.emptyList();
+    }
+
+    public List<String> getExpectedAsStrings() {
+        final List<String> data = new ArrayList<>(getExpectedBeforeRestoreAsStrings());
+        data.addAll(getExpectedAfterRestoreAsStrings());
+        return data;
     }
 
     @Override

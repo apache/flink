@@ -18,14 +18,20 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.ifThenElse;
+import static org.apache.flink.table.api.Expressions.nullOf;
+
 /** {@link TableTestProgram} definitions for testing {@link StreamExecJoin}. */
 public class JoinTestPrograms {
-    static final TableTestProgram NON_WINDOW_INNER_JOIN;
+    public static final TableTestProgram NON_WINDOW_INNER_JOIN;
     static final TableTestProgram NON_WINDOW_INNER_JOIN_WITH_NULL;
     static final TableTestProgram CROSS_JOIN;
     static final TableTestProgram JOIN_WITH_FILTER;
@@ -132,6 +138,35 @@ public class JoinTestPrograms {
                                         + " SELECT if(a = 3, cast(null as int), a) as a, b, c FROM T2\n"
                                         + ") as t2\n"
                                         + "ON t1.a = t2.a AND t1.b > t2.b")
+                        .runTableApi(
+                                env -> {
+                                    final Table t1 =
+                                            env.from("T1")
+                                                    .select(
+                                                            ifThenElse(
+                                                                            $("a").isEqual(3),
+                                                                            nullOf(DataTypes.INT()),
+                                                                            $("a"))
+                                                                    .as("a1"),
+                                                            $("b").as("b1"),
+                                                            $("c").as("c1"));
+                                    final Table t2 =
+                                            env.from("T2")
+                                                    .select(
+                                                            ifThenElse(
+                                                                            $("a").isEqual(3),
+                                                                            nullOf(DataTypes.INT()),
+                                                                            $("a"))
+                                                                    .as("a2"),
+                                                            $("b").as("b2"),
+                                                            $("c").as("c2"));
+                                    return t1.join(
+                                                    t2,
+                                                    $("a1").isEqual($("a2"))
+                                                            .and($("b1").isGreater($("b2"))))
+                                            .select($("a2"), $("c2"), $("c1"));
+                                },
+                                "MySink")
                         .build();
 
         NON_WINDOW_INNER_JOIN_WITH_NULL =

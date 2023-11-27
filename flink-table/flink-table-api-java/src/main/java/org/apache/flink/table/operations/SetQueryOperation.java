@@ -84,6 +84,23 @@ public class SetQueryOperation implements QueryOperation {
                 typeToString(), args, getChildren(), Operation::asSummaryString);
     }
 
+    @Override
+    public String asSerializableString() {
+        return String.format(
+                "SELECT * FROM (%s\n) %s (%s\n)",
+                OperationUtils.indent(leftOperation.asSerializableString()),
+                asSerializableType(),
+                OperationUtils.indent(rightOperation.asSerializableString()));
+    }
+
+    private String asSerializableType() {
+        if (all) {
+            return type.toString() + " ALL";
+        } else {
+            return type.toString();
+        }
+    }
+
     private String typeToString() {
         switch (type) {
             case INTERSECT:

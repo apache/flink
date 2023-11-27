@@ -23,6 +23,8 @@ import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /**
  * {@link TableTestProgram} definitions for testing {@link
  * org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSortLimit}.
@@ -86,7 +88,7 @@ public class SortTestPrograms {
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a LIMIT 3")
                     .build();
 
-    static final TableTestProgram SORT_LIMIT_DESC =
+    public static final TableTestProgram SORT_LIMIT_DESC =
             TableTestProgram.of(
                             "sort-limit-desc",
                             "validates sort limit node by sorting integers in desc mode")
@@ -122,5 +124,7 @@ public class SortTestPrograms {
                                     .consumedAfterRestore("-D[4, b, 8]", "+I[6, c, 10]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT * from source_t ORDER BY a DESC LIMIT 3")
+                    .runTableApi(
+                            env -> env.from("source_t").orderBy($("a").desc()).limit(3), "sink_t")
                     .build();
 }
