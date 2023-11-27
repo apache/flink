@@ -2091,7 +2091,9 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     public JobExecutionResult execute(String jobName) throws Exception {
         final List<Transformation<?>> originalTransformations = new ArrayList<>(transformations);
         StreamGraph streamGraph = getStreamGraph();
-        setJobNameForJobGraph(streamGraph, jobName);
+        if (jobName != null) {
+            streamGraph.setJobName(jobName);
+        }
 
         try {
             return execute(streamGraph);
@@ -2212,21 +2214,11 @@ public class StreamExecutionEnvironment implements AutoCloseable {
     @PublicEvolving
     public JobClient executeAsync(String jobName) throws Exception {
         final StreamGraph streamGraph = getStreamGraph();
-        setJobNameForJobGraph(streamGraph, jobName);
-
-        return executeAsync(streamGraph);
-    }
-
-    /**
-     * If JobName is not empty, configure jobName into StreamGraph.
-     *
-     * @param streamGraph The stream graph representing the transformations.
-     * @param jobName desired name of the job.
-     */
-    private void setJobNameForJobGraph(StreamGraph streamGraph, String jobName) {
         if (jobName != null) {
             streamGraph.setJobName(jobName);
         }
+
+        return executeAsync(streamGraph);
     }
 
     /**
