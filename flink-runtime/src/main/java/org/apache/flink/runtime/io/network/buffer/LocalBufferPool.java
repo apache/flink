@@ -76,8 +76,14 @@ public class LocalBufferPool implements BufferPool {
     /** Global network buffer pool to get buffers from. */
     private final NetworkBufferPool networkBufferPool;
 
-    /** The number of expected memory segments of this buffer pool. */
-    private int numberOfExpectedMemorySegments;
+    /**
+     * The number of expected memory segments of this buffer pool.
+     *
+     * <p>Usually, the buffers in {@link NetworkBufferPool} do not exactly meet the expectations of
+     * all {@link LocalBufferPool}s, so typically that value is used as a weight to allocate buffers
+     * to each {@link LocalBufferPool}.
+     */
+    private final int numberOfExpectedMemorySegments;
 
     /**
      * The currently available memory segments. These are segments, which have been requested from
@@ -201,7 +207,7 @@ public class LocalBufferPool implements BufferPool {
             int maxBuffersPerChannel,
             int maxOverdraftBuffersPerGate) {
         checkArgument(
-                minNumberOfMemorySegments >= 0,
+                minNumberOfMemorySegments > 0,
                 "Minimum number of memory segments (%s) should be larger than 0.",
                 minNumberOfMemorySegments);
 
@@ -284,11 +290,6 @@ public class LocalBufferPool implements BufferPool {
         synchronized (availableMemorySegments) {
             return isDestroyed;
         }
-    }
-
-    @Override
-    public void setNumberOfExpectedMemorySegments(int numberOfExpectedMemorySegments) {
-        this.numberOfExpectedMemorySegments = numberOfExpectedMemorySegments;
     }
 
     @Override
@@ -411,7 +412,6 @@ public class LocalBufferPool implements BufferPool {
                 ExceptionUtils.rethrow(e);
             }
         }
-        LOG.warn("Blocking requesting memory segment: " + segment);
         return segment;
     }
 
@@ -423,12 +423,10 @@ public class LocalBufferPool implements BufferPool {
 
             if (!availableMemorySegments.isEmpty()) {
                 segment = availableMemorySegments.poll();
-                LOG.warn("From availableMemorySegments");
             } else if (isRequestedSizeReached()) {
                 // Only when the buffer request reaches the upper limit(i.e. current pool size),
                 // requests an overdraft buffer.
                 segment = requestOverdraftMemorySegmentFromGlobal();
-                LOG.warn("From gloable");
             }
 
             if (segment == null) {
@@ -441,14 +439,8 @@ public class LocalBufferPool implements BufferPool {
                 }
             }
 
-            LOG.warn("Before availableMemorySegments:" + availableMemorySegments.size());
             checkAndUpdateAvailability();
-            LOG.warn("After availableMemorySegments:" + availableMemorySegments.size());
         }
-        LOG.warn("Requested memory segment: " + segment);
-        LOG.warn("this is : " + this);
-        LOG.warn("My available memory segments: " + availableMemorySegments);
-        LOG.warn("NBP size: " + networkBufferPool.getAvailableMemory() / 32 / 1024);
         return segment;
     }
 
@@ -612,7 +604,6 @@ public class LocalBufferPool implements BufferPool {
 
     private void recycle(MemorySegment segment, int channel) {
         BufferListener listener;
-        LOG.warn("Recycling " + segment);
         CompletableFuture<?> toNotify = null;
         do {
             synchronized (availableMemorySegments) {

@@ -92,6 +92,21 @@ class LocalBufferPoolTest {
     }
 
     @Test
+    void testCreateIllegalBufferPool() {
+        NetworkBufferPool networkBufferPool =
+                new NetworkBufferPool(2, memorySegmentSize, Duration.ofSeconds(2));
+
+        assertThatThrownBy(() -> new LocalBufferPool(networkBufferPool, 0, 2, 3, 2, 2, 2))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new LocalBufferPool(networkBufferPool, 1, 2, 3, 2, 2, 2))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThatThrownBy(() -> new LocalBufferPool(networkBufferPool, 4, 2, 3, 2, 2, 2))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void testReserveSegments() throws Exception {
         NetworkBufferPool networkBufferPool =
                 new NetworkBufferPool(2, memorySegmentSize, Duration.ofSeconds(2));
@@ -292,7 +307,7 @@ class LocalBufferPoolTest {
                 new LocalBufferPool(
                         networkBufferPool,
                         requiredMemorySegments,
-                        0,
+                        requiredMemorySegments,
                         maxMemorySegments,
                         0,
                         Integer.MAX_VALUE,
@@ -379,7 +394,7 @@ class LocalBufferPoolTest {
                 new LocalBufferPool(
                         networkBufferPool,
                         requiredMemorySegments,
-                        0,
+                        requiredMemorySegments,
                         maxMemorySegments,
                         0,
                         Integer.MAX_VALUE,

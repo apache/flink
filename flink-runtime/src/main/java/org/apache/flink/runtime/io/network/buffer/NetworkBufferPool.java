@@ -561,7 +561,7 @@ public class NetworkBufferPool
 
             if (oldExpected > minBuffers) {
                 int newExpected = decreaseNumberOfExpectedMemorySegments(oldExpected, minBuffers);
-                pool.setNumberOfExpectedMemorySegments(newExpected);
+                //                pool.setNumberOfExpectedMemorySegments(newExpected);
                 pool.setNumBuffers(newExpected);
                 totalDecreased += (oldExpected - newExpected);
             }
