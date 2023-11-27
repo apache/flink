@@ -193,7 +193,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             options.put("connector", "values");
             options.put("data-id", id);
             options.put("terminating", "false");
-            options.put("disable-lookup", "true");
             options.put("runtime-source", "NewSource");
             sourceTestStep.apply(tEnv, options);
         }
@@ -203,7 +202,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             registerSinkObserver(futures, sinkTestStep, true);
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
-            options.put("disable-lookup", "true");
             options.put("sink-insert-only", "false");
             sinkTestStep.apply(tEnv, options);
         }
@@ -252,7 +250,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("data-id", id);
-            options.put("disable-lookup", "true");
             options.put("runtime-source", "NewSource");
             if (afterRestoreSource == AfterRestoreSource.INFINITE) {
                 options.put("terminating", "false");
