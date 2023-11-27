@@ -115,7 +115,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
       tEnv.getCatalogManager.getDataTypeFactory.createDataType(testDataType)
     }
     if (containsLegacyTypes) {
-      val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
+      val ds = env.fromData(Collections.emptyList[Row](), typeInfo)
       tEnv.createTemporaryView(tableName, ds, typeInfo.getFieldNames.map(api.$): _*)
       functions.foreach(f => tEnv.createTemporarySystemFunction(f._1, f._2))
     } else {

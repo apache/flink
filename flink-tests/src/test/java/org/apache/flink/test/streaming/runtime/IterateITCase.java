@@ -420,7 +420,7 @@ public class IterateITCase extends AbstractTestBase {
                 iterated = new boolean[parallelism];
 
                 DataStream<Boolean> source =
-                        env.fromCollection(Collections.nCopies(parallelism * 2, false))
+                        env.fromData(Collections.nCopies(parallelism * 2, false))
                                 .map(noOpBoolMap)
                                 .name("ParallelizeMap");
 
@@ -693,7 +693,7 @@ public class IterateITCase extends AbstractTestBase {
         env.enableCheckpointing();
 
         DataStream<Boolean> source =
-                env.fromCollection(Collections.nCopies(parallelism * 2, false))
+                env.fromData(Collections.nCopies(parallelism * 2, false))
                         .map(noOpBoolMap)
                         .name("ParallelizeMap");
 

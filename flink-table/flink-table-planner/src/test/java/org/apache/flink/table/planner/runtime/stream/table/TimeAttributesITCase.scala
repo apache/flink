@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.scala.createTypeInformation
-import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
+import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
@@ -36,10 +36,17 @@ import java.time.{Duration, Instant, LocalDateTime, ZoneOffset}
 class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   @TestTemplate
-  def testMissingTimeAttributeThrowsCorrectException(): Unit = {
-    val data = List(1L -> "hello", 2L -> "world")
-    val stream = env.fromCollection[(Long, String)](data)
+  def testMissingTimeAttributeInLegacySourceThrowsCorrectException(): Unit = {
+    //TODO: this test can be removed when SourceFunction gets removed (FLIP-27 sources set TimestampAssigner.NO_TIMESTAMP value as event time when no timestamp is provided. See SourceOutputWithWatermarks#collect())
+    val stream = env
+      .addSource(new SourceFunction[(Long, String)]() {
+        def run(ctx: SourceFunction.SourceContext[(Long, String)]) {
+          ctx.collect(1L -> "hello")
+          ctx.collect(2L -> "world")
+        }
 
+        def cancel() {}
+      })
     tEnv.createTemporaryView("test", stream, $"event_time".rowtime(), $"data")
     val result = tEnv.sqlQuery("SELECT * FROM test")
 

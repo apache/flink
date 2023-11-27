@@ -78,7 +78,7 @@ class StreamContextEnvironmentTest {
         // Add/mutate values in the configuration
         environment.configure(programConfig);
 
-        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
+        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(MutatedConfigurationException.class)
                 .hasMessageContainingAll(
@@ -106,7 +106,7 @@ class StreamContextEnvironmentTest {
         // Change the CheckpointConfig
         environment.getCheckpointConfig().setCheckpointStorage(disallowedPath);
 
-        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
+        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(MutatedConfigurationException.class)
                 .hasMessageContainingAll(
@@ -114,7 +114,7 @@ class StreamContextEnvironmentTest {
 
         environment.getCheckpointConfig().setCheckpointStorage(new JobManagerCheckpointStorage());
 
-        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
+        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(MutatedConfigurationException.class)
                 .hasMessageContainingAll(
@@ -143,7 +143,7 @@ class StreamContextEnvironmentTest {
                         false,
                         Collections.emptyList());
 
-        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
+        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(MutatedConfigurationException.class)
                 .hasMessageContainingAll(
@@ -169,7 +169,7 @@ class StreamContextEnvironmentTest {
         // Change the CheckpointConfig
         environment.getCheckpointConfig().setCheckpointStorage(allowedPath);
 
-        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
+        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(ExecutorReachedException.class);
     }
@@ -186,7 +186,7 @@ class StreamContextEnvironmentTest {
         final StreamContextEnvironment environment =
                 constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
 
-        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
+        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(ExecutorReachedException.class);
     }
@@ -202,7 +202,7 @@ class StreamContextEnvironmentTest {
         final StreamContextEnvironment environment =
                 constructStreamContextEnvironment(clusterConfig, Collections.emptyList());
 
-        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
+        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(ExecutorReachedException.class);
     }
@@ -235,7 +235,7 @@ class StreamContextEnvironmentTest {
         environment.configure(jobConfig);
         environment.getConfig().setMaxParallelism(1024);
 
-        environment.fromCollection(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
+        environment.fromData(Collections.singleton(1)).sinkTo(new DiscardingSink<>());
         assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(ExecutorReachedException.class);
         assertThat(environment.getConfig().getGlobalJobParameters().toMap())

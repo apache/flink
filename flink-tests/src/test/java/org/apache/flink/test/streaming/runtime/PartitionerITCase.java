@@ -99,7 +99,7 @@ public class PartitionerITCase extends AbstractTestBase {
         env.setParallelism(PARALLELISM);
 
         DataStream<Tuple1<String>> src =
-                env.fromCollection(INPUT.stream().map(Tuple1::of).collect(Collectors.toList()));
+                env.fromData(INPUT.stream().map(Tuple1::of).collect(Collectors.toList()));
 
         // partition by hash
         src.keyBy(0).map(new SubtaskIndexAssigner()).addSink(hashPartitionResultSink);

@@ -226,7 +226,7 @@ class DataStreamJavaITCase {
                     Row.of(null, Row.of(false, null), Collections.singletonMap("world", null))
                 };
 
-        final DataStream<Row> dataStream = env.fromCollection(Arrays.asList(rows), typeInfo);
+        final DataStream<Row> dataStream = env.fromData(Arrays.asList(rows), typeInfo);
 
         final TableResult result = tableEnv.fromDataStream(dataStream).execute();
 
@@ -305,7 +305,7 @@ class DataStreamJavaITCase {
                         Tuple2.of(DayOfWeek.MONDAY, ZoneOffset.UTC),
                         Tuple2.of(DayOfWeek.FRIDAY, ZoneOffset.ofHours(5)));
 
-        final DataStream<Tuple2<DayOfWeek, ZoneOffset>> dataStream = env.fromCollection(rawRecords);
+        final DataStream<Tuple2<DayOfWeek, ZoneOffset>> dataStream = env.fromData(rawRecords);
 
         // verify incoming type information
         assertThat(dataStream.getType()).isInstanceOf(TupleTypeInfo.class);
@@ -945,7 +945,7 @@ class DataStreamJavaITCase {
 
     private DataStream<Tuple3<Long, Integer, String>> getWatermarkedDataStream() {
         final DataStream<Tuple3<Long, Integer, String>> dataStream =
-                env.fromCollection(
+                env.fromData(
                         Arrays.asList(
                                 Tuple3.of(1L, 42, "a"),
                                 Tuple3.of(2L, 5, "a"),
