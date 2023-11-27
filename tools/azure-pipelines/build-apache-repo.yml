@@ -152,6 +152,17 @@ stages:
           jdk: 17
       - template: jobs-template.yml
         parameters:
+          stage_name: cron_jdk17
+          test_pool_definition:
+            name: Default
+          e2e_pool_definition:
+            vmImage: 'ubuntu-20.04'
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Djdk11 -Djdk17 -Djdk21 -Pjava21-target"
+          run_end_to_end: true
+          container: flink-build-container
+          jdk: 21
+      - template: jobs-template.yml
+        parameters:
           stage_name: cron_adaptive_scheduler
           test_pool_definition:
             name: Default
