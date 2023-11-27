@@ -65,7 +65,7 @@ public class ExecutorDiscoveryAndJobClientTest {
     private JobExecutionResult executeTestJobBasedOnConfig(final Configuration configuration)
             throws Exception {
         final StreamExecutionEnvironment env = new StreamExecutionEnvironment(configuration);
-        env.fromCollection(Collections.singletonList(42)).sinkTo(new DiscardingSink<>());
+        env.fromData(Collections.singletonList(42)).sinkTo(new DiscardingSink<>());
         return env.execute();
     }
 

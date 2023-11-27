@@ -91,6 +91,8 @@ import java.nio.file.{Files, Path, Paths}
 import java.time.Duration
 import java.util.Collections
 
+import scala.collection.JavaConverters._
+
 /** Test base for testing Table API / SQL plans. */
 abstract class TableTestBase {
 
@@ -1409,7 +1411,7 @@ class TestTableSource(override val isBounded: Boolean, schema: TableSchema)
   extends StreamTableSource[Row] {
 
   override def getDataStream(execEnv: environment.StreamExecutionEnvironment): DataStream[Row] = {
-    execEnv.fromCollection(List[Row](), getReturnType)
+    execEnv.fromData(List[Row]().asJava, getReturnType)
   }
 
   override def getReturnType: TypeInformation[Row] = {

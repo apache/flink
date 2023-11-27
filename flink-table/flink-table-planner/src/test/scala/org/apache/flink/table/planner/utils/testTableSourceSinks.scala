@@ -202,7 +202,7 @@ class TestTableSourceWithTime[T](
   with DefinedFieldMapping {
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
-    val dataStream = execEnv.fromCollection(values, returnType)
+    val dataStream = execEnv.fromData(values.asJava, returnType)
     dataStream.getTransformation.setMaxParallelism(1)
     dataStream
   }
@@ -528,7 +528,7 @@ class TestLegacyFilterableTableSource(
     }
 
     execEnv
-      .fromCollection[Row](
+      .fromData[Row](
         applyPredicatesToRows(records).asJava,
         fromDataTypeToTypeInfo(getProducedDataType).asInstanceOf[RowTypeInfo])
       .setParallelism(1)
@@ -929,7 +929,7 @@ class TestStreamTableSource(tableSchema: TableSchema, values: Seq[Row])
   extends StreamTableSource[Row] {
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
-    execEnv.fromCollection(values, tableSchema.toRowType)
+    execEnv.fromData(values.asJava, tableSchema.toRowType)
   }
 
   override def getProducedDataType: DataType = tableSchema.toRowDataType
@@ -1087,7 +1087,7 @@ class TestPartitionableTableSource(
       data.values.flatten
     }
 
-    execEnv.fromCollection[Row](remainingData, getReturnType).setParallelism(1).setMaxParallelism(1)
+    execEnv.fromData[Row](remainingData, getReturnType).setParallelism(1).setMaxParallelism(1)
   }
 
   override def explainSource(): String = {
@@ -1218,7 +1218,7 @@ class WithoutTimeAttributesTableSource(bounded: Boolean) extends StreamTableSour
     )
     val dataStream =
       execEnv
-        .fromCollection(data)
+        .fromData(data.asJava)
         .returns(fromDataTypeToTypeInfo(getProducedDataType).asInstanceOf[RowTypeInfo])
     dataStream.getTransformation.setMaxParallelism(1)
     dataStream

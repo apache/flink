@@ -85,7 +85,7 @@ public class BroadcastStateITCase extends AbstractTestBase {
                         .keyBy((KeySelector<Long, Long>) value -> value);
 
         final DataStream<String> srcTwo =
-                env.fromCollection(expected.values())
+                env.fromData(expected.values())
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<String>() {
 
@@ -145,7 +145,7 @@ public class BroadcastStateITCase extends AbstractTestBase {
                                 });
 
         final DataStream<String> srcTwo =
-                env.fromCollection(expected.values())
+                env.fromData(expected.values())
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<String>() {
 

@@ -151,15 +151,15 @@ public class WritableSavepointITCase extends AbstractTestBase {
         sEnv.setStateBackend(backend);
 
         DataStream<Account> stream =
-                sEnv.fromCollection(accounts)
+                sEnv.fromData(accounts)
                         .keyBy(acc -> acc.id)
                         .flatMap(new UpdateAndGetAccount())
                         .uid(ACCOUNT_UID);
 
         CloseableIterator<Account> results = stream.collectAsync();
 
-        sEnv.fromCollection(currencyRates)
-                .connect(sEnv.fromCollection(currencyRates).broadcast(descriptor))
+        sEnv.fromData(currencyRates)
+                .connect(sEnv.fromData(currencyRates).broadcast(descriptor))
                 .process(new CurrencyValidationFunction())
                 .uid(CURRENCY_UID)
                 .sinkTo(new DiscardingSink<>());
@@ -195,7 +195,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
         sEnv.setStateBackend(backend);
 
         DataStream<Account> stream =
-                sEnv.fromCollection(accounts)
+                sEnv.fromData(accounts)
                         .keyBy(acc -> acc.id)
                         .flatMap(new UpdateAndGetAccount())
                         .uid(ACCOUNT_UID);

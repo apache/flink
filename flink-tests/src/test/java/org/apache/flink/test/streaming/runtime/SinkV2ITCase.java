@@ -107,7 +107,7 @@ public class SinkV2ITCase extends AbstractTestBase {
     public void writerAndCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
-        env.fromCollection(SOURCE_DATA)
+        env.fromData(SOURCE_DATA)
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
                                 .setDefaultCommitter(

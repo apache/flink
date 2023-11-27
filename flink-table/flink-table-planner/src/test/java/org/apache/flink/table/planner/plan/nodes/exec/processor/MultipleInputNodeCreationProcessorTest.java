@@ -22,6 +22,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
@@ -39,7 +40,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -125,8 +125,7 @@ class MultipleInputNodeCreationProcessorTest extends TableTestBase {
     }
 
     private void createNonChainableStream(TableTestUtil util) {
-        DataStreamSource<Integer> dataStream =
-                util.getStreamEnv().fromCollection(Arrays.asList(1, 2, 3));
+        DataStreamSource<Integer> dataStream = util.getStreamEnv().addSource(new LegacySource());
         TableTestUtil.createTemporaryView(
                 util.tableEnv(),
                 "nonChainableStream",
@@ -171,5 +170,14 @@ class MultipleInputNodeCreationProcessorTest extends TableTestBase {
                         + runtimeSource
                         + "'\n"
                         + ")");
+    }
+
+    private static class LegacySource implements SourceFunction<Integer> {
+        public void run(SourceContext<Integer> sourceContext) {
+            sourceContext.collect(1);
+        }
+
+        @Override
+        public void cancel() {}
     }
 }

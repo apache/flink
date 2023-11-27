@@ -141,14 +141,6 @@ class StreamExecutionEnvironmentTest {
             TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-            DataStreamSource<Integer> dataStream1 =
-                    env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-
-            assertThatThrownBy(() -> dataStream1.setParallelism(4))
-                    .isInstanceOf(IllegalArgumentException.class);
-
-            dataStream1.sinkTo(new DiscardingSink<>());
-
             DataStreamSource<Integer> dataStream2 =
                     env.fromParallelCollection(new DummySplittableIterator<Integer>(), typeInfo)
                             .setParallelism(4);
@@ -158,9 +150,6 @@ class StreamExecutionEnvironmentTest {
             final StreamGraph streamGraph = env.getStreamGraph();
             streamGraph.getStreamingPlanAsJSON();
 
-            assertThat(streamGraph.getStreamNode(dataStream1.getId()).getParallelism())
-                    .as("Parallelism of collection source must be 1.")
-                    .isOne();
             assertThat(streamGraph.getStreamNode(dataStream2.getId()).getParallelism())
                     .as("Parallelism of parallel collection source must be 4.")
                     .isEqualTo(4);
@@ -172,6 +161,8 @@ class StreamExecutionEnvironmentTest {
 
     @Test
     void testSources() {
+        // TODO: remove this test when SourceFunction API gets removed together with the deprecated
+        //  StreamExecutionEnvironment generateSequence() and fromCollection() methods
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         SourceFunction<Integer> srcFun =
@@ -329,33 +320,25 @@ class StreamExecutionEnvironmentTest {
 
     @Test
     void testGetStreamGraph() {
-        try {
-            TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-            DataStreamSource<Integer> dataStream1 =
-                    env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream1.sinkTo(new DiscardingSink<>());
-            assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(2);
+        DataStreamSource<Integer> dataStream1 = env.fromData(1, 2, 3);
+        dataStream1.sinkTo(new DiscardingSink<>());
+        assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(2);
 
-            DataStreamSource<Integer> dataStream2 =
-                    env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream2.sinkTo(new DiscardingSink<>());
-            assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(2);
+        DataStreamSource<Integer> dataStream2 = env.fromData(1, 2, 3);
+        dataStream2.sinkTo(new DiscardingSink<>());
+        // Previous getStreamGraph() call cleaned dataStream1 transformations
+        assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(2);
 
-            DataStreamSource<Integer> dataStream3 =
-                    env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream3.sinkTo(new DiscardingSink<>());
-            // Does not clear the transformations.
-            env.getExecutionPlan();
-            DataStreamSource<Integer> dataStream4 =
-                    env.fromCollection(new DummySplittableIterator<Integer>(), typeInfo);
-            dataStream4.sinkTo(new DiscardingSink<>());
-            assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(4);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        DataStreamSource<Integer> dataStream3 = env.fromData(1, 2, 3);
+        dataStream3.sinkTo(new DiscardingSink<>());
+        // Does not clear the transformations.
+        env.getExecutionPlan();
+        DataStreamSource<Integer> dataStream4 = env.fromData(1, 2, 3);
+        dataStream4.sinkTo(new DiscardingSink<>());
+        // dataStream3 are preserved
+        assertThat(env.getStreamGraph().getStreamNodes().size()).isEqualTo(4);
     }
 
     @Test

@@ -141,7 +141,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                                 .build());
         execEnv.enableCheckpointing(50);
         DataStream<T> dataStream =
-                execEnv.fromCollection(testRecords)
+                execEnv.fromData(testRecords)
                         .name("sourceInSinkTest")
                         .setParallelism(1)
                         .returns(externalContext.getProducedType());

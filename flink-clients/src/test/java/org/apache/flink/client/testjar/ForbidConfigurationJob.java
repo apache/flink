@@ -37,7 +37,7 @@ public class ForbidConfigurationJob {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(config);
 
-        env.fromCollection(Lists.newArrayList(1, 2, 3)).sinkTo(new DiscardingSink<>());
+        env.fromData(Lists.newArrayList(1, 2, 3)).sinkTo(new DiscardingSink<>());
         env.execute();
     }
 }
