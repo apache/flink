@@ -27,10 +27,10 @@ public interface BufferPoolFactory {
      * Tries to create a buffer pool, which is guaranteed to provide at least the number of required
      * buffers.
      *
-     * <p>The buffer pool is of dynamic size with at least <tt>numRequiredBuffers</tt> buffers.
+     * <p>The buffer pool is of dynamic size ranges from <tt>minUsedBuffers</tt> to
+     * <tt>maxUsedBuffers</tt>, with <tt>numExpectedBuffers</tt> serving as the weight.
      *
-     * @param numExpectedBuffers the number of expected network buffers of this pool, this number
-     *     may change according to the available buffers during runtime.
+     * @param numExpectedBuffers the number of expected network buffers of this pool
      * @param minUsedBuffers minimum number of network buffers in this pool
      * @param maxUsedBuffers maximum number of network buffers this pool offers
      */
@@ -41,10 +41,10 @@ public interface BufferPoolFactory {
      * Tries to create a buffer pool with an owner, which is guaranteed to provide at least the
      * number of required buffers.
      *
-     * <p>The buffer pool is of dynamic size with at least <tt>minUsedBuffers</tt> buffers.
+     * <p>The buffer pool is of dynamic size ranges from <tt>minUsedBuffers</tt> to
+     * <tt>maxUsedBuffers</tt>, with <tt>numExpectedBuffers</tt> serving as the weight.
      *
-     * @param numExpectedBuffers the number of expected network buffers of this pool, this number *
-     *     may change according to the available buffers during runtime.
+     * @param numExpectedBuffers the number of expected network buffers of this pool
      * @param minUsedBuffers minimum number of network buffers in this pool
      * @param maxUsedBuffers maximum number of network buffers this pool offers
      * @param numSubpartitions number of subpartitions in this pool
