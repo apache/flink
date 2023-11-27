@@ -2217,7 +2217,6 @@ public class StreamExecutionEnvironment implements AutoCloseable {
         if (jobName != null) {
             streamGraph.setJobName(jobName);
         }
-
         return executeAsync(streamGraph);
     }
 
