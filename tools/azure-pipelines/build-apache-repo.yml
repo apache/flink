@@ -152,7 +152,7 @@ stages:
           jdk: 17
       - template: jobs-template.yml
         parameters:
-          stage_name: cron_jdk17
+          stage_name: cron_jdk21
           test_pool_definition:
             name: Default
           e2e_pool_definition:
