@@ -23,14 +23,14 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class TwoStageAggregateTest extends TableTestBase {
 
   private val util = streamTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.enableMiniBatch()
     util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))

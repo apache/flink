@@ -26,8 +26,8 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileInputSplit, Path}
 
-import org.junit.Assert.{assertEquals, assertNotNull, assertNull, assertTrue, fail}
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, fail, offset}
+import org.junit.jupiter.api.Test
 
 import java.io.{File, FileOutputStream, FileWriter, OutputStreamWriter}
 
@@ -60,23 +60,22 @@ class CsvInputFormatTest {
       format.open(split)
       var result: (String, Integer, Double) = null
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("this is", result._1)
-      assertEquals(new Integer(1), result._2)
-      assertEquals(2.0, result._3, 0.0001)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo("this is")
+      assertThat(result._2).isEqualTo(new Integer(1))
+      assertThat(result._3).isEqualTo(2.0, offset(0.0001))
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("a test", result._1)
-      assertEquals(new Integer(3), result._2)
-      assertEquals(4.0, result._3, 0.0001)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo("a test")
+      assertThat(result._2).isEqualTo(new Integer(3))
+      assertThat(result._3).isEqualTo(4.0, offset(0.0001))
       result = format.nextRecord(result)
-      assertNull(result)
-      assertTrue(format.reachedEnd)
+      assertThat(result).isNull()
+      assertThat(format.reachedEnd).isTrue
     } catch {
-      case ex: Exception => {
-        ex.printStackTrace
+      case ex: Exception =>
+        ex.printStackTrace()
         fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
-      }
     }
   }
 
@@ -101,23 +100,22 @@ class CsvInputFormatTest {
       format.open(split)
       var result: (String, Integer, Double) = null
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("this is", result._1)
-      assertEquals(new Integer(1), result._2)
-      assertEquals(2.0, result._3, 0.0001)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo("this is")
+      assertThat(result._2).isEqualTo(new Integer(1))
+      assertThat(result._3).isEqualTo(2.0, offset(0.0001))
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("a test", result._1)
-      assertEquals(new Integer(3), result._2)
-      assertEquals(4.0, result._3, 0.0001)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo("a test")
+      assertThat(result._2).isEqualTo(new Integer(3))
+      assertThat(result._3).isEqualTo(4.0, offset(0.0001))
       result = format.nextRecord(result)
-      assertNull(result)
-      assertTrue(format.reachedEnd)
+      assertThat(result).isNull()
+      assertThat(format.reachedEnd).isTrue
     } catch {
-      case ex: Exception => {
-        ex.printStackTrace
+      case ex: Exception =>
+        ex.printStackTrace()
         fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
-      }
     }
   }
 
@@ -137,28 +135,27 @@ class CsvInputFormatTest {
       format.open(split)
       var result: (String, String, String) = null
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("abc", result._1)
-      assertEquals("def", result._2)
-      assertEquals("ghijk", result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo("abc")
+      assertThat(result._2).isEqualTo("def")
+      assertThat(result._3).isEqualTo("ghijk")
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("abc", result._1)
-      assertEquals("", result._2)
-      assertEquals("hhg", result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo("abc")
+      assertThat(result._2).isEmpty()
+      assertThat(result._3).isEqualTo("hhg")
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("", result._1)
-      assertEquals("", result._2)
-      assertEquals("", result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEmpty()
+      assertThat(result._2).isEmpty()
+      assertThat(result._3).isEmpty()
       result = format.nextRecord(result)
-      assertNull(result)
-      assertTrue(format.reachedEnd)
+      assertThat(result).isNull()
+      assertThat(format.reachedEnd).isTrue
     } catch {
-      case ex: Exception => {
+      case ex: Exception =>
         ex.printStackTrace()
         fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
-      }
     }
   }
 
@@ -179,28 +176,27 @@ class CsvInputFormatTest {
       format.open(split)
       var result: (String, String, String) = null
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("abc", result._1)
-      assertEquals("de|f", result._2)
-      assertEquals("ghijk", result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo("abc")
+      assertThat(result._2).isEqualTo("de|f")
+      assertThat(result._3).isEqualTo("ghijk")
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("a|bc", result._1)
-      assertEquals("", result._2)
-      assertEquals("hhg", result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo("a|bc")
+      assertThat(result._2).isEmpty()
+      assertThat(result._3).isEqualTo("hhg")
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("", result._1)
-      assertEquals("", result._2)
-      assertEquals("", result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEmpty()
+      assertThat(result._2).isEmpty()
+      assertThat(result._3).isEmpty()
       result = format.nextRecord(result)
-      assertNull(result)
-      assertTrue(format.reachedEnd)
+      assertThat(result).isNull()
+      assertThat(format.reachedEnd).isTrue
     } catch {
-      case ex: Exception => {
+      case ex: Exception =>
         ex.printStackTrace()
         fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
-      }
     }
   }
 
@@ -220,23 +216,23 @@ class CsvInputFormatTest {
       format.open(split)
       var result: (String, String, String) = null
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("abc", result._1)
-      assertEquals("def", result._2)
-      assertEquals("ghijk", result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo("abc")
+      assertThat(result._2).isEqualTo("def")
+      assertThat(result._3).isEqualTo("ghijk")
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("abc", result._1)
-      assertEquals("", result._2)
-      assertEquals("hhg", result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo("abc")
+      assertThat(result._2).isEmpty()
+      assertThat(result._3).isEqualTo("hhg")
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals("", result._1)
-      assertEquals("", result._2)
-      assertEquals("", result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEmpty()
+      assertThat(result._2).isEmpty()
+      assertThat(result._3).isEmpty()
       result = format.nextRecord(result)
-      assertNull(result)
-      assertTrue(format.reachedEnd)
+      assertThat(result).isNull()
+      assertThat(format.reachedEnd).isTrue
     } catch {
       case ex: Exception =>
         ex.printStackTrace()
@@ -258,22 +254,22 @@ class CsvInputFormatTest {
       format.open(split)
       var result: (Int, Int, Int, Int, Int) = null
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals(Integer.valueOf(111), result._1)
-      assertEquals(Integer.valueOf(222), result._2)
-      assertEquals(Integer.valueOf(333), result._3)
-      assertEquals(Integer.valueOf(444), result._4)
-      assertEquals(Integer.valueOf(555), result._5)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo(Integer.valueOf(111))
+      assertThat(result._2).isEqualTo(Integer.valueOf(222))
+      assertThat(result._3).isEqualTo(Integer.valueOf(333))
+      assertThat(result._4).isEqualTo(Integer.valueOf(444))
+      assertThat(result._5).isEqualTo(Integer.valueOf(555))
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals(Integer.valueOf(666), result._1)
-      assertEquals(Integer.valueOf(777), result._2)
-      assertEquals(Integer.valueOf(888), result._3)
-      assertEquals(Integer.valueOf(999), result._4)
-      assertEquals(Integer.valueOf(0), result._5)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo(Integer.valueOf(666))
+      assertThat(result._2).isEqualTo(Integer.valueOf(777))
+      assertThat(result._3).isEqualTo(Integer.valueOf(888))
+      assertThat(result._4).isEqualTo(Integer.valueOf(999))
+      assertThat(result._5).isEqualTo(Integer.valueOf(0))
       result = format.nextRecord(result)
-      assertNull(result)
-      assertTrue(format.reachedEnd)
+      assertThat(result).isNull()
+      assertThat(format.reachedEnd).isTrue
     } catch {
       case ex: Exception =>
         fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
@@ -294,16 +290,16 @@ class CsvInputFormatTest {
       format.open(split)
       var result: (Int, Int) = null
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals(Integer.valueOf(111), result._1)
-      assertEquals(Integer.valueOf(222), result._2)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo(Integer.valueOf(111))
+      assertThat(result._2).isEqualTo(Integer.valueOf(222))
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals(Integer.valueOf(666), result._1)
-      assertEquals(Integer.valueOf(777), result._2)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo(Integer.valueOf(666))
+      assertThat(result._2).isEqualTo(Integer.valueOf(777))
       result = format.nextRecord(result)
-      assertNull(result)
-      assertTrue(format.reachedEnd)
+      assertThat(result).isNull()
+      assertThat(format.reachedEnd).isTrue
     } catch {
       case ex: Exception =>
         fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
@@ -324,18 +320,18 @@ class CsvInputFormatTest {
       format.open(split)
       var result: (Int, Int, Int) = null
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals(Integer.valueOf(111), result._1)
-      assertEquals(Integer.valueOf(444), result._2)
-      assertEquals(Integer.valueOf(888), result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo(Integer.valueOf(111))
+      assertThat(result._2).isEqualTo(Integer.valueOf(444))
+      assertThat(result._3).isEqualTo(Integer.valueOf(888))
       result = format.nextRecord(result)
-      assertNotNull(result)
-      assertEquals(Integer.valueOf(0), result._1)
-      assertEquals(Integer.valueOf(777), result._2)
-      assertEquals(Integer.valueOf(333), result._3)
+      assertThat(result).isNotNull
+      assertThat(result._1).isEqualTo(Integer.valueOf(0))
+      assertThat(result._2).isEqualTo(Integer.valueOf(777))
+      assertThat(result._3).isEqualTo(Integer.valueOf(333))
       result = format.nextRecord(result)
-      assertNull(result)
-      assertTrue(format.reachedEnd)
+      assertThat(result).isNull()
+      assertThat(format.reachedEnd).isTrue
     } catch {
       case ex: Exception =>
         fail("Test failed due to a " + ex.getClass.getName + ": " + ex.getMessage)
@@ -363,7 +359,7 @@ class CsvInputFormatTest {
     this.testRemovingTrailingCR("\r\n", "\n")
   }
 
-  private def testRemovingTrailingCR(lineBreakerInFile: String, lineBreakerSetup: String) {
+  private def testRemovingTrailingCR(lineBreakerInFile: String, lineBreakerSetup: String): Unit = {
     var tempFile: File = null
     val fileContent = FIRST_PART + lineBreakerInFile + SECOND_PART + lineBreakerInFile
     try {
@@ -382,11 +378,11 @@ class CsvInputFormatTest {
       val splits = inputFormat.createInputSplits(1)
       inputFormat.open(splits(0))
       var result = inputFormat.nextRecord(null)
-      assertNotNull("Expecting to not return null", result)
-      assertEquals(FIRST_PART, result._1)
+      assertThat(result).as("Expecting to not return null").isNotNull
+      assertThat(result._1).isEqualTo(FIRST_PART)
       result = inputFormat.nextRecord(result)
-      assertNotNull("Expecting to not return null", result)
-      assertEquals(SECOND_PART, result._1)
+      assertThat(result).as("Expecting to not return null").isNotNull
+      assertThat(result._1).isEqualTo(SECOND_PART)
     } catch {
       case t: Throwable =>
         System.err.println("test failed with exception: " + t.getMessage)
@@ -404,26 +400,26 @@ class CsvInputFormatTest {
   private def validatePOJOItem(format: PojoCsvInputFormat[POJOItem]): Unit = {
     var result = new POJOItem()
     result = format.nextRecord(result)
-    assertEquals(123, result.field1)
-    assertEquals("HELLO", result.field2)
-    assertEquals(3.123, result.field3, 0.001)
+    assertThat(result.field1).isEqualTo(123)
+    assertThat(result.field2).isEqualTo("HELLO")
+    assertThat(result.field3).isEqualTo(3.123, offset(0.001))
 
     result = format.nextRecord(result)
-    assertEquals(456, result.field1)
-    assertEquals("ABC", result.field2)
-    assertEquals(1.234, result.field3, 0.001)
+    assertThat(result.field1).isEqualTo(456)
+    assertThat(result.field2).isEqualTo("ABC")
+    assertThat(result.field3).isEqualTo(1.234, offset(0.001))
   }
 
   private def validateCaseClassItem(format: TupleCsvInputFormat[CaseClassItem]): Unit = {
     var result = format.nextRecord(null)
-    assertEquals(123, result.field1)
-    assertEquals("HELLO", result.field2)
-    assertEquals(3.123, result.field3, 0.001)
+    assertThat(result.field1).isEqualTo(123)
+    assertThat(result.field2).isEqualTo("HELLO")
+    assertThat(result.field3).isEqualTo(3.123, offset(0.001))
 
     result = format.nextRecord(null)
-    assertEquals(456, result.field1)
-    assertEquals("ABC", result.field2)
-    assertEquals(1.234, result.field3, 0.001)
+    assertThat(result.field1).isEqualTo(456)
+    assertThat(result.field2).isEqualTo("ABC")
+    assertThat(result.field3).isEqualTo(1.234, offset(0.001))
   }
 
   @Test

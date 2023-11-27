@@ -32,12 +32,12 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind._
 
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Long => JLong}
 import java.time.Duration
@@ -47,11 +47,11 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode)
   extends HarnessTestBase(mode) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
@@ -71,7 +71,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     }
   }
 
-  @Test
+  @TestTemplate
   def testAggregateWithRetraction(): Unit = {
     val data = new mutable.MutableList[(String, String, Long)]
     val t = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
@@ -158,7 +158,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     testHarness.close()
   }
 
-  @Test
+  @TestTemplate
   def testAggregationWithDistinct(): Unit = {
     val (testHarness, outputTypes) = createAggregationWithDistinct
     val assertor = new RowDataHarnessAssertor(outputTypes)
@@ -248,7 +248,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     (testHarness, outputTypes)
   }
 
-  @Test
+  @TestTemplate
   def testCloseWithoutOpen(): Unit = {
     val (testHarness, outputType) = createAggregationWithDistinct
     testHarness.setup(new RowDataSerializer(outputType: _*))
@@ -260,7 +260,7 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
 
 object GroupAggregateHarnessTest {
 
-  @Parameterized.Parameters(name = "StateBackend={0}, MiniBatch={1}")
+  @Parameters(name = "StateBackend={0}, MiniBatch={1}")
   def parameters(): JCollection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(HEAP_BACKEND, MiniBatchOff),

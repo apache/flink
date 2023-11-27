@@ -22,7 +22,7 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /** Test for [[AggWithoutKeysCodeGenerator]]. */
 class AggWithoutKeysTest extends BatchAggTestBase {

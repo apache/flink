@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.time.Duration
 
@@ -37,7 +37,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   val LONG = new BigIntType()
   val INT = new IntType()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addDataStream[(Int, String, Long)](
       "MyDataStream1",

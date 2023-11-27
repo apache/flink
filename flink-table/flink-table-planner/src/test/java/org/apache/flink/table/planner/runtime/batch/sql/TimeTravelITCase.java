@@ -35,10 +35,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for time travel. */
-public class TimeTravelITCase extends BatchTestBase {
+class TimeTravelITCase extends BatchTestBase {
     private static final List<Tuple2<String, String>> EXPECTED_TIME_TRAVEL_RESULT =
             Arrays.asList(
                     Tuple2.of("2023-01-01 01:00:00", "[+I[1]]"),
@@ -66,7 +66,7 @@ public class TimeTravelITCase extends BatchTestBase {
                                             "SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '%s'",
                                             res.f0));
             List<String> sortedResult = toSortedResults(tableResult);
-            assertEquals(res.f1, sortedResult.toString());
+            assertThat(sortedResult.toString()).isEqualTo(res.f1);
         }
     }
 
@@ -83,7 +83,7 @@ public class TimeTravelITCase extends BatchTestBase {
                                                     + "    t1 FOR SYSTEM_TIME AS OF TIMESTAMP '%s' AS t2",
                                             res.f0));
             List<String> sortedResult = toSortedResults(tableResult);
-            assertEquals(res.f1, sortedResult.toString());
+            assertThat(sortedResult.toString()).isEqualTo(res.f1);
         }
     }
 
@@ -96,8 +96,7 @@ public class TimeTravelITCase extends BatchTestBase {
                                         + "FROM\n"
                                         + "    t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 00:00:00'+INTERVAL '60' DAY");
         List<String> sortedResult = toSortedResults(tableResult);
-
-        assertEquals("[+I[1, 2, 3]]", sortedResult.toString());
+        assertThat(sortedResult.toString()).isEqualTo("[+I[1, 2, 3]]");
     }
 
     @Test
@@ -117,7 +116,7 @@ public class TimeTravelITCase extends BatchTestBase {
                                                     ZoneId.of("UTC"),
                                                     ZoneId.of("Asia/Shanghai"))));
             List<String> sortedResult = toSortedResults(tableResult);
-            assertEquals(res.f1, sortedResult.toString());
+            assertThat(sortedResult.toString()).isEqualTo(res.f1);
         }
     }
 
@@ -137,7 +136,7 @@ public class TimeTravelITCase extends BatchTestBase {
                                         + "    t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00'");
 
         List<String> sortedResult = toSortedResults(tableResult);
-        assertEquals("[+I[1], +I[2]]", sortedResult.toString());
+        assertThat(sortedResult.toString()).isEqualTo("[+I[1], +I[2]]");
 
         // test join same table with different snapshot
         tableResult =
@@ -150,7 +149,7 @@ public class TimeTravelITCase extends BatchTestBase {
                                         + "    LEFT JOIN t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00' r ON l.f1=r.f1");
 
         sortedResult = toSortedResults(tableResult);
-        assertEquals("[+I[1, 2]]", sortedResult.toString());
+        assertThat(sortedResult.toString()).isEqualTo("[+I[1, 2]]");
     }
 
     @Test
@@ -172,7 +171,7 @@ public class TimeTravelITCase extends BatchTestBase {
                                         + "    LEFT JOIN t1 FOR SYSTEM_TIME AS OF l.p r ON l.f1=r.f1");
 
         List<String> sortedResult = toSortedResults(tableResult);
-        assertEquals("[+I[2, 3]]", sortedResult.toString());
+        assertThat(sortedResult.toString()).isEqualTo("[+I[2, 3]]");
     }
 
     @Test
@@ -182,14 +181,14 @@ public class TimeTravelITCase extends BatchTestBase {
                                 "SELECT * FROM t1 /*+ options('bounded'='true') */ FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 01:00:00'");
 
         List<String> sortedResult = toSortedResults(tableResult);
-        assertEquals("[+I[1]]", sortedResult.toString());
+        assertThat(sortedResult.toString()).isEqualTo("[+I[1]]");
 
         tableResult =
                 tEnv().executeSql(
                                 "SELECT * FROM t1 /*+ options('bounded'='true') */ FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00' AS t2");
 
         sortedResult = toSortedResults(tableResult);
-        assertEquals("[+I[1, 2]]", sortedResult.toString());
+        assertThat(sortedResult.toString()).isEqualTo("[+I[1, 2]]");
     }
 
     private List<String> toSortedResults(TableResult result) {

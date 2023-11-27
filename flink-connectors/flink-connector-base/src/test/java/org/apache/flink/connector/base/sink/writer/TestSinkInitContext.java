@@ -28,7 +28,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
-import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -43,15 +43,15 @@ import java.util.OptionalLong;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledFuture;
 
-/** A mock implementation of a {@code Sink.InitContext} to be used in sink unit tests. */
-public class TestSinkInitContext implements Sink.InitContext {
+/** A mock implementation of a {@code Sink.WriterInitContext} to be used in sink unit tests. */
+public class TestSinkInitContext implements Sink.WriterInitContext {
 
     private static final TestProcessingTimeService processingTimeService;
     private final MetricListener metricListener = new MetricListener();
     private final OperatorIOMetricGroup operatorIOMetricGroup =
             UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
     private final SinkWriterMetricGroup metricGroup =
-            InternalSinkWriterMetricGroup.mock(
+            MetricsGroupTestUtils.mockWriterMetricGroup(
                     metricListener.getMetricGroup(), operatorIOMetricGroup);
     private final MailboxExecutor mailboxExecutor;
 

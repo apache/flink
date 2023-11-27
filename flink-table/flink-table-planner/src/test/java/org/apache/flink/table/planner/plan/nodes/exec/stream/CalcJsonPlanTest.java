@@ -28,17 +28,17 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization/deserialization for calc. */
-public class CalcJsonPlanTest extends TableTestBase {
+class CalcJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -55,7 +55,7 @@ public class CalcJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testSimpleProject() {
+    void testSimpleProject() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"
@@ -68,7 +68,7 @@ public class CalcJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testSimpleFilter() {
+    void testSimpleFilter() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"
@@ -83,7 +83,7 @@ public class CalcJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testComplexCalc() {
+    void testComplexCalc() {
         tEnv.createTemporaryFunction("udf1", new JavaFunc0());
         tEnv.createTemporaryFunction("udf2", JavaFunc1.class);
         tEnv.createTemporarySystemFunction("udf3", new JavaFunc2());
@@ -116,7 +116,7 @@ public class CalcJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testSarg() {
+    void testSarg() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint\n"
@@ -130,7 +130,7 @@ public class CalcJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testProjectPushDown() {
+    void testProjectPushDown() {
         // ensure PartitionPushDownSpec was added to exec plan
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"

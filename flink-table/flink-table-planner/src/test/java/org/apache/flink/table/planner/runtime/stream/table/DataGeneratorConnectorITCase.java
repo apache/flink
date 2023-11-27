@@ -27,7 +27,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for data generator source. */
-public class DataGeneratorConnectorITCase extends BatchTestBase {
+class DataGeneratorConnectorITCase extends BatchTestBase {
 
     private static final String TABLE =
             "CREATE TABLE datagen_t (\n"
@@ -64,7 +64,7 @@ public class DataGeneratorConnectorITCase extends BatchTestBase {
                     + ")";
 
     @Test
-    public void testTypes() throws Exception {
+    void testTypes() throws Exception {
         tEnv().executeSql(TABLE);
 
         List<Row> results = new ArrayList<>();
@@ -79,7 +79,7 @@ public class DataGeneratorConnectorITCase extends BatchTestBase {
     }
 
     @Test
-    public void testLimitPushDown() throws Exception {
+    void testLimitPushDown() {
         final TestingTableEnvironment env =
                 TestingTableEnvironment.create(
                         EnvironmentSettings.newInstance().inStreamingMode().build(),

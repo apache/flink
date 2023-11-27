@@ -21,6 +21,7 @@ package org.apache.flink.api.connector.sink2;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -49,16 +50,18 @@ public interface TwoPhaseCommittingSink<InputT, CommT> extends Sink<InputT> {
      * @return A sink writer for the two-phase commit protocol.
      * @throws IOException for any failure during creation.
      */
-    PrecommittingSinkWriter<InputT, CommT> createWriter(InitContext context) throws IOException;
+    PrecommittingSinkWriter<InputT, CommT> createWriter(WriterInitContext context)
+            throws IOException;
 
     /**
      * Creates a {@link Committer} that permanently makes the previously written data visible
      * through {@link Committer#commit(Collection)}.
      *
+     * @param context The context information for the committer initialization.
      * @return A committer for the two-phase commit protocol.
      * @throws IOException for any failure during creation.
      */
-    Committer<CommT> createCommitter() throws IOException;
+    Committer<CommT> createCommitter(CommitterInitContext context) throws IOException;
 
     /** Returns the serializer of the committable type. */
     SimpleVersionedSerializer<CommT> getCommittableSerializer();
@@ -76,5 +79,13 @@ public interface TwoPhaseCommittingSink<InputT, CommT> extends Sink<InputT> {
          * @throws IOException if fail to prepare for a commit.
          */
         Collection<CommT> prepareCommit() throws IOException, InterruptedException;
+    }
+
+    /** The interface exposes some runtime info for creating a {@link Committer}. */
+    @PublicEvolving
+    interface CommitterInitContext extends org.apache.flink.api.connector.sink2.InitContext {
+
+        /** @return The metric group this committer belongs to. */
+        SinkCommitterMetricGroup metricGroup();
     }
 }

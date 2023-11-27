@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils._
 
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CorrelateTest extends TableTestBase {
 

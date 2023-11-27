@@ -47,6 +47,9 @@ Flink 的 checkpoint 机制会和持久化存储进行交互，读写流与状�
 
 Checkpoint 其他的属性包括：
 
+  - *Checkpoint 存储*: 你可以设置检查点快照的持久化位置。默认情况下，Flink将使用JobManager的堆。建议在生产部署中改为使用持久性文件系统。
+    有关作业范围和集群范围配置的可用选项的更多详细信息，请参阅[Checkpoint 存储]({{< ref "docs/ops/state/checkpoints" >}}#Checkpoint-存储)。
+
   - *精确一次（exactly-once）对比至少一次（at-least-once）*：你可以选择向 `enableCheckpointing(long interval, CheckpointingMode mode)` 方法中传入一个模式来选择使用两种保证等级中的哪一种。
     对于大多数应用来说，精确一次是较好的选择。至少一次可能与某些延迟超低（始终只有几毫秒）的应用的关联较大。
   
@@ -70,8 +73,14 @@ Checkpoint 其他的属性包括：
     该选项不能和 "checkpoints 间的最小时间"同时使用。
     
   - *externalized checkpoints*: 你可以配置周期存储 checkpoint 到外部系统中。Externalized checkpoints 将他们的元数据写到持久化存储上并且在 job 失败的时候*不会*被自动删除。
-    这种方式下，如果你的 job 失败，你将会有一个现有的 checkpoint 去恢复。更多的细节请看 [Externalized checkpoints 的部署文档]({{< ref "docs/ops/state/checkpoints" >}}#externalized-checkpoints)。
-    
+    这种方式下，如果你的 job 失败，你将会有一个现有的 checkpoint 去恢复。更多的细节请看 [保留 checkpoints 的部署文档]({{< ref "docs/ops/state/checkpoints" >}}#保留-checkpoint)。
+
+  - *非对齐 checkpoints*: 你可以启用[非对齐 checkpoints]({{< ref "docs/ops/state/checkpointing_under_backpressure" >}}#非对齐-checkpoints)
+     以在背压时大大减少创建checkpoint的时间。这仅适用于精确一次（exactly-once）checkpoints 并且只有一个并发检查点。
+
+  - *部分任务结束的 checkpoints*： 默认情况下，即使DAG的部分已经处理完它们的所有记录，Flink也会继续执行 checkpoints。
+    请参阅[重要注意事项]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}#部分任务结束后的-checkpoint)以了解详细信息。
+
 {{< tabs "5ef78d6e-3c62-43e9-b0a8-a987df37a8da" >}}
 {{< tab "Java" >}}
 ```java

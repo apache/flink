@@ -26,12 +26,12 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.utils.CountAggFunction
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.math.BigDecimal
 
@@ -39,7 +39,7 @@ import java.math.BigDecimal
  * We only test some aggregations until better testing of constructed DataStream programs is
  * possible.
  */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   val data = List(
@@ -60,7 +60,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
     (32L, 4, 4d, 4f, new BigDecimal("4"), null.asInstanceOf[String])
   )
 
-  @Test
+  @TestTemplate
   def testProcessingTimeSlidingGroupWindowOverCount(): Unit = {
     tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     val stream = failingDataSource(data)
@@ -86,10 +86,10 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
     env.execute()
 
     val expected = Seq(s"Hello world,2,3,12,3,2", s"Hello,2,2,3,2,2")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeSessionGroupWindowOverTime(): Unit = {
     // To verify the "merge" functionality, we create this test with the following characteristics:
     // 1. set the Parallelism to 1, and have the test data out of order
@@ -130,10 +130,10 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       "Hello World,1970-01-01T00:00:00.014,1,9,9,9,1",
       "Hello,1970-01-01T00:00:00.021,1,16,16,16,1",
       s"Hello,1970-01-01T00:00:00.013,4,3,5,5,4")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAllProcessingTimeTumblingGroupWindowOverCount(): Unit = {
     tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     val stream = failingDataSource(data)
@@ -157,10 +157,10 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
     env.execute()
 
     val expected = Seq(s"2,1,1,1,2", s"2,2,6,2,2")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testGroupWindowWithoutKeyInProjection(): Unit = {
     val data = List(
       (1L, 1, "Hi", 1, 1),
@@ -185,14 +185,14 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
     env.execute()
 
     val expected = Seq("12,2", "3,2")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   // ----------------------------------------------------------------------------------------------
   // Sliding windows
   // ----------------------------------------------------------------------------------------------
 
-  @Test
+  @TestTemplate
   def testAllEventTimeSlidingGroupWindowOverTime(): Unit = {
     // please keep this test in sync with the bounded variant
     val stream = failingDataSource(data2)
@@ -223,10 +223,10 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       "1,1970-01-01T00:00:00.030,1970-01-01T00:00:00.035,1970-01-01T00:00:00.034",
       "1,1970-01-01T00:00:00.032,1970-01-01T00:00:00.037,1970-01-01T00:00:00.036"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeSlidingGroupWindowOverTimeOverlappingSplitPane(): Unit = {
     // please keep this test in sync with the bounded variant
     val stream = failingDataSource(data2)
@@ -255,10 +255,10 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       "null,1,1970-01-01T00:00:00.028,1970-01-01T00:00:00.033",
       "null,1,1970-01-01T00:00:00.032,1970-01-01T00:00:00.037"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingSplitPane(): Unit = {
     // please keep this test in sync with the bounded variant
     val stream = failingDataSource(data2)
@@ -280,10 +280,10 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       "Hi,1,1970-01-01T00:00,1970-01-01T00:00:00.003",
       "null,1,1970-01-01T00:00:00.030,1970-01-01T00:00:00.033"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeGroupWindowWithoutExplicitTimeField(): Unit = {
     val stream = failingDataSource(data2)
       .assignTimestampsAndWatermarks(
@@ -304,10 +304,10 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       "Hi,1,1970-01-01T00:00,1970-01-01T00:00:00.003",
       "null,1,1970-01-01T00:00:00.030,1970-01-01T00:00:00.033"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeTumblingWindow(): Unit = {
     val stream = failingDataSource(data)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
@@ -342,10 +342,10 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       s"Hello,2,2,3,2,2,2,4,1970-01-01T00:00,1970-01-01T00:00:00.005,2",
       "Hi,1,1,1,1,1,1,1,1970-01-01T00:00,1970-01-01T00:00:00.005,1"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingFullPane(): Unit = {
     // please keep this test in sync with the bounded variant
     val stream = failingDataSource(data2)
@@ -368,10 +368,10 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       "Hi,1,1970-01-01T00:00,1970-01-01T00:00:00.005",
       "null,1,1970-01-01T00:00:00.030,1970-01-01T00:00:00.035"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testEventTimeSlidingGroupWindowOverTimeOverlappingFullPane(): Unit = {
     // please keep this test in sync with the bounded variant
     val stream = failingDataSource(data2)
@@ -403,6 +403,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       "null,1,1970-01-01T00:00:00.025,1970-01-01T00:00:00.035",
       "null,1,1970-01-01T00:00:00.030,1970-01-01T00:00:00.040"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 }

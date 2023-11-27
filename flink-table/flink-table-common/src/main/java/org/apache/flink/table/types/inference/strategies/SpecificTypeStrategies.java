@@ -49,6 +49,9 @@ public final class SpecificTypeStrategies {
     /** See {@link MapTypeStrategy}. */
     public static final TypeStrategy MAP = new MapTypeStrategy();
 
+    /** See {@link CollectTypeStrategy}. */
+    public static final TypeStrategy COLLECT = new CollectTypeStrategy();
+
     /** See {@link IfNullTypeStrategy}. */
     public static final TypeStrategy IF_NULL = new IfNullTypeStrategy();
 
@@ -91,6 +94,9 @@ public final class SpecificTypeStrategies {
 
     /** See {@link CurrentWatermarkTypeStrategy}. */
     public static final TypeStrategy CURRENT_WATERMARK = new CurrentWatermarkTypeStrategy();
+
+    /** See {@link RowtimeTypeStrategy}. */
+    public static final TypeStrategy ROWTIME = new RowtimeTypeStrategy();
 
     /** See {@link InternalReplicateRowsTypeStrategy}. */
     public static final TypeStrategy INTERNAL_REPLICATE_ROWS =

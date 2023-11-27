@@ -30,14 +30,13 @@ import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSour
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
 import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.IterableAssert.assertThatIterable
-import org.junit.{After, Before, Test}
-import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Boolean => JBoolean}
 import java.time.LocalDateTime
@@ -45,7 +44,7 @@ import java.util.{Collection => JCollection}
 
 import scala.collection.JavaConversions._
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
   extends StreamingTestBase {
 
@@ -75,7 +74,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     rowOf(33, 3L, "Fabian"),
     rowOf(44, null, "Hello world"))
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     if (legacyTableSource) {
@@ -95,13 +94,13 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
   }
 
-  @After
+  @AfterEach
   override def after(): Unit = {
     if (legacyTableSource) {
-      assertEquals(0, InMemoryLookupableTableSource.RESOURCE_COUNTER.get())
+      assertThat(InMemoryLookupableTableSource.RESOURCE_COUNTER.get()).isZero
     } else {
-      assertEquals(0, TestValuesTableFactory.RESOURCE_COUNTER.get())
-      assertEquals(0, FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.get())
+      assertThat(TestValuesTableFactory.RESOURCE_COUNTER.get()).isZero
+      assertThat(FullCacheTestInputFormat.OPEN_CLOSED_COUNTER.get()).isZero
     }
   }
 
@@ -203,7 +202,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
                        |""".stripMargin)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTable(): Unit = {
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -213,12 +212,12 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithUdfFilter(): Unit = {
-    tEnv.registerFunction("add", new TestAddWithOpen)
+    tEnv.createTemporarySystemFunction("add", new TestAddWithOpen)
 
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id " +
@@ -229,11 +228,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, TestAddWithOpen.aliveCounter.get())
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertThat(TestAddWithOpen.aliveCounter.get()).isZero
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithUdfEqualFilter(): Unit = {
     val sql =
       """
@@ -250,10 +249,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnConstantKey(): Unit = {
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON D.id = 1"
@@ -268,10 +267,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
       "3,15,Fabian,Julian",
       "8,11,Hello world,Julian",
       "9,12,Hello world!,Julian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnNullableKey(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -281,10 +280,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("3,15,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithPushDown(): Unit = {
     val sql = "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
@@ -294,10 +293,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithNonEqualFilter(): Unit = {
     val sql = "SELECT T.id, T.len, T.content, D.name, D.age FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
@@ -307,10 +306,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark,22", "3,15,Fabian,Fabian,33")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiFields(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
@@ -320,10 +319,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("1,12,Julian", "3,15,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiKeyFields(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
@@ -333,10 +332,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("1,12,Julian", "3,15,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiKeyFields2(): Unit = {
     // test left table's join key define order diffs from right's
     val sql = "SELECT t1.id, t1.len, D.name FROM " +
@@ -349,10 +348,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("1,12,Julian", "3,15,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiKeyFieldsWithConstantKey(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND 3 = D.id"
@@ -362,10 +361,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("3,15,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiKeyFieldsWithStringConstantKey(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON D.name = 'Fabian' AND T.id = D.id"
@@ -375,10 +374,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("3,15,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiConstantKey(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON D.name = 'Fabian' AND 3 = D.id"
@@ -394,10 +393,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
       "8,11,Fabian",
       "9,12,Fabian"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinTemporalTable(): Unit = {
     val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -408,10 +407,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
 
     val expected =
       Seq("1,12,Julian,11", "2,15,Jark,22", "3,15,Fabian,33", "8,11,null,null", "9,12,null,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinTemporalTableWithPreFilter(): Unit = {
     val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.len < 15"
@@ -422,12 +421,12 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
 
     val expected =
       Seq("1,12,Julian,11", "2,15,null,null", "3,15,null,null", "8,11,null,null", "9,12,null,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinTemporalTableWithUdfPreFilter(): Unit = {
-    tEnv.registerFunction("add", new TestAddWithOpen)
+    tEnv.createTemporarySystemFunction("add", new TestAddWithOpen)
     // use the new api when FLINK-32986 is resolved
     // tEnv.createTemporaryFunction("add", classOf[TestAddWithOpen])
 
@@ -445,11 +444,11 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
       "3,15,Fabian,Fabian",
       "8,11,Hello world,null",
       "9,12,Hello world!,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
-    assertEquals(0, TestAddWithOpen.aliveCounter.get())
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+    assertThat(TestAddWithOpen.aliveCounter).hasValue(0)
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinTemporalTableOnNullableKey(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T LEFT OUTER JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
@@ -459,10 +458,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("null,15,null", "3,15,Fabian", "null,11,null", "9,12,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinTemporalTableOnMultKeyFields(): Unit = {
     val sql = "SELECT T.id, T.len, D.name, D.age FROM src AS T LEFT JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.id = D.id and T.content = D.name"
@@ -473,10 +472,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
 
     val expected =
       Seq("1,12,Julian,11", "2,15,null,null", "3,15,Fabian,33", "8,11,null,null", "9,12,null,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T JOIN nullable_user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
@@ -486,10 +485,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("3,15,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testLeftJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
     val sql = "SELECT D.id, T.len, D.name FROM nullable_src AS T LEFT JOIN nullable_user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
@@ -499,10 +498,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("null,15,null", "3,15,Fabian", "null,11,null", "null,12,null")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnNullConstantKey(): Unit = {
     val sql = "SELECT T.id, T.len, T.content FROM nullable_src AS T JOIN nullable_user_table " +
       "for system_time as of T.proctime AS D ON D.id = null"
@@ -511,10 +510,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertTrue(sink.getAppendResults.isEmpty)
+    assertThat(sink.getAppendResults.isEmpty).isTrue
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiKeyFieldsWithNullConstantKey(): Unit = {
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id"
@@ -523,10 +522,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
 
-    assertTrue(sink.getAppendResults.isEmpty)
+    assertThat(sink.getAppendResults.isEmpty).isTrue
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableOnMultiKeyFieldsWithUDF(): Unit = {
     val sql = "SELECT T.id, T.content, D.age, D.id FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D " +
@@ -537,10 +536,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("9,Hello world!,11,5")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithComputedColumn(): Unit = {
     if (legacyTableSource) {
       // Computed column do not support in legacyTableSource.
@@ -556,10 +555,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
 
     val expected =
       Seq("1,12,Julian,Julian,11,12", "2,15,Hello,Jark,22,23", "3,15,Fabian,Fabian,33,34")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
     if (legacyTableSource) {
       // Computed column do not support in legacyTableSource.
@@ -574,10 +573,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark,22,23", "3,15,Fabian,Fabian,33,34")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testCurrentDateInJoinCondition(): Unit = {
     val id1 =
       TestValuesTableFactory.registerData(Seq(Row.of("abc", LocalDateTime.of(2000, 1, 1, 0, 0))))
@@ -623,10 +622,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     val sink = new TestingAppendSink
     tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
     env.execute()
-    assertEquals(Seq(), sink.getAppendResults)
+    assertThat(sink.getAppendResults).isEqualTo(Seq())
   }
 
-  @Test
+  @TestTemplate
   def testLookupCacheSharingAcrossSubtasks(): Unit = {
     if (cacheType == LookupCacheType.NONE) {
       return
@@ -700,7 +699,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     new java.lang.Long(l)
   }
 
-  @Test
+  @TestTemplate
   def testAggAndLeftJoinWithTryResolveMode(): Unit = {
     tEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
@@ -719,10 +718,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAggAndLeftJoinAllConstantKeyWithTryResolveMode(): Unit = {
     tEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
@@ -741,10 +740,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("3,Fabian,33", "8,Fabian,33", "9,Fabian,33")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testAggAndJoinAllConstantKeyWithTryResolveMode(): Unit = {
     // in fact this case will omit materialization because not right column was required from sink
     tEnv.getConfig.set(
@@ -764,7 +763,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("3", "8", "9")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   private def getRetryLookupHint(lookupTable: String, maxAttempts: Int): String = {
@@ -776,7 +775,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
        |*/""".stripMargin
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithRetry(): Unit = {
     val maxRetryTwiceHint = getRetryLookupHint("D", 2)
     val sink = new TestingAppendSink
@@ -792,10 +791,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
 
     // the result is deterministic because the test data of lookup source is static
     val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithLookupThresholdWithInsufficientRetry(): Unit = {
     val maxRetryOnceHint = getRetryLookupHint("D", 1)
     val sink = new TestingAppendSink
@@ -816,10 +815,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
       // the user_table_with_lookup_threshold3 will return null result before 3rd lookup
       Seq()
     }
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithLookupThresholdWithSufficientRetry(): Unit = {
     val maxRetryTwiceHint = getRetryLookupHint("D", 2)
 
@@ -835,10 +834,10 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testJoinTemporalTableWithLookupThresholdWithLargerRetry(): Unit = {
     // max times beyond the lookup threshold of 'user_table_with_lookup_threshold2'
     val largerRetryHint = getRetryLookupHint("D", 10)
@@ -855,7 +854,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
     env.execute()
 
     val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }
 
@@ -864,7 +863,7 @@ object LookupJoinITCase {
   val LEGACY_TABLE_SOURCE: JBoolean = JBoolean.TRUE;
   val DYNAMIC_TABLE_SOURCE: JBoolean = JBoolean.FALSE;
 
-  @Parameterized.Parameters(name = "LegacyTableSource={0}, cacheType={1}")
+  @Parameters(name = "LegacyTableSource={0}, cacheType={1}")
   def parameters(): JCollection[Array[Object]] = {
     Seq[Array[AnyRef]](
       Array(LEGACY_TABLE_SOURCE, LookupCacheType.NONE),

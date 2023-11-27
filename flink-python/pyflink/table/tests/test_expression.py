@@ -247,10 +247,10 @@ class PyFlinkBatchExpressionTests(PyFlinkTestCase):
 
         from pyflink.table.expressions import UNBOUNDED_ROW, UNBOUNDED_RANGE, CURRENT_ROW, \
             CURRENT_RANGE
-        self.assertEqual('unboundedRow()', str(UNBOUNDED_ROW))
-        self.assertEqual('unboundedRange()', str(UNBOUNDED_RANGE))
-        self.assertEqual('currentRow()', str(CURRENT_ROW))
-        self.assertEqual('currentRange()', str(CURRENT_RANGE))
+        self.assertEqual('UNBOUNDED_ROW', str(UNBOUNDED_ROW))
+        self.assertEqual('UNBOUNDED_RANGE', str(UNBOUNDED_RANGE))
+        self.assertEqual('CURRENT_ROW', str(CURRENT_ROW))
+        self.assertEqual('CURRENT_RANGE', str(CURRENT_RANGE))
         self.assertEqual('currentDatabase()', str(current_database()))
 
         self.assertEqual('currentDate()', str(current_date()))

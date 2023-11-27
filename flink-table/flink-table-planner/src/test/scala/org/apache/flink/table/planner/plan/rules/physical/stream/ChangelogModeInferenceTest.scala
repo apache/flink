@@ -24,14 +24,14 @@ import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.plan.optimize.program.FlinkChangelogModeInferenceProgram
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Tests for [[FlinkChangelogModeInferenceProgram]]. */
 class ChangelogModeInferenceTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.addTable("""
                     |CREATE TABLE MyTable (

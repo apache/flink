@@ -175,6 +175,15 @@ class PekkoUtilsTest {
     }
 
     @Test
+    void getConfigDefaultsToRemoteForkJoinExecutor() {
+        final Config config =
+                PekkoUtils.getConfig(new Configuration(), new HostAndPort("localhost", 1234));
+
+        assertThat(config.getString("pekko.remote.default-remote-dispatcher.executor"))
+                .isEqualTo("fork-join-executor");
+    }
+
+    @Test
     void getConfigSetsExecutorWithThreadPriority() {
         final int threadPriority = 3;
         final int minThreads = 1;

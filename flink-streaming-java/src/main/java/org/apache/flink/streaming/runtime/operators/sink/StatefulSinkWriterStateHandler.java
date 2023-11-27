@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.connector.sink2.Sink.InitContext;
+import org.apache.flink.api.connector.sink2.Sink.WriterInitContext;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.StatefulSink.StatefulSinkWriter;
@@ -88,7 +88,7 @@ final class StatefulSinkWriterStateHandler<InputT, WriterStateT>
 
     @Override
     public SinkWriter<InputT> createWriter(
-            InitContext initContext, StateInitializationContext context) throws Exception {
+            WriterInitContext initContext, StateInitializationContext context) throws Exception {
         final ListState<byte[]> rawState =
                 context.getOperatorStateStore().getListState(WRITER_RAW_STATES_DESC);
         writerState =

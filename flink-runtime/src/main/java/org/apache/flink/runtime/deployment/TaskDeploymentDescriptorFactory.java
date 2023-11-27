@@ -47,11 +47,14 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.CompressedSerializedValue;
+import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -449,7 +452,7 @@ public class TaskDeploymentDescriptorFactory {
     public static class ShuffleDescriptorGroup implements Serializable {
         private static final long serialVersionUID = 1L;
 
-        private final ShuffleDescriptorAndIndex[] shuffleDescriptors;
+        private ShuffleDescriptorAndIndex[] shuffleDescriptors;
 
         public ShuffleDescriptorGroup(ShuffleDescriptorAndIndex[] shuffleDescriptors) {
             this.shuffleDescriptors = checkNotNull(shuffleDescriptors);
@@ -458,19 +461,31 @@ public class TaskDeploymentDescriptorFactory {
         public ShuffleDescriptorAndIndex[] getShuffleDescriptors() {
             return shuffleDescriptors;
         }
+
+        private void writeObject(ObjectOutputStream oos) throws IOException {
+            byte[] bytes = InstantiationUtil.serializeObjectAndCompress(shuffleDescriptors);
+            oos.writeObject(bytes);
+        }
+
+        private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+            byte[] bytes = (byte[]) ois.readObject();
+            shuffleDescriptors =
+                    InstantiationUtil.decompressAndDeserializeObject(
+                            bytes, ClassLoader.getSystemClassLoader());
+        }
     }
 
-    /** Serialize shuffle descriptors. */
+    /** Offload shuffle descriptors. */
     interface ShuffleDescriptorSerializer {
         /**
-         * Serialize and try offload shuffle descriptors.
+         * Try to serialize and offload shuffle descriptors.
          *
-         * @param shuffleDescriptorGroup to serialize
+         * @param shuffleDescriptorGroup to serialize and offload
          * @param numConsumer consumers number of these shuffle descriptors, it means how many times
          *     serialized shuffle descriptor should be sent
-         * @return offloaded or non-offloaded serialized shuffle descriptors
+         * @return offloaded serialized or non-offloaded raw shuffle descriptors
          */
-        MaybeOffloaded<ShuffleDescriptorGroup> serializeAndTryOffloadShuffleDescriptor(
+        MaybeOffloaded<ShuffleDescriptorGroup> trySerializeAndOffloadShuffleDescriptor(
                 ShuffleDescriptorGroup shuffleDescriptorGroup, int numConsumer) throws IOException;
     }
 
@@ -487,25 +502,24 @@ public class TaskDeploymentDescriptorFactory {
         }
 
         @Override
-        public MaybeOffloaded<ShuffleDescriptorGroup> serializeAndTryOffloadShuffleDescriptor(
+        public MaybeOffloaded<ShuffleDescriptorGroup> trySerializeAndOffloadShuffleDescriptor(
                 ShuffleDescriptorGroup shuffleDescriptorGroup, int numConsumer) throws IOException {
 
-            final CompressedSerializedValue<ShuffleDescriptorGroup> compressedSerializedValue =
-                    CompressedSerializedValue.fromObject(shuffleDescriptorGroup);
+            final Either<ShuffleDescriptorGroup, PermanentBlobKey> rawValueOrBlobKey =
+                    shouldOffload(shuffleDescriptorGroup.getShuffleDescriptors(), numConsumer)
+                            ? BlobWriter.offloadWithException(
+                                            CompressedSerializedValue.fromObject(
+                                                    shuffleDescriptorGroup),
+                                            jobID,
+                                            blobWriter)
+                                    .map(Either::<ShuffleDescriptorGroup, PermanentBlobKey>Right)
+                                    .orElse(Either.Left(shuffleDescriptorGroup))
+                            : Either.Left(shuffleDescriptorGroup);
 
-            final Either<SerializedValue<ShuffleDescriptorGroup>, PermanentBlobKey>
-                    serializedValueOrBlobKey =
-                            shouldOffload(
-                                            shuffleDescriptorGroup.getShuffleDescriptors(),
-                                            numConsumer)
-                                    ? BlobWriter.offloadWithException(
-                                            compressedSerializedValue, jobID, blobWriter)
-                                    : Either.Left(compressedSerializedValue);
-
-            if (serializedValueOrBlobKey.isLeft()) {
-                return new TaskDeploymentDescriptor.NonOffloaded<>(serializedValueOrBlobKey.left());
+            if (rawValueOrBlobKey.isLeft()) {
+                return new TaskDeploymentDescriptor.NonOffloadedRaw<>(rawValueOrBlobKey.left());
             } else {
-                return new TaskDeploymentDescriptor.Offloaded<>(serializedValueOrBlobKey.right());
+                return new TaskDeploymentDescriptor.Offloaded<>(rawValueOrBlobKey.right());
             }
         }
 

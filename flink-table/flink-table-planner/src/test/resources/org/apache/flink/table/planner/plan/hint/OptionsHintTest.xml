@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testAppendOptions[0: is-bounded=true]">
+  <TestCase name="testAppendOptions[is-bounded=true]">
     <Resource name="sql">
       <![CDATA[select * from t1/*+ OPTIONS(k5='v5', 'a.b.c'='fakeVal') */]]>
     </Resource>
@@ -34,7 +34,7 @@ Calc(select=[a, b, (a + 1) AS c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAppendOptions[1: is-bounded=false]">
+  <TestCase name="testAppendOptions[is-bounded=false]">
     <Resource name="sql">
       <![CDATA[select * from t1/*+ OPTIONS(k5='v5', 'a.b.c'='fakeVal') */]]>
     </Resource>
@@ -52,7 +52,7 @@ Calc(select=[a, b, (a + 1) AS c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAppendedOptions[0: is-bounded=true]">
+  <TestCase name="testJoinWithAppendedOptions[is-bounded=true]">
     <Resource name="sql">
       <![CDATA[
 select * from
@@ -81,7 +81,7 @@ MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithAppendedOptions[1: is-bounded=false]">
+  <TestCase name="testJoinWithAppendedOptions[is-bounded=false]">
     <Resource name="sql">
       <![CDATA[
 select * from
@@ -111,7 +111,7 @@ Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInput
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testOverrideOptions[0: is-bounded=true]">
+  <TestCase name="testOverrideOptions[is-bounded=true]">
     <Resource name="sql">
       <![CDATA[select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */]]>
     </Resource>
@@ -129,7 +129,7 @@ Calc(select=[a, b, (a + 1) AS c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithOverriddenOptions[0: is-bounded=true]">
+  <TestCase name="testJoinWithOverriddenOptions[is-bounded=true]">
     <Resource name="sql">
       <![CDATA[
 select * from
@@ -158,7 +158,7 @@ MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithOverriddenOptions[1: is-bounded=false]">
+  <TestCase name="testJoinWithOverriddenOptions[is-bounded=false]">
     <Resource name="sql">
       <![CDATA[
 select * from
@@ -188,7 +188,7 @@ Join(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f], leftInput
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testOptionsHintInsideView[0: is-bounded=true]">
+  <TestCase name="testOptionsHintInsideView[is-bounded=true]">
     <Resource name="sql">
       <![CDATA[
 select * from t2 join v1 on v1.a = t2.d
@@ -214,7 +214,7 @@ MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testOverrideOptions[1: is-bounded=false]">
+  <TestCase name="testOverrideOptions[is-bounded=false]">
     <Resource name="sql">
       <![CDATA[select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */]]>
     </Resource>
@@ -232,7 +232,7 @@ Calc(select=[a, b, (a + 1) AS c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testOptionsHintInsideView[1: is-bounded=false]">
+  <TestCase name="testOptionsHintInsideView[is-bounded=false]">
     <Resource name="sql">
       <![CDATA[
 select * from t2 join v1 on v1.a = t2.d

@@ -21,8 +21,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.data.{GenericArrayData, GenericMapData, GenericRowData, StringData}
 import org.apache.flink.table.types.logical.{ArrayType, BigIntType, IntType, MapType, MultisetType, RowType, VarBinaryType, VarCharType}
 
-import org.junit.Assert.assertNotEquals
-import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.{assertEquals, assertNotEquals}
 import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions.mapAsJavaMap

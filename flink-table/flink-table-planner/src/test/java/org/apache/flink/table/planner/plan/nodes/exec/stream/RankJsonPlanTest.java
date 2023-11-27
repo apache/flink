@@ -23,17 +23,17 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization for rank. */
-public class RankJsonPlanTest extends TableTestBase {
+class RankJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -50,7 +50,7 @@ public class RankJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testRank() {
+    void testRank() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"

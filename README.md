@@ -128,6 +128,22 @@ This is an active open-source project. We are always open to people who want to 
 Contact us if you are looking for implementation tasks that fit your skills.
 This article describes [how to contribute to Apache Flink](https://flink.apache.org/contributing/how-to-contribute.html).
 
+## Externalized Connectors
+
+Most Flink connectors have been externalized to individual repos under the [Apache Software Foundation](https://github.com/apache):
+
+* [flink-connector-aws](https://github.com/apache/flink-connector-aws)
+* [flink-connector-cassandra](https://github.com/apache/flink-connector-cassandra)
+* [flink-connector-elasticsearch](https://github.com/apache/flink-connector-elasticsearch)
+* [flink-connector-gcp-pubsub](https://github.com/apache/flink-connector-gcp-pubsub)
+* [flink-connector-hbase](https://github.com/apache/flink-connector-hbase)
+* [flink-connector-jdbc](https://github.com/apache/flink-connector-jdbc)
+* [flink-connector-kafka](https://github.com/apache/flink-connector-kafka)
+* [flink-connector-mongodb](https://github.com/apache/flink-connector-mongodb)
+* [flink-connector-opensearch](https://github.com/apache/flink-connector-opensearch)
+* [flink-connector-prometheus](https://github.com/apache/flink-connector-prometheus)
+* [flink-connector-pulsar](https://github.com/apache/flink-connector-pulsar)
+* [flink-connector-rabbitmq](https://github.com/apache/flink-connector-rabbitmq)
 
 ## About
 

@@ -31,8 +31,8 @@ import org.apache.flink.table.planner.factories.TestValuesCatalog;
 import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,8 +48,8 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     private final TestValuesCatalog catalog =
             new TestValuesCatalog("testCatalog", "test_database", true);
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         catalog.open();
         util.tableEnv().registerCatalog("testCatalog", catalog);
         util.tableEnv().useCatalog("testCatalog");
@@ -91,7 +91,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testSimpleInnerJoin() throws Exception {
+    void testSimpleInnerJoin() throws Exception {
         // runtime filter will succeed
         setupSuitableTableStatistics();
         String query = "select * from fact, dim where fact.amount = dim.amount and dim.price < 500";
@@ -99,7 +99,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testSemiJoin() throws Exception {
+    void testSemiJoin() throws Exception {
         // runtime filter will succeed
         setupSuitableTableStatistics();
         util.getTableEnv()
@@ -111,7 +111,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testLeftOuterJoinWithLeftBuild() throws Exception {
+    void testLeftOuterJoinWithLeftBuild() throws Exception {
         // runtime filter will succeed
         setupSuitableTableStatistics();
         String query =
@@ -120,7 +120,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testLeftOuterJoinWithRightBuild() throws Exception {
+    void testLeftOuterJoinWithRightBuild() throws Exception {
         // runtime filter will not succeed
         setupSuitableTableStatistics();
         String query =
@@ -129,7 +129,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testFullOuterJoin() throws Exception {
+    void testFullOuterJoin() throws Exception {
         // runtime filter will not succeed
         setupSuitableTableStatistics();
         String query =
@@ -138,7 +138,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testAntiJoin() throws Exception {
+    void testAntiJoin() throws Exception {
         // runtime filter will not succeed
         setupSuitableTableStatistics();
         String query =
@@ -147,7 +147,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testNestedLoopJoin() throws Exception {
+    void testNestedLoopJoin() throws Exception {
         // runtime filter will not succeed
         setupTableRowCount("dim", 1L);
         setupTableRowCount("fact", SUITABLE_FACT_ROW_COUNT);
@@ -156,7 +156,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testProbeSideIsTooSmall() throws Exception {
+    void testProbeSideIsTooSmall() throws Exception {
         // runtime filter will not succeed
         setupTableRowCount("dim", SUITABLE_DIM_ROW_COUNT);
         // fact is 7.5 GB < 10 GB
@@ -166,7 +166,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testBuildSideIsTooLarge() throws Exception {
+    void testBuildSideIsTooLarge() throws Exception {
         // runtime filter will not succeed
         // dim is 48 MB > 6MB
         setupTableRowCount("dim", 1024L * 1024L);
@@ -176,7 +176,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testFilterRatioIsTooSmall() throws Exception {
+    void testFilterRatioIsTooSmall() throws Exception {
         // runtime filter will not succeed
         setupSuitableTableStatistics();
         setupTableColumnNdv("dim", "amount", 768L);
@@ -186,7 +186,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testBuildSideIsJoinWithoutExchange() throws Exception {
+    void testBuildSideIsJoinWithoutExchange() throws Exception {
         // runtime filter will succeed
         setupSuitableTableStatistics();
         util.tableEnv()
@@ -209,7 +209,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testBuildSideIsJoinWithTwoAggInputs() throws Exception {
+    void testBuildSideIsJoinWithTwoAggInputs() throws Exception {
         // runtime filter will succeed
         setupSuitableTableStatistics();
         util.tableEnv()
@@ -241,7 +241,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testBuildSideIsLeftJoinWithoutExchange() throws Exception {
+    void testBuildSideIsLeftJoinWithoutExchange() throws Exception {
         // runtime filter will not succeed, because the original build side is left join(without
         // exchange), so we can only push builder to it's left input, but the left input is too
         // large to as builder.
@@ -267,7 +267,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testBuildSideIsAggWithoutExchange() throws Exception {
+    void testBuildSideIsAggWithoutExchange() throws Exception {
         // runtime filter will succeed
         // The following two config are used to let the build side is a direct Agg (without
         // Exchange)
@@ -288,7 +288,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testBuildSideIsCalcWithoutExchange() throws Exception {
+    void testBuildSideIsCalcWithoutExchange() throws Exception {
         // runtime filter will succeed
         // The following two config are used to let the build side is a direct Calc (without
         // Exchange)
@@ -308,7 +308,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotInjectMoreThanOneRuntimeFilterInSamePlace() throws Exception {
+    void testCannotInjectMoreThanOneRuntimeFilterInSamePlace() throws Exception {
         setupSuitableTableStatistics();
         util.tableEnv()
                 .executeSql(
@@ -330,7 +330,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testPushDownProbeSideWithCalc() throws Exception {
+    void testPushDownProbeSideWithCalc() throws Exception {
         setupSuitableTableStatistics();
         String query =
                 "select * from dim, fact where dim.amount = fact.amount and dim.price < 500 and fact.price > 600";
@@ -338,7 +338,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownProbeSideWithCalc() throws Exception {
+    void testCannotPushDownProbeSideWithCalc() throws Exception {
         setupSuitableTableStatistics();
         String query =
                 "select * from dim inner join (select fact_date_sk, RAND(10) as random from fact) "
@@ -347,7 +347,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testPushDownProbeSideToAllInputsOfJoin() throws Exception {
+    void testPushDownProbeSideToAllInputsOfJoin() throws Exception {
         setupSuitableTableStatistics();
         util.tableEnv()
                 .executeSql(
@@ -369,7 +369,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testPushDownProbeSideToOneInputOfJoin() throws Exception {
+    void testPushDownProbeSideToOneInputOfJoin() throws Exception {
         setupSuitableTableStatistics();
         util.tableEnv()
                 .executeSql(
@@ -391,7 +391,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownProbeSideWithJoin() throws Exception {
+    void testCannotPushDownProbeSideWithJoin() throws Exception {
         setupSuitableTableStatistics();
         util.tableEnv()
                 .executeSql(
@@ -413,7 +413,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testPushDownProbeSideWithAgg() throws Exception {
+    void testPushDownProbeSideWithAgg() throws Exception {
         setupTableRowCount("dim", SUITABLE_DIM_ROW_COUNT);
         setupTableRowCount("fact", 1024L * SUITABLE_FACT_ROW_COUNT);
         util.getTableEnv()
@@ -427,7 +427,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testCannotPushDownProbeSideWithAgg() throws Exception {
+    void testCannotPushDownProbeSideWithAgg() throws Exception {
         setupTableRowCount("dim", SUITABLE_DIM_ROW_COUNT);
         setupTableRowCount("fact", 1024L * SUITABLE_FACT_ROW_COUNT);
         util.getTableEnv()
@@ -441,7 +441,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testPushDownProbeSideWithUnion() throws Exception {
+    void testPushDownProbeSideWithUnion() throws Exception {
         // probe side will be pushed down to union.
         setupSuitableTableStatistics();
         String query =
@@ -453,7 +453,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testDoesNotApplyRuntimeFilterAndDPPOnSameKey() throws Exception {
+    void testDoesNotApplyRuntimeFilterAndDPPOnSameKey() throws Exception {
         // runtime filter will not success, because already applied DPP on the key
         setupTableRowCount("dim", SUITABLE_DIM_ROW_COUNT);
         createPartitionedFactTable(SUITABLE_FACT_ROW_COUNT);
@@ -463,7 +463,7 @@ public class FlinkRuntimeFilterProgramTest extends TableTestBase {
     }
 
     @Test
-    public void testProbeSideIsTableSourceWithoutExchange() throws Exception {
+    void testProbeSideIsTableSourceWithoutExchange() throws Exception {
         // runtime filter will not succeed, because probe side is a direct table source
         setupSuitableTableStatistics();
         String query = "select * from fact, dim where fact.amount = dim.amount and dim.price = 500";

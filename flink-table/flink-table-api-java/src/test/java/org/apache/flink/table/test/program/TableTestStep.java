@@ -99,6 +99,11 @@ public abstract class TableTestStep implements TestStep {
             return (SpecificBuilder) this;
         }
 
+        public SpecificBuilder addSchema(List<String> schemaComponents) {
+            this.schemaComponents.addAll(schemaComponents);
+            return (SpecificBuilder) this;
+        }
+
         /**
          * Unless the test requires a very specific configuration, try to avoid calling this method
          * and fill in options later via {@link TableTestStep#apply(TableEnvironment, Map)}.

@@ -78,7 +78,7 @@ public class DispatcherProcess extends TestJvmProcess {
     }
 
     @Override
-    public String[] getJvmArgs() {
+    public String[] getMainMethodArgs() {
         return jvmArgs;
     }
 

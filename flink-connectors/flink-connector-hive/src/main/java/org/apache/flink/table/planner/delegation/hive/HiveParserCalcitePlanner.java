@@ -896,7 +896,7 @@ public class HiveParserCalcitePlanner {
             throws SemanticException {
         ExprNodeDesc filterCond =
                 semanticAnalyzer.genExprNodeDesc(
-                        filterExpr, relToRowResolver.get(srcRel), outerRR, null, useCaching);
+                        filterExpr, relToRowResolver.get(srcRel), outerRR, null, useCaching, true);
         if (filterCond instanceof ExprNodeConstantDesc
                 && !filterCond.getTypeString().equals(serdeConstants.BOOLEAN_TYPE_NAME)) {
             throw new SemanticException("Filter expression with non-boolean return type.");

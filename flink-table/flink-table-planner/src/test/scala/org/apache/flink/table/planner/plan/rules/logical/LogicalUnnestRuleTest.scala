@@ -23,14 +23,14 @@ import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestUtil}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
-import org.junit.Before
+import org.junit.jupiter.api.BeforeEach
 
 /** Test for [[LogicalUnnestRule]]. */
 class LogicalUnnestRuleTest extends UnnestTestBase(false) {
 
   override protected def getTableTestUtil: TableTestUtil = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     val programs = new FlinkChainedProgram[BatchOptimizeContext]()
     programs.addLast(

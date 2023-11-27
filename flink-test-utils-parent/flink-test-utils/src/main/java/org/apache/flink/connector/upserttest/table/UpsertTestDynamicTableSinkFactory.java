@@ -22,12 +22,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.SerializationFormatFactory;
+import org.apache.flink.table.types.DataType;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -57,8 +60,12 @@ public class UpsertTestDynamicTableSinkFactory implements DynamicTableSinkFactor
         final ReadableConfig tableOptions = helper.getOptions();
         final String outputFilePath = tableOptions.get(OUTPUT_FILEPATH_OPTION);
 
+        final ResolvedSchema resolvedSchema = context.getCatalogTable().getResolvedSchema();
+
         return new UpsertTestDynamicTableSink(
-                context.getPhysicalRowDataType(),
+                resolvedSchema.toPhysicalRowDataType(),
+                resolvePrimaryKeyDataType(resolvedSchema),
+                resolvedSchema.getPrimaryKeyIndexes(),
                 keyEncodingFormat,
                 valueEncodingFormat,
                 outputFilePath);
@@ -81,5 +88,15 @@ public class UpsertTestDynamicTableSinkFactory implements DynamicTableSinkFactor
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         return Collections.emptySet();
+    }
+
+    private static DataType resolvePrimaryKeyDataType(ResolvedSchema resolvedSchema) {
+        DataType physicalRowDataType = resolvedSchema.toPhysicalRowDataType();
+        if (resolvedSchema.getPrimaryKey().isPresent()) {
+            return Projection.of(resolvedSchema.getPrimaryKeyIndexes())
+                    .project(physicalRowDataType);
+        } else {
+            return physicalRowDataType;
+        }
     }
 }

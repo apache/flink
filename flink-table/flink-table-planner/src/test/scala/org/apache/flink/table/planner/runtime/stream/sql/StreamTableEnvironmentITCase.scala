@@ -19,12 +19,10 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.datastream.DataStreamSource
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
-import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.bridge.scala
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.TableConfigOptions
@@ -32,8 +30,7 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, StringSi
 import org.apache.flink.table.planner.runtime.utils.JavaPojos.{Device, Order, Person, ProductItem}
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.util.Collections
 
@@ -76,7 +73,7 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
       "Order{user=1, product='Product{name='diaper', id=11}', amount=4}",
       "Order{user=4, product='Product{name='beer', id=10}', amount=1}"
     )
-    assertEquals(expected.sorted, sink.getResults.sorted)
+    assertThat(sink.getResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -100,7 +97,7 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
     val expected = List(
       "Device{deviceId=2, deviceName='device2', metrics={}}",
       "Device{deviceId=3, deviceName='device3', metrics={B=20}}")
-    assertEquals(expected.sorted, sink.getResults.sorted)
+    assertThat(sink.getResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -122,7 +119,7 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
       "(true,Person{name='bob', age=1})",
       "(true,Person{name='Liz', age=2})",
       "(true,Person{name='Jack', age=3})")
-    assertEquals(expected.sorted, sink.getResults.sorted)
+    assertThat(sink.getResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -150,7 +147,7 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
       "(false,Order{user=1, product='Product{name='beer', id=10}', amount=1})",
       "(true,Order{user=1, product='Product{name='beer', id=10}', amount=3})"
     )
-    assertEquals(expected.sorted, sink.getResults.sorted)
+    assertThat(sink.getResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test

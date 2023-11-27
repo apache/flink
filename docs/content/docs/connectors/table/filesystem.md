@@ -95,8 +95,8 @@ The file system table supports both partition inserting and overwrite inserting.
 
 The file system connector supports multiple formats:
 
- - CSV: [RFC-4180](https://tools.ietf.org/html/rfc4180). Uncompressed.
- - JSON: Note JSON format for file system connector is not a typical JSON file but uncompressed [newline delimited JSON](http://jsonlines.org/).
+ - CSV: [RFC-4180](https://tools.ietf.org/html/rfc4180).
+ - JSON: Note JSON format for file system connector is not a typical JSON file but [newline delimited JSON](http://jsonlines.org/).
  - Avro: [Apache Avro](http://avro.apache.org). Support compression by configuring `avro.codec`.
  - Parquet: [Apache Parquet](http://parquet.apache.org). Compatible with Hive.
  - Orc: [Apache Orc](http://orc.apache.org). Compatible with Hive.

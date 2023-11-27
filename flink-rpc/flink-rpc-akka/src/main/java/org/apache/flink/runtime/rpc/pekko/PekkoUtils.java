@@ -197,6 +197,9 @@ class PekkoUtils {
         addBaseRemoteConfig(builder, configuration, port, externalPort);
         addHostnameRemoteConfig(builder, bindAddress, externalHostname);
         addSslRemoteConfig(builder, configuration);
+        addRemoteForkJoinExecutorConfig(
+                builder,
+                ActorSystemBootstrapTools.getRemoteForkJoinExecutorConfiguration(configuration));
 
         return builder.build();
     }
@@ -382,6 +385,27 @@ class PekkoUtils {
                 .add("    }")
                 .add("  }")
                 .add("}");
+    }
+
+    private static Config addRemoteForkJoinExecutorConfig(
+            ConfigBuilder builder, RpcSystem.ForkJoinExecutorConfiguration configuration) {
+        final double parallelismFactor = configuration.getParallelismFactor();
+        final int minNumThreads = configuration.getMinParallelism();
+        final int maxNumThreads = configuration.getMaxParallelism();
+
+        return builder.add("pekko {")
+                .add("  remote {")
+                .add("    default-remote-dispatcher {")
+                .add("      executor = fork-join-executor")
+                .add("      fork-join-executor {")
+                .add("          parallelism-factor = " + parallelismFactor)
+                .add("          parallelism-min = " + minNumThreads)
+                .add("          parallelism-max = " + maxNumThreads)
+                .add("      }")
+                .add("    }")
+                .add("  }")
+                .add("}")
+                .build();
     }
 
     /**

@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -27,29 +28,22 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelog
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.utils.LegacyRowResource
-import org.apache.flink.util.ExceptionUtils
+import org.apache.flink.table.utils.LegacyRowExtension
 
-import org.junit.{Rule, Test}
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.rules.ExpectedException
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.lang.{Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConversions._
-import scala.util.{Failure, Success, Try}
 
 class TableSinkITCase extends StreamingTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
-
-  var _expectedEx: ExpectedException = ExpectedException.none
-
-  @Rule
-  def expectedEx: ExpectedException = _expectedEx
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   @Test
   def testAppendSinkOnAppendTable(): Unit = {
@@ -83,7 +77,7 @@ class TableSinkITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.020,5,29",
       "1970-01-01T00:00:00.025,2,12"
     )
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -110,7 +104,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     val result = TestValuesTableFactory.getResultsAsStrings("appendSink")
     val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -133,7 +127,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     val result = TestValuesTableFactory.getResultsAsStrings("appendSink")
     val expected = List("1,1,Hi", "2,2,Hello", "3,2,Hello world")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -159,7 +153,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     val result = TestValuesTableFactory.getResultsAsStrings("appendSink")
     val expected = List("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -188,8 +182,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     val result = TestValuesTableFactory.getResultsAsStrings("retractSink")
     val expected = List("2,1,1", "5,1,2", "11,1,2", "25,1,3", "10,7,39", "14,1,3", "9,9,41")
-    assertEquals(expected.sorted, result.sorted)
-
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -217,10 +210,7 @@ class TableSinkITCase extends StreamingTestBase {
     table.executeInsert("retractSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("retractSink")
-    assertFalse(
-      "Received retraction messages for append only table",
-      rawResult.exists(_.startsWith("-"))
-    ) // maybe -U or -D
+    assertThat(rawResult.exists(_.startsWith("-"))).isFalse // maybe -U or -D
 
     val result = TestValuesTableFactory.getResultsAsStrings("retractSink")
     val expected = List(
@@ -230,7 +220,7 @@ class TableSinkITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.020,5,29",
       "1970-01-01T00:00:00.025,2,12"
     )
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -262,11 +252,11 @@ class TableSinkITCase extends StreamingTestBase {
     table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("upsertSink")
-    assertTrue("Results must include delete messages", rawResult.exists(_.startsWith("-D(")))
+    assertThat(rawResult.exists(_.startsWith("-D("))).isTrue
 
     val result = TestValuesTableFactory.getResultsAsStrings("upsertSink")
     val expected = List("1,5,true", "7,1,true", "9,1,true")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -296,10 +286,7 @@ class TableSinkITCase extends StreamingTestBase {
     table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("upsertSink")
-    assertFalse(
-      "Received retraction messages for append only table",
-      rawResult.exists(_.startsWith("-"))
-    ) // maybe -D or -U
+    assertThat(rawResult.exists(_.startsWith("-"))).isFalse // maybe -D or -U
 
     val result = TestValuesTableFactory.getResultsAsStrings("upsertSink")
     val expected = List(
@@ -314,7 +301,7 @@ class TableSinkITCase extends StreamingTestBase {
       "6,1970-01-01T00:00:00.020,4",
       "6,1970-01-01T00:00:00.025,2"
     )
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -342,10 +329,7 @@ class TableSinkITCase extends StreamingTestBase {
     table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("upsertSink")
-    assertFalse(
-      "Received retraction messages for append only table",
-      rawResult.exists(_.startsWith("-"))
-    ) // may -D or -U
+    assertThat(rawResult.exists(_.startsWith("-"))).isFalse // maybe -D or -U
 
     val rawExpected = List(
       "+I(1970-01-01T00:00:00.005,1)",
@@ -359,7 +343,7 @@ class TableSinkITCase extends StreamingTestBase {
       "+I(1970-01-01T00:00:00.020,4)",
       "+I(1970-01-01T00:00:00.025,2)"
     )
-    assertEquals(rawExpected.sorted, rawResult.sorted)
+    assertThat(rawResult.sorted).isEqualTo(rawExpected.sorted)
   }
 
   @Test
@@ -387,10 +371,7 @@ class TableSinkITCase extends StreamingTestBase {
     table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("upsertSink")
-    assertFalse(
-      "Received retraction messages for append only table",
-      rawResult.exists(_.startsWith("-"))
-    ) // may -D or -U
+    assertThat(rawResult.exists(_.startsWith("-"))).isFalse // maybe -D or -U
 
     val expected = List(
       "+I(1,1)",
@@ -403,7 +384,7 @@ class TableSinkITCase extends StreamingTestBase {
       "+I(5,1)",
       "+I(6,4)",
       "+I(6,2)")
-    assertEquals(expected.sorted, rawResult.sorted)
+    assertThat(rawResult.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -440,7 +421,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     val result = TestValuesTableFactory.getResultsAsStrings("upsertSink")
     val expected = List("1,1", "2,2", "3,3")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -466,11 +447,11 @@ class TableSinkITCase extends StreamingTestBase {
       .groupBy('num, 'w)
       .select('num, 'w.rowtime.as('rowtime1), 'w.rowtime.as('rowtime2))
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "The query contains more than one rowtime attribute column [rowtime1, rowtime2] for " +
-        "writing into table 'default_catalog.default_database.sink'.")
-    table.executeInsert("sink")
+    assertThatThrownBy(() => table.executeInsert("sink"))
+      .hasMessageContaining(
+        "The query contains more than one rowtime attribute column [rowtime1, rowtime2] for " +
+          "writing into table 'default_catalog.default_database.sink'.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -502,8 +483,8 @@ class TableSinkITCase extends StreamingTestBase {
       .select('num, 'w.rowtime.as('rowtime1), 'w.rowtime.as('rowtime2))
     table.executeInsert("sink").await()
 
-    val result = TestValuesTableFactory.getResultsAsStrings("sink")
-    assertEquals(result.size(), 10)
+    val result = TestValuesTableFactory.getRawResultsAsStrings("sink")
+    assertThat(result.size).isEqualTo(10)
 
     // clean up
     tEnv.getConfig
@@ -534,7 +515,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     val result = TestValuesTableFactory.getResultsAsStrings("sink")
     val expected = Seq("12345,55,12345")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -560,7 +541,7 @@ class TableSinkITCase extends StreamingTestBase {
 
     val result = TestValuesTableFactory.getResultsAsStrings("sink")
     val expected = Seq("12345,55,12345")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   /**
@@ -620,7 +601,7 @@ class TableSinkITCase extends StreamingTestBase {
       "-U(2,user3,11.30)",
       "+U(2,user3,32.33)"
     )
-    assertEquals(expected.sorted, rawResult.sorted)
+    assertThat(rawResult.sorted).isEqualTo(expected.sorted)
 
     // register the changelog sink as a changelog source again
     val changelogData = expected.map {
@@ -661,7 +642,7 @@ class TableSinkITCase extends StreamingTestBase {
       .await()
     val finalResult = TestValuesTableFactory.getResultsAsStrings("final_sink")
     val finalExpected = List("user1,28.12", "user2,71.20", "user3,32.33", "user4,9.99")
-    assertEquals(finalExpected.sorted, finalResult.sorted)
+    assertThat(finalResult.sorted).isEqualTo(finalExpected.sorted)
   }
 
   @Test
@@ -704,7 +685,7 @@ class TableSinkITCase extends StreamingTestBase {
     val result = TestValuesTableFactory.getResultsAsStrings("MetadataSink")
     val expected =
       List("1,book,12", "2,book,null", "3,fruit,44", "4,book,11", "4,fruit,null", "5,fruit,null")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -713,24 +694,12 @@ class TableSinkITCase extends StreamingTestBase {
     val validParallelism = 1
     val index = new AtomicInteger(1)
 
-    Try(
-      innerTestSetParallelism(
-        "SinkFunction",
-        negativeParallelism,
-        index = index.getAndIncrement)) match {
-      case Success(_) => fail("this should not happen")
-      case Failure(t) =>
-        val exception =
-          ExceptionUtils.findThrowableWithMessage(t, s"Invalid configured parallelism")
-        assertTrue(exception.isPresent)
-    }
+    assertThatThrownBy(
+      () =>
+        innerTestSetParallelism("SinkFunction", negativeParallelism, index = index.getAndIncrement))
+      .hasMessageContaining(s"Invalid configured parallelism")
 
-    assertTrue(
-      Try(
-        innerTestSetParallelism(
-          "SinkFunction",
-          validParallelism,
-          index = index.getAndIncrement)).isSuccess)
+    innerTestSetParallelism("SinkFunction", validParallelism, index = index.getAndIncrement)
   }
 
   @Test
@@ -765,10 +734,9 @@ class TableSinkITCase extends StreamingTestBase {
                        |)
                        |""".stripMargin)
     // source is insert only, it never produce a delete, so we do not require a pk for the sink
-    Try(
-      tEnv
-        .executeSql(s"INSERT INTO $sinkTableWithoutPkName SELECT * FROM $sourceTableName")
-        .await()).isSuccess
+    tEnv
+      .executeSql(s"INSERT INTO $sinkTableWithoutPkName SELECT * FROM $sourceTableName")
+      .await()
 
     tEnv.executeSql(s"""
                        |CREATE TABLE $sinkTableWithPkName (
@@ -784,12 +752,9 @@ class TableSinkITCase extends StreamingTestBase {
                        |)
                        |""".stripMargin)
 
-    assertTrue(
-      Try(
-        tEnv
-          .executeSql(s"INSERT INTO $sinkTableWithPkName SELECT * FROM $sourceTableName")
-          .await()).isSuccess)
-
+    tEnv
+      .executeSql(s"INSERT INTO $sinkTableWithPkName SELECT * FROM $sourceTableName")
+      .await()
   }
 
   @Test
@@ -816,7 +781,7 @@ class TableSinkITCase extends StreamingTestBase {
       .await()
     val expected = List("null,0.1", "null,0.4", "null,1.0", "null,2.2", "null,3.9")
     val result = TestValuesTableFactory.getResultsAsStrings("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -852,7 +817,7 @@ class TableSinkITCase extends StreamingTestBase {
       "null,2021,1,2.2",
       "null,2021,1,3.9")
     val result = TestValuesTableFactory.getResultsAsStrings("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -884,7 +849,7 @@ class TableSinkITCase extends StreamingTestBase {
     val expected =
       List("1,2021,1,0.1", "2,2021,1,0.4", "3,2021,1,1.0", "4,2021,1,2.2", "5,2021,1,3.9")
     val result = TestValuesTableFactory.getResultsAsStrings("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -920,7 +885,7 @@ class TableSinkITCase extends StreamingTestBase {
       "null,null,null,2.2",
       "null,null,null,3.9")
     val result = TestValuesTableFactory.getResultsAsStrings("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -959,7 +924,7 @@ class TableSinkITCase extends StreamingTestBase {
       "1,c,c1,c2,33333,12,2.2",
       "1,c,c1,c2,33333,12,3.9")
     val result = TestValuesTableFactory.getResultsAsStrings("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -996,7 +961,7 @@ class TableSinkITCase extends StreamingTestBase {
       "1,c,c1,c2,33333,12,2.2",
       "1,c,c1,c2,33333,12,3.9")
     val result = TestValuesTableFactory.getResultsAsStrings("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -1032,7 +997,7 @@ class TableSinkITCase extends StreamingTestBase {
       "null,2021,1,2.2",
       "null,2021,1,3.9")
     val result = TestValuesTableFactory.getResultsAsStrings("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -1069,7 +1034,7 @@ class TableSinkITCase extends StreamingTestBase {
       "null,2021,1,2.2",
       "null,2021,1,3.9")
     val result = TestValuesTableFactory.getResultsAsStrings("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -1105,7 +1070,7 @@ class TableSinkITCase extends StreamingTestBase {
       "null,2021,1,2.2",
       "null,2021,1,3.9")
     val result = TestValuesTableFactory.getResultsAsStrings("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -1141,7 +1106,7 @@ class TableSinkITCase extends StreamingTestBase {
       "null,2021,null,2.2",
       "null,2021,null,3.9")
     val result = TestValuesTableFactory.getResultsAsStrings("testSink")
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -1164,15 +1129,16 @@ class TableSinkITCase extends StreamingTestBase {
     val t = env.fromCollection(tupleData2).toTable(tEnv, 'x, 'y)
     tEnv.createTemporaryView("MyTable", t)
 
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Target column 'e' is assigned more than once")
-
-    tEnv
-      .executeSql(s"""
-                     |INSERT INTO testSink PARTITION(`c`='2021') (e, e)
-                     |SELECT 1, sum(y) FROM MyTable GROUP BY x
-                     |""".stripMargin)
-      .await()
+    assertThatThrownBy(
+      () =>
+        tEnv
+          .executeSql(s"""
+                         |INSERT INTO testSink PARTITION(`c`='2021') (e, e)
+                         |SELECT 1, sum(y) FROM MyTable GROUP BY x
+                         |""".stripMargin)
+          .await())
+      .hasMessageContaining("Target column 'e' is assigned more than once")
+      .isInstanceOf[ValidationException]
   }
 
   private def innerTestSetParallelism(provider: String, parallelism: Int, index: Int): Unit = {
@@ -1235,7 +1201,7 @@ class TableSinkITCase extends StreamingTestBase {
               .build())
           .build())
       .await()
-    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResultsAsStrings.toList)
+    assertThat(TestValuesTableFactory.getOnlyRawResultsAsStrings.toList).isEqualTo(Seq("+I(42)"))
 
     // Derived schema
 
@@ -1247,7 +1213,7 @@ class TableSinkITCase extends StreamingTestBase {
       .from("T2")
       .executeInsert(TableDescriptor.forConnector("values").build())
       .await()
-    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResultsAsStrings.toList)
+    assertThat(TestValuesTableFactory.getOnlyRawResultsAsStrings.toList).isEqualTo(Seq("+I(42)"))
 
     // Enriched schema
 
@@ -1269,7 +1235,7 @@ class TableSinkITCase extends StreamingTestBase {
               .build())
           .build())
       .await()
-    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResultsAsStrings.toList)
+    assertThat(TestValuesTableFactory.getOnlyRawResultsAsStrings.toList).isEqualTo(Seq("+I(42)"))
     TestValuesTableFactory.clearAllData()
   }
 
@@ -1303,7 +1269,7 @@ class TableSinkITCase extends StreamingTestBase {
       )
       .execute()
       .await()
-    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResultsAsStrings.toList)
+    assertThat(TestValuesTableFactory.getOnlyRawResultsAsStrings.toList).isEqualTo(Seq("+I(42)"))
 
     // Derived schema
 
@@ -1319,7 +1285,7 @@ class TableSinkITCase extends StreamingTestBase {
       )
       .execute()
       .await()
-    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResultsAsStrings.toList)
+    assertThat(TestValuesTableFactory.getOnlyRawResultsAsStrings.toList).isEqualTo(Seq("+I(42)"))
 
     // Enriched schema
 
@@ -1344,7 +1310,7 @@ class TableSinkITCase extends StreamingTestBase {
       )
       .execute()
       .await()
-    assertEquals(Seq("+I(42)"), TestValuesTableFactory.getOnlyRawResultsAsStrings.toList)
+    assertThat(TestValuesTableFactory.getOnlyRawResultsAsStrings.toList).isEqualTo(Seq("+I(42)"))
   }
 
   @Test
@@ -1383,6 +1349,6 @@ class TableSinkITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.020,5,29",
       "1970-01-01T00:00:00.025,2,12"
     )
-    assertEquals(expected.sorted, result.sorted)
+    assertThat(result.sorted).isEqualTo(expected.sorted)
   }
 }

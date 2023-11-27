@@ -101,12 +101,12 @@ public abstract class TestJvmProcess {
      *
      * <p>These can be parsed by the main method of the entry point class.
      */
-    public abstract String[] getJvmArgs();
+    public abstract String[] getMainMethodArgs();
 
     /**
      * Returns the name of the class to run.
      *
-     * <p>Arguments to the main method can be specified via {@link #getJvmArgs()}.
+     * <p>Arguments to the main method can be specified via {@link #getMainMethodArgs()}.
      */
     public abstract String getEntryPointClassName();
 
@@ -141,19 +141,20 @@ public abstract class TestJvmProcess {
                     "-Xmx" + jvmMemoryInMb + "m",
                     "-classpath",
                     getCurrentClasspath(),
-                    "-XX:+IgnoreUnrecognizedVMOptions",
-                    getEntryPointClassName()
+                    "-XX:+IgnoreUnrecognizedVMOptions"
                 };
-
-        String[] jvmArgs = getJvmArgs();
-
-        if (jvmArgs != null && jvmArgs.length > 0) {
-            cmd = ArrayUtils.addAll(cmd, jvmArgs);
-        }
 
         final String moduleConfig = System.getProperty("surefire.module.config");
         if (moduleConfig != null) {
-            cmd = ArrayUtils.addAll(cmd, moduleConfig.split(" "));
+            cmd = ArrayUtils.addAll(cmd, moduleConfig.trim().split("\\s+"));
+        }
+
+        cmd = ArrayUtils.add(cmd, getEntryPointClassName());
+
+        String[] mainMethodArgs = getMainMethodArgs();
+
+        if (mainMethodArgs != null && mainMethodArgs.length > 0) {
+            cmd = ArrayUtils.addAll(cmd, mainMethodArgs);
         }
 
         synchronized (createDestroyLock) {

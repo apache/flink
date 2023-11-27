@@ -22,7 +22,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 
 /**
- * A mock implementation of a {@code Sink.InitContext} to be used in sink unit tests.
+ * A mock implementation of a {@code Sink.WriterInitContext} to be used in sink unit tests.
  *
  * <p>The only difference between this and {@link TestSinkInitContext} is that the mailbox thread
  * methods of this context may be accessed from any thread. This is useful for testing fine-grained

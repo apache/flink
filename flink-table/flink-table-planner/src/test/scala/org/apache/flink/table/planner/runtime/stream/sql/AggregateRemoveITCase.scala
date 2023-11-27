@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -27,25 +28,25 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.Agg
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.utils.TableTestUtil
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Rule, Test}
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
 
 import scala.collection.{mutable, Seq}
 import scala.collection.JavaConverters._
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend: StateBackendMode)
   extends StreamingWithAggTestBase(aggMode, minibatch, backend) {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
-  @Test
+  @TestTemplate
   def testSimple(): Unit = {
     checkResult("SELECT a, b FROM T GROUP BY a, b", Seq(row(2, 1), row(3, 2), row(5, 2), row(6, 3)))
 
@@ -67,7 +68,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     )
   }
 
-  @Test
+  @TestTemplate
   def testWithGroupingSets(): Unit = {
     checkResult(
       "SELECT a, b, c, COUNT(d) FROM T " +
@@ -113,7 +114,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     )
   }
 
-  @Test
+  @TestTemplate
   def testWithRollup(): Unit = {
     checkResult(
       "SELECT a, b, c, COUNT(d) FROM T GROUP BY ROLLUP (a, b, c)",
@@ -135,7 +136,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     )
   }
 
-  @Test
+  @TestTemplate
   def testWithCube(): Unit = {
     checkResult(
       "SELECT a, b, c, COUNT(d) FROM T GROUP BY CUBE (a, b, c)",
@@ -198,7 +199,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     )
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctAgg(): Unit = {
     checkResult(
       "SELECT a, COUNT(DISTINCT c) FROM T GROUP BY a",
@@ -213,7 +214,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
       Seq(row(2, 1, 1, 0), row(3, 2, 1, 1), row(5, 2, 1, 1), row(6, 3, 1, 1)))
   }
 
-  @Test
+  @TestTemplate
   def testSingleDistinctAgg_WithNonDistinctAgg(): Unit = {
     checkResult(
       "SELECT a, COUNT(DISTINCT c), SUM(b) FROM T GROUP BY a",
@@ -236,7 +237,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
         row(6, "Hello world", 1, 3)))
   }
 
-  @Test
+  @TestTemplate
   def testMultiDistinctAggs(): Unit = {
     checkResult(
       "SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM T GROUP BY a",
@@ -265,7 +266,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     )
   }
 
-  @Test
+  @TestTemplate
   def testAggregateRemove(): Unit = {
     val data = new mutable.MutableList[(Int, Int)]
     data.+=((1, 1))
@@ -290,7 +291,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     t1.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = List("10")
-    assertEquals(expected, sink.getRetractResults)
+    assertThat(sink.getRetractResults).isEqualTo(expected)
   }
 
   private def checkResult(str: String, rows: Seq[Row]): Unit = {
@@ -336,7 +337,7 @@ class AggregateRemoveITCase(aggMode: AggMode, minibatch: MiniBatchMode, backend:
     t.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = rows.map(_.toString)
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
 }

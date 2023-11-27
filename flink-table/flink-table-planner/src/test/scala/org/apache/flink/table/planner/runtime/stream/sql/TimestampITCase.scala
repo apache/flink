@@ -26,8 +26,8 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.table.planner.utils.TestDataTypeTableSourceWithTime
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.sql.Timestamp
 import java.time.{Instant, ZoneId}
@@ -36,6 +36,7 @@ import scala.collection.mutable
 
 class TimestampITCase extends StreamingTestBase {
 
+  @BeforeEach
   override def before(): Unit = {
     super.before()
 
@@ -110,7 +111,7 @@ class TimestampITCase extends StreamingTestBase {
       "1,1970-01-01T00:00:00.123",
       "2,1970-01-01T00:00:00.123456"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -127,7 +128,7 @@ class TimestampITCase extends StreamingTestBase {
       "1,1970-01-01T00:00:00.123Z",
       "2,1970-01-01T00:00:00.123456Z"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -144,7 +145,7 @@ class TimestampITCase extends StreamingTestBase {
       "1,2",
       "1,4"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -161,7 +162,7 @@ class TimestampITCase extends StreamingTestBase {
       "1,2",
       "1,4"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -178,7 +179,7 @@ class TimestampITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.123456,1970-01-01T00:00:00.123456,2",
       "1970-01-01T00:00:00.123,1970-01-01T00:00:00.123,4"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
   @Test
@@ -200,6 +201,6 @@ class TimestampITCase extends StreamingTestBase {
       "1970-01-01T00:00:00.123456,1970-01-01T00:00:00.123456",
       "null,null"
     )
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 }

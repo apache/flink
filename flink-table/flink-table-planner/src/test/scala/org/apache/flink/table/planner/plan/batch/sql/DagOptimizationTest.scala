@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.{TableFunc1, TableTestBase}
 import org.apache.flink.table.types.logical._
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 
@@ -101,7 +101,7 @@ class DagOptimizationTest extends TableTestBase {
   @Test
   def testSingleSinkWithUDTF(): Unit = {
     util.addTableSource[(Int, Long, Int, String, Long)]("MyTable2", 'i, 'j, 'k, 'l, 'm)
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
 
     val sqlQuery =
       """
@@ -235,7 +235,7 @@ class DagOptimizationTest extends TableTestBase {
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
       Boolean.box(true))
     // test with non-deterministic udf
-    util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf())
+    util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf())
     val table1 = util.tableEnv.sqlQuery("SELECT random_udf(a) AS a, c FROM MyTable")
     util.tableEnv.createTemporaryView("table1", table1)
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM table1")
@@ -299,7 +299,7 @@ class DagOptimizationTest extends TableTestBase {
     util.tableEnv.getConfig.set(
       RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED,
       Boolean.box(false))
-    util.addFunction("split", new TableFunc1)
+    util.addTemporarySystemFunction("split", new TableFunc1)
     val sqlQuery1 =
       """
         |SELECT  a, b - MOD(b, 300) AS b, c FROM MyTable

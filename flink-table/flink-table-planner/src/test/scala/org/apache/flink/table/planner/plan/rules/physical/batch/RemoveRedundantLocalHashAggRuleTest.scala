@@ -22,14 +22,14 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[RemoveRedundantLocalHashAggRule]]. */
 class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addTableSource[(Int, Long, String)]("x", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("y", 'd, 'e, 'f)

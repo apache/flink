@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.rel.core.AggregateCall
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.mockito.Mockito.{mock, when}
 
 /** Test for [[HashAggCodeGenerator]]. */

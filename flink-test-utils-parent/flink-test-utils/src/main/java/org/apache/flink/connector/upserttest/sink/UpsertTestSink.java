@@ -67,7 +67,7 @@ public class UpsertTestSink<IN> implements Sink<IN> {
 
     @Internal
     @Override
-    public SinkWriter<IN> createWriter(InitContext context) {
+    public SinkWriter<IN> createWriter(WriterInitContext context) {
         try {
             keySerializationSchema.open(context.asSerializationSchemaInitializationContext());
             valueSerializationSchema.open(context.asSerializationSchemaInitializationContext());

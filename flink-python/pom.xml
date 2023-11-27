@@ -34,7 +34,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<arrow.version>5.0.0</arrow.version>
+		<arrow.version>13.0.0</arrow.version>
 		<kafka.version>3.2.3</kafka.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv

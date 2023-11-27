@@ -30,10 +30,12 @@ import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
+import org.junit.jupiter.api.BeforeEach;
 
 /** Test for {@link PushLimitIntoTableSourceScanRule}. */
-public class PushLimitIntoTableSourceScanRuleTest
-        extends PushLimitIntoLegacyTableSourceScanRuleTest {
+class PushLimitIntoTableSourceScanRuleTest extends PushLimitIntoLegacyTableSourceScanRuleTest {
+
+    @BeforeEach
     @Override
     public void setup() {
         util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());

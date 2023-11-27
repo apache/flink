@@ -35,7 +35,7 @@ public class DiscardingSink<IN> implements Sink<IN>, SupportsConcurrentExecution
     private static final long serialVersionUID = 1L;
 
     @Override
-    public SinkWriter<IN> createWriter(InitContext context) throws IOException {
+    public SinkWriter<IN> createWriter(WriterInitContext context) throws IOException {
         return new DiscardingElementWriter();
     }
 

@@ -29,7 +29,8 @@ import org.apache.flink.table.factories.{DynamicTableFactory, DynamicTableSource
 import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
 
 import org.assertj.core.api.Assertions
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 import java.util
 
@@ -86,11 +87,13 @@ class TableSinkTest extends TableTestBase {
                      |  'connector' = 'values'
                      |)
                      |""".stripMargin)
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Query schema: [a: INT, EXPR$1: CHAR(0) NOT NULL, EXPR$2: CHAR(0) NOT NULL]\n" +
-        "Sink schema:  [name: STRING, email: STRING, message_offset: BIGINT]")
-    util.verifyExecPlanInsert("INSERT INTO my_sink SELECT a, '', '' FROM MyTable")
+
+    assertThatThrownBy(
+      () => util.verifyExecPlanInsert("INSERT INTO my_sink SELECT a, '', '' FROM MyTable"))
+      .hasMessageContaining(
+        "Query schema: [a: INT, EXPR$1: CHAR(0) NOT NULL, EXPR$2: CHAR(0) NOT NULL]\n" +
+          "Sink schema:  [name: STRING, email: STRING, message_offset: BIGINT]")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -106,12 +109,12 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO appendSink SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "Table sink 'default_catalog.default_database.appendSink' doesn't " +
-        "support consuming update changes which is produced by node " +
-        "GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
-    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    assertThatThrownBy(() => util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE))
+      .hasMessageContaining(
+        "Table sink 'default_catalog.default_database.appendSink' doesn't " +
+          "support consuming update changes which is produced by node " +
+          "GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt])")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -141,11 +144,10 @@ class TableSinkTest extends TableTestBase {
     stmtSet.addInsertSql(
       "INSERT INTO retractSink2 SELECT cnt, SUM(cnt) OVER (ORDER BY PROCTIME()) FROM TempTable")
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "OverAggregate doesn't support consuming update changes " +
+    assertThatThrownBy(() => util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE))
+      .hasMessageContaining("OverAggregate doesn't support consuming update changes " +
         "which is produced by node Calc(select=[cnt])")
-    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -360,12 +362,11 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(sql)
 
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Query schema: [a: INT, m_3: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]\n" +
-        "Sink schema:  [a: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]")
-
-    util.verifyRelPlan(stmtSet)
+    assertThatThrownBy(() => util.verifyRelPlan(stmtSet))
+      .hasMessageContaining(
+        "Query schema: [a: INT, m_3: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]\n" +
+          "Sink schema:  [a: INT, m_2: INT, b: BIGINT, c: INT, metadata_1: STRING]")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -389,13 +390,12 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(sql)
 
-    thrown.expect(classOf[ValidationException])
-    thrown.expectMessage(
-      "Invalid data type for metadata column 'metadata_1' of table " +
-        "'default_catalog.default_database.MetadataTable'. The column cannot be declared as " +
-        "'TIMESTAMP(3)' because the type must be castable to metadata type 'BOOLEAN'.")
-
-    util.verifyRelPlan(stmtSet)
+    assertThatThrownBy(() => util.verifyRelPlan(stmtSet))
+      .hasMessageContaining(
+        "Invalid data type for metadata column 'metadata_1' of table " +
+          "'default_catalog.default_database.MetadataTable'. The column cannot be declared as " +
+          "'TIMESTAMP(3)' because the type must be castable to metadata type 'BOOLEAN'.")
+      .isInstanceOf[ValidationException]
   }
 
   @Test
@@ -754,13 +754,13 @@ class TableSinkTest extends TableTestBase {
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
 
-    expectedException.expect(classOf[TableException])
-    expectedException.expectMessage(
-      s"You should enable the checkpointing for sinking to managed table " +
-        s"'default_catalog.default_database.sink', " +
-        s"managed table relies on checkpoint to commit and " +
-        s"the data is visible only after commit.")
-    util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+    assertThatThrownBy(() => util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE))
+      .hasMessageContaining(
+        s"You should enable the checkpointing for sinking to managed table " +
+          s"'default_catalog.default_database.sink', " +
+          s"managed table relies on checkpoint to commit and " +
+          s"the data is visible only after commit.")
+      .isInstanceOf[TableException]
   }
 
   @Test

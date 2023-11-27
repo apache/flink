@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import unittest
+
 from pyflink.common import SimpleStringSchema, Types
 from pyflink.datastream.connectors.kinesis import PartitionKeyGenerator, FlinkKinesisConsumer, \
     KinesisStreamsSink, KinesisFirehoseSink
@@ -22,6 +24,7 @@ from pyflink.testing.test_case_utils import PyFlinkUTTestCase
 from pyflink.util.java_utils import get_field_value
 
 
+@unittest.skip("Should be moved to kinesis connector repo")
 class FlinkKinesisTest(PyFlinkUTTestCase):
 
     def test_kinesis_source(self):

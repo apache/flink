@@ -26,24 +26,24 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
 import org.apache.flink.table.planner.utils.{TableAggSum, Top3, Top3Accum, Top3WithMapView, Top3WithRetractInput}
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 /** Tests of groupby (without window) table aggregations */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
   }
 
-  @Test
+  @TestTemplate
   def testGroupByFlatAggregate(): Unit = {
     val top3 = new Top3
 
@@ -75,10 +75,10 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       "6,20,20",
       "6,19,19"
     ).sorted
-    assertEquals(expected, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testNonkeyedFlatAggregate(): Unit = {
 
     val top3 = new Top3
@@ -97,10 +97,10 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       "20,20",
       "21,21"
     ).sorted
-    assertEquals(expected, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testAggregateAfterTableAggregate(): Unit = {
     val top3 = new Top3
 
@@ -125,10 +125,10 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       "5,15",
       "6,21"
     ).sorted
-    assertEquals(expected, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testGroupByFlatAggregateWithMapView(): Unit = {
     val top3 = new Top3WithMapView
 
@@ -160,10 +160,10 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       "6,20,20",
       "6,19,19"
     ).sorted
-    assertEquals(expected, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testInputWithRetraction(): Unit = {
 
     val top3 = new Top3WithRetractInput
@@ -183,10 +183,10 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       "65,65",
       "34,34"
     ).sorted
-    assertEquals(expected, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testInternalAccumulatorType(): Unit = {
     val source = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
     val resultTable = source
@@ -211,30 +211,33 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       "2,5",
       "1,1",
       "1,1").sorted
-    assertEquals(expected, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected)
   }
 
-  @Test
+  @TestTemplate
   def testTableAggFunctionWithoutRetractionMethod(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage(
-      s"Could not find an implementation method 'retract' in class '${classOf[Top3].getName}' " +
-        s"for function 'Top3' that matches the following signature:\n" +
-        s"void retract(${classOf[Top3Accum].getName}, java.lang.Integer)")
-
     val top3 = new Top3
     val source = env.fromCollection(tupleData3).toTable(tEnv, 'a, 'b, 'c)
-    source
-      .groupBy('b)
-      .select('b, 'a.sum.as('a))
-      .flatAggregate(top3('a).as('v1, 'v2))
-      .select('v1, 'v2)
-      .toRetractStream[Row]
 
-    env.execute()
+    assertThatThrownBy(
+      () => {
+        source
+          .groupBy('b)
+          .select('b, 'a.sum.as('a))
+          .flatAggregate(top3('a).as('v1, 'v2))
+          .select('v1, 'v2)
+          .toRetractStream[Row]
+
+        env.execute()
+      })
+      .hasMessage(
+        s"Could not find an implementation method 'retract' in class '${classOf[Top3].getName}' " +
+          s"for function 'Top3' that matches the following signature:\n" +
+          s"void retract(${classOf[Top3Accum].getName}, java.lang.Integer)")
+      .isInstanceOf[ValidationException]
   }
 
-  @Test
+  @TestTemplate
   def testOverloadedAccumulator(): Unit = {
     val source = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
 
@@ -273,7 +276,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       "6,21",
       "6,21"
     )
-    assertEquals(expected1.sorted, sink1.getRetractResults.sorted)
+    assertThat(sink1.getRetractResults.sorted).isEqualTo(expected1.sorted)
 
     val expected2 = List(
       "1,1str",
@@ -289,6 +292,6 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       "6,21str",
       "6,21str"
     )
-    assertEquals(expected2.sorted, sink2.getRetractResults.sorted)
+    assertThat(sink2.getRetractResults.sorted).isEqualTo(expected2.sorted)
   }
 }

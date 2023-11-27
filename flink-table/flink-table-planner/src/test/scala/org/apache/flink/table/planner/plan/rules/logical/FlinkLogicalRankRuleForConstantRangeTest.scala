@@ -22,7 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /** Test for [[FlinkLogicalRankRuleForConstantRange]]. */
 class FlinkLogicalRankRuleForConstantRangeTest extends TableTestBase {

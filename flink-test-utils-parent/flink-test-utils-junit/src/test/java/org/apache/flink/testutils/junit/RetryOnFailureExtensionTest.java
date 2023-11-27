@@ -21,56 +21,85 @@ package org.apache.flink.testutils.junit;
 import org.apache.flink.testutils.junit.extensions.retry.RetryExtension;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link RetryOnFailure} annotation on JUnit5 {@link RetryExtension}. */
 @ExtendWith(RetryExtension.class)
 class RetryOnFailureExtensionTest {
 
-    private static final int NUMBER_OF_RUNS = 5;
+    private static final int NUMBER_OF_RETRIES = 5;
 
-    private static int numberOfFailedRuns;
+    private static final Map<String, Integer> methodRunCount = new HashMap<>();
 
-    private static int numberOfSuccessfulRuns;
+    private static final Map<String, Runnable> verificationCallbackRegistry = new HashMap<>();
 
-    private static boolean firstRun = true;
+    @BeforeEach
+    void incrementMethodRunCount(TestInfo testInfo) {
+        // Set or increment the run count for the unit test method, by the method short name.
+        // This starts at 1 and is incremented before the test starts.
+        testInfo.getTestMethod()
+                .ifPresent(
+                        method ->
+                                methodRunCount.compute(
+                                        method.getName(), (k, v) -> (v == null) ? 1 : v + 1));
+    }
+
+    private static int assertAndReturnRunCount(TestInfo testInfo) {
+        return methodRunCount.get(assertAndReturnTestMethodName(testInfo));
+    }
+
+    private static void registerCallbackForTest(TestInfo testInfo, Consumer<Integer> verification) {
+        verificationCallbackRegistry.putIfAbsent(
+                assertAndReturnTestMethodName(testInfo),
+                () -> verification.accept(assertAndReturnRunCount(testInfo)));
+    }
+
+    private static String assertAndReturnTestMethodName(TestInfo testInfo) {
+        return testInfo.getTestMethod()
+                .orElseThrow(() -> new AssertionError("No test method is provided."))
+                .getName();
+    }
 
     @AfterAll
     static void verify() {
-        assertEquals(NUMBER_OF_RUNS + 1, numberOfFailedRuns);
-        assertEquals(3, numberOfSuccessfulRuns);
+        for (Runnable verificationCallback : verificationCallbackRegistry.values()) {
+            verificationCallback.run();
+        }
     }
 
     @TestTemplate
-    @RetryOnFailure(times = NUMBER_OF_RUNS)
-    void testRetryOnFailure() {
+    @RetryOnFailure(times = NUMBER_OF_RETRIES)
+    void testRetryOnFailure(TestInfo testInfo) {
+        registerCallbackForTest(
+                testInfo, total -> assertThat(total).isEqualTo(NUMBER_OF_RETRIES + 1));
+
         // All but the (expected) last run should be successful
-        if (numberOfFailedRuns < NUMBER_OF_RUNS) {
-            numberOfFailedRuns++;
+        if (assertAndReturnRunCount(testInfo) <= NUMBER_OF_RETRIES) {
             throw new RuntimeException("Expected test exception");
-        } else {
-            numberOfSuccessfulRuns++;
         }
     }
 
     @TestTemplate
-    @RetryOnFailure(times = NUMBER_OF_RUNS)
-    void testRetryOnceOnFailure() {
-        if (firstRun) {
-            numberOfFailedRuns++;
-            firstRun = false;
+    @RetryOnFailure(times = NUMBER_OF_RETRIES)
+    void testRetryOnceOnFailure(TestInfo testInfo) {
+        registerCallbackForTest(testInfo, total -> assertThat(total).isEqualTo(2));
+        if (assertAndReturnRunCount(testInfo) == 1) {
             throw new RuntimeException("Expected test exception");
-        } else {
-            numberOfSuccessfulRuns++;
         }
     }
 
     @TestTemplate
-    @RetryOnFailure(times = NUMBER_OF_RUNS)
-    void testNotRetryOnSuccess() {
-        numberOfSuccessfulRuns++;
+    @RetryOnFailure(times = NUMBER_OF_RETRIES)
+    void testNotRetryOnSuccess(TestInfo testInfo) {
+        registerCallbackForTest(testInfo, total -> assertThat(total).isOne());
     }
 }

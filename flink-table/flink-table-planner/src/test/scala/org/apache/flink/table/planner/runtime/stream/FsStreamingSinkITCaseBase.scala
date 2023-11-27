@@ -28,26 +28,24 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
+import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
-import org.junit.{Assert, Before, Rule, Test}
-import org.junit.Assert.assertEquals
-import org.junit.rules.Timeout
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+import org.junit.jupiter.api.{BeforeEach, Test, Timeout}
 
 import java.io.File
 import java.net.URI
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConversions._
-import scala.collection.Seq
 
 /** Streaming sink ITCase base, test checkpoint. */
+@Timeout(value = 240, unit = TimeUnit.SECONDS)
 abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
-
-  @Rule
-  def timeoutPerTest: Timeout = Timeout.seconds(240)
 
   protected var resultPath: String = _
 
@@ -69,7 +67,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
     Row.of(Integer.valueOf(5), "x", "y", "20200504", "11")
   )
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
 
@@ -89,20 +87,20 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
   def testPart(): Unit = {
     testPartitionCustomFormatDate(partition = true)
     val basePath = new File(new URI(resultPath).getPath, "d=05-03-2020")
-    Assert.assertEquals(5, basePath.list().length)
-    Assert.assertTrue(new File(new File(basePath, "e=07"), "_MY_SUCCESS").exists())
-    Assert.assertTrue(new File(new File(basePath, "e=08"), "_MY_SUCCESS").exists())
-    Assert.assertTrue(new File(new File(basePath, "e=09"), "_MY_SUCCESS").exists())
-    Assert.assertTrue(new File(new File(basePath, "e=10"), "_MY_SUCCESS").exists())
-    Assert.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists())
+    assertThat(basePath.list()).hasSize(5)
+    assertThat(new File(new File(basePath, "e=07"), "_MY_SUCCESS")).exists()
+    assertThat(new File(new File(basePath, "e=08"), "_MY_SUCCESS")).exists()
+    assertThat(new File(new File(basePath, "e=09"), "_MY_SUCCESS")).exists()
+    assertThat(new File(new File(basePath, "e=10"), "_MY_SUCCESS")).exists()
+    assertThat(new File(new File(basePath, "e=11"), "_MY_SUCCESS")).exists()
   }
 
   @Test
   def testMetastorePolicy(): Unit = {
-    thrown.expectMessage(
-      "Can not configure a 'metastore' partition commit policy for a file system table." +
-        " You can only configure 'metastore' partition commit policy for a hive table.")
-    testPartitionCustomFormatDate(partition = true, "metastore")
+    assertThatThrownBy(() => testPartitionCustomFormatDate(partition = true, "metastore"))
+      .hasMessage(
+        "Can not configure a 'metastore' partition commit policy for a file system table." +
+          " You can only configure 'metastore' partition commit policy for a hive table.")
   }
 
   @Test
@@ -126,9 +124,9 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
     // verify that the written data is correct
     val basePath = new File(new URI(resultPath).getPath)
-    Assert.assertEquals(2, basePath.list().length)
-    Assert.assertTrue(new File(new File(basePath, "d=20200503"), "_MY_SUCCESS").exists())
-    Assert.assertTrue(new File(new File(basePath, "d=20200504"), "_MY_SUCCESS").exists())
+    assertThat(basePath.list()).hasSize(2)
+    assertThat(new File(new File(basePath, "d=20200503"), "_MY_SUCCESS")).exists()
+    assertThat(new File(new File(basePath, "d=20200504"), "_MY_SUCCESS")).exists()
   }
 
   def testPartitionCustomFormatDate(partition: Boolean, policy: String = "success-file"): Unit = {
@@ -169,7 +167,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
       policy: String = "success-file",
       successFileName: String = "_MY_SUCCESS"): Unit = {
 
-    resultPath = tempFolder.newFolder().toURI.toString
+    resultPath = TempDirUtils.newFolder(tempFolder).toURI.toString
 
     tEnv.createTemporaryView("my_table", dataStream, $("a"), $("b"), $("c"), $("d"), $("e"))
 
@@ -214,9 +212,8 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
     val result = CollectionUtil.iteratorToList(iter)
     iter.close()
 
-    assertEquals(
-      expectedResult.map(TestSinkUtil.rowToString(_)).sorted,
-      result.map(TestSinkUtil.rowToString(_)).sorted)
+    assertThat(result.map(TestSinkUtil.rowToString(_)).sorted)
+      .isEqualTo(expectedResult.map(TestSinkUtil.rowToString(_)).sorted)
   }
 }
 

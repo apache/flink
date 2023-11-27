@@ -23,20 +23,20 @@ import org.apache.flink.table.expressions.utils.ResolvedExpressionMock
 import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableConfigUtils, TableTestBase, TestPartitionableSourceFactory}
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
-import org.junit.{Before, Test}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
 import scala.collection.JavaConversions._
 
 /** Test for [[PushPartitionIntoLegacyTableSourceScanRule]]. */
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class PushPartitionIntoLegacyTableSourceScanRuleTest(
     val sourceFetchPartitions: Boolean,
     val useCatalogFilter: Boolean)
@@ -44,7 +44,7 @@ class PushPartitionIntoLegacyTableSourceScanRuleTest(
   protected val util: BatchTableTestUtil = batchTestUtil()
 
   @throws(classOf[Exception])
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
     val calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
@@ -93,101 +93,101 @@ class PushPartitionIntoLegacyTableSourceScanRuleTest(
       isBounded = true)
   }
 
-  @Test
+  @TestTemplate
   def testNoPartitionFieldPredicate(): Unit = {
     util.verifyRelPlan("SELECT * FROM MyTable WHERE id > 2")
   }
 
-  @Test
+  @TestTemplate
   def testNoPartitionFieldPredicateWithVirtualColumn(): Unit = {
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE id > 2")
   }
 
-  @Test
+  @TestTemplate
   def testOnlyPartitionFieldPredicate1(): Unit = {
     util.verifyRelPlan("SELECT * FROM MyTable WHERE part1 = 'A'")
   }
 
-  @Test
+  @TestTemplate
   def testOnlyPartitionFieldPredicate1WithVirtualColumn(): Unit = {
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE part1 = 'A'")
   }
 
-  @Test
+  @TestTemplate
   def testOnlyPartitionFieldPredicate2(): Unit = {
     util.verifyRelPlan("SELECT * FROM MyTable WHERE part2 > 1")
   }
 
-  @Test
+  @TestTemplate
   def testOnlyPartitionFieldPredicate2WithVirtualColumn(): Unit = {
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE part2 > 1")
   }
 
-  @Test
+  @TestTemplate
   def testOnlyPartitionFieldPredicate3(): Unit = {
     util.verifyRelPlan("SELECT * FROM MyTable WHERE part1 = 'A' AND part2 > 1")
   }
 
-  @Test
+  @TestTemplate
   def testOnlyPartitionFieldPredicate3WithVirtualColumn(): Unit = {
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE part1 = 'A' AND part2 > 1")
   }
 
-  @Test
+  @TestTemplate
   def testOnlyPartitionFieldPredicate4(): Unit = {
     util.verifyRelPlan("SELECT * FROM MyTable WHERE part1 = 'A' OR part2 > 1")
   }
 
-  @Test
+  @TestTemplate
   def testOnlyPartitionFieldPredicate4WithVirtualColumn(): Unit = {
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE part1 = 'A' OR part2 > 1")
   }
 
-  @Test
+  @TestTemplate
   def testPartitionFieldPredicateAndOtherPredicate(): Unit = {
     util.verifyRelPlan("SELECT * FROM MyTable WHERE id > 2 AND part1 = 'A'")
   }
 
-  @Test
+  @TestTemplate
   def testPartitionFieldPredicateAndOtherPredicateWithVirtualColumn(): Unit = {
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE id > 2 AND part1 = 'A'")
   }
 
-  @Test
+  @TestTemplate
   def testPartitionFieldPredicateOrOtherPredicate(): Unit = {
     util.verifyRelPlan("SELECT * FROM MyTable WHERE id > 2 OR part1 = 'A'")
   }
 
-  @Test
+  @TestTemplate
   def testPartitionFieldPredicateOrOtherPredicateWithVirtualColumn(): Unit = {
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE id > 2 OR part1 = 'A'")
   }
 
-  @Test
+  @TestTemplate
   def testPartialPartitionFieldPredicatePushDown(): Unit = {
     util.verifyRelPlan("SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
   }
 
-  @Test
+  @TestTemplate
   def testPartialPartitionFieldPredicatePushDownWithVirtualColumn(): Unit = {
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1")
   }
 
-  @Test
+  @TestTemplate
   def testWithUdf(): Unit = {
-    util.addFunction("MyUdf", Func1)
+    util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyRelPlan("SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
-  @Test
+  @TestTemplate
   def testWithUdfAndVirtualColumn(): Unit = {
-    util.addFunction("MyUdf", Func1)
+    util.addTemporarySystemFunction("MyUdf", Func1)
     util.verifyRelPlan("SELECT * FROM VirtualTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 }
 
 object PushPartitionIntoLegacyTableSourceScanRuleTest {
-  @Parameterized.Parameters(name = "sourceFetchPartitions={0}, useCatalogFilter={1}")
+  @Parameters(name = "sourceFetchPartitions={0}, useCatalogFilter={1}")
   def parameters(): util.Collection[Array[Any]] = {
     Seq[Array[Any]](
       Array(true, false),

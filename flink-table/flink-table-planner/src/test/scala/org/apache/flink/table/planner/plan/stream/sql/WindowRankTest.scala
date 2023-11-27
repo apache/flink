@@ -21,7 +21,8 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.junit.jupiter.api.Test
 
 /** Tests for window rank. */
 class WindowRankTest extends TableTestBase {
@@ -90,9 +91,9 @@ class WindowRankTest extends TableTestBase {
         |WHERE rownum <= 3
       """.stripMargin
 
-    thrown.expectMessage("Processing time Window TopN is not supported yet.")
-    thrown.expect(classOf[TableException])
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window TopN is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -141,9 +142,9 @@ class WindowRankTest extends TableTestBase {
         |WHERE rownum <= 3
       """.stripMargin
 
-    thrown.expectMessage("Processing time Window TopN is not supported yet.")
-    thrown.expect(classOf[TableException])
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window TopN is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -192,9 +193,9 @@ class WindowRankTest extends TableTestBase {
         |WHERE rownum <= 3
       """.stripMargin
 
-    thrown.expectMessage("Processing time Window TopN is not supported yet.")
-    thrown.expect(classOf[TableException])
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window TopN is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   // ----------------------------------------------------------------------------------------
@@ -255,9 +256,9 @@ class WindowRankTest extends TableTestBase {
         |WHERE rownum <= 3
       """.stripMargin
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Processing time Window TopN is not supported yet.")
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window TopN is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -316,9 +317,9 @@ class WindowRankTest extends TableTestBase {
         |WHERE rownum <= 3
       """.stripMargin
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Processing time Window TopN is not supported yet.")
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window TopN is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -381,9 +382,9 @@ class WindowRankTest extends TableTestBase {
         |WHERE rownum <= 3
       """.stripMargin
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Processing time Window TopN is not supported yet.")
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("Processing time Window TopN is not supported yet.")
+      .isInstanceOf[TableException]
   }
 
   // ----------------------------------------------------------------------------------------
@@ -486,10 +487,10 @@ class WindowRankTest extends TableTestBase {
         |WHERE rownum <= 3
       """.stripMargin
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "RANK() function is not supported on Window TopN currently, only ROW_NUMBER() is supported.")
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining(
+        "RANK() function is not supported on Window TopN currently, only ROW_NUMBER() is supported.")
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -518,11 +519,10 @@ class WindowRankTest extends TableTestBase {
         |WHERE rownum <= 3
       """.stripMargin
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage(
-      "DENSE_RANK() function is not supported on Window TopN currently, " +
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining("DENSE_RANK() function is not supported on Window TopN currently, " +
         "only ROW_NUMBER() is supported.")
-    util.verifyExplain(sql)
+      .isInstanceOf[TableException]
   }
 
   @Test
@@ -552,8 +552,9 @@ class WindowRankTest extends TableTestBase {
         |WHERE rownum <= max_b
       """.stripMargin
 
-    thrown.expect(classOf[TableException])
-    thrown.expectMessage("Rank strategy rankEnd=max_b is not supported on window rank currently.")
-    util.verifyExplain(sql)
+    assertThatThrownBy(() => util.verifyExplain(sql))
+      .hasMessageContaining(
+        "Rank strategy rankEnd=max_b is not supported on window rank currently.")
+      .isInstanceOf[TableException]
   }
 }

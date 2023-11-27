@@ -23,22 +23,22 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test json serialization for match recognize. */
-public class MatchRecognizeJsonPlanTest extends TableTestBase {
+class MatchRecognizeJsonPlanTest extends TableTestBase {
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
     }
 
     @Test
-    public void testMatch() {
+    void testMatch() {
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"
                         + "  id bigint,\n"
@@ -78,22 +78,22 @@ public class MatchRecognizeJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testSkipToLast() {
+    void testSkipToLast() {
         doTestAfterMatch("AFTER MATCH SKIP TO LAST B");
     }
 
     @Test
-    public void testSkipToFirst() {
+    void testSkipToFirst() {
         doTestAfterMatch("AFTER MATCH SKIP TO FIRST B");
     }
 
     @Test
-    public void testSkipPastLastRow() {
+    void testSkipPastLastRow() {
         doTestAfterMatch("AFTER MATCH SKIP PAST LAST ROW");
     }
 
     @Test
-    public void testSkipToNextRow() {
+    void testSkipToNextRow() {
         doTestAfterMatch("AFTER MATCH SKIP TO NEXT ROW");
     }
 

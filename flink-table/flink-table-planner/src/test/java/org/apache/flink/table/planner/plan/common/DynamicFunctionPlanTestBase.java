@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.plan.common;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Plan test for queries contain dynamic functions. */
 public abstract class DynamicFunctionPlanTestBase extends TableTestBase {
@@ -33,8 +33,8 @@ public abstract class DynamicFunctionPlanTestBase extends TableTestBase {
 
     protected abstract TableTestUtil getTableTestUtil();
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = getTableTestUtil();
 
         util.tableEnv()
@@ -56,7 +56,7 @@ public abstract class DynamicFunctionPlanTestBase extends TableTestBase {
     }
 
     @Test
-    public void testAggregateReduceConstants() {
+    void testAggregateReduceConstants() {
         util.verifyExecPlan(
                 "SELECT\n"
                         + "     cat, gmt_date, SUM(cnt), count(*)\n"
@@ -66,7 +66,7 @@ public abstract class DynamicFunctionPlanTestBase extends TableTestBase {
     }
 
     @Test
-    public void testAggregateReduceConstants2() {
+    void testAggregateReduceConstants2() {
         // current RelMdPredicates only look at columns that are projected without any function
         // applied, so 'SUBSTR(CAST(LOCALTIME AS VARCHAR), 1, 2)' will never be inferred as constant
         util.verifyExecPlan(
@@ -78,7 +78,7 @@ public abstract class DynamicFunctionPlanTestBase extends TableTestBase {
     }
 
     @Test
-    public void testAggregateReduceConstants3() {
+    void testAggregateReduceConstants3() {
         util.verifyExecPlan(
                 "SELECT\n"
                         + "     gmt_date, ts, cat, SUBSTR(CAST(ts AS VARCHAR), 1, 2), SUM(cnt)\n"
@@ -89,7 +89,7 @@ public abstract class DynamicFunctionPlanTestBase extends TableTestBase {
     }
 
     @Test
-    public void testCalcMerge() {
+    void testCalcMerge() {
         util.verifyExecPlan(
                 "SELECT * FROM ( \n"
                         + "   SELECT *, SUBSTR(CAST(LOCALTIME AS VARCHAR), 1, 2) hh\n"

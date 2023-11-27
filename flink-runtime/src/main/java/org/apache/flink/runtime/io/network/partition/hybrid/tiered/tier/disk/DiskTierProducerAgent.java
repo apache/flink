@@ -98,8 +98,7 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
-            Duration bufferRequestTimeout,
-            int maxBufferReadAhead) {
+            Duration bufferRequestTimeout) {
         checkArgument(
                 numBytesPerSegment >= bufferSizeBytes,
                 "One segment should contain at least one buffer.");
@@ -134,7 +133,6 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
                         ioExecutor,
                         maxRequestedBuffers,
                         bufferRequestTimeout,
-                        maxBufferReadAhead,
                         this::retrieveFirstBufferIndexInSegment,
                         partitionFileReader);
 

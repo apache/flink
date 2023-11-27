@@ -27,26 +27,26 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeProcessOperator
 import org.apache.flink.table.planner.utils.CountAggFunction
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit._
-import org.junit.Assert._
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import scala.collection.mutable
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Before
+  @BeforeEach
   def setupEnv(): Unit = {
     // unaligned checkpoints are regenerating watermarks after recovery of in-flight data
     // https://issues.apache.org/jira/browse/FLINK-18405
     env.getCheckpointConfig.enableUnalignedCheckpoints(false)
   }
 
-  @Test
+  @TestTemplate
   def testProcTimeUnBoundedPartitionedRowOver(): Unit = {
 
     val data = List(
@@ -95,10 +95,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "Hello,6,4,6",
       "null,1,20,1"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testOverWindowWithConstant(): Unit = {
 
     val data = List(
@@ -137,10 +137,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "Hello,4",
       "Hello,5",
       "Hello,5")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testRowTimeUnBoundedPartitionedRangeOver(): Unit = {
     val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
       Left(14000005L, (1, 1L, "Hi")),
@@ -216,10 +216,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "2,5,Hello world,15,SUM:15,5,6,6,[3, 5],3,5,1,1,3,2"
     )
 
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testRowTimeBoundedDistinctPartitionedRangeOver(): Unit = {
     val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
       Left(14000005L, (1, 1L, "Hi")),
@@ -277,10 +277,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "Hello world,6,27,4.5",
       "Hello world,6,27,4.5"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testRowTimeUnBoundedDistinctPartitionedRangeOver(): Unit = {
     val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
       Left(14000005L, (1, 1L, "Hi")),
@@ -333,10 +333,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "Hello world,6,27,4.5",
       "Hello world,6,27,4.5"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testRowTimeBoundedDistinctPartitionedRowsOver(): Unit = {
     val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
       Left(14000005L, (1, 1L, "Hi")),
@@ -389,10 +389,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "Hello world,3,17,5.6666665",
       "Hello world,3,18,6.0"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testRowTimeUnBoundedDistinctPartitionedRowsOver(): Unit = {
     val data: Seq[Either[(Long, (Int, Long, String)), Long]] = Seq(
       Left(14000005L, (1, 1L, "Hi")),
@@ -450,10 +450,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "Hello world,6,27,4.5",
       "Hello world,6,27,4.5"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testProcTimeBoundedPartitionedRowsOver(): Unit = {
 
     val data = List(
@@ -506,10 +506,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "5,60,10,3"
     )
 
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testProcTimeBoundedPartitionedRowsOverWithJavaAPI(): Unit = {
 
     val data = List(
@@ -567,10 +567,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "5,60,10,3"
     )
 
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testRowTimeBoundedPartitionedRowOver(): Unit = {
     val data: Seq[Either[(Long, (Long, Int, String)), Long]] = Seq(
       Left((1L, (1L, 1, "Hello"))),
@@ -629,10 +629,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "Hello World,20,3,35,3"
     )
 
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testRowTimeBoundedPartitionedRangeOver(): Unit = {
     val data: Seq[Either[(Long, (Long, Int, String)), Long]] = Seq(
       Left((1500L, (1L, 15, "Hello"))),
@@ -705,10 +705,10 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "Hello World,8,2,15,2",
       "Hello World,20,1,20,1"
     )
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testOverAggWithDiv(): Unit = {
     val data: Seq[Either[(Long, (Long, Int, String)), Long]] = Seq(
       Left((2L, (2L, 2, "Hello"))),
@@ -742,7 +742,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       "Hello,2,2,2",
       "Hello,6,3,3")
 
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
 }

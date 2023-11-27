@@ -18,11 +18,10 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
-import org.apache.flink.table.planner.functions.InternalFunctionDefinitions.THROW_EXCEPTION
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, DECIMAL, SYMBOL}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasLength, hasPrecision, hasScale}
@@ -66,38 +65,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       children: Seq[Expression],
       unknownFunctionHandler: () => PlannerExpression): PlannerExpression = {
 
-    // special case: requires individual handling of child expressions
-    func match {
-
-      case WINDOW_START =>
-        assert(children.size == 1)
-        val windowReference = translateWindowReference(children.head)
-        return WindowStart(windowReference)
-
-      case WINDOW_END =>
-        assert(children.size == 1)
-        val windowReference = translateWindowReference(children.head)
-        return WindowEnd(windowReference)
-
-      case PROCTIME =>
-        assert(children.size == 1)
-        val windowReference = translateWindowReference(children.head)
-        return ProctimeAttribute(windowReference)
-
-      case ROWTIME =>
-        assert(children.size == 1)
-        val windowReference = translateWindowReference(children.head)
-        return RowtimeAttribute(windowReference)
-
-      case THROW_EXCEPTION =>
-        assert(children.size == 2)
-        return ThrowException(
-          children.head.accept(this),
-          fromDataTypeToTypeInfo(children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType))
-
-      case _ =>
-    }
-
     val args = children.map(_.accept(this))
 
     func match {
@@ -124,62 +91,8 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
           tafd.getAccumulatorTypeInfo,
           args)
 
-      case fd: FunctionDefinition =>
-        fd match {
-
-          case IN =>
-            assert(args.size > 1)
-            In(args.head, args.drop(1))
-
-          case DISTINCT =>
-            assert(args.size == 1)
-            DistinctAgg(args.head)
-
-          case COLLECT =>
-            assert(args.size == 1)
-            Collect(args.head)
-
-          case ORDER_ASC =>
-            assert(args.size == 1)
-            Asc(args.head)
-
-          case ORDER_DESC =>
-            assert(args.size == 1)
-            Desc(args.head)
-
-          case OVER =>
-            assert(args.size >= 4)
-            OverCall(
-              args.head,
-              args.slice(4, args.size),
-              args(1),
-              args(2),
-              args(3)
-            )
-
-          case UNBOUNDED_RANGE =>
-            assert(args.isEmpty)
-            UnboundedRange()
-
-          case UNBOUNDED_ROW =>
-            assert(args.isEmpty)
-            UnboundedRow()
-
-          case CURRENT_RANGE =>
-            assert(args.isEmpty)
-            CurrentRange()
-
-          case CURRENT_ROW =>
-            assert(args.isEmpty)
-            CurrentRow()
-
-          case STREAM_RECORD_TIMESTAMP =>
-            assert(args.isEmpty)
-            StreamRecordTimestamp()
-
-          case _ =>
-            unknownFunctionHandler()
-        }
+      case _: FunctionDefinition =>
+        unknownFunctionHandler()
     }
   }
 
@@ -300,26 +213,6 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       case _ =>
         throw new TableException("Unrecognized expression: " + other)
     }
-  }
-
-  private def getValue[T](literal: PlannerExpression): T = {
-    literal.asInstanceOf[Literal].value.asInstanceOf[T]
-  }
-
-  private def assert(condition: Boolean): Unit = {
-    if (!condition) {
-      throw new ValidationException("Invalid number of arguments for function.")
-    }
-  }
-
-  private def translateWindowReference(reference: Expression): PlannerExpression = reference match {
-    case expr: LocalReferenceExpression =>
-      WindowReference(expr.getName, Some(fromDataTypeToTypeInfo(expr.getOutputDataType)))
-    // just because how the datastream is converted to table
-    case expr: UnresolvedReferenceExpression =>
-      UnresolvedFieldReference(expr.getName)
-    case _ =>
-      throw new ValidationException(s"Expected LocalReferenceExpression. Got: $reference")
   }
 }
 

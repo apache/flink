@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.graph.GlobalStreamExchangeMode;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.delegation.Executor;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;
@@ -38,10 +38,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DefaultExecutor}. */
-public class DefaultExecutorTest {
+class DefaultExecutorTest {
 
     @Test
-    public void testJobName() {
+    void testJobName() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final Executor executor = new DefaultExecutor(env);
         final List<Transformation<?>> dummyTransformations =
@@ -71,7 +71,7 @@ public class DefaultExecutorTest {
     }
 
     @Test
-    public void testDefaultBatchProperties() {
+    void testDefaultBatchProperties() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final Executor executor = new DefaultExecutor(env);
 

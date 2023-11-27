@@ -25,17 +25,17 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
-import org.junit.Assert.assertEquals
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // enable checkpoint, we are using failing source to force have a complete checkpoint
@@ -65,7 +65,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     tEnv.createFunction("concat_distinct_agg", classOf[ConcatDistinctAggFunction])
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindow(): Unit = {
     val sql =
       """
@@ -105,10 +105,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       "b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3,2",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null,1"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowWithRankOffset(): Unit = {
     val sql =
       """
@@ -144,10 +145,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val expected = Seq(
       "a,2020-10-10T00:00:05,2020-10-10T00:00:10,1,3.33,null,3.0,1,Comment#2,2",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3,2")
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowWithoutRankNumber(): Unit = {
     val sql =
       """
@@ -183,10 +185,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val expected = Seq(
       "a,2020-10-10T00:00:05,2020-10-10T00:00:10,1,3.33,null,3.0,1,Comment#2",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3")
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowTVF(): Unit = {
     val sql =
       s"""
@@ -235,10 +238,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowTVFWithOffset(): Unit = {
     val sql =
       s"""
@@ -287,10 +291,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:31,2020-10-10T00:00:36,2020-10-10T00:00:35.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowTVFWithNegativeOffset(): Unit = {
     val sql =
       s"""
@@ -341,10 +346,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:34,2020-10-10T00:00:39,2020-10-10T00:00:38.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTumbleWindowTVFWithCalc(): Unit = {
     val sql =
       """
@@ -380,10 +386,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         "7,null,null,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
         "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:35,2020-10-10T00:00:34.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testHopWindow(): Unit = {
     val sql =
       """
@@ -429,10 +436,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       "null,2020-10-10T00:00:25,2020-10-10T00:00:35,1,7.77,7.0,7.0,0,null,1",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null,1"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testHopWindowWithRankOffset(): Unit = {
     val sql =
       """
@@ -471,10 +479,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       "b,2020-10-10T00:00:25,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3,2",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3,2"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testHopWindowWithoutRankNumber(): Unit = {
     val sql =
       """
@@ -513,10 +522,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       "b,2020-10-10T00:00:25,2020-10-10T00:00:35,1,3.33,3.0,3.0,1,Comment#3",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testHopWindowTVF(): Unit = {
     val sql =
       s"""
@@ -579,10 +589,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testHopWindowTVFWithCalc(): Unit = {
     val sql =
       """
@@ -625,10 +636,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         "1,Comment#3,b,2020-10-10T00:00:25,2020-10-10T00:00:35,2020-10-10T00:00:34.999",
         "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testCumulateWindow(): Unit = {
     val sql =
       """
@@ -680,10 +692,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       "null,2020-10-10T00:00:30,2020-10-10T00:00:40,1,7.77,7.0,7.0,0,null,1",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:45,1,7.77,7.0,7.0,0,null,1"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testCumulateWindowWithRankOffset(): Unit = {
     val sql =
       """
@@ -726,10 +739,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3,2",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1,Comment#3,2"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testCumulateWindowWithoutRankNumber(): Unit = {
     val sql =
       """
@@ -773,10 +787,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       "b,2020-10-10T00:00:30,2020-10-10T00:00:40,1,3.33,3.0,3.0,1,Comment#3",
       "b,2020-10-10T00:00:30,2020-10-10T00:00:45,1,3.33,3.0,3.0,1,Comment#3"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testTop1(): Unit = {
     val sql =
       """
@@ -810,10 +825,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       "b,2020-10-10T00:00:15,2020-10-10T00:00:20,1,4.44,1",
       "null,2020-10-10T00:00:30,2020-10-10T00:00:35,1,7.77,1"
     )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testCumulateWindowTVF(): Unit = {
     val sql =
       s"""
@@ -888,10 +904,11 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         "2020-10-10T00:00:34,1,3.0,3.0,3.33,Comment#3,b,2020-10-10 00:00:34.000," +
           "2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 
-  @Test
+  @TestTemplate
   def testCumulateWindowTVFWithCalc(): Unit = {
     val sql =
       """
@@ -942,6 +959,7 @@ class WindowRankITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:40,2020-10-10T00:00:39.999",
         "1,Comment#3,b,2020-10-10T00:00:30,2020-10-10T00:00:45,2020-10-10T00:00:44.999"
       )
-    assertEquals(expected.sorted.mkString("\n"), sink.getAppendResults.sorted.mkString("\n"))
+    assertThat(sink.getAppendResults.sorted.mkString("\n"))
+      .isEqualTo(expected.sorted.mkString("\n"))
   }
 }

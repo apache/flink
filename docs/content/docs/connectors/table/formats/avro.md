@@ -81,6 +81,16 @@ Format Options
       <td>Specify what format to use, here should be <code>'avro'</code>.</td>
     </tr>
     <tr>
+      <td><h5>avro.encoding</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td>binary</td>
+      <td>String</td>
+      <td>Serialization encoding to use. The valid enumerations are: <code>binary</code>, <code>json</code>. <a href="https://avro.apache.org/docs/current/specification/#encodings">(reference)</a><br>
+      Most applications will use the binary encoding, as it results in smaller and more efficient messages, reducing the usage of disk and network resources, and improving performance for high throughput data. <br>
+      JSON encoding results in human-readable messages which can be useful during development and debugging, and is useful for compatibility when interacting with systems that cannot process binary encoded data.</td>
+    </tr>
+    <tr>
       <td><h5>avro.codec</h5></td>
       <td>optional</td>
       <td>yes</td>

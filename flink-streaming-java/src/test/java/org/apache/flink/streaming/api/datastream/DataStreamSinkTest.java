@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
-import org.apache.flink.streaming.runtime.operators.sink.TestSink;
+import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 
 import org.junit.Test;
 
@@ -33,13 +33,15 @@ public class DataStreamSinkTest {
     public void testGettingTransformationWithNewSinkAPI() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final Transformation<?> transformation =
-                env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).getTransformation();
+                env.fromElements(1, 2)
+                        .sinkTo(TestSinkV2.<Integer>newBuilder().build())
+                        .getTransformation();
         assertTrue(transformation instanceof SinkTransformation);
     }
 
     @Test(expected = UnsupportedOperationException.class)
     public void throwExceptionWhenSetUidWithNewSinkAPI() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).setUidHash("Test");
+        env.fromElements(1, 2).sinkTo(TestSinkV2.<Integer>newBuilder().build()).setUidHash("Test");
     }
 }

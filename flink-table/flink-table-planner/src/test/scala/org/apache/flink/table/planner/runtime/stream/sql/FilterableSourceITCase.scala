@@ -18,23 +18,25 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala.createTypeInformation
+import org.apache.flink.core.testutils.EachCallbackWrapper
 import org.apache.flink.table.api.bridge.scala.tableConversions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.utils.LegacyRowResource
+import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.types.Row
 
-import org.junit.{Rule, Test}
-import org.junit.Assert.assertEquals
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.time.LocalDateTime
 
 /** Tests for pushing filters into a table scan */
 class FilterableSourceITCase extends StreamingTestBase {
 
-  @Rule
-  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
+  @RegisterExtension private val _: EachCallbackWrapper[LegacyRowExtension] =
+    new EachCallbackWrapper[LegacyRowExtension](new LegacyRowExtension)
 
   @Test
   def testFilterPushdown(): Unit = {
@@ -71,7 +73,7 @@ class FilterableSourceITCase extends StreamingTestBase {
     result.addSink(sink)
 
     env.execute()
-    assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expectedData.sorted)
   }
 
   @Test
@@ -111,7 +113,7 @@ class FilterableSourceITCase extends StreamingTestBase {
     result.addSink(sink)
 
     env.execute()
-    assertEquals(expectedData.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expectedData.sorted)
   }
 
   @Test
@@ -153,6 +155,6 @@ class FilterableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = List("2,3")
-    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 }

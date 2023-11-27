@@ -25,13 +25,13 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.runtime.functions.aggregate.FirstValueAggFunction
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class SubplanReuseTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util.tableEnv.getConfig
       .set(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, Boolean.box(true))
@@ -107,7 +107,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnCalcWithNonDeterministicProject(): Unit = {
-    util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf())
+    util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf())
 
     val sqlQuery =
       """
@@ -120,7 +120,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnCalcWithNonDeterministicUdf(): Unit = {
-    util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf())
+    util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf())
 
     val sqlQuery =
       """
@@ -225,7 +225,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnJoinNonDeterministicJoinCondition(): Unit = {
-    util.tableEnv.registerFunction("random_udf", new NonDeterministicUdf)
+    util.addTemporarySystemFunction("random_udf", new NonDeterministicUdf)
     val sqlQuery =
       """
         |WITH r AS (SELECT * FROM x FULL OUTER JOIN y ON random_udf(a) = random_udf(d) OR c = f
@@ -264,7 +264,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnCorrelate(): Unit = {
-    util.addFunction("str_split", new StringSplit())
+    util.addTemporarySystemFunction("str_split", new StringSplit())
     val sqlQuery =
       """
         |WITH r AS (SELECT a, b, c, v FROM x, LATERAL TABLE(str_split(c, '-')) AS T(v))
@@ -277,7 +277,7 @@ class SubplanReuseTest extends TableTestBase {
 
   @Test
   def testSubplanReuseOnCorrelateWithNonDeterministicUDTF(): Unit = {
-    util.addFunction("TableFun", new NonDeterministicTableFunc)
+    util.addTemporarySystemFunction("TableFun", new NonDeterministicTableFunc)
 
     val sqlQuery =
       """
