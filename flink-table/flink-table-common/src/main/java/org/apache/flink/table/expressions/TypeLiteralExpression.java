@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -55,6 +56,12 @@ public final class TypeLiteralExpression implements ResolvedExpression {
     @Override
     public String asSummaryString() {
         return dataType.toString();
+    }
+
+    @Override
+    public String asSerializableString() {
+        final LogicalType logicalType = dataType.getLogicalType();
+        return logicalType.copy(true).asSerializableString();
     }
 
     @Override
