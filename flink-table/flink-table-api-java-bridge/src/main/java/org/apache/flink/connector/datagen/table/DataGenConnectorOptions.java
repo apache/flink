@@ -34,6 +34,7 @@ import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUt
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.NULL_RATE;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.ROWS_PER_SECOND_DEFAULT_VALUE;
 import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.START;
+import static org.apache.flink.connector.datagen.table.DataGenConnectorOptionsUtil.VAR_LEN;
 
 /** Options for the DataGen connector. */
 @PublicEvolving
@@ -115,6 +116,14 @@ public class DataGenConnectorOptions {
                     .floatType()
                     .defaultValue(0f)
                     .withDescription("The proportion of null values.");
+
+    /** Placeholder {@link ConfigOption}. Not used for retrieving values. */
+    public static final ConfigOption<Float> FIELD_VAR_LEN =
+            ConfigOptions.key(String.format("%s.#.%s", FIELDS, VAR_LEN))
+                    .floatType()
+                    .defaultValue(0f)
+                    .withDescription(
+                            "Whether to generate a variable-length data, please notice that it should only be used for variable-length types (varchar, string, varbinary, bytes).");
 
     private DataGenConnectorOptions() {}
 }
