@@ -28,6 +28,9 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.VarBinaryType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import java.util.HashSet;
 import java.util.List;
@@ -69,6 +72,7 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
         options.add(DataGenConnectorOptions.FIELD_START);
         options.add(DataGenConnectorOptions.FIELD_END);
         options.add(DataGenConnectorOptions.FIELD_NULL_RATE);
+        options.add(DataGenConnectorOptions.FIELD_VAR_LEN);
 
         return options;
     }
@@ -127,11 +131,37 @@ public class DataGenTableSourceFactory implements DynamicTableSourceFactory {
             String name, DataType type, String kind, ReadableConfig options) {
         switch (kind) {
             case DataGenConnectorOptionsUtil.RANDOM:
+                validateFieldOptions(name, type, options);
                 return type.getLogicalType().accept(new RandomGeneratorVisitor(name, options));
             case DataGenConnectorOptionsUtil.SEQUENCE:
                 return type.getLogicalType().accept(new SequenceGeneratorVisitor(name, options));
             default:
                 throw new ValidationException("Unsupported generator kind: " + kind);
         }
+    }
+
+    private void validateFieldOptions(String name, DataType type, ReadableConfig options) {
+        ConfigOption<Boolean> lenOption =
+                key(DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.VAR_LEN)
+                        .booleanType()
+                        .defaultValue(false);
+        options.getOptional(lenOption)
+                .filter(option -> option)
+                .ifPresent(
+                        option -> {
+                            LogicalType logicalType = type.getLogicalType();
+                            if (!(logicalType instanceof VarCharType
+                                    || logicalType instanceof VarBinaryType)) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "Only supports specifying '%s' option for variable-length types (varchar, string, varbinary, bytes). The type of field %s is not within this range.",
+                                                "fields.#." + DataGenConnectorOptionsUtil.VAR_LEN,
+                                                name));
+                            }
+                        });
     }
 }

@@ -445,6 +445,7 @@ fields.amount.null-rate
 fields.product.kind
 fields.product.length
 fields.product.null-rate
+fields.product.var-len
 fields.ts.kind
 fields.ts.max-past
 fields.ts.null-rate

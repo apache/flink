@@ -139,6 +139,13 @@ CREATE TABLE datagen (
       <td>随机生成器生成字符的长度，适用于 char、varchar、binary、varbinary、string。</td>
     </tr>
     <tr>
+      <td><h5>fields.#.var-len</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>是否生成变长数据，请注意只能用于变长类型（varchar、string、varbinary、bytes）。</td>
+    </tr>
+    <tr>
       <td><h5>fields.#.start</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>

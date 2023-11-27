@@ -85,6 +85,8 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
 
     private final ConfigOptions.OptionBuilder nullRate;
 
+    private final ConfigOptions.OptionBuilder varLen;
+
     public RandomGeneratorVisitor(String name, ReadableConfig config) {
         super(name, config);
 
@@ -117,6 +119,14 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
                                 + name
                                 + "."
                                 + DataGenConnectorOptionsUtil.NULL_RATE);
+
+        this.varLen =
+                key(
+                        DataGenConnectorOptionsUtil.FIELDS
+                                + "."
+                                + name
+                                + "."
+                                + DataGenConnectorOptionsUtil.VAR_LEN);
     }
 
     @Override
@@ -154,10 +164,15 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
                         .intType()
                         .defaultValue(RANDOM_STRING_LENGTH_DEFAULT);
         ConfigOption<Float> nr = nullRate.floatType().defaultValue(NULL_RATE_DEFAULT);
+        ConfigOption<Boolean> varLenOption = varLen.booleanType().defaultValue(false);
+
         return DataGeneratorContainer.of(
-                getRandomStringGenerator(config.get(lenOption)).withNullRate(config.get(nr)),
+                getRandomStringGenerator(config.get(lenOption))
+                        .withNullRate(config.get(nr))
+                        .withVarLen(config.get(varLenOption)),
                 lenOption,
-                nr);
+                nr,
+                varLenOption);
     }
 
     @Override
@@ -183,7 +198,11 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
                                 + DataGenConnectorOptionsUtil.LENGTH)
                         .intType()
                         .defaultValue(RANDOM_BYTES_LENGTH_DEFAULT);
-        return DataGeneratorContainer.of(getRandomBytesGenerator(config.get(lenOption)), lenOption);
+        ConfigOption<Boolean> varLenOption = varLen.booleanType().defaultValue(false);
+        return DataGeneratorContainer.of(
+                getRandomBytesGenerator(config.get(lenOption)).withVarLen(config.get(varLenOption)),
+                lenOption,
+                varLenOption);
     }
 
     @Override
@@ -476,7 +495,8 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
             public StringData next() {
                 if (nullRate == NULL_RATE_DEFAULT
                         || ThreadLocalRandom.current().nextFloat() > nullRate) {
-                    return StringData.fromString(random.nextHexString(length));
+                    int len = generateLength(length, varLen);
+                    return StringData.fromString(random.nextHexString(len));
                 }
                 return null;
             }
@@ -503,10 +523,14 @@ public class RandomGeneratorVisitor extends DataGenVisitorBase {
         return new RandomGenerator<byte[]>() {
             @Override
             public byte[] next() {
-                byte[] arr = new byte[length];
+                byte[] arr = new byte[generateLength(length, varLen)];
                 random.getRandomGenerator().nextBytes(arr);
                 return arr;
             }
         };
+    }
+
+    private static int generateLength(int maxLength, boolean varLen) {
+        return varLen ? ThreadLocalRandom.current().nextInt(1, maxLength) : maxLength;
     }
 }
