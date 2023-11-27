@@ -232,6 +232,17 @@ public abstract class SqlITCaseBase extends TestLogger {
         return result;
     }
 
+    /**
+     * The raw data read from the file system can be mapped and transformed. For example, subclasses
+     * can override this method to obtain the final result after materialization.
+     *
+     * <pre>{@code
+     * @Override
+     * protected List<String> formatRawResult(List<String> rawResults) {
+     *     return convertToMaterializedResult(rawResults, schema, deserializationSchema);
+     * }
+     * }</pre>
+     */
     protected List<String> formatRawResult(List<String> rawResults) {
         return rawResults;
     }
@@ -262,10 +273,9 @@ public abstract class SqlITCaseBase extends TestLogger {
             Row key = Row.project(row, schema.getPrimaryKeyIndexes());
             key.setKind(RowKind.INSERT);
 
-            Row upsertRow = Row.copy(row);
-            upsertRow.setKind(RowKind.INSERT);
-
             if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
+                Row upsertRow = Row.copy(row);
+                upsertRow.setKind(RowKind.INSERT);
                 upsertResult.put(key, upsertRow);
             } else {
                 Row oldValue = upsertResult.remove(key);
@@ -280,6 +290,10 @@ public abstract class SqlITCaseBase extends TestLogger {
         return upsertResult.values().stream().map(Row::toString).collect(Collectors.toList());
     }
 
+    /**
+     * Create a DebeziumJsonDeserializationSchema using the given {@link ResolvedSchema} to convert
+     * debezium-json formatted record into {@link RowData}.
+     */
     protected static DebeziumJsonDeserializationSchema createDebeziumDeserializationSchema(
             ResolvedSchema schema) {
         return new DebeziumJsonDeserializationSchema(
