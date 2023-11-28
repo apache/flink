@@ -240,6 +240,21 @@ public class NetworkBufferPoolTest extends TestLogger {
         assertNotNull(globalPool.createBufferPool(10, 10, Integer.MAX_VALUE));
     }
 
+    @Test
+    public void testRedistributeBuffers() throws IOException {
+        final int numBuffers = 13;
+
+        NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, 128);
+
+        BufferPool pool1 = globalPool.createBufferPool(3, 2, Integer.MAX_VALUE);
+        BufferPool pool2 = globalPool.createBufferPool(4, 2, Integer.MAX_VALUE);
+        BufferPool pool3 = globalPool.createBufferPool(6, 2, Integer.MAX_VALUE);
+
+        assertEquals(3, pool1.getNumBuffers());
+        assertEquals(4, pool2.getNumBuffers());
+        assertEquals(6, pool3.getNumBuffers());
+    }
+
     /**
      * Tests {@link NetworkBufferPool#requestUnpooledMemorySegments(int)} with the {@link
      * NetworkBufferPool} currently containing the number of required free segments.

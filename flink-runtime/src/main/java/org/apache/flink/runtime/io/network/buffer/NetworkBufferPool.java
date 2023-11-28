@@ -29,7 +29,6 @@ import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -86,6 +85,8 @@ public class NetworkBufferPool
     private final Set<LocalBufferPool> resizableBufferPools = new HashSet<>();
 
     private int numTotalRequiredBuffers;
+
+    private int numUnpooledBuffers;
 
     private final Duration requestSegmentsTimeout;
 
@@ -200,7 +201,6 @@ public class NetworkBufferPool
      * unpooled segments needs to be accounted against {@link #numTotalRequiredBuffers}, which might
      * require redistribution of the segments.
      */
-    @Deprecated
     @Override
     public List<MemorySegment> requestUnpooledMemorySegments(int numberOfSegmentsToRequest)
             throws IOException {
@@ -297,6 +297,7 @@ public class NetworkBufferPool
     private void revertRequiredBuffers(int size) {
         synchronized (factoryLock) {
             numTotalRequiredBuffers -= size;
+            numUnpooledBuffers -= size;
 
             // note: if this fails, we're fine for the buffer pool since we already recycled the
             // segments
@@ -495,32 +496,17 @@ public class NetworkBufferPool
 
             // Ensure that the number of required buffers can be satisfied.
             // With dynamic memory management this should become obsolete.
-            if (getRemainingBuffers() < numExpectedBuffers) {
-                LOG.warn(
-                        "The number of expected buffers cannot be met, decrease the number of buffers for all local buffer pools.");
-
-                while (true) {
-                    int decreased = decreaseAllLocalBufferPools();
-                    numTotalRequiredBuffers -= decreased;
-                    numExpectedBuffers =
-                            decreaseNumberOfExpectedMemorySegments(
-                                    numExpectedBuffers, minUsedBuffers);
-
-                    if (getRemainingBuffers() >= numExpectedBuffers) {
-                        break;
-                    } else if (decreased == 0) {
-                        throw new IOException(
-                                String.format(
-                                        "Insufficient number of network buffers: "
-                                                + "required %d, but only %d available.%s.",
-                                        numExpectedBuffers,
-                                        getRemainingBuffers(),
-                                        getConfigDescription()));
-                    }
-                }
+            if (numTotalRequiredBuffers + minUsedBuffers > totalNumberOfMemorySegments) {
+                throw new IOException(
+                        String.format(
+                                "Insufficient number of network buffers: "
+                                        + "required %d, but only %d available. %s.",
+                                minUsedBuffers,
+                                totalNumberOfMemorySegments - numTotalRequiredBuffers,
+                                getConfigDescription()));
             }
 
-            this.numTotalRequiredBuffers += numExpectedBuffers;
+            this.numTotalRequiredBuffers += minUsedBuffers;
 
             // We are good to go, create a new buffer pool and redistribute
             // non-fixed size buffers.
@@ -536,7 +522,7 @@ public class NetworkBufferPool
 
             allBufferPools.add(localBufferPool);
 
-            if (numExpectedBuffers < maxUsedBuffers) {
+            if (minUsedBuffers < maxUsedBuffers) {
                 resizableBufferPools.add(localBufferPool);
             }
 
@@ -544,33 +530,6 @@ public class NetworkBufferPool
 
             return localBufferPool;
         }
-    }
-
-    private int decreaseNumberOfExpectedMemorySegments(int numberOfMemorySegments, int min) {
-        int decreased = (int) Math.ceil((double) numberOfMemorySegments / 2);
-        return decreased >= min ? decreased : min;
-    }
-
-    private int decreaseAllLocalBufferPools() {
-        assert Thread.holdsLock(factoryLock);
-
-        int totalDecreased = 0;
-        for (LocalBufferPool pool : allBufferPools) {
-            int oldExpected = pool.getNumberOfExpectedMemorySegments();
-            int minBuffers = pool.getMinNumberOfMemorySegments();
-
-            if (oldExpected > minBuffers) {
-                int newExpected = decreaseNumberOfExpectedMemorySegments(oldExpected, minBuffers);
-                //                pool.setNumberOfExpectedMemorySegments(newExpected);
-                pool.setNumBuffers(newExpected);
-                totalDecreased += (oldExpected - newExpected);
-            }
-        }
-        return totalDecreased;
-    }
-
-    private int getRemainingBuffers() {
-        return totalNumberOfMemorySegments - numTotalRequiredBuffers;
     }
 
     @Override
@@ -617,34 +576,24 @@ public class NetworkBufferPool
     private void tryRedistributeBuffers(int numberOfSegmentsToRequest) throws IOException {
         assert Thread.holdsLock(factoryLock);
 
-        if (getRemainingBuffers() < numberOfSegmentsToRequest) {
-            LOG.warn(
-                    "The number of expected buffers cannot be met, decrease the number of buffers for all local buffer pools.");
-
-            while (true) {
-                int decreased = decreaseAllLocalBufferPools();
-                numTotalRequiredBuffers -= decreased;
-
-                if (getRemainingBuffers() >= numberOfSegmentsToRequest) {
-                    break;
-                } else if (decreased == 0) {
-                    throw new IOException(
-                            String.format(
-                                    "Insufficient number of network buffers: "
-                                            + "required %d, but only %d available.%s.",
-                                    numberOfSegmentsToRequest,
-                                    getRemainingBuffers(),
-                                    getConfigDescription()));
-                }
-            }
+        if (numTotalRequiredBuffers + numberOfSegmentsToRequest > totalNumberOfMemorySegments) {
+            throw new IOException(
+                    String.format(
+                            "Insufficient number of network buffers: "
+                                    + "required %d, but only %d available. %s.",
+                            numberOfSegmentsToRequest,
+                            totalNumberOfMemorySegments - numTotalRequiredBuffers,
+                            getConfigDescription()));
         }
 
         this.numTotalRequiredBuffers += numberOfSegmentsToRequest;
+        this.numUnpooledBuffers += numberOfSegmentsToRequest;
 
         try {
             redistributeBuffers();
         } catch (Throwable t) {
             this.numTotalRequiredBuffers -= numberOfSegmentsToRequest;
+            this.numUnpooledBuffers -= numberOfSegmentsToRequest;
 
             redistributeBuffers();
             ExceptionUtils.rethrow(t);
@@ -660,31 +609,30 @@ public class NetworkBufferPool
         }
 
         // All buffers, which are not among the required ones
-        final int numAvailableMemorySegment = getRemainingBuffers();
+        final int numAvailableMemorySegment = totalNumberOfMemorySegments - numTotalRequiredBuffers;
 
         if (numAvailableMemorySegment == 0) {
             // in this case, we need to redistribute buffers so that every pool gets its minimum
             for (LocalBufferPool bufferPool : resizableBufferPools) {
-                bufferPool.setNumBuffers(bufferPool.getNumberOfExpectedMemorySegments());
+                bufferPool.setNumBuffers(bufferPool.getMinNumberOfMemorySegments());
             }
             return;
         }
 
         /*
          * With buffer pools being potentially limited, let's distribute the available memory
-         * segments based on the capacity of each buffer pool, i.e. the maximum number of segments
-         * an unlimited buffer pool can take is numAvailableMemorySegment, for limited buffer pools
-         * it may be less. Based on this and the sum of all these values (totalCapacity), we build
-         * a ratio that we use to distribute the buffers.
+         * segments based on the number of expected buffers of each buffer pool as the weight.
          */
 
         long totalCapacity = 0; // long to avoid int overflow
+        long totalExpected = 0;
 
-        for (LocalBufferPool bufferPool : resizableBufferPools) {
+        for (LocalBufferPool bufferPool : allBufferPools) {
             int excessMax =
                     bufferPool.getMaxNumberOfMemorySegments()
                             - bufferPool.getNumberOfExpectedMemorySegments();
             totalCapacity += Math.min(numAvailableMemorySegment, excessMax);
+            totalExpected += bufferPool.getNumberOfExpectedMemorySegments();
         }
 
         // no capacity to receive additional buffers?
@@ -692,41 +640,26 @@ public class NetworkBufferPool
             return; // necessary to avoid div by zero when nothing to re-distribute
         }
 
-        // since one of the arguments of 'min(a,b)' is a positive int, this is actually
-        // guaranteed to be within the 'int' domain
-        // (we use a checked downCast to handle possible bugs more gracefully).
-        final int memorySegmentsToDistribute =
-                MathUtils.checkedDownCast(Math.min(numAvailableMemorySegment, totalCapacity));
+        double allocatedFraction = 0.0;
+        int totalAllocated = 0;
 
-        long totalPartsUsed = 0; // of totalCapacity
-        int numDistributedMemorySegment = 0;
-        for (LocalBufferPool bufferPool : resizableBufferPools) {
-            int excessMax =
-                    bufferPool.getMaxNumberOfMemorySegments()
-                            - bufferPool.getNumberOfExpectedMemorySegments();
+        for (LocalBufferPool bufferPool : allBufferPools) {
+            double weight = (double) bufferPool.getNumberOfExpectedMemorySegments() / totalExpected;
+            allocatedFraction += weight;
 
-            // shortcut
-            if (excessMax == 0) {
-                continue;
-            }
+            int numBuffers =
+                    (int) ((totalNumberOfMemorySegments - numUnpooledBuffers) * allocatedFraction)
+                            - totalAllocated;
 
-            totalPartsUsed += Math.min(numAvailableMemorySegment, excessMax);
+            // Ensure the kid gets at least the minimum and at most the maximum number of apples
+            numBuffers =
+                    Math.max(
+                            bufferPool.getMinNumberOfMemorySegments(),
+                            Math.min(bufferPool.getMaxNumberOfMemorySegments(), numBuffers));
 
-            // avoid remaining buffers by looking at the total capacity that should have been
-            // re-distributed up until here
-            // the downcast will always succeed, because both arguments of the subtraction are in
-            // the 'int' domain
-            final int mySize =
-                    MathUtils.checkedDownCast(
-                            memorySegmentsToDistribute * totalPartsUsed / totalCapacity
-                                    - numDistributedMemorySegment);
-
-            numDistributedMemorySegment += mySize;
-            bufferPool.setNumBuffers(bufferPool.getNumberOfExpectedMemorySegments() + mySize);
+            bufferPool.setNumBuffers(numBuffers);
+            totalAllocated += numBuffers;
         }
-
-        assert (totalPartsUsed == totalCapacity);
-        assert (numDistributedMemorySegment == memorySegmentsToDistribute);
     }
 
     private String getConfigDescription() {
