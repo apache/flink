@@ -2347,9 +2347,10 @@ public class StreamExecutionEnvironment implements AutoCloseable {
      */
     @PublicEvolving
     public JobClient executeAsync(String jobName) throws Exception {
-        Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
         final StreamGraph streamGraph = getStreamGraph();
-        streamGraph.setJobName(jobName);
+        if (jobName != null) {
+            streamGraph.setJobName(jobName);
+        }
         return executeAsync(streamGraph);
     }
 
