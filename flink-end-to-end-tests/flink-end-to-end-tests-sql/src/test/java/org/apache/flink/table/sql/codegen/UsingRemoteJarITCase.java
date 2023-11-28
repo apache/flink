@@ -18,6 +18,11 @@
 
 package org.apache.flink.table.sql.codegen;
 
+import org.apache.flink.formats.json.debezium.DebeziumJsonDeserializationSchema;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.test.util.SQLJobSubmission;
 import org.apache.flink.tests.util.flink.ClusterController;
@@ -32,7 +37,9 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -44,10 +51,23 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-/** End to End tests for using remote jar. */
+/** End-to-End tests for using remote jar. */
 public class UsingRemoteJarITCase extends SqlITCaseBase {
     private static final Path HADOOP_CLASSPATH =
             ResourceTestUtils.getResource(".*hadoop.classpath");
+
+    private static final ResolvedSchema USER_ORDER_SCHEMA =
+            new ResolvedSchema(
+                    Arrays.asList(
+                            Column.physical("user_name", DataTypes.STRING()),
+                            Column.physical("order_cnt", DataTypes.BIGINT())),
+                    Collections.emptyList(),
+                    UniqueConstraint.primaryKey("pk", Collections.singletonList("user_name")));
+
+    private static final DebeziumJsonDeserializationSchema USER_ORDER_DESERIALIZATION_SCHEMA =
+            createDebeziumDeserializationSchema(USER_ORDER_SCHEMA);
+
+    @Rule public TestName name = new TestName();
 
     private MiniDFSCluster hdfsCluster;
     private org.apache.hadoop.fs.Path hdPath;
@@ -85,9 +105,8 @@ public class UsingRemoteJarITCase extends SqlITCaseBase {
 
             hdfs.copyFromLocalFile(
                     new org.apache.hadoop.fs.Path(SQL_TOOL_BOX_JAR.toString()), hdPath);
-        } catch (Throwable e) {
-            e.printStackTrace();
-            Assert.fail("Test failed " + e.getMessage());
+        } catch (IOException e) {
+            Assert.fail("Failed to copy local test.jar to HDFS env" + e.getMessage());
         }
     }
 
@@ -97,7 +116,7 @@ public class UsingRemoteJarITCase extends SqlITCaseBase {
             hdfs.delete(hdPath, false);
             hdfsCluster.shutdown();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            Assert.fail("Failed to cleanup HDFS path" + e.getMessage());
         }
     }
 
@@ -105,47 +124,38 @@ public class UsingRemoteJarITCase extends SqlITCaseBase {
     public void testUdfInRemoteJar() throws Exception {
         runAndCheckSQL(
                 "remote_jar_e2e.sql",
-                generateReplaceVars(),
-                2,
-                Arrays.asList(
-                        "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
-                        "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));
+                Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]"),
+                raw ->
+                        convertToMaterializedResult(
+                                raw, USER_ORDER_SCHEMA, USER_ORDER_DESERIALIZATION_SCHEMA));
     }
 
     @Test
     public void testScalarUdfWhenCheckpointEnable() throws Exception {
         runAndCheckSQL(
                 "scalar_udf_e2e.sql",
-                generateReplaceVars(),
-                1,
                 Collections.singletonList(
                         "{\"before\":null,\"after\":{\"id\":1,\"str\":\"Hello Flink\"},\"op\":\"c\"}"));
     }
 
     @Test
     public void testCreateTemporarySystemFunctionUsingRemoteJar() throws Exception {
-        Map<String, String> replaceVars = generateReplaceVars();
-        replaceVars.put("$TEMPORARY", "TEMPORARY SYSTEM");
         runAndCheckSQL(
                 "create_function_using_remote_jar_e2e.sql",
-                replaceVars,
-                2,
-                Arrays.asList(
-                        "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
-                        "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));
+                Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]"),
+                raw ->
+                        convertToMaterializedResult(
+                                raw, USER_ORDER_SCHEMA, USER_ORDER_DESERIALIZATION_SCHEMA));
     }
 
     @Test
     public void testCreateCatalogFunctionUsingRemoteJar() throws Exception {
-        Map<String, String> replaceVars = generateReplaceVars();
-        replaceVars.put("$TEMPORARY", "");
         runAndCheckSQL(
                 "create_function_using_remote_jar_e2e.sql",
-                replaceVars,
-                2,
-                Arrays.asList(
-                        "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
-                        "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));
+                Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]"),
+                raw ->
+                        convertToMaterializedResult(
+                                raw, USER_ORDER_SCHEMA, USER_ORDER_DESERIALIZATION_SCHEMA));
     }
 
     @Test
@@ -154,11 +164,10 @@ public class UsingRemoteJarITCase extends SqlITCaseBase {
         replaceVars.put("$TEMPORARY", "TEMPORARY");
         runAndCheckSQL(
                 "create_function_using_remote_jar_e2e.sql",
-                replaceVars,
-                2,
-                Arrays.asList(
-                        "{\"before\":null,\"after\":{\"user_name\":\"Alice\",\"order_cnt\":1},\"op\":\"c\"}",
-                        "{\"before\":null,\"after\":{\"user_name\":\"Bob\",\"order_cnt\":2},\"op\":\"c\"}"));
+                Arrays.asList("+I[Bob, 2]", "+I[Alice, 1]"),
+                raw ->
+                        convertToMaterializedResult(
+                                raw, USER_ORDER_SCHEMA, USER_ORDER_DESERIALIZATION_SCHEMA));
     }
 
     @Override
@@ -168,9 +177,17 @@ public class UsingRemoteJarITCase extends SqlITCaseBase {
                         "hdfs://%s:%s/%s",
                         hdfsCluster.getURI().getHost(), hdfsCluster.getNameNodePort(), hdPath);
 
-        Map<String, String> map = super.generateReplaceVars();
-        map.put("$JAR_PATH", remoteJarPath);
-        return map;
+        Map<String, String> varsMap = super.generateReplaceVars();
+        varsMap.put("$JAR_PATH", remoteJarPath);
+        String methodName = name.getMethodName();
+        if (methodName.startsWith("testCreateTemporarySystemFunction")) {
+            varsMap.put("$TEMPORARY", "TEMPORARY SYSTEM");
+        } else if (methodName.startsWith("testCreateTemporaryCatalogFunction")) {
+            varsMap.put("$TEMPORARY", "TEMPORARY");
+        } else if (methodName.startsWith("testCreateCatalogFunction")) {
+            varsMap.put("$TEMPORARY", "");
+        }
+        return varsMap;
     }
 
     @Override
