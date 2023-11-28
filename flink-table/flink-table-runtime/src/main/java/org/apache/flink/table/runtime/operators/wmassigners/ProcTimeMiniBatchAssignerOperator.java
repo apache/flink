@@ -36,7 +36,7 @@ import org.apache.flink.table.data.RowData;
  *
  * <p>NOTE: currently, we use {@link Watermark} to represents the mini-batch marker.
  *
- * <p>The difference between this operator and {@link RowTimeMiniBatchAssginerOperator} is that,
+ * <p>The difference between this operator and {@link RowTimeMiniBatchAssignerOperator} is that,
  * this operator generates watermarks by itself using processing time, but the other forwards
  * watermarks from upstream.
  */
