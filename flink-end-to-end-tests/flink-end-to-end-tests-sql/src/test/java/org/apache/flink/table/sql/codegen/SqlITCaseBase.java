@@ -18,13 +18,24 @@
 
 package org.apache.flink.table.sql.codegen;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.testutils.source.deserialization.TestingDeserializationContext;
+import org.apache.flink.formats.common.TimestampFormat;
+import org.apache.flink.formats.json.debezium.DebeziumJsonDeserializationSchema;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.conversion.RowRowConverter;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.test.resources.ResourceTestUtils;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
+import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -45,12 +56,16 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Base class for sql ITCase. */
@@ -73,9 +88,9 @@ public abstract class SqlITCaseBase extends TestLogger {
 
     @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
-    private final String executionMode;
+    protected final String executionMode;
 
-    private Path result;
+    protected Path result;
 
     protected static final Path SQL_TOOL_BOX_JAR =
             ResourceTestUtils.getResource(".*SqlToolbox.jar");
@@ -98,17 +113,44 @@ public abstract class SqlITCaseBase extends TestLogger {
         this.result = tmpPath.resolve(String.format("result-%s", UUID.randomUUID()));
     }
 
+    public void runAndCheckSQL(String sqlPath, List<String> resultItems) throws Exception {
+        runAndCheckSQL(sqlPath, Collections.singletonMap(result, resultItems));
+    }
+
     public void runAndCheckSQL(
-            String sqlPath, Map<String, String> varsMap, int resultSize, List<String> resultItems)
+            String sqlPath,
+            List<String> resultItems,
+            Function<List<String>, List<String>> formatter)
+            throws Exception {
+        runAndCheckSQL(
+                sqlPath,
+                Collections.singletonMap(result, resultItems),
+                Collections.singletonMap(result, formatter));
+    }
+
+    public void runAndCheckSQL(String sqlPath, Map<Path, List<String>> resultItems)
+            throws Exception {
+        runAndCheckSQL(sqlPath, resultItems, Collections.emptyMap());
+    }
+
+    public void runAndCheckSQL(
+            String sqlPath,
+            Map<Path, List<String>> resultItems,
+            Map<Path, Function<List<String>, List<String>>> formatters)
             throws Exception {
         try (ClusterController clusterController = flink.startCluster(1)) {
-            List<String> sqlLines = initializeSqlLines(sqlPath, varsMap);
+            List<String> sqlLines = initializeSqlLines(sqlPath);
 
             executeSqlStatements(clusterController, sqlLines);
 
             // Wait until all the results flushed to the json file.
-            LOG.info("Verify the json result.");
-            checkJsonResultFile(resultSize, resultItems);
+            LOG.info("Verify the result.");
+            for (Map.Entry<Path, List<String>> entry : resultItems.entrySet()) {
+                checkResultFile(
+                        entry.getKey(),
+                        entry.getValue(),
+                        formatters.getOrDefault(entry.getKey(), this::formatRawResult));
+            }
             LOG.info("The SQL client test run successfully.");
         }
     }
@@ -123,13 +165,12 @@ public abstract class SqlITCaseBase extends TestLogger {
     protected abstract void executeSqlStatements(
             ClusterController clusterController, List<String> sqlLines) throws Exception;
 
-    private List<String> initializeSqlLines(String sqlPath, Map<String, String> vars)
-            throws IOException {
+    private List<String> initializeSqlLines(String sqlPath) throws IOException {
         URL url = SqlITCaseBase.class.getClassLoader().getResource(sqlPath);
         if (url == null) {
             throw new FileNotFoundException(sqlPath);
         }
-
+        Map<String, String> vars = generateReplaceVars();
         List<String> lines = Files.readAllLines(new File(url.getFile()).toPath());
         List<String> result = new ArrayList<>();
         for (String line : lines) {
@@ -142,26 +183,33 @@ public abstract class SqlITCaseBase extends TestLogger {
         return result;
     }
 
-    private void checkJsonResultFile(int resultSize, List<String> items) throws Exception {
+    private static void checkResultFile(
+            Path resultPath,
+            List<String> expectedItems,
+            Function<List<String>, List<String>> resultFormatter)
+            throws Exception {
         boolean success = false;
         final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(20));
         List<String> lines = null;
         while (deadline.hasTimeLeft()) {
-            if (Files.exists(result)) {
-                lines = readJsonResultFiles(result);
-                if (lines.size() == resultSize) {
+            if (Files.exists(resultPath)) {
+                lines = readResultFiles(resultPath);
+                try {
+                    List<String> actual = resultFormatter.apply(lines);
+                    assertThat(actual)
+                            .hasSameSizeAs(expectedItems)
+                            .containsExactlyInAnyOrderElementsOf(expectedItems);
                     success = true;
-                    assertThat(lines).hasSameElementsAs(items);
                     break;
-                } else {
+                } catch (AssertionError e) {
                     LOG.info(
-                            "The target Json {} does not contain enough records, current {} records, left time: {}s",
-                            result,
+                            "The target result {} does not match expected records, current {} records, left time: {}s",
+                            resultPath,
                             lines.size(),
                             deadline.timeLeft().getSeconds());
                 }
             } else {
-                LOG.info("The target Json {} does not exist now", result);
+                LOG.info("The target result {} does not exist now", resultPath);
             }
             Thread.sleep(500);
         }
@@ -171,16 +219,102 @@ public abstract class SqlITCaseBase extends TestLogger {
                         "Did not get expected results before timeout, actual result: %s.", lines));
     }
 
-    private static List<String> readJsonResultFiles(Path path) throws IOException {
+    private static List<String> readResultFiles(Path path) throws Exception {
         File filePath = path.toFile();
         // list all the non-hidden files
-        File[] csvFiles = filePath.listFiles((dir, name) -> !name.startsWith("."));
+        File[] files = filePath.listFiles((dir, name) -> !name.startsWith("."));
         List<String> result = new ArrayList<>();
-        if (csvFiles != null) {
-            for (File file : csvFiles) {
+        if (files != null) {
+            for (File file : files) {
                 result.addAll(Files.readAllLines(file.toPath()));
             }
         }
         return result;
+    }
+
+    /**
+     * The raw data read from the file system can be mapped and transformed. For example, subclasses
+     * can override this method to obtain the final result after materialization.
+     *
+     * <pre>{@code
+     * @Override
+     * protected List<String> formatRawResult(List<String> rawResults) {
+     *     return convertToMaterializedResult(rawResults, schema, deserializationSchema);
+     * }
+     * }</pre>
+     */
+    protected List<String> formatRawResult(List<String> rawResults) {
+        return rawResults;
+    }
+
+    protected static List<String> convertToMaterializedResult(
+            List<String> rawResults,
+            ResolvedSchema schema,
+            DeserializationSchema<RowData> deserializationSchema) {
+        DataCollector collector = new DataCollector();
+        try {
+            deserializationSchema.open(new TestingDeserializationContext());
+            for (String rawResult : rawResults) {
+                deserializationSchema.deserialize(rawResult.getBytes(), collector);
+            }
+        } catch (Exception e) {
+            fail("deserialize error: ", e);
+        }
+
+        RowRowConverter converter = RowRowConverter.create(schema.toPhysicalRowDataType());
+        Map<Row, Row> upsertResult = new HashMap<>();
+
+        for (RowData rowData : collector.dataList) {
+            RowKind kind = rowData.getRowKind();
+
+            Row row = converter.toExternal(rowData);
+            assertThat(row).isNotNull();
+
+            Row key = Row.project(row, schema.getPrimaryKeyIndexes());
+            key.setKind(RowKind.INSERT);
+
+            if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
+                Row upsertRow = Row.copy(row);
+                upsertRow.setKind(RowKind.INSERT);
+                upsertResult.put(key, upsertRow);
+            } else {
+                Row oldValue = upsertResult.remove(key);
+                if (oldValue == null) {
+                    throw new RuntimeException(
+                            "Tried to delete a value that wasn't inserted first. "
+                                    + "This is probably an incorrectly implemented test.");
+                }
+            }
+        }
+
+        return upsertResult.values().stream().map(Row::toString).collect(Collectors.toList());
+    }
+
+    /**
+     * Create a DebeziumJsonDeserializationSchema using the given {@link ResolvedSchema} to convert
+     * debezium-json formatted record into {@link RowData}.
+     */
+    protected static DebeziumJsonDeserializationSchema createDebeziumDeserializationSchema(
+            ResolvedSchema schema) {
+        return new DebeziumJsonDeserializationSchema(
+                schema.toPhysicalRowDataType(),
+                Collections.emptyList(),
+                InternalTypeInfo.of(schema.toPhysicalRowDataType().getLogicalType()),
+                false,
+                true,
+                TimestampFormat.ISO_8601);
+    }
+
+    private static class DataCollector implements Collector<RowData> {
+
+        private final List<RowData> dataList = new ArrayList<>();
+
+        @Override
+        public void collect(RowData record) {
+            dataList.add(record);
+        }
+
+        @Override
+        public void close() {}
     }
 }
