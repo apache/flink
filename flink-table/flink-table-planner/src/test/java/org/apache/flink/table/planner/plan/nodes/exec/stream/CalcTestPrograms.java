@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.testutils;
+package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc1;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc2;
@@ -31,7 +30,10 @@ import org.apache.flink.types.Row;
 
 import java.time.LocalDateTime;
 
-/** {@link TableTestProgram} definitions for testing {@link StreamExecCalc}. */
+/**
+ * {@link TableTestProgram} definitions for testing {@link
+ * org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc}.
+ */
 public class CalcTestPrograms {
 
     static final TableTestProgram SIMPLE_CALC =
