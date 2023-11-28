@@ -19,10 +19,14 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,6 +59,23 @@ class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGate
         submitTaskCount.incrementAndGet();
         submitLatch.countDown();
         return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
+    public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
+            Collection<TaskDeploymentDescriptor> taskDeploymentDescriptors, Time timeout) {
+
+        List<TaskDeployResult> taskDeployResults =
+                new ArrayList<>(taskDeploymentDescriptors.size());
+
+        for (TaskDeploymentDescriptor taskDeploymentDescriptor : taskDeploymentDescriptors) {
+            taskDeployResults.add(
+                    new TaskDeployResult(taskDeploymentDescriptor.getExecutionAttemptId(), null));
+            submitTaskCount.incrementAndGet();
+            submitLatch.countDown();
+        }
+
+        return CompletableFuture.completedFuture(taskDeployResults);
     }
 
     void resetCounts() {

@@ -30,6 +30,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 
@@ -37,6 +38,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -62,28 +64,35 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
 
     private final ExecutionVertexVersioner executionVertexVersioner;
 
-    private final Time partitionRegistrationTimeout;
+    private final Time rpcTimeout;
 
     private final BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc;
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
 
-    private DefaultExecutionDeployer(
+    private final ScheduledExecutor futureExecutor;
+
+    private final ExecutionDeployExecutor.Factory executionDeployExecutorFactory;
+
+    DefaultExecutionDeployer(
             final Logger log,
             final ExecutionSlotAllocator executionSlotAllocator,
             final ExecutionOperations executionOperations,
             final ExecutionVertexVersioner executionVertexVersioner,
-            final Time partitionRegistrationTimeout,
+            final Time rpcTimeout,
             final BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc,
-            final ComponentMainThreadExecutor mainThreadExecutor) {
-
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final ScheduledExecutor futureExecutor,
+            final ExecutionDeployExecutor.Factory executionDeployExecutorFactory) {
         this.log = checkNotNull(log);
         this.executionSlotAllocator = checkNotNull(executionSlotAllocator);
         this.executionOperations = checkNotNull(executionOperations);
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
-        this.partitionRegistrationTimeout = checkNotNull(partitionRegistrationTimeout);
+        this.rpcTimeout = checkNotNull(rpcTimeout);
         this.allocationReservationFunc = checkNotNull(allocationReservationFunc);
         this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
+        this.futureExecutor = futureExecutor;
+        this.executionDeployExecutorFactory = executionDeployExecutorFactory;
     }
 
     @Override
@@ -180,15 +189,26 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
     private BiFunction<Void, Throwable, Void> deployAll(
             final List<ExecutionDeploymentHandle> deploymentHandles) {
         return (ignored, throwable) -> {
+            final ExecutionDeployExecutor executionDeployExecutor =
+                    executionDeployExecutorFactory.createInstance(
+                            log, executionOperations, futureExecutor, rpcTimeout);
             propagateIfNonNull(throwable);
+            List<CompletableFuture<Void>> deployFutures = new LinkedList<>();
             for (final ExecutionDeploymentHandle deploymentHandle : deploymentHandles) {
                 final CompletableFuture<LogicalSlot> slotAssigned =
                         deploymentHandle.getLogicalSlotFuture();
                 checkState(slotAssigned.isDone());
 
-                FutureUtils.assertNoException(
-                        slotAssigned.handle(deployOrHandleError(deploymentHandle)));
+                final CompletableFuture<Void> deployFuture =
+                        slotAssigned.handle(
+                                deployOrHandleError(executionDeployExecutor, deploymentHandle));
+                deployFutures.add(deployFuture);
             }
+
+            final CompletableFuture<Void> resultFuture =
+                    FutureUtils.waitForAll(deployFutures)
+                            .thenAccept(ignore -> executionDeployExecutor.flushDeploy());
+            FutureUtils.assertNoException(resultFuture);
             return null;
         };
     }
@@ -277,7 +297,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
 
                 return FutureUtils.orTimeout(
                         partitionRegistrationFuture,
-                        partitionRegistrationTimeout.toMilliseconds(),
+                        rpcTimeout.toMilliseconds(),
                         TimeUnit.MILLISECONDS,
                         mainThreadExecutor,
                         String.format(
@@ -291,6 +311,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
     }
 
     private BiFunction<Object, Throwable, Void> deployOrHandleError(
+            final ExecutionDeployExecutor executionDeployExecutor,
             final ExecutionDeploymentHandle deploymentHandle) {
 
         return (ignored, throwable) -> {
@@ -310,7 +331,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
             }
 
             if (throwable == null) {
-                deployTaskSafe(execution);
+                deployTaskSafe(executionDeployExecutor, execution);
             } else {
                 handleTaskDeploymentFailure(execution, throwable);
             }
@@ -318,9 +339,10 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
         };
     }
 
-    private void deployTaskSafe(final Execution execution) {
+    private void deployTaskSafe(
+            final ExecutionDeployExecutor executionDeployExecutor, final Execution execution) {
         try {
-            executionOperations.deploy(execution);
+            executionDeployExecutor.executeDeploy(execution);
         } catch (Throwable e) {
             handleTaskDeploymentFailure(execution, e);
         }
@@ -375,7 +397,9 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                 ExecutionVertexVersioner executionVertexVersioner,
                 Time partitionRegistrationTimeout,
                 BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc,
-                ComponentMainThreadExecutor mainThreadExecutor) {
+                ComponentMainThreadExecutor mainThreadExecutor,
+                ScheduledExecutor futureExecutor,
+                ExecutionDeployExecutor.Factory executionDeployExecutorFactory) {
             return new DefaultExecutionDeployer(
                     log,
                     executionSlotAllocator,
@@ -383,7 +407,9 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                     executionVertexVersioner,
                     partitionRegistrationTimeout,
                     allocationReservationFunc,
-                    mainThreadExecutor);
+                    mainThreadExecutor,
+                    futureExecutor,
+                    executionDeployExecutorFactory);
         }
     }
 }

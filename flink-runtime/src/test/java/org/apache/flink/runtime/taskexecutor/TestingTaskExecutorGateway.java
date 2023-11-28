@@ -27,6 +27,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -72,6 +73,12 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     private final BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
             submitTaskConsumer;
+
+    private final BiFunction<
+                    Collection<TaskDeploymentDescriptor>,
+                    JobMasterId,
+                    CompletableFuture<Collection<TaskDeployResult>>>
+            submitTasksConsumer;
 
     private final Function<
                     Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>,
@@ -126,6 +133,11 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             BiConsumer<JobID, Throwable> disconnectJobManagerConsumer,
             BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
                     submitTaskConsumer,
+            BiFunction<
+                            Collection<TaskDeploymentDescriptor>,
+                            JobMasterId,
+                            CompletableFuture<Collection<TaskDeployResult>>>
+                    submitTasksConsumer,
             Function<
                             Tuple6<
                                     SlotID,
@@ -169,6 +181,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
         this.disconnectJobManagerConsumer =
                 Preconditions.checkNotNull(disconnectJobManagerConsumer);
         this.submitTaskConsumer = Preconditions.checkNotNull(submitTaskConsumer);
+        this.submitTasksConsumer = Preconditions.checkNotNull(submitTasksConsumer);
         this.requestSlotFunction = Preconditions.checkNotNull(requestSlotFunction);
         this.freeSlotFunction = Preconditions.checkNotNull(freeSlotFunction);
         this.freeInactiveSlotsConsumer = Preconditions.checkNotNull(freeInactiveSlotsConsumer);
@@ -209,6 +222,12 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     public CompletableFuture<Acknowledge> submitTask(
             TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, Time timeout) {
         return submitTaskConsumer.apply(tdd, jobMasterId);
+    }
+
+    @Override
+    public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
+            Collection<TaskDeploymentDescriptor> tdds, JobMasterId jobMasterId, Time timeout) {
+        return submitTasksConsumer.apply(tdds, jobMasterId);
     }
 
     @Override

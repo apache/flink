@@ -27,6 +27,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -86,6 +87,11 @@ public interface TaskExecutorGateway
      */
     CompletableFuture<Acknowledge> submitTask(
             TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, @RpcTimeout Time timeout);
+
+    CompletableFuture<Collection<TaskDeployResult>> submitTasks(
+            Collection<TaskDeploymentDescriptor> tdds,
+            JobMasterId jobMasterId,
+            @RpcTimeout Time timeout);
 
     /**
      * Update the task where the given partitions can be found.

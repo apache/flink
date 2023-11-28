@@ -23,6 +23,7 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import javax.annotation.concurrent.GuardedBy;
@@ -30,6 +31,7 @@ import javax.annotation.concurrent.GuardedBy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -50,6 +52,17 @@ public class TestExecutionOperationsDecorator implements ExecutionOperations {
 
     public TestExecutionOperationsDecorator(final ExecutionOperations delegate) {
         this.delegate = checkNotNull(delegate);
+    }
+
+    @Override
+    public void deploy(
+            Execution execution, Function<Execution, CompletableFuture<Acknowledge>> deployFunction)
+            throws JobException {
+        deployedExecutions.add(execution);
+        if (failDeploy) {
+            throw new RuntimeException("Expected");
+        }
+        delegate.deploy(execution, deployFunction);
     }
 
     @Override

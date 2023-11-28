@@ -19,26 +19,15 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
+import org.slf4j.Logger;
 
-/** Operations on the {@link Execution}. */
-public interface ExecutionOperations {
-
-    /**
-     * Deploy the execution.
-     *
-     * @param execution to deploy.
-     * @param deployFunction function to do deployment.
-     * @throws JobException if the execution cannot be deployed to the assigned resource
-     */
-    void deploy(
-            Execution execution, Function<Execution, CompletableFuture<Acknowledge>> deployFunction)
-            throws JobException;
+/** Executor to deploy {@link Execution}. */
+public interface ExecutionDeployExecutor {
 
     /**
      * Deploy the execution.
@@ -46,21 +35,27 @@ public interface ExecutionOperations {
      * @param execution to deploy.
      * @throws JobException if the execution cannot be deployed to the assigned resource
      */
-    void deploy(Execution execution) throws JobException;
+    void executeDeploy(Execution execution) throws JobException;
 
-    /**
-     * Cancel the execution.
-     *
-     * @param execution to cancel
-     * @return Future which completes when the cancellation is done
-     */
-    CompletableFuture<?> cancel(Execution execution);
+    /** Flush all execution deployment. */
+    void flushDeploy();
 
-    /**
-     * Mark the execution as FAILED.
-     *
-     * @param execution to mark as failed.
-     * @param cause of the execution failure
-     */
-    void markFailed(Execution execution, Throwable cause);
+    /** Instantiate an {@link ExecutionDeployExecutor} with the given params. */
+    interface Factory {
+
+        /**
+         * Instantiate an {@link ExecutionDeployExecutor} with the given params.
+         *
+         * @param log the logger.
+         * @param executionOperations the operations of executions.
+         * @param scheduledExecutor executor to be used for deploying execution.
+         * @param rpcTimeout timeout of deploy request.
+         * @return an instantiated {@link ExecutionDeployExecutor}
+         */
+        ExecutionDeployExecutor createInstance(
+                Logger log,
+                ExecutionOperations executionOperations,
+                ScheduledExecutor scheduledExecutor,
+                Time rpcTimeout);
+    }
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -40,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * A TaskManagerGateway that simply acks the basic operations (deploy, cancel, update) and does not
@@ -50,6 +52,11 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
     private final String address = UUID.randomUUID().toString();
 
     private Consumer<TaskDeploymentDescriptor> submitConsumer = ignore -> {};
+
+    private Function<
+                    Collection<TaskDeploymentDescriptor>,
+                    CompletableFuture<Collection<TaskDeployResult>>>
+            batchSubmitFunction;
 
     private Consumer<ExecutionAttemptID> cancelConsumer = ignore -> {};
 
@@ -93,6 +100,15 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
         this.updatePartitionsConsumer = updatePartitionsConsumer;
     }
 
+    public SimpleAckingTaskManagerGateway setBatchSubmitFunction(
+            Function<
+                            Collection<TaskDeploymentDescriptor>,
+                            CompletableFuture<Collection<TaskDeployResult>>>
+                    batchSubmitFunction) {
+        this.batchSubmitFunction = batchSubmitFunction;
+        return this;
+    }
+
     @Override
     public String getAddress() {
         return address;
@@ -102,6 +118,12 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
     public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
         submitConsumer.accept(tdd);
         return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
+    public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
+            Collection<TaskDeploymentDescriptor> tdds, Time timeout) {
+        return batchSubmitFunction.apply(tdds);
     }
 
     @Override

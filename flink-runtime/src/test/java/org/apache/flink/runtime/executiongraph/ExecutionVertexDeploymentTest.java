@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
@@ -256,6 +258,16 @@ class ExecutionVertexDeploymentTest {
             future.completeExceptionally(new Exception(ERROR_MESSAGE));
             return future;
         }
+
+        @Override
+        public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
+                Collection<TaskDeploymentDescriptor> tdds, Time timeout) {
+            final CompletableFuture<Collection<TaskDeployResult>> completableFuture =
+                    new CompletableFuture<>();
+            completableFuture.completeExceptionally(new Exception(ERROR_MESSAGE));
+
+            return completableFuture;
+        }
     }
 
     private static class SubmitBlockingSimpleAckingTaskManagerGateway
@@ -263,6 +275,12 @@ class ExecutionVertexDeploymentTest {
         @Override
         public CompletableFuture<Acknowledge> submitTask(
                 TaskDeploymentDescriptor tdd, Time timeout) {
+            return new CompletableFuture<>();
+        }
+
+        @Override
+        public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
+                Collection<TaskDeploymentDescriptor> tdds, Time timeout) {
             return new CompletableFuture<>();
         }
     }

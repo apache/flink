@@ -39,6 +39,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorGroup;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -97,6 +98,7 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcServiceUtils;
+import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.security.token.DelegationTokenReceiverRepository;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
@@ -167,6 +169,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -846,6 +849,26 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         } catch (TaskSubmissionException e) {
             return FutureUtils.completedExceptionally(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
+            Collection<TaskDeploymentDescriptor> taskDeploymentDescriptors,
+            JobMasterId jobMasterId,
+            @RpcTimeout Time timeout) {
+        List<CompletableFuture<TaskDeployResult>> completableFutures = new LinkedList<>();
+        for (TaskDeploymentDescriptor taskDeploymentDescriptor : taskDeploymentDescriptors) {
+            final CompletableFuture<Acknowledge> completableFuture =
+                    submitTask(taskDeploymentDescriptor, jobMasterId, timeout);
+
+            completableFutures.add(
+                    completableFuture.handle(
+                            (ignore, throwable) ->
+                                    new TaskDeployResult(
+                                            taskDeploymentDescriptor.getExecutionAttemptId(),
+                                            throwable)));
+        }
+        return FutureUtils.combineAll(completableFutures);
     }
 
     private void setupResultPartitionBookkeeping(

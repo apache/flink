@@ -115,7 +115,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final Executor ioExecutor,
             final Configuration jobMasterConfiguration,
             final Consumer<ComponentMainThreadExecutor> startUpAction,
-            final ScheduledExecutor delayExecutor,
+            final ScheduledExecutor futureExecutor,
             final ClassLoader userCodeLoader,
             final CheckpointsCleaner checkpointsCleaner,
             final CheckpointRecoveryFactory checkpointRecoveryFactory,
@@ -154,7 +154,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         this.log = log;
 
-        this.delayExecutor = checkNotNull(delayExecutor);
+        this.delayExecutor = checkNotNull(futureExecutor);
         this.userCodeLoader = checkNotNull(userCodeLoader);
         this.executionOperations = checkNotNull(executionOperations);
         this.shuffleMaster = checkNotNull(shuffleMaster);
@@ -215,7 +215,10 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         executionVertexVersioner,
                         rpcTimeout,
                         this::startReserveAllocation,
-                        mainThreadExecutor);
+                        mainThreadExecutor,
+                        futureExecutor,
+                        ExecutionDeployerFactoryLoader.createExecutionDeployerFactory(
+                                jobMasterConfiguration));
     }
 
     // ------------------------------------------------------------------------

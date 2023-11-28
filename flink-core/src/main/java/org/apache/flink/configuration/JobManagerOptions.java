@@ -580,6 +580,17 @@ public class JobManagerOptions {
                                             code(SchedulerExecutionMode.REACTIVE.name()))
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.ALL_JOB_MANAGER})
+    public static final ConfigOption<TaskDeploymentMode> TASK_DEPLOYMENT_MODE =
+            key("jobmanager.execution.deploy-mode")
+                    .enumType(TaskDeploymentMode.class)
+                    .defaultValue(TaskDeploymentMode.SINGLE)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Execution deployment mode determines how jobmaster deploys tasks to taskmanager.")
+                                    .build());
+
     /**
      * Config parameter controlling whether partitions should already be released during the job
      * execution.

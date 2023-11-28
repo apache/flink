@@ -21,8 +21,10 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.executiongraph.Execution;
+import org.apache.flink.runtime.messages.Acknowledge;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /** Default implementation of {@link ExecutionOperations}. */
 public class DefaultExecutionOperations implements ExecutionOperations {
@@ -30,6 +32,13 @@ public class DefaultExecutionOperations implements ExecutionOperations {
     @Override
     public void deploy(Execution execution) throws JobException {
         execution.deploy();
+    }
+
+    @Override
+    public void deploy(
+            Execution execution, Function<Execution, CompletableFuture<Acknowledge>> deployFunction)
+            throws JobException {
+        execution.deploy(deployFunction);
     }
 
     @Override

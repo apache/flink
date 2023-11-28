@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -44,6 +45,7 @@ import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -64,6 +66,14 @@ public class TestingTaskExecutorGatewayBuilder {
                     TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
             NOOP_SUBMIT_TASK_CONSUMER =
                     (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Acknowledge.get());
+
+    private static final BiFunction<
+                    Collection<TaskDeploymentDescriptor>,
+                    JobMasterId,
+                    CompletableFuture<Collection<TaskDeployResult>>>
+            NOOP_SUBMIT_TASKS_CONSUMER =
+                    (ignoredA, ignoredB) ->
+                            CompletableFuture.completedFuture(Collections.emptyList());
     private static final Function<
                     Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>,
                     CompletableFuture<Acknowledge>>
@@ -121,6 +131,12 @@ public class TestingTaskExecutorGatewayBuilder {
             NOOP_DISCONNECT_JOBMANAGER_CONSUMER;
     private BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
             submitTaskConsumer = NOOP_SUBMIT_TASK_CONSUMER;
+
+    private BiFunction<
+                    Collection<TaskDeploymentDescriptor>,
+                    JobMasterId,
+                    CompletableFuture<Collection<TaskDeployResult>>>
+            submitTasksConsumer = NOOP_SUBMIT_TASKS_CONSUMER;
     private Function<
                     Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>,
                     CompletableFuture<Acknowledge>>
@@ -313,6 +329,7 @@ public class TestingTaskExecutorGatewayBuilder {
                 heartbeatJobManagerFunction,
                 disconnectJobManagerConsumer,
                 submitTaskConsumer,
+                submitTasksConsumer,
                 requestSlotFunction,
                 freeSlotFunction,
                 freeInactiveSlotsConsumer,

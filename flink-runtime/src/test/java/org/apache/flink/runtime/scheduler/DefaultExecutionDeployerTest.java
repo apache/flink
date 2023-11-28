@@ -34,12 +34,14 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.TestingShuffleMaster;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +56,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,6 +82,12 @@ class DefaultExecutionDeployerTest {
         testExecutionOperations =
                 new TestExecutionOperationsDecorator(
                         new ExecutionOperations() {
+                            @Override
+                            public void deploy(
+                                    Execution execution,
+                                    Function<Execution, CompletableFuture<Acknowledge>>
+                                            deployFunction) {}
+
                             @Override
                             public void deploy(Execution execution) {}
 
@@ -348,7 +357,9 @@ class DefaultExecutionDeployerTest {
                         executionVertexVersioner,
                         partitionRegistrationTimeout,
                         (ignored1, ignored2) -> {},
-                        mainThreadExecutor);
+                        mainThreadExecutor,
+                        new ScheduledExecutorServiceAdapter(executor),
+                        new DefaultExecutionDeployExecutor.Factory());
     }
 
     private void deployTasks(ExecutionDeployer executionDeployer, ExecutionGraph executionGraph) {

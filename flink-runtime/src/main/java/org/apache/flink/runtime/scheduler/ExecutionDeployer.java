@@ -24,6 +24,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.slf4j.Logger;
 
@@ -63,6 +64,8 @@ public interface ExecutionDeployer {
          * @param partitionRegistrationTimeout timeout of partition registration
          * @param allocationReservationFunc function to reserve allocations for local recovery
          * @param mainThreadExecutor the main thread executor
+         * @param futureExecutor
+         * @param executionDeployExecutorFactory factory to create executionDeployExecutor.
          * @return an instantiated {@link ExecutionDeployer}
          */
         ExecutionDeployer createInstance(
@@ -72,6 +75,8 @@ public interface ExecutionDeployer {
                 final ExecutionVertexVersioner executionVertexVersioner,
                 final Time partitionRegistrationTimeout,
                 final BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc,
-                final ComponentMainThreadExecutor mainThreadExecutor);
+                final ComponentMainThreadExecutor mainThreadExecutor,
+                ScheduledExecutor futureExecutor,
+                final ExecutionDeployExecutor.Factory executionDeployExecutorFactory);
     }
 }
