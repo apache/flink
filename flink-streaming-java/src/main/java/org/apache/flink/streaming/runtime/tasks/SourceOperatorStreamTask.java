@@ -29,6 +29,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -121,12 +122,14 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
 
         inputProcessor = new StreamOneInputProcessor<>(input, output, operatorChain);
 
-        getEnvironment()
-                .getMetricGroup()
-                .getIOMetricGroup()
-                .gauge(
-                        MetricNames.CHECKPOINT_START_DELAY_TIME,
-                        this::getAsyncCheckpointStartDelayNanos);
+        final TaskIOMetricGroup taskIOMetricGroup =
+                getEnvironment().getMetricGroup().getIOMetricGroup();
+        taskIOMetricGroup.reuseBytesInputCounter(
+                sourceOperator.getSourceMetricGroup().getIOMetricGroup().getNumBytesInCounter());
+        taskIOMetricGroup.reuseRecordsInputCounter(
+                sourceOperator.getSourceMetricGroup().getIOMetricGroup().getNumRecordsInCounter());
+        taskIOMetricGroup.gauge(
+                MetricNames.CHECKPOINT_START_DELAY_TIME, this::getAsyncCheckpointStartDelayNanos);
     }
 
     @Override

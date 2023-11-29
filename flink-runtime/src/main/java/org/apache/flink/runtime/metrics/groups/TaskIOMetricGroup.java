@@ -50,7 +50,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
 
     private final Clock clock;
 
-    private final Counter numBytesIn;
+    private final SumCounter numBytesIn;
     private final Counter numBytesOut;
     private final SumCounter numRecordsIn;
     private final SumCounter numRecordsOut;
@@ -93,7 +93,7 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     public TaskIOMetricGroup(TaskMetricGroup parent, Clock clock) {
         super(parent);
         this.clock = clock;
-        this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN);
+        this.numBytesIn = counter(MetricNames.IO_NUM_BYTES_IN, new SumCounter());
         this.numBytesOut = counter(MetricNames.IO_NUM_BYTES_OUT);
         this.numBytesInRate = meter(MetricNames.IO_NUM_BYTES_IN_RATE, new MeterView(numBytesIn));
         this.numBytesOutRate = meter(MetricNames.IO_NUM_BYTES_OUT_RATE, new MeterView(numBytesOut));
@@ -305,6 +305,11 @@ public class TaskIOMetricGroup extends ProxyMetricGroup<TaskMetricGroup> {
     // ============================================================================================
     // Metric Reuse
     // ============================================================================================
+
+    public void reuseBytesInputCounter(Counter numBytesInCounter) {
+        this.numBytesIn.addCounter(numBytesInCounter);
+    }
+
     public void reuseRecordsInputCounter(Counter numRecordsInCounter) {
         this.numRecordsIn.addCounter(numRecordsInCounter);
     }
