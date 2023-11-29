@@ -29,7 +29,7 @@ import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.MathUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.primitives.UnsignedBytes;
+import org.apache.flink.shaded.guava32.com.google.common.primitives.UnsignedBytes;
 
 import org.junit.jupiter.api.Test;
 
