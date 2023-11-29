@@ -63,7 +63,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   override def before(): Unit = {
     super.before()
     // set state backend
-    baseCheckpointPath = TempDirUtils.newFolder(tempFolder).getAbsoluteFile
+    baseCheckpointPath = tempFolder.toFile
     state match {
       case HEAP_BACKEND =>
         val conf = new Configuration()

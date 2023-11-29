@@ -33,11 +33,13 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalogFactoryOptions;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.utils.CatalogManagerMocks;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.net.URLClassLoader;
@@ -50,6 +52,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** IT Case for catalog ddl. */
 class CatalogITCase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE = new MiniClusterExtension();
 
     @TempDir Path temporaryFolder;
 

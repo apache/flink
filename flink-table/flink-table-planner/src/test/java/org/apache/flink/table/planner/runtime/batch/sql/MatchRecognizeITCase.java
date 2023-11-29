@@ -29,12 +29,14 @@ import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.calcite.sql.SqlMatchRecognize;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.Comparator;
 import java.util.List;
@@ -48,6 +50,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT Case for testing {@link SqlMatchRecognize}. */
 class MatchRecognizeITCase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION = new MiniClusterExtension();
 
     private StreamExecutionEnvironment env;
     private StreamTableEnvironment tEnv;

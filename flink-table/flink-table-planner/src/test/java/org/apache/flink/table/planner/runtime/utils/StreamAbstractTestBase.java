@@ -18,53 +18,21 @@
 
 package org.apache.flink.table.planner.runtime.utils;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.junit5.MiniClusterExtension;
-import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Path;
+/** Base class for unit tests that run multiple tests and want to reuse the same Flink cluster. */
+public class StreamAbstractTestBase {
 
-/** Batch test base to use {@link RegisterExtension}. */
-public class BatchAbstractTestBase {
-
-    protected static final int DEFAULT_PARALLELISM = 3;
+    private static final int DEFAULT_PARALLELISM = 4;
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
-                            .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
                             .build());
-
-    @TempDir protected static Path tmpDir;
-
-    private static Configuration getConfiguration() {
-        Configuration config = new Configuration();
-        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("100m"));
-        return config;
-    }
-
-    protected static File createTempFolder() throws IOException {
-        return TempDirUtils.newFolder(BatchAbstractTestBase.tmpDir);
-    }
-
-    protected static File createTempFile() throws IOException {
-        Path tmpDirPath = createTempFolder().toPath();
-        return TempDirUtils.newFile(tmpDirPath);
-    }
-
-    protected static File createFileInTempFolder(String fileName) throws IOException {
-        Path tmpDirPath = createTempFolder().toPath();
-        return TempDirUtils.newFile(tmpDirPath, fileName);
-    }
 }
