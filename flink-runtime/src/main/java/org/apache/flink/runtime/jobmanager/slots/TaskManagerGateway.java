@@ -57,6 +57,13 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      */
     CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout);
 
+    /**
+     * Submit list of task to the task manager.
+     *
+     * @param tdds descriptor list of tasks to submit
+     * @param timeout of the submit operation
+     * @return Future deploying result of each submit operation.
+     */
     CompletableFuture<Collection<TaskDeployResult>> submitTasks(
             Collection<TaskDeploymentDescriptor> tdds, Time timeout);
 

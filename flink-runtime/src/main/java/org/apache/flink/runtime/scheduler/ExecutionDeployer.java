@@ -64,7 +64,7 @@ public interface ExecutionDeployer {
          * @param partitionRegistrationTimeout timeout of partition registration
          * @param allocationReservationFunc function to reserve allocations for local recovery
          * @param mainThreadExecutor the main thread executor
-         * @param futureExecutor
+         * @param futureExecutor to submit task.
          * @param executionDeployExecutorFactory factory to create executionDeployExecutor.
          * @return an instantiated {@link ExecutionDeployer}
          */
