@@ -197,7 +197,7 @@ public final class GlobalConfiguration {
             while ((line = reader.readLine()) != null) {
                 lineNo++;
                 // 1. check for comments
-                String[] comments = line.split("#", 2);
+                String[] comments = line.split("^#|\\s+#", 2);
                 String conf = comments[0].trim();
 
                 // 2. get key and value
