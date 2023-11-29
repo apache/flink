@@ -1724,6 +1724,10 @@ public class FunctionITCase extends StreamingTestBase {
         }
     }
 
+    /**
+     * Synchronous table function for {@link LookupTableSource} and inherits {@link TableFunction}
+     * at multiple levels.
+     */
     public static class LookupTableWithHintLevel1Function extends LookupTableFunction {
         public void eval(@DataTypeHint("STRING") StringData s) {
             super.eval(s);
