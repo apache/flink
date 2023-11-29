@@ -55,7 +55,7 @@ Note that these examples are *not* exhaustive and you can use GCS in other place
 Flink provides the `flink-gs-fs-hadoop` file system to write to GCS.
 This implementation is self-contained with no dependency footprint, so there is no need to add Hadoop to the classpath to use it.
 
-`flink-gs-fs-hadoop` registers a `FileSystem` wrapper for URIs with the *gs://* scheme. It uses Google's [gcs-connector](https://mvnrepository.com/artifact/com.google.cloud.bigdataoss/gcs-connector/hadoop3-2.2.15) Hadoop library to access GCS. It also uses Google's [google-cloud-storage](https://mvnrepository.com/artifact/com.google.cloud/google-cloud-storage/2.15.0) library to provide `RecoverableWriter` support.
+`flink-gs-fs-hadoop` registers a `FileSystem` wrapper for URIs with the *gs://* scheme. It uses Google's [gcs-connector](https://mvnrepository.com/artifact/com.google.cloud.bigdataoss/gcs-connector/hadoop3-2.2.18) Hadoop library to access GCS. It also uses Google's [google-cloud-storage](https://mvnrepository.com/artifact/com.google.cloud/google-cloud-storage/2.29.1) library to provide `RecoverableWriter` support.
 
 This file system can be used with the [FileSystem connector]({{< ref "docs/connectors/datastream/filesystem.md" >}}).
 
