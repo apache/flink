@@ -74,6 +74,6 @@ public class PushLocalHashAggIntoScanRule extends PushLocalAggIntoScanRuleBase {
     public void onMatch(RelOptRuleCall call) {
         BatchPhysicalLocalHashAggregate localHashAgg = call.rel(1);
         BatchPhysicalTableSourceScan oldScan = call.rel(2);
-        pushLocalAggregateIntoScan(call, localHashAgg, oldScan);
+        pushLocalAggregateIntoScan(call, localHashAgg, oldScan, null);
     }
 }

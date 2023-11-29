@@ -82,6 +82,6 @@ public class PushLocalSortAggWithSortIntoScanRule extends PushLocalAggIntoScanRu
     public void onMatch(RelOptRuleCall call) {
         BatchPhysicalGroupAggregateBase localSortAgg = call.rel(1);
         BatchPhysicalTableSourceScan oldScan = call.rel(3);
-        pushLocalAggregateIntoScan(call, localSortAgg, oldScan);
+        pushLocalAggregateIntoScan(call, localSortAgg, oldScan, null);
     }
 }

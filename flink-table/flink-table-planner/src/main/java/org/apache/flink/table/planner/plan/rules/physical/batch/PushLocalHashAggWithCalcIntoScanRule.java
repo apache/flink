@@ -81,13 +81,6 @@ public class PushLocalHashAggWithCalcIntoScanRule extends PushLocalAggIntoScanRu
         BatchPhysicalLocalHashAggregate localHashAgg = call.rel(1);
         BatchPhysicalCalc calc = call.rel(2);
         BatchPhysicalTableSourceScan oldScan = call.rel(3);
-
-        // For count(*) and count(n) we need to ignore the calc.
-        int[] calcRefFields = null;
-        if (isInputRefOnly(calc) && isProjectionNotPushedDown(oldScan)) {
-            calcRefFields = getRefFiledIndex(calc);
-        }
-
-        pushLocalAggregateIntoScan(call, localHashAgg, oldScan, calcRefFields);
+        pushLocalAggregateIntoScan(call, localHashAgg, oldScan, calc);
     }
 }

@@ -73,9 +73,7 @@ public class PushLocalSortAggWithCalcIntoScanRule extends PushLocalAggIntoScanRu
         BatchPhysicalLocalSortAggregate localAggregate = call.rel(1);
         BatchPhysicalCalc calc = call.rel(2);
         BatchPhysicalTableSourceScan tableSourceScan = call.rel(3);
-
-        return isProjectionNotPushedDown(tableSourceScan)
-                && canPushDown(call, localAggregate, tableSourceScan, calc);
+        return canPushDown(call, localAggregate, tableSourceScan, calc);
     }
 
     @Override
@@ -83,13 +81,6 @@ public class PushLocalSortAggWithCalcIntoScanRule extends PushLocalAggIntoScanRu
         BatchPhysicalLocalSortAggregate localHashAgg = call.rel(1);
         BatchPhysicalCalc calc = call.rel(2);
         BatchPhysicalTableSourceScan oldScan = call.rel(3);
-
-        // For count(*) and count(n) we need to ignore the calc.
-        int[] calcRefFields = null;
-        if (isInputRefOnly(calc) && isProjectionNotPushedDown(oldScan)) {
-            calcRefFields = getRefFiledIndex(calc);
-        }
-
-        pushLocalAggregateIntoScan(call, localHashAgg, oldScan, calcRefFields);
+        pushLocalAggregateIntoScan(call, localHashAgg, oldScan, calc);
     }
 }

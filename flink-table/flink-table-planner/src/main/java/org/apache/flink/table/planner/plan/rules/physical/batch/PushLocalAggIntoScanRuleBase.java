@@ -127,20 +127,19 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
     protected void pushLocalAggregateIntoScan(
             RelOptRuleCall call,
             BatchPhysicalGroupAggregateBase localAgg,
-            BatchPhysicalTableSourceScan oldScan) {
-        pushLocalAggregateIntoScan(call, localAgg, oldScan, null);
-    }
-
-    protected void pushLocalAggregateIntoScan(
-            RelOptRuleCall call,
-            BatchPhysicalGroupAggregateBase localAgg,
             BatchPhysicalTableSourceScan oldScan,
-            int[] calcRefFields) {
+            @Nullable BatchPhysicalCalc calc) {
         RowType inputType = FlinkTypeFactory.toLogicalRowType(oldScan.getRowType());
         List<int[]> groupingSets =
                 Collections.singletonList(
                         ArrayUtils.addAll(localAgg.grouping(), localAgg.auxGrouping()));
         List<AggregateCall> aggCallList = JavaScalaConversionUtil.toJava(localAgg.getAggCallList());
+
+        // For count(*) and count(n) we need to ignore the calc.
+        int[] calcRefFields = null;
+        if (calc != null && isInputRefOnly(calc) && isProjectionNotPushedDown(oldScan)) {
+            calcRefFields = getRefFiledIndex(calc);
+        }
 
         // map arg index in aggregate to field index in scan through referred fields by calc.
         if (calcRefFields != null) {
