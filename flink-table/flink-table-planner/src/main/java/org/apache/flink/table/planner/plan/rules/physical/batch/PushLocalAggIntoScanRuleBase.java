@@ -96,11 +96,15 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
         for (AggregateCall aggCall : aggCallList) {
             // We should try best to push down count(*) and count(n) even if it was optimized to a
             // calc as '0 AS $f0' to reduce read cost.
-            if (aggCall.getAggregation().kind != SqlKind.COUNT) {
-                if (calc != null) {
-                    if (!isInputRefOnly(calc) || !isProjectionNotPushedDown(tableSourceScan)) {
-                        return false;
-                    }
+            if (aggCall.getAggregation().kind != SqlKind.COUNT && calc != null) {
+                if (!isInputRefOnly(calc) || !isProjectionNotPushedDown(tableSourceScan)) {
+                    return false;
+                }
+            } else if (aggCall.getAggregation().kind == SqlKind.COUNT && calc != null) {
+                // count(*) push down shouldn't have filter condition upon source. For example
+                // 'select count(*) from source where a > 10' cannot push down now.
+                if (calc.getProgram().getCondition() != null) {
+                    return false;
                 }
             }
 

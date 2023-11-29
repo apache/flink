@@ -175,6 +175,14 @@ class LocalAggregatePushDownITCase extends BatchTestBase {
     }
 
     @Test
+    public void testCannotPushDownLocalHashAggForCountWithFilterCondition() {
+        checkResult(
+                "SELECT count(*) FROM AggregatableTable where id > 8",
+                JavaScalaConversionUtil.toScala(Collections.singletonList(Row.of(3))),
+                false);
+    }
+
+    @Test
     public void testCanPushDownLocalHashAggForCount1() {
         checkResult(
                 "SELECT count(1) FROM AggregatableTable",
