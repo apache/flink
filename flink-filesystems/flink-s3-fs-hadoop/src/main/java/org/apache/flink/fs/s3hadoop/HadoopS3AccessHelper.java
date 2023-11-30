@@ -68,7 +68,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 
     @Override
     public String startMultiPartUpload(String key) throws IOException {
-        return s3accessHelper.initiateMultiPartUpload(key);
+        return s3accessHelper.initiateMultiPartUpload(key, null);
     }
 
     @Override
@@ -84,13 +84,14 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                         null,
                         inputFile,
                         0L);
-        return s3accessHelper.uploadPart(uploadRequest);
+        return s3accessHelper.uploadPart(uploadRequest, null);
     }
 
     @Override
     public PutObjectResult putObject(String key, File inputFile) throws IOException {
-        final PutObjectRequest putRequest = s3accessHelper.createPutObjectRequest(key, inputFile);
-        return s3accessHelper.putObject(putRequest);
+        final PutObjectRequest putRequest =
+                s3accessHelper.createPutObjectRequest(key, inputFile, null);
+        return s3accessHelper.putObject(putRequest, null, null);
     }
 
     @Override
@@ -102,7 +103,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
             AtomicInteger errorCount)
             throws IOException {
         return s3accessHelper.completeMPUwithRetries(
-                destKey, uploadId, partETags, length, errorCount);
+                destKey, uploadId, partETags, length, errorCount, null);
     }
 
     @Override
@@ -159,7 +160,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                 S3AStatisticsContext statisticsContext,
                 AuditSpanSource auditSpanSource,
                 AuditSpan auditSpan) {
-            super(owner, conf, statisticsContext, auditSpanSource, auditSpan);
+            super(owner, conf, statisticsContext, auditSpanSource, auditSpan, null);
         }
     }
 }
