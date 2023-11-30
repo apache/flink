@@ -84,8 +84,11 @@ See bundled license files for details.
 - com.google.auth:google-auth-library-oauth2-http:1.20.0
 - com.google.protobuf:protobuf-java-util:3.24.4
 - com.google.protobuf:protobuf-java:3.24.4
-- com.google.re2j:re2j:1.7
 - org.threeten:threetenbp:1.6.8
+
+This project bundles the following dependencies under the Go License (https://golang.org/LICENSE).
+See bundled license files for details.
+- com.google.re2j:re2j:1.7
 
 This project bundles the following dependencies under the MIT License.
 See bundled license files for details.
