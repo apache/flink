@@ -36,6 +36,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -96,6 +97,9 @@ public class TestingTaskExecutorGatewayBuilder {
                     (a, b, c) -> CompletableFuture.completedFuture(Acknowledge.get());
     private static final Supplier<CompletableFuture<ThreadDumpInfo>> DEFAULT_THREAD_DUMP_SUPPLIER =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
+
+    private static final Supplier<CompletableFuture<ProfilingInfo>> DEFAULT_PROFILING_SUPPLIER =
+            () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private static final Supplier<CompletableFuture<TaskThreadInfoResponse>>
             DEFAULT_THREAD_INFO_SAMPLES_SUPPLIER =
                     () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
@@ -151,6 +155,8 @@ public class TestingTaskExecutorGatewayBuilder {
             operatorEventHandler = DEFAULT_OPERATOR_EVENT_HANDLER;
     private Supplier<CompletableFuture<ThreadDumpInfo>> requestThreadDumpSupplier =
             DEFAULT_THREAD_DUMP_SUPPLIER;
+    private Supplier<CompletableFuture<ProfilingInfo>> requestProfilingSupplier =
+            DEFAULT_PROFILING_SUPPLIER;
 
     private Supplier<CompletableFuture<TaskThreadInfoResponse>> requestThreadInfoSamplesSupplier =
             DEFAULT_THREAD_INFO_SAMPLES_SUPPLIER;
@@ -281,6 +287,11 @@ public class TestingTaskExecutorGatewayBuilder {
         this.requestThreadDumpSupplier = requestThreadDumpSupplier;
     }
 
+    public void setRequestProfilingSupplier(
+            Supplier<CompletableFuture<ProfilingInfo>> requestProfilingSupplier) {
+        this.requestProfilingSupplier = requestProfilingSupplier;
+    }
+
     public TestingTaskExecutorGatewayBuilder setRequestThreadInfoSamplesSupplier(
             Supplier<CompletableFuture<TaskThreadInfoResponse>> requestThreadInfoSamplesSupplier) {
         this.requestThreadInfoSamplesSupplier = requestThreadInfoSamplesSupplier;
@@ -325,6 +336,7 @@ public class TestingTaskExecutorGatewayBuilder {
                 releaseClusterPartitionsConsumer,
                 operatorEventHandler,
                 requestThreadDumpSupplier,
+                requestProfilingSupplier,
                 requestThreadInfoSamplesSupplier,
                 triggerCheckpointFunction,
                 confirmCheckpointFunction);

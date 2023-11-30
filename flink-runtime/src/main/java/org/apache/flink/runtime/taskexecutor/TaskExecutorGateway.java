@@ -39,6 +39,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcTimeout;
@@ -314,4 +315,22 @@ public interface TaskExecutorGateway
      */
     CompletableFuture<Acknowledge> updateDelegationTokens(
             ResourceManagerId resourceManagerId, byte[] tokens);
+
+    /**
+     * Requests the profiling from this TaskManager.
+     *
+     * @param duration profiling duration
+     * @param mode profiling mode {@link ProfilingInfo.ProfilingMode}
+     * @param timeout timeout for the asynchronous operation
+     * @return the {@link ProfilingInfo} for this TaskManager.
+     */
+    CompletableFuture<ProfilingInfo> requestProfiling(
+            int duration, ProfilingInfo.ProfilingMode mode, @RpcTimeout Duration timeout);
+
+    /**
+     * Requests for the historical profiling file names on the TaskManager.
+     *
+     * @return A Collection with all profiling instances information.
+     */
+    CompletableFuture<Collection<ProfilingInfo>> requestProfilingList(@RpcTimeout Duration timeout);
 }

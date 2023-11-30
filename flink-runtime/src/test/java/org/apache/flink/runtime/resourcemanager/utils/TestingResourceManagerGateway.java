@@ -45,6 +45,7 @@ import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.TaskManagerInfoWithSlots;
 import org.apache.flink.runtime.resourcemanager.exceptions.UnknownTaskExecutorException;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -122,6 +123,12 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
 
     private volatile Function<ResourceID, CompletableFuture<ThreadDumpInfo>>
             requestThreadDumpFunction;
+
+    private volatile Function<ResourceID, CompletableFuture<ProfilingInfo>>
+            requestProfilingFunction;
+
+    private volatile Function<ResourceID, CompletableFuture<Collection<ProfilingInfo>>>
+            requestProfilingListFunction;
 
     private volatile BiFunction<JobMasterId, ResourceRequirements, CompletableFuture<Acknowledge>>
             declareRequiredResourcesFunction =
@@ -247,6 +254,17 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
     public void setRequestThreadDumpFunction(
             Function<ResourceID, CompletableFuture<ThreadDumpInfo>> requestThreadDumpFunction) {
         this.requestThreadDumpFunction = requestThreadDumpFunction;
+    }
+
+    public void setRequestProfilingFunction(
+            Function<ResourceID, CompletableFuture<ProfilingInfo>> requestProfilingFunction) {
+        this.requestProfilingFunction = requestProfilingFunction;
+    }
+
+    public void setRequestProfilingListFunction(
+            Function<ResourceID, CompletableFuture<Collection<ProfilingInfo>>>
+                    requestProfilingListFunction) {
+        this.requestProfilingListFunction = requestProfilingListFunction;
     }
 
     public void setDeclareRequiredResourcesFunction(
@@ -498,6 +516,37 @@ public class TestingResourceManagerGateway implements ResourceManagerGateway {
             ResourceID taskManagerId, Time timeout) {
         final Function<ResourceID, CompletableFuture<TaskExecutorThreadInfoGateway>> function =
                 this.requestTaskExecutorThreadInfoGateway;
+
+        if (function != null) {
+            return function.apply(taskManagerId);
+        } else {
+            return FutureUtils.completedExceptionally(
+                    new UnknownTaskExecutorException(taskManagerId));
+        }
+    }
+
+    @Override
+    public CompletableFuture<Collection<ProfilingInfo>> requestTaskManagerProfilingList(
+            ResourceID taskManagerId, Duration timeout) {
+        final Function<ResourceID, CompletableFuture<Collection<ProfilingInfo>>> function =
+                this.requestProfilingListFunction;
+
+        if (function != null) {
+            return function.apply(taskManagerId);
+        } else {
+            return FutureUtils.completedExceptionally(
+                    new UnknownTaskExecutorException(taskManagerId));
+        }
+    }
+
+    @Override
+    public CompletableFuture<ProfilingInfo> requestProfiling(
+            ResourceID taskManagerId,
+            int duration,
+            ProfilingInfo.ProfilingMode mode,
+            Duration timeout) {
+        final Function<ResourceID, CompletableFuture<ProfilingInfo>> function =
+                this.requestProfilingFunction;
 
         if (function != null) {
             return function.apply(taskManagerId);
