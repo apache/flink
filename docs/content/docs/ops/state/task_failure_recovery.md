@@ -53,7 +53,6 @@ The description of each restart strategy contains more information about the res
 {{< generated/restart_strategy_configuration >}}
 
 Apart from defining a default restart strategy, it is possible to define for each Flink job a specific restart strategy.
-This restart strategy is set programmatically by calling the `setRestartStrategy` method on the `StreamExecutionEnvironment`.
 
 The following example shows how we can set a fixed delay restart strategy for our job.
 In case of a failure the system tries to restart the job 3 times and waits 10 seconds in-between successive restart attempts.
@@ -61,11 +60,11 @@ In case of a failure the system tries to restart the job 3 times and waits 10 se
 {{< tabs "4ab65f13-607a-411a-8d24-e709f701df6a" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-  3, // number of restart attempts
-  Time.of(10, TimeUnit.SECONDS) // delay
-));
+Configuration config = new Configuration();
+config.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 3); // number of restart attempts
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(10)); // delay
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -79,11 +78,11 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
-    3,  # number of restart attempts
-    10000  # delay(millisecond)
-))
+config = Configuration()
+config.set_string('restart-strategy.type', 'fixed-delay')
+config.set_string('restart-strategy.fixed-delay.attempts', '3') # number of restart attempts
+config.set_string('restart-strategy.fixed-delay.delay', '10000 ms') # delay
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -117,11 +116,11 @@ The fixed delay restart strategy can also be set programmatically:
 {{< tabs "73f5d009-b9af-4bfe-be22-d1c4659fd1ec" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-  3, // number of restart attempts
-  Time.of(10, TimeUnit.SECONDS) // delay
-));
+Configuration config = new Configuration();
+config.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 3); // number of restart attempts
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(10)); // delay
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -135,11 +134,11 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
-    3,  # number of restart attempts
-    10000  # delay(millisecond)
-))
+config = Configuration()
+config.set_string('restart-strategy.type', 'fixed-delay')
+config.set_string('restart-strategy.fixed-delay.attempts', '3') # number of restart attempts
+config.set_string('restart-strategy.fixed-delay.delay', '10000 ms') # delay
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -175,14 +174,14 @@ The exponential delay restart strategy can also be set programmatically:
 {{< tabs "e433f119-50e2-4eae-9977-7e6e44acab61" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setRestartStrategy(RestartStrategies.exponentialDelayRestart(
-  Time.milliseconds(1),
-  Time.milliseconds(1000),
-  1.1, // exponential multiplier
-  Time.milliseconds(2000), // threshold duration to reset delay to its initial value
-  0.1 // jitter
-));
+Configuration config = new Configuration();
+config.set(RestartStrategyOptions.RESTART_STRATEGY, "exponential-delay");
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF, Durartion.ofMillis(1));
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF, Durartion.ofMillis(1000));
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER, 1.1); // exponential multiplier
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD, Durartion.ofMillis(2000)); // threshold duration to reset delay to its initial value
+config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR, 0.1); // jitter        
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -228,12 +227,12 @@ The failure rate restart strategy can also be set programmatically:
 {{< tabs "d8d547ce-003b-4821-afc0-3d95aca40f1e" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setRestartStrategy(RestartStrategies.failureRateRestart(
-  3, // max failures per interval
-  Time.of(5, TimeUnit.MINUTES), //time interval for measuring failure rate
-  Time.of(10, TimeUnit.SECONDS) // delay
-));
+Configuration config = new Configuration();
+config.set(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 3); // max failures per interval
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL, Duration.ofMinutes(5)); // time interval for measuring failure rate
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY, Duration.ofSeconds(10)); // delay
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -248,12 +247,12 @@ env.setRestartStrategy(RestartStrategies.failureRateRestart(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_restart_strategy(RestartStrategies.failure_rate_restart(
-    3,  # max failures per interval
-    300000,  # interval for measuring failure rate (millisecond)
-    10000  # dela(millisecond)
-))
+config = Configuration()
+config.set_string('restart-strategy.type', 'failure-rate')
+config.set_string('restart-strategy.failure-rate.max-failures-per-interval', '3') # max failures per interval
+config.set_string('restart-strategy.failure-rate.failure-rate-interval', '5 min') # time interval for measuring failure rate
+config.set_string('restart-strategy.failure-rate.delay', '10 s') # delay
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -272,8 +271,9 @@ The no restart strategy can also be set programmatically:
 {{< tabs "4812d55b-bb89-4000-be7c-d9dcdad6010e" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setRestartStrategy(RestartStrategies.noRestart());
+Configuration config = new Configuration();
+config.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -284,8 +284,9 @@ env.setRestartStrategy(RestartStrategies.noRestart())
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_restart_strategy(RestartStrategies.no_restart())
+config = Configuration()
+config.set_string('restart-strategy.type', 'none')
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}
