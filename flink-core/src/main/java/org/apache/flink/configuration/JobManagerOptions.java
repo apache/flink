@@ -590,7 +590,7 @@ public class JobManagerOptions {
     public static final ConfigOption<TaskDeploymentMode> TASK_DEPLOYMENT_MODE =
             key("jobmanager.execution.deploy-mode")
                     .enumType(TaskDeploymentMode.class)
-                    .defaultValue(TaskDeploymentMode.SINGLE)
+                    .defaultValue(TaskDeploymentMode.BATCH)
                     .withDescription(
                             Description.builder()
                                     .text(
