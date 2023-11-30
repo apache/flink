@@ -16,6 +16,10 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+
+# The file is directly downloaded and used by the different connector implementations
+# Threat it as an @Experimental API
+
 if [[ "$@" =~ 'apache-flink-libraries' ]]; then
     pushd apache-flink-libraries
     python setup.py sdist

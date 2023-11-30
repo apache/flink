@@ -216,14 +216,21 @@ def construct_hadoop_classpath(env):
                  read_from_config(KEY_ENV_HBASE_CONF_DIR, hbase_conf_dir, flink_conf_file))])
 
 
-def construct_test_classpath():
+def construct_test_classpath(env):
     test_jar_patterns = [
         "flink-python/target/test-dependencies/*",
         "flink-python/target/artifacts/testDataStream.jar",
         "flink-python/target/flink-python*-tests.jar",
     ]
     test_jars = []
-    flink_source_root = _find_flink_source_root()
+
+    # Connector tests need to add specific jars to the gateway classpath
+    # flink_source_root = env['FLINK_TEST_LIB_DIR']
+    if 'FLINK_TEST_LIB_DIR' in env:
+        flink_source_root = env['FLINK_TEST_LIB_DIR']
+    else:
+        flink_source_root = _find_flink_source_root()
+
     for pattern in test_jar_patterns:
         pattern = pattern.replace("/", os.path.sep)
         test_jars += glob.glob(os.path.join(flink_source_root, pattern))
@@ -253,7 +260,7 @@ def launch_gateway_server_process(env, args):
         classpath = os.pathsep.join(
             [construct_flink_classpath(env), construct_hadoop_classpath(env)])
         if "FLINK_TESTING" in env:
-            classpath = os.pathsep.join([classpath, construct_test_classpath()])
+            classpath = os.pathsep.join([classpath, construct_test_classpath(env)])
         command = [
             java_executable,
             *jvm_args,

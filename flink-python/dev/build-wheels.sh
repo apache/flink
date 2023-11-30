@@ -13,6 +13,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# The file is directly downloaded and used by the different connector implementations
+# Threat it as an @Experimental API
+
 set -e -x
 
 ## 1. install python env
