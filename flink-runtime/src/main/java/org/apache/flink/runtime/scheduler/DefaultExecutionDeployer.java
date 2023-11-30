@@ -303,7 +303,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                         String.format(
                                 "Registering produced partitions for execution %s timed out after %d ms.",
                                 execution.getAttemptId(),
-                                partitionRegistrationTimeout.toMilliseconds()));
+                                rpcTimeout.toMilliseconds()));
             } else {
                 return FutureUtils.completedVoidFuture();
             }
