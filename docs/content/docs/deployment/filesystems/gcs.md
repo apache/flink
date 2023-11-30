@@ -68,7 +68,7 @@ cp ./opt/flink-gs-fs-hadoop-{{< version >}}.jar ./plugins/gs-fs-hadoop/
 
 ### Configuration
 
-The underlying Hadoop file system can be configured using the [Hadoop configuration keys](https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/v2.2.15/gcs/CONFIGURATION.md) for `gcs-connector` by adding the configurations to your `flink-conf.yaml`.
+The underlying Hadoop file system can be configured using the [Hadoop configuration keys](https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/v2.2.18/gcs/CONFIGURATION.md) for `gcs-connector` by adding the configurations to your `flink-conf.yaml`.
 
 For example, `gcs-connector` has a `fs.gs.http.connect-timeout` configuration key. If you want to change it, you need to set `gs.http.connect-timeout: xyz` in `flink-conf.yaml`. Flink will internally translate this back to `fs.gs.http.connect-timeout`. 
 
