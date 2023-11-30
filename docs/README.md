@@ -8,16 +8,19 @@ https://flink.apache.org/ is also generated from the files found here.
 
 ### Build the documentation and serve it locally
 
-The Flink documentation uses [Hugo](https://gohugo.io/getting-started/installing/) to generate HTML files.  More specifically, it uses the *extended version* of Hugo with Sass/SCSS support. 
+The Flink documentation uses [Hugo](https://gohugo.io/getting-started/installing/) to generate HTML
+files. More specifically, it uses the *extended version* of Hugo with Sass/SCSS support.
 
-To build the documentation, you can install Hugo locally or use a Docker image. 
+To build the documentation, you can install Hugo locally or use a Docker image.
 
-Both methods require you to execute commands in the directory of this module (`docs/`). The built site is served at http://localhost:1313/.
+Both methods require you to execute commands in the directory of this module (`docs/`). The built
+site is served at http://localhost:1313/.
 
 #### Using Hugo Docker image:
 
 ```sh
-$ git submodule update --init --recursive
+$ git submodule update --init --recursive  # Execute in the root directory of the Flink project
+$ cd docs/
 $ ./setup_docs.sh
 $ docker pull jakejarvis/hugo-extended:latest
 $ docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server --buildDrafts --buildFuture --bind 0.0.0.0
@@ -42,28 +45,31 @@ The site can be viewed at http://localhost:1313/
 ## Include externally hosted documentation
 
 With the ongoing efforts to move Flink's connectors from this repository to individual, dedicated
-repositories, this also requires the documentation to be hosted outside this repo. However, 
-we still want to serve all documentation as a whole on the Flink documentation website.
+repositories, this also requires the documentation to be hosted outside this repo. However, we still
+want to serve all documentation as a whole on the Flink documentation website.
 
 Adding new externally hosted documentation requires the following steps to be taken:
 
 1. (If necessary) Move the existing documentation to the new repository
 
-2. In the Flink repository, edit the `docs/setup_docs.sh` file and add a reference to your now 
-externally hosted documentation. The reference will look like `integrate_connector_docs <connector_name> <branch_or_tag>`.
+2. In the Flink repository, edit the `docs/setup_docs.sh` file and add a reference to your now
+   externally hosted documentation. The reference will look
+   like `integrate_connector_docs <connector_name> <branch_or_tag>`.
 
-Replace <connector_name> with the name of your connector, e.g., `elasticsearch` for `flink-connector-elasticsearch`.
+Replace <connector_name> with the name of your connector, e.g., `elasticsearch`
+for `flink-connector-elasticsearch`.
 
 ## Generate configuration tables
 
-Configuration descriptions are auto generated from code. To trigger the generation you need to run in the project root:
+Configuration descriptions are auto generated from code. To trigger the generation you need to run
+in the project root:
 
 ```
 mvn -Pgenerate-config-docs install -Dfast -DskipTests
 ```
 
-The resulting html files will be written to `layouts/shortcodes/generated`. Tables are regenerated each time the command is invoked.
-These tables can be directly included into the documentation:
+The resulting html files will be written to `layouts/shortcodes/generated`. Tables are regenerated
+each time the command is invoked. These tables can be directly included into the documentation:
 
 ```
 {{< generated/file_name >}}
@@ -73,11 +79,16 @@ These tables can be directly included into the documentation:
 
 ## Markdown
 
-The documentation pages are written in [Markdown](http://daringfireball.net/projects/markdown/syntax). It is possible to use [GitHub flavored syntax](http://github.github.com/github-flavored-markdown) and intermix plain html.
+The documentation pages are written
+in [Markdown](http://daringfireball.net/projects/markdown/syntax). It is possible to
+use [GitHub flavored syntax](http://github.github.com/github-flavored-markdown) and intermix plain
+html.
 
 ## Front matter
 
-In addition to Markdown, every page contains a Jekyll front matter, which specifies the title of the page and the layout to use. The title is used as the top-level heading for the page. The default layout is `plain` (found in `_layouts`).
+In addition to Markdown, every page contains a Jekyll front matter, which specifies the title of the
+page and the layout to use. The title is used as the top-level heading for the page. The default
+layout is `plain` (found in `_layouts`).
 
     ---
     title: "Title of the Page"
@@ -97,7 +108,8 @@ In addition to Markdown, every page contains a Jekyll front matter, which specif
 
 #### Headings
 
-All documents are structured with headings. From these headings, you can automatically generate a page table of contents (see below).
+All documents are structured with headings. From these headings, you can automatically generate a
+page table of contents (see below).
 
 ```
 # Level-1 Heading  <- Used for the title of the page 
@@ -107,27 +119,30 @@ All documents are structured with headings. From these headings, you can automat
 ##### Level-5 heading
 ```
 
-Please stick to the "logical order" when using the headlines, e.g. start with level-2 headings and use level-3 headings for subsections, etc. Don't use a different ordering, because you don't like how a headline looks.
+Please stick to the "logical order" when using the headlines, e.g. start with level-2 headings and
+use level-3 headings for subsections, etc. Don't use a different ordering, because you don't like
+how a headline looks.
 
 #### Table of Contents
 
-Table of contents are added automatically to every page, based on heading levels 2 - 4. 
-The ToC can be omitted by adding the following to the front matter of the page:
+Table of contents are added automatically to every page, based on heading levels 2 - 4. The ToC can
+be omitted by adding the following to the front matter of the page:
 
     ---
     bookToc: false
     ---
 
-### ShortCodes 
+### ShortCodes
 
-Flink uses [shortcodes](https://gohugo.io/content-management/shortcodes/) to add custom functionality
-to its documentation markdown. The following are available for use:  
+Flink uses [shortcodes](https://gohugo.io/content-management/shortcodes/) to add custom
+functionality to its documentation markdown. The following are available for use:
 
 #### Flink Artifact
 
     {{< artifact flink-streaming-scala withScalaVersion >}}
 
-This will be replaced by the maven artifact for flink-streaming-scala that users should copy into their pom.xml file. It will render out to:
+This will be replaced by the maven artifact for flink-streaming-scala that users should copy into
+their pom.xml file. It will render out to:
 
 ```xml
 <dependency>
@@ -141,7 +156,8 @@ It includes a number of optional flags:
 
 * withScalaVersion: Includes the scala version suffix to the artifact id
 * withTestScope: Includes `<scope>test</scope>` to the module. Useful for marking test dependencies.
-* withTestClassifier: Includes `<classifier>tests</classifier>`. Useful when users should be pulling in Flink tests dependencies. This is mostly for the test harnesses and probably not what you want. 
+* withTestClassifier: Includes `<classifier>tests</classifier>`. Useful when users should be pulling
+  in Flink tests dependencies. This is mostly for the test harnesses and probably not what you want.
 
 You can also use the shortcodes (with same flags) instead:
 
@@ -152,7 +168,8 @@ You can also use the shortcodes (with same flags) instead:
 
     {{< connector_artifact flink-connector-elasticsearch 3.0.0 >}}
 
-This will be replaced by the maven artifact for flink-connector-elasticsearch that users should copy into their pom.xml file. It will render out to:
+This will be replaced by the maven artifact for flink-connector-elasticsearch that users should copy
+into their pom.xml file. It will render out to:
 
 ```xml
 <dependency>
@@ -166,7 +183,8 @@ This will be replaced by the maven artifact for flink-connector-elasticsearch th
 
 	{{< top >}}
 
-This will be replaced by a back to top link. It is recommended to use these links at least at the end of each level-2 section.
+This will be replaced by a back to top link. It is recommended to use these links at least at the
+end of each level-2 section.
 
 #### Info Hints
 
@@ -174,17 +192,17 @@ This will be replaced by a back to top link. It is recommended to use these link
 	Some interesting information
 	{{< /hint >}}
 
-The hint will be rendered in a blue box. This hint is useful when providing 
-additional information for the user that does not fit into the flow of the documentation.
+The hint will be rendered in a blue box. This hint is useful when providing additional information
+for the user that does not fit into the flow of the documentation.
 
-#### Info Warning 
+#### Info Warning
 
     {{< hint warning >}}
     Something to watch out for. 
     {{< /hint >}}
 
-The hint will be rendered in a yellow box. This hint is useful when highlighting
-information users should watch out for to prevent errors. 
+The hint will be rendered in a yellow box. This hint is useful when highlighting information users
+should watch out for to prevent errors.
 
 #### Info Danger
 
@@ -192,18 +210,17 @@ information users should watch out for to prevent errors.
     Something to avoid
     {{< /hint >}}
 
-The hint will be rendered in a red box. This hint is useful when highlighting
-information users need to know to avoid data loss or to point out broken
-functionality. 
+The hint will be rendered in a red box. This hint is useful when highlighting information users need
+to know to avoid data loss or to point out broken functionality.
 
 #### Label
 
     {{< label "My Label" >}}
 
-The label will be rendered in an inlined blue box. This is useful for labeling functionality
-such as whether a SQL feature works for only batch or streaming execution. 
+The label will be rendered in an inlined blue box. This is useful for labeling functionality such as
+whether a SQL feature works for only batch or streaming execution.
 
-#### Flink version 
+#### Flink version
 
     {{< version >}}
 
@@ -221,15 +238,15 @@ Interpolates the default scala version
      Some content
     {{< /stable >}}
 
-This shortcode will only render its content if the site is marked as stable. 
+This shortcode will only render its content if the site is marked as stable.
 
-#### Unstable 
+#### Unstable
 
     {{< unstable >}}
     Some content 
     {{< /unstable >}}
 
-This shortcode will only render its content if the site is marked as unstable. 
+This shortcode will only render its content if the site is marked as unstable.
 
 #### Query State Warning
 
@@ -252,30 +269,32 @@ Will render a warning the current SQL feature may have unbounded state requireme
     {< /tab >}}
     {{< /tabs }}
 
-Prints the content in tabs. IMPORTANT: The label in the outermost "tabs" shortcode must
-be unique for the page. 
+Prints the content in tabs. IMPORTANT: The label in the outermost "tabs" shortcode must be unique
+for the page.
 
 #### Github Repo
 
     {{< github_repo >}}
 
-Renders a link to the apache flink repo. 
+Renders a link to the apache flink repo.
 
 #### Github Link
 
     {{< gh_link file="/some/file.java" name="Some file" >}}
 
-Renders a link to a file in the Apache Flink repo with a given name. 
+Renders a link to a file in the Apache Flink repo with a given name.
 
 #### JavaDocs Link
+
     {{< javadoc file="some/file" name="Some file" >}}
 
-Renders a link to a file in the Apache Flink Java Documentation. 
+Renders a link to a file in the Apache Flink Java Documentation.
 
 #### PythonDocs Link
+
     {< pythondoc file="some/file" name="Some file" >}}
 
-Renders a link to a file in the Apache Flink Python Documentation. 
+Renders a link to a file in the Apache Flink Python Documentation.
 
 #### FlinkDownloads Link
 
