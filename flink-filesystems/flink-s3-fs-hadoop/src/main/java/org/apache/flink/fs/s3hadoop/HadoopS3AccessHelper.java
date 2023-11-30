@@ -68,7 +68,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 
     @Override
     public String startMultiPartUpload(String key) throws IOException {
-        return s3accessHelper.initiateMultiPartUpload(key, null);
+        return s3accessHelper.initiateMultiPartUpload(key);
     }
 
     @Override
@@ -84,14 +84,13 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                         null,
                         inputFile,
                         0L);
-        return s3accessHelper.uploadPart(uploadRequest, null);
+        return s3accessHelper.uploadPart(uploadRequest);
     }
 
     @Override
     public PutObjectResult putObject(String key, File inputFile) throws IOException {
-        final PutObjectRequest putRequest =
-                s3accessHelper.createPutObjectRequest(key, inputFile, null);
-        return s3accessHelper.putObject(putRequest, null, null);
+        final PutObjectRequest putRequest = s3accessHelper.createPutObjectRequest(key, inputFile);
+        return s3accessHelper.putObject(putRequest);
     }
 
     @Override
@@ -103,7 +102,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
             AtomicInteger errorCount)
             throws IOException {
         return s3accessHelper.completeMPUwithRetries(
-                destKey, uploadId, partETags, length, errorCount, null);
+                destKey, uploadId, partETags, length, errorCount);
     }
 
     @Override
@@ -161,6 +160,33 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                 AuditSpanSource auditSpanSource,
                 AuditSpan auditSpan) {
             super(owner, conf, statisticsContext, auditSpanSource, auditSpan, null);
+        }
+
+        public PutObjectRequest createPutObjectRequest(String dest, File sourceFile) {
+            return super.createPutObjectRequest(dest, sourceFile, null);
+        }
+
+        public PutObjectResult putObject(PutObjectRequest putObjectRequest) throws IOException {
+            return super.putObject(putObjectRequest, null, null);
+        }
+
+        public CompleteMultipartUploadResult completeMPUwithRetries(
+                String destKey,
+                String uploadId,
+                List<PartETag> partETags,
+                long length,
+                AtomicInteger errorCount)
+                throws IOException {
+            return super.completeMPUwithRetries(
+                    destKey, uploadId, partETags, length, errorCount, null);
+        }
+
+        public UploadPartResult uploadPart(UploadPartRequest request) throws IOException {
+            return super.uploadPart(request, null);
+        }
+
+        public String initiateMultiPartUpload(String destKey) throws IOException {
+            return super.initiateMultiPartUpload(destKey, null);
         }
     }
 }
