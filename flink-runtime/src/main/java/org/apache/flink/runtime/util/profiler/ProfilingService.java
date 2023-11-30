@@ -179,6 +179,10 @@ public class ProfilingService implements Closeable {
                 profilingMap.getOrDefault(resourceID, new ArrayDeque<>()));
     }
 
+    public String getProfilingResultDir() {
+        return profilingResultDir;
+    }
+
     @VisibleForTesting
     ArrayDeque<ProfilingInfo> getProfilingListForTest(String resourceID) {
         return profilingMap.getOrDefault(resourceID, new ArrayDeque<>());
@@ -192,11 +196,6 @@ public class ProfilingService implements Closeable {
     @VisibleForTesting
     ProfilingFuture getProfilingFuture() {
         return profilingFuture;
-    }
-
-    @VisibleForTesting
-    public String getProfilingResultDir() {
-        return profilingResultDir;
     }
 
     enum ProfilerConstants {

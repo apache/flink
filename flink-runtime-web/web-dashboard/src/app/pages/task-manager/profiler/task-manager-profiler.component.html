@@ -37,30 +37,12 @@
             nz-button
             nzType="primary"
             [nzLoading]="isCreating"
-            [disabled]="!isEnabled"
+            [disabled]="duration === null || !isEnabled"
             (click)="createProfilingInstance()"
             style="margin-left: 10px"
           >
             Create Profiling Instance
           </button>
-          <i
-            class="header-icon"
-            style="margin-left: 10px"
-            nz-icon
-            nz-tooltip
-            [nzTooltipTitle]="titleTemplate"
-            nzTooltipTitle=""
-            nzType="info-circle"
-          ></i>
-          <ng-template #titleTemplate>
-            <span>
-              Please refer to
-              <a href="https://github.com/async-profiler/async-profiler/wiki">
-                async-profiler's wiki
-              </a>
-              for more detailed info of this feature.
-            </span>
-          </ng-template>
         </nz-form-control>
       </nz-form-item>
     </form>
@@ -69,7 +51,7 @@
       nzType="warning"
       style="margin-top: 10px"
       nzShowIcon
-      nzMessage="Please set the config `rest.profiling.enabled: true` to enable this experimental profiler feature."
+      nzMessage="You need to set the config `rest.profiler.enabled: true` to enable this experimental profiler feature."
     ></nz-alert>
   </div>
   <nz-table

@@ -101,6 +101,9 @@ import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerCustomLogHan
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerDetailsHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerLogListHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingFileHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingListHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerThreadDumpHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagersHandler;
@@ -152,6 +155,9 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerCustomLogHe
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogsHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerProfilingFileHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerProfilingHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerProfilingListHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerThreadDumpHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
@@ -964,6 +970,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         handlers.add(
                 Tuple2.of(JobManagerThreadDumpHeaders.getInstance(), jobManagerThreadDumpHandler));
 
+        final Time cacheEntryDuration = Time.milliseconds(restConfiguration.getRefreshInterval());
+
         // load profiler relative handlers
         if (clusterConfiguration.get(RestOptions.ENABLE_PROFILER)) {
             final JobManagerProfilingHandler jobManagerProfilingHandler =
@@ -987,6 +995,32 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                             responseHeaders,
                             JobManagerProfilingFileHeaders.getInstance(),
                             clusterConfiguration);
+
+            final TaskManagerProfilingHandler taskManagerProfilingHandler =
+                    new TaskManagerProfilingHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            TaskManagerProfilingHeaders.getInstance(),
+                            resourceManagerRetriever,
+                            clusterConfiguration);
+
+            final TaskManagerProfilingListHandler taskManagerProfilingListHandler =
+                    new TaskManagerProfilingListHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            TaskManagerProfilingListHeaders.getInstance(),
+                            resourceManagerRetriever);
+            final TaskManagerProfilingFileHandler taskManagerProfilingFileHandler =
+                    new TaskManagerProfilingFileHandler(
+                            leaderRetriever,
+                            timeout,
+                            responseHeaders,
+                            TaskManagerProfilingFileHeaders.getInstance(),
+                            resourceManagerRetriever,
+                            transientBlobService,
+                            cacheEntryDuration);
             handlers.add(
                     Tuple2.of(
                             JobManagerProfilingHeaders.getInstance(), jobManagerProfilingHandler));
@@ -998,11 +1032,21 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                     Tuple2.of(
                             JobManagerProfilingFileHeaders.getInstance(),
                             jobManagerProfilingFileHandler));
+            handlers.add(
+                    Tuple2.of(
+                            TaskManagerProfilingHeaders.getInstance(),
+                            taskManagerProfilingHandler));
+            handlers.add(
+                    Tuple2.of(
+                            TaskManagerProfilingListHeaders.getInstance(),
+                            taskManagerProfilingListHandler));
+            handlers.add(
+                    Tuple2.of(
+                            TaskManagerProfilingFileHeaders.getInstance(),
+                            taskManagerProfilingFileHandler));
         }
 
         // TaskManager log and stdout file handler
-
-        final Time cacheEntryDuration = Time.milliseconds(restConfiguration.getRefreshInterval());
 
         final TaskManagerLogFileHandler taskManagerLogFileHandler =
                 new TaskManagerLogFileHandler(
