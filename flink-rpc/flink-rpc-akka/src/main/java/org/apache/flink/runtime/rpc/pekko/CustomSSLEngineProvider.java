@@ -38,6 +38,7 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
     private final String sslTrustStore;
     private final String sslTrustStorePassword;
     private final List<String> sslCertFingerprints;
+    private final String sslCertFingerprintsAlgorithm;
 
     public CustomSSLEngineProvider(ActorSystem system) {
         super(system);
@@ -46,6 +47,7 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
         sslTrustStore = securityConfig.getString("trust-store");
         sslTrustStorePassword = securityConfig.getString("trust-store-password");
         sslCertFingerprints = securityConfig.getStringList("cert-fingerprints");
+        sslCertFingerprintsAlgorithm = securityConfig.getString("cert-fingerprints-algorithm");
     }
 
     @Override
@@ -55,7 +57,7 @@ public class CustomSSLEngineProvider extends ConfigSSLEngineProvider {
                     sslCertFingerprints.isEmpty()
                             ? TrustManagerFactory.getInstance(
                                     TrustManagerFactory.getDefaultAlgorithm())
-                            : FingerprintTrustManagerFactory.builder("SHA1")
+                            : FingerprintTrustManagerFactory.builder(sslCertFingerprintsAlgorithm)
                                     .fingerprints(sslCertFingerprints)
                                     .build();
 

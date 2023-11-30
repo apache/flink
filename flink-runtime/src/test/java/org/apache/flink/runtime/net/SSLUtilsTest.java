@@ -224,8 +224,8 @@ public class SSLUtilsTest {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
         config.setString(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
-                getCertificateFingerprint(config, "flink.test"));
-
+                getCertificateFingerprint("SHA1", config, "flink.test"));
+        config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT_ALGORITHM, "SHA1");
         assertThat(SSLUtils.createInternalServerSSLEngineFactory(config)).isNotNull();
         assertThat(SSLUtils.createInternalClientSSLEngineFactory(config)).isNotNull();
     }
@@ -376,13 +376,25 @@ public class SSLUtilsTest {
 
     @ParameterizedTest
     @MethodSource("parameters")
-    void testInvalidFingerprintParsing(String sslProvider) throws Exception {
+    void testInvalidFingerprintWithSHA1Parsing(String sslProvider) throws Exception {
+        testInvalidFingerprintParsing("SHA1", sslProvider);
+    }
+
+    @ParameterizedTest
+    @MethodSource("parameters")
+    void testInvalidFingerprintWithSHA256Parsing(String sslProvider) throws Exception {
+        testInvalidFingerprintParsing("SHA-256", sslProvider);
+    }
+
+    private void testInvalidFingerprintParsing(String algorithm, String sslProvider)
+            throws Exception {
         final Configuration config = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
-        final String fingerprint = getCertificateFingerprint(config, "flink.test");
+        final String fingerprint = getCertificateFingerprint(algorithm, config, "flink.test");
 
         config.setString(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
                 fingerprint.substring(0, fingerprint.length() - 3));
+        config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT_ALGORITHM, algorithm);
 
         assertThatThrownBy(() -> SSLUtils.createInternalServerSSLEngineFactory(config))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -440,8 +452,8 @@ public class SSLUtilsTest {
         return config;
     }
 
-    public static String getCertificateFingerprint(Configuration config, String certificateAlias)
-            throws Exception {
+    public static String getCertificateFingerprint(
+            String algorithm, Configuration config, String certificateAlias) throws Exception {
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
         try (InputStream keyStoreFile =
                 Files.newInputStream(
@@ -451,7 +463,7 @@ public class SSLUtilsTest {
                     keyStoreFile,
                     config.getString(SecurityOptions.SSL_INTERNAL_KEYSTORE_PASSWORD).toCharArray());
         }
-        return getSha1Fingerprint(keyStore.getCertificate(certificateAlias));
+        return getFingerprint(algorithm, keyStore.getCertificate(certificateAlias));
     }
 
     public static String getRestCertificateFingerprint(
@@ -464,7 +476,7 @@ public class SSLUtilsTest {
                     keyStoreFile,
                     config.getString(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD).toCharArray());
         }
-        return getSha1Fingerprint(keyStore.getCertificate(certificateAlias));
+        return getFingerprint("SHA1", keyStore.getCertificate(certificateAlias));
     }
 
     private static void addSslProviderConfig(Configuration config, String sslProvider) {
@@ -501,12 +513,12 @@ public class SSLUtilsTest {
         config.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, TRUST_STORE_PASSWORD);
     }
 
-    private static String getSha1Fingerprint(Certificate cert) {
+    private static String getFingerprint(String algorithm, Certificate cert) {
         if (cert == null) {
             return null;
         }
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA1");
+            MessageDigest digest = MessageDigest.getInstance(algorithm);
             return toHexadecimalString(digest.digest(cert.getEncoded()));
         } catch (NoSuchAlgorithmException | CertificateEncodingException e) {
             // ignore

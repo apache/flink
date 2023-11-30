@@ -249,7 +249,15 @@ public class SSLUtils {
         if (StringUtils.isNullOrWhitespaceOnly(certFingerprint)) {
             tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         } else {
-            tmf = new FingerprintTrustManagerFactory(certFingerprint.split(","));
+            String sslCertFingerprintsAlgorithm =
+                    config.getString(
+                            internal
+                                    ? SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT_ALGORITHM
+                                    : SecurityOptions.SSL_REST_CERT_FINGERPRINT_ALGORITHM);
+            tmf =
+                    FingerprintTrustManagerFactory.builder(sslCertFingerprintsAlgorithm)
+                            .fingerprints(certFingerprint.split(","))
+                            .build();
         }
 
         tmf.init(trustStore);

@@ -262,7 +262,16 @@ public class NettyClientServerSslTest extends TestLogger {
     }
 
     @Test
-    public void testSslPinningForValidFingerprint() throws Exception {
+    public void testSslPinningForValidFingerprintWithSHA1() throws Exception {
+        testSslPinningForValidFingerprint("SHA1");
+    }
+
+    @Test
+    public void testSslPinningForValidFingerprintWithSHA256() throws Exception {
+        testSslPinningForValidFingerprint("SHA-256");
+    }
+
+    private void testSslPinningForValidFingerprint(String algorithm) throws Exception {
         NettyProtocol protocol = new NettyTestUtil.NoOpProtocol();
 
         Configuration config = createSslConfig();
@@ -270,7 +279,8 @@ public class NettyClientServerSslTest extends TestLogger {
         // pin the certificate based on internal cert
         config.setString(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
-                SSLUtilsTest.getCertificateFingerprint(config, "flink.test"));
+                SSLUtilsTest.getCertificateFingerprint(algorithm, config, "flink.test"));
+        config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT_ALGORITHM, algorithm);
         NettyTestUtil.NettyServerAndClient serverAndClient;
         try (NetUtils.Port port = NetUtils.getAvailablePort()) {
             NettyConfig nettyConfig = createNettyConfig(config, port);
@@ -297,8 +307,10 @@ public class NettyClientServerSslTest extends TestLogger {
         // pin the certificate based on internal cert
         config.setString(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
-                SSLUtilsTest.getCertificateFingerprint(config, "flink.test")
+                SSLUtilsTest.getCertificateFingerprint("SHA1", config, "flink.test")
                         .replaceAll("[0-9A-Z]", "0"));
+        config.setString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT_ALGORITHM, "SHA1");
+
         NettyTestUtil.NettyServerAndClient serverAndClient;
         try (NetUtils.Port port = NetUtils.getAvailablePort()) {
             NettyConfig nettyConfig = createNettyConfig(config, port);

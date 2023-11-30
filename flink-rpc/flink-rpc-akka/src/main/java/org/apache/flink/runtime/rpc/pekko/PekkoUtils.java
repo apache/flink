@@ -351,6 +351,9 @@ class PekkoUtils {
                                 .collect(Collectors.joining("\",\"", "[\"", "\"]"))
                         : "[]";
 
+        final String sslCertFingerprintsAlgorithm =
+                configuration.getString(SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT_ALGORITHM);
+
         final String sslProtocol = configuration.getString(SecurityOptions.SSL_PROTOCOL);
 
         final String sslAlgorithmsString = configuration.getString(SecurityOptions.SSL_ALGORITHMS);
@@ -380,6 +383,7 @@ class PekkoUtils {
                 .add("          random-number-generator = \"\"")
                 .add("          require-mutual-authentication = on")
                 .add("          cert-fingerprints = " + sslCertFingerprints + "")
+                .add("          cert-fingerprints-algorithm = " + sslCertFingerprintsAlgorithm + "")
                 .add("        }")
                 .add("      }")
                 .add("    }")

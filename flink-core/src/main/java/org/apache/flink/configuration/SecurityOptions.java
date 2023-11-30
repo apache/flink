@@ -407,16 +407,24 @@ public class SecurityOptions {
                             "The password to decrypt the truststore "
                                     + "for Flink's internal endpoints (rpc, data transport, blob server).");
 
-    /** For internal SSL, the sha1 fingerprint of the internal certificate to verify the client. */
+    /** For internal SSL, the fingerprint of the internal certificate to verify the client. */
     @Documentation.Section(Documentation.Sections.SECURITY_SSL)
     public static final ConfigOption<String> SSL_INTERNAL_CERT_FINGERPRINT =
             key("security.ssl.internal.cert.fingerprint")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "The sha1 fingerprint of the internal certificate. "
+                            "The fingerprint of the internal certificate. "
                                     + "This further protects the internal communication to present the exact certificate used by Flink."
                                     + "This is necessary where one cannot use private CA(self signed) or there is internal firm wide CA is required");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_SSL)
+    public static final ConfigOption<String> SSL_INTERNAL_CERT_FINGERPRINT_ALGORITHM =
+            key("security.ssl.internal.cert.fingerprint.algorithm")
+                    .stringType()
+                    .defaultValue("SHA1")
+                    .withDescription(
+                            "Fingerprint encryption algorithm. The default value is SHA1.");
 
     // ----------------------- certificates (external) ------------------------
 
@@ -478,16 +486,24 @@ public class SecurityOptions {
                             "The password to decrypt the truststore "
                                     + "for Flink's external REST endpoints.");
 
-    /** For external (REST) SSL, the sha1 fingerprint of the rest client certificate to verify. */
+    /** For external (REST) SSL, the fingerprint of the rest client certificate to verify. */
     @Documentation.Section(Documentation.Sections.SECURITY_SSL)
     public static final ConfigOption<String> SSL_REST_CERT_FINGERPRINT =
             key("security.ssl.rest.cert.fingerprint")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(
-                            "The sha1 fingerprint of the rest certificate. "
+                            "The fingerprint of the rest certificate. "
                                     + "This further protects the rest REST endpoints to present certificate which is only used by proxy server"
                                     + "This is necessary where once uses public CA or internal firm wide CA");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_SSL)
+    public static final ConfigOption<String> SSL_REST_CERT_FINGERPRINT_ALGORITHM =
+            key("security.ssl.rest.cert.fingerprint.algorithm")
+                    .stringType()
+                    .defaultValue("SHA1")
+                    .withDescription(
+                            "Fingerprint encryption algorithm. The default value is SHA1.");
 
     // ------------------------ ssl parameters --------------------------------
 
