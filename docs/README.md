@@ -17,7 +17,8 @@ Both methods require you to execute commands in the directory of this module (`d
 #### Using Hugo Docker image:
 
 ```sh
-$ git submodule update --init --recursive
+$ git submodule update --init --recursive  # Execute in the root directory of the Flink project
+$ cd docs/
 $ ./setup_docs.sh
 $ docker pull jakejarvis/hugo-extended:latest
 $ docker run -v $(pwd):/src -p 1313:1313 jakejarvis/hugo-extended:latest server --buildDrafts --buildFuture --bind 0.0.0.0
