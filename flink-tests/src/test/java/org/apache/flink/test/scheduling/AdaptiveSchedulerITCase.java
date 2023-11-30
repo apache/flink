@@ -334,6 +334,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
             Preconditions.checkNotNull(instancesRunning);
+            Thread.sleep(500);
             instancesRunning.countDown();
             int i = Integer.MIN_VALUE;
             while (running) {

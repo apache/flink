@@ -26,7 +26,7 @@ import java.io.Serializable;
 /** Result of deploy task. */
 public class TaskDeployResult implements Serializable {
 
-    private static final long serialVersionUID = 5082671184459283440L;
+    private static final long serialVersionUID = 1L;
 
     private final ExecutionAttemptID executionAttemptID;
 

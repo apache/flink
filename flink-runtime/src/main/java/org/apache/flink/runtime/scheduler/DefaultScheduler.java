@@ -22,6 +22,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.failure.FailureEnricher.Context;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -217,8 +218,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         this::startReserveAllocation,
                         mainThreadExecutor,
                         futureExecutor,
-                        ExecutionDeployerFactoryLoader.createExecutionDeployerFactory(
-                                jobMasterConfiguration));
+                        createExecutionDeployerFactory(jobMasterConfiguration));
     }
 
     // ------------------------------------------------------------------------
@@ -484,6 +484,18 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         .collect(Collectors.toList());
 
         executionDeployer.allocateSlotsAndDeploy(executionsToDeploy, requiredVersionByVertex);
+    }
+
+    private ExecutionDeployExecutor.Factory createExecutionDeployerFactory(
+            Configuration configuration) {
+        switch (configuration.get(JobManagerOptions.TASK_DEPLOYMENT_MODE)) {
+            case BATCH:
+                return new BatchExecutionDeployExecutor.Factory();
+            case SINGLE:
+                return new DefaultExecutionDeployExecutor.Factory();
+            default:
+                throw new UnsupportedOperationException("Not support taskDeploymentMode");
+        }
     }
 
     private void startReserveAllocation(

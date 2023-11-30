@@ -573,9 +573,6 @@ public class Execution
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
 
-            // null taskRestore to let it be GC'ed
-            taskRestore = null;
-
             final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
                     vertex.getExecutionGraphAccessor().getJobMasterMainThreadExecutor();
 
@@ -615,6 +612,9 @@ public class Execution
                                 }
                             },
                             jobMasterMainThreadExecutor);
+
+            // null taskRestore to let it be GC'ed
+            taskRestore = null;
         } catch (Throwable t) {
             markFailed(t);
         }
@@ -647,9 +647,7 @@ public class Execution
                                 executor)
                         .thenCompose(Function.identity());
             } catch (Exception e) {
-                CompletableFuture completableFuture = new CompletableFuture();
-                completableFuture.completeExceptionally(e);
-                return completableFuture;
+                return FutureUtils.completedExceptionally(e);
             }
         };
     }
