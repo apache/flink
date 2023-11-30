@@ -49,8 +49,6 @@ Flink 作业如果没有定义重启策略，则会遵循集群启动时加载�
 {{< generated/restart_strategy_configuration >}}
 
 除了定义默认的重启策略以外，还可以为每个 Flink 作业单独定义重启策略。
-这个重启策略通过在程序中的 `StreamExecutionEnvironment` 对象上调用 `setRestartStrategy` 方法来设置。
-当然，对于 `StreamExecutionEnvironment` 也同样适用。
 
 下例展示了如何给我们的作业设置固定延时重启策略。
 如果发生故障，系统会重启作业 3 次，每两次连续的重启尝试之间等待 10 秒钟。
@@ -58,11 +56,11 @@ Flink 作业如果没有定义重启策略，则会遵循集群启动时加载�
 {{< tabs "2b011473-9a34-4e7b-943b-be4a9071fe3c" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-  3, // 尝试重启的次数
-  Time.of(10, TimeUnit.SECONDS) // 延时
-));
+Configuration config = new Configuration();
+config.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 3); // 尝试重启的次数
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(10)); // 延时
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -76,11 +74,11 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
-    3,  # 尝试重启的次数
-    10000  # 延时(毫秒)
-))
+config = Configuration()
+config.set_string('restart-strategy.type', 'fixed-delay')
+config.set_string('restart-strategy.fixed-delay.attempts', '3') # 尝试重启的次数
+config.set_string('restart-strategy.fixed-delay.delay', '10000 ms') # 延时
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -115,11 +113,11 @@ restart-strategy.fixed-delay.delay: 10 s
 {{< tabs "0877201b-96aa-4985-aebd-0780cf1d8e9e" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
-  3, // 尝试重启的次数
-  Time.of(10, TimeUnit.SECONDS) // 延时
-));
+Configuration config = new Configuration();
+config.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 3); // 尝试重启次数
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofSeconds(10)); // 延时
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -133,11 +131,11 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_restart_strategy(RestartStrategies.fixed_delay_restart(
-    3,  # 尝试重启的次数
-    10000  # 延时(毫秒)
-))
+config = Configuration()
+config.set_string('restart-strategy.type', 'fixed-delay')
+config.set_string('restart-strategy.fixed-delay.attempts', '3') # 尝试重启的次数
+config.set_string('restart-strategy.fixed-delay.delay', '10000 ms') # 延时
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -227,12 +225,12 @@ restart-strategy.failure-rate.delay: 10 s
 {{< tabs "f4fba671-e1a8-408d-9f3d-d679aa6473ea" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setRestartStrategy(RestartStrategies.failureRateRestart(
-  3, // 每个时间间隔的最大故障次数
-  Time.of(5, TimeUnit.MINUTES), // 测量故障率的时间间隔
-  Time.of(10, TimeUnit.SECONDS) // 延时
-));
+Configuration config = new Configuration();
+config.set(RestartStrategyOptions.RESTART_STRATEGY, "failure-rate");
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL, 3); // 每个时间间隔的最大故障次数
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL, Duration.ofMinutes(5)); // 测量故障率的时间间隔
+config.set(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY, Duration.ofSeconds(10)); // 延时
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -247,12 +245,12 @@ env.setRestartStrategy(RestartStrategies.failureRateRestart(
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_restart_strategy(RestartStrategies.failure_rate_restart(
-    3,  # 每个时间间隔的最大故障次数
-    300000,  # 测量故障率的时间间隔
-    10000  # 延时(毫秒)
-))
+config = Configuration()
+config.set_string('restart-strategy.type', 'failure-rate')
+config.set_string('restart-strategy.failure-rate.max-failures-per-interval', '3') # 每个时间间隔的最大故障次数
+config.set_string('restart-strategy.failure-rate.failure-rate-interval', '5 min') # 测量故障率的时间间隔
+config.set_string('restart-strategy.failure-rate.delay', '10 s') # 延时
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -271,8 +269,9 @@ restart-strategy.type: none
 {{< tabs "46f873e1-9582-4303-9a5f-1cdaa31e7ac7" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.setRestartStrategy(RestartStrategies.noRestart());
+Configuration config = new Configuration();
+config.set(RestartStrategyOptions.RESTART_STRATEGY, "none");
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -283,8 +282,9 @@ env.setRestartStrategy(RestartStrategies.noRestart())
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-env = StreamExecutionEnvironment.get_execution_environment()
-env.set_restart_strategy(RestartStrategies.no_restart())
+config = Configuration()
+config.set_string('restart-strategy.type', 'none')
+env = StreamExecutionEnvironment.get_execution_environment(config)
 ```
 {{< /tab >}}
 {{< /tabs >}}
