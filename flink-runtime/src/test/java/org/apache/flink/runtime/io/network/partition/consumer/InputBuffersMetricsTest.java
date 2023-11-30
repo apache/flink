@@ -108,6 +108,11 @@ public class InputBuffersMetricsTest extends TestLogger {
         int numberOfLocalChannelsGate2 = 1;
 
         int totalNumberOfRemoteChannels = numberOfRemoteChannelsGate1 + numberOfRemoteChannelsGate2;
+        int totalNumberOfChannels =
+                numberOfRemoteChannelsGate1
+                        + numberOfLocalChannelsGate1
+                        + numberOfRemoteChannelsGate2
+                        + numberOfLocalChannelsGate2;
 
         int buffersPerChannel = 2;
         int extraNetworkBuffersPerGate = 8;
@@ -147,7 +152,7 @@ public class InputBuffersMetricsTest extends TestLogger {
 
         int totalBuffers =
                 extraNetworkBuffersPerGate * inputGates.length
-                        + buffersPerChannel * totalNumberOfRemoteChannels;
+                        + buffersPerChannel * totalNumberOfChannels;
 
         int channelIndex = 1;
         for (RemoteInputChannel channel : remoteInputChannels) {
@@ -171,7 +176,11 @@ public class InputBuffersMetricsTest extends TestLogger {
         int numberOfRemoteChannelsGate2 = 1;
         int numberOfLocalChannelsGate2 = 1;
 
-        int totalNumberOfRemoteChannels = numberOfRemoteChannelsGate1 + numberOfRemoteChannelsGate2;
+        int totalNumberOfChannels =
+                numberOfRemoteChannelsGate1
+                        + numberOfLocalChannelsGate1
+                        + numberOfRemoteChannelsGate2
+                        + numberOfLocalChannelsGate2;
 
         int buffersPerChannel = 2;
         int extraNetworkBuffersPerGate = 8;
@@ -213,7 +222,7 @@ public class InputBuffersMetricsTest extends TestLogger {
 
         int totalBuffers =
                 extraNetworkBuffersPerGate * inputGates.length
-                        + buffersPerChannel * totalNumberOfRemoteChannels;
+                        + buffersPerChannel * totalNumberOfChannels;
 
         remoteInputChannel1.requestSubpartition();
 

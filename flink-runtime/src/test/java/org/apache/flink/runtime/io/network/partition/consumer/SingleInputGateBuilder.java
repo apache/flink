@@ -70,6 +70,8 @@ public class SingleInputGateBuilder {
     private MemorySegmentProvider segmentProvider =
             InputChannelTestUtils.StubMemorySegmentProvider.getInstance();
 
+    private BufferPool bufferPool = null;
+
     private ChannelStateWriter channelStateWriter = ChannelStateWriter.NO_OP;
 
     @Nullable
@@ -115,8 +117,10 @@ public class SingleInputGateBuilder {
         this.bufferPoolFactory =
                 SingleInputGateFactory.createBufferPoolFactory(
                         environment.getNetworkBufferPool(),
-                        1,
-                        config.floatingNetworkBuffersPerGate());
+                        2,
+                        // 害的区分LocalChannel还是RemoteChannel，其它地方同理。
+                        config.networkBuffersPerChannel() * numberOfChannels
+                                + config.floatingNetworkBuffersPerGate());
         this.segmentProvider = environment.getNetworkBufferPool();
         return this;
     }
@@ -133,6 +137,11 @@ public class SingleInputGateBuilder {
 
     public SingleInputGateBuilder setSegmentProvider(MemorySegmentProvider segmentProvider) {
         this.segmentProvider = segmentProvider;
+        return this;
+    }
+
+    public SingleInputGateBuilder setBufferPool(BufferPool bufferPool) {
+        this.bufferPool = bufferPool;
         return this;
     }
 

@@ -289,10 +289,12 @@ class ResultPartitionTest {
         try {
             resultPartition.setup();
 
-            resultPartition.getBufferPool().setNumBuffers(2);
+            resultPartition.getBufferPool().setNumBuffers(4);
 
             assertThat(resultPartition.getAvailableFuture()).isDone();
 
+            resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
             resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
             resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
             assertThat(resultPartition.getAvailableFuture()).isNotDone();
@@ -331,7 +333,7 @@ class ResultPartitionTest {
             BufferPool bufferPool = partition.getBufferPool();
             // verify the amount of buffers in created local pool
             assertThat(bufferPool.getNumberOfExpectedMemorySegments())
-                    .isEqualTo(partition.getNumberOfSubpartitions() + 1);
+                    .isEqualTo(Math.max(4, partition.getNumberOfSubpartitions() + 1));
             if (type.isBounded()) {
                 final int maxNumBuffers =
                         networkBuffersPerChannel * partition.getNumberOfSubpartitions()

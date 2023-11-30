@@ -54,7 +54,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
     private final ArrayDeque<Buffer> receivedBuffers = new ArrayDeque<>();
     private final CompletableFuture<?> stateConsumedFuture = new CompletableFuture<>();
-    protected final BufferManager bufferManager;
+    protected BufferManager bufferManager;
 
     @GuardedBy("receivedBuffers")
     private boolean isReleased;
@@ -92,7 +92,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
                 numBytesIn,
                 numBuffersIn);
 
-        bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
+        this.bufferManager = new BufferManager(this, networkBuffersPerChannel, 0);
         this.networkBuffersPerChannel = networkBuffersPerChannel;
     }
 
@@ -271,7 +271,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     public Buffer requestBufferBlocking() throws InterruptedException, IOException {
         // not in setup to avoid assigning buffers unnecessarily if there is no state
         if (!exclusiveBuffersAssigned) {
-            bufferManager.requestExclusiveBuffers(networkBuffersPerChannel);
+            bufferManager.requestExclusiveBuffers();
             exclusiveBuffersAssigned = true;
         }
         return bufferManager.requestBufferBlocking();

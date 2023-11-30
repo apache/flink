@@ -54,7 +54,6 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -158,8 +157,8 @@ public class SingleInputGateFactory {
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
                 createBufferPoolFactory(
                         networkBufferPool,
-                        gateBuffersSpec.getRequiredFloatingBuffers(),
-                        gateBuffersSpec.getTotalFloatingBuffers());
+                        gateBuffersSpec.getMinBuffersPerGate(),
+                        gateBuffersSpec.getMaxBuffersPerGate());
 
         BufferDecompressor bufferDecompressor = null;
         if (igdd.getConsumedPartitionType().supportCompression()
@@ -375,11 +374,8 @@ public class SingleInputGateFactory {
 
     @VisibleForTesting
     static SupplierWithException<BufferPool, IOException> createBufferPoolFactory(
-            BufferPoolFactory bufferPoolFactory,
-            int minFloatingBuffersPerGate,
-            int maxFloatingBuffersPerGate) {
-        Pair<Integer, Integer> pair = Pair.of(minFloatingBuffersPerGate, maxFloatingBuffersPerGate);
-        return () -> bufferPoolFactory.createBufferPool(pair.getLeft(), 2, pair.getRight());
+            BufferPoolFactory bufferPoolFactory, int minBuffersPerGate, int maxBuffersPerGate) {
+        return () -> bufferPoolFactory.createBufferPool(minBuffersPerGate, 2, maxBuffersPerGate);
     }
 
     /** Statistics of input channels. */

@@ -49,6 +49,8 @@ public class TieredStorageConfiguration {
 
     private static final int DEFAULT_NUM_BUFFERS_USE_SORT_ACCUMULATOR_THRESHOLD = 512;
 
+    private static final int DEFAULT_MIN_BUFFERS_PER_GATE = 2;
+
     private static final int DEFAULT_MEMORY_TIER_NUM_BYTES_PER_SEGMENT = 2 * 32 * 1024;
 
     private static final int DEFAULT_DISK_TIER_NUM_BYTES_PER_SEGMENT = 16 * 32 * 1024;
@@ -81,6 +83,8 @@ public class TieredStorageConfiguration {
 
     private final int accumulatorExclusiveBuffers;
 
+    private final int minBuffersPerGate;
+
     private final int memoryTierNumBytesPerSegment;
 
     private final int diskTierNumBytesPerSegment;
@@ -106,6 +110,7 @@ public class TieredStorageConfiguration {
             int diskTierExclusiveBuffers,
             int remoteTierExclusiveBuffers,
             int accumulatorExclusiveBuffers,
+            int minBuffersPerGate,
             int memoryTierNumBytesPerSegment,
             int diskTierNumBytesPerSegment,
             int remoteTierNumBytesPerSegment,
@@ -121,6 +126,7 @@ public class TieredStorageConfiguration {
         this.diskTierExclusiveBuffers = diskTierExclusiveBuffers;
         this.remoteTierExclusiveBuffers = remoteTierExclusiveBuffers;
         this.accumulatorExclusiveBuffers = accumulatorExclusiveBuffers;
+        this.minBuffersPerGate = minBuffersPerGate;
         this.memoryTierNumBytesPerSegment = memoryTierNumBytesPerSegment;
         this.diskTierNumBytesPerSegment = diskTierNumBytesPerSegment;
         this.remoteTierNumBytesPerSegment = remoteTierNumBytesPerSegment;
@@ -202,6 +208,10 @@ public class TieredStorageConfiguration {
      */
     public int getAccumulatorExclusiveBuffers() {
         return accumulatorExclusiveBuffers;
+    }
+
+    public int getMinBuffersPerGate() {
+        return minBuffersPerGate;
     }
 
     /**
@@ -314,6 +324,8 @@ public class TieredStorageConfiguration {
         private int numBuffersUseSortAccumulatorThreshold =
                 DEFAULT_NUM_BUFFERS_USE_SORT_ACCUMULATOR_THRESHOLD;
 
+        private int minBuffersPerGate = DEFAULT_MIN_BUFFERS_PER_GATE;
+
         private int memoryTierNumBytesPerSegment = DEFAULT_MEMORY_TIER_NUM_BYTES_PER_SEGMENT;
 
         private int diskTierNumBytesPerSegment = DEFAULT_DISK_TIER_NUM_BYTES_PER_SEGMENT;
@@ -366,6 +378,11 @@ public class TieredStorageConfiguration {
         public Builder setNumBuffersUseSortAccumulatorThreshold(
                 int numBuffersUseSortAccumulatorThreshold) {
             this.numBuffersUseSortAccumulatorThreshold = numBuffersUseSortAccumulatorThreshold;
+            return this;
+        }
+
+        public Builder setMinBuffersPerGate(int minBuffersPerGate) {
+            this.minBuffersPerGate = minBuffersPerGate;
             return this;
         }
 
@@ -434,6 +451,7 @@ public class TieredStorageConfiguration {
                     diskTierExclusiveBuffers,
                     remoteTierExclusiveBuffers,
                     numBuffersUseSortAccumulatorThreshold,
+                    minBuffersPerGate,
                     memoryTierNumBytesPerSegment,
                     diskTierNumBytesPerSegment,
                     remoteTierNumBytesPerSegment,

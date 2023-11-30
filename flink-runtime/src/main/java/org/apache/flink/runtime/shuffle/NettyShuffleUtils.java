@@ -82,6 +82,7 @@ public class NettyShuffleUtils {
                             ? Math.min(tieredStoreExclusiveBuffers, numSubpartitions + 1)
                             : (numSubpartitions + 1);
         }
+        min = Math.max(4, min);
         int max =
                 type.isBounded()
                         ? numSubpartitions * configuredNetworkBuffersPerChannel
@@ -159,7 +160,7 @@ public class NettyShuffleUtils {
                         type,
                         numInputChannels,
                         false);
-        return gateBuffersSpec.targetTotalBuffersPerGate();
+        return gateBuffersSpec.getMaxBuffersPerGate();
     }
 
     private static int getNumBuffersToAnnounceForResultPartition(

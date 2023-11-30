@@ -40,6 +40,7 @@ public class FloatingBuffersUsageGauge extends AbstractBuffersUsageGauge {
             int requestedFloatingBuffers = bufferPool.bestEffortGetNumOfUsedBuffers();
             for (InputChannel ic : inputGate.getInputChannels().values()) {
                 if (ic instanceof RemoteInputChannel) {
+                    requestedFloatingBuffers -= ((RemoteInputChannel) ic).getNumExclusiveBuffers();
                     availableFloatingBuffers +=
                             ((RemoteInputChannel) ic).unsynchronizedGetFloatingBuffersAvailable();
                 }
@@ -53,7 +54,13 @@ public class FloatingBuffersUsageGauge extends AbstractBuffersUsageGauge {
     public int calculateTotalBuffers(SingleInputGate inputGate) {
         BufferPool bufferPool = inputGate.getBufferPool();
         if (bufferPool != null) {
-            return inputGate.getBufferPool().getNumBuffers();
+            int total = inputGate.getBufferPool().getNumBuffers();
+            for (InputChannel ic : inputGate.getInputChannels().values()) {
+                if (ic instanceof RemoteInputChannel) {
+                    total -= ((RemoteInputChannel) ic).getNumExclusiveBuffers();
+                }
+            }
+            return total;
         }
         return 0;
     }

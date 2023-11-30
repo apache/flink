@@ -20,7 +20,6 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
@@ -35,10 +34,9 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -54,9 +52,6 @@ public class BufferManager implements BufferListener, BufferRecycler {
     /** The available buffer queue wraps both exclusive and requested floating buffers. */
     private final AvailableBufferQueue bufferQueue = new AvailableBufferQueue();
 
-    /** The buffer provider for requesting exclusive buffers. */
-    private final MemorySegmentProvider globalPool;
-
     /** The input channel to own this buffer manager. */
     private final InputChannel inputChannel;
 
@@ -66,17 +61,25 @@ public class BufferManager implements BufferListener, BufferRecycler {
     @GuardedBy("bufferQueue")
     private boolean isWaitingForFloatingBuffers;
 
+    /** The number of exclusive buffers for the respective input channel. */
+    private AtomicInteger atomicNumExclusiveBuffers;
+
+    private int initialNumExclusiveBuffers;
+
     /** The total number of required buffers for the respective input channel. */
     @GuardedBy("bufferQueue")
     private int numRequiredBuffers;
 
     public BufferManager(
-            MemorySegmentProvider globalPool, InputChannel inputChannel, int numRequiredBuffers) {
+            InputChannel inputChannel, int numExclusiveBuffers, int numRequiredBuffers) {
 
-        this.globalPool = checkNotNull(globalPool);
         this.inputChannel = checkNotNull(inputChannel);
+        checkArgument(numExclusiveBuffers >= 0);
         checkArgument(numRequiredBuffers >= 0);
+        this.initialNumExclusiveBuffers = numExclusiveBuffers;
         this.numRequiredBuffers = numRequiredBuffers;
+
+        this.atomicNumExclusiveBuffers = new AtomicInteger(numRequiredBuffers);
     }
 
     // ------------------------------------------------------------------------
@@ -132,15 +135,35 @@ public class BufferManager implements BufferListener, BufferRecycler {
         }
     }
 
+    private void resizeBufferQueue() {
+        int poolSize = inputChannel.inputGate.getBufferPool().getNumBuffers();
+        int numChannels = inputChannel.inputGate.getNumberOfInputChannels();
+
+        int targetExclusivePerChannel =
+                Math.min(initialNumExclusiveBuffers, (poolSize - 1) / numChannels);
+
+        atomicNumExclusiveBuffers.set(targetExclusivePerChannel);
+    }
+
     /** Requests exclusive buffers from the provider. */
-    void requestExclusiveBuffers(int numExclusiveBuffers) throws IOException {
+    void requestExclusiveBuffers() throws IOException {
+        resizeBufferQueue();
+
+        int numExclusiveBuffers = atomicNumExclusiveBuffers.get();
         checkArgument(numExclusiveBuffers >= 0, "Num exclusive buffers must be non-negative.");
         if (numExclusiveBuffers == 0) {
             return;
         }
 
-        Collection<MemorySegment> segments =
-                globalPool.requestUnpooledMemorySegments(numExclusiveBuffers);
+        List<MemorySegment> segments = new ArrayList<>();
+        for (int i = 0; i < numExclusiveBuffers; i++) {
+            try {
+                segments.add(inputChannel.inputGate.getBufferPool().requestMemorySegmentBlocking());
+            } catch (InterruptedException e) {
+                throw new IOException("Interrupted while waiting for buffer");
+            }
+        }
+
         synchronized (bufferQueue) {
             // AvailableBufferQueue::addExclusiveBuffer may release the previously allocated
             // floating buffer, which requires the caller to recycle these released floating
@@ -208,14 +231,19 @@ public class BufferManager implements BufferListener, BufferRecycler {
      */
     @Override
     public void recycle(MemorySegment segment) {
+        resizeBufferQueue();
+
         @Nullable Buffer releasedFloatingBuffer = null;
         synchronized (bufferQueue) {
             try {
+                BufferPool bufferPool = inputChannel.inputGate.getBufferPool();
                 // Similar to notifyBufferAvailable(), make sure that we never add a buffer
                 // after channel released all buffers via releaseAllResources().
                 if (inputChannel.isReleased()) {
-                    globalPool.recycleUnpooledMemorySegments(Collections.singletonList(segment));
+                    bufferPool.recycle(segment);
                     return;
+                } else if (bufferQueue.exclusiveBuffers.size() >= atomicNumExclusiveBuffers.get()) {
+                    bufferPool.recycle(segment);
                 } else {
                     releasedFloatingBuffer =
                             bufferQueue.addExclusiveBuffer(
@@ -254,34 +282,20 @@ public class BufferManager implements BufferListener, BufferRecycler {
 
     /** Recycles all the exclusive and floating buffers from the given buffer queue. */
     void releaseAllBuffers(ArrayDeque<Buffer> buffers) throws IOException {
-        // Gather all exclusive buffers and recycle them to global pool in batch, because
-        // we do not want to trigger redistribution of buffers after each recycle.
-        final List<MemorySegment> exclusiveRecyclingSegments = new ArrayList<>();
-
         Exception err = null;
         Buffer buffer;
         while ((buffer = buffers.poll()) != null) {
             try {
-                if (buffer.getRecycler() == BufferManager.this) {
-                    exclusiveRecyclingSegments.add(buffer.getMemorySegment());
-                } else {
-                    buffer.recycleBuffer();
-                }
+                buffer.recycleBuffer();
             } catch (Exception e) {
                 err = firstOrSuppressed(e, err);
             }
         }
         try {
             synchronized (bufferQueue) {
-                bufferQueue.releaseAll(exclusiveRecyclingSegments);
+                atomicNumExclusiveBuffers.set(0);
+                bufferQueue.releaseAll();
                 bufferQueue.notifyAll();
-            }
-        } catch (Exception e) {
-            err = firstOrSuppressed(e, err);
-        }
-        try {
-            if (exclusiveRecyclingSegments.size() > 0) {
-                globalPool.recycleUnpooledMemorySegments(exclusiveRecyclingSegments);
             }
         } catch (Exception e) {
             err = firstOrSuppressed(e, err);
@@ -386,6 +400,11 @@ public class BufferManager implements BufferListener, BufferRecycler {
         }
     }
 
+    @VisibleForTesting
+    int getNumExclusiveBuffers() {
+        return atomicNumExclusiveBuffers.get();
+    }
+
     int unsynchronizedGetAvailableExclusiveBuffers() {
         return bufferQueue.exclusiveBuffers.size();
     }
@@ -450,19 +469,13 @@ public class BufferManager implements BufferListener, BufferRecycler {
             }
         }
 
-        /**
-         * The floating buffer is recycled to local buffer pool directly, and the exclusive buffer
-         * will be gathered to return to global buffer pool later.
-         *
-         * @param exclusiveSegments The list that we will add exclusive segments into.
-         */
-        void releaseAll(List<MemorySegment> exclusiveSegments) {
+        void releaseAll() {
             Buffer buffer;
             while ((buffer = floatingBuffers.poll()) != null) {
                 buffer.recycleBuffer();
             }
             while ((buffer = exclusiveBuffers.poll()) != null) {
-                exclusiveSegments.add(buffer.getMemorySegment());
+                buffer.recycleBuffer();
             }
         }
 

@@ -229,7 +229,7 @@ public class InputGateFairnessTest {
         }
 
         gate.setInputChannels(channels);
-        gate.setup();
+        //        gate.setup();
         gate.requestPartitions();
 
         // read all the buffers and the EOF event

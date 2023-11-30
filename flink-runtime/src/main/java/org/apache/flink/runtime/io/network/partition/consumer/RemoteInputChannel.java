@@ -106,7 +106,7 @@ public class RemoteInputChannel extends InputChannel {
     /** The number of available buffers that have not been announced to the producer yet. */
     private final AtomicInteger unannouncedCredit = new AtomicInteger(0);
 
-    private final BufferManager bufferManager;
+    private BufferManager bufferManager;
 
     @GuardedBy("receivedBuffers")
     private int lastBarrierSequenceNumber = NONE;
@@ -148,7 +148,7 @@ public class RemoteInputChannel extends InputChannel {
         this.initialCredit = networkBuffersPerChannel;
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
-        this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
+        this.bufferManager = new BufferManager(this, initialCredit, 0);
         this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
     }
 
@@ -167,7 +167,7 @@ public class RemoteInputChannel extends InputChannel {
                 bufferManager.unsynchronizedGetAvailableExclusiveBuffers() == 0,
                 "Bug in input channel setup logic: exclusive buffers have already been set for this input channel.");
 
-        bufferManager.requestExclusiveBuffers(initialCredit);
+        bufferManager.requestExclusiveBuffers();
     }
 
     // ------------------------------------------------------------------------
@@ -306,7 +306,9 @@ public class RemoteInputChannel extends InputChannel {
                                 .collect(Collectors.toCollection(ArrayDeque::new));
                 receivedBuffers.clear();
             }
-            bufferManager.releaseAllBuffers(releasedBuffers);
+            if (bufferManager != null) {
+                bufferManager.releaseAllBuffers(releasedBuffers);
+            }
 
             // The released flag has to be set before closing the connection to ensure that
             // buffers received concurrently with closing are properly recycled.
@@ -321,7 +323,8 @@ public class RemoteInputChannel extends InputChannel {
     @Override
     int getBuffersInUseCount() {
         return getNumberOfQueuedBuffers()
-                + Math.max(0, bufferManager.getNumberOfRequiredBuffers() - initialCredit);
+                + Math.max(
+                        0, bufferManager.getNumberOfRequiredBuffers() - getNumExclusiveBuffers());
     }
 
     @Override
@@ -374,7 +377,7 @@ public class RemoteInputChannel extends InputChannel {
 
     @VisibleForTesting
     public int getSenderBacklog() {
-        return getNumberOfRequiredBuffers() - initialCredit;
+        return getNumberOfRequiredBuffers() - getNumExclusiveBuffers();
     }
 
     @VisibleForTesting
@@ -414,7 +417,7 @@ public class RemoteInputChannel extends InputChannel {
         checkState(!isReleased.get(), "Channel released.");
         checkPartitionRequestQueueInitialized();
 
-        if (initialCredit == 0) {
+        if (getNumExclusiveBuffers() == 0) {
             // this unannounced credit can be a positive value because credit assignment and the
             // increase of this value is not an atomic operation and as a result, this unannounced
             // credit value can be get increased even after this channel has been blocked and all
@@ -437,7 +440,7 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     private void onBlockingUpstream() {
-        if (initialCredit == 0) {
+        if (getNumExclusiveBuffers() == 0) {
             // release the allocated floating buffers so that they can be used by other channels if
             // no exclusive buffer is configured, it is important because a blocked channel can not
             // transmit any data so the allocated floating buffers can not be recycled, as a result,
@@ -492,11 +495,18 @@ public class RemoteInputChannel extends InputChannel {
 
     public int unsynchronizedGetExclusiveBuffersUsed() {
         return Math.max(
-                0, initialCredit - bufferManager.unsynchronizedGetAvailableExclusiveBuffers());
+                0,
+                getNumExclusiveBuffers()
+                        - bufferManager.unsynchronizedGetAvailableExclusiveBuffers());
     }
 
     public int unsynchronizedGetFloatingBuffersAvailable() {
         return Math.max(0, bufferManager.unsynchronizedGetFloatingBuffersAvailable());
+    }
+
+    @VisibleForTesting
+    public int getNumExclusiveBuffers() {
+        return bufferManager.getNumExclusiveBuffers();
     }
 
     public InputChannelID getInputChannelId() {
@@ -534,7 +544,8 @@ public class RemoteInputChannel extends InputChannel {
      * @param backlog The number of unsent buffers in the producer's sub partition.
      */
     public void onSenderBacklog(int backlog) throws IOException {
-        notifyBufferAvailable(bufferManager.requestFloatingBuffers(backlog + initialCredit));
+        notifyBufferAvailable(
+                bufferManager.requestFloatingBuffers(backlog + getNumExclusiveBuffers()));
     }
 
     /**

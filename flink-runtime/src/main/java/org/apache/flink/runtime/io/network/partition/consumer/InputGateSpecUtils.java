@@ -24,7 +24,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /** Utils to manage the specs of the {@link InputGate}, for example, {@link GateBuffersSpec}. */
 public class InputGateSpecUtils {
@@ -59,22 +58,10 @@ public class InputGateSpecUtils {
                         configuredNetworkBuffersPerChannel,
                         numInputChannels,
                         requiredBuffersPerGate);
-        int effectiveExclusiveBuffersPerGate =
-                getEffectiveExclusiveBuffersPerGate(
-                        numInputChannels, effectiveExclusiveBuffersPerChannel);
-
-        int requiredFloatingBuffers = requiredBuffersPerGate - effectiveExclusiveBuffersPerGate;
-        int totalFloatingBuffers = targetTotalBuffersPerGate - effectiveExclusiveBuffersPerGate;
-
-        checkState(requiredFloatingBuffers > 0, "Must be positive.");
-        checkState(
-                requiredFloatingBuffers <= totalFloatingBuffers,
-                "Wrong number of floating buffers.");
 
         return new GateBuffersSpec(
                 effectiveExclusiveBuffersPerChannel,
-                requiredFloatingBuffers,
-                totalFloatingBuffers,
+                requiredBuffersPerGate,
                 targetTotalBuffersPerGate);
     }
 
