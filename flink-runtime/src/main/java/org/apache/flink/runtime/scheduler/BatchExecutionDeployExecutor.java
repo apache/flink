@@ -31,8 +31,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.slf4j.Logger;
-
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -42,9 +40,7 @@ import java.util.function.Function;
 /** Executor to batch deploy {@link Execution}. */
 public class BatchExecutionDeployExecutor implements ExecutionDeployExecutor {
 
-    private Logger log;
-
-    private ExecutionOperations executionOperations;
+    private final ExecutionOperations executionOperations;
 
     private final ScheduledExecutor futureExecutor;
 
@@ -55,11 +51,9 @@ public class BatchExecutionDeployExecutor implements ExecutionDeployExecutor {
     private final Map<ExecutionAttemptID, CompletableFuture<Acknowledge>> deployResultMap;
 
     public BatchExecutionDeployExecutor(
-            Logger log,
             ExecutionOperations executionOperations,
             ScheduledExecutor futureExecutor,
             Time rpcTimeout) {
-        this.log = log;
         this.executionOperations = executionOperations;
         this.futureExecutor = futureExecutor;
         this.rpcTimeout = rpcTimeout;
@@ -138,12 +132,11 @@ public class BatchExecutionDeployExecutor implements ExecutionDeployExecutor {
     public static class Factory implements ExecutionDeployExecutor.Factory {
         @Override
         public ExecutionDeployExecutor createInstance(
-                Logger log,
                 ExecutionOperations executionOperations,
                 ScheduledExecutor scheduledExecutor,
                 Time rpcTimeout) {
             return new BatchExecutionDeployExecutor(
-                    log, executionOperations, scheduledExecutor, rpcTimeout);
+                    executionOperations, scheduledExecutor, rpcTimeout);
         }
     }
 }

@@ -191,7 +191,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
         return (ignored, throwable) -> {
             final ExecutionDeployExecutor executionDeployExecutor =
                     executionDeployExecutorFactory.createInstance(
-                            log, executionOperations, futureExecutor, rpcTimeout);
+                            executionOperations, futureExecutor, rpcTimeout);
             propagateIfNonNull(throwable);
             List<CompletableFuture<Void>> deployFutures = new LinkedList<>();
             for (final ExecutionDeploymentHandle deploymentHandle : deploymentHandles) {

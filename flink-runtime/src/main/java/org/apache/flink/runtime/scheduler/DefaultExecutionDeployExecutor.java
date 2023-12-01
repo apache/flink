@@ -24,17 +24,12 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.slf4j.Logger;
-
 /** Default implementation of {@link ExecutionDeployExecutor}. */
 public class DefaultExecutionDeployExecutor implements ExecutionDeployExecutor {
 
-    protected Logger log;
-
     protected ExecutionOperations executionOperations;
 
-    public DefaultExecutionDeployExecutor(Logger log, ExecutionOperations executionOperations) {
-        this.log = log;
+    public DefaultExecutionDeployExecutor(ExecutionOperations executionOperations) {
         this.executionOperations = executionOperations;
     }
 
@@ -53,11 +48,10 @@ public class DefaultExecutionDeployExecutor implements ExecutionDeployExecutor {
 
         @Override
         public ExecutionDeployExecutor createInstance(
-                Logger log,
                 ExecutionOperations executionOperations,
                 ScheduledExecutor scheduledExecutor,
                 Time rpcTimeout) {
-            return new DefaultExecutionDeployExecutor(log, executionOperations);
+            return new DefaultExecutionDeployExecutor(executionOperations);
         }
     }
 }

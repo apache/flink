@@ -24,8 +24,6 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import org.slf4j.Logger;
-
 /** Executor to deploy {@link Execution}. */
 public interface ExecutionDeployExecutor {
 
@@ -46,14 +44,12 @@ public interface ExecutionDeployExecutor {
         /**
          * Instantiate an {@link ExecutionDeployExecutor} with the given params.
          *
-         * @param log the logger.
          * @param executionOperations the operations of executions.
          * @param scheduledExecutor executor to be used for deploying execution.
          * @param rpcTimeout timeout of deploy request.
          * @return an instantiated {@link ExecutionDeployExecutor}
          */
         ExecutionDeployExecutor createInstance(
-                Logger log,
                 ExecutionOperations executionOperations,
                 ScheduledExecutor scheduledExecutor,
                 Time rpcTimeout);

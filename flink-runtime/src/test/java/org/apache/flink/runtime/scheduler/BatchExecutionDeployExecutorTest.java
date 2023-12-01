@@ -37,7 +37,6 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -179,7 +178,6 @@ class BatchExecutionDeployExecutorTest {
     private ExecutionDeployExecutor createExecutionDeployer() {
         return new BatchExecutionDeployExecutor.Factory()
                 .createInstance(
-                        LoggerFactory.getLogger(BatchExecutionDeployExecutor.class),
                         new DefaultExecutionOperations(),
                         new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService()),
                         rpcTimeout);
