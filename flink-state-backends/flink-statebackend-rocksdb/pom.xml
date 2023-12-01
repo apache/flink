@@ -61,9 +61,9 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>io.github.mayuehappy</groupId>
+			<groupId>io.github.fredia</groupId>
 			<artifactId>frocksdbjni</artifactId>
-			<version>8.5.0-ververica-support-ingest-db</version>
+			<version>8.6.7-ververica-test-1.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
