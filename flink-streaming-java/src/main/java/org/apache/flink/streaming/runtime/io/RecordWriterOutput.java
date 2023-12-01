@@ -149,9 +149,7 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
     }
 
     public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-        if (isPriorityEvent
-                && event instanceof CheckpointBarrier
-                && !supportsUnalignedCheckpoints) {
+        if (event instanceof CheckpointBarrier && !supportsUnalignedCheckpoints) {
             final CheckpointBarrier barrier = (CheckpointBarrier) event;
             event = barrier.withOptions(barrier.getCheckpointOptions().withUnalignedUnsupported());
             isPriorityEvent = false;
