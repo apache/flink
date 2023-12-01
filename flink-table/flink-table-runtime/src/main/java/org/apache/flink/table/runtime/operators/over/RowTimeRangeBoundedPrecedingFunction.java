@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Process Function for RANGE clause event-time bounded OVER window.
@@ -227,12 +228,13 @@ public class RowTimeRangeBoundedPrecedingFunction<K>
             List<Long> retractTsList = new ArrayList<Long>();
 
             // do retraction
-            Iterator<Long> dataTimestampIt = inputState.keys().iterator();
-            while (dataTimestampIt.hasNext()) {
-                Long dataTs = dataTimestampIt.next();
+            Iterator<Map.Entry<Long, List<RowData>>> iter = inputState.entries().iterator();
+            while (iter.hasNext()) {
+                Map.Entry<Long, List<RowData>> data = iter.next();
+                Long dataTs = data.getKey();
                 Long offset = timestamp - dataTs;
                 if (offset > precedingOffset) {
-                    List<RowData> retractDataList = inputState.get(dataTs);
+                    List<RowData> retractDataList = data.getValue();
                     if (retractDataList != null) {
                         dataListIndex = 0;
                         while (dataListIndex < retractDataList.size()) {
