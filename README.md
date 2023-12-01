@@ -7,29 +7,33 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 ### Features
 
-* A streaming-first runtime that supports both batch processing and data streaming programs
+* Unified Processing: Seamlessly switch between real-time streaming and batch processing with Flink's unified API, maximizing      efficiency and simplifying development.
 
-* Elegant and fluent APIs in Java and Scala
+* Expressive & Intuitive APIs: Leverage the power of Java and Scala with Flink's elegant and fluent APIs. Focus on your logic,     not the boilerplate.
 
-* A runtime that supports very high throughput and low event latency at the same time
+* Unmatched Performance: Experience blazing fast throughput and minimal event latency, ensuring your data is processed             efficiently and acted upon instantly.
+  
+* Event Time Mastery: Conquer the complexities of event-time processing with Flink's robust capabilities and out-of-order event    handling.
 
-* Support for *event time* and *out-of-order* processing in the DataStream API, based on the *Dataflow Model*
+* Flexible Windowing: Analyze data at granular levels with Flink's comprehensive windowing options, including time, count,
+  sessions, and custom triggers.
 
-* Flexible windowing (time, count, sessions, custom triggers) across different time semantics (event time, processing time)
+* Unwavering Reliability: Flink guarantees fault-tolerant execution and exactly-once processing semantics, delivering rock-solid   reliability for your critical data.
 
-* Fault-tolerance with *exactly-once* processing guarantees
+* Natural Back-Pressure Management: Maintain smooth and stable processing with Flink's built-in back-pressure mechanisms,
+  preventing data overload.
 
-* Natural back-pressure in streaming programs
+* Beyond Data Processing: Expand your horizons with Flink's powerful libraries for graph processing, machine learning, and
+  complex event processing.
 
-* Libraries for Graph processing (batch), Machine Learning (batch), and Complex Event Processing (streaming)
+* Iterative Prowess: Tackle complex challenges with Flink's efficient handling of iterative algorithms in batch processing
+  through the DataSet API.
 
-* Built-in support for iterative programs (BSP) in the DataSet (batch) API
+* Optimized Memory Management: Flink's custom memory management ensures efficient handling of even the largest datasets,
+  seamlessly transitioning between in-memory and out-of-core processing.
 
-* Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms
-
-* Compatibility layers for Apache Hadoop MapReduce
-
-* Integration with YARN, HDFS, HBase, and other components of the Apache Hadoop ecosystem
+* Hadoop Ecosystem Integration: Leverage the power and flexibility of the Hadoop ecosystem with Flink's seamless integration
+  with YARN, HDFS, and HBase.
 
 
 ### Streaming Example
