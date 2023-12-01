@@ -1081,7 +1081,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-		<!-- ArchUit test dependencies -->
+		<!-- ArchUnit test dependencies -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
