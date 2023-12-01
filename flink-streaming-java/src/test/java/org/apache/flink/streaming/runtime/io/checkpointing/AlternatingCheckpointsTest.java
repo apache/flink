@@ -1354,7 +1354,7 @@ public class AlternatingCheckpointsTest {
 
         assertEquals(singletonList(barrierId), target.triggeredCheckpoints);
         if (checkpointType.isSavepoint()) {
-            for (InputChannel channel : gate.getInputChannels().values()) {
+            for (InputChannel channel : gate.inputChannels()) {
                 assertFalse(
                         String.format("channel %d should be resumed", channel.getChannelIndex()),
                         ((TestInputChannel) channel).isBlocked());

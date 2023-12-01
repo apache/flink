@@ -214,7 +214,7 @@ class NettyShuffleUtilsTest {
         inputGate.convertRecoveredInputChannels();
 
         int ret = 0;
-        for (InputChannel ch : inputGate.getInputChannels().values()) {
+        for (InputChannel ch : inputGate.inputChannels()) {
             RemoteInputChannel rChannel = (RemoteInputChannel) ch;
             ret += rChannel.getNumberOfAvailableBuffers();
         }
