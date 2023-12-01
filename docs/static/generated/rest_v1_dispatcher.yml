@@ -491,8 +491,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/CheckpointingStatistics'
     post:
-      description: Triggers a checkpoint. This async operation would return a 'triggerid'
-        for further query identifier.
+      description: Triggers a checkpoint. The 'checkpointType' parameter does not
+        support 'INCREMENTAL' option for now. See FLINK-33723. This async operation
+        would return a 'triggerid' for further query identifier.
       operationId: triggerCheckpoint
       parameters:
       - name: jobid
