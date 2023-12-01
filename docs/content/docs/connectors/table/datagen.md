@@ -256,13 +256,13 @@ Connector Options
       <td>Long</td>
       <td>Rows per second to control the emit rate.</td>
     </tr>
-        <tr>
-          <td><h5>number-of-rows</h5></td>
-          <td>optional</td>
-          <td style="word-wrap: break-word;">(none)</td>
-          <td>Long</td>
-          <td>The total number of rows to emit. By default, the table is unbounded.</td>
-        </tr>
+    <tr>
+      <td><h5>number-of-rows</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Long</td>
+      <td>The total number of rows to emit. By default, the table is unbounded.</td>
+    </tr>
     <tr>
       <td><h5>fields.#.kind</h5></td>
       <td>optional</td>
