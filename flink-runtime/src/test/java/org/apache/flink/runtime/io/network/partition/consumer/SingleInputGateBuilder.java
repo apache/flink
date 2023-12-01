@@ -117,6 +117,7 @@ public class SingleInputGateBuilder {
                 SingleInputGateFactory.createBufferPoolFactory(
                         environment.getNetworkBufferPool(),
                         1,
+                        1,
                         config.floatingNetworkBuffersPerGate());
         this.segmentProvider = environment.getNetworkBufferPool();
         return this;

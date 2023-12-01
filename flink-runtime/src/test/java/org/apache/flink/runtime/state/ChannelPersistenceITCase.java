@@ -188,6 +188,7 @@ class ChannelPersistenceITCase {
                                 () ->
                                         networkBufferPool.createBufferPool(
                                                 numberOfSubpartitions,
+                                                numberOfSubpartitions,
                                                 Integer.MAX_VALUE,
                                                 numberOfSubpartitions,
                                                 Integer.MAX_VALUE,
@@ -204,7 +205,7 @@ class ChannelPersistenceITCase {
                         .setChannelFactory(InputChannelBuilder::buildRemoteRecoveredChannel)
                         .setBufferPoolFactory(
                                 networkBufferPool.createBufferPool(
-                                        numberOfChannels, Integer.MAX_VALUE))
+                                        numberOfChannels, numberOfChannels, Integer.MAX_VALUE))
                         .setSegmentProvider(networkBufferPool)
                         .setNumberOfChannels(numberOfChannels)
                         .build();

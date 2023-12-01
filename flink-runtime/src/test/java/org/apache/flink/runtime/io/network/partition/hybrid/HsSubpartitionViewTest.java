@@ -77,7 +77,7 @@ class HsSubpartitionViewTest {
     void testDeadLock(@TempDir Path dataFilePath) throws Exception {
         final int bufferSize = 16;
         NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
-        BufferPool bufferPool = networkBufferPool.createBufferPool(10, 10);
+        BufferPool bufferPool = networkBufferPool.createBufferPool(10, 10, 10);
         HsSubpartitionConsumer subpartitionView = createSubpartitionView();
 
         CompletableFuture<Void> acquireWriteLock = new CompletableFuture<>();

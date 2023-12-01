@@ -166,6 +166,7 @@ class LocalInputChannelTest {
                                             networkBuffers.createBufferPool(
                                                     producerBufferPoolSize,
                                                     producerBufferPoolSize,
+                                                    producerBufferPoolSize,
                                                     parallelism,
                                                     Integer.MAX_VALUE,
                                                     0))
@@ -203,7 +204,8 @@ class LocalInputChannelTest {
                                 i,
                                 parallelism,
                                 numberOfBuffersPerChannel,
-                                networkBuffers.createBufferPool(parallelism, parallelism),
+                                networkBuffers.createBufferPool(
+                                        parallelism, parallelism, parallelism),
                                 partitionManager,
                                 new TaskEventDispatcher(),
                                 partitionIds);
