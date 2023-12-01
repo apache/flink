@@ -125,7 +125,7 @@ class RecordWriterDelegateTest {
     }
 
     private static RecordWriter createRecordWriter(NetworkBufferPool globalPool) throws Exception {
-        final BufferPool localPool = globalPool.createBufferPool(1, 1, 1, Integer.MAX_VALUE, 0);
+        final BufferPool localPool = globalPool.createBufferPool(1, 1, 1, 1, Integer.MAX_VALUE, 0);
         final ResultPartitionWriter partition =
                 new ResultPartitionBuilder().setBufferPoolFactory(() -> localPool).build();
         partition.setup();
