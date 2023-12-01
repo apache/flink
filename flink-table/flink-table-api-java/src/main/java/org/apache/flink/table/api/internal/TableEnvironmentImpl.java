@@ -735,6 +735,18 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return executeInternal(operation);
     }
 
+    public TableResultInternal executeCachedPlanInternal(CachedPlan cachedPlan) {
+        if (cachedPlan instanceof DQLCachedPlan) {
+            DQLCachedPlan dqlCachedPlan = (DQLCachedPlan) cachedPlan;
+            return executeQueryOperation(
+                    dqlCachedPlan.getOperation(),
+                    dqlCachedPlan.getSinkOperation(),
+                    dqlCachedPlan.getTransformations());
+        }
+        throw new TableException(
+                String.format("Unsupported CachedPlan type: %s.", cachedPlan.getClass()));
+    }
+
     @Override
     public StatementSet createStatementSet() {
         return new StatementSetImpl(this);
@@ -1049,10 +1061,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
     }
 
-    private TableResultInternal executeQueryOperation(QueryOperation operation) {
-        CollectModifyOperation sinkOperation = new CollectModifyOperation(operation);
-        List<Transformation<?>> transformations =
-                translate(Collections.singletonList(sinkOperation));
+    private TableResultInternal executeQueryOperation(
+            QueryOperation operation,
+            CollectModifyOperation sinkOperation,
+            List<Transformation<?>> transformations) {
         final String defaultJobName = "collect";
 
         resourceManager.addJarConfiguration(tableConfig);
@@ -1064,6 +1076,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             ResultProvider resultProvider = sinkOperation.getSelectResultProvider();
+            // We must reset resultProvider as we might to reuse it between different jobs.
+            resultProvider.reset();
             resultProvider.setJobClient(jobClient);
             return TableResultImpl.builder()
                     .jobClient(jobClient)
@@ -1079,6 +1093,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     getConfig().get(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH),
                                     false,
                                     isStreamingMode))
+                    .setCachedPlan(new DQLCachedPlan(operation, sinkOperation, transformations))
                     .build();
         } catch (Exception e) {
             throw new TableException("Failed to execute sql", e);
@@ -1117,7 +1132,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     .data(Collections.singletonList(Row.of(explanation)))
                     .build();
         } else if (operation instanceof QueryOperation) {
-            return executeQueryOperation((QueryOperation) operation);
+            QueryOperation queryOperation = (QueryOperation) operation;
+            CollectModifyOperation sinkOperation = new CollectModifyOperation(queryOperation);
+            List<Transformation<?>> transformations =
+                    translate(Collections.singletonList(sinkOperation));
+            return executeQueryOperation(queryOperation, sinkOperation, transformations);
         } else if (operation instanceof ExecutePlanOperation) {
             ExecutePlanOperation executePlanOperation = (ExecutePlanOperation) operation;
             try {
