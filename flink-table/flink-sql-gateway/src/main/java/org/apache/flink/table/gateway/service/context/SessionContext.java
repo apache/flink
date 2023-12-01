@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.internal.PlanCacheManager;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogStoreHolder;
@@ -85,6 +86,8 @@ public class SessionContext {
     private boolean isStatementSetState;
     private final List<ModifyOperation> statementSetOperations;
 
+    private final PlanCacheManager planCacheManager;
+
     protected SessionContext(
             DefaultContext defaultContext,
             SessionHandle sessionId,
@@ -92,7 +95,8 @@ public class SessionContext {
             Configuration sessionConf,
             URLClassLoader classLoader,
             SessionState sessionState,
-            OperationManager operationManager) {
+            OperationManager operationManager,
+            PlanCacheManager planCacheManager) {
         this.defaultContext = defaultContext;
         this.sessionId = sessionId;
         this.endpointVersion = endpointVersion;
@@ -102,6 +106,7 @@ public class SessionContext {
         this.operationManager = operationManager;
         this.isStatementSetState = false;
         this.statementSetOperations = new ArrayList<>();
+        this.planCacheManager = planCacheManager;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -134,6 +139,10 @@ public class SessionContext {
 
     public URLClassLoader getUserClassloader() {
         return userClassloader;
+    }
+
+    public PlanCacheManager getPlanCacheManager() {
+        return planCacheManager;
     }
 
     public void set(String key, String value) {
@@ -251,6 +260,8 @@ public class SessionContext {
                         SessionContext.class.getClassLoader(),
                         configuration);
         final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
+        final PlanCacheManager planCacheManager =
+                PlanCacheManager.createPlanCacheManager(configuration).orElse(null);
         return new SessionContext(
                 defaultContext,
                 sessionId,
@@ -258,7 +269,8 @@ public class SessionContext {
                 configuration,
                 userClassLoader,
                 initializeSessionState(environment, configuration, resourceManager),
-                new OperationManager(operationExecutorService));
+                new OperationManager(operationExecutorService),
+                planCacheManager);
     }
 
     // ------------------------------------------------------------------------------------------------------------------

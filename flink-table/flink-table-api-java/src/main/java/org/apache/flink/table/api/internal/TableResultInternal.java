@@ -45,4 +45,6 @@ public interface TableResultInternal extends TableResult {
     CloseableIterator<RowData> collectInternal();
 
     RowDataToStringConverter getRowDataToStringConverter();
+
+    CachedPlan getCachedPlan();
 }

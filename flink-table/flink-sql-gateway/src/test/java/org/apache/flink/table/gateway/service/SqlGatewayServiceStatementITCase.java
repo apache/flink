@@ -33,6 +33,7 @@ import org.apache.flink.table.gateway.api.session.SessionHandle;
 import org.apache.flink.table.gateway.api.utils.MockedEndpointVersion;
 import org.apache.flink.table.planner.functions.casting.RowDataToStringConverterImpl;
 import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,8 +43,11 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_PLAN_CACHE_ENABLED;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchResults;
@@ -52,18 +56,39 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test {@link SqlGatewayService}#executeStatement. */
 public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatementITCase {
 
-    private final SessionEnvironment defaultSessionEnvironment =
+    private static final SessionEnvironment DEFAULT_SESSION_ENVIRONMENT =
             SessionEnvironment.newBuilder()
                     .setSessionEndpointVersion(MockedEndpointVersion.V1)
                     .build();
 
+    private static final SessionEnvironment SESSION_ENVIRONMENT_WITH_PLAN_CACHE_ENABLED =
+            SessionEnvironment.newBuilder()
+                    .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                    .addSessionConfig(
+                            Collections.singletonMap(
+                                    TABLE_OPTIMIZER_PLAN_CACHE_ENABLED.key(), "true"))
+                    .build();
+
     private SessionHandle sessionHandle;
+
+    @Parameters(name = "parameters={0}")
+    public static List<TestParameters> parameters() throws Exception {
+        return listFlinkSqlTests().stream()
+                .map(path -> new StatementTestParameters(path, path.endsWith("repeated_dql.q")))
+                .collect(Collectors.toList());
+    }
 
     @BeforeEach
     @Override
     public void before(@TempDir Path temporaryFolder) throws Exception {
         super.before(temporaryFolder);
-        sessionHandle = service.openSession(defaultSessionEnvironment);
+        boolean planCacheEnabled =
+                parameters != null && ((StatementTestParameters) parameters).isPlanCacheEnabled();
+        SessionEnvironment sessionEnvironment =
+                planCacheEnabled
+                        ? SESSION_ENVIRONMENT_WITH_PLAN_CACHE_ENABLED
+                        : DEFAULT_SESSION_ENVIRONMENT;
+        sessionHandle = service.openSession(sessionEnvironment);
     }
 
     @Override
@@ -250,5 +275,30 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
                 service.executeStatement(sessionHandle, statement, -1, new Configuration());
         awaitOperationTermination(service, sessionHandle, operationHandle);
         assertThat(resultGetter.apply(sessionHandle, operationHandle)).isEqualTo(expected);
+    }
+
+    private static class StatementTestParameters extends TestParameters {
+
+        private final boolean planCacheEnabled;
+
+        public StatementTestParameters(String sqlPath, boolean planCacheEnabled) {
+            super(sqlPath);
+            this.planCacheEnabled = planCacheEnabled;
+        }
+
+        public boolean isPlanCacheEnabled() {
+            return planCacheEnabled;
+        }
+
+        @Override
+        public String toString() {
+            return "StatementTestParameters{"
+                    + "planCacheEnabled="
+                    + planCacheEnabled
+                    + ", sqlPath='"
+                    + sqlPath
+                    + '\''
+                    + '}';
+        }
     }
 }

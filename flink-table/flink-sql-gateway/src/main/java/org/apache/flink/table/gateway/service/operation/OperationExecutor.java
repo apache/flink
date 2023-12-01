@@ -37,7 +37,9 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
+import org.apache.flink.table.api.internal.CachedPlan;
 import org.apache.flink.table.api.internal.ExecutableOperationContextImpl;
+import org.apache.flink.table.api.internal.PlanCacheManager;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
@@ -193,20 +195,31 @@ public class OperationExecutor {
         // Instantiate the TableEnvironment lazily
         ResourceManager resourceManager = sessionContext.getSessionState().resourceManager.copy();
         TableEnvironmentInternal tableEnv = getTableEnvironment(resourceManager);
-        List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
-        if (parsedOperations.size() > 1) {
-            throw new UnsupportedOperationException(
-                    "Unsupported SQL statement! Execute statement only accepts a single SQL statement or "
-                            + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
+        PlanCacheManager planCacheManager = sessionContext.getPlanCacheManager();
+        CachedPlan cachedPlan = null;
+        Operation op;
+        if (planCacheManager != null
+                && planCacheManager.getPlan(statement, tableEnv.getConfig()).isPresent()) {
+            cachedPlan = planCacheManager.getPlan(statement, tableEnv.getConfig()).get();
+            op = cachedPlan.getOriginOperation();
+        } else {
+            List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
+            if (parsedOperations.size() > 1) {
+                throw new UnsupportedOperationException(
+                        "Unsupported SQL statement! Execute statement only accepts a single SQL statement or "
+                                + "multiple 'INSERT INTO' statements wrapped in a 'STATEMENT SET' block.");
+            }
+            op = parsedOperations.get(0);
         }
-        Operation op = parsedOperations.get(0);
+
         if (op instanceof CallProcedureOperation) {
             // if the operation is CallProcedureOperation, we need to set the stream environment
             // context to it since the procedure will use the stream environment
             try {
                 SqlGatewayStreamExecutionEnvironment.setAsContext(
                         sessionContext.getUserClassloader());
-                return executeOperation(tableEnv, handle, op).withResourceManager(resourceManager);
+                return executeOperation(tableEnv, handle, op, statement, cachedPlan)
+                        .withResourceManager(resourceManager);
             } finally {
                 SqlGatewayStreamExecutionEnvironment.unsetAsContext();
             }
@@ -214,7 +227,8 @@ public class OperationExecutor {
             return sessionContext.isStatementSetState()
                     ? executeOperationInStatementSetState(tableEnv, handle, op)
                             .withResourceManager(resourceManager)
-                    : executeOperation(tableEnv, handle, op).withResourceManager(resourceManager);
+                    : executeOperation(tableEnv, handle, op, statement, cachedPlan)
+                            .withResourceManager(resourceManager);
         }
     }
 
@@ -426,7 +440,11 @@ public class OperationExecutor {
     }
 
     private ResultFetcher executeOperation(
-            TableEnvironmentInternal tableEnv, OperationHandle handle, Operation op) {
+            TableEnvironmentInternal tableEnv,
+            OperationHandle handle,
+            Operation op,
+            String statement,
+            CachedPlan cachedPlan) {
         if (op instanceof SetOperation) {
             return callSetOperation(tableEnv, handle, (SetOperation) op);
         } else if (op instanceof ResetOperation) {
@@ -446,7 +464,14 @@ public class OperationExecutor {
             return callModifyOperations(
                     tableEnv, handle, ((StatementSetOperation) op).getOperations());
         } else if (op instanceof QueryOperation) {
-            TableResultInternal result = tableEnv.executeInternal(op);
+            TableResultInternal result =
+                    cachedPlan != null
+                            ? tableEnv.executeCachedPlanInternal(cachedPlan)
+                            : tableEnv.executeInternal(op);
+            PlanCacheManager planCacheManager = sessionContext.getPlanCacheManager();
+            if (cachedPlan == null && planCacheManager != null && result.getCachedPlan() != null) {
+                planCacheManager.putPlan(statement, tableEnv.getConfig(), result.getCachedPlan());
+            }
             return ResultFetcher.fromTableResult(handle, result, true);
         } else if (op instanceof StopJobOperation) {
             return callStopJobOperation(tableEnv, handle, (StopJobOperation) op);

@@ -89,6 +89,12 @@ class InsertResultProvider implements ResultProvider {
         return hasNext;
     }
 
+    @Override
+    public void reset() {
+        hasNext = null;
+        jobClient = null;
+    }
+
     private class Iterator<T> implements CloseableIterator<T> {
         private final Supplier<T> rowSupplier;
 
