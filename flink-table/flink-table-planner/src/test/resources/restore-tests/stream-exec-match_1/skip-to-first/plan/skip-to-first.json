@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "1.19",
   "nodes" : [ {
-    "id" : 12,
+    "id" : 26,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -42,7 +42,7 @@
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[vehicle_id, engine_temperature])",
     "inputProperties" : [ ]
   }, {
-    "id" : 13,
+    "id" : 27,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -91,7 +91,7 @@
     },
     "description" : "Calc(select=[vehicle_id, engine_temperature, PROCTIME() AS proctime])"
   }, {
-    "id" : 14,
+    "id" : 28,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -121,7 +121,7 @@
     },
     "description" : "Exchange(distribution=[hash[vehicle_id]])"
   }, {
-    "id" : 15,
+    "id" : 29,
     "type" : "stream-exec-match_1",
     "matchSpec" : {
       "pattern" : {
@@ -334,7 +334,7 @@
     "outputType" : "ROW<`vehicle_id` BIGINT, `Initial_Temp` INT, `Final_Temp` INT>",
     "description" : "Match(partitionBy=[vehicle_id], orderBy=[proctime ASC], measures=[FINAL(FIRST(A.engine_temperature, 0)) AS Initial_Temp, FINAL(LAST(A.engine_temperature, 0)) AS Final_Temp], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO FIRST _UTF-16LE'B'], pattern=[(PATTERN_QUANTIFIER(_UTF-16LE'A', 1, -1, false), _UTF-16LE'B')], define=[{A=OR(IS NULL(LAST(A.$1, 1)), >(PREV(A.$1, 0), LAST(A.$1, 1))), B=<(PREV(B.$1, 0), LAST(A.$1, 0))}])"
   }, {
-    "id" : 16,
+    "id" : 30,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -376,29 +376,29 @@
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[vehicle_id, Initial_Temp, Final_Temp])"
   } ],
   "edges" : [ {
-    "source" : 12,
-    "target" : 13,
+    "source" : 26,
+    "target" : 27,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 13,
-    "target" : 14,
+    "source" : 27,
+    "target" : 28,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 14,
-    "target" : 15,
+    "source" : 28,
+    "target" : 29,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 15,
-    "target" : 16,
+    "source" : 29,
+    "target" : 30,
     "shuffle" : {
       "type" : "FORWARD"
     },

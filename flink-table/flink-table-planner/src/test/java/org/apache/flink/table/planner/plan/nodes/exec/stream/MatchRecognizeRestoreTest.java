@@ -36,6 +36,8 @@ public class MatchRecognizeRestoreTest extends RestoreTestBase {
         return Arrays.asList(
                 MatchRecognizeTestPrograms.SIMPLE_MATCH,
                 MatchRecognizeTestPrograms.COMPLEX_MATCH,
+                MatchRecognizeTestPrograms.ORDER_BY_EVENT_TIME_MATCH,
+                MatchRecognizeTestPrograms.ORDER_BY_INT_COLUMN_MATCH,
                 MatchRecognizeTestPrograms.SKIP_TO_FIRST,
                 MatchRecognizeTestPrograms.SKIP_TO_LAST,
                 MatchRecognizeTestPrograms.SKIP_TO_NEXT_ROW,

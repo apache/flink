@@ -120,6 +120,85 @@ public class MatchRecognizeTestPrograms {
                                     + ") AS T")
                     .build();
 
+    static final Row[] BEFORE_DATA = {
+        Row.of("2020-10-10 00:00:01", 10, 3),
+        Row.of("2020-10-10 00:00:01", 8, 2),
+        Row.of("2020-10-10 00:00:01", 9, 1),
+        Row.of("2020-10-10 00:00:04", 7, 4),
+        Row.of("2020-10-10 00:00:07", 8, 5),
+        // out of order - should be processed with a 2-second watermark in use.
+        Row.of("2020-10-10 00:00:06", 5, 6),
+        Row.of("2020-10-10 00:00:12", 3, 7),
+        // late event - should be ignored with a 2-second watermark in use.
+        Row.of("2020-10-10 00:00:08", 4, 8),
+        Row.of("2020-10-10 00:00:16", 4, 9),
+        Row.of("2020-10-10 00:00:32", 7, 10),
+        Row.of("2020-10-10 00:00:34", 5, 11)
+    };
+
+    static final Row[] AFTER_DATA = {
+        Row.of("2020-10-10 00:00:33", 9, 12),
+        Row.of("2020-10-10 00:00:41", 3, 13),
+        Row.of("2020-10-10 00:00:42", 11, 16),
+        Row.of("2020-10-10 00:00:43", 12, 15),
+        Row.of("2020-10-10 00:00:44", 13, 14)
+    };
+
+    static final SourceTestStep SOURCE =
+            SourceTestStep.newBuilder("MyEventTimeTable")
+                    .addSchema(
+                            "ts STRING",
+                            "price INT",
+                            "sequence_num INT",
+                            "`rowtime` AS TO_TIMESTAMP(`ts`)",
+                            "`proctime` AS PROCTIME()",
+                            "WATERMARK for `rowtime` AS `rowtime` - INTERVAL '2' SECOND")
+                    .producedBeforeRestore(BEFORE_DATA)
+                    .producedAfterRestore(AFTER_DATA)
+                    .build();
+
+    static final TableTestProgram ORDER_BY_EVENT_TIME_MATCH =
+            TableTestProgram.of("order-by-event-time-match", "complex match recognize test")
+                    .setupTableSource(SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("MySink")
+                                    .addSchema("first bigint", "last bigint", "up bigint")
+                                    .consumedBeforeRestore(Row.of(10L, 8L, 9L), Row.of(7L, 5L, 8L))
+                                    .consumedAfterRestore(Row.of(9L, 3L, 11L))
+                                    .build())
+                    .runSql(getEventTimeSql("ORDER BY rowtime"))
+                    .build();
+
+    static final TableTestProgram ORDER_BY_INT_COLUMN_MATCH =
+            TableTestProgram.of("order-by-int-column-match", "complex match recognize test")
+                    .setupTableSource(SOURCE)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("MySink")
+                                    .addSchema("first bigint", "last bigint", "up bigint")
+                                    .consumedBeforeRestore(Row.of(9L, 8L, 10L), Row.of(7L, 5L, 8L))
+                                    .consumedAfterRestore(Row.of(9L, 3L, 11L))
+                                    .build())
+                    .runSql(getEventTimeSql("ORDER BY rowtime, sequence_num"))
+                    .build();
+
+    private static String getEventTimeSql(final String orderByClause) {
+        final String sql =
+                "insert into MySink SELECT * FROM MyEventTimeTable MATCH_RECOGNIZE (\n"
+                        + "   %s\n"
+                        + "  MEASURES\n"
+                        + "    FIRST(DOWN.price) as first,\n"
+                        + "    LAST(DOWN.price) as last,\n"
+                        + "    UP.price as up\n"
+                        + "  ONE ROW PER MATCH\n"
+                        + "  AFTER MATCH SKIP PAST LAST ROW\n"
+                        + "  PATTERN (DOWN{2,} UP)\n"
+                        + "  DEFINE\n"
+                        + "    DOWN AS price < LAST(DOWN.price, 1) OR LAST(DOWN.price, 1) IS NULL,\n"
+                        + "    UP AS price > LAST(DOWN.price)\n"
+                        + ") AS T";
+        return String.format(sql, orderByClause);
+    }
+
     static final TableTestProgram SKIP_TO_FIRST =
             getSkipTestProgram(
                     "skip-to-first",
