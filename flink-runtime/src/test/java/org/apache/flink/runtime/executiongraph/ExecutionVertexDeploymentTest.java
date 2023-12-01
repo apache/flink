@@ -37,7 +37,7 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.ge
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-class ExecutionVertexDeploymentTest {
+public class ExecutionVertexDeploymentTest {
 
     private static final String ERROR_MESSAGE = "test_failure_error_message";
 
