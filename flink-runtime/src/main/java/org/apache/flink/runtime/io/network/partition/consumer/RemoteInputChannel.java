@@ -822,7 +822,7 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     public void onFailedPartitionRequest() {
-        inputGate.triggerPartitionStateCheck(partitionId, consumedSubpartitionIndex);
+        inputGate.triggerPartitionStateCheck(partitionId, channelInfo);
     }
 
     public void onError(Throwable cause) {

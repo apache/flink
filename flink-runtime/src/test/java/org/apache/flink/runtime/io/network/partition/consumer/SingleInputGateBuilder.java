@@ -173,7 +173,6 @@ public class SingleInputGateBuilder {
                         gateIndex,
                         intermediateDataSetID,
                         partitionType,
-                        subpartitionIndexRange,
                         numberOfChannels,
                         partitionProducerStateProvider,
                         bufferPoolFactory,
@@ -181,10 +180,7 @@ public class SingleInputGateBuilder {
                         segmentProvider,
                         bufferSize,
                         createThroughputCalculator.apply(bufferDebloatConfiguration),
-                        maybeCreateBufferDebloater(gateIndex),
-                        tieredStorageConsumerClient,
-                        null,
-                        null);
+                        maybeCreateBufferDebloater(gateIndex));
         if (channelFactory != null) {
             gate.setInputChannels(
                     IntStream.range(0, numberOfChannels)
@@ -197,6 +193,7 @@ public class SingleInputGateBuilder {
                                                     gate))
                             .toArray(InputChannel[]::new));
         }
+        gate.setTieredStorageService(null, tieredStorageConsumerClient, null);
         return gate;
     }
 

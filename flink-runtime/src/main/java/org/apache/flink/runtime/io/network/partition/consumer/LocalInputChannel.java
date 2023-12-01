@@ -168,8 +168,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         // deadlock with a concurrent release of the channel via the
         // input gate.
         if (retriggerRequest) {
-            inputGate.retriggerPartitionRequest(
-                    partitionId.getPartitionId(), consumedSubpartitionIndex);
+            inputGate.retriggerPartitionRequest(partitionId.getPartitionId(), channelInfo);
         }
     }
 

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
@@ -27,7 +28,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
-import org.apache.flink.runtime.executiongraph.IndexRange;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.StopMode;
@@ -41,13 +41,13 @@ import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.netty.TieredStorageNettyServiceImpl;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.AvailabilityNotifier;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerClient;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.TieredStorageConsumerSpec;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
@@ -69,9 +69,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.Timer;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -142,21 +145,12 @@ public class SingleInputGate extends IndexedInputGate {
     /** The type of the partition the input gate is consuming. */
     private final ResultPartitionType consumedPartitionType;
 
-    /**
-     * Range of the index of the consumed subpartition of each consumed partition. This index
-     * depends on the {@link DistributionPattern} and the subtask indices of the producing and
-     * consuming task. The range is inclusive.
-     */
-    private final IndexRange subpartitionIndexRange;
-
     /** The number of input channels (equivalent to the number of consumed partitions). */
     private final int numberOfInputChannels;
 
-    /**
-     * Input channels. There is one input channel for each consumed subpartition. We store this in a
-     * map for runtime updates of single channels.
-     */
-    private final Map<SubpartitionInfo, InputChannel> inputChannels;
+    /** Input channels. We store this in a map for runtime updates of single channels. */
+    private final Map<IntermediateResultPartitionID, Map<InputChannelInfo, InputChannel>>
+            inputChannels;
 
     @GuardedBy("requestLock")
     private final InputChannel[] channels;
@@ -222,20 +216,19 @@ public class SingleInputGate extends IndexedInputGate {
     private boolean shouldDrainOnEndOfData = true;
 
     // The consumer client will be null if the tiered storage is not enabled.
-    @Nullable private final TieredStorageConsumerClient tieredStorageConsumerClient;
+    @Nullable private TieredStorageConsumerClient tieredStorageConsumerClient;
 
     // The consumer specs in tiered storage will be null if the tiered storage is not enabled.
-    @Nullable private final List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs;
+    @Nullable private List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs;
 
     // The availability notifier will be null if the tiered storage is not enabled.
-    @Nullable private final AvailabilityNotifier availabilityNotifier;
+    @Nullable private AvailabilityNotifier availabilityNotifier;
 
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
             IntermediateDataSetID consumedResultId,
             final ResultPartitionType consumedPartitionType,
-            IndexRange subpartitionIndexRange,
             int numberOfInputChannels,
             PartitionProducerStateProvider partitionProducerStateProvider,
             SupplierWithException<BufferPool, IOException> bufferPoolFactory,
@@ -243,10 +236,7 @@ public class SingleInputGate extends IndexedInputGate {
             MemorySegmentProvider memorySegmentProvider,
             int segmentSize,
             ThroughputCalculator throughputCalculator,
-            @Nullable BufferDebloater bufferDebloater,
-            @Nullable TieredStorageConsumerClient tieredStorageConsumerClient,
-            @Nullable TieredStorageNettyServiceImpl nettyService,
-            @Nullable List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs) {
+            @Nullable BufferDebloater bufferDebloater) {
 
         this.owningTaskName = checkNotNull(owningTaskName);
         Preconditions.checkArgument(0 <= gateIndex, "The gate index must be positive.");
@@ -255,8 +245,6 @@ public class SingleInputGate extends IndexedInputGate {
         this.consumedResultId = checkNotNull(consumedResultId);
         this.consumedPartitionType = checkNotNull(consumedPartitionType);
         this.bufferPoolFactory = checkNotNull(bufferPoolFactory);
-
-        this.subpartitionIndexRange = checkNotNull(subpartitionIndexRange);
 
         checkArgument(numberOfInputChannels > 0);
         this.numberOfInputChannels = numberOfInputChannels;
@@ -280,15 +268,9 @@ public class SingleInputGate extends IndexedInputGate {
         this.bufferDebloater = bufferDebloater;
         this.throughputCalculator = checkNotNull(throughputCalculator);
 
-        this.tieredStorageConsumerClient = tieredStorageConsumerClient;
-        this.tieredStorageConsumerSpecs = tieredStorageConsumerSpecs;
-        if (enabledTieredStorage()) {
-            this.availabilityNotifier = new AvailabilityNotifierImpl();
-            setupTieredStorageNettyService(nettyService, tieredStorageConsumerSpecs);
-            tieredStorageConsumerClient.registerAvailabilityNotifier(availabilityNotifier);
-        } else {
-            this.availabilityNotifier = null;
-        }
+        this.tieredStorageConsumerClient = null;
+        this.tieredStorageConsumerSpecs = null;
+        this.availabilityNotifier = null;
     }
 
     protected PrioritizedDeque<InputChannel> getInputChannelsWithData() {
@@ -310,8 +292,8 @@ public class SingleInputGate extends IndexedInputGate {
     @Override
     public CompletableFuture<Void> getStateConsumedFuture() {
         synchronized (requestLock) {
-            List<CompletableFuture<?>> futures = new ArrayList<>(inputChannels.size());
-            for (InputChannel inputChannel : inputChannels.values()) {
+            List<CompletableFuture<?>> futures = new ArrayList<>(numberOfInputChannels);
+            for (InputChannel inputChannel : inputChannels()) {
                 if (inputChannel instanceof RecoveredInputChannel) {
                     futures.add(((RecoveredInputChannel) inputChannel).getStateConsumedFuture());
                 }
@@ -329,13 +311,15 @@ public class SingleInputGate extends IndexedInputGate {
                 }
 
                 // Sanity checks
-                if (numberOfInputChannels != inputChannels.size()) {
+                long numInputChannels =
+                        inputChannels.values().stream().mapToLong(x -> x.values().size()).sum();
+                if (numberOfInputChannels != numInputChannels) {
                     throw new IllegalStateException(
                             String.format(
                                     "Bug in input gate setup logic: mismatch between "
                                             + "number of total input channels [%s] and the currently set number of input "
                                             + "channels [%s].",
-                                    inputChannels.size(), numberOfInputChannels));
+                                    numInputChannels, numberOfInputChannels));
                 }
 
                 convertRecoveredInputChannels();
@@ -355,25 +339,32 @@ public class SingleInputGate extends IndexedInputGate {
     @VisibleForTesting
     public void convertRecoveredInputChannels() {
         LOG.debug("Converting recovered input channels ({} channels)", getNumberOfInputChannels());
-        for (Map.Entry<SubpartitionInfo, InputChannel> entry : inputChannels.entrySet()) {
-            InputChannel inputChannel = entry.getValue();
-            if (inputChannel instanceof RecoveredInputChannel) {
-                try {
-                    InputChannel realInputChannel =
-                            ((RecoveredInputChannel) inputChannel).toInputChannel();
-                    inputChannel.releaseAllResources();
-                    entry.setValue(realInputChannel);
-                    channels[inputChannel.getChannelIndex()] = realInputChannel;
-                } catch (Throwable t) {
-                    inputChannel.setError(t);
-                    return;
+        for (Map<InputChannelInfo, InputChannel> inputChannelsForCurrentPartition :
+                inputChannels.values()) {
+            Set<InputChannelInfo> oldInputChannelInfos =
+                    new HashSet<>(inputChannelsForCurrentPartition.keySet());
+            for (InputChannelInfo inputChannelInfo : oldInputChannelInfos) {
+                InputChannel inputChannel = inputChannelsForCurrentPartition.get(inputChannelInfo);
+                if (inputChannel instanceof RecoveredInputChannel) {
+                    try {
+                        InputChannel realInputChannel =
+                                ((RecoveredInputChannel) inputChannel).toInputChannel();
+                        inputChannel.releaseAllResources();
+                        inputChannelsForCurrentPartition.remove(inputChannelInfo);
+                        inputChannelsForCurrentPartition.put(
+                                realInputChannel.getChannelInfo(), realInputChannel);
+                        channels[inputChannel.getChannelIndex()] = realInputChannel;
+                    } catch (Throwable t) {
+                        inputChannel.setError(t);
+                        return;
+                    }
                 }
             }
         }
     }
 
     private void internalRequestPartitions() {
-        for (InputChannel inputChannel : inputChannels.values()) {
+        for (InputChannel inputChannel : inputChannels()) {
             try {
                 inputChannel.requestSubpartition();
             } catch (Throwable t) {
@@ -488,7 +479,7 @@ public class SingleInputGate extends IndexedInputGate {
             try {
                 int totalBuffers = 0;
 
-                for (InputChannel channel : inputChannels.values()) {
+                for (InputChannel channel : inputChannels()) {
                     totalBuffers += channel.unsynchronizedGetNumberOfQueuedBuffers();
                 }
 
@@ -507,7 +498,7 @@ public class SingleInputGate extends IndexedInputGate {
             try {
                 long totalSize = 0;
 
-                for (InputChannel channel : inputChannels.values()) {
+                for (InputChannel channel : inputChannels()) {
                     totalSize += channel.unsynchronizedGetSizeOfQueuedBuffers();
                 }
 
@@ -555,7 +546,7 @@ public class SingleInputGate extends IndexedInputGate {
         // Next allocate the exclusive buffers per channel when the number of exclusive buffer is
         // larger than 0.
         synchronized (requestLock) {
-            for (InputChannel inputChannel : inputChannels.values()) {
+            for (InputChannel inputChannel : inputChannels()) {
                 inputChannel.setup();
             }
         }
@@ -573,18 +564,30 @@ public class SingleInputGate extends IndexedInputGate {
         synchronized (requestLock) {
             System.arraycopy(channels, 0, this.channels, 0, numberOfInputChannels);
             for (InputChannel inputChannel : channels) {
-                IntermediateResultPartitionID partitionId =
-                        inputChannel.getPartitionId().getPartitionId();
-                int subpartitionIndex = inputChannel.getConsumedSubpartitionIndex();
-                if (inputChannels.put(
-                                        new SubpartitionInfo(partitionId, subpartitionIndex),
-                                        inputChannel)
+                if (inputChannels
+                                        .computeIfAbsent(
+                                                inputChannel.getPartitionId().getPartitionId(),
+                                                ignored -> new HashMap<>())
+                                        .put(inputChannel.getChannelInfo(), inputChannel)
                                 == null
                         && inputChannel instanceof UnknownInputChannel) {
 
                     numberOfUninitializedChannels++;
                 }
             }
+        }
+    }
+
+    public void setTieredStorageService(
+            List<TieredStorageConsumerSpec> tieredStorageConsumerSpecs,
+            TieredStorageConsumerClient client,
+            TieredStorageNettyServiceImpl nettyService) {
+        this.tieredStorageConsumerSpecs = tieredStorageConsumerSpecs;
+        this.tieredStorageConsumerClient = client;
+        if (client != null) {
+            this.availabilityNotifier = new AvailabilityNotifierImpl();
+            setupTieredStorageNettyService(nettyService, tieredStorageConsumerSpecs);
+            client.registerAvailabilityNotifier(availabilityNotifier);
         }
     }
 
@@ -600,13 +603,8 @@ public class SingleInputGate extends IndexedInputGate {
             IntermediateResultPartitionID partitionId =
                     shuffleDescriptor.getResultPartitionID().getPartitionId();
 
-            for (int subpartitionIndex = subpartitionIndexRange.getStartIndex();
-                    subpartitionIndex <= subpartitionIndexRange.getEndIndex();
-                    ++subpartitionIndex) {
-                SubpartitionInfo subpartitionInfo =
-                        new SubpartitionInfo(partitionId, subpartitionIndex);
-                InputChannel current = inputChannels.get(subpartitionInfo);
-
+            Map<InputChannelInfo, InputChannel> newInputChannels = new HashMap<>();
+            for (InputChannel current : inputChannels.get(partitionId).values()) {
                 if (current instanceof UnknownInputChannel) {
                     UnknownInputChannel unknownChannel = (UnknownInputChannel) current;
                     boolean isLocal = shuffleDescriptor.isLocalTo(localLocation);
@@ -625,7 +623,7 @@ public class SingleInputGate extends IndexedInputGate {
                     LOG.debug(
                             "{}: Updated unknown input channel to {}.", owningTaskName, newChannel);
 
-                    inputChannels.put(subpartitionInfo, newChannel);
+                    newInputChannels.put(newChannel.getChannelInfo(), newChannel);
                     channels[current.getChannelIndex()] = newChannel;
 
                     if (requestedPartitionsFlag) {
@@ -641,16 +639,18 @@ public class SingleInputGate extends IndexedInputGate {
                     }
                 }
             }
+
+            inputChannels.put(partitionId, newInputChannels);
         }
     }
 
     /** Retriggers a partition request. */
     public void retriggerPartitionRequest(
-            IntermediateResultPartitionID partitionId, int subpartitionIndex) throws IOException {
+            IntermediateResultPartitionID partitionId, InputChannelInfo inputChannelInfo)
+            throws IOException {
         synchronized (requestLock) {
             if (!closeFuture.isDone()) {
-                final InputChannel ch =
-                        inputChannels.get(new SubpartitionInfo(partitionId, subpartitionIndex));
+                final InputChannel ch = inputChannels.get(partitionId).get(inputChannelInfo);
 
                 checkNotNull(ch, "Unknown input channel with ID " + partitionId);
 
@@ -700,7 +700,7 @@ public class SingleInputGate extends IndexedInputGate {
                         retriggerLocalRequestTimer.cancel();
                     }
 
-                    for (InputChannel inputChannel : inputChannels.values()) {
+                    for (InputChannel inputChannel : inputChannels()) {
                         try {
                             inputChannel.releaseAllResources();
                         } catch (IOException e) {
@@ -991,7 +991,7 @@ public class SingleInputGate extends IndexedInputGate {
     @Override
     public void sendTaskEvent(TaskEvent event) throws IOException {
         synchronized (requestLock) {
-            for (InputChannel inputChannel : inputChannels.values()) {
+            for (InputChannel inputChannel : inputChannels()) {
                 inputChannel.sendTaskEvent(event);
             }
 
@@ -1030,7 +1030,7 @@ public class SingleInputGate extends IndexedInputGate {
             checkNotNull(availabilityNotifier)
                     .notifyAvailable(
                             tieredStorageConsumerSpec.getPartitionId(),
-                            tieredStorageConsumerSpec.getSubpartitionId());
+                            tieredStorageConsumerSpec.getInputChannelId());
         } else {
             queueChannel(checkNotNull(channel), null, false);
         }
@@ -1054,7 +1054,8 @@ public class SingleInputGate extends IndexedInputGate {
         queueChannel(checkNotNull(inputChannel), null, true);
     }
 
-    void triggerPartitionStateCheck(ResultPartitionID partitionId, int subpartitionIndex) {
+    void triggerPartitionStateCheck(
+            ResultPartitionID partitionId, InputChannelInfo inputChannelInfo) {
         partitionProducerStateProvider.requestPartitionProducerState(
                 consumedResultId,
                 partitionId,
@@ -1065,7 +1066,7 @@ public class SingleInputGate extends IndexedInputGate {
                     if (isProducingState) {
                         try {
                             retriggerPartitionRequest(
-                                    partitionId.getPartitionId(), subpartitionIndex);
+                                    partitionId.getPartitionId(), inputChannelInfo);
                         } catch (IOException t) {
                             responseHandle.failConsumption(t);
                         }
@@ -1179,57 +1180,80 @@ public class SingleInputGate extends IndexedInputGate {
     private class AvailabilityNotifierImpl implements AvailabilityNotifier {
 
         private final Map<TieredStoragePartitionId, Map<TieredStorageSubpartitionId, Integer>>
-                channelIndexes;
+                subpartitionIdMap;
+
+        private final Map<TieredStoragePartitionId, Map<TieredStorageInputChannelId, Integer>>
+                channelIdMap;
 
         private AvailabilityNotifierImpl() {
-            this.channelIndexes = new HashMap<>();
+            this.subpartitionIdMap = new HashMap<>();
+            this.channelIdMap = new HashMap<>();
             for (int index = 0; index < checkNotNull(tieredStorageConsumerSpecs).size(); index++) {
                 TieredStorageConsumerSpec spec = tieredStorageConsumerSpecs.get(index);
-                channelIndexes
+                subpartitionIdMap
                         .computeIfAbsent(spec.getPartitionId(), ignore -> new HashMap<>())
                         .put(spec.getSubpartitionId(), index);
+                channelIdMap
+                        .computeIfAbsent(spec.getPartitionId(), ignore -> new HashMap<>())
+                        .put(spec.getInputChannelId(), index);
             }
         }
 
+        @Override
         public void notifyAvailable(
                 TieredStoragePartitionId partitionId, TieredStorageSubpartitionId subpartitionId) {
             queueChannel(
-                    channels[channelIndexes.get(partitionId).get(subpartitionId)], null, false);
+                    channels[subpartitionIdMap.get(partitionId).get(subpartitionId)], null, false);
+        }
+
+        @Override
+        public void notifyAvailable(
+                TieredStoragePartitionId partitionId, TieredStorageInputChannelId inputChannelId) {
+            queueChannel(channels[channelIdMap.get(partitionId).get(inputChannelId)], null, false);
         }
     }
 
     // ------------------------------------------------------------------------
 
-    public Map<SubpartitionInfo, InputChannel> getInputChannels() {
-        return inputChannels;
-    }
-
-    static class SubpartitionInfo {
-        private final IntermediateResultPartitionID partitionID;
-        private final int subpartitionIndex;
-
-        SubpartitionInfo(IntermediateResultPartitionID partitionID, int subpartitionIndex) {
-            this.partitionID = checkNotNull(partitionID);
-            checkArgument(subpartitionIndex >= 0);
-            this.subpartitionIndex = subpartitionIndex;
-        }
-
-        @Override
-        public int hashCode() {
-            return partitionID.hashCode() ^ subpartitionIndex;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == this) {
-                return true;
-            } else if (obj != null && obj.getClass() == getClass()) {
-                SubpartitionInfo that = (SubpartitionInfo) obj;
-                return that.partitionID.equals(this.partitionID)
-                        && that.subpartitionIndex == this.subpartitionIndex;
-            } else {
-                return false;
+    @VisibleForTesting
+    public Map<Tuple2<IntermediateResultPartitionID, InputChannelInfo>, InputChannel>
+            getInputChannels() {
+        Map<Tuple2<IntermediateResultPartitionID, InputChannelInfo>, InputChannel> result =
+                new HashMap<>();
+        for (Map.Entry<IntermediateResultPartitionID, Map<InputChannelInfo, InputChannel>>
+                mapEntry : inputChannels.entrySet()) {
+            for (Map.Entry<InputChannelInfo, InputChannel> entry : mapEntry.getValue().entrySet()) {
+                result.put(Tuple2.of(mapEntry.getKey(), entry.getKey()), entry.getValue());
             }
         }
+        return result;
+    }
+
+    public Iterable<InputChannel> inputChannels() {
+        return () ->
+                new Iterator<InputChannel>() {
+                    private final Iterator<Map<InputChannelInfo, InputChannel>> mapIterator =
+                            inputChannels.values().iterator();
+
+                    private Iterator<InputChannel> iterator = null;
+
+                    @Override
+                    public boolean hasNext() {
+                        return (iterator != null && iterator.hasNext()) || mapIterator.hasNext();
+                    }
+
+                    @Override
+                    public InputChannel next() {
+                        if ((iterator == null || !iterator.hasNext()) && mapIterator.hasNext()) {
+                            iterator = mapIterator.next().values().iterator();
+                        }
+
+                        if (iterator == null || !iterator.hasNext()) {
+                            return null;
+                        }
+
+                        return iterator.next();
+                    }
+                };
     }
 }
