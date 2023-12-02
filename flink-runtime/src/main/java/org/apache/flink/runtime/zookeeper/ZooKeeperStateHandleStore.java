@@ -49,6 +49,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 
 import static org.apache.flink.runtime.util.StateHandleStoreUtils.deserialize;
 import static org.apache.flink.runtime.util.StateHandleStoreUtils.serializeOrDiscard;
@@ -198,6 +201,104 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
         }
     }
 
+    /**
+     * Create path in ZooKeeper and locks it then write asynchronously state in Executor
+     *
+     * @param pathInZooKeeper Destination path in ZooKeeper (expected to *not* exist yet)
+     * @param state State to be added
+     * @param executor The executor of the write operation
+     * @return The CompletableFuture of write operation
+     * @throws Exception
+     */
+    @Override
+    public CompletableFuture<Void> addAndLockAsync(
+            String pathInZooKeeper, T state, Executor executor) throws Exception {
+        createAndLockInZk(pathInZooKeeper);
+        return writeStoreHandleAsync(pathInZooKeeper, state, executor);
+    }
+
+    private void createAndLockInZk(String pathInZooKeeper) throws Exception {
+        checkNotNull(pathInZooKeeper, "Path in ZooKeeper");
+        final String path = normalizePath(pathInZooKeeper);
+        final Optional<Stat> maybeStat = getStat(path);
+
+        if (maybeStat.isPresent()) {
+            if (isNotMarkedForDeletion(maybeStat.get())) {
+                throw new AlreadyExistException(
+                        String.format("ZooKeeper node %s already exists.", path));
+            }
+
+            Preconditions.checkState(
+                    releaseAndTryRemove(path),
+                    "The state is marked for deletion and, therefore, should be deletable.");
+        }
+        try {
+            writeZookeeperPath(path);
+        } catch (KeeperException.NodeExistsException e) {
+
+        } catch (Exception e) {
+            if (indicatesPossiblyInconsistentState(e)) {
+                throw new PossibleInconsistentStateException(e);
+            }
+            throw e;
+        }
+    }
+
+    @VisibleForTesting
+    void writeZookeeperPath(String path) throws Exception {
+        client.inTransaction()
+                .create()
+                .withMode(CreateMode.PERSISTENT)
+                .forPath(path)
+                .and()
+                .create()
+                .withMode(CreateMode.PERSISTENT)
+                .forPath(getRootLockPath(path))
+                .and()
+                .create()
+                .withMode(CreateMode.EPHEMERAL)
+                .forPath(getInstanceLockPath(path))
+                .and()
+                .commit();
+    }
+
+    private CompletableFuture<Void> writeStoreHandleAsync(
+            String pathInZooKeeper, T state, Executor executor) {
+        CompletableFuture<Void> completableFuture =
+                CompletableFuture.runAsync(
+                        () -> {
+                            checkNotNull(state, "State");
+                            RetrievableStateHandle<T> storeHandle = null;
+                            try {
+                                storeHandle = storage.store(state);
+                                final byte[] serializedStoreHandle =
+                                        serializeOrDiscard(storeHandle);
+                                final String path = normalizePath(pathInZooKeeper);
+                                setStateHandle(
+                                        path,
+                                        serializedStoreHandle,
+                                        IntegerResourceVersion.notExisting().getValue());
+                            } catch (KeeperException.NodeExistsException e) {
+
+                            } catch (Exception e) {
+                                if (indicatesPossiblyInconsistentState(e)) {
+                                    throw new CompletionException(
+                                            new PossibleInconsistentStateException(e));
+                                }
+                                try {
+                                    if (storeHandle != null) {
+                                        storeHandle.discardState();
+                                    }
+                                } catch (Exception exception) {
+                                    exception.printStackTrace();
+                                }
+                                throw new CompletionException(e);
+                            }
+                        },
+                        executor);
+        return completableFuture;
+    }
+
     // this method is provided for the sole purpose of easier testing
     @VisibleForTesting
     void writeStoreHandleTransactionally(String path, byte[] serializedStoreHandle)
@@ -313,7 +414,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
      *
      * @param pathInZooKeeper Path in ZooKeeper to check
      * @return Version of the ZNode if the path exists and is not marked for deletion, <code>-1
-     *     </code> otherwise.
+     *         </code> otherwise.
      * @throws Exception If the ZooKeeper operation fails
      */
     @Override

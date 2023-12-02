@@ -33,6 +33,8 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Testing implementation for {@link StateHandleStore}.
@@ -84,6 +86,12 @@ public class TestingStateHandleStore<T extends Serializable>
     @Nullable
     public RetrievableStateHandle<T> addAndLock(String name, T state) throws Exception {
         return addFunction.apply(name, state);
+    }
+
+    @Override
+    public CompletableFuture<Void> addAndLockAsync(
+            String pathInZooKeeper, T state, Executor executor) throws Exception {
+        return null;
     }
 
     @Override

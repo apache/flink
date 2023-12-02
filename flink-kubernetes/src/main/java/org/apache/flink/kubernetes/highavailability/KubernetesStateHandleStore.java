@@ -49,6 +49,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -241,6 +242,68 @@ public class KubernetesStateHandleStore<T extends Serializable>
                 storeHandle.discardState();
             }
         }
+    }
+
+    /**
+     * Stores key in ConfigMap and write asynchronously state in Executor.
+     *
+     * @param key Key in ConfigMap
+     * @param state State to be added
+     * @param executor The executor of the write operation
+     * @return The CompletableFuture of write operation
+     * @throws Exception
+     */
+    @Override
+    public CompletableFuture<Void> addAndLockAsync(String key, T state, Executor executor)
+            throws Exception {
+        addConfigMap(key);
+        return writeStoreHandleAsync(key, state, executor);
+    }
+
+    /**
+     * @param key
+     * @throws PossibleInconsistentStateException
+     * @throws Exception
+     */
+    private void addConfigMap(String key) throws PossibleInconsistentStateException, Exception {
+
+        checkNotNull(key, "Key in ConfigMap.");
+        try {
+            updateConfigMap(
+                            cm -> {
+                                try {
+                                    return addEntry(cm, key, null);
+                                } catch (Exception e) {
+                                    throw new CompletionException(e);
+                                }
+                            })
+                    .get();
+        } catch (Exception ex) {
+            final Optional<PossibleInconsistentStateException> possibleInconsistentStateException =
+                    ExceptionUtils.findThrowable(ex, PossibleInconsistentStateException.class);
+            if (possibleInconsistentStateException.isPresent()) {
+                throw possibleInconsistentStateException.get();
+            }
+            throw ExceptionUtils.findThrowable(ex, AlreadyExistException.class)
+                    .orElseThrow(() -> ex);
+        }
+    }
+
+    private CompletableFuture<Void> writeStoreHandleAsync(String key, T state, Executor executor)
+            throws Exception {
+        CompletableFuture<Void> completableFuture =
+                CompletableFuture.runAsync(
+                        () -> {
+                            checkNotNull(state, "State.");
+                            final RetrievableStateHandle<T> storeHandle;
+                            try {
+                                replace(key, StringResourceVersion.notExisting(), state);
+                            } catch (Exception e) {
+                                throw new CompletionException(e);
+                            }
+                        },
+                        executor);
+        return completableFuture;
     }
 
     /**
@@ -579,7 +642,8 @@ public class KubernetesStateHandleStore<T extends Serializable>
             KubernetesConfigMap configMap, String key, byte[] serializedStateHandle)
             throws Exception {
         final String oldBase64Content = configMap.getData().get(key);
-        final String newBase64Content = toBase64(serializedStateHandle);
+        final String newBase64Content =
+                serializedStateHandle == null ? "" : toBase64(serializedStateHandle);
         if (oldBase64Content != null) {
             try {
                 final StateHandleWithDeleteMarker<T> stateHandle =

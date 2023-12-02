@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
@@ -119,6 +120,17 @@ public class TestingJobGraphStore implements JobGraphStore {
         verifyIsStarted();
         putJobGraphConsumer.accept(jobGraph);
         storedJobs.put(jobGraph.getJobID(), jobGraph);
+    }
+
+    @Override
+    public CompletableFuture<Void> putJobGraphAsync(
+            JobGraph jobGraph, Optional<Executor> ioExecutor) throws Exception {
+        verifyIsStarted();
+        putJobGraphConsumer.accept(jobGraph);
+        storedJobs.put(jobGraph.getJobID(), jobGraph);
+        CompletableFuture<Void> completableFuture = new CompletableFuture<Void>();
+        completableFuture.complete(null);
+        return completableFuture;
     }
 
     @Override

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -36,6 +37,18 @@ public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleana
      * <p>If a job graph with the same {@link JobID} exists, it is replaced.
      */
     void putJobGraph(JobGraph jobGraph) throws Exception;
+
+    /**
+     * Adds the {@link JobGraph} instance and have write operations performed asynchronously in
+     * ioExecutor of Dispatcher
+     *
+     * @param jobGraph
+     * @param ioExecutor
+     * @return
+     * @throws Exception
+     */
+    CompletableFuture<Void> putJobGraphAsync(JobGraph jobGraph, Optional<Executor> ioExecutor)
+            throws Exception;
 
     /**
      * Persist {@link JobResourceRequirements job resource requirements} for the given job.
