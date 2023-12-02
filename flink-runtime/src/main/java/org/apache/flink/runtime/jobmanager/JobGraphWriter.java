@@ -37,6 +37,9 @@ public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleana
      */
     void putJobGraph(JobGraph jobGraph) throws Exception;
 
+    CompletableFuture<Void> putJobGraphAsync(JobGraph jobGraph, Executor ioExecutor)
+            throws Exception;
+
     /**
      * Persist {@link JobResourceRequirements job resource requirements} for the given job.
      *

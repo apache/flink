@@ -24,6 +24,8 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * {@link JobGraph} instances for JobManagers running in {@link HighAvailabilityMode#NONE}.
@@ -46,6 +48,12 @@ public class StandaloneJobGraphStore implements JobGraphStore {
     @Override
     public void putJobGraph(JobGraph jobGraph) {
         // Nothing to do
+    }
+
+    @Override
+    public CompletableFuture<Void> putJobGraphAsync(JobGraph jobGraph, Executor ioExecutor)
+            throws Exception {
+        return null;
     }
 
     @Override

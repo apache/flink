@@ -198,13 +198,19 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
 
     @Override
     public void putJobGraph(JobGraph jobGraph) throws Exception {
+        putJobGraphAsync(jobGraph, null);
+    }
+
+    @Override
+    public CompletableFuture<Void> putJobGraphAsync(JobGraph jobGraph, Executor executor)
+            throws Exception {
         checkNotNull(jobGraph, "Job graph");
 
         final JobID jobID = jobGraph.getJobID();
         final String name = jobGraphStoreUtil.jobIDToName(jobID);
 
         LOG.debug("Adding job graph {} to {}.", jobID, jobGraphStateHandleStore);
-
+        CompletableFuture<Void> completableFuture = null;
         boolean success = false;
 
         while (!success) {
@@ -215,8 +221,14 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
 
                 if (!currentVersion.isExisting()) {
                     try {
-                        jobGraphStateHandleStore.addAndLock(name, jobGraph);
-
+                        if (executor != null) {
+                            completableFuture =
+                                    jobGraphStateHandleStore.addAndLockAsync(
+                                            name, jobGraph, executor);
+                        } else {
+                            jobGraphStateHandleStore.addAndLock(name, jobGraph);
+                            completableFuture.complete(null);
+                        }
                         addedJobGraphs.add(jobID);
 
                         success = true;
@@ -241,6 +253,7 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
         }
 
         LOG.info("Added {} to {}.", jobGraph, jobGraphStateHandleStore);
+        return completableFuture;
     }
 
     @Override

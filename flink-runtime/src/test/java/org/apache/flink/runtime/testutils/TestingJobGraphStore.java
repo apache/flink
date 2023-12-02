@@ -122,6 +122,13 @@ public class TestingJobGraphStore implements JobGraphStore {
     }
 
     @Override
+    public CompletableFuture<Void> putJobGraphAsync(
+            JobGraph jobGraph,
+            Executor ioExecutor) throws Exception {
+        return null;
+    }
+
+    @Override
     public void putJobResourceRequirements(
             JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
         verifyIsStarted();
