@@ -42,7 +42,7 @@ public class ExpandTestPrograms {
                             IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED(),
                             false)
                     .setupTableSource(
-                            SourceTestStep.newBuilder("MyTable")
+                            SourceTestStep.newBuilder("EXPAND_Table")
                                     .addSchema("a int", "b bigint", "c varchar")
                                     .producedBeforeRestore(
                                             Row.of(1, 1L, "Hi"),
@@ -51,7 +51,7 @@ public class ExpandTestPrograms {
                                     .producedAfterRestore(Row.of(5, 6L, "Hello there"))
                                     .build())
                     .setupTableSink(
-                            SinkTestStep.newBuilder("MySink")
+                            SinkTestStep.newBuilder("EXPAND_Sink")
                                     .addSchema(
                                             "b bigint",
                                             "a bigint",
@@ -68,7 +68,7 @@ public class ExpandTestPrograms {
                                             Row.ofKind(RowKind.UPDATE_AFTER, 5, 1L, "Hello there"))
                                     .build())
                     .runSql(
-                            "insert into MySink select a, "
+                            "insert into EXPAND_Sink select a, "
                                     + "count(distinct b) as b, "
                                     + "first_value(c) c "
                                     + "from MyTable group by a")

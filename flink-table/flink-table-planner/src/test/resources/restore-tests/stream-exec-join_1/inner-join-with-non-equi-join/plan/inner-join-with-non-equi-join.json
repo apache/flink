@@ -174,7 +174,7 @@
     },
     "dynamicTableSink" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "identifier" : "`default_catalog`.`default_database`.`INNER_JOIN_WITH_NON_EQUI_JOIN_Sink`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -199,7 +199,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`name` VARCHAR(2147483647), `department_name` VARCHAR(2147483647)>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[name, department_name])"
+    "description" : "Sink(table=[default_catalog.default_database.INNER_JOIN_WITH_NON_EQUI_JOIN_Sink], fields=[name, department_name])"
   } ],
   "edges" : [ {
     "source" : 40,

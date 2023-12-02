@@ -5,7 +5,7 @@
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "identifier" : "`default_catalog`.`default_database`.`DEDUPLICATE_DESC_Table`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -69,7 +69,7 @@
       }
     },
     "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` BIGINT>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[order_id, user, product, order_time])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, DEDUPLICATE_DESC_Table]], fields=[order_id, user, product, order_time])",
     "inputProperties" : [ ]
   }, {
     "id" : 9,
@@ -291,7 +291,7 @@
     },
     "dynamicTableSink" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "identifier" : "`default_catalog`.`default_database`.`DEDUPLICATE_DESC_Sink`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -328,7 +328,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`order_id` BIGINT, `user` VARCHAR(2147483647), `product` VARCHAR(2147483647), `order_time` BIGINT>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[order_id, user, product, order_time])"
+    "description" : "Sink(table=[default_catalog.default_database.DEDUPLICATE_DESC_Sink], fields=[order_id, user, product, order_time])"
   } ],
   "edges" : [ {
     "source" : 8,

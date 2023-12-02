@@ -169,7 +169,7 @@
     },
     "dynamicTableSink" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "identifier" : "`default_catalog`.`default_database`.`INNER_JOIN_WITH_DUPLICATE_KEY_Sink`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -194,7 +194,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`deptno` INT, `department_num` INT>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[deptno, department_num])"
+    "description" : "Sink(table=[default_catalog.default_database.INNER_JOIN_WITH_DUPLICATE_KEY_Sink], fields=[deptno, department_num])"
   } ],
   "edges" : [ {
     "source" : 33,

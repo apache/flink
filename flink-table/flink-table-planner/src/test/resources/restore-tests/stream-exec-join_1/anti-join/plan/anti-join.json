@@ -203,7 +203,7 @@
     },
     "dynamicTableSink" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "identifier" : "`default_catalog`.`default_database`.`ANTI_JOIN_Sink`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -225,7 +225,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`name` VARCHAR(2147483647)>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[name])"
+    "description" : "Sink(table=[default_catalog.default_database.ANTI_JOIN_Sink], fields=[name])"
   } ],
   "edges" : [ {
     "source" : 98,
