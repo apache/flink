@@ -167,6 +167,7 @@ restart-strategy.exponential-delay.max-backoff: 2 min
 restart-strategy.exponential-delay.backoff-multiplier: 2.0
 restart-strategy.exponential-delay.reset-backoff-threshold: 10 min
 restart-strategy.exponential-delay.jitter-factor: 0.1
+restart-strategy.exponential-delay.attempts-before-reset-backoff: 10
 ```
 
 The exponential delay restart strategy can also be set programmatically:

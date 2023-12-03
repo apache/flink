@@ -116,7 +116,9 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
                             exponentialDelayConfig.getMaxBackoff().toMilliseconds(),
                             exponentialDelayConfig.getBackoffMultiplier(),
                             exponentialDelayConfig.getResetBackoffThreshold().toMilliseconds(),
-                            exponentialDelayConfig.getJitterFactor()));
+                            exponentialDelayConfig.getJitterFactor(),
+                            RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_ATTEMPTS
+                                    .defaultValue()));
         } else {
             throw new IllegalArgumentException(
                     "Unknown restart strategy configuration " + restartStrategyConfiguration + ".");
