@@ -75,7 +75,7 @@ public class DeduplicationTestPrograms {
                                     + "FROM ("
                                     + "  SELECT *,"
                                     + "    ROW_NUMBER() OVER (PARTITION BY product ORDER BY event_time ASC) AS row_num\n"
-                                    + "  FROM MyTable)"
+                                    + "  FROM deduplicate_table)"
                                     + "WHERE row_num = 1")
                     .build();
 

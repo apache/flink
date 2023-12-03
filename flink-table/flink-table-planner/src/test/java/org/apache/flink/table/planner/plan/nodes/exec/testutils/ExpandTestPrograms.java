@@ -71,6 +71,6 @@ public class ExpandTestPrograms {
                             "insert into expand_sink select a, "
                                     + "count(distinct b) as b, "
                                     + "first_value(c) c "
-                                    + "from MyTable group by a")
+                                    + "from expand_table group by a")
                     .build();
 }
