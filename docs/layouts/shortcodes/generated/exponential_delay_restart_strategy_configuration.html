@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>restart-strategy.exponential-delay.attempts-before-reset-backoff</h5></td>
+            <td style="word-wrap: break-word;">infinite</td>
+            <td>Integer</td>
+            <td>The number of times that Flink retries the execution before failing the job if <code class="highlighter-rouge">restart-strategy.type</code> has been set to <code class="highlighter-rouge">exponential-delay</code>. The number will be reset once the backoff is reset to its initial value.</td>
+        </tr>
+        <tr>
             <td><h5>restart-strategy.exponential-delay.backoff-multiplier</h5></td>
             <td style="word-wrap: break-word;">2.0</td>
             <td>Double</td>
