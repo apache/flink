@@ -5,7 +5,7 @@
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`EXPAND_Table`",
+        "identifier" : "`default_catalog`.`default_database`.`expand_table`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -25,7 +25,7 @@
       }
     },
     "outputType" : "ROW<`a` INT, `b` BIGINT, `c` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, EXPAND_Table]], fields=[a, b, c])",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, expand_table]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
     "id" : 2,
@@ -377,7 +377,7 @@
     },
     "dynamicTableSink" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`EXPAND_Sink`",
+        "identifier" : "`default_catalog`.`default_database`.`expand_sink`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -411,7 +411,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`b` BIGINT, `a` BIGINT, `c` VARCHAR(2147483647)>",
-    "description" : "Sink(table=[default_catalog.default_database.EXPAND_Sink], fields=[b, a, c])"
+    "description" : "Sink(table=[default_catalog.default_database.expand_sink], fields=[b, a, c])"
   } ],
   "edges" : [ {
     "source" : 1,

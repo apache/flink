@@ -111,7 +111,7 @@ public class JoinTestPrograms {
                         .setupTableSource(SOURCE_T1)
                         .setupTableSource(SOURCE_T2)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("NON_WINDOW_INNER_JOIN_Sink")
+                                SinkTestStep.newBuilder("non_window_inner_join_sink")
                                         .addSchema("a int", "c1 varchar", "c2 varchar")
                                         .consumedBeforeRestore(
                                                 Row.of(1, "BakerBaker", "Baker2"),
@@ -124,7 +124,7 @@ public class JoinTestPrograms {
                                                 Row.of(2, "PostRestoreRight", "Baker5"))
                                         .build())
                         .runSql(
-                                "insert into NON_WINDOW_INNER_JOIN_Sink "
+                                "insert into non_window_inner_join_sink "
                                         + "SELECT t2.a, t2.c, t1.c\n"
                                         + "FROM (\n"
                                         + " SELECT if(a = 3, cast(null as int), a) as a, b, c FROM T1\n"
@@ -142,7 +142,7 @@ public class JoinTestPrograms {
                         .setupTableSource(SOURCE_T1)
                         .setupTableSource(SOURCE_T2)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("NON_WINDOW_INNER_JOIN_WITH_NULL_Sink")
+                                SinkTestStep.newBuilder("non_window_inner_join_with_null_sink")
                                         .addSchema("a int", "c1 varchar", "c2 varchar")
                                         .consumedBeforeRestore(
                                                 Row.of(1, "BakerBaker", "Baker2"),
@@ -156,7 +156,7 @@ public class JoinTestPrograms {
                                                 Row.of(2, "PostRestoreRight", "Baker5"))
                                         .build())
                         .runSql(
-                                "insert into NON_WINDOW_INNER_JOIN_WITH_NULL_Sink "
+                                "insert into non_window_inner_join_with_null_sink "
                                         + "SELECT t2.a, t2.c, t1.c\n"
                                         + "FROM (\n"
                                         + " SELECT if(a = 3, cast(null as int), a) as a, b, c FROM T1\n"
@@ -175,7 +175,7 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("CROSS_JOIN_Sink")
+                                SinkTestStep.newBuilder("cross_join_sink")
                                         .addSchema("name varchar", "department_name varchar")
                                         .consumedBeforeRestore(
                                                 Row.of("Adam", "Accounting"),
@@ -237,7 +237,7 @@ public class JoinTestPrograms {
                                                 Row.of("Ivana", "Research"))
                                         .build())
                         .runSql(
-                                "insert into CROSS_JOIN_Sink "
+                                "insert into cross_join_sink "
                                         + "SELECT name, department_name FROM EMPLOYEE, DEPARTMENT")
                         .build();
 
@@ -246,7 +246,7 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("JOIN_WITH_FILTER_Sink")
+                                SinkTestStep.newBuilder("join_with_filter_sink")
                                         .addSchema("name varchar", "department_name varchar")
                                         .consumedBeforeRestore(
                                                 Row.of("Baker", "Research"),
@@ -256,7 +256,7 @@ public class JoinTestPrograms {
                                                 Row.of("Ivana", "Research"))
                                         .build())
                         .runSql(
-                                "insert into JOIN_WITH_FILTER_Sink "
+                                "insert into join_with_filter_sink "
                                         + "SELECT name, department_name FROM EMPLOYEE, DEPARTMENT where salary = b2 and salary < CAST(2 AS BIGINT)")
                         .build();
 
@@ -266,13 +266,13 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("INNER_JOIN_WITH_DUPLICATE_KEY_Sink")
+                                SinkTestStep.newBuilder("inner_join_with_duplicate_key_sink")
                                         .addSchema("deptno int", "department_num int")
                                         .consumedBeforeRestore(Row.of(2, 2))
                                         .consumedAfterRestore(Row.of(4, 4), Row.of(4, 4))
                                         .build())
                         .runSql(
-                                "insert into INNER_JOIN_WITH_DUPLICATE_KEY_Sink "
+                                "insert into inner_join_with_duplicate_key_sink "
                                         + "SELECT deptno, department_num FROM EMPLOYEE JOIN DEPARTMENT ON deptno = department_num AND deptno = b3")
                         .build();
 
@@ -282,7 +282,7 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("INNER_JOIN_WITH_NON_EQUI_JOIN_Sink")
+                                SinkTestStep.newBuilder("inner_join_with_non_equi_join_sink")
                                         .addSchema("name varchar", "department_name varchar")
                                         .consumedBeforeRestore(Row.of("Don", "Sales"))
                                         .consumedAfterRestore(
@@ -290,7 +290,7 @@ public class JoinTestPrograms {
                                                 Row.of("Juliet", "Engineering"))
                                         .build())
                         .runSql(
-                                "insert into INNER_JOIN_WITH_NON_EQUI_JOIN_Sink "
+                                "insert into inner_join_with_non_equi_join_sink "
                                         + "SELECT name, department_name FROM EMPLOYEE JOIN DEPARTMENT ON deptno = department_num AND salary > b2")
                         .build();
 
@@ -303,7 +303,7 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("INNER_JOIN_WITH_EQUAL_PK_Sink")
+                                SinkTestStep.newBuilder("inner_join_with_equal_pk_sink")
                                         .addSchema("deptno int", "department_num int")
                                         .consumedBeforeRestore(
                                                 Row.of(1, 1), Row.of(2, 2), Row.of(3, 3))
@@ -311,7 +311,7 @@ public class JoinTestPrograms {
                                         .build())
                         .runSql(
                                 String.format(
-                                        "INSERT INTO INNER_JOIN_WITH_EQUAL_PK_Sink SELECT deptno, department_num FROM (%s) JOIN (%s) ON deptno = department_num",
+                                        "INSERT INTO inner_join_with_equal_pk_sink SELECT deptno, department_num FROM (%s) JOIN (%s) ON deptno = department_num",
                                         query1, query2))
                         .build();
 
@@ -320,7 +320,7 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("INNER_JOIN_WITH_PK_Sink")
+                                SinkTestStep.newBuilder("inner_join_with_pk_sink")
                                         .addSchema("deptno int", "department_num int")
                                         .consumedBeforeRestore(
                                                 Row.of(1, 1),
@@ -332,7 +332,7 @@ public class JoinTestPrograms {
                                         .build())
                         .runSql(
                                 String.format(
-                                        "INSERT INTO INNER_JOIN_WITH_PK_Sink SELECT deptno, department_num FROM (%s) JOIN (%s) ON salary = b2",
+                                        "INSERT INTO inner_join_with_pk_sink SELECT deptno, department_num FROM (%s) JOIN (%s) ON salary = b2",
                                         query1, query2))
                         .build();
 
@@ -341,7 +341,7 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("FULL_OUTER_Sink")
+                                SinkTestStep.newBuilder("full_outer_sink")
                                         .addSchema("name varchar", "department_name varchar")
                                         .consumedBeforeRestore(
                                                 Row.of("Adam", null),
@@ -359,7 +359,7 @@ public class JoinTestPrograms {
                                         .testMaterializedData()
                                         .build())
                         .runSql(
-                                "insert into FULL_OUTER_Sink "
+                                "insert into full_outer_sink "
                                         + "SELECT name, department_name FROM EMPLOYEE FULL OUTER JOIN DEPARTMENT ON deptno = department_num")
                         .build();
 
@@ -368,7 +368,7 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("LEFT_JOIN_Sink")
+                                SinkTestStep.newBuilder("left_join_sink")
                                         .addSchema("name varchar", "department_name varchar")
                                         .consumedBeforeRestore(
                                                 Row.of("Adam", null),
@@ -385,7 +385,7 @@ public class JoinTestPrograms {
                                         .testMaterializedData()
                                         .build())
                         .runSql(
-                                "insert into LEFT_JOIN_Sink "
+                                "insert into left_join_sink "
                                         + "SELECT name, department_name FROM EMPLOYEE LEFT JOIN DEPARTMENT ON deptno = department_num")
                         .build();
 
@@ -394,7 +394,7 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("RIGHT_JOIN_Sink")
+                                SinkTestStep.newBuilder("right_join_sink")
                                         .addSchema("name varchar", "department_name varchar")
                                         .consumedBeforeRestore(
                                                 Row.of(null, "Accounting"),
@@ -410,7 +410,7 @@ public class JoinTestPrograms {
                                         .testMaterializedData()
                                         .build())
                         .runSql(
-                                "insert into RIGHT_JOIN_Sink "
+                                "insert into right_join_sink "
                                         + "SELECT name, department_name FROM EMPLOYEE RIGHT OUTER JOIN DEPARTMENT ON deptno = department_num")
                         .build();
 
@@ -419,7 +419,7 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("SEMI_JOIN_Sink")
+                                SinkTestStep.newBuilder("semi_join_sink")
                                         .addSchema("name varchar")
                                         .consumedBeforeRestore(
                                                 Row.of("Baker"), Row.of("Charlie"), Row.of("Don"))
@@ -427,7 +427,7 @@ public class JoinTestPrograms {
                                                 Row.of("Helena"), Row.of("Juliet"), Row.of("Ivana"))
                                         .build())
                         .runSql(
-                                "insert into SEMI_JOIN_Sink "
+                                "insert into semi_join_sink "
                                         + "SELECT name FROM EMPLOYEE WHERE deptno IN (SELECT department_num FROM DEPARTMENT)")
                         .build();
 
@@ -436,14 +436,14 @@ public class JoinTestPrograms {
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT_NONULLS)
                         .setupTableSink(
-                                SinkTestStep.newBuilder("ANTI_JOIN_Sink")
+                                SinkTestStep.newBuilder("anti_join_sink")
                                         .addSchema("name varchar")
                                         .consumedBeforeRestore(Row.of("Victor"))
                                         .consumedAfterRestore(Row.of("Juliet"), Row.of("Helena"))
                                         .testMaterializedData()
                                         .build())
                         .runSql(
-                                "insert into ANTI_JOIN_Sink "
+                                "insert into anti_join_sink "
                                         + "SELECT name FROM EMPLOYEE WHERE deptno NOT IN (SELECT department_num FROM DEPARTMENT)")
                         .build();
     }

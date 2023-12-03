@@ -169,7 +169,7 @@
     },
     "dynamicTableSink" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`LEFT_JOIN_Sink`",
+        "identifier" : "`default_catalog`.`default_database`.`left_join_sink`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -194,7 +194,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`name` VARCHAR(2147483647), `department_name` VARCHAR(2147483647)>",
-    "description" : "Sink(table=[default_catalog.default_database.LEFT_JOIN_Sink], fields=[name, department_name])"
+    "description" : "Sink(table=[default_catalog.default_database.left_join_sink], fields=[name, department_name])"
   } ],
   "edges" : [ {
     "source" : 77,

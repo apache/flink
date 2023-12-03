@@ -264,7 +264,7 @@
     },
     "dynamicTableSink" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`NON_WINDOW_INNER_JOIN_Sink`",
+        "identifier" : "`default_catalog`.`default_database`.`non_window_inner_join_sink`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -292,7 +292,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`a` INT, `c` VARCHAR(2147483647), `c0` VARCHAR(2147483647)>",
-    "description" : "Sink(table=[default_catalog.default_database.NON_WINDOW_INNER_JOIN_Sink], fields=[a, c, c0])"
+    "description" : "Sink(table=[default_catalog.default_database.non_window_inner_join_sink], fields=[a, c, c0])"
   } ],
   "edges" : [ {
     "source" : 1,

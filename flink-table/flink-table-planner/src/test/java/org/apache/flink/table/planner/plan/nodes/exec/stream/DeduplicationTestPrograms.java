@@ -45,7 +45,7 @@ public class DeduplicationTestPrograms {
     static final TableTestProgram DEDUPLICATE =
             TableTestProgram.of("deduplicate-asc", "validates deduplication in ascending")
                     .setupTableSource(
-                            SourceTestStep.newBuilder("DEDUPLICATE_Table")
+                            SourceTestStep.newBuilder("deduplicate_table")
                                     .addSchema(
                                             "order_id bigint",
                                             "`user` varchar",
@@ -57,7 +57,7 @@ public class DeduplicationTestPrograms {
                                     .producedAfterRestore(DATA2)
                                     .build())
                     .setupTableSink(
-                            SinkTestStep.newBuilder("DEDUPLICATE_Sink")
+                            SinkTestStep.newBuilder("deduplicate_sink")
                                     .addSchema(
                                             "order_id bigint",
                                             "`user` varchar",
@@ -70,7 +70,7 @@ public class DeduplicationTestPrograms {
                                     .consumedAfterRestore(Row.of(8L, "bill", "banana", 8000L))
                                     .build())
                     .runSql(
-                            "insert into MySink "
+                            "insert into deduplicate_sink "
                                     + "select order_id, user, product, order_time \n"
                                     + "FROM ("
                                     + "  SELECT *,"
@@ -84,7 +84,7 @@ public class DeduplicationTestPrograms {
                             "deduplicate-asc-proctime",
                             "validates deduplication in ascending with proctime")
                     .setupTableSource(
-                            SourceTestStep.newBuilder("DEDUPLICATE_PROCTIME_Table")
+                            SourceTestStep.newBuilder("deduplicate_proctime_table")
                                     .addSchema(
                                             "order_id bigint",
                                             "`user` varchar",
@@ -96,7 +96,7 @@ public class DeduplicationTestPrograms {
                                     .producedAfterRestore(DATA2)
                                     .build())
                     .setupTableSink(
-                            SinkTestStep.newBuilder("DEDUPLICATE_PROCTIME_Sink")
+                            SinkTestStep.newBuilder("deduplicate_proctime_sink")
                                     .addSchema(
                                             "order_id bigint",
                                             "`user` varchar",
@@ -109,19 +109,19 @@ public class DeduplicationTestPrograms {
                                     .consumedAfterRestore(Row.of(8L, "bill", "banana", 8000L))
                                     .build())
                     .runSql(
-                            "insert into DEDUPLICATE_PROCTIME_Sink "
+                            "insert into deduplicate_proctime_sink "
                                     + "select order_id, user, product, order_time \n"
                                     + "FROM ("
                                     + "  SELECT *,"
                                     + "    ROW_NUMBER() OVER (PARTITION BY product ORDER BY proctime ASC) AS row_num\n"
-                                    + "  FROM DEDUPLICATE_PROCTIME_Table)"
+                                    + "  FROM deduplicate_proctime_table)"
                                     + "WHERE row_num = 1")
                     .build();
 
     static final TableTestProgram DEDUPLICATE_DESC =
             TableTestProgram.of("deduplicate-desc", "validates deduplication in descending")
                     .setupTableSource(
-                            SourceTestStep.newBuilder("DEDUPLICATE_DESC_Table")
+                            SourceTestStep.newBuilder("deduplicate_desc_table")
                                     .addSchema(
                                             "order_id bigint",
                                             "`user` varchar",
@@ -133,7 +133,7 @@ public class DeduplicationTestPrograms {
                                     .producedAfterRestore(DATA2)
                                     .build())
                     .setupTableSink(
-                            SinkTestStep.newBuilder("DEDUPLICATE_DESC_Sink")
+                            SinkTestStep.newBuilder("deduplicate_desc_sink")
                                     .addSchema(
                                             "order_id bigint",
                                             "`user` varchar",
@@ -179,12 +179,12 @@ public class DeduplicationTestPrograms {
                                                     9000L))
                                     .build())
                     .runSql(
-                            "insert into DEDUPLICATE_DESC_Sink "
+                            "insert into deduplicate_desc_sink "
                                     + "select order_id, user, product, order_time \n"
                                     + "FROM ("
                                     + "  SELECT *,"
                                     + "    ROW_NUMBER() OVER (PARTITION BY product ORDER BY event_time DESC) AS row_num\n"
-                                    + "  FROM DEDUPLICATE_DESC_Table)"
+                                    + "  FROM deduplicate_desc_table)"
                                     + "WHERE row_num = 1")
                     .build();
 }
