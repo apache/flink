@@ -173,7 +173,7 @@ public class RestartStrategyOptions {
     public static final ConfigOption<Duration> RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF =
             ConfigOptions.key("restart-strategy.exponential-delay.max-backoff")
                     .durationType()
-                    .defaultValue(Duration.ofMinutes(5))
+                    .defaultValue(Duration.ofMinutes(1))
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -185,7 +185,7 @@ public class RestartStrategyOptions {
     public static final ConfigOption<Double> RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER =
             ConfigOptions.key("restart-strategy.exponential-delay.backoff-multiplier")
                     .doubleType()
-                    .defaultValue(2.0)
+                    .defaultValue(1.5)
                     .withDescription(
                             Description.builder()
                                     .text(
