@@ -73,25 +73,25 @@ public final class CliUtils {
         while (iter.hasNext()) {
             // first line
             Tuple2<String, String> option = iter.next();
-            line1.style(AttributedStyle.DEFAULT.inverse());
-            line1.append(option.f0);
-            line1.style(AttributedStyle.DEFAULT);
-            line1.append(' ');
-            line1.append(option.f1);
-            repeatChar(line1, ' ', (11 - option.f1.length()) + space);
+            buildLine(line1, space, option);
             // second line
             if (iter.hasNext()) {
                 option = iter.next();
-                line2.style(AttributedStyle.DEFAULT.inverse());
-                line2.append(option.f0);
-                line2.style(AttributedStyle.DEFAULT);
-                line2.append(' ');
-                line2.append(option.f1);
-                repeatChar(line2, ' ', (11 - option.f1.length()) + space);
+                buildLine(line2, space, option);
             }
         }
 
         return Arrays.asList(line1.toAttributedString(), line2.toAttributedString());
+    }
+
+    private static void buildLine(
+            AttributedStringBuilder line1, int space, Tuple2<String, String> option) {
+        line1.style(AttributedStyle.DEFAULT.inverse());
+        line1.append(option.f0);
+        line1.style(AttributedStyle.DEFAULT);
+        line1.append(' ');
+        line1.append(option.f1);
+        repeatChar(line1, ' ', (11 - option.f1.length()) + space);
     }
 
     public static String[] typesToString(DataType[] types) {
