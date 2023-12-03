@@ -248,22 +248,6 @@ Savepoints are compatible across Flink versions as indicated by the table below:
   <thead>
     <tr>
       <th class="text-left" style="width: 25%">Created with \ Resumed with</th>
-      <th class="text-center">1.1.x</th>
-      <th class="text-center">1.2.x</th>
-      <th class="text-center">1.3.x</th>
-      <th class="text-center">1.4.x</th>
-      <th class="text-center">1.5.x</th>
-      <th class="text-center">1.6.x</th>
-      <th class="text-center">1.7.x</th>
-      <th class="text-center">1.8.x</th>
-      <th class="text-center">1.9.x</th>
-      <th class="text-center">1.10.x</th>
-      <th class="text-center">1.11.x</th>
-      <th class="text-center">1.12.x</th>
-      <th class="text-center">1.13.x</th>
-      <th class="text-center">1.14.x</th>
-      <th class="text-center">1.15.x</th>
-      <th class="text-center">1.16.x</th>
       <th class="text-center">1.17.x</th>
       <th class="text-center">1.18.x</th>
       <th class="text-center" style="width: 50%">Limitations</th>
@@ -271,344 +255,55 @@ Savepoints are compatible across Flink versions as indicated by the table below:
   </thead>
   <tbody>
     <tr>
-          <td class="text-center"><strong>1.1.x</strong></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left">The maximum parallelism of a job that was migrated from Flink 1.1.x to 1.2.x+ is
-          currently fixed as the parallelism of the job. This means that the parallelism can not be increased after
-          migration. This limitation might be removed in a future bugfix release.</td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.2.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left">
-          When migrating from Flink 1.2.x to Flink 1.3.x+, changing parallelism at the same
-          time is not supported. Users have to first take a savepoint after migrating to Flink 1.3.x+, and then change
-          parallelism.
-          <br/><br/>Savepoints created for CEP applications cannot be restored in 1.4.x+.
-          <br/><br/>Savepoints from Flink 1.2 that contain a Scala TraversableSerializer are not compatible with Flink 1.8 anymore
-          because of an update in this serializer. You can get around this restriction by first upgrading to a version between Flink 1.3 and
-          Flink 1.7 and then updating to Flink 1.8.
-          </td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.3.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left">Migrating from Flink 1.3.0 to Flink 1.4.[0,1] will fail if the savepoint contains Scala case classes. Users have to directly migrate to 1.4.2+ instead.</td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.4.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left"></td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.5.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left">There is a known issue with resuming broadcast state created with 1.5.x in versions
-          1.6.x up to 1.6.2, and 1.7.0: <a href="https://issues.apache.org/jira/browse/FLINK-11087">FLINK-11087</a>. Users
-          upgrading to 1.6.x or 1.7.x series need to directly migrate to minor versions higher than 1.6.2 and 1.7.0,
-          respectively.</td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.6.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-left"></td>
-    </tr>
-    <tr>
           <td class="text-center"><strong>1.7.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.8.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.9.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.10.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.11.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.12.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
         </tr>
     <tr>
           <td class="text-center"><strong>1.13.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left">Don't upgrade from 1.12.x to 1.13.x with an unaligned checkpoint. Please use a savepoint for migrating.</td>
         </tr>
     <tr>
           <td class="text-center"><strong>1.14.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
         </tr>
     <tr>
           <td class="text-center"><strong>1.15.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left">
@@ -623,44 +318,12 @@ Savepoints are compatible across Flink versions as indicated by the table below:
         </tr>
     <tr>
           <td class="text-center"><strong>1.16.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
         </tr>
     <tr>
           <td class="text-center"><strong>1.17.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
@@ -668,26 +331,13 @@ Savepoints are compatible across Flink versions as indicated by the table below:
     <tr>
           <td class="text-center"><strong>1.18.x</strong></td>
           <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
         </tr>
   </tbody>
 </table>
+
+Please refer to the last [Compatibility Table](https://nightlies.apache.org/flink/flink-docs-release-1.18/docs/ops/upgrading/#compatibility-table)
+ for the savepoint compatibility information of older Flink versions.
 
 {{< top >}}
