@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.runtime.executiongraph.failover.ExponentialDelayRestartBackoffTimeStrategy.ExponentialDelayRestartBackoffTimeStrategyFactory;
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Unit tests for {@link ExponentialDelayRestartBackoffTimeStrategy}. */
 class ExponentialDelayRestartBackoffTimeStrategyTest {
@@ -50,6 +52,19 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
     }
 
     @Test
+    void testNotCallNotifyFailure() {
+        long initialBackoffMS = 42L;
+
+        final ExponentialDelayRestartBackoffTimeStrategy restartStrategy =
+                new ExponentialDelayRestartBackoffTimeStrategy(
+                        new ManualClock(), initialBackoffMS, 45L, 2.0, 8L, 0, 10);
+
+        assertThatThrownBy(restartStrategy::getBackoffTime)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Please call notifyFailure first.");
+    }
+
+    @Test
     void testInitialBackoff() {
         long initialBackoffMS = 42L;
 
@@ -57,6 +72,7 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
                 new ExponentialDelayRestartBackoffTimeStrategy(
                         new ManualClock(), initialBackoffMS, 45L, 2.0, 8L, 0, Integer.MAX_VALUE);
 
+        restartStrategy.notifyFailure(failure);
         assertThat(restartStrategy.getBackoffTime()).isEqualTo(initialBackoffMS);
     }
 
@@ -89,6 +105,8 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
                         resetBackoffThresholdMS,
                         0.25,
                         Integer.MAX_VALUE);
+
+        restartStrategy.notifyFailure(failure);
 
         clock.advanceTime(
                 resetBackoffThresholdMS + restartStrategy.getBackoffTime() - 1,
@@ -124,10 +142,13 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
                         10);
 
         restartStrategy.notifyFailure(failure);
+        assertThat(restartStrategy.getBackoffTime()).isEqualTo(4L); // 4
+
+        restartStrategy.notifyFailure(failure);
         assertThat(restartStrategy.getBackoffTime()).isEqualTo(9L); // 4 * 2.3
 
         restartStrategy.notifyFailure(failure);
-        assertThat(restartStrategy.getBackoffTime()).isEqualTo(20L); // 9 * 2.3
+        assertThat(restartStrategy.getBackoffTime()).isEqualTo(21L); // 4 * 2.3 * 2.3
     }
 
     @Test
@@ -135,8 +156,8 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
         final long initialBackoffMS = 2L;
         final long maxBackoffMS = 7L;
 
-        final ExponentialDelayRestartBackoffTimeStrategy restartStrategy =
-                new ExponentialDelayRestartBackoffTimeStrategy(
+        final ExponentialDelayRestartBackoffTimeStrategyFactory restartStrategyFactory =
+                new ExponentialDelayRestartBackoffTimeStrategyFactory(
                         new ManualClock(),
                         initialBackoffMS,
                         maxBackoffMS,
@@ -145,14 +166,11 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
                         0.25,
                         Integer.MAX_VALUE);
 
-        restartStrategy.notifyFailure(failure);
-        assertCorrectRandomRange(restartStrategy::getBackoffTime, 3L, 4L, 5L);
+        assertCorrectRandomRangeWithFailureCount(restartStrategyFactory, 2, 3L, 4L, 5L);
 
-        restartStrategy.notifyFailure(failure);
-        assertCorrectRandomRange(restartStrategy::getBackoffTime, 6L, 7L);
+        assertCorrectRandomRangeWithFailureCount(restartStrategyFactory, 3, 6L, 7L);
 
-        restartStrategy.notifyFailure(failure);
-        assertCorrectRandomRange(restartStrategy::getBackoffTime, 6L, 7L);
+        assertCorrectRandomRangeWithFailureCount(restartStrategyFactory, 4, 7L);
     }
 
     @Test
@@ -160,8 +178,8 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
         double jitterFactor = 1;
         long maxBackoffMS = 7L;
 
-        final ExponentialDelayRestartBackoffTimeStrategy restartStrategy =
-                new ExponentialDelayRestartBackoffTimeStrategy(
+        final ExponentialDelayRestartBackoffTimeStrategyFactory restartStrategyFactory =
+                new ExponentialDelayRestartBackoffTimeStrategyFactory(
                         new ManualClock(),
                         1L,
                         maxBackoffMS,
@@ -170,17 +188,32 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
                         jitterFactor,
                         Integer.MAX_VALUE);
 
-        assertCorrectRandomRange(restartStrategy::getBackoffTime, 0L, 1L, 2L);
+        assertCorrectRandomRangeWithFailureCount(restartStrategyFactory, 1, 1L, 2L);
 
-        restartStrategy.notifyFailure(failure);
-        assertCorrectRandomRange(restartStrategy::getBackoffTime, 0L, 1L, 2L, 3L, 4L);
+        assertCorrectRandomRangeWithFailureCount(restartStrategyFactory, 2, 1L, 2L, 3L, 4L);
 
-        restartStrategy.notifyFailure(failure);
-        assertCorrectRandomRange(restartStrategy::getBackoffTime, 0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L);
+        assertCorrectRandomRangeWithFailureCount(
+                restartStrategyFactory, 3, 1L, 2L, 3L, 4L, 5L, 6L, 7L);
+    }
+
+    private void assertCorrectRandomRangeWithFailureCount(
+            ExponentialDelayRestartBackoffTimeStrategyFactory factory,
+            int failureCount,
+            Long... expectedNumbers)
+            throws Exception {
+        assertCorrectRandomRange(
+                () -> {
+                    RestartBackoffTimeStrategy restartStrategy = factory.create();
+                    for (int i = 0; i < failureCount; i++) {
+                        restartStrategy.notifyFailure(failure);
+                    }
+                    return restartStrategy.getBackoffTime();
+                },
+                expectedNumbers);
     }
 
     @Test
-    void testMultipleSettings() throws Exception {
+    void testMultipleSettings() {
         ManualClock clock = new ManualClock();
         final long initialBackoffMS = 1L;
         final long maxBackoffMS = 9L;
@@ -199,6 +232,7 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
                         Integer.MAX_VALUE);
 
         // ensure initial data
+        restartStrategy.notifyFailure(failure);
         assertThat(restartStrategy.canRestart()).isTrue();
         assertThat(restartStrategy.getBackoffTime()).isEqualTo(initialBackoffMS);
 
@@ -213,16 +247,6 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
         restartStrategy.notifyFailure(failure);
         assertThat(restartStrategy.canRestart()).isTrue();
         assertThat(restartStrategy.getBackoffTime()).isEqualTo(2L);
-
-        clock.advanceTime(3, TimeUnit.MILLISECONDS);
-        restartStrategy.notifyFailure(failure);
-        assertThat(restartStrategy.canRestart()).isTrue();
-        assertCorrectRandomRange(restartStrategy::getBackoffTime, 3L, 4L, 5L);
-
-        clock.advanceTime(7, TimeUnit.MILLISECONDS);
-        restartStrategy.notifyFailure(failure);
-        assertThat(restartStrategy.canRestart()).isTrue();
-        assertCorrectRandomRange(restartStrategy::getBackoffTime, 6L, 7L, 8L, 9L);
 
         // ensure backoff is reset after threshold is reached
         clock.advanceTime(resetBackoffThresholdMS + 9 + 1, TimeUnit.MILLISECONDS);

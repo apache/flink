@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.util.clock.Clock;
@@ -27,6 +28,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Restart strategy which tries to restart indefinitely number of times with an exponential backoff
@@ -36,6 +38,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>If the tasks are running smoothly for some time, backoff is reset to its initial value.
  */
 public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackoffTimeStrategy {
+
+    private static final long DEFAULT_NEXT_RESTART_TIMESTAMP = Integer.MIN_VALUE;
 
     private final long initialBackoffMS;
 
@@ -53,9 +57,7 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
 
     private int currentRestartAttempt;
 
-    private long currentBackoffMS;
-
-    private long lastFailureTimestamp;
+    private long nextRestartTimestamp;
 
     ExponentialDelayRestartBackoffTimeStrategy(
             Clock clock,
@@ -90,7 +92,7 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
         this.attemptsBeforeResetBackoff = attemptsBeforeResetBackoff;
 
         this.clock = checkNotNull(clock);
-        this.lastFailureTimestamp = 0;
+        this.nextRestartTimestamp = DEFAULT_NEXT_RESTART_TIMESTAMP;
     }
 
     @Override
@@ -100,20 +102,20 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
 
     @Override
     public long getBackoffTime() {
-        long backoffWithJitter = currentBackoffMS + calculateJitterBackoffMS();
-        return Math.min(backoffWithJitter, maxBackoffMS);
+        checkState(
+                nextRestartTimestamp != DEFAULT_NEXT_RESTART_TIMESTAMP,
+                "Please call notifyFailure first.");
+        return Math.max(0, nextRestartTimestamp - clock.absoluteTimeMillis());
     }
 
     @Override
     public void notifyFailure(Throwable cause) {
         long now = clock.absoluteTimeMillis();
-        if ((now - lastFailureTimestamp) >= (resetBackoffThresholdMS + currentBackoffMS)) {
+        if ((now - nextRestartTimestamp) >= resetBackoffThresholdMS) {
             setInitialBackoff();
-        } else {
-            increaseBackoff();
         }
+        nextRestartTimestamp = now + calculateActualBackoffTime();
         currentRestartAttempt++;
-        lastFailureTimestamp = now;
     }
 
     @Override
@@ -132,23 +134,23 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
                 + attemptsBeforeResetBackoff
                 + ", currentRestartAttempt="
                 + currentRestartAttempt
-                + ", currentBackoffMS="
-                + currentBackoffMS
-                + ", lastFailureTimestamp="
-                + lastFailureTimestamp
+                + ", nextRestartTimestamp="
+                + nextRestartTimestamp
                 + ")";
     }
 
     private void setInitialBackoff() {
-        currentBackoffMS = initialBackoffMS;
         currentRestartAttempt = 0;
     }
 
-    private void increaseBackoff() {
-        if (currentBackoffMS < maxBackoffMS) {
-            currentBackoffMS *= backoffMultiplier;
-        }
-        currentBackoffMS = Math.max(initialBackoffMS, Math.min(currentBackoffMS, maxBackoffMS));
+    private long calculateActualBackoffTime() {
+        long currentBackoffTime =
+                (long) (initialBackoffMS * Math.pow(backoffMultiplier, currentRestartAttempt));
+        return Math.max(
+                initialBackoffMS,
+                Math.min(
+                        currentBackoffTime + calculateJitterBackoffMS(currentBackoffTime),
+                        maxBackoffMS));
     }
 
     /**
@@ -159,7 +161,7 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
      *
      * @return random value in interval [-n, n], where n represents jitter * current backoff
      */
-    private long calculateJitterBackoffMS() {
+    private long calculateJitterBackoffMS(long currentBackoffMS) {
         if (jitterFactor == 0) {
             return 0;
         } else {
@@ -210,6 +212,7 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
     /** The factory for creating {@link ExponentialDelayRestartBackoffTimeStrategy}. */
     public static class ExponentialDelayRestartBackoffTimeStrategyFactory implements Factory {
 
+        private final Clock clock;
         private final long initialBackoffMS;
         private final long maxBackoffMS;
         private final double backoffMultiplier;
@@ -224,6 +227,26 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
                 long resetBackoffThresholdMS,
                 double jitterFactor,
                 int attemptsBeforeResetBackoff) {
+            this(
+                    SystemClock.getInstance(),
+                    initialBackoffMS,
+                    maxBackoffMS,
+                    backoffMultiplier,
+                    resetBackoffThresholdMS,
+                    jitterFactor,
+                    attemptsBeforeResetBackoff);
+        }
+
+        @VisibleForTesting
+        ExponentialDelayRestartBackoffTimeStrategyFactory(
+                Clock clock,
+                long initialBackoffMS,
+                long maxBackoffMS,
+                double backoffMultiplier,
+                long resetBackoffThresholdMS,
+                double jitterFactor,
+                int attemptsBeforeResetBackoff) {
+            this.clock = clock;
             this.initialBackoffMS = initialBackoffMS;
             this.maxBackoffMS = maxBackoffMS;
             this.backoffMultiplier = backoffMultiplier;
@@ -235,7 +258,7 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
         @Override
         public RestartBackoffTimeStrategy create() {
             return new ExponentialDelayRestartBackoffTimeStrategy(
-                    SystemClock.getInstance(),
+                    clock,
                     initialBackoffMS,
                     maxBackoffMS,
                     backoffMultiplier,
