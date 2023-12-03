@@ -172,10 +172,6 @@ final class TestValuesRuntimeFunctions {
         localRawResultsObservers.computeIfAbsent(tableName, n -> new ArrayList<>()).add(observer);
     }
 
-    static void clearLocalRawResultsObserver(String tableName) {
-        localRawResultsObservers.remove(tableName);
-    }
-
     static void clearResults() {
         synchronized (LOCK) {
             globalRawResult.clear();
@@ -461,6 +457,8 @@ final class TestValuesRuntimeFunctions {
             assertThat(row).isNotNull();
 
             synchronized (LOCK) {
+                addLocalRawResult(row);
+
                 Row key = Row.project(row, keyIndices);
                 key.setKind(RowKind.INSERT);
 
@@ -486,9 +484,6 @@ final class TestValuesRuntimeFunctions {
                                         + "This is probably an incorrectly implemented test.");
                     }
                 }
-                // Moving later so that global state is updated first.
-                addLocalRawResult(row);
-
                 receivedNum++;
                 if (expectedSize != -1 && receivedNum == expectedSize) {
                     // some sources are infinite (e.g. kafka),
@@ -564,6 +559,7 @@ final class TestValuesRuntimeFunctions {
             Row row = (Row) converter.toExternal(value);
             assertThat(row).isNotNull();
             synchronized (LOCK) {
+                addLocalRawResult(row);
                 final Row retractRow = Row.copy(row);
                 retractRow.setKind(RowKind.INSERT);
                 if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
@@ -576,9 +572,6 @@ final class TestValuesRuntimeFunctions {
                                         + "This is probably an incorrectly implemented test.");
                     }
                 }
-                // Moving this to the end so that the rawLocalObservers can see update
-                // globalRetracts.
-                addLocalRawResult(row);
             }
         }
     }
