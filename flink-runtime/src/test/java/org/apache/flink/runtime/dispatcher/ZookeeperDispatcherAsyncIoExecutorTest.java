@@ -19,9 +19,15 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
+import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.dispatcher.cleanup.CheckpointResourcesCleanupRunnerFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.HeartbeatServicesImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -40,6 +46,7 @@ import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
+import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.state.RetrievableStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
@@ -54,9 +61,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import javax.annotation.Nonnull;
 
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
@@ -65,7 +74,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /** Test for the {@link Dispatcher} component. */
-public class ZookeeperDispatcherAsyncIoExecutorTest extends AbstractDispatcherTest {
+public class ZookeeperDispatcherAsyncIoExecutorTest {
 
     private JobGraph jobGraph;
 
@@ -76,6 +85,17 @@ public class ZookeeperDispatcherAsyncIoExecutorTest extends AbstractDispatcherTe
     private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
 
     private TestingJobGraphListener testingJobGraphListener;
+
+    static TestingRpcService rpcService;
+    HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 10000L);
+    TestingHighAvailabilityServices haServices;
+    private Configuration configuration;
+    static final Time TIMEOUT = Time.minutes(1L);
+    @TempDir static Path temporaryFolder;
+
+    @RegisterExtension
+    final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
+            new EachCallbackWrapper<>(zooKeeperExtension);
 
     @RegisterExtension
     final TestingFatalErrorHandlerExtension testingFatalErrorHandlerResource =
@@ -98,16 +118,21 @@ public class ZookeeperDispatcherAsyncIoExecutorTest extends AbstractDispatcherTe
     /** Instance under test. */
     private TestingDispatcher dispatcher;
 
+    BlobServer blobServer;
+
     @BeforeEach
     public void setUp() throws Exception {
-        super.setUp();
+        configuration = new Configuration();
         TestingLongStateHandleHelper.clearGlobalState();
         testingJobGraphListener = new TestingJobGraphListener();
         jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         jobId = jobGraph.getJobID();
         jobMasterLeaderElection = new TestingLeaderElection();
+        haServices = new TestingHighAvailabilityServices();
         haServices.setJobMasterLeaderElection(jobId, jobMasterLeaderElection);
         haServices.setJobGraphStore(createZooKeeperJobGraphStore("/abc"));
+        rpcService = new TestingRpcService();
+        blobServer = new BlobServer(configuration, temporaryFolder.toFile(), new VoidBlobStore());
     }
 
     private JobGraphStore createZooKeeperJobGraphStore(String fullPath) throws Exception {
@@ -148,12 +173,22 @@ public class ZookeeperDispatcherAsyncIoExecutorTest extends AbstractDispatcherTe
         return dispatcher;
     }
 
+    private TestingDispatcher.Builder createTestingDispatcherBuilder() {
+        return TestingDispatcher.builder()
+                .setHighAvailabilityServices(haServices)
+                .setHeartbeatServices(heartbeatServices)
+                .setJobGraphWriter(haServices.getJobGraphStore())
+                .setJobResultStore(haServices.getJobResultStore())
+                .setJobManagerRunnerFactory(JobMasterServiceLeadershipRunnerFactory.INSTANCE)
+                .setCleanupRunnerFactory(CheckpointResourcesCleanupRunnerFactory.INSTANCE)
+                .setBlobServer(blobServer);
+    }
+
     @AfterEach
     public void tearDown() throws Exception {
         if (dispatcher != null) {
             RpcUtils.terminateRpcEndpoint(dispatcher);
         }
-        super.tearDown();
     }
 
     /**

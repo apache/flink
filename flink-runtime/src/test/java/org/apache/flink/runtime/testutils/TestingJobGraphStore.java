@@ -38,6 +38,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
@@ -123,8 +124,7 @@ public class TestingJobGraphStore implements JobGraphStore {
 
     @Override
     public CompletableFuture<Void> putJobGraphAsync(
-            JobGraph jobGraph,
-            Executor ioExecutor) throws Exception {
+            JobGraph jobGraph, Optional<Executor> ioExecutor) throws Exception {
         return null;
     }
 

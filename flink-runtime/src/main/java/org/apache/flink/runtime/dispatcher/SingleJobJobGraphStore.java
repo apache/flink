@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -68,8 +69,8 @@ public class SingleJobJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public CompletableFuture<Void> putJobGraphAsync(JobGraph jobGraph, Executor ioExecutor)
-            throws Exception {
+    public CompletableFuture<Void> putJobGraphAsync(
+            JobGraph jobGraph, Optional<Executor> ioExecutor) throws Exception {
         return null;
     }
 

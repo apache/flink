@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -37,8 +38,7 @@ public enum NoOpJobGraphWriter implements JobGraphWriter {
 
     @Override
     public CompletableFuture<Void> putJobGraphAsync(
-            JobGraph jobGraph,
-            Executor ioExecutor) throws Exception {
+            JobGraph jobGraph, Optional<Executor> ioExecutor) throws Exception {
         return null;
     }
 

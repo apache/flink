@@ -40,6 +40,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -198,11 +199,11 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
 
     @Override
     public void putJobGraph(JobGraph jobGraph) throws Exception {
-        putJobGraphAsync(jobGraph, null);
+        putJobGraphAsync(jobGraph, Optional.empty());
     }
 
     @Override
-    public CompletableFuture<Void> putJobGraphAsync(JobGraph jobGraph, Executor executor)
+    public CompletableFuture<Void> putJobGraphAsync(JobGraph jobGraph, Optional<Executor> executor)
             throws Exception {
         checkNotNull(jobGraph, "Job graph");
 
@@ -221,10 +222,10 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
 
                 if (!currentVersion.isExisting()) {
                     try {
-                        if (executor != null) {
+                        if (executor.isPresent()) {
                             completableFuture =
                                     jobGraphStateHandleStore.addAndLockAsync(
-                                            name, jobGraph, executor);
+                                            name, jobGraph, executor.get());
                         } else {
                             jobGraphStateHandleStore.addAndLock(name, jobGraph);
                             completableFuture.complete(null);

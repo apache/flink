@@ -90,9 +90,7 @@ public class TestingStateHandleStore<T extends Serializable>
 
     @Override
     public CompletableFuture<Void> addAndLockAsync(
-            String pathInZooKeeper,
-            T state,
-            Executor executor) throws Exception {
+            String pathInZooKeeper, T state, Executor executor) throws Exception {
         return null;
     }
 

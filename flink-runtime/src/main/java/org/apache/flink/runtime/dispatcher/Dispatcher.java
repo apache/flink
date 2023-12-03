@@ -643,7 +643,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void persistAndRunJob(JobGraph jobGraph) throws Exception {
         CompletableFuture<Void> completableFuture =
-                jobGraphWriter.putJobGraphAsync(jobGraph, ioExecutor);
+                jobGraphWriter.putJobGraphAsync(jobGraph, Optional.of(ioExecutor));
         initJobClientExpiredTime(jobGraph);
         runJob(createJobMasterRunner(jobGraph), ExecutionType.SUBMISSION);
         completableFuture.exceptionally(

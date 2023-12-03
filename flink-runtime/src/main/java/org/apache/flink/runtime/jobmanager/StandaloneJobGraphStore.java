@@ -24,6 +24,7 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -51,8 +52,8 @@ public class StandaloneJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public CompletableFuture<Void> putJobGraphAsync(JobGraph jobGraph, Executor ioExecutor)
-            throws Exception {
+    public CompletableFuture<Void> putJobGraphAsync(
+            JobGraph jobGraph, Optional<Executor> ioExecutor) throws Exception {
         return null;
     }
 
