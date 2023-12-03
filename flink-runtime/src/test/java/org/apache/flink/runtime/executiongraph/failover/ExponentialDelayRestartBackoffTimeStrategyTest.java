@@ -50,7 +50,7 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
     }
 
     @Test
-    void testInitialBackoff() throws Exception {
+    void testInitialBackoff() {
         long initialBackoffMS = 42L;
 
         final ExponentialDelayRestartBackoffTimeStrategy restartStrategy =
@@ -61,7 +61,7 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
     }
 
     @Test
-    void testMaxBackoff() throws Exception {
+    void testMaxBackoff() {
         final long maxBackoffMS = 6L;
 
         final ExponentialDelayRestartBackoffTimeStrategy restartStrategy =
@@ -75,7 +75,7 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
     }
 
     @Test
-    void testResetBackoff() throws Exception {
+    void testResetBackoff() {
         final long initialBackoffMS = 1L;
         final long resetBackoffThresholdMS = 8L;
         final ManualClock clock = new ManualClock();
@@ -107,7 +107,7 @@ class ExponentialDelayRestartBackoffTimeStrategyTest {
     }
 
     @Test
-    void testBackoffMultiplier() throws Exception {
+    void testBackoffMultiplier() {
         long initialBackoffMS = 4L;
         double jitterFactor = 0;
         double backoffMultiplier = 2.3;
