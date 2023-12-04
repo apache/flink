@@ -225,15 +225,13 @@ def construct_test_classpath(env):
     test_jars = []
 
     # Connector tests need to add specific jars to the gateway classpath
-    # flink_source_root = env['FLINK_TEST_LIB_DIR']
-    if 'FLINK_TEST_LIB_DIR' in env:
-        flink_source_root = env['FLINK_TEST_LIB_DIR']
+    if 'FLINK_TEST_LIBS' in env:
+        test_jars += glob.glob(env['FLINK_TEST_LIBS'])
     else:
         flink_source_root = _find_flink_source_root()
-
-    for pattern in test_jar_patterns:
-        pattern = pattern.replace("/", os.path.sep)
-        test_jars += glob.glob(os.path.join(flink_source_root, pattern))
+        for pattern in test_jar_patterns:
+            pattern = pattern.replace("/", os.path.sep)
+            test_jars += glob.glob(os.path.join(flink_source_root, pattern))
     return os.path.pathsep.join(test_jars)
 
 

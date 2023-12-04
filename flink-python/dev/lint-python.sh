@@ -22,8 +22,6 @@
 #
 # You can refer to the README.MD in ${flink-python} to learn how easy to run the script.
 #
-# The file is directly downloaded and used by the different connector implementations
-# Threat it as an @Experimental API
 
 # Download some software, such as miniconda.sh
 function download() {
