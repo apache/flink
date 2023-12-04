@@ -60,6 +60,32 @@ Code written against a `PublicEvolving` API in 1.15.2 will continue to run in 1.
 That same code would have to be recompiled when upgrading to 1.16.0 though.
 {{< /hint >}}
 
+### Deprecated API Migration Period
+When an API is deprecated, it is marked with the `@Deprecated` annotation and a deprecation message is added to the Javadoc.
+According to [FLIP-321](https://cwiki.apache.org/confluence/display/FLINK/FLIP-321%3A+Introduce+an+API+deprecation+process), 
+starting from release 1.18, each deprecated API will have a guaranteed migration period depending on the API stability level:
+
+|    Annotation    |          Guaranteed Migration Period           |
+|:----------------:|:----------------------------------------------:|
+|     `Public`     |                2 minor releases                |
+| `PublicEvolving` |                1 minor release                 |
+|  `Experimental`  | 1 patch release for the affected minor release |
+
+The source code of a deprecated API will be kept for at least the guaranteed migration period, 
+and may be removed at any point after the migration period has passed.
+
+{{< hint info >}}
+{{< label Example >}}
+Assuming a release sequence of 1.18, 1.19, 1.20, 2.0, 2.1, ..., 3.0,
+- if a `Public` API is deprecated in 1.18, it will not be removed until 2.0.
+- if a `Public` API is deprecated in 1.20, the source code will be kept in 2.0 because the migration period is 2 minor releases. This means the source code will be removed in 3.0 at the earliest.
+- if a `PublicEvolving` API is deprecated in 1.18, it will be removed in 1.20 at the earliest. 
+- if a `PublicEvolving` API is deprecated in 1.20, the source code will be kept in 2.0 because the migration period is 1 minor releases. The source code may be removed in 2.1 at the earliest.
+- if an `Experimental` API is deprecated in 1.18.0, the source code will be kept for 1.18.1 and removed in 1.18.2 at the earliest. Also, the source code can be removed in 1.19.0.  
+{{< /hint >}}
+
+Please check the [FLIP-321](https://cwiki.apache.org/confluence/display/FLINK/FLIP-321%3A+Introduce+an+API+deprecation+process) wiki for more details.
+
 ## Restarting Streaming Applications
 
 The line of action for upgrading a streaming application or migrating an application to a different cluster is based on Flink's [Savepoint]({{< ref "docs/ops/state/savepoints" >}}) feature. A savepoint is a consistent snapshot of the state of an application at a specific point in time. 
