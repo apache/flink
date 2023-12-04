@@ -201,6 +201,15 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
         }
     }
 
+    /**
+     * Create path in ZooKeeper and locks it then write asynchronously state in Executor
+     *
+     * @param pathInZooKeeper Destination path in ZooKeeper (expected to *not* exist yet)
+     * @param state State to be added
+     * @param executor The executor of the write operation
+     * @return The CompletableFuture of write operation
+     * @throws Exception
+     */
     @Override
     public CompletableFuture<Void> addAndLockAsync(
             String pathInZooKeeper, T state, Executor executor) throws Exception {

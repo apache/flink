@@ -38,6 +38,15 @@ public interface JobGraphWriter extends LocallyCleanableResource, GloballyCleana
      */
     void putJobGraph(JobGraph jobGraph) throws Exception;
 
+    /**
+     * Adds the {@link JobGraph} instance and have write operations performed asynchronously in
+     * ioExecutor of Dispatcher
+     *
+     * @param jobGraph
+     * @param ioExecutor
+     * @return
+     * @throws Exception
+     */
     CompletableFuture<Void> putJobGraphAsync(JobGraph jobGraph, Optional<Executor> ioExecutor)
             throws Exception;
 

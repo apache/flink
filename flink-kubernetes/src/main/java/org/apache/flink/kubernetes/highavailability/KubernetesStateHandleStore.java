@@ -244,6 +244,15 @@ public class KubernetesStateHandleStore<T extends Serializable>
         }
     }
 
+    /**
+     * Stores key in ConfigMap and write asynchronously state in Executor.
+     *
+     * @param key Key in ConfigMap
+     * @param state State to be added
+     * @param executor The executor of the write operation
+     * @return The CompletableFuture of write operation
+     * @throws Exception
+     */
     @Override
     public CompletableFuture<Void> addAndLockAsync(String key, T state, Executor executor)
             throws Exception {
@@ -251,6 +260,11 @@ public class KubernetesStateHandleStore<T extends Serializable>
         return writeStoreHandleAsync(key, state, executor);
     }
 
+    /**
+     * @param key
+     * @throws PossibleInconsistentStateException
+     * @throws Exception
+     */
     private void addConfigMap(String key) throws PossibleInconsistentStateException, Exception {
 
         checkNotNull(key, "Key in ConfigMap.");

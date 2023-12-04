@@ -61,6 +61,16 @@ public interface StateHandleStore<T extends Serializable, R extends ResourceVers
     RetrievableStateHandle<T> addAndLock(String name, T state)
             throws PossibleInconsistentStateException, Exception;
 
+    /**
+     * Stores it in the distributed coordination system(e.g. ZooKeeper, Kubernetes, etc.) and
+     * asynchronously persisting state to distributed storage (such as S3, HDFS, etc.)
+     *
+     * @param pathInZooKeeper
+     * @param state
+     * @param executor
+     * @return The CompletableFuture of write operation
+     * @throws Exception if persisting state or writing state handle failed
+     */
     CompletableFuture<Void> addAndLockAsync(String pathInZooKeeper, T state, Executor executor)
             throws Exception;
 
