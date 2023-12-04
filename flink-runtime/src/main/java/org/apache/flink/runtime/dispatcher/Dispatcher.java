@@ -1356,11 +1356,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                     archivedExecutionGraph.getJobID(),
                     terminalJobStatus);
         }
-        FutureUtils.runAsync(
-                () -> {
-                    writeToExecutionGraphInfoStore(executionGraphInfo);
-                },
-                ioExecutor);
+        CompletableFuture<Acknowledge> writeFuture =
+                FutureUtils.runAsync(
+                                () -> {
+                                    writeToExecutionGraphInfoStore(executionGraphInfo);
+                                },
+                                ioExecutor)
+                        .thenApply(ignored -> Acknowledge.get());
 
         if (!terminalJobStatus.isGloballyTerminalState()) {
             return CompletableFuture.completedFuture(
@@ -1371,9 +1373,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         // multiple archive attempts which we currently do not support
         CompletableFuture<Acknowledge> archiveFuture =
                 archiveExecutionGraphToHistoryServer(executionGraphInfo);
-
-        return archiveFuture.thenCompose(
-                ignored -> registerGloballyTerminatedJobInJobResultStore(executionGraphInfo));
+        CompletableFuture[] completableFutures = {writeFuture, archiveFuture};
+        CompletableFuture.allOf(completableFutures).join();
+        return registerGloballyTerminatedJobInJobResultStore(executionGraphInfo);
     }
 
     private CompletableFuture<CleanupJobState> registerGloballyTerminatedJobInJobResultStore(
