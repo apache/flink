@@ -19,7 +19,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.RegionPartitionGroupReleaseStrategy;
+import org.apache.flink.runtime.executiongraph.failover.partitionrelease.RegionPartitionGroupReleaseStrategy;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
