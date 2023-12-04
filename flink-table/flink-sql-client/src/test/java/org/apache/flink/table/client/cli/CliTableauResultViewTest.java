@@ -469,6 +469,62 @@ class CliTableauResultViewTest {
     }
 
     @Test
+    void testStreamingResultWithDisplayingTimeCost() {
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
+        TestChangelogResult collectResult = createNewTestChangelogResult();
+        CliTableauResultView view =
+                new CliTableauResultView(
+                        terminal, resultDescriptor, collectResult, System.currentTimeMillis());
+        view.displayResults();
+
+        view.close();
+        // note: the expected result may look irregular because every CJK(Chinese/Japanese/Korean)
+        // character's
+        // width < 2 in IDE by default, every CJK character usually's width is 2, you can open this
+        // source file
+        // by vim or just cat the file to check the regular result.
+        assertThat(terminalOutput.toString())
+                .contains(
+                        "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
+                                + System.lineSeparator()
+                                + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
+                                + System.lineSeparator()
+                                + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
+                                + System.lineSeparator()
+                                + "| +I |  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |            x'32333485365d737e' |"
+                                + System.lineSeparator()
+                                + "| -U |   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |                  x'649e207983' |"
+                                + System.lineSeparator()
+                                + "| +U |    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |                    x'92e90102' |"
+                                + System.lineSeparator()
+                                + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |            x'32333485365d737e' |"
+                                + System.lineSeparator()
+                                + "| +I |    TRUE |         100 | -9223372036854775808 |                     abcdefg111 |         <NULL> | 2020-03-01 18:39:14.123456 |                    x'6e17fffe' |"
+                                + System.lineSeparator()
+                                + "| -D |  <NULL> |          -1 |                   -1 | abcdefghijklmnopqrstuvwxyz1... |   -12345.06789 |                     <NULL> |                         <NULL> |"
+                                + System.lineSeparator()
+                                + "| +I |  <NULL> |          -1 |                   -1 |                   这是一段中文 |   -12345.06789 | 2020-03-04 18:39:14.000000 |              x'fdfeff00010203' |"
+                                + System.lineSeparator()
+                                + "| -D |  <NULL> |          -1 |                   -1 |  これは日本語をテストするた... |   -12345.06789 | 2020-03-04 18:39:14.000000 |              x'fdfeff00010203' |"
+                                + System.lineSeparator()
+                                + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
+                                + System.lineSeparator()
+                                + "Received a total of 8 rows");
+
+        String[] outputLines = terminalOutput.toString().split("\\r?\\n");
+        assertThat(outputLines[outputLines.length - 1])
+                .matches("Received a total of 8 rows \\(\\d+\\.\\d{2} seconds\\)");
+
+        // Job is finished. Don't need to close the job manually.
+        assertThat(collectResult.closed).isFalse();
+    }
+
+    @Test
     void testEmptyStreamingResult() {
         final Configuration testConfig = new Configuration();
         testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
@@ -496,6 +552,41 @@ class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "Received a total of 0 row"
                                 + System.lineSeparator());
+
+        // Job is finished. Don't need to close the job manually.
+        assertThat(collectResult.closed).isFalse();
+    }
+
+    @Test
+    void testEmptyStreamingResultWithDisplayingTimeCost() {
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
+        TestChangelogResult collectResult = new TestChangelogResult(TypedResult::endOfStream);
+
+        CliTableauResultView view =
+                new CliTableauResultView(
+                        terminal, resultDescriptor, collectResult, System.currentTimeMillis());
+
+        view.displayResults();
+        view.close();
+
+        assertThat(terminalOutput.toString())
+                .contains(
+                        "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
+                                + System.lineSeparator()
+                                + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
+                                + System.lineSeparator()
+                                + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
+                                + System.lineSeparator()
+                                + "Received a total of 0 row");
+
+        String[] outputLines = terminalOutput.toString().split("\\r?\\n");
+        assertThat(outputLines[outputLines.length - 1])
+                .matches("Received a total of 0 row \\(\\d+\\.\\d{2} seconds\\)");
 
         // Job is finished. Don't need to close the job manually.
         assertThat(collectResult.closed).isFalse();
@@ -549,6 +640,62 @@ class CliTableauResultViewTest {
                                 + System.lineSeparator()
                                 + "Query terminated, received a total of 4 rows"
                                 + System.lineSeparator());
+
+        // close job manually
+        assertThat(collectResult.closed).isTrue();
+    }
+
+    @Test
+    void testCancelStreamingResultWithDisplayingTimeCost() throws Exception {
+        final Configuration testConfig = new Configuration();
+        testConfig.set(EXECUTION_RESULT_MODE, ResultMode.TABLEAU);
+        testConfig.set(RUNTIME_MODE, RuntimeExecutionMode.STREAMING);
+
+        TestChangelogResult collectResult =
+                new TestChangelogResult(
+                        () ->
+                                TypedResult.payload(
+                                        streamingData.subList(0, streamingData.size() / 2)),
+                        TypedResult::empty);
+        ResultDescriptor resultDescriptor =
+                new ResultDescriptor(CliClientTestUtils.createTestClient(schema), testConfig);
+        CliTableauResultView view =
+                new CliTableauResultView(
+                        terminal, resultDescriptor, collectResult, System.currentTimeMillis());
+
+        // submit result display in another thread
+        Future<?> furture = EXECUTOR_RESOURCE.getExecutor().submit(view::displayResults);
+
+        // wait until we processed first result
+        CommonTestUtils.waitUntilCondition(() -> collectResult.fetchCount.get() > 1, 50L);
+
+        // send signal to cancel
+        terminal.raise(Terminal.Signal.INT);
+        furture.get(10, TimeUnit.SECONDS);
+        view.close();
+
+        assertThat(terminalOutput.toString())
+                .contains(
+                        "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
+                                + System.lineSeparator()
+                                + "| op | boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |                         binary |"
+                                + System.lineSeparator()
+                                + "+----+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+--------------------------------+"
+                                + System.lineSeparator()
+                                + "| +I |  <NULL> |           1 |                    2 |                            abc |        1.23000 | 2020-03-01 18:39:14.000000 |            x'32333485365d737e' |"
+                                + System.lineSeparator()
+                                + "| -U |   FALSE |      <NULL> |                    0 |                                |        1.00000 | 2020-03-01 18:39:14.100000 |                  x'649e207983' |"
+                                + System.lineSeparator()
+                                + "| +U |    TRUE |  2147483647 |               <NULL> |                        abcdefg |    12345.00000 | 2020-03-01 18:39:14.120000 |                    x'92e90102' |"
+                                + System.lineSeparator()
+                                + "| -D |   FALSE | -2147483648 |  9223372036854775807 |                         <NULL> |    12345.06789 | 2020-03-01 18:39:14.123000 |            x'32333485365d737e' |"
+                                + System.lineSeparator()
+                                + "Query terminated, received a total of 4 rows");
+
+        String[] outputLines = terminalOutput.toString().split("\\r?\\n");
+        assertThat(outputLines[outputLines.length - 1])
+                .matches(
+                        "Query terminated, received a total of 4 rows \\(\\d+\\.\\d{2} seconds\\)");
 
         // close job manually
         assertThat(collectResult.closed).isTrue();
