@@ -1354,8 +1354,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                     archivedExecutionGraph.getJobID(),
                     terminalJobStatus);
         }
-
-        writeToExecutionGraphInfoStore(executionGraphInfo);
+        FutureUtils.runAsync(
+                () -> {
+                    writeToExecutionGraphInfoStore(executionGraphInfo);
+                },
+                ioExecutor);
 
         if (!terminalJobStatus.isGloballyTerminalState()) {
             return CompletableFuture.completedFuture(
