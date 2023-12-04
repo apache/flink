@@ -25,8 +25,7 @@ import org.apache.flink.runtime.util.bash.BashJavaUtils;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Sets;
 
-import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,10 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.hamcrest.collection.IsArrayWithSize.arrayWithSize;
-import static org.hamcrest.collection.IsIn.isIn;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for BashJavaUtils.
@@ -46,7 +42,7 @@ import static org.junit.Assert.assertThat;
  * <p>This test requires the distribution to be assembled and is hence marked as an IT case which
  * run after packaging.
  */
-public class BashJavaUtilsITCase extends JavaBashTestBase {
+class BashJavaUtilsITCase extends JavaBashTestBase {
 
     private static final String RUN_BASH_JAVA_UTILS_CMD_SCRIPT =
             "src/test/bin/runBashJavaUtilsCmd.sh";
@@ -54,7 +50,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
             "src/test/bin/runExtractLoggingOutputs.sh";
 
     @Test
-    public void testGetTmResourceParamsConfigs() throws Exception {
+    void testGetTmResourceParamsConfigs() throws Exception {
         int expectedResultLines = 2;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
@@ -63,13 +59,13 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
         };
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-        assertThat(lines.size(), is(expectedResultLines));
+        assertThat(lines).hasSize(expectedResultLines);
         ConfigurationUtils.parseJvmArgString(lines.get(0));
         ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
     }
 
     @Test
-    public void testGetTmResourceParamsConfigsWithDynamicProperties() throws Exception {
+    void testGetTmResourceParamsConfigsWithDynamicProperties() throws Exception {
         int expectedResultLines = 2;
         double cpuCores = 39.0;
         String[] commands = {
@@ -80,14 +76,15 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
         };
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-        assertThat(lines.size(), is(expectedResultLines));
+        assertThat(lines).hasSize(expectedResultLines);
         Map<String, String> configs =
                 ConfigurationUtils.parseTmResourceDynamicConfigs(lines.get(1));
-        assertThat(Double.valueOf(configs.get(TaskManagerOptions.CPU_CORES.key())), is(cpuCores));
+        assertThat(Double.valueOf(configs.get(TaskManagerOptions.CPU_CORES.key())))
+                .isEqualTo(cpuCores);
     }
 
     @Test
-    public void testGetJmResourceParams() throws Exception {
+    void testGetJmResourceParams() throws Exception {
         int expectedResultLines = 2;
         String[] commands = {
             RUN_BASH_JAVA_UTILS_CMD_SCRIPT,
@@ -96,7 +93,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
         };
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-        assertThat(lines.size(), is(expectedResultLines));
+        assertThat(lines).hasSize(expectedResultLines);
 
         Map<String, String> jvmParams = ConfigurationUtils.parseJvmArgString(lines.get(0));
         Map<String, String> dynamicParams = parseAndAssertDynamicParameters(lines.get(1));
@@ -104,7 +101,7 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
     }
 
     @Test
-    public void testGetJmResourceParamsWithDynamicProperties() throws Exception {
+    void testGetJmResourceParamsWithDynamicProperties() throws Exception {
         int expectedResultLines = 2;
         long metaspace = 123456789L;
         String[] commands = {
@@ -115,12 +112,12 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
         };
         List<String> lines = Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-        assertThat(lines.size(), is(expectedResultLines));
+        assertThat(lines).hasSize(expectedResultLines);
 
         Map<String, String> jvmParams = ConfigurationUtils.parseJvmArgString(lines.get(0));
         Map<String, String> dynamicParams = parseAndAssertDynamicParameters(lines.get(1));
         assertJvmAndDynamicParametersMatch(jvmParams, dynamicParams);
-        assertThat(Long.valueOf(jvmParams.get("-XX:MaxMetaspaceSize=")), is(metaspace));
+        assertThat(Long.valueOf(jvmParams.get("-XX:MaxMetaspaceSize="))).isEqualTo(metaspace);
     }
 
     private static Map<String, String> parseAndAssertDynamicParameters(
@@ -135,15 +132,15 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 
         Map<String, String> actualDynamicParameters = new HashMap<>();
         String[] dynamicParameterTokens = dynamicParametersStr.split(" ");
-        assertThat(dynamicParameterTokens.length % 2, Matchers.is(0));
+        assertThat(dynamicParameterTokens.length % 2).isZero();
         for (int i = 0; i < dynamicParameterTokens.length; ++i) {
             String parameterKeyValueStr = dynamicParameterTokens[i];
             if (i % 2 == 0) {
-                assertThat(parameterKeyValueStr, Matchers.is("-D"));
+                assertThat(parameterKeyValueStr).isEqualTo("-D");
             } else {
                 String[] parameterKeyValue = parameterKeyValueStr.split("=");
-                assertThat(parameterKeyValue, arrayWithSize(2));
-                assertThat(parameterKeyValue[0], isIn(expectedDynamicParameters));
+                assertThat(parameterKeyValue).hasSize(2);
+                assertThat(parameterKeyValue[0]).isIn(expectedDynamicParameters);
 
                 actualDynamicParameters.put(parameterKeyValue[0], parameterKeyValue[1]);
             }
@@ -154,19 +151,16 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
 
     private static void assertJvmAndDynamicParametersMatch(
             Map<String, String> jvmParams, Map<String, String> dynamicParams) {
-        assertThat(
-                jvmParams.get("-Xmx") + "b",
-                is(dynamicParams.get(JobManagerOptions.JVM_HEAP_MEMORY.key())));
-        assertThat(
-                jvmParams.get("-Xms") + "b",
-                is(dynamicParams.get(JobManagerOptions.JVM_HEAP_MEMORY.key())));
-        assertThat(
-                jvmParams.get("-XX:MaxMetaspaceSize=") + "b",
-                is(dynamicParams.get(JobManagerOptions.JVM_METASPACE.key())));
+        assertThat(jvmParams.get("-Xmx") + "b")
+                .isEqualTo(dynamicParams.get(JobManagerOptions.JVM_HEAP_MEMORY.key()));
+        assertThat(jvmParams.get("-Xms") + "b")
+                .isEqualTo(dynamicParams.get(JobManagerOptions.JVM_HEAP_MEMORY.key()));
+        assertThat(jvmParams.get("-XX:MaxMetaspaceSize=") + "b")
+                .isEqualTo(dynamicParams.get(JobManagerOptions.JVM_METASPACE.key()));
     }
 
     @Test
-    public void testExtractLoggingOutputs() throws Exception {
+    void testExtractLoggingOutputs() throws Exception {
         StringBuilder input = new StringBuilder();
         List<String> expectedOutput = new ArrayList<>();
 
@@ -184,6 +178,6 @@ public class BashJavaUtilsITCase extends JavaBashTestBase {
         List<String> actualOutput =
                 Arrays.asList(executeScript(commands).split(System.lineSeparator()));
 
-        assertThat(actualOutput, is(expectedOutput));
+        assertThat(actualOutput).isEqualTo(expectedOutput);
     }
 }
