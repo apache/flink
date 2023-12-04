@@ -34,6 +34,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.apache.hadoop.fs.s3a.WriteOperationHelper;
+import org.apache.hadoop.fs.s3a.impl.PutObjectOptions;
 import org.apache.hadoop.fs.s3a.statistics.S3AStatisticsContext;
 import org.apache.hadoop.fs.store.audit.AuditSpan;
 import org.apache.hadoop.fs.store.audit.AuditSpanSource;
@@ -163,7 +164,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
         }
 
         public PutObjectRequest createPutObjectRequest(String dest, File sourceFile) {
-            return super.createPutObjectRequest(dest, sourceFile, null);
+            return super.createPutObjectRequest(dest, sourceFile, PutObjectOptions.deletingDirs());
         }
 
         public PutObjectResult putObject(PutObjectRequest putObjectRequest) throws IOException {
@@ -178,7 +179,12 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                 AtomicInteger errorCount)
                 throws IOException {
             return super.completeMPUwithRetries(
-                    destKey, uploadId, partETags, length, errorCount, null);
+                    destKey,
+                    uploadId,
+                    partETags,
+                    length,
+                    errorCount,
+                    PutObjectOptions.deletingDirs());
         }
 
         public UploadPartResult uploadPart(UploadPartRequest request) throws IOException {
@@ -186,7 +192,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
         }
 
         public String initiateMultiPartUpload(String destKey) throws IOException {
-            return super.initiateMultiPartUpload(destKey, null);
+            return super.initiateMultiPartUpload(destKey, PutObjectOptions.deletingDirs());
         }
     }
 }
