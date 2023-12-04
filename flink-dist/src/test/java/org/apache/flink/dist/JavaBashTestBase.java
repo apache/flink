@@ -19,21 +19,21 @@
 package org.apache.flink.dist;
 
 import org.apache.flink.util.OperatingSystem;
-import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.Assume;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Abstract test class for executing bash scripts. */
-public abstract class JavaBashTestBase extends TestLogger {
-    @BeforeClass
+abstract class JavaBashTestBase {
+    @BeforeAll
     public static void checkOperatingSystem() {
-        Assume.assumeTrue(
-                "This test checks shell scripts which are not available on Windows.",
-                !OperatingSystem.isWindows());
+        assertThat(OperatingSystem.isWindows())
+                .as("This test checks shell scripts which are not available on Windows.")
+                .isFalse();
     }
 
     /**
