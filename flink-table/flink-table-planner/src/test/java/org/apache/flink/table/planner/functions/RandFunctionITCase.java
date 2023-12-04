@@ -23,6 +23,10 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.api.Expressions.$;
+import static org.apache.flink.table.api.Expressions.rand;
+import static org.apache.flink.table.api.Expressions.randInteger;
+
 /**
  * Test for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#RAND} and {@link
  * org.apache.flink.table.functions.BuiltInFunctionDefinitions#RAND_INTEGER} and their return type.
@@ -36,32 +40,39 @@ public class RandFunctionTest extends BuiltInFunctionTestBase {
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
                         .onFieldsWithData(10)
                         .andDataTypes(DataTypes.INT())
-                        .testSqlResult("RAND(f0)", 0.7304302967434272, DataTypes.DOUBLE()),
+                        .testSqlResult("RAND(f0)", 0.7304302967434272, DataTypes.DOUBLE())
+                        .testTableApiResult(rand($("f0")), 0.7304302967434272, DataTypes.DOUBLE()),
                 // RAND(INT NOT NULL)
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
                         .onFieldsWithData(10)
                         .andDataTypes(DataTypes.INT().notNull())
-                        .testSqlResult(
-                                "RAND(f0)", 0.7304302967434272, DataTypes.DOUBLE().notNull()),
+                        .testSqlResult("RAND(f0)", 0.7304302967434272, DataTypes.DOUBLE().notNull())
+                        .testTableApiResult(
+                                rand($("f0")), 0.7304302967434272, DataTypes.DOUBLE().notNull()),
                 // RAND_INTEGER(INT, INT)
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
                         .onFieldsWithData(5, 10)
                         .andDataTypes(DataTypes.INT(), DataTypes.INT())
-                        .testSqlResult("RAND_INTEGER(f0, f1)", 7, DataTypes.INT()),
+                        .testSqlResult("RAND_INTEGER(f0, f1)", 7, DataTypes.INT())
+                        .testTableApiResult(randInteger($("f0"), $("f1")), 7, DataTypes.INT()),
                 // RAND_INTEGER(INT, INT NOT NULL)
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
                         .onFieldsWithData(5, 10)
                         .andDataTypes(DataTypes.INT(), DataTypes.INT().notNull())
-                        .testSqlResult("RAND_INTEGER(f0, f1)", 7, DataTypes.INT()),
+                        .testSqlResult("RAND_INTEGER(f0, f1)", 7, DataTypes.INT())
+                        .testTableApiResult(randInteger($("f0"), $("f1")), 7, DataTypes.INT()),
                 // RAND_INTEGER(INT NOT NULL, INT)
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
                         .onFieldsWithData(5, 10)
                         .andDataTypes(DataTypes.INT().notNull(), DataTypes.INT())
-                        .testSqlResult("RAND_INTEGER(f0, f1)", 7, DataTypes.INT()),
+                        .testSqlResult("RAND_INTEGER(f0, f1)", 7, DataTypes.INT())
+                        .testTableApiResult(randInteger($("f0"), $("f1")), 7, DataTypes.INT()),
                 // RAND_INTEGER(INT NOT NULL, INT NOT NULL)
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
                         .onFieldsWithData(5, 10)
                         .andDataTypes(DataTypes.INT().notNull(), DataTypes.INT().notNull())
-                        .testSqlResult("RAND_INTEGER(f0, f1)", 7, DataTypes.INT().notNull()));
+                        .testSqlResult("RAND_INTEGER(f0, f1)", 7, DataTypes.INT().notNull())
+                        .testTableApiResult(
+                                randInteger($("f0"), $("f1")), 7, DataTypes.INT().notNull()));
     }
 }
