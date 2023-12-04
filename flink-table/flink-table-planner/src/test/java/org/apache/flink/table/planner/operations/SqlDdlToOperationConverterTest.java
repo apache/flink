@@ -2235,6 +2235,31 @@ public class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversion
                         FlinkAssertions.anyCauseMatches(
                                 SqlValidateException.class,
                                 "A column with the same name `id` has been defined at line 2, column 8."));
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "CREATE VIEW union_view AS\n"
+                                                + "  SELECT id, uid AS id FROM id_table\n"
+                                                + "  UNION\n"
+                                                + "  SELECT uid, id AS uid FROM id_table"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlValidateException.class,
+                                "A column with the same name `id` has been defined at line 2, column 10."));
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "CREATE VIEW cte_view AS\n"
+                                                + "WITH id_num AS (\n"
+                                                + "  select id from id_table\n"
+                                                + ")\n"
+                                                + "SELECT id, uid as id\n"
+                                                + "FROM id_table\n"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                SqlValidateException.class,
+                                "A column with the same name `id` has been defined at line 5, column 8."));
     }
 
     // ~ Tool Methods ----------------------------------------------------------

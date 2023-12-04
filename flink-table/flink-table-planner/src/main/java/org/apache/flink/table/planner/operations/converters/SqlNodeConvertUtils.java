@@ -33,10 +33,15 @@ import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
+import org.apache.calcite.sql.SqlSetOperator;
+import org.apache.calcite.sql.SqlWith;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidatorNamespace;
+
+import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.List;
@@ -143,7 +148,14 @@ class SqlNodeConvertUtils {
                 i++) {
             String columnName = namespace.getType().getFieldList().get(i).getName();
             if (nameToPos.containsKey(columnName)) {
-                SqlSelect select = (SqlSelect) query;
+                SqlSelect select = extractSelect(query);
+                // Can not get the origin schema.
+                if (select == null) {
+                    throw new ValidationException(
+                            String.format(
+                                    "SQL validation failed. Column `%s` has been specified.",
+                                    columnName));
+                }
                 SqlParserPos errorPos = select.getSelectList().get(i).getParserPosition();
                 String msg =
                         String.format(
@@ -156,6 +168,25 @@ class SqlNodeConvertUtils {
                         "SQL validation failed. " + msg, new SqlValidateException(errorPos, msg));
             }
             nameToPos.put(columnName, i);
+        }
+    }
+
+    private static @Nullable SqlSelect extractSelect(SqlNode query) {
+        if (query instanceof SqlSelect) {
+            return (SqlSelect) query;
+        } else if (query instanceof SqlBasicCall) {
+            SqlBasicCall call = (SqlBasicCall) query;
+            if (call.getOperator() instanceof SqlSetOperator) {
+                // UNION/INTERSECT/EXCEPT/...
+                return extractSelect(call.getOperandList().get(0));
+            } else {
+                return null;
+            }
+        } else if (query instanceof SqlWith) {
+            SqlWith with = (SqlWith) query;
+            return extractSelect(with.body);
+        } else {
+            return null;
         }
     }
 }
