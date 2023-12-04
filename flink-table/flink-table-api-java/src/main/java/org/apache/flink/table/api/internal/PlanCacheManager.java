@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.api.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
@@ -33,6 +34,7 @@ import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPT
 import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_PLAN_CACHE_TTL;
 
 /** This manages all the plan caches. */
+@Internal
 public class PlanCacheManager {
 
     private final Cache<Tuple2<String, TableConfig>, CachedPlan> planCache;

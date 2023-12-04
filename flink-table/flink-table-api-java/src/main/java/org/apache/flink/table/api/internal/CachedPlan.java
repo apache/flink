@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.api.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.operations.Operation;
 
 /** SQL execution plan cache. */
+@Internal
 public interface CachedPlan {
     /** Return the origin operation parsed from the origin statement. */
     Operation getOriginOperation();

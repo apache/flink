@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api.internal;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.operations.CollectModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -25,6 +26,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import java.util.List;
 
 /** PlanCache for DQL. */
+@Internal
 public class DQLCachedPlan implements CachedPlan {
     private final QueryOperation queryOperation;
     private final CollectModifyOperation sinkOperation;
