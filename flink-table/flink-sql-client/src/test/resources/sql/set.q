@@ -232,6 +232,10 @@ SET 'sql-client.execution.result-mode' = 'tableau';
 [INFO] Execute statement succeed.
 !info
 
+SET 'sql-client.display.print-time-cost' = 'false';
+[INFO] Execute statement succeed.
+!info
+
 create function func1 as 'LowerUDF' LANGUAGE JAVA;
 [INFO] Execute statement succeed.
 !info
