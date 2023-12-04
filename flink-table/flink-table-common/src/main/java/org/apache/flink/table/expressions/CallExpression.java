@@ -238,14 +238,9 @@ public final class CallExpression implements ResolvedExpression {
 
         return functionIdentifier
                 .getIdentifier()
-                .map(
-                        i ->
-                                String.format(
-                                        "%s.%s.%s",
-                                        EncodingUtils.escapeIdentifier(i.getCatalogName()),
-                                        EncodingUtils.escapeIdentifier(i.getDatabaseName()),
-                                        EncodingUtils.escapeIdentifier(i.getObjectName())))
-                .orElseGet(functionIdentifier::getFunctionName);
+                .map(ObjectIdentifier::asSerializableString)
+                .orElseGet(
+                        () -> EncodingUtils.escapeIdentifier(functionIdentifier.getFunctionName()));
     }
 
     @Override

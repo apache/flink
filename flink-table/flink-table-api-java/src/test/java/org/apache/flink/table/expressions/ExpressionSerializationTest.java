@@ -48,7 +48,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.negative;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for serializing {@link BuiltInFunctionDefinitions} into a SQL string. */
@@ -126,7 +125,7 @@ public class ExpressionSerializationTest {
                 TestSpec.forExpr($("f0").mod(5))
                         .withField("f0", DataTypes.BIGINT())
                         .expectStr("`f0` % 5"),
-                TestSpec.forExpr(negative($("f0")))
+                TestSpec.forExpr(Expressions.negative($("f0")))
                         .withField("f0", DataTypes.BIGINT())
                         .expectStr("- `f0`"),
                 TestSpec.forExpr($("f0").in(1, 2, 3, 4, 5))

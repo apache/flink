@@ -152,23 +152,23 @@ abstract class BuiltInAggregateFunctionTestBase {
 
     // ---------------------------------------------------------------------------------------------
 
-    protected static final class TableApiQuerySpec {
+    protected static final class TableApiAggSpec {
         private final List<Expression> selectExpr;
         private final List<Expression> groupByExpr;
 
-        public TableApiQuerySpec(List<Expression> selectExpr, List<Expression> groupByExpr) {
+        public TableApiAggSpec(List<Expression> selectExpr, List<Expression> groupByExpr) {
             this.selectExpr = selectExpr;
             this.groupByExpr = groupByExpr;
         }
 
-        public static TableApiQuerySpec groupBySelect(
+        public static TableApiAggSpec groupBySelect(
                 List<Expression> groupByExpr, Expression... selectExpr) {
-            return new TableApiQuerySpec(
+            return new TableApiAggSpec(
                     Arrays.stream(selectExpr).collect(Collectors.toList()), groupByExpr);
         }
 
-        public static TableApiQuerySpec select(Expression... selectExpr) {
-            return new TableApiQuerySpec(
+        public static TableApiAggSpec select(Expression... selectExpr) {
+            return new TableApiAggSpec(
                     Arrays.stream(selectExpr).collect(Collectors.toList()), null);
         }
     }
@@ -232,7 +232,7 @@ abstract class BuiltInAggregateFunctionTestBase {
 
         TestSpec testResult(
                 Function<Table, String> sqlSpec,
-                TableApiQuerySpec tableApiSpec,
+                TableApiAggSpec tableApiSpec,
                 DataType expectedRowType,
                 List<Row> expectedRows) {
             return testResult(
@@ -241,7 +241,7 @@ abstract class BuiltInAggregateFunctionTestBase {
 
         TestSpec testResult(
                 Function<Table, String> sqlSpec,
-                TableApiQuerySpec tableApiSpec,
+                TableApiAggSpec tableApiSpec,
                 DataType expectedSqlRowType,
                 DataType expectedTableApiRowType,
                 List<Row> expectedRows) {

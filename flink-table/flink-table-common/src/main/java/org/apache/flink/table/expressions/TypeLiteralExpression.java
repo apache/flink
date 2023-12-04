@@ -60,6 +60,9 @@ public final class TypeLiteralExpression implements ResolvedExpression {
 
     @Override
     public String asSerializableString() {
+        // in SQL nullability is not part of the type, but it is an additional constraint
+        // on table columns, we remove the nullability here to be able to use the string
+        // representation in SQL such as e.g. CAST(f0 AS BIGINT)
         final LogicalType logicalType = dataType.getLogicalType();
         return logicalType.copy(true).asSerializableString();
     }
