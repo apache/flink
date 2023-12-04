@@ -173,6 +173,19 @@ public class TaskManagerOptions {
                                     + RPC_PORT.key()
                                     + "') will be used.");
 
+    /** The default port that <code>CollectSinkFunction$ServerThread</code> is using. */
+    @Documentation.Section({
+        Documentation.Sections.COMMON_HOST_PORT,
+        Documentation.Sections.ALL_TASK_MANAGER
+    })
+    public static final ConfigOption<Integer> COLLECT_PORT =
+            key("taskmanager.collect-sink.port")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "The port used for the client to retrieve query results from the TaskManager. "
+                                    + "The default value is 0, which corresponds to a random port assignment.");
+
     /**
      * The initial registration backoff between two consecutive registration attempts. The backoff
      * is doubled for each new registration attempt until it reaches the maximum registration
