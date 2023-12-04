@@ -646,11 +646,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 jobGraphWriter.putJobGraphAsync(jobGraph, Optional.of(ioExecutor));
         initJobClientExpiredTime(jobGraph);
         runJob(createJobMasterRunner(jobGraph), ExecutionType.SUBMISSION);
-        completableFuture.exceptionally(
-                throwable -> {
-                    throw new CompletionException(throwable);
-                });
-        completableFuture.join();
+        if (completableFuture != null) {
+            completableFuture.exceptionally(
+                    throwable -> {
+                        throw new CompletionException(throwable);
+                    });
+            completableFuture.join();
+        }
     }
 
     private JobManagerRunner createJobMasterRunner(JobGraph jobGraph) throws Exception {

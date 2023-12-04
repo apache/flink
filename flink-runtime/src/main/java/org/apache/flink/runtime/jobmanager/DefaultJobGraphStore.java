@@ -228,6 +228,7 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
                                             name, jobGraph, executor.get());
                         } else {
                             jobGraphStateHandleStore.addAndLock(name, jobGraph);
+                            completableFuture = new CompletableFuture<Void>();
                             completableFuture.complete(null);
                         }
                         addedJobGraphs.add(jobID);
