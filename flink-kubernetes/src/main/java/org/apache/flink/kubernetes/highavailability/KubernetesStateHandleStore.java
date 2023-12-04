@@ -642,7 +642,8 @@ public class KubernetesStateHandleStore<T extends Serializable>
             KubernetesConfigMap configMap, String key, byte[] serializedStateHandle)
             throws Exception {
         final String oldBase64Content = configMap.getData().get(key);
-        final String newBase64Content = toBase64(serializedStateHandle);
+        final String newBase64Content =
+                serializedStateHandle == null ? "" : toBase64(serializedStateHandle);
         if (oldBase64Content != null) {
             try {
                 final StateHandleWithDeleteMarker<T> stateHandle =

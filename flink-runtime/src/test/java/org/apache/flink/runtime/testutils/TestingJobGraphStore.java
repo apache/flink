@@ -125,7 +125,12 @@ public class TestingJobGraphStore implements JobGraphStore {
     @Override
     public CompletableFuture<Void> putJobGraphAsync(
             JobGraph jobGraph, Optional<Executor> ioExecutor) throws Exception {
-        return null;
+        verifyIsStarted();
+        putJobGraphConsumer.accept(jobGraph);
+        storedJobs.put(jobGraph.getJobID(), jobGraph);
+        CompletableFuture<Void> completableFuture = new CompletableFuture<Void>();
+        completableFuture.complete(null);
+        return completableFuture;
     }
 
     @Override
