@@ -73,7 +73,7 @@ class StateTtlHintTest extends TableTestBase {
     }
 
     @Test
-    void testSimpleStateTtlHintWithEachSide() {
+    void testSimpleJoinStateTtlHintWithEachSide() {
         String sql =
                 "select /*+ STATE_TTL('T2' = '2d', 'T1' = '1d') */* from T1 join T2 on T1.a1 = T2.a2";
         verify(sql);
@@ -90,6 +90,18 @@ class StateTtlHintTest extends TableTestBase {
         String sql =
                 "select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d', 'T1' = '1d') */* from T1, T2, T3 where T1.a1 = T2.a2 and T2.b2 = T3.b3";
         verify(sql);
+    }
+
+    @Test
+    void testJoinStateTtlHintWithMultiLevelJoin() {
+        String sql =
+                "select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d', 'T1' = '1d') */* from T1 "
+                        + "join (select T2.* from T2 join T3 on T2.b2 = T3.b3) TMP on T1.a1 = TMP.b2";
+        assertThatThrownBy(() -> verify(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "The options of following hints cannot match the name of input tables or views: \n`%s` in `%s`",
+                        "T2, T3", "STATE_TTL");
     }
 
     @Test
@@ -135,7 +147,7 @@ class StateTtlHintTest extends TableTestBase {
     }
 
     @Test
-    void testMultiStateTtlHint() {
+    void testMultiJoinStateTtlHint() {
         String sql =
                 "select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d'), STATE_TTL('T1' = '1d', 'T2' = '8d') */* from T1, T2, T3 where T1.a1 = T2.a2 and T2.b2 = T3.b3";
         verify(sql);
@@ -176,7 +188,7 @@ class StateTtlHintTest extends TableTestBase {
     }
 
     @Test
-    void testStateTtlHintWithEmptyKV() {
+    void testJoinStateTtlHintWithEmptyKV() {
         String sql = "select /*+ STATE_TTL() */* from T1 join T2 on T1.a1 = T2.a2";
         assertThatThrownBy(() -> verify(sql))
                 .isInstanceOf(AssertionError.class)

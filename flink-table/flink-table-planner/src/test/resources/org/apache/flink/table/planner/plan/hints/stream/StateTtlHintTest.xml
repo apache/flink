@@ -102,28 +102,6 @@ Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInput
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinStateTtlHintWithDuplicatedArgs">
-    <Resource name="sql">
-      <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T2' = '1d') */* from T1 join T2 on T1.a1 = T2.a2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
-+- LogicalJoin(condition=[=($0, $2)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T2=1d}]]])
-   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=1d}]]])
-:- Exchange(distribution=[hash[a1]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
-+- Exchange(distribution=[hash[a2]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testJoinStateTtlHintWithAgg">
     <Resource name="sql">
       <![CDATA[select /*+ STATE_TTL('T1' = '1d', 'T2' = '2d')*/T1.b1, sum(T1.a1) from T1 join T2 on T1.b1 = T2.b2 group by T1.b1]]>
@@ -205,32 +183,47 @@ Join(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, a2, b2, a3, b3], l
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultiStateTtlHint">
+  <TestCase name="testJoinStateTtlHintWithDuplicatedArgs">
     <Resource name="sql">
-      <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d'), STATE_TTL('T1' = '1d', 'T2' = '8d') */* from T1, T2, T3 where T1.a1 = T2.a2 and T2.b2 = T3.b3]]>
+      <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T2' = '1d') */* from T1 join T2 on T1.a1 = T2.a2]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5])
-+- LogicalFilter(condition=[AND(=($0, $2), =($3, $5))])
-   +- LogicalJoin(condition=[true], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{T2=2d, T3=3d}][STATE_TTL inheritPath:[0, 0] options:{T1=1d, T2=8d}]]])
-      :- LogicalJoin(condition=[true], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0, 0] options:{T2=2d, T3=3d}][STATE_TTL inheritPath:[0, 0, 0] options:{T1=1d, T2=8d}]]])
-      :  :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T2=1d}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, a2, b2, a3, b3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=3d}]]])
-:- Exchange(distribution=[hash[b2]])
-:  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=2d}][STATE_TTL options:{LEFT=1d, RIGHT=8d}]]])
-:     :- Exchange(distribution=[hash[a1]])
-:     :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
-:     +- Exchange(distribution=[hash[a2]])
-:        +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
-+- Exchange(distribution=[hash[b3]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T3]], fields=[a3, b3])
+Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=1d}]]])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Exchange(distribution=[hash[a2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleJoinStateTtlHintWithEachSide">
+    <Resource name="sql">
+      <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T1' = '1d') */* from T1 join T2 on T1.a1 = T2.a2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=1d, T2=2d}]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=2d}]]])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
++- Exchange(distribution=[hash[a2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
 ]]>
     </Resource>
   </TestCase>
@@ -257,25 +250,32 @@ Join(joinType=[InnerJoin], where=[=(a1, a3)], select=[a1, b1, a3, b3], leftInput
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleStateTtlHintWithEachSide">
+  <TestCase name="testMultiJoinStateTtlHint">
     <Resource name="sql">
-      <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T1' = '1d') */* from T1 join T2 on T1.a1 = T2.a2]]>
+      <![CDATA[select /*+ STATE_TTL('T2' = '2d', 'T3' = '3d'), STATE_TTL('T1' = '1d', 'T2' = '8d') */* from T1, T2, T3 where T1.a1 = T2.a2 and T2.b2 = T3.b3]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
-+- LogicalJoin(condition=[=($0, $2)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{T1=1d, T2=2d}]]])
-   :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3], a3=[$4], b3=[$5])
++- LogicalFilter(condition=[AND(=($0, $2), =($3, $5))])
+   +- LogicalJoin(condition=[true], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{T2=2d, T3=3d}][STATE_TTL inheritPath:[0, 0] options:{T1=1d, T2=8d}]]])
+      :- LogicalJoin(condition=[true], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0, 0] options:{T2=2d, T3=3d}][STATE_TTL inheritPath:[0, 0, 0] options:{T1=1d, T2=8d}]]])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T3]], hints=[[[ALIAS inheritPath:[] options:[T3]]]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=2d}]]])
-:- Exchange(distribution=[hash[a1]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
-+- Exchange(distribution=[hash[a2]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
+Join(joinType=[InnerJoin], where=[=(b2, b3)], select=[a1, b1, a2, b2, a3, b3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=3d}]]])
+:- Exchange(distribution=[hash[b2]])
+:  +- Join(joinType=[InnerJoin], where=[=(a1, a2)], select=[a1, b1, a2, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=2d}][STATE_TTL options:{LEFT=1d, RIGHT=8d}]]])
+:     :- Exchange(distribution=[hash[a1]])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1])
+:     +- Exchange(distribution=[hash[a2]])
+:        +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2])
++- Exchange(distribution=[hash[b3]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T3]], fields=[a3, b3])
 ]]>
     </Resource>
   </TestCase>
