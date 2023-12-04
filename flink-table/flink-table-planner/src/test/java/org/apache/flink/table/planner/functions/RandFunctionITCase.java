@@ -31,7 +31,7 @@ import static org.apache.flink.table.api.Expressions.randInteger;
  * Test for {@link org.apache.flink.table.functions.BuiltInFunctionDefinitions#RAND} and {@link
  * org.apache.flink.table.functions.BuiltInFunctionDefinitions#RAND_INTEGER} and their return type.
  */
-public class RandFunctionTest extends BuiltInFunctionTestBase {
+public class RandFunctionITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
