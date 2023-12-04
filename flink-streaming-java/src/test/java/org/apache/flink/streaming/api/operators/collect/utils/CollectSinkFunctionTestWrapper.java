@@ -58,6 +58,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
     private final int maxBytesPerBatch;
 
     private final IOManager ioManager;
+
     private final StreamingRuntimeContext runtimeContext;
     private final MockOperatorEventGateway gateway;
     private final CollectSinkOperatorCoordinator coordinator;
@@ -174,5 +175,9 @@ public class CollectSinkFunctionTestWrapper<IN> {
     public ArrayList<byte[]> getAccumulatorLocalValue() {
         Accumulator accumulator = runtimeContext.getAccumulator(ACCUMULATOR_NAME);
         return ((SerializedListAccumulator) accumulator).getLocalValue();
+    }
+
+    public StreamingRuntimeContext getRuntimeContext() {
+        return runtimeContext;
     }
 }
