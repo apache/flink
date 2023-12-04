@@ -175,6 +175,26 @@ public class ProfilingService implements Closeable {
                 profilingMap.getOrDefault(resourceID, new ArrayDeque<>()));
     }
 
+    @VisibleForTesting
+    ArrayDeque<ProfilingInfo> getProfilingListForTest(String resourceID) {
+        return profilingMap.getOrDefault(resourceID, new ArrayDeque<>());
+    }
+
+    @VisibleForTesting
+    int getHistorySizeLimit() {
+        return historySizeLimit;
+    }
+
+    @VisibleForTesting
+    ProfilingFuture getProfilingFuture() {
+        return profilingFuture;
+    }
+
+    @VisibleForTesting
+    public String getProfilingResultDir() {
+        return profilingResultDir;
+    }
+
     enum ProfilerConstants {
         PROFILER_STARTED_SUCCESS("Profiling started"),
         PROFILER_STOPPED_SUCCESS("OK"),
