@@ -42,7 +42,7 @@ public class DQLCachedPlan implements CachedPlan {
     }
 
     @Override
-    public QueryOperation getOriginOperation() {
+    public QueryOperation getOperation() {
         return queryOperation;
     }
 

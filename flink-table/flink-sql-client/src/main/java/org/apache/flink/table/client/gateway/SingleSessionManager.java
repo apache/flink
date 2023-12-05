@@ -19,7 +19,6 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.internal.PlanCacheManager;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.resource.ClientResourceManager;
@@ -118,8 +117,7 @@ public class SingleSessionManager implements SessionManager {
                 Configuration sessionConf,
                 URLClassLoader classLoader,
                 SessionState sessionState,
-                OperationManager operationManager,
-                PlanCacheManager planCacheManager) {
+                OperationManager operationManager) {
             super(
                     defaultContext,
                     sessionId,
@@ -127,8 +125,7 @@ public class SingleSessionManager implements SessionManager {
                     sessionConf,
                     classLoader,
                     sessionState,
-                    operationManager,
-                    planCacheManager);
+                    operationManager);
         }
 
         public static EmbeddedSessionContext create(
@@ -147,8 +144,6 @@ public class SingleSessionManager implements SessionManager {
                             configuration);
             ClientResourceManager resourceManager =
                     new ClientResourceManager(configuration, userClassLoader);
-            final PlanCacheManager planCacheManager =
-                    PlanCacheManager.createPlanCacheManager(configuration).orElse(null);
             return new EmbeddedSessionContext(
                     defaultContext,
                     sessionId,
@@ -156,8 +151,7 @@ public class SingleSessionManager implements SessionManager {
                     configuration,
                     userClassLoader,
                     initializeSessionState(environment, configuration, resourceManager),
-                    new OperationManager(operationExecutorService),
-                    planCacheManager);
+                    new OperationManager(operationExecutorService));
         }
 
         @Override

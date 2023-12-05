@@ -35,6 +35,9 @@ import org.apache.flink.table.planner.functions.casting.RowDataToStringConverter
 import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheStats;
+
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -47,7 +50,7 @@ import java.util.List;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_PLAN_CACHE_ENABLED;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_PLAN_CACHE_ENABLED;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.fetchResults;
@@ -66,7 +69,7 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
                     .setSessionEndpointVersion(MockedEndpointVersion.V1)
                     .addSessionConfig(
                             Collections.singletonMap(
-                                    TABLE_OPTIMIZER_PLAN_CACHE_ENABLED.key(), "true"))
+                                    SQL_GATEWAY_SESSION_PLAN_CACHE_ENABLED.key(), "true"))
                     .build();
 
     private SessionHandle sessionHandle;
@@ -82,13 +85,23 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
     @Override
     public void before(@TempDir Path temporaryFolder) throws Exception {
         super.before(temporaryFolder);
-        boolean planCacheEnabled =
-                parameters != null && ((StatementTestParameters) parameters).isPlanCacheEnabled();
         SessionEnvironment sessionEnvironment =
-                planCacheEnabled
+                isPlanCacheEnabled()
                         ? SESSION_ENVIRONMENT_WITH_PLAN_CACHE_ENABLED
                         : DEFAULT_SESSION_ENVIRONMENT;
         sessionHandle = service.openSession(sessionEnvironment);
+    }
+
+    @AfterEach
+    public void after() {
+        if (isPlanCacheEnabled()) {
+            CacheStats cacheStats =
+                    ((SqlGatewayServiceImpl) service)
+                            .getSession(sessionHandle)
+                            .getPlanCacheManager()
+                            .getCacheStats();
+            assertThat(cacheStats).isEqualTo(new CacheStats(4, 11, 0, 0, 0, 0));
+        }
     }
 
     @Override
@@ -115,6 +128,10 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
                         SqlGatewayServiceStatementITCase.class.getClassLoader(),
                         false),
                 new RowDataIterator(sessionHandle, operationHandle));
+    }
+
+    private boolean isPlanCacheEnabled() {
+        return parameters != null && ((StatementTestParameters) parameters).isPlanCacheEnabled();
     }
 
     @Override

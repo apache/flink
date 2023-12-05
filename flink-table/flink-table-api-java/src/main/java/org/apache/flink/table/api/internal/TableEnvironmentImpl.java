@@ -739,7 +739,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         if (cachedPlan instanceof DQLCachedPlan) {
             DQLCachedPlan dqlCachedPlan = (DQLCachedPlan) cachedPlan;
             return executeQueryOperation(
-                    dqlCachedPlan.getOriginOperation(),
+                    dqlCachedPlan.getOperation(),
                     dqlCachedPlan.getSinkOperation(),
                     dqlCachedPlan.getTransformations());
         }

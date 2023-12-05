@@ -24,8 +24,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 
-import java.time.Duration;
-
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
 
@@ -275,33 +273,6 @@ public class OptimizerConfigOptions {
                                             "Note: it is not recommended to turn on unless you are aware of possible side effects, "
                                                     + "such as causing the output of certain non-deterministic expressions to not meet expectations(see FLINK-20887).")
                                     .build());
-
-    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_PLAN_CACHE_ENABLED =
-            key("table.optimizer.plan-cache.enabled")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "When it is true, the optimizer will cache and reuse plans for queries.");
-
-    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<Integer> TABLE_OPTIMIZER_PLAN_CACHE_SIZE =
-            key("table.optimizer.plan-cache.size")
-                    .intType()
-                    .defaultValue(1000)
-                    .withDescription(
-                            "Plan cache size, it takes effect iff "
-                                    + "`table.optimizer.plan-cache.enabled` is true.");
-
-    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<Duration> TABLE_OPTIMIZER_PLAN_CACHE_TTL =
-            key("table.optimizer.plan-cache.ttl")
-                    .durationType()
-                    .defaultValue(Duration.ofHours(1))
-                    .withDescription(
-                            "TTL for plan cache, it controls how long will the "
-                                    + "cache expire after write, it takes effect iff "
-                                    + "`table.optimizer.plan-cache.enabled` is true.");
 
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving

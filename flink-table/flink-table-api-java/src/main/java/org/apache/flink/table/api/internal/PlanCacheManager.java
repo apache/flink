@@ -18,54 +18,46 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava31.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava31.com.google.common.cache.CacheStats;
 
 import java.time.Duration;
 import java.util.Optional;
-
-import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_PLAN_CACHE_ENABLED;
-import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_PLAN_CACHE_SIZE;
-import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_PLAN_CACHE_TTL;
 
 /** This manages all the plan caches. */
 @Internal
 public class PlanCacheManager {
 
-    private final Cache<Tuple2<String, TableConfig>, CachedPlan> planCache;
+    private final Cache<String, CachedPlan> planCache;
 
     public PlanCacheManager(long maximumCapacity, Duration ttl) {
         planCache =
                 CacheBuilder.newBuilder()
                         .maximumSize(maximumCapacity)
                         .expireAfterWrite(ttl)
+                        .recordStats()
                         .build();
     }
 
-    public static Optional<PlanCacheManager> createPlanCacheManager(ReadableConfig readableConfig) {
-        boolean planCacheEnabled = readableConfig.get(TABLE_OPTIMIZER_PLAN_CACHE_ENABLED);
-        if (planCacheEnabled) {
-            int planCacheSize = readableConfig.get(TABLE_OPTIMIZER_PLAN_CACHE_SIZE);
-            Duration ttl = readableConfig.get(TABLE_OPTIMIZER_PLAN_CACHE_TTL);
-            return Optional.of(new PlanCacheManager(planCacheSize, ttl));
-        }
-        return Optional.empty();
-    }
-
-    public Optional<CachedPlan> getPlan(String query, TableConfig tableConfig) {
-        CachedPlan cachedPlan = planCache.getIfPresent(new Tuple2<>(query, tableConfig));
+    public Optional<CachedPlan> getPlan(String query) {
+        CachedPlan cachedPlan = planCache.getIfPresent(query);
         return Optional.ofNullable(cachedPlan);
     }
 
-    public void putPlan(String query, TableConfig tableConfig, CachedPlan cachedPlan) {
+    public void putPlan(String query, CachedPlan cachedPlan) {
         Preconditions.checkNotNull(query, "query can not be null");
-        Preconditions.checkNotNull(tableConfig, "tableConfig can not be null");
         Preconditions.checkNotNull(cachedPlan, "cachedPlan can not be null");
-        planCache.put(new Tuple2<>(query, tableConfig), cachedPlan);
+        planCache.put(query, cachedPlan);
+    }
+
+    public void invalidateAll() {
+        planCache.invalidateAll();
+    }
+
+    public CacheStats getCacheStats() {
+        return planCache.stats();
     }
 }

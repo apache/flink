@@ -151,10 +151,11 @@ In OLAP scenario, appropriate configurations that can greatly help users improve
 
 #### SQL&Table Options
 
-| Parameters                                                                                                     | Default | Recommended |
-|:---------------------------------------------------------------------------------------------------------------|:--------|:------------|
-| [table.optimizer.join-reorder-enabled]({{<ref "docs/dev/table/config#table-optimizer-join-reorder-enabled">}}) | false | true |
-| [pipeline.object-reuse]({{< ref "docs/deployment/config#pipeline-object-reuse" >}})                            | false | true |
+| Parameters                                                                                                                         | Default   | Recommended |
+|:-----------------------------------------------------------------------------------------------------------------------------------|:----------|:------------|
+| [table.optimizer.join-reorder-enabled]({{<ref "docs/dev/table/config#table-optimizer-join-reorder-enabled">}})                     | false     | true        |
+| [pipeline.object-reuse]({{< ref "docs/deployment/config#pipeline-object-reuse" >}})                                                | false     | true        |
+| [sql-gateway.session.plan-cache.enabled]({{<ref "docs/dev/table/sql-gateway/overview/#sql-gateway-session-plan-cache-enabled">}})  | false     | true        |
 
 #### Runtime Options
 

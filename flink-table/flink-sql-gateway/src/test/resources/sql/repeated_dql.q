@@ -1,4 +1,4 @@
-# statement-set.q - BEGIN STATEMENT SET, END
+# repeated-dql.q - Repeatedly executing DQLs
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with

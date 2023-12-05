@@ -51,17 +51,24 @@ import org.apache.flink.util.MutableURLClassLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_PLAN_CACHE_ENABLED;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_PLAN_CACHE_SIZE;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SESSION_PLAN_CACHE_TTL;
 
 /**
  * Context describing a session, it's mainly used for user to open a new session in the backend. If
@@ -86,7 +93,7 @@ public class SessionContext {
     private boolean isStatementSetState;
     private final List<ModifyOperation> statementSetOperations;
 
-    private final PlanCacheManager planCacheManager;
+    @Nullable private final PlanCacheManager planCacheManager;
 
     protected SessionContext(
             DefaultContext defaultContext,
@@ -95,8 +102,7 @@ public class SessionContext {
             Configuration sessionConf,
             URLClassLoader classLoader,
             SessionState sessionState,
-            OperationManager operationManager,
-            PlanCacheManager planCacheManager) {
+            OperationManager operationManager) {
         this.defaultContext = defaultContext;
         this.sessionId = sessionId;
         this.endpointVersion = endpointVersion;
@@ -106,7 +112,18 @@ public class SessionContext {
         this.operationManager = operationManager;
         this.isStatementSetState = false;
         this.statementSetOperations = new ArrayList<>();
-        this.planCacheManager = planCacheManager;
+        this.planCacheManager = createPlanCacheManager(sessionConf);
+    }
+
+    @Nullable
+    private static PlanCacheManager createPlanCacheManager(ReadableConfig readableConfig) {
+        boolean planCacheEnabled = readableConfig.get(SQL_GATEWAY_SESSION_PLAN_CACHE_ENABLED);
+        if (planCacheEnabled) {
+            int planCacheSize = readableConfig.get(SQL_GATEWAY_SESSION_PLAN_CACHE_SIZE);
+            Duration ttl = readableConfig.get(SQL_GATEWAY_SESSION_PLAN_CACHE_TTL);
+            return new PlanCacheManager(planCacheSize, ttl);
+        }
+        return null;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -156,6 +173,7 @@ public class SessionContext {
                     String.format("Failed to set key %s with value %s.", key, value), e);
         }
         sessionConf.setString(key, value);
+        invalidatePlanCacheIfExist();
     }
 
     public synchronized void reset(String key) {
@@ -168,6 +186,7 @@ public class SessionContext {
         } else {
             sessionConf.removeConfig(option);
         }
+        invalidatePlanCacheIfExist();
     }
 
     public synchronized void reset() {
@@ -175,6 +194,7 @@ public class SessionContext {
             sessionConf.removeConfig(ConfigOptions.key(key).stringType().noDefaultValue());
         }
         sessionConf.addAll(defaultContext.getFlinkConfig());
+        invalidatePlanCacheIfExist();
     }
 
     // --------------------------------------------------------------------------------------------
@@ -183,6 +203,12 @@ public class SessionContext {
 
     public OperationExecutor createOperationExecutor(Configuration executionConfig) {
         return new OperationExecutor(this, executionConfig);
+    }
+
+    private void invalidatePlanCacheIfExist() {
+        if (planCacheManager != null) {
+            planCacheManager.invalidateAll();
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -260,8 +286,6 @@ public class SessionContext {
                         SessionContext.class.getClassLoader(),
                         configuration);
         final ResourceManager resourceManager = new ResourceManager(configuration, userClassLoader);
-        final PlanCacheManager planCacheManager =
-                PlanCacheManager.createPlanCacheManager(configuration).orElse(null);
         return new SessionContext(
                 defaultContext,
                 sessionId,
@@ -269,8 +293,7 @@ public class SessionContext {
                 configuration,
                 userClassLoader,
                 initializeSessionState(environment, configuration, resourceManager),
-                new OperationManager(operationExecutorService),
-                planCacheManager);
+                new OperationManager(operationExecutorService));
     }
 
     // ------------------------------------------------------------------------------------------------------------------

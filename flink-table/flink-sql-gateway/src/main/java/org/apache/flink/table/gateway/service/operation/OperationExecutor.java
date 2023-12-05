@@ -197,12 +197,16 @@ public class OperationExecutor {
         TableEnvironmentInternal tableEnv = getTableEnvironment(resourceManager);
         PlanCacheManager planCacheManager = sessionContext.getPlanCacheManager();
         CachedPlan cachedPlan = null;
-        Operation op;
-        if (planCacheManager != null
-                && planCacheManager.getPlan(statement, tableEnv.getConfig()).isPresent()) {
-            cachedPlan = planCacheManager.getPlan(statement, tableEnv.getConfig()).get();
-            op = cachedPlan.getOriginOperation();
-        } else {
+        Operation op = null;
+
+        if (planCacheManager != null) {
+            Optional<CachedPlan> cachedPlanOptional = planCacheManager.getPlan(statement);
+            if (cachedPlanOptional.isPresent()) {
+                cachedPlan = cachedPlanOptional.get();
+                op = cachedPlan.getOperation();
+            }
+        }
+        if (op == null) {
             List<Operation> parsedOperations = tableEnv.getParser().parse(statement);
             if (parsedOperations.size() > 1) {
                 throw new UnsupportedOperationException(
@@ -470,7 +474,7 @@ public class OperationExecutor {
                             : tableEnv.executeInternal(op);
             PlanCacheManager planCacheManager = sessionContext.getPlanCacheManager();
             if (cachedPlan == null && planCacheManager != null && result.getCachedPlan() != null) {
-                planCacheManager.putPlan(statement, tableEnv.getConfig(), result.getCachedPlan());
+                planCacheManager.putPlan(statement, result.getCachedPlan());
             }
             return ResultFetcher.fromTableResult(handle, result, true);
         } else if (op instanceof StopJobOperation) {

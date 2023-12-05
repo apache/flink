@@ -151,10 +151,11 @@ Session Cluster 和 SQL Gateway 都依赖连接器来获取表的元信息同时
 
 #### SQL&Table 参数
 
-| 参数名称                                                                                                           | 默认值   | 推荐值  |
-|:---------------------------------------------------------------------------------------------------------------|:------|:-----|
-| [table.optimizer.join-reorder-enabled]({{<ref "docs/dev/table/config#table-optimizer-join-reorder-enabled">}}) | false | true |
-| [pipeline.object-reuse]({{< ref "docs/deployment/config#pipeline-object-reuse" >}})                            | false | true |
+| 参数名称                                                                                                                               | 默认值   | 推荐值  |
+|:-----------------------------------------------------------------------------------------------------------------------------------|:------|:-----|
+| [table.optimizer.join-reorder-enabled]({{<ref "docs/dev/table/config#table-optimizer-join-reorder-enabled">}})                     | false | true |
+| [pipeline.object-reuse]({{< ref "docs/deployment/config#pipeline-object-reuse" >}})                                                | false | true |
+| [sql-gateway.session.plan-cache.enabled]({{<ref "docs/dev/table/sql-gateway/overview/#sql-gateway-session-plan-cache-enabled" >}}) | false | true |
 
 #### Runtime 参数
 
