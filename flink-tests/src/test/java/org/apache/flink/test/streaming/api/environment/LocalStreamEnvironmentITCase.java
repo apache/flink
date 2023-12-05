@@ -62,7 +62,7 @@ public class LocalStreamEnvironmentITCase extends TestLogger {
     // ------------------------------------------------------------------------
 
     private static void addSmallBoundedJob(StreamExecutionEnvironment env, int parallelism) {
-        DataStream<Long> stream = env.generateSequence(1, 100).setParallelism(parallelism);
+        DataStream<Long> stream = env.fromSequence(1, 100).setParallelism(parallelism);
 
         stream.filter(ignored -> false)
                 .setParallelism(parallelism)

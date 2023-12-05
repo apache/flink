@@ -42,7 +42,7 @@ public class StreamGraphCoLocationConstraintTest {
         env.setParallelism(7);
 
         // set up the test program
-        DataStream<Long> source = env.generateSequence(1L, 10_000_000);
+        DataStream<Long> source = env.fromSequence(1L, 10_000_000);
         source.getTransformation().setCoLocationGroupKey("group1");
 
         DataStream<Long> step1 = source.keyBy(v -> v).map(v -> v);
@@ -73,7 +73,7 @@ public class StreamGraphCoLocationConstraintTest {
         env.setParallelism(7);
 
         // set up the test program
-        DataStream<Long> source = env.generateSequence(1L, 10_000_000);
+        DataStream<Long> source = env.fromSequence(1L, 10_000_000);
         source.getTransformation().setSlotSharingGroup("ssg1");
         source.getTransformation().setCoLocationGroupKey("co1");
 

@@ -55,7 +55,7 @@ public class TypeFillTest {
         } catch (Exception ignored) {
         }
 
-        DataStream<Long> source = env.generateSequence(1, 10);
+        DataStream<Long> source = env.fromSequence(1, 10);
 
         try {
             source.map(new TestMap<Long, Long>()).print();
