@@ -18,8 +18,6 @@
 
 package org.apache.flink.runtime.jobgraph;
 
-import org.apache.commons.lang.StringUtils;
-
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 
@@ -57,9 +55,6 @@ public class SavepointRestoreSettings implements Serializable {
      */
     private SavepointRestoreSettings(
             String restorePath, boolean allowNonRestoredState, RestoreMode restoreMode) {
-        if (StringUtils.isEmpty(restorePath)) {
-            throw new RuntimeException("Tried to construct with empty restorePath: " + restorePath);
-        }
         this.restorePath = restorePath;
         this.allowNonRestoredState = allowNonRestoredState;
         this.restoreMode = restoreMode;
