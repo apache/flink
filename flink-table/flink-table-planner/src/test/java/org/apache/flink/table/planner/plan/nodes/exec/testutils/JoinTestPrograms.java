@@ -107,7 +107,7 @@ public class JoinTestPrograms {
 
     static {
         NON_WINDOW_INNER_JOIN =
-                TableTestProgram.of("non-window-inner-join", "test non-window inner join")
+                TableTestProgram.of("join-non-window-inner-join", "test non-window inner join")
                         .setupTableSource(SOURCE_T1)
                         .setupTableSource(SOURCE_T2)
                         .setupTableSink(
@@ -137,7 +137,7 @@ public class JoinTestPrograms {
 
         NON_WINDOW_INNER_JOIN_WITH_NULL =
                 TableTestProgram.of(
-                                "non-window-inner-join-with-null-cond",
+                                "join-non-window-inner-join-with-null-cond",
                                 "test non-window inner join")
                         .setupTableSource(SOURCE_T1)
                         .setupTableSource(SOURCE_T2)
@@ -171,7 +171,7 @@ public class JoinTestPrograms {
                         .build();
 
         CROSS_JOIN =
-                TableTestProgram.of("cross-join", "test cross join")
+                TableTestProgram.of("join-cross-join", "test cross join")
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
@@ -262,7 +262,8 @@ public class JoinTestPrograms {
 
         INNER_JOIN_WITH_DUPLICATE_KEY =
                 TableTestProgram.of(
-                                "inner-join-with-duplicate-key", "inner join with duplicate key")
+                                "join-inner-join-with-duplicate-key",
+                                "inner join with duplicate key")
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
@@ -278,7 +279,8 @@ public class JoinTestPrograms {
 
         INNER_JOIN_WITH_NON_EQUI_JOIN =
                 TableTestProgram.of(
-                                "inner-join-with-non-equi-join", "inner join with non-equi join")
+                                "join-inner-join-with-non-equi-join",
+                                "inner join with non-equi join")
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
@@ -299,7 +301,7 @@ public class JoinTestPrograms {
                 "SELECT MIN(b2) AS b2, department_num FROM DEPARTMENT GROUP BY department_num";
 
         INNER_JOIN_WITH_EQUAL_PK =
-                TableTestProgram.of("inner-join-with-equal-pk", "inner join with equal pk")
+                TableTestProgram.of("join-inner-join-with-equal-pk", "inner join with equal pk")
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
@@ -316,7 +318,7 @@ public class JoinTestPrograms {
                         .build();
 
         INNER_JOIN_WITH_PK =
-                TableTestProgram.of("inner-join-with-pk", "inner join with pk")
+                TableTestProgram.of("join-inner-join-with-pk", "inner join with pk")
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
@@ -337,7 +339,7 @@ public class JoinTestPrograms {
                         .build();
 
         FULL_OUTER =
-                TableTestProgram.of("outer-join", "outer join")
+                TableTestProgram.of("join-outer-join", "outer join")
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
@@ -364,7 +366,7 @@ public class JoinTestPrograms {
                         .build();
 
         LEFT_JOIN =
-                TableTestProgram.of("left-join", "left join")
+                TableTestProgram.of("join-left-join", "left join")
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
@@ -390,7 +392,7 @@ public class JoinTestPrograms {
                         .build();
 
         RIGHT_JOIN =
-                TableTestProgram.of("right-join", "right join")
+                TableTestProgram.of("join-right-join", "right join")
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
@@ -415,7 +417,7 @@ public class JoinTestPrograms {
                         .build();
 
         SEMI_JOIN =
-                TableTestProgram.of("semi-join", "semi join")
+                TableTestProgram.of("join-semi-join", "semi join")
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT)
                         .setupTableSink(
@@ -432,7 +434,7 @@ public class JoinTestPrograms {
                         .build();
 
         ANTI_JOIN =
-                TableTestProgram.of("anti-join", "anti join")
+                TableTestProgram.of("join-anti-join", "anti join")
                         .setupTableSource(EMPLOYEE)
                         .setupTableSource(DEPARTMENT_NONULLS)
                         .setupTableSink(
