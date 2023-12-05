@@ -21,11 +21,12 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 
 import java.util.concurrent.CompletableFuture;
 
-/** No-op implementation of {@link BufferPool}. */
-public class NoOpBufferPool implements BufferPool {
+/** Implementation of {@link BufferPool} for testing. */
+public class TestingBufferPool implements BufferPool {
 
     @Override
     public void reserveSegments(int numberOfSegmentsToReserve) {}
@@ -35,7 +36,8 @@ public class NoOpBufferPool implements BufferPool {
 
     @Override
     public Buffer requestBuffer() {
-        throw new UnsupportedOperationException();
+        MemorySegment segment = requestMemorySegment();
+        return new NetworkBuffer(segment, FreeingBufferRecycler.INSTANCE);
     }
 
     @Override
@@ -71,7 +73,7 @@ public class NoOpBufferPool implements BufferPool {
 
     @Override
     public MemorySegment requestMemorySegment() {
-        throw new UnsupportedOperationException();
+        return MemorySegmentFactory.allocateUnpooledSegment(1024);
     }
 
     @Override
@@ -96,7 +98,7 @@ public class NoOpBufferPool implements BufferPool {
 
     @Override
     public int getNumBuffers() {
-        throw new UnsupportedOperationException();
+        return 0;
     }
 
     @Override

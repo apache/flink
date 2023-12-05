@@ -159,11 +159,8 @@ public class SingleInputGateFactory {
                         configuredNetworkBuffersPerChannel,
                         floatingNetworkBuffersPerGate,
                         igdd.getConsumedPartitionType(),
-                        calculateNumChannels(
-                                igdd.getShuffleDescriptors().length,
-                                igdd.getConsumedSubpartitionIndexRange().size(),
-                                isSharedInputChannelSupported),
-                        tieredStorageConfiguration != null);
+                        calculateNumNonLocalChannels(igdd, isSharedInputChannelSupported),
+                        tieredStorageConfiguration);
         SupplierWithException<BufferPool, IOException> bufferPoolFactory =
                 createBufferPoolFactory(
                         networkBufferPool,
@@ -371,6 +368,26 @@ public class SingleInputGateFactory {
         }
     }
 
+    private int calculateNumNonLocalChannels(
+            @Nonnull InputGateDeploymentDescriptor igdd, boolean isSharedInputChannelSupported) {
+        int count = 0;
+        for (ShuffleDescriptor shuffleDescriptor : igdd.getShuffleDescriptors()) {
+            boolean isLocal =
+                    applyWithShuffleTypeCheck(
+                            NettyShuffleDescriptor.class,
+                            shuffleDescriptor,
+                            unknownShuffleDescriptor -> false,
+                            nettyShuffleDescriptor -> isLocalInputChannel(nettyShuffleDescriptor));
+            if (!isLocal) {
+                count +=
+                        isSharedInputChannelSupported
+                                ? 1
+                                : igdd.getConsumedSubpartitionIndexRange().size();
+            }
+        }
+        return count;
+    }
+
     @VisibleForTesting
     protected InputChannel createKnownInputChannel(
             SingleInputGate inputGate,
@@ -381,7 +398,7 @@ public class SingleInputGateFactory {
             ChannelStatistics channelStatistics,
             InputChannelMetrics metrics) {
         ResultPartitionID partitionId = inputChannelDescriptor.getResultPartitionID();
-        if (inputChannelDescriptor.isLocalTo(taskExecutorResourceId)) {
+        if (isLocalInputChannel(inputChannelDescriptor)) {
             // Consuming task is deployed to the same TaskManager as the partition => local
             channelStatistics.numLocalChannels++;
             return new LocalRecoveredInputChannel(
@@ -411,6 +428,10 @@ public class SingleInputGateFactory {
                     buffersPerChannel,
                     metrics);
         }
+    }
+
+    private boolean isLocalInputChannel(NettyShuffleDescriptor inputChannelDescriptor) {
+        return inputChannelDescriptor.isLocalTo(taskExecutorResourceId);
     }
 
     @VisibleForTesting

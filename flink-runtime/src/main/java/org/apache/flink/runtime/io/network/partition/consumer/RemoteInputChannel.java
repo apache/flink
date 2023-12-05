@@ -155,7 +155,7 @@ public class RemoteInputChannel extends InputChannel {
         this.initialCredit = networkBuffersPerChannel;
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
-        this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
+        this.bufferManager = new BufferManager(this, initialCredit);
         this.channelStatePersister = new ChannelStatePersister(stateWriter, getChannelInfo());
     }
 
@@ -174,7 +174,7 @@ public class RemoteInputChannel extends InputChannel {
                 bufferManager.unsynchronizedGetAvailableExclusiveBuffers() == 0,
                 "Bug in input channel setup logic: exclusive buffers have already been set for this input channel.");
 
-        bufferManager.requestExclusiveBuffers(initialCredit);
+        bufferManager.requestExclusiveBuffers();
     }
 
     // ------------------------------------------------------------------------
@@ -343,7 +343,8 @@ public class RemoteInputChannel extends InputChannel {
     @Override
     int getBuffersInUseCount() {
         return getNumberOfQueuedBuffers()
-                + Math.max(0, bufferManager.getNumberOfRequiredBuffers() - initialCredit);
+                + Math.max(
+                        0, bufferManager.getNumberOfRequiredBuffers() - getNumExclusiveBuffers());
     }
 
     @Override
@@ -396,7 +397,7 @@ public class RemoteInputChannel extends InputChannel {
 
     @VisibleForTesting
     public int getSenderBacklog() {
-        return getNumberOfRequiredBuffers() - initialCredit;
+        return getNumberOfRequiredBuffers() - getNumExclusiveBuffers();
     }
 
     @VisibleForTesting
@@ -436,7 +437,7 @@ public class RemoteInputChannel extends InputChannel {
         checkState(!isReleased.get(), "Channel released.");
         checkPartitionRequestQueueInitialized();
 
-        if (initialCredit == 0) {
+        if (getNumExclusiveBuffers() == 0) {
             // this unannounced credit can be a positive value because credit assignment and the
             // increase of this value is not an atomic operation and as a result, this unannounced
             // credit value can be get increased even after this channel has been blocked and all
@@ -459,7 +460,7 @@ public class RemoteInputChannel extends InputChannel {
     }
 
     private void onBlockingUpstream() {
-        if (initialCredit == 0) {
+        if (getNumExclusiveBuffers() == 0) {
             // release the allocated floating buffers so that they can be used by other channels if
             // no exclusive buffer is configured, it is important because a blocked channel can not
             // transmit any data so the allocated floating buffers can not be recycled, as a result,
@@ -514,19 +515,21 @@ public class RemoteInputChannel extends InputChannel {
 
     public int unsynchronizedGetExclusiveBuffersUsed() {
         return Math.max(
-                0, initialCredit - bufferManager.unsynchronizedGetAvailableExclusiveBuffers());
+                0,
+                getNumExclusiveBuffers()
+                        - bufferManager.unsynchronizedGetAvailableExclusiveBuffers());
     }
 
     public int unsynchronizedGetFloatingBuffersAvailable() {
         return Math.max(0, bufferManager.unsynchronizedGetFloatingBuffersAvailable());
     }
 
-    public InputChannelID getInputChannelId() {
-        return id;
+    public int getNumExclusiveBuffers() {
+        return bufferManager.getNumExclusiveBuffers();
     }
 
-    public int getInitialCredit() {
-        return initialCredit;
+    public InputChannelID getInputChannelId() {
+        return id;
     }
 
     public BufferProvider getBufferProvider() throws IOException {
@@ -550,13 +553,14 @@ public class RemoteInputChannel extends InputChannel {
 
     /**
      * Receives the backlog from the producer's buffer response. If the number of available buffers
-     * is less than backlog + initialCredit, it will request floating buffers from the buffer
+     * is less than backlog + numExclusiveBuffers, it will request floating buffers from the buffer
      * manager, and then notify unannounced credits to the producer.
      *
      * @param backlog The number of unsent buffers in the producer's sub partition.
      */
     public void onSenderBacklog(int backlog) throws IOException {
-        notifyBufferAvailable(bufferManager.requestFloatingBuffers(backlog + initialCredit));
+        notifyBufferAvailable(
+                bufferManager.requestFloatingBuffers(backlog + getNumExclusiveBuffers()));
     }
 
     /**

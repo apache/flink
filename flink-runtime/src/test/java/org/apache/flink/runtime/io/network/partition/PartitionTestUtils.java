@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -69,6 +70,21 @@ public enum PartitionTestUtils {
         return new ResultPartitionBuilder()
                 .setResultPartitionType(type)
                 .setFileChannelManager(channelManager)
+                .setBlockingShuffleCompressionEnabled(compressionEnabled)
+                .setNetworkBufferSize(networkBufferSize)
+                .build();
+    }
+
+    public static ResultPartition createPartition(
+            ResultPartitionType type,
+            FileChannelManager channelManager,
+            NetworkBufferPool networkBufferPool,
+            boolean compressionEnabled,
+            int networkBufferSize) {
+        return new ResultPartitionBuilder()
+                .setResultPartitionType(type)
+                .setFileChannelManager(channelManager)
+                .setNetworkBufferPool(networkBufferPool)
                 .setBlockingShuffleCompressionEnabled(compressionEnabled)
                 .setNetworkBufferSize(networkBufferSize)
                 .build();

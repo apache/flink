@@ -211,7 +211,7 @@ public class SequentialChannelStateReaderImplTest {
                                     .setSingleInputGateIndex(i)
                                     .setBufferPoolFactory(
                                             networkBufferPool.createBufferPool(
-                                                    1, 1, buffersPerChannel))
+                                                    1, 1, parLevel * buffersPerChannel))
                                     .setSegmentProvider(networkBufferPool)
                                     .setChannelFactory(
                                             (builder, gate) ->

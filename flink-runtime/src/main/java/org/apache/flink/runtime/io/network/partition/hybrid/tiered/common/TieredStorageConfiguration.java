@@ -39,6 +39,8 @@ public class TieredStorageConfiguration {
 
     private static final int DEFAULT_TIERED_STORAGE_BUFFER_SIZE = 32 * 1024;
 
+    private static final int DEFAULT_MIN_BUFFERS_PER_GATE = 2;
+
     private static final int DEFAULT_MEMORY_TIER_EXCLUSIVE_BUFFERS = 100;
 
     private static final int DEFAULT_DISK_TIER_EXCLUSIVE_BUFFERS = 1;
@@ -73,6 +75,8 @@ public class TieredStorageConfiguration {
 
     private final int tieredStorageBufferSize;
 
+    private final int minBuffersPerGate;
+
     private final int memoryTierExclusiveBuffers;
 
     private final int diskTierExclusiveBuffers;
@@ -100,6 +104,7 @@ public class TieredStorageConfiguration {
     public TieredStorageConfiguration(
             String remoteStorageBasePath,
             int tieredStorageBufferSize,
+            int minBuffersPerGate,
             int memoryTierExclusiveBuffers,
             int diskTierExclusiveBuffers,
             int remoteTierExclusiveBuffers,
@@ -114,6 +119,7 @@ public class TieredStorageConfiguration {
             List<Integer> tierExclusiveBuffers) {
         this.remoteStorageBasePath = remoteStorageBasePath;
         this.tieredStorageBufferSize = tieredStorageBufferSize;
+        this.minBuffersPerGate = minBuffersPerGate;
         this.memoryTierExclusiveBuffers = memoryTierExclusiveBuffers;
         this.diskTierExclusiveBuffers = diskTierExclusiveBuffers;
         this.remoteTierExclusiveBuffers = remoteTierExclusiveBuffers;
@@ -155,6 +161,15 @@ public class TieredStorageConfiguration {
      */
     public int getTieredStorageBufferSize() {
         return tieredStorageBufferSize;
+    }
+
+    /**
+     * Get the number of minimum buffers per gate.
+     *
+     * @return the buffer number.
+     */
+    public int getMinBuffersPerGate() {
+        return minBuffersPerGate;
     }
 
     /**
@@ -288,6 +303,8 @@ public class TieredStorageConfiguration {
 
         private int tieredStorageBufferSize = DEFAULT_TIERED_STORAGE_BUFFER_SIZE;
 
+        private int minBuffersPerGate = DEFAULT_MIN_BUFFERS_PER_GATE;
+
         private int memoryTierExclusiveBuffers = DEFAULT_MEMORY_TIER_EXCLUSIVE_BUFFERS;
 
         private int diskTierExclusiveBuffers = DEFAULT_DISK_TIER_EXCLUSIVE_BUFFERS;
@@ -409,6 +426,7 @@ public class TieredStorageConfiguration {
             return new TieredStorageConfiguration(
                     remoteStorageBasePath,
                     tieredStorageBufferSize,
+                    minBuffersPerGate,
                     memoryTierExclusiveBuffers,
                     diskTierExclusiveBuffers,
                     remoteTierExclusiveBuffers,

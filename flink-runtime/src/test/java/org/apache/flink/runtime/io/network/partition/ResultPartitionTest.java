@@ -292,10 +292,12 @@ class ResultPartitionTest {
         try {
             resultPartition.setup();
 
-            resultPartition.getBufferPool().setNumBuffers(2);
+            resultPartition.getBufferPool().setNumBuffers(4);
 
             assertThat(resultPartition.getAvailableFuture()).isDone();
 
+            resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
+            resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
             resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
             resultPartition.emitRecord(ByteBuffer.allocate(bufferSize), 0);
             assertThat(resultPartition.getAvailableFuture()).isNotDone();

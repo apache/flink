@@ -20,6 +20,9 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageConfiguration;
+
+import javax.annotation.Nullable;
 
 import java.util.Optional;
 
@@ -32,17 +35,14 @@ public class InputGateSpecUtils {
 
     public static final int DEFAULT_MAX_REQUIRED_BUFFERS_PER_GATE_FOR_STREAM = Integer.MAX_VALUE;
 
-    // Temporarily declare the default value here, it would be moved to the configuration class
-    // later.
-    private static final int DEFAULT_MIN_BUFFERS_PER_GATE = 2;
-
     public static GateBuffersSpec createGateBuffersSpec(
             Optional<Integer> configuredMaxRequiredBuffersPerGate,
             int configuredNetworkBuffersPerChannel,
             int configuredFloatingNetworkBuffersPerGate,
             ResultPartitionType partitionType,
             int numInputChannels,
-            boolean enableTieredStorage) {
+            @Nullable TieredStorageConfiguration tieredStorageConfiguration) {
+        boolean enableTieredStorage = tieredStorageConfiguration != null;
         int maxRequiredBuffersThresholdPerGate =
                 getEffectiveMaxRequiredBuffersPerGate(
                         partitionType, configuredMaxRequiredBuffersPerGate, enableTieredStorage);
@@ -63,7 +63,7 @@ public class InputGateSpecUtils {
                         expectedBuffersPerGate);
         int minBuffersPerGate =
                 partitionType.isHybridResultPartition() && enableTieredStorage
-                        ? DEFAULT_MIN_BUFFERS_PER_GATE
+                        ? tieredStorageConfiguration.getMinBuffersPerGate()
                         : expectedBuffersPerGate;
         expectedBuffersPerGate = Math.max(minBuffersPerGate, expectedBuffersPerGate);
 
@@ -101,11 +101,13 @@ public class InputGateSpecUtils {
             int configuredNetworkBuffersPerChannel,
             int numInputChannels,
             int requiredBuffersPerGate) {
-        checkArgument(numInputChannels > 0, "Must be positive.");
         checkArgument(requiredBuffersPerGate >= 1, "Require at least 1 buffer per gate.");
-        return Math.min(
-                configuredNetworkBuffersPerChannel,
-                (requiredBuffersPerGate - 1) / numInputChannels);
+
+        return numInputChannels == 0
+                ? 0
+                : Math.min(
+                        configuredNetworkBuffersPerChannel,
+                        (requiredBuffersPerGate - 1) / numInputChannels);
     }
 
     private static int getExpectedBuffersTargetPerGate(
