@@ -51,8 +51,8 @@ public class MatchRecognizeTestPrograms {
 
     static final Row[] COMPLEX_DATA2 = {Row.of("BETA", 7L, 22, 4)};
 
-    static final TableTestProgram SIMPLE_MATCH =
-            TableTestProgram.of("simple-match", "simple match recognize test")
+    static final TableTestProgram MATCH_SIMPLE =
+            TableTestProgram.of("match-simple", "simple match recognize test")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
                                     .addSchema(
@@ -83,8 +83,8 @@ public class MatchRecognizeTestPrograms {
                                     + "     ) AS T")
                     .build();
 
-    static final TableTestProgram COMPLEX_MATCH =
-            TableTestProgram.of("complex-match", "complex match recognize test")
+    static final TableTestProgram MATCH_COMPLEX =
+            TableTestProgram.of("match-complex", "complex match recognize test")
                     .setupTableSource(
                             SourceTestStep.newBuilder("MyTable")
                                     .addSchema(
@@ -157,8 +157,8 @@ public class MatchRecognizeTestPrograms {
                     .producedAfterRestore(AFTER_DATA)
                     .build();
 
-    static final TableTestProgram ORDER_BY_EVENT_TIME_MATCH =
-            TableTestProgram.of("order-by-event-time-match", "complex match recognize test")
+    static final TableTestProgram MATCH_ORDER_BY_EVENT_TIME =
+            TableTestProgram.of("match-order-by-event-time", "complex match recognize test")
                     .setupTableSource(SOURCE)
                     .setupTableSink(
                             SinkTestStep.newBuilder("MySink")
@@ -169,8 +169,8 @@ public class MatchRecognizeTestPrograms {
                     .runSql(getEventTimeSql("ORDER BY rowtime"))
                     .build();
 
-    static final TableTestProgram ORDER_BY_INT_COLUMN_MATCH =
-            TableTestProgram.of("order-by-int-column-match", "complex match recognize test")
+    static final TableTestProgram MATCH_ORDER_BY_INT_COLUMN =
+            TableTestProgram.of("match-order-by-int-column", "complex match recognize test")
                     .setupTableSource(SOURCE)
                     .setupTableSink(
                             SinkTestStep.newBuilder("MySink")
@@ -199,25 +199,25 @@ public class MatchRecognizeTestPrograms {
         return String.format(sql, orderByClause);
     }
 
-    static final TableTestProgram SKIP_TO_FIRST =
+    static final TableTestProgram MATCH_SKIP_TO_FIRST =
             getSkipTestProgram(
-                    "skip-to-first",
+                    "match-skip-to-first",
                     "skip to first match recognize test",
                     "AFTER MATCH SKIP TO FIRST B",
                     new Row[] {Row.of(1L, 100, 106), Row.of(1L, 105, 107), Row.of(1L, 101, 101)},
                     new Row[] {Row.of(1L, 100, 111)});
 
-    static final TableTestProgram SKIP_TO_LAST =
+    static final TableTestProgram MATCH_SKIP_TO_LAST =
             getSkipTestProgram(
-                    "skip-to-last",
+                    "match-skip-to-last",
                     "skip to last match recognize test",
                     "AFTER MATCH SKIP TO LAST B",
                     new Row[] {Row.of(1L, 100, 106), Row.of(1L, 105, 107), Row.of(1L, 101, 101)},
                     new Row[] {Row.of(1L, 100, 111)});
 
-    static final TableTestProgram SKIP_TO_NEXT_ROW =
+    static final TableTestProgram MATCH_SKIP_TO_NEXT_ROW =
             getSkipTestProgram(
-                    "skip-to-next-row",
+                    "match-skip-to-next-row",
                     "skip to next row match recognize test",
                     "AFTER MATCH SKIP TO NEXT ROW",
                     new Row[] {
@@ -231,9 +231,9 @@ public class MatchRecognizeTestPrograms {
                     },
                     new Row[] {Row.of(1L, 100, 111), Row.of(1L, 110, 111), Row.of(1L, 111, 111)});
 
-    static final TableTestProgram SKIP_PAST_LAST_ROW =
+    static final TableTestProgram MATCH_SKIP_PAST_LAST_ROW =
             getSkipTestProgram(
-                    "skip-past-last-row",
+                    "match-skip-past-last-row",
                     "skip past last row match recognize test",
                     "AFTER MATCH SKIP PAST LAST ROW",
                     new Row[] {Row.of(1L, 100, 106), Row.of(1L, 107, 107)},

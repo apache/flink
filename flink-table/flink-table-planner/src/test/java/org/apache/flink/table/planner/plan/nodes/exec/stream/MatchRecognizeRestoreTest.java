@@ -34,13 +34,13 @@ public class MatchRecognizeRestoreTest extends RestoreTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return Arrays.asList(
-                MatchRecognizeTestPrograms.SIMPLE_MATCH,
-                MatchRecognizeTestPrograms.COMPLEX_MATCH,
-                MatchRecognizeTestPrograms.ORDER_BY_EVENT_TIME_MATCH,
-                MatchRecognizeTestPrograms.ORDER_BY_INT_COLUMN_MATCH,
-                MatchRecognizeTestPrograms.SKIP_TO_FIRST,
-                MatchRecognizeTestPrograms.SKIP_TO_LAST,
-                MatchRecognizeTestPrograms.SKIP_TO_NEXT_ROW,
-                MatchRecognizeTestPrograms.SKIP_PAST_LAST_ROW);
+                MatchRecognizeTestPrograms.MATCH_SIMPLE,
+                MatchRecognizeTestPrograms.MATCH_COMPLEX,
+                MatchRecognizeTestPrograms.MATCH_ORDER_BY_EVENT_TIME,
+                MatchRecognizeTestPrograms.MATCH_ORDER_BY_INT_COLUMN,
+                MatchRecognizeTestPrograms.MATCH_SKIP_TO_FIRST,
+                MatchRecognizeTestPrograms.MATCH_SKIP_TO_LAST,
+                MatchRecognizeTestPrograms.MATCH_SKIP_TO_NEXT_ROW,
+                MatchRecognizeTestPrograms.MATCH_SKIP_PAST_LAST_ROW);
     }
 }
