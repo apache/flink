@@ -19,10 +19,13 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.io.network.TaskEventPublisher;
+import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
+
+import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -33,6 +36,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class LocalRecoveredInputChannel extends RecoveredInputChannel {
     private final ResultPartitionManager partitionManager;
     private final TaskEventPublisher taskEventPublisher;
+    private boolean exclusiveBuffersAssigned;
 
     LocalRecoveredInputChannel(
             SingleInputGate inputGate,
@@ -58,6 +62,7 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
 
         this.partitionManager = checkNotNull(partitionManager);
         this.taskEventPublisher = checkNotNull(taskEventPublisher);
+        this.bufferManager = new BufferManager(inputGate.getMemorySegmentProvider(), this, 0);
     }
 
     @Override
@@ -74,5 +79,15 @@ public class LocalRecoveredInputChannel extends RecoveredInputChannel {
                 numBytesIn,
                 numBuffersIn,
                 channelStateWriter);
+    }
+
+    @Override
+    public Buffer requestBufferBlocking() throws InterruptedException, IOException {
+        // not in setup to avoid assigning buffers unnecessarily if there is no state
+        if (!exclusiveBuffersAssigned) {
+            bufferManager.requestExclusiveBuffersFromGlobal(networkBuffersPerChannel);
+            exclusiveBuffersAssigned = true;
+        }
+        return super.requestBufferBlocking();
     }
 }

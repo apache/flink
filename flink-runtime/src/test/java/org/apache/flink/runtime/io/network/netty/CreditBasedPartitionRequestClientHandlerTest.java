@@ -31,6 +31,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.io.network.buffer.TestingBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.AddCredit;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.CloseRequest;
@@ -259,7 +260,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
         inputGate.setInputChannels(inputChannel);
 
         try {
-            BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8, 8);
+            BufferPool bufferPool =
+                    networkBufferPool.createBufferPool(numBuffers, numBuffers, numBuffers);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
@@ -392,14 +394,16 @@ class CreditBasedPartitionRequestClientHandlerTest {
                         mock(ConnectionID.class),
                         mock(PartitionRequestClientFactory.class));
 
-        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
+        final int numBuffers = 10;
+        final NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, 32);
         final SingleInputGate inputGate = createSingleInputGate(2, networkBufferPool);
         final RemoteInputChannel[] inputChannels = new RemoteInputChannel[2];
         inputChannels[0] = createRemoteInputChannel(inputGate, client);
         inputChannels[1] = createRemoteInputChannel(inputGate, client);
         try {
             inputGate.setInputChannels(inputChannels);
-            final BufferPool bufferPool = networkBufferPool.createBufferPool(6, 6, 6);
+            final BufferPool bufferPool =
+                    networkBufferPool.createBufferPool(numBuffers, numBuffers, numBuffers);
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
@@ -588,6 +592,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
         final String expectedMessage = "test exception on buffer";
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
         final SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+        inputGate.setBufferPool(new TestingBufferPool());
         final RemoteInputChannel inputChannel =
                 new TestRemoteInputChannelForError(inputGate, expectedMessage);
         final CreditBasedPartitionRequestClientHandler handler =
@@ -595,7 +600,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
 
         try {
             inputGate.setInputChannels(inputChannel);
-            inputGate.setup();
+            inputGate.setupChannels();
             inputGate.requestPartitions();
             handler.addInputChannel(inputChannel);
 
@@ -717,12 +722,16 @@ class CreditBasedPartitionRequestClientHandlerTest {
             boolean isRemoved, boolean readBeforeReleasingOrRemoving) throws Exception {
 
         int bufferSize = 1024;
+        int numBuffers = 10;
 
-        NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, bufferSize);
+        NetworkBufferPool networkBufferPool = new NetworkBufferPool(numBuffers, bufferSize);
         SingleInputGate inputGate = createSingleInputGate(1, networkBufferPool);
+        final BufferPool bufferPool =
+                networkBufferPool.createBufferPool(numBuffers, numBuffers, numBuffers);
+        inputGate.setBufferPool(bufferPool);
         RemoteInputChannel inputChannel = new InputChannelBuilder().buildRemoteChannel(inputGate);
         inputGate.setInputChannels(inputChannel);
-        inputGate.setup();
+        inputGate.setupChannels();
 
         CreditBasedPartitionRequestClientHandler handler =
                 new CreditBasedPartitionRequestClientHandler();

@@ -63,6 +63,7 @@ public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
         this.connectionId = checkNotNull(connectionId);
         this.connectionManager = checkNotNull(connectionManager);
         this.partitionRequestListenerTimeout = partitionRequestListenerTimeout;
+        this.bufferManager = new BufferManager(this, networkBuffersPerChannel);
     }
 
     @Override

@@ -213,13 +213,13 @@ public class NettyShuffleMetricFactory {
         buffersGroup.gauge(METRIC_INPUT_QUEUE_LENGTH, new InputBuffersGauge(inputGates));
         buffersGroup.gauge(METRIC_INPUT_QUEUE_SIZE, new InputBuffersSizeGauge(inputGates));
 
-        FloatingBuffersUsageGauge floatingBuffersUsageGauge =
-                new FloatingBuffersUsageGauge(inputGates);
+        CreditBasedInputBuffersUsageGauge creditBasedInputBuffersUsageGauge =
+                new CreditBasedInputBuffersUsageGauge(inputGates);
         ExclusiveBuffersUsageGauge exclusiveBuffersUsageGauge =
                 new ExclusiveBuffersUsageGauge(inputGates);
-        CreditBasedInputBuffersUsageGauge creditBasedInputBuffersUsageGauge =
-                new CreditBasedInputBuffersUsageGauge(
-                        floatingBuffersUsageGauge, exclusiveBuffersUsageGauge, inputGates);
+        FloatingBuffersUsageGauge floatingBuffersUsageGauge =
+                new FloatingBuffersUsageGauge(
+                        inputGates, creditBasedInputBuffersUsageGauge, exclusiveBuffersUsageGauge);
         buffersGroup.gauge(METRIC_INPUT_EXCLUSIVE_BUFFERS_USAGE, exclusiveBuffersUsageGauge);
         buffersGroup.gauge(METRIC_INPUT_FLOATING_BUFFERS_USAGE, floatingBuffersUsageGauge);
         buffersGroup.gauge(METRIC_INPUT_POOL_USAGE, creditBasedInputBuffersUsageGauge);

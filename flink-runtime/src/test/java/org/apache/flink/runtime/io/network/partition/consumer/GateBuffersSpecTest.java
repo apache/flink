@@ -201,7 +201,7 @@ class GateBuffersSpecTest {
                 8,
                 partitionType,
                 numInputChannels,
-                false);
+                null);
     }
 
     private static Optional<Integer> getMaxRequiredBuffersPerGate(

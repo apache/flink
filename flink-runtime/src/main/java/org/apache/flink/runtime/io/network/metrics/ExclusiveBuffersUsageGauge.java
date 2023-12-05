@@ -47,7 +47,7 @@ public class ExclusiveBuffersUsageGauge extends AbstractBuffersUsageGauge {
         int totalExclusiveBuffers = 0;
         for (InputChannel ic : inputGate.inputChannels()) {
             if (ic instanceof RemoteInputChannel) {
-                totalExclusiveBuffers += ((RemoteInputChannel) ic).getInitialCredit();
+                totalExclusiveBuffers += ((RemoteInputChannel) ic).getNumExclusiveBuffers();
             }
         }
         return totalExclusiveBuffers;
