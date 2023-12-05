@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -43,7 +44,6 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
@@ -181,8 +181,9 @@ class StreamExecutionEnvironmentTest {
 
         List<Long> list = Arrays.asList(0L, 1L, 2L);
 
-        DataStreamSource<Long> src2 = env.generateSequence(0, 2);
-        assertThat(getFunctionFromDataSource(src2)).isInstanceOf(StatefulSequenceSource.class);
+        DataStreamSource<Long> src2 = env.fromSequence(0, 2);
+        Object generatorSource = getSourceFromStream(src2);
+        assertThat(generatorSource).isInstanceOf(NumberSequenceSource.class);
 
         DataStreamSource<Long> src3 = env.fromData(0L, 1L, 2L);
         assertThat(getSourceFromDataSourceTyped(src3)).isInstanceOf(DataGeneratorSource.class);

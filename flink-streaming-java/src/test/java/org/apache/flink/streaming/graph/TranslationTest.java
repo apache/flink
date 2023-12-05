@@ -70,7 +70,7 @@ public class TranslationTest {
 
     private static StreamExecutionEnvironment getSimpleJob() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.generateSequence(1, 10000000)
+        env.fromSequence(1, 10000000)
                 .addSink(
                         new SinkFunction<Long>() {
                             @Override

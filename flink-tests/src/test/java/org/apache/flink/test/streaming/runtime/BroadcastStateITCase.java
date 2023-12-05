@@ -69,7 +69,7 @@ public class BroadcastStateITCase extends AbstractTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final DataStream<Long> srcOne =
-                env.generateSequence(0L, 5L)
+                env.fromSequence(0L, 5L)
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<Long>() {
 
@@ -130,7 +130,7 @@ public class BroadcastStateITCase extends AbstractTestBase {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final DataStream<Long> srcOne =
-                env.generateSequence(0L, 5L)
+                env.fromSequence(0L, 5L)
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<Long>() {
 

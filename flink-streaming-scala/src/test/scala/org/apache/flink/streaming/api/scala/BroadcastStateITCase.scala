@@ -54,7 +54,7 @@ class BroadcastStateITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
 
     val srcOne = env
-      .generateSequence(0L, 5L)
+      .fromSequence(0L, 5L)
       .assignTimestampsAndWatermarks(new AssignerWithPunctuatedWatermarks[Long]() {
 
         override def extractTimestamp(element: Long, previousElementTimestamp: Long): Long =
