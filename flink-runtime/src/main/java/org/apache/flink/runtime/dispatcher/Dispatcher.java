@@ -1373,9 +1373,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         // multiple archive attempts which we currently do not support
         CompletableFuture<Acknowledge> archiveFuture =
                 archiveExecutionGraphToHistoryServer(executionGraphInfo);
-        CompletableFuture[] completableFutures = {writeFuture, archiveFuture};
-        CompletableFuture.allOf(completableFutures).join();
-        return registerGloballyTerminatedJobInJobResultStore(executionGraphInfo);
+        return archiveFuture.thenCompose(
+                ignored -> registerGloballyTerminatedJobInJobResultStore(executionGraphInfo));
     }
 
     private CompletableFuture<CleanupJobState> registerGloballyTerminatedJobInJobResultStore(
