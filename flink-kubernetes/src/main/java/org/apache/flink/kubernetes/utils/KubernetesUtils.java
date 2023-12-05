@@ -373,11 +373,14 @@ public class KubernetesUtils {
                 new Quantity(((int) (mem * memoryLimitFactor)) + Constants.RESOURCE_UNIT_MB);
 
         ResourceRequirementsBuilder resourceRequirementsBuilder =
-                new ResourceRequirementsBuilder(resourceRequirements)
+                new ResourceRequirementsBuilder()
                         .addToRequests(Constants.RESOURCE_NAME_MEMORY, memQuantity)
                         .addToRequests(Constants.RESOURCE_NAME_CPU, cpuQuantity)
                         .addToLimits(Constants.RESOURCE_NAME_MEMORY, memQuantityLimit)
                         .addToLimits(Constants.RESOURCE_NAME_CPU, cpuLimitQuantity);
+        // if podTemplate had config, podTemplate config will override.
+        resourceRequirementsBuilder.addToLimits(resourceRequirements.getLimits())
+                .addToRequests(resourceRequirements.getRequests());
 
         // Add the external resources to resource requirement.
         for (Map.Entry<String, ExternalResource> externalResource : externalResources.entrySet()) {
