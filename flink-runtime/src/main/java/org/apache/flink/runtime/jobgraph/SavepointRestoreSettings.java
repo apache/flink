@@ -60,7 +60,7 @@ public class SavepointRestoreSettings implements Serializable {
     private SavepointRestoreSettings(
             String restorePath, boolean allowNonRestoredState, RestoreMode restoreMode) {
         LOG.info("passed in restorePath: {}", restorePath);
-        if (restorePath != null && restorePath.length() == 0) {
+        if (restorePath != null) {
             LOG.info("inside if clause with restorePath: {}", restorePath);
             throw new RuntimeException(
                     "Tried to construct with non-null restorePath: " + restorePath);
