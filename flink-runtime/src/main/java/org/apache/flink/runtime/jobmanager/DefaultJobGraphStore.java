@@ -26,6 +26,7 @@ import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
@@ -224,8 +225,11 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
                     try {
                         if (executor.isPresent()) {
                             completableFuture =
-                                    jobGraphStateHandleStore.addAndLockAsync(
-                                            name, jobGraph, executor.get());
+                                    FutureUtils.runAsync(
+                                            () ->
+                                                    jobGraphStateHandleStore.addAndLock(
+                                                            name, jobGraph),
+                                            executor.get());
                         } else {
                             jobGraphStateHandleStore.addAndLock(name, jobGraph);
                             completableFuture = new CompletableFuture<Void>();
