@@ -43,7 +43,7 @@ import org.apache.flink.table.test.program.TestStep.TestKind;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.commons.collections.CollectionUtils;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
@@ -122,7 +122,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         return EnumSet.of(TestKind.SQL);
     }
 
-    @BeforeEach
+    @AfterEach
     public void clearData() {
         TestValuesTableFactory.clearAllData();
     }
@@ -224,9 +224,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         final Path savepointDirPath = getSavepointPath(program, getLatestMetadata());
         Files.createDirectories(savepointDirPath);
         Files.move(savepointPath, savepointDirPath, StandardCopyOption.ATOMIC_MOVE);
-
-        program.getSetupSinkTestSteps()
-                .forEach(s -> TestValuesTableFactory.clearLocalRawResultsObserver(s.name));
     }
 
     @ParameterizedTest

@@ -172,16 +172,13 @@ final class TestValuesRuntimeFunctions {
         localRawResultsObservers.computeIfAbsent(tableName, n -> new ArrayList<>()).add(observer);
     }
 
-    static void clearLocalRawResultsObserver(String tableName) {
-        localRawResultsObservers.remove(tableName);
-    }
-
     static void clearResults() {
         synchronized (LOCK) {
             globalRawResult.clear();
             globalUpsertResult.clear();
             globalRetractResult.clear();
             watermarkHistory.clear();
+            localRawResultsObservers.clear();
         }
     }
 
