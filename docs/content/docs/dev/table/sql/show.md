@@ -626,7 +626,7 @@ CREATE TABLE orders (
   ts TIMESTAMP(3) comment 'notice: watermark, named ''ts''.',
   ptime AS PROCTIME() comment 'notice: computed column, named ''ptime''.',
   WATERMARK FOR ts AS ts - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (order_id) NOT ENFORCED
+  CONSTRAINT `PK_order_id` PRIMARY KEY (order_id) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 );
@@ -644,7 +644,7 @@ show create table orders;
   `ts` TIMESTAMP(3) COMMENT 'notice: watermark, named ''ts''.',
   `ptime` AS PROCTIME() COMMENT 'notice: computed column, named ''ptime''.',
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`order_id`) NOT ENFORCED
+  CONSTRAINT `PK_order_id` PRIMARY KEY (`order_id`) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 )

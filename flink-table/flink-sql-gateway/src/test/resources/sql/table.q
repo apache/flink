@@ -90,7 +90,7 @@ CREATE TABLE `default_catalog`.`default_database`.`orders` (
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+  CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 )
@@ -340,7 +340,7 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+  CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
 ) WITH (
   'connector' = 'kafka',
   'scan.startup.mode' = 'earliest-offset'
@@ -368,7 +368,7 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+  CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen',
   'scan.startup.mode' = 'earliest-offset'
@@ -437,7 +437,7 @@ CREATE TABLE `default_catalog`.`default_database`.`orders2` (
   `ts` TIMESTAMP(3),
   `ptime` AS PROCTIME(),
   WATERMARK FOR `ts` AS `ts` - INTERVAL '1' SECOND,
-  CONSTRAINT `PK_3599338` PRIMARY KEY (`user`) NOT ENFORCED
+  CONSTRAINT `PK_user` PRIMARY KEY (`user`) NOT ENFORCED
 ) WITH (
   'connector' = 'datagen'
 )

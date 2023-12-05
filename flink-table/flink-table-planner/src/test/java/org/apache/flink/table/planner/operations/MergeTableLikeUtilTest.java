@@ -690,7 +690,7 @@ class MergeTableLikeUtilTest {
                         .column("one", DataTypes.INT().notNull())
                         .column("two", DataTypes.STRING().notNull())
                         .column("three", DataTypes.FLOAT())
-                        .primaryKeyNamed("PK_3531879", new String[] {"one", "two"})
+                        .primaryKeyNamed("PK_one_two", new String[] {"one", "two"})
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
@@ -746,7 +746,7 @@ class MergeTableLikeUtilTest {
                         .column("one", DataTypes.INT().notNull())
                         .column("two", DataTypes.STRING().notNull())
                         .column("three", DataTypes.FLOAT())
-                        .primaryKeyNamed("PK_3531879", new String[] {"one", "two"})
+                        .primaryKeyNamed("PK_one_two", new String[] {"one", "two"})
                         .build();
 
         assertThat(mergedSchema).isEqualTo(expectedSchema);
