@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobgraph;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,10 +61,10 @@ public class SavepointRestoreSettings implements Serializable {
     private SavepointRestoreSettings(
             String restorePath, boolean allowNonRestoredState, RestoreMode restoreMode) {
         LOG.info("passed in restorePath: {}", restorePath);
-        if (restorePath != null) {
+        if (StringUtils.isWhitespace(restorePath)) {
             LOG.info("inside if clause with restorePath: {}", restorePath);
             throw new RuntimeException(
-                    "Tried to construct with non-null restorePath: " + restorePath);
+                    "Tried to construct with whitespace restorePath: " + restorePath);
         }
         this.restorePath = restorePath;
         this.allowNonRestoredState = allowNonRestoredState;
