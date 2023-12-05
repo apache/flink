@@ -78,7 +78,7 @@ and may be removed at any point after the migration period has passed.
 {{< label Example >}}
 Assuming a release sequence of 1.18, 1.19, 1.20, 2.0, 2.1, ..., 3.0,
 - if a `Public` API is deprecated in 1.18, it will not be removed until 2.0.
-- if a `Public` API is deprecated in 1.20, the source code will be kept in 2.0 because the migration period is 2 minor releases. This means the source code will be removed in 3.0 at the earliest.
+- if a `Public` API is deprecated in 1.20, the source code will be kept in 2.0 because the migration period is 2 minor releases. Also, because a `Public` API must maintain source compatibility throughout a major version, the source code will be kept for all the 2.x versions and removed in 3.0 at the earliest.
 - if a `PublicEvolving` API is deprecated in 1.18, it will be removed in 1.20 at the earliest. 
 - if a `PublicEvolving` API is deprecated in 1.20, the source code will be kept in 2.0 because the migration period is 1 minor releases. The source code may be removed in 2.1 at the earliest.
 - if an `Experimental` API is deprecated in 1.18.0, the source code will be kept for 1.18.1 and removed in 1.18.2 at the earliest. Also, the source code can be removed in 1.19.0.  
