@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Callable;
@@ -361,7 +362,7 @@ public class HybridSourceSplitEnumerator
             }
             Integer lastIndex = null;
             for (Integer sourceIndex : readerSourceIndex.values()) {
-                if (lastIndex != null && lastIndex != sourceIndex) {
+                if (lastIndex != null && !lastIndex.equals(sourceIndex)) {
                     return filterRegisteredReaders(readers);
                 }
                 lastIndex = sourceIndex;
@@ -372,7 +373,7 @@ public class HybridSourceSplitEnumerator
         private Map<Integer, ReaderInfo> filterRegisteredReaders(Map<Integer, ReaderInfo> readers) {
             Map<Integer, ReaderInfo> readersForSource = new HashMap<>(readers.size());
             for (Map.Entry<Integer, ReaderInfo> e : readers.entrySet()) {
-                if (readerSourceIndex.get(e.getKey()) == (Integer) sourceIndex) {
+                if (Objects.equals(readerSourceIndex.get(e.getKey()), sourceIndex)) {
                     readersForSource.put(e.getKey(), e.getValue());
                 }
             }
