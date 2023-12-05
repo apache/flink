@@ -277,7 +277,7 @@
             } ],
             "watermarkSpecs" : [ ],
             "primaryKey" : {
-              "name" : "PK_-309474034",
+              "name" : "PK_product",
               "type" : "PRIMARY_KEY",
               "columns" : [ "product" ]
             }

@@ -158,7 +158,7 @@
               }
             } ],
             "primaryKey" : {
-              "name" : "PK_575402032",
+              "name" : "PK_currency",
               "type" : "PRIMARY_KEY",
               "columns" : [ "currency" ]
             }

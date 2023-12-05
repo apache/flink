@@ -23,7 +23,7 @@
             } ],
             "watermarkSpecs" : [ ],
             "primaryKey" : {
-              "name" : "PK_4066",
+              "name" : "PK_a_b",
               "type" : "PRIMARY_KEY",
               "columns" : [ "a", "b" ]
             }

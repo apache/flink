@@ -23,7 +23,7 @@
             } ],
             "watermarkSpecs" : [ ],
             "primaryKey" : {
-              "name" : "PK_-147132882",
+              "name" : "PK_user_id",
               "type" : "PRIMARY_KEY",
               "columns" : [ "user_id" ]
             }
@@ -104,7 +104,7 @@
             } ],
             "watermarkSpecs" : [ ],
             "primaryKey" : {
-              "name" : "PK_96619451",
+              "name" : "PK_email",
               "type" : "PRIMARY_KEY",
               "columns" : [ "email" ]
             }
