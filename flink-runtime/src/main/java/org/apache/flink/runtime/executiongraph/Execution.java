@@ -60,8 +60,6 @@ import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
-
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
