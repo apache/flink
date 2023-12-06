@@ -26,12 +26,14 @@ import org.apache.flink.table.planner.runtime.stream.FiniteTestSource;
 import org.apache.flink.table.planner.runtime.stream.FsStreamingSinkITCaseBase;
 import org.apache.flink.table.planner.runtime.utils.TestSinkUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.parquet.Strings;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -56,17 +58,15 @@ import static org.apache.flink.formats.parquet.ParquetFileFormatFactory.WRITE_IN
 import static org.junit.Assert.assertEquals;
 
 /** Test int64 timestamp. */
-@RunWith(Parameterized.class)
+@ExtendWith(ParameterizedTestExtension.class)
 public class ParquetTimestampITCase extends FsStreamingSinkITCaseBase {
-    @Parameterized.Parameter public static boolean useInt64;
+    @Parameter public static boolean useInt64;
 
-    @Parameterized.Parameter(1)
-    public static String timeunit;
+    @Parameter public static String timeunit;
 
-    @Parameterized.Parameter(2)
-    public static boolean timezone;
+    @Parameter public static boolean timezone;
 
-    @Parameterized.Parameters(name = "useInt64 = {0}, timeunit = {1}, timezone = {2}")
+    @Parameters(name = "useInt64 = {0}, timeunit = {1}, timezone = {2}")
     public static Object[] parameters() {
         return new Object[][] {
             new Object[] {false, "millis", false},
