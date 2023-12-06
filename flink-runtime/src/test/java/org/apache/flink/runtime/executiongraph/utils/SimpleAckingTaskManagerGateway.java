@@ -115,12 +115,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-        submitConsumer.accept(tdd);
-        return CompletableFuture.completedFuture(Acknowledge.get());
-    }
-
-    @Override
     public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
             Collection<TaskDeploymentDescriptor> tdds, Time timeout) {
         return batchSubmitFunction.apply(tdds);

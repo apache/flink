@@ -49,15 +49,6 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
     String getAddress();
 
     /**
-     * Submit a task to the task manager.
-     *
-     * @param tdd describing the task to submit
-     * @param timeout of the submit operation
-     * @return Future acknowledge of the successful operation
-     */
-    CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout);
-
-    /**
      * Submit list of task to the task manager.
      *
      * @param tdds descriptor list of tasks to submit

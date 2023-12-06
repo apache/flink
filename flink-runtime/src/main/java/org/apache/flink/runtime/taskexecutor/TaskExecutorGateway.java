@@ -78,17 +78,6 @@ public interface TaskExecutorGateway
             @RpcTimeout Time timeout);
 
     /**
-     * Submit a {@link Task} to the {@link TaskExecutor}.
-     *
-     * @param tdd describing the task to submit
-     * @param jobMasterId identifying the submitting JobMaster
-     * @param timeout of the submit operation
-     * @return Future acknowledge of the successful operation
-     */
-    CompletableFuture<Acknowledge> submitTask(
-            TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, @RpcTimeout Time timeout);
-
-    /**
      * Submit list of {@link Task} to the {@link TaskExecutor}.
      *
      * @param tdds descriptor list of tasks to submit

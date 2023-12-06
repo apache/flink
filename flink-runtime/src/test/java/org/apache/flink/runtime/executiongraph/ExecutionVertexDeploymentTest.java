@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
@@ -251,13 +252,6 @@ public class ExecutionVertexDeploymentTest {
 
     public static class SubmitFailingSimpleAckingTaskManagerGateway
             extends SimpleAckingTaskManagerGateway {
-        @Override
-        public CompletableFuture<Acknowledge> submitTask(
-                TaskDeploymentDescriptor tdd, Time timeout) {
-            CompletableFuture<Acknowledge> future = new CompletableFuture<>();
-            future.completeExceptionally(new Exception(ERROR_MESSAGE));
-            return future;
-        }
 
         @Override
         public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
@@ -272,11 +266,6 @@ public class ExecutionVertexDeploymentTest {
 
     private static class SubmitBlockingSimpleAckingTaskManagerGateway
             extends SimpleAckingTaskManagerGateway {
-        @Override
-        public CompletableFuture<Acknowledge> submitTask(
-                TaskDeploymentDescriptor tdd, Time timeout) {
-            return new CompletableFuture<>();
-        }
 
         @Override
         public CompletableFuture<Collection<TaskDeployResult>> submitTasks(

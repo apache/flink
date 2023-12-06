@@ -1572,7 +1572,9 @@ class TaskExecutorTest {
                 TaskDeploymentDescriptorBuilder.newBuilder(jobId, invokableClass)
                         .setAllocationId(allocationId)
                         .build();
-        tmGateway.submitTask(tdd, jobMasterGateway.getFencingToken(), timeout).join();
+        tmGateway
+                .submitTasks(Lists.newArrayList(tdd), jobMasterGateway.getFencingToken(), timeout)
+                .join();
         return tdd.getExecutionAttemptId();
     }
 

@@ -58,6 +58,7 @@ import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Reference;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.FunctionUtils;
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -188,7 +189,10 @@ class TaskExecutorSlotLifetimeTest {
             slotsOfferedLatch.await();
 
             taskExecutorGateway
-                    .submitTask(tdd, jobMasterGateway.getFencingToken(), RpcUtils.INF_TIMEOUT)
+                    .submitTasks(
+                            Lists.newArrayList(tdd),
+                            jobMasterGateway.getFencingToken(),
+                            RpcUtils.INF_TIMEOUT)
                     .join();
 
             final ClassLoader firstClassLoader = UserClassLoaderExtractingInvokable.take();
@@ -201,7 +205,10 @@ class TaskExecutorSlotLifetimeTest {
 
             // check that a second task will re-use the same class loader
             taskExecutorGateway
-                    .submitTask(tdd, jobMasterGateway.getFencingToken(), RpcUtils.INF_TIMEOUT)
+                    .submitTasks(
+                            Lists.newArrayList(tdd),
+                            jobMasterGateway.getFencingToken(),
+                            RpcUtils.INF_TIMEOUT)
                     .join();
 
             final ClassLoader secondClassLoader = UserClassLoaderExtractingInvokable.take();

@@ -55,13 +55,6 @@ class InteractionsCountingTaskManagerGateway extends SimpleAckingTaskManagerGate
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-        submitTaskCount.incrementAndGet();
-        submitLatch.countDown();
-        return CompletableFuture.completedFuture(Acknowledge.get());
-    }
-
-    @Override
     public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
             Collection<TaskDeploymentDescriptor> taskDeploymentDescriptors, Time timeout) {
 

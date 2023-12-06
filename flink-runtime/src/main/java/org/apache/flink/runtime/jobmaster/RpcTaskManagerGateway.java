@@ -57,11 +57,6 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitTask(TaskDeploymentDescriptor tdd, Time timeout) {
-        return taskExecutorGateway.submitTask(tdd, jobMasterId, timeout);
-    }
-
-    @Override
     public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
             Collection<TaskDeploymentDescriptor> taskDeploymentDescriptors, Time timeout) {
         return taskExecutorGateway.submitTasks(taskDeploymentDescriptors, jobMasterId, timeout);

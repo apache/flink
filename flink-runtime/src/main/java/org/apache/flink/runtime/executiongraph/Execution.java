@@ -31,6 +31,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -60,6 +61,7 @@ import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -89,6 +91,7 @@ import static org.apache.flink.runtime.execution.ExecutionState.FINISHED;
 import static org.apache.flink.runtime.execution.ExecutionState.INITIALIZING;
 import static org.apache.flink.runtime.execution.ExecutionState.RUNNING;
 import static org.apache.flink.runtime.execution.ExecutionState.SCHEDULED;
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -643,9 +646,29 @@ public class Execution
                                         execution
                                                 .getAssignedResource()
                                                 .getTaskManagerGateway()
-                                                .submitTask(deploymentDescriptor, rpcTimeout),
+                                                .submitTasks(
+                                                        Lists.newArrayList(deploymentDescriptor),
+                                                        rpcTimeout),
                                 executor)
-                        .thenCompose(Function.identity());
+                        .thenCompose(Function.identity())
+                        .thenCompose(
+                                taskDeployResults -> {
+                                    final Optional<TaskDeployResult> taskDeployResultOptional =
+                                            taskDeployResults.stream().findAny();
+                                    checkArgument(taskDeployResultOptional.isPresent());
+                                    final TaskDeployResult taskDeployResult =
+                                            taskDeployResultOptional.get();
+                                    checkArgument(
+                                            taskDeployResult
+                                                    .getExecutionAttemptID()
+                                                    .equals(attemptId));
+                                    if (taskDeployResult.getThrowable() == null) {
+                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                    } else {
+                                        return FutureUtils.completedExceptionally(
+                                                taskDeployResult.getThrowable());
+                                    }
+                                });
             } catch (Exception e) {
                 return FutureUtils.completedExceptionally(e);
             }
