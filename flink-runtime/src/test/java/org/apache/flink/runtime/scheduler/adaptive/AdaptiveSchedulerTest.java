@@ -102,6 +102,7 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
@@ -136,6 +137,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
@@ -2150,11 +2152,17 @@ public class AdaptiveSchedulerTest {
         }
 
         @Override
-        public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
-            super.setSubmitConsumer(
-                    taskDeploymentDescriptor -> {
-                        Preconditions.checkState(submittedTasks.offer(taskDeploymentDescriptor));
-                        submitConsumer.accept(taskDeploymentDescriptor);
+        public SimpleAckingTaskManagerGateway setBatchSubmitFunction(
+                Function<
+                                List<TaskDeploymentDescriptor>,
+                                CompletableFuture<List<SerializableOptional<Throwable>>>>
+                        batchSubmitFunction) {
+            return super.setBatchSubmitFunction(
+                    tdds -> {
+                        for (TaskDeploymentDescriptor tdd : tdds) {
+                            submittedTasks.offer(tdd);
+                        }
+                        return batchSubmitFunction.apply(tdds);
                     });
         }
 
@@ -2194,7 +2202,11 @@ public class AdaptiveSchedulerTest {
         }
 
         private void initializeFunctions() {
-            setSubmitConsumer(ignored -> {});
+            setBatchSubmitFunction(
+                    ignored ->
+                            CompletableFuture.completedFuture(
+                                    Collections.singletonList(
+                                            SerializableOptional.ofNullable(null))));
             setFreeSlotFunction(
                     (allocationId, throwable) ->
                             CompletableFuture.completedFuture(Acknowledge.get()));

@@ -176,15 +176,20 @@ class DefaultExecutionGraphDeploymentTest {
                 new SimpleAckingTaskManagerGateway();
         final CompletableFuture<TaskDeploymentDescriptor> tdd = new CompletableFuture<>();
 
-        taskManagerGateway.setSubmitConsumer(
-                FunctionUtils.uncheckedConsumer(
-                        taskDeploymentDescriptor -> {
+        taskManagerGateway.setBatchSubmitFunction(
+                FunctionUtils.uncheckedFunction(
+                        taskDeploymentDescriptors -> {
+                            final TaskDeploymentDescriptor taskDeploymentDescriptor =
+                                    taskDeploymentDescriptors.get(0);
                             taskDeploymentDescriptor.loadBigData(
                                     blobCache,
                                     new NoOpGroupCache<>(),
                                     new NoOpGroupCache<>(),
                                     new NoOpGroupCache<>());
                             tdd.complete(taskDeploymentDescriptor);
+                            return CompletableFuture.completedFuture(
+                                    Collections.singletonList(
+                                            SerializableOptional.ofNullable(null)));
                         }));
 
         final LogicalSlot slot =

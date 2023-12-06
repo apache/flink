@@ -43,6 +43,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * A TaskManagerGateway that simply acks the basic operations (deploy, cancel, update) and does not
@@ -52,12 +53,18 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
     private final String address = UUID.randomUUID().toString();
 
-    private Consumer<TaskDeploymentDescriptor> submitConsumer = ignore -> {};
-
     private Function<
                     List<TaskDeploymentDescriptor>,
                     CompletableFuture<List<SerializableOptional<Throwable>>>>
-            batchSubmitFunction;
+            batchSubmitFunction =
+                    tdds ->
+                            CompletableFuture.completedFuture(
+                                    tdds.stream()
+                                            .map(
+                                                    ignore ->
+                                                            SerializableOptional.ofNullable(
+                                                                    (Throwable) null))
+                                            .collect(Collectors.toList()));
 
     private Consumer<ExecutionAttemptID> cancelConsumer = ignore -> {};
 
@@ -72,10 +79,6 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
     private TriConsumer<ExecutionAttemptID, Iterable<PartitionInfo>, Time>
             updatePartitionsConsumer = (ignore1, ignore2, ignore3) -> {};
-
-    public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
-        this.submitConsumer = submitConsumer;
-    }
 
     public void setCancelConsumer(Consumer<ExecutionAttemptID> cancelConsumer) {
         this.cancelConsumer = cancelConsumer;

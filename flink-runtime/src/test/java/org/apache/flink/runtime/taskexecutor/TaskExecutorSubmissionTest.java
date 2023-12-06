@@ -61,6 +61,7 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
+
 import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -157,7 +158,9 @@ class TaskExecutorSubmissionTest {
 
             taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Duration.ofSeconds(60));
 
-            assertThatFuture(tmGateway.submitTasks(Collections.singletonList(tdd), env.getJobMasterId(), timeout))
+            assertThatFuture(
+                            tmGateway.submitTasks(
+                                    Collections.singletonList(tdd), env.getJobMasterId(), timeout))
                     .eventuallyFailsWith(ExecutionException.class)
                     .withCauseInstanceOf(IllegalArgumentException.class);
         }

@@ -40,6 +40,7 @@ import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -47,6 +48,7 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
@@ -150,12 +152,15 @@ public class UpdatePartitionConsumersTest extends TestLogger {
                 scheduler.getExecutionVertex(new ExecutionVertexID(v4.getID(), 0));
 
         final CompletableFuture<TaskDeploymentDescriptor> ev4TddFuture = new CompletableFuture<>();
-        taskManagerGateway.setSubmitConsumer(
-                tdd -> {
+        taskManagerGateway.setBatchSubmitFunction(
+                tdds -> {
+                    final TaskDeploymentDescriptor tdd = tdds.get(0);
                     if (tdd.getExecutionAttemptId()
                             .equals(ev4.getCurrentExecutionAttempt().getAttemptId())) {
                         ev4TddFuture.complete(tdd);
                     }
+                    return CompletableFuture.completedFuture(
+                            Collections.singletonList(SerializableOptional.ofNullable(null)));
                 });
 
         scheduler.startScheduling();

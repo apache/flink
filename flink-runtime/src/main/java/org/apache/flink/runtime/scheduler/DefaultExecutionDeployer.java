@@ -38,7 +38,6 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -193,7 +192,7 @@ public class DefaultExecutionDeployer implements ExecutionDeployer {
                     executionDeployExecutorFactory.createInstance(
                             executionOperations, futureExecutor, rpcTimeout);
             propagateIfNonNull(throwable);
-            List<CompletableFuture<Void>> deployFutures = new LinkedList<>();
+            List<CompletableFuture<Void>> deployFutures = new ArrayList<>(deploymentHandles.size());
             for (final ExecutionDeploymentHandle deploymentHandle : deploymentHandles) {
                 final CompletableFuture<LogicalSlot> slotAssigned =
                         deploymentHandle.getLogicalSlotFuture();

@@ -745,34 +745,34 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                         taskManagerConfiguration.getConfiguration(),
                         jobInformation.getJobConfiguration());
 
-            final FileMergingSnapshotManager fileMergingSnapshotManager =
-                    fileMergingManager.fileMergingSnapshotManagerForJob(jobId);
+        final FileMergingSnapshotManager fileMergingSnapshotManager =
+                fileMergingManager.fileMergingSnapshotManagerForJob(jobId);
 
-            // TODO: Pass config value from user program and do overriding here.
-            final StateChangelogStorage<?> changelogStorage;
-            try {
-                changelogStorage =
-                        changelogStoragesManager.stateChangelogStorageForJob(
-                                jobId,
-                                taskManagerConfiguration.getConfiguration(),
-                                jobGroup,
-                                localStateStore.getLocalRecoveryConfig());
-            } catch (IOException e) {
-                throw new TaskSubmissionException(e);
-            }
+        // TODO: Pass config value from user program and do overriding here.
+        final StateChangelogStorage<?> changelogStorage;
+        try {
+            changelogStorage =
+                    changelogStoragesManager.stateChangelogStorageForJob(
+                            jobId,
+                            taskManagerConfiguration.getConfiguration(),
+                            jobGroup,
+                            localStateStore.getLocalRecoveryConfig());
+        } catch (IOException e) {
+            throw new TaskSubmissionException(e);
+        }
 
         final JobManagerTaskRestore taskRestore = tdd.getTaskRestore();
 
-            final TaskStateManager taskStateManager =
-                    new TaskStateManagerImpl(
-                            jobId,
-                            tdd.getExecutionAttemptId(),
-                            localStateStore,
-                            fileMergingSnapshotManager,
-                            changelogStorage,
-                            changelogStoragesManager,
-                            taskRestore,
-                            checkpointResponder);
+        final TaskStateManager taskStateManager =
+                new TaskStateManagerImpl(
+                        jobId,
+                        tdd.getExecutionAttemptId(),
+                        localStateStore,
+                        fileMergingSnapshotManager,
+                        changelogStorage,
+                        changelogStoragesManager,
+                        taskRestore,
+                        checkpointResponder);
 
         MemoryManager memoryManager;
         try {

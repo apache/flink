@@ -45,6 +45,7 @@ import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.NoOpGroupCache;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -53,9 +54,11 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -117,15 +120,20 @@ class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
                 new SimpleAckingTaskManagerGateway();
         final BlockingQueue<TaskDeploymentDescriptor> tdds =
                 new ArrayBlockingQueue<>(numberOfVertices * parallelism);
-        taskManagerGateway.setSubmitConsumer(
-                FunctionUtils.uncheckedConsumer(
-                        taskDeploymentDescriptor -> {
+        taskManagerGateway.setBatchSubmitFunction(
+                FunctionUtils.uncheckedFunction(
+                        taskDeploymentDescriptors -> {
+                            final TaskDeploymentDescriptor taskDeploymentDescriptor =
+                                    taskDeploymentDescriptors.get(0);
                             taskDeploymentDescriptor.loadBigData(
                                     blobCache,
                                     new NoOpGroupCache<>(),
                                     new NoOpGroupCache<>(),
                                     new NoOpGroupCache<>());
                             tdds.offer(taskDeploymentDescriptor);
+                            return CompletableFuture.completedFuture(
+                                    Collections.singletonList(
+                                            SerializableOptional.ofNullable(null)));
                         }));
 
         for (ExecutionJobVertex ejv : eg.getVerticesTopologically()) {
