@@ -28,6 +28,9 @@ import org.apache.flink.util.Preconditions;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /** {@link JobGraphStore} implementation for a single job. */
 public class SingleJobJobGraphStore implements JobGraphStore {
@@ -63,6 +66,12 @@ public class SingleJobJobGraphStore implements JobGraphStore {
             throw new FlinkException(
                     "Cannot put additional jobs into this submitted job graph store.");
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> putJobGraphAsync(
+            JobGraph jobGraph, Optional<Executor> ioExecutor) throws Exception {
+        return null;
     }
 
     @Override
