@@ -49,7 +49,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val unionDs = ds1.unionAll(ds2).select('c)
 
     val sink = new TestingAppendSink
-    unionDs.toDataStream(classOf[Row]).addSink(sink)
+    unionDs.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("Hi", "Hello", "Hello world", "Hi", "Hello", "Hello world")
@@ -64,7 +64,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
 
     val sink = new TestingAppendSink
-    unionDs.toDataStream(classOf[Row]).addSink(sink)
+    unionDs.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("Hi", "Hallo")

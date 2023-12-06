@@ -32,7 +32,6 @@ import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.GenericInMemoryCatalogStore;
 import org.apache.flink.table.catalog.listener.CatalogListener1;
 import org.apache.flink.table.catalog.listener.CatalogListener2;
-import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
 
@@ -66,7 +65,7 @@ class EnvironmentTest {
 
         // trigger translation
         Table table = tEnv.sqlQuery("SELECT * FROM test");
-        tEnv.toDataStream(table, Row.class);
+        tEnv.toDataStream(table);
 
         assertThat(env.getParallelism()).isEqualTo(128);
         assertThat(env.getConfig().getAutoWatermarkInterval()).isEqualTo(800);

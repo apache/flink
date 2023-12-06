@@ -561,7 +561,7 @@ class LegacyTableSinkITCase {
       .select('num, 'w.rowtime, 'w.rowtime.as('rowtime2))
 
     assertThatExceptionOfType(classOf[TableException])
-      .isThrownBy(() => r.toDataStream(classOf[Row]))
+      .isThrownBy(() => r.toDataStream)
   }
 
   @Test

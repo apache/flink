@@ -91,7 +91,7 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
     val testHarness =
-      createHarnessTesterForNoState(t1.toDataStream(classOf[Row]), "WindowTableFunction")
+      createHarnessTesterForNoState(t1.toDataStream, "WindowTableFunction")
 
     testHarness.open()
     ingestData(testHarness)
@@ -209,7 +209,7 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
     val testHarness =
-      createHarnessTesterForNoState(t1.toDataStream(classOf[Row]), "WindowTableFunction")
+      createHarnessTesterForNoState(t1.toDataStream, "WindowTableFunction")
 
     testHarness.open()
     ingestData(testHarness)
@@ -427,7 +427,7 @@ class WindowTableFunctionHarnessTest(backend: StateBackendMode, shiftTimeZone: Z
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
     val testHarness =
-      createHarnessTesterForNoState(t1.toDataStream(classOf[Row]), "WindowTableFunction")
+      createHarnessTesterForNoState(t1.toDataStream, "WindowTableFunction")
 
     testHarness.open()
     ingestData(testHarness)

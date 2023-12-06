@@ -113,7 +113,7 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testSimpleProject(): Unit = {
-    val result = tEnv.sqlQuery("SELECT a, c FROM MyTable").toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery("SELECT a, c FROM MyTable").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -145,7 +145,7 @@ class TableSourceITCase extends StreamingTestBase {
         |FROM NestedTable
       """.stripMargin
 
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -163,7 +163,7 @@ class TableSourceITCase extends StreamingTestBase {
       """
         |SELECT nestedItem.deepArray[nestedItem.deepMap['Monday']] FROM  NestedTable
         |""".stripMargin
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -175,7 +175,7 @@ class TableSourceITCase extends StreamingTestBase {
   @Test
   def testTableSourceWithFilterable(): Unit = {
     val query = "SELECT id, amount, name FROM FilterableTable WHERE amount > 4 AND price < 9"
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -188,7 +188,7 @@ class TableSourceITCase extends StreamingTestBase {
   def testTableSourceWithFunctionFilterable(): Unit = {
     val query = "SELECT id, amount, name FROM FilterableTable " +
       "WHERE amount > 4 AND price < 9 AND upper(name) = 'RECORD_5'"
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -214,7 +214,7 @@ class TableSourceITCase extends StreamingTestBase {
          |""".stripMargin
     )
 
-    val result = tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -253,7 +253,7 @@ class TableSourceITCase extends StreamingTestBase {
          |""".stripMargin
     )
 
-    val result = tEnv.sqlQuery("SELECT * FROM T").toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery("SELECT * FROM T").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -279,7 +279,7 @@ class TableSourceITCase extends StreamingTestBase {
   def testSimpleMetadataAccess(): Unit = {
     val result = tEnv
       .sqlQuery("SELECT `a`, `b`, `metadata_2` FROM MetadataTable")
-      .toDataStream(classOf[Row])
+      .toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -292,7 +292,7 @@ class TableSourceITCase extends StreamingTestBase {
   def testComplexMetadataAccess(): Unit = {
     val result = tEnv
       .sqlQuery("SELECT `a`, `other_metadata`, `b`, `metadata_2`, `computed` FROM MetadataTable")
-      .toDataStream(classOf[Row])
+      .toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -308,7 +308,7 @@ class TableSourceITCase extends StreamingTestBase {
   def testDuplicateMetadataFromSameKey(): Unit = {
     val result = tEnv
       .sqlQuery("SELECT other_metadata, other_metadata2, metadata_2 FROM MetadataTable")
-      .toDataStream(classOf[Row])
+      .toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -330,7 +330,7 @@ class TableSourceITCase extends StreamingTestBase {
         |FROM NestedTable
       """.stripMargin
 
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -376,7 +376,7 @@ class TableSourceITCase extends StreamingTestBase {
         |SELECT id, deepNested.nested1.name AS nestedName FROM NestedTable
         |   WHERE nested.`value` > 20000
     """.stripMargin
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -394,7 +394,7 @@ class TableSourceITCase extends StreamingTestBase {
         |   nestedItem.deepArray[2].`value` FROM NestedTable
         |WHERE nestedItem.deepArray[2].`value` > 1
       """.stripMargin
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -413,7 +413,7 @@ class TableSourceITCase extends StreamingTestBase {
         |WHERE nestedItem.deepMap['Monday'] = 1
       """.stripMargin
 
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()

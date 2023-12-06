@@ -68,7 +68,7 @@ class FilterableSourceITCase extends StreamingTestBase {
     val query = "SELECT * FROM MyTable WHERE a > 1"
     val expectedData = Seq("2,3,2020-11-21T21:00:05.230")
 
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink()
     result.addSink(sink)
 
@@ -108,7 +108,7 @@ class FilterableSourceITCase extends StreamingTestBase {
     val query = "SELECT * FROM MyTable WHERE a > 1"
     val expectedData = Seq("2,3,2020-11-21T21:00:05.230")
 
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink()
     result.addSink(sink)
 
@@ -148,7 +148,7 @@ class FilterableSourceITCase extends StreamingTestBase {
         .sqlQuery(
           "select a,b from TableWithWatermark WHERE LOWER(c) = 'world'"
         )
-        .toDataStream(classOf[Row])
+        .toDataStream
 
     val sink = new TestingAppendSink
     result.addSink(sink)

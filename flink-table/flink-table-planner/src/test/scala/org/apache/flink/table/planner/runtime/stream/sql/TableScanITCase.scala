@@ -41,7 +41,7 @@ class TableScanITCase extends StreamingTestBase {
     val tableName = "MyTable"
     WithoutTimeAttributesTableSource.createTemporaryTable(tEnv, tableName)
     val sqlQuery = s"SELECT * from $tableName"
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -63,7 +63,7 @@ class TableScanITCase extends StreamingTestBase {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(tableName, tableSource)
 
     val sqlQuery = s"SELECT name FROM $tableName"
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -106,7 +106,7 @@ class TableScanITCase extends StreamingTestBase {
          |FROM $tableName
          |GROUP BY TUMBLE(rowtime, INTERVAL '0.005' SECOND)
        """.stripMargin
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -144,7 +144,7 @@ class TableScanITCase extends StreamingTestBase {
 
     tEnv
       .sqlQuery(sqlQuery)
-      .toDataStream(classOf[Row])
+      .toDataStream
       // append current watermark to each row to verify that original watermarks were preserved
       .process(new ProcessFunction[Row, Row] {
 

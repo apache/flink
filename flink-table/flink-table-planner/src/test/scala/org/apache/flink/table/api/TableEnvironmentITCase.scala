@@ -202,7 +202,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     checkEmptyFile(sink1Path)
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
-    val resultSet = streamTableEnv.toDataStream(table, classOf[Row])
+    val resultSet = streamTableEnv.toDataStream(table)
     val sink = new TestingAppendSink
     resultSet.addSink(sink)
 
@@ -236,7 +236,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) {
     checkEmptyFile(sink1Path)
 
     val table = streamTableEnv.sqlQuery("select last from MyTable where id > 0")
-    val resultSet = streamTableEnv.toDataStream(table, classOf[Row])
+    val resultSet = streamTableEnv.toDataStream(table)
     val sink = new TestingAppendSink
     resultSet.addSink(sink)
 

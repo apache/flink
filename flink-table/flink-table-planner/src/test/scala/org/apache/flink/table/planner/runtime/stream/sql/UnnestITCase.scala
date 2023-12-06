@@ -51,7 +51,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, s FROM T, UNNEST(T.b) AS A (s)"
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -77,7 +77,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) AS A (s)"
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -97,7 +97,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, s, t FROM T, UNNEST(T.b) AS A (s, t) WHERE s > 13"
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -210,7 +210,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, s FROM T, UNNEST(T.c) as A (s)"
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -282,7 +282,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
       "  (SELECT a, b FROM T WHERE a < 3) as tf, " +
       "  UNNEST(tf.b) as A (x, y) " +
       "WHERE x > a"
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -305,7 +305,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     tEnv.createTemporaryView("T", t)
 
     val sqlQuery = "SELECT a, b, A._1, A._2 FROM T, UNNEST(T.b) AS A where A._1 > 13"
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -336,7 +336,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         |WHERE b2 <> '42.6'
     """.stripMargin
 
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()

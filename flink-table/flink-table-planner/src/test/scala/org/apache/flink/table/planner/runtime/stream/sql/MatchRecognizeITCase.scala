@@ -86,7 +86,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -133,7 +133,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -187,7 +187,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -247,7 +247,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
     val table = tEnv.sqlQuery(sqlQuery)
 
     val sink = new TestingAppendSink()
-    val result = table.toDataStream(classOf[Row])
+    val result = table.toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -308,7 +308,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -360,7 +360,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -424,7 +424,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -476,7 +476,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -522,7 +522,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -583,7 +583,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -627,7 +627,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -696,7 +696,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -753,7 +753,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -789,7 +789,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -847,7 +847,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
          |""".stripMargin
 
     val sink = new TestingAppendSink()
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 

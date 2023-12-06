@@ -44,7 +44,7 @@ class SetOperatorsValidationTest extends TableTestBase {
       .isThrownBy(
         () => {
           val unionDs = ds1.unionAll(ds2)
-          unionDs.toDataStream(classOf[Row]).addSink(sink)
+          unionDs.toDataStream.addSink(sink)
           env.execute()
         })
     assertThat(sink.getAppendResults.isEmpty).isTrue
@@ -67,7 +67,7 @@ class SetOperatorsValidationTest extends TableTestBase {
       .isThrownBy(
         () => {
           val unionDs = ds1.unionAll(ds2)
-          unionDs.toDataStream(classOf[Row]).addSink(sink)
+          unionDs.toDataStream.addSink(sink)
           env.execute()
         })
     assertThat(sink.getAppendResults.isEmpty).isTrue

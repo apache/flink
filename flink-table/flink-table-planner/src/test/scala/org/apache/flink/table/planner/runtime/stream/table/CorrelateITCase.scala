@@ -57,7 +57,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .joinLateral(pojoFunc0('c))
       .where('age > 20)
       .select('c, 'name, 'age)
-      .toDataStream(classOf[Row])
+      .toDataStream
 
     val sink = new TestingAppendSink
     result.addSink(sink)
@@ -101,7 +101,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
         val result = t
           .leftOuterJoinLateral(func0('c).as('s, 'l), 'a === 'l)
           .select('c, 's, 'l)
-          .toDataStream(classOf[Row])
+          .toDataStream
 
         val sink = new TestingAppendSink
         result.addSink(sink)
@@ -122,7 +122,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .joinLateral(func0('c).as('d, 'e))
       .where(Func18('d, "J"))
       .select('c, 'd, 'e)
-      .toDataStream(classOf[Row])
+      .toDataStream
 
     val sink = new TestingAppendSink
     result.addSink(sink)
@@ -144,7 +144,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('a, 's)
 
     val sink = new TestingAppendSink
-    result.toDataStream(classOf[Row]).addSink(sink)
+    result.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("3,Hello", "3,world")
@@ -167,7 +167,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('a, 's)
 
     val sink = new TestingAppendSink
-    result.toDataStream(classOf[Row]).addSink(sink)
+    result.toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -190,7 +190,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('c, 'd, 'e, 'f, 'g)
       .joinLateral(func32('c).as('h, 'i))
       .select('c, 'd, 'f, 'h, 'e, 'g, 'i)
-      .toDataStream(classOf[Row])
+      .toDataStream
 
     val sink = new TestingAppendSink
     result.addSink(sink)
@@ -218,7 +218,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .joinLateral(varArgsFunc0("1", "2", 'c))
 
     val sink = new TestingAppendSink
-    result.toDataStream(classOf[Row]).addSink(sink)
+    result.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -243,7 +243,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .joinLateral(varArgsFunc0("1", "2"))
 
     val sink1 = new TestingAppendSink
-    result1.toDataStream(classOf[Row]).addSink(sink1)
+    result1.toDataStream.addSink(sink1)
     env.execute()
 
     val expected1 = mutable.MutableList(
@@ -264,7 +264,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .joinLateral(varArgsFunc0())
 
     val sink2 = new TestingAppendSink
-    result2.toDataStream(classOf[Row]).addSink(sink2)
+    result2.toDataStream.addSink(sink2)
     env.execute()
     assertThat(sink2.getAppendResults.isEmpty).isTrue()
   }
@@ -286,7 +286,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('c, 'f2)
 
     val sink = new TestingAppendSink
-    result.toDataStream(classOf[Row]).addSink(sink)
+    result.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,2,3,3", "1,2,3,3")
@@ -303,7 +303,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .joinLateral(func0('c).as('d, 'e))
       .where(func26('e))
       .select('c, 'd, 'e)
-      .toDataStream(classOf[Row])
+      .toDataStream
 
     val sink = new TestingAppendSink
     result.addSink(sink)
@@ -328,7 +328,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .joinLateral(func0('c).as('d, 'e))
       .where(dateFormat(currentTimestamp(), "yyyyMMdd") === 'd)
       .select('c, 'd, 'e)
-      .toDataStream(classOf[Row])
+      .toDataStream
 
     val sink = new TestingAppendSink
     result.addSink(sink)
@@ -350,7 +350,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('f0, 'f1)
 
     val sink = new TestingAppendSink
-    ds.toDataStream(classOf[Row]).addSink(sink)
+    ds.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("Jack,4", "22,2", "John,4", "19,2", "Anna,4", "44,2")
@@ -374,7 +374,7 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 
     val sink = new TestingAppendSink
 
-    result.toDataStream(classOf[Row]).addSink(sink)
+    result.toDataStream.addSink(sink)
     env.execute()
   }
 

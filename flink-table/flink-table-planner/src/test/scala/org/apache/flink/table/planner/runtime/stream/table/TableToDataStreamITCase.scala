@@ -62,7 +62,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       """.stripMargin
 
     tEnv.executeSql(sourceDDL)
-    val dataStream = tEnv.sqlQuery("SELECT a, ts FROM src").toDataStream(classOf[Row])
+    val dataStream = tEnv.sqlQuery("SELECT a, ts FROM src").toDataStream
 
     val expected = List(
       "+I[A, 1970-01-01T00:00:01], 1000",
@@ -157,7 +157,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
           | FROM t1
       """.stripMargin
       )
-      .toDataStream(classOf[Row])
+      .toDataStream
 
     val expected = List(
       "+I[A_, 1, 1970-01-01T00:00:01], 1000",
@@ -278,7 +278,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
       """.stripMargin
 
     tEnv.executeSql(sourceDDL)
-    val dataStream = tEnv.sqlQuery("SELECT a, ts, proctime FROM src").toDataStream(classOf[Row])
+    val dataStream = tEnv.sqlQuery("SELECT a, ts, proctime FROM src").toDataStream
 
     val expected =
       "ROW<`a` STRING, `ts` TIMESTAMP(3), `proctime` TIMESTAMP_LTZ(3) NOT NULL> NOT NULL(org.apache.flink.types.Row, org.apache.flink.table.runtime.typeutils.ExternalSerializer)"
@@ -303,7 +303,7 @@ final class TableToDataStreamITCase extends StreamingTestBase {
           | FROM t1
       """.stripMargin
       )
-      .toDataStream(classOf[Row])
+      .toDataStream
 
     val expected =
       "ROW<`EXPR$0` STRING, `ts` BIGINT, `proctime` TIMESTAMP_LTZ(3)> NOT NULL(org.apache.flink.types.Row, org.apache.flink.table.runtime.typeutils.ExternalSerializer)"

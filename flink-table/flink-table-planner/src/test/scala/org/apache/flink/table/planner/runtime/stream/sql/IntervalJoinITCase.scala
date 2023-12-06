@@ -76,7 +76,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
   }
@@ -119,7 +119,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
   }
@@ -162,7 +162,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -212,7 +212,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T1", t1)
     tEnv.createTemporaryView("T2", t2)
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
     val expected = mutable.MutableList(
@@ -267,7 +267,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T1", t1)
     tEnv.createTemporaryView("T2", t2)
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
     val expected = mutable.MutableList(
@@ -322,7 +322,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T1", t1)
     tEnv.createTemporaryView("T2", t2)
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
     val expected = mutable.MutableList(
@@ -447,7 +447,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -515,7 +515,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T1", t1)
     tEnv.createTemporaryView("T2", t2)
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -567,7 +567,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T1", t1)
     tEnv.createTemporaryView("T2", t2)
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -620,7 +620,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 
     val sink = new TestingAppendSink
     val t_r = tEnv.sqlQuery(sqlQuery)
-    val result = t_r.toDataStream(classOf[Row])
+    val result = t_r.toDataStream
     result.addSink(sink)
     env.execute()
     val expected = mutable.MutableList[String](
@@ -673,7 +673,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
     val expected = mutable.MutableList[String](
@@ -718,7 +718,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -769,7 +769,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
     val expected = mutable.MutableList[String](
@@ -825,7 +825,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -868,7 +868,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -916,7 +916,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
     val expected = mutable.MutableList[String](
@@ -969,7 +969,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -1012,7 +1012,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
   }
@@ -1060,7 +1060,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 
@@ -1115,7 +1115,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T2", t2)
 
     val sink = new TestingAppendSink
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(sink)
     env.execute()
 

@@ -61,7 +61,7 @@ class CalcITCase extends StreamingTestBase {
 
     val result = tEnv
       .sqlQuery("SELECT CASE WHEN true THEN CAST(2 AS INT) ELSE CAST('2017-12-11' AS DATE) END")
-      .toDataStream(classOf[Row])
+      .toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -194,7 +194,7 @@ class CalcITCase extends StreamingTestBase {
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -219,7 +219,7 @@ class CalcITCase extends StreamingTestBase {
     val t = ds.toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -237,7 +237,7 @@ class CalcITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -255,7 +255,7 @@ class CalcITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTableRow", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -297,7 +297,7 @@ class CalcITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -335,7 +335,7 @@ class CalcITCase extends StreamingTestBase {
       .toTable(tEnv, 'a, 'b, 'c)
     tEnv.createTemporaryView("MyTable", t)
 
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -358,7 +358,7 @@ class CalcITCase extends StreamingTestBase {
       .mkString(",")
     val sqlQuery = s"select $selectList from MyTable"
 
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -451,7 +451,7 @@ class CalcITCase extends StreamingTestBase {
        """.stripMargin
     tEnv.executeSql(ddl)
 
-    val result = tEnv.sqlQuery("select a, c from SimpleTable").toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery("select a, c from SimpleTable").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -494,7 +494,7 @@ class CalcITCase extends StreamingTestBase {
         |    deepNested.nested2.num AS nestedNum
         |from NestedTable
         |""".stripMargin
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -508,7 +508,7 @@ class CalcITCase extends StreamingTestBase {
   def testDecimalArrayWithDifferentPrecision(): Unit = {
     val sqlQuery = "SELECT ARRAY[0.12, 0.5, 0.99]"
 
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -521,7 +521,7 @@ class CalcITCase extends StreamingTestBase {
   def testDecimalMapWithDifferentPrecision(): Unit = {
     val sqlQuery = "SELECT Map['a', 0.12, 'b', 0.5]"
 
-    val result = tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -701,7 +701,7 @@ class CalcITCase extends StreamingTestBase {
         |'DH-9908N'
         |)
         |""".stripMargin
-    val result = tEnv.sqlQuery(sql).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(sql).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -778,7 +778,7 @@ class CalcITCase extends StreamingTestBase {
       .sqlQuery("""
                   | SELECT * FROM MyTable WHERE b LIKE '%"%'
                   |""".stripMargin)
-      .toDataStream(classOf[Row])
+      .toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()

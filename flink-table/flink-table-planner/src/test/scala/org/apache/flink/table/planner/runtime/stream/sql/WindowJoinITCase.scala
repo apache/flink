@@ -127,7 +127,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -172,7 +172,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
          |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -244,7 +244,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
          |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -316,7 +316,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
          |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -384,7 +384,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -431,7 +431,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
          |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -502,7 +502,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -542,7 +542,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
          |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -600,7 +600,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -640,7 +640,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
          |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -699,7 +699,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -739,7 +739,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
          |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -805,7 +805,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -843,7 +843,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
          |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -906,7 +906,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -951,7 +951,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -995,7 +995,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -1040,7 +1040,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -1085,7 +1085,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -1134,7 +1134,7 @@ class WindowJoinITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(

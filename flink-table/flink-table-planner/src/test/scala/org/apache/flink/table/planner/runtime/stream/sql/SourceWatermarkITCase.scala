@@ -77,7 +77,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, c FROM VirtualTable"
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -129,7 +129,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, c FROM VirtualTable1"
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -187,7 +187,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, c.d FROM NestedTable"
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -242,7 +242,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
     )
 
     val query = "SELECT a, b, d FROM UdfTable WHERE b > 2"
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -293,7 +293,7 @@ class SourceWatermarkITCase extends StreamingTestBase {
     val expectedData = Seq("1")
 
     val query = "SELECT a FROM MetadataTable WHERE b > 2"
-    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
+    val result = tEnv.sqlQuery(query).toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()

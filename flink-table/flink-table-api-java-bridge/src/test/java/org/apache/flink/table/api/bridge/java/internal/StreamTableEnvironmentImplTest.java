@@ -54,7 +54,7 @@ class StreamTableEnvironmentImplTest {
         Duration minRetention = Duration.ofMinutes(1);
         tEnv.getConfig().setIdleStateRetention(minRetention);
         Table table = tEnv.fromDataStream(elements);
-        tEnv.toDataStream(table, Row.class);
+        tEnv.toDataStream(table);
 
         assertThat(tEnv.getConfig().getIdleStateRetention()).isEqualTo(minRetention);
     }

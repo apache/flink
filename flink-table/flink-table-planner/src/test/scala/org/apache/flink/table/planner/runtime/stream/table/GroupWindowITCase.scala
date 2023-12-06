@@ -82,7 +82,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
         countDistinct('long))
 
     val sink = new TestingAppendSink
-    windowedTable.toDataStream(classOf[Row]).addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(s"Hello world,2,3,12,3,2", s"Hello,2,2,3,2,2")
@@ -123,7 +123,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
         countDistinct('long))
 
     val sink = new TestingAppendSink
-    windowedTable.toDataStream(classOf[Row]).addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -153,7 +153,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
         countDistinct('long))
 
     val sink = new TestingAppendSink
-    windowedTable.toDataStream(classOf[Row]).addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(s"2,1,1,1,2", s"2,2,6,2,2")
@@ -181,7 +181,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       .select(weightAvgFun('long, 'int), countDistinct('long))
 
     val sink = new TestingAppendSink
-    windowedTable.toDataStream(classOf[Row]).addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("12,2", "3,2")
@@ -247,7 +247,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val sink = new TestingAppendSink
-    windowedTable.toDataStream(classOf[Row]).addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -279,7 +279,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val sink = new TestingAppendSink
-    windowedTable.toDataStream(classOf[Row]).addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -304,7 +304,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val sink = new TestingAppendSink
-    windowedTable.toDataStream(classOf[Row]).addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
     val expected = Seq(
       "Hallo,1,1970-01-01T00:00,1970-01-01T00:00:00.003",
@@ -340,7 +340,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
         countDistinct('long))
 
     val sink = new TestingAppendSink
-    windowedTable.toDataStream(classOf[Row]).addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -366,7 +366,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val sink = new TestingAppendSink
-    windowedTable.toDataStream(classOf[Row]).addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -392,7 +392,7 @@ class GroupWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBa
       .select('string, 'int.count, 'w.start, 'w.end)
 
     val sink = new TestingAppendSink
-    windowedTable.toDataStream(classOf[Row]).addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(

@@ -81,7 +81,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       """.stripMargin
     tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery(query).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute("SQL JOB")
 
     val expected = Seq(
@@ -118,7 +118,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       """.stripMargin
     tEnv.executeSql(ddl)
     val sink = new TestingAppendSink(TimeZone.getTimeZone(zoneId))
-    tEnv.sqlQuery(query).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute("SQL JOB")
 
     val expected = Seq(
@@ -155,7 +155,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       """.stripMargin
     tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery(query).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute("SQL JOB")
 
     val expected = Seq(
@@ -192,7 +192,7 @@ class TimeAttributeITCase extends StreamingTestBase {
       """.stripMargin
     tEnv.executeSql(ddl)
     val sink = new TestingAppendSink()
-    tEnv.sqlQuery(query).toDataStream(classOf[Row]).addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute("SQL JOB")
 
     val expected = Seq(
