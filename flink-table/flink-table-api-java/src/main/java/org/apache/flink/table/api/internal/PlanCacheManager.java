@@ -18,6 +18,7 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava31.com.google.common.cache.Cache;
@@ -57,6 +58,7 @@ public class PlanCacheManager {
         planCache.invalidateAll();
     }
 
+    @VisibleForTesting
     public CacheStats getCacheStats() {
         return planCache.stats();
     }

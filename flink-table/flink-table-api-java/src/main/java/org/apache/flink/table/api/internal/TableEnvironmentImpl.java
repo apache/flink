@@ -1076,7 +1076,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         try {
             JobClient jobClient = execEnv.executeAsync(pipeline);
             ResultProvider resultProvider = sinkOperation.getSelectResultProvider();
-            // We must reset resultProvider as we have to reuse it between different jobs.
+            // We must reset resultProvider as we might to reuse it between different jobs.
             resultProvider.reset();
             resultProvider.setJobClient(jobClient);
             return TableResultImpl.builder()
