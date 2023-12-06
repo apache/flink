@@ -29,6 +29,8 @@ import org.apache.flink.table.utils.print.RowDataToStringConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 
 /** Internal interface with internal methods for {@link TableResult}. */
@@ -46,5 +48,6 @@ public interface TableResultInternal extends TableResult {
 
     RowDataToStringConverter getRowDataToStringConverter();
 
+    @Nullable
     CachedPlan getCachedPlan();
 }

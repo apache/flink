@@ -57,12 +57,12 @@ public class SqlGatewayServiceConfigOptions {
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "When it is true, sql gateway will cache and reuse plans for queries.");
+                            "When it is true, sql gateway will cache and reuse plans for queries per session.");
 
     public static final ConfigOption<Integer> SQL_GATEWAY_SESSION_PLAN_CACHE_SIZE =
             key("sql-gateway.session.plan-cache.size")
                     .intType()
-                    .defaultValue(1000)
+                    .defaultValue(100)
                     .withDescription(
                             "Plan cache size, it takes effect iff "
                                     + "`table.optimizer.plan-cache.enabled` is true.");

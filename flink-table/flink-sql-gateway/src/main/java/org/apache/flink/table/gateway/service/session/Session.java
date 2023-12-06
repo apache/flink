@@ -26,6 +26,8 @@ import org.apache.flink.table.gateway.service.context.SessionContext;
 import org.apache.flink.table.gateway.service.operation.OperationExecutor;
 import org.apache.flink.table.gateway.service.operation.OperationManager;
 
+import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.util.Map;
 
@@ -75,6 +77,7 @@ public class Session implements Closeable {
         return sessionContext.createOperationExecutor(executionConfig);
     }
 
+    @Nullable
     public PlanCacheManager getPlanCacheManager() {
         return sessionContext.getPlanCacheManager();
     }

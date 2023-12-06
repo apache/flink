@@ -192,11 +192,11 @@ $ ./sql-gateway -Dkey=value
             <td><h5>sql-gateway.session.plan-cache.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>设置为 true 的时候，SQL Gateway 会缓存并复用 plan。</td>
+            <td>设置为 true 的时候，SQL Gateway 会在一个 session 内部缓存并复用 plan。</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.plan-cache.size</h5></td>
-            <td style="word-wrap: break-word;">1000</td>
+            <td style="word-wrap: break-word;">100</td>
             <td>Integer</td>
             <td>Plan cache 的大小, 当且仅当 `table.optimizer.plan-cache.enabled` 为 true 的时候生效。</td>
         </tr>

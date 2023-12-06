@@ -194,11 +194,11 @@ $ ./sql-gateway -Dkey=value
             <td><h5>sql-gateway.session.plan-cache.enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>When it is true, sql gateway will cache and reuse plans for queries.</td>
+            <td>When it is true, sql gateway will cache and reuse plans for queries per session.</td>
         </tr>
         <tr>
             <td><h5>sql-gateway.session.plan-cache.size</h5></td>
-            <td style="word-wrap: break-word;">1000</td>
+            <td style="word-wrap: break-word;">100</td>
             <td>Integer</td>
             <td>Plan cache size, it takes effect iff `table.optimizer.plan-cache.enabled` is true.</td>
         </tr>

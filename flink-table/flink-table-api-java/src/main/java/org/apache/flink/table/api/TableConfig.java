@@ -38,7 +38,6 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 import static org.apache.flink.table.api.internal.TableConfigValidation.validateTimeZone;
@@ -475,24 +474,5 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
 
     public static TableConfig getDefault() {
         return new TableConfig();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        TableConfig that = (TableConfig) o;
-        return Objects.equals(plannerConfig, that.plannerConfig)
-                && Objects.equals(configuration, that.configuration)
-                && Objects.equals(rootConfiguration, that.rootConfiguration);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(plannerConfig, configuration, rootConfiguration);
     }
 }

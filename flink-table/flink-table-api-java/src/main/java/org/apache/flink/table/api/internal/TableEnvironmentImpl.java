@@ -1093,7 +1093,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                     getConfig().get(TableConfigOptions.DISPLAY_MAX_COLUMN_WIDTH),
                                     false,
                                     isStreamingMode))
-                    .setPlanValue(new DQLCachedPlan(operation, sinkOperation, transformations))
+                    .setCachedPlan(new DQLCachedPlan(operation, sinkOperation, transformations))
                     .build();
         } catch (Exception e) {
             throw new TableException("Failed to execute sql", e);

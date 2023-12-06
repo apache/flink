@@ -151,6 +151,7 @@ public class TableResultImpl implements TableResultInternal {
         return resultProvider.getRowDataStringConverter();
     }
 
+    @Nullable
     @Override
     public CachedPlan getCachedPlan() {
         return cachedPlan;
@@ -239,7 +240,7 @@ public class TableResultImpl implements TableResultInternal {
          *
          * @param cachedPlan a {@link CachedPlan} for the submitted Flink job.
          */
-        public Builder setPlanValue(CachedPlan cachedPlan) {
+        public Builder setCachedPlan(CachedPlan cachedPlan) {
             this.cachedPlan = cachedPlan;
             return this;
         }

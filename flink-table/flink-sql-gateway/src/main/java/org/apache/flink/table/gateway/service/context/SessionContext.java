@@ -158,6 +158,7 @@ public class SessionContext {
         return userClassloader;
     }
 
+    @Nullable
     public PlanCacheManager getPlanCacheManager() {
         return planCacheManager;
     }
