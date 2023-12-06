@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "",
+  "flinkVersion" : "1.19",
   "nodes" : [ {
     "id" : 1,
     "type" : "stream-exec-table-source-scan_1",
@@ -34,11 +34,7 @@
             } ],
             "watermarkSpecs" : [ ]
           },
-          "partitionKeys" : [ ],
-          "options" : {
-            "bounded" : "false",
-            "connector" : "values"
-          }
+          "partitionKeys" : [ ]
         }
       }
     },
@@ -326,12 +322,7 @@
             } ],
             "watermarkSpecs" : [ ]
           },
-          "partitionKeys" : [ ],
-          "options" : {
-            "connector" : "values",
-            "sink-insert-only" : "false",
-            "table-sink-class" : "DEFAULT"
-          }
+          "partitionKeys" : [ ]
         }
       }
     },

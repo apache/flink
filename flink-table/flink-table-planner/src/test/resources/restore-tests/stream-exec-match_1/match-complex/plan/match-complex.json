@@ -1,7 +1,7 @@
 {
-  "flinkVersion" : "",
+  "flinkVersion" : "1.19",
   "nodes" : [ {
-    "id" : 1,
+    "id" : 6,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -9,53 +9,75 @@
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
-              "name" : "vehicle_id",
+              "name" : "symbol",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "tstamp",
               "dataType" : "BIGINT"
             }, {
-              "name" : "engine_temperature",
+              "name" : "price",
               "dataType" : "INT"
             }, {
-              "name" : "rowtime",
-              "dataType" : {
-                "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-                "precision" : 3,
-                "kind" : "ROWTIME"
-              }
-            } ],
-            "watermarkSpecs" : [ {
-              "rowtimeAttribute" : "rowtime",
+              "name" : "tax",
+              "dataType" : "INT"
+            }, {
+              "name" : "proctime",
+              "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
                   "kind" : "CALL",
-                  "internalName" : "$SOURCE_WATERMARK$1",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
-                  "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
                 },
-                "serializableString" : "`SOURCE_WATERMARK`()"
+                "serializableString" : "PROCTIME()"
               }
-            } ]
+            } ],
+            "watermarkSpecs" : [ ]
           },
-          "partitionKeys" : [ ],
-          "options" : {
-            "bounded" : "false",
-            "connector" : "values"
-          }
+          "partitionKeys" : [ ]
         }
       }
     },
-    "outputType" : "ROW<`vehicle_id` BIGINT, `engine_temperature` INT, `rowtime` TIMESTAMP(3) WITH LOCAL TIME ZONE>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[vehicle_id, engine_temperature, rowtime])",
+    "outputType" : "ROW<`symbol` VARCHAR(2147483647), `tstamp` BIGINT, `price` INT, `tax` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[symbol, tstamp, price, tax])",
     "inputProperties" : [ ]
   }, {
-    "id" : 2,
-    "type" : "stream-exec-watermark-assigner_1",
-    "watermarkExpr" : {
+    "id" : 7,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "INT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "INT"
+    }, {
       "kind" : "CALL",
-      "internalName" : "$SOURCE_WATERMARK$1",
+      "internalName" : "$PROCTIME$1",
       "operands" : [ ],
-      "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
-    },
-    "rowtimeFieldIndex" : 2,
+      "type" : {
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
+      }
+    } ],
+    "condition" : null,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -66,23 +88,30 @@
     "outputType" : {
       "type" : "ROW",
       "fields" : [ {
-        "name" : "vehicle_id",
+        "name" : "symbol",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "tstamp",
         "fieldType" : "BIGINT"
       }, {
-        "name" : "engine_temperature",
+        "name" : "price",
         "fieldType" : "INT"
       }, {
-        "name" : "rowtime",
+        "name" : "tax",
+        "fieldType" : "INT"
+      }, {
+        "name" : "proctime",
         "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
           "precision" : 3,
-          "kind" : "ROWTIME"
+          "kind" : "PROCTIME"
         }
       } ]
     },
-    "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[SOURCE_WATERMARK()])"
+    "description" : "Calc(select=[symbol, tstamp, price, tax, PROCTIME() AS proctime])"
   }, {
-    "id" : 3,
+    "id" : 8,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -95,23 +124,30 @@
     "outputType" : {
       "type" : "ROW",
       "fields" : [ {
-        "name" : "vehicle_id",
+        "name" : "symbol",
+        "fieldType" : "VARCHAR(2147483647)"
+      }, {
+        "name" : "tstamp",
         "fieldType" : "BIGINT"
       }, {
-        "name" : "engine_temperature",
+        "name" : "price",
         "fieldType" : "INT"
       }, {
-        "name" : "rowtime",
+        "name" : "tax",
+        "fieldType" : "INT"
+      }, {
+        "name" : "proctime",
         "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+          "nullable" : false,
           "precision" : 3,
-          "kind" : "ROWTIME"
+          "kind" : "PROCTIME"
         }
       } ]
     },
-    "description" : "Exchange(distribution=[hash[vehicle_id]])"
+    "description" : "Exchange(distribution=[hash[symbol]])"
   }, {
-    "id" : 4,
+    "id" : 9,
     "type" : "stream-exec-match_1",
     "matchSpec" : {
       "pattern" : {
@@ -124,11 +160,11 @@
           "internalName" : "$PATTERN_QUANTIFIER$1",
           "operands" : [ {
             "kind" : "LITERAL",
-            "value" : "A",
-            "type" : "CHAR(1) NOT NULL"
+            "value" : "DOWN",
+            "type" : "CHAR(4) NOT NULL"
           }, {
             "kind" : "LITERAL",
-            "value" : 1,
+            "value" : 2,
             "type" : "INT NOT NULL"
           }, {
             "kind" : "LITERAL",
@@ -142,47 +178,27 @@
           "type" : "NULL"
         }, {
           "kind" : "LITERAL",
-          "value" : "B",
-          "type" : "CHAR(1) NOT NULL"
+          "value" : "UP",
+          "type" : "CHAR(2) NOT NULL"
         } ],
         "type" : "NULL"
       },
       "patternDefinitions" : {
-        "A" : {
+        "DOWN" : {
           "kind" : "CALL",
           "syntax" : "BINARY",
           "internalName" : "$OR$1",
           "operands" : [ {
             "kind" : "CALL",
-            "syntax" : "POSTFIX",
-            "internalName" : "$IS NULL$1",
+            "syntax" : "BINARY",
+            "internalName" : "$<$1",
             "operands" : [ {
               "kind" : "CALL",
               "internalName" : "$LAST$1",
               "operands" : [ {
                 "kind" : "PATTERN_INPUT_REF",
-                "alpha" : "A",
-                "inputIndex" : 1,
-                "type" : "INT"
-              }, {
-                "kind" : "LITERAL",
-                "value" : 1,
-                "type" : "INT NOT NULL"
-              } ],
-              "type" : "INT"
-            } ],
-            "type" : "BOOLEAN NOT NULL"
-          }, {
-            "kind" : "CALL",
-            "syntax" : "BINARY",
-            "internalName" : "$>$1",
-            "operands" : [ {
-              "kind" : "CALL",
-              "internalName" : "$PREV$1",
-              "operands" : [ {
-                "kind" : "PATTERN_INPUT_REF",
-                "alpha" : "A",
-                "inputIndex" : 1,
+                "alpha" : "*",
+                "inputIndex" : 2,
                 "type" : "INT"
               }, {
                 "kind" : "LITERAL",
@@ -195,8 +211,8 @@
               "internalName" : "$LAST$1",
               "operands" : [ {
                 "kind" : "PATTERN_INPUT_REF",
-                "alpha" : "A",
-                "inputIndex" : 1,
+                "alpha" : "DOWN",
+                "inputIndex" : 2,
                 "type" : "INT"
               }, {
                 "kind" : "LITERAL",
@@ -206,20 +222,40 @@
               "type" : "INT"
             } ],
             "type" : "BOOLEAN"
+          }, {
+            "kind" : "CALL",
+            "syntax" : "POSTFIX",
+            "internalName" : "$IS NULL$1",
+            "operands" : [ {
+              "kind" : "CALL",
+              "internalName" : "$LAST$1",
+              "operands" : [ {
+                "kind" : "PATTERN_INPUT_REF",
+                "alpha" : "DOWN",
+                "inputIndex" : 2,
+                "type" : "INT"
+              }, {
+                "kind" : "LITERAL",
+                "value" : 1,
+                "type" : "INT NOT NULL"
+              } ],
+              "type" : "INT"
+            } ],
+            "type" : "BOOLEAN NOT NULL"
           } ],
           "type" : "BOOLEAN"
         },
-        "B" : {
+        "UP" : {
           "kind" : "CALL",
           "syntax" : "BINARY",
-          "internalName" : "$<$1",
+          "internalName" : "$>$1",
           "operands" : [ {
             "kind" : "CALL",
-            "internalName" : "$PREV$1",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
-              "alpha" : "B",
-              "inputIndex" : 1,
+              "alpha" : "*",
+              "inputIndex" : 2,
               "type" : "INT"
             }, {
               "kind" : "LITERAL",
@@ -232,8 +268,8 @@
             "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
-              "alpha" : "A",
-              "inputIndex" : 1,
+              "alpha" : "DOWN",
+              "inputIndex" : 2,
               "type" : "INT"
             }, {
               "kind" : "LITERAL",
@@ -246,17 +282,17 @@
         }
       },
       "measures" : {
-        "Final_Temp" : {
+        "first" : {
           "kind" : "CALL",
           "syntax" : "PREFIX",
           "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "CALL",
-            "internalName" : "$LAST$1",
+            "internalName" : "$FIRST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
-              "alpha" : "A",
-              "inputIndex" : 1,
+              "alpha" : "DOWN",
+              "inputIndex" : 2,
               "type" : "INT"
             }, {
               "kind" : "LITERAL",
@@ -267,17 +303,17 @@
           } ],
           "type" : "INT"
         },
-        "Initial_Temp" : {
+        "last" : {
           "kind" : "CALL",
           "syntax" : "PREFIX",
           "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "CALL",
-            "internalName" : "$FIRST$1",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
-              "alpha" : "A",
-              "inputIndex" : 1,
+              "alpha" : "DOWN",
+              "inputIndex" : 2,
               "type" : "INT"
             }, {
               "kind" : "LITERAL",
@@ -288,38 +324,7 @@
           } ],
           "type" : "INT"
         },
-        "endTime" : {
-          "kind" : "CALL",
-          "syntax" : "PREFIX",
-          "internalName" : "$FINAL$1",
-          "operands" : [ {
-            "kind" : "CALL",
-            "internalName" : "$LAST$1",
-            "operands" : [ {
-              "kind" : "CALL",
-              "syntax" : "SPECIAL",
-              "internalName" : "$CAST$1",
-              "operands" : [ {
-                "kind" : "PATTERN_INPUT_REF",
-                "alpha" : "A",
-                "inputIndex" : 2,
-                "type" : {
-                  "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-                  "precision" : 3,
-                  "kind" : "ROWTIME"
-                }
-              } ],
-              "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
-            }, {
-              "kind" : "LITERAL",
-              "value" : 0,
-              "type" : "INT NOT NULL"
-            } ],
-            "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
-          } ],
-          "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
-        },
-        "startTime" : {
+        "nullPrice" : {
           "kind" : "CALL",
           "syntax" : "PREFIX",
           "internalName" : "$FINAL$1",
@@ -327,28 +332,18 @@
             "kind" : "CALL",
             "internalName" : "$FIRST$1",
             "operands" : [ {
-              "kind" : "CALL",
-              "syntax" : "SPECIAL",
-              "internalName" : "$CAST$1",
-              "operands" : [ {
-                "kind" : "PATTERN_INPUT_REF",
-                "alpha" : "A",
-                "inputIndex" : 2,
-                "type" : {
-                  "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-                  "precision" : 3,
-                  "kind" : "ROWTIME"
-                }
-              } ],
-              "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+              "kind" : "PATTERN_INPUT_REF",
+              "alpha" : "DOWN",
+              "inputIndex" : 2,
+              "type" : "INT"
             }, {
               "kind" : "LITERAL",
-              "value" : 0,
+              "value" : 5,
               "type" : "INT NOT NULL"
             } ],
-            "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+            "type" : "INT"
           } ],
-          "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+          "type" : "INT"
         }
       },
       "after" : {
@@ -367,7 +362,7 @@
       },
       "orderBy" : {
         "fields" : [ {
-          "index" : 2,
+          "index" : 4,
           "isAscending" : true,
           "nullIsLast" : false
         } ]
@@ -381,10 +376,58 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`vehicle_id` BIGINT, `startTime` TIMESTAMP(3) WITH LOCAL TIME ZONE, `endTime` TIMESTAMP(3) WITH LOCAL TIME ZONE, `Initial_Temp` INT, `Final_Temp` INT>",
-    "description" : "Match(partitionBy=[vehicle_id], orderBy=[rowtime ASC], measures=[FINAL(FIRST(CAST(A.rowtime AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)), 0)) AS startTime, FINAL(LAST(CAST(A.rowtime AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)), 0)) AS endTime, FINAL(FIRST(A.engine_temperature, 0)) AS Initial_Temp, FINAL(LAST(A.engine_temperature, 0)) AS Final_Temp], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP PAST LAST ROW], pattern=[(PATTERN_QUANTIFIER(_UTF-16LE'A', 1, -1, false), _UTF-16LE'B')], define=[{A=OR(IS NULL(LAST(A.$1, 1)), >(PREV(A.$1, 0), LAST(A.$1, 1))), B=<(PREV(B.$1, 0), LAST(A.$1, 0))}])"
+    "outputType" : "ROW<`symbol` VARCHAR(2147483647), `first` INT, `last` INT, `nullPrice` INT>",
+    "description" : "Match(partitionBy=[symbol], orderBy=[proctime ASC], measures=[FINAL(FIRST(DOWN.price, 0)) AS first, FINAL(LAST(DOWN.price, 0)) AS last, FINAL(FIRST(DOWN.price, 5)) AS nullPrice], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP PAST LAST ROW], pattern=[(PATTERN_QUANTIFIER(_UTF-16LE'DOWN', 2, -1, false), _UTF-16LE'UP')], define=[{DOWN=OR(<(LAST(*.$2, 0), LAST(DOWN.$2, 1)), IS NULL(LAST(DOWN.$2, 1))), UP=>(LAST(*.$2, 0), LAST(DOWN.$2, 0))}])"
   }, {
-    "id" : 5,
+    "id" : 10,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "INT"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "INT"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 3,
+        "type" : "INT"
+      } ],
+      "type" : "BIGINT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`somestring` VARCHAR(2147483647), `a` BIGINT, `b` BIGINT, `c` BIGINT>",
+    "description" : "Calc(select=[symbol AS somestring, CAST(first AS BIGINT) AS a, CAST(last AS BIGINT) AS b, CAST(nullPrice AS BIGINT) AS c])"
+  }, {
+    "id" : 11,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -399,29 +442,21 @@
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
-              "name" : "vehicle_id",
+              "name" : "somestring",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "a",
               "dataType" : "BIGINT"
             }, {
-              "name" : "startTime",
-              "dataType" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
+              "name" : "b",
+              "dataType" : "BIGINT"
             }, {
-              "name" : "endTime",
-              "dataType" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
-            }, {
-              "name" : "Initial_Temp",
-              "dataType" : "INT"
-            }, {
-              "name" : "Final_Temp",
-              "dataType" : "INT"
+              "name" : "c",
+              "dataType" : "BIGINT"
             } ],
             "watermarkSpecs" : [ ]
           },
-          "partitionKeys" : [ ],
-          "options" : {
-            "connector" : "values",
-            "sink-insert-only" : "false",
-            "table-sink-class" : "DEFAULT"
-          }
+          "partitionKeys" : [ ]
         }
       }
     },
@@ -433,33 +468,40 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`vehicle_id` BIGINT, `startTime` TIMESTAMP(3) WITH LOCAL TIME ZONE, `endTime` TIMESTAMP(3) WITH LOCAL TIME ZONE, `Initial_Temp` INT, `Final_Temp` INT>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[vehicle_id, startTime, endTime, Initial_Temp, Final_Temp])"
+    "outputType" : "ROW<`somestring` VARCHAR(2147483647), `a` BIGINT, `b` BIGINT, `c` BIGINT>",
+    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[somestring, a, b, c])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 6,
+    "target" : 7,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source" : 7,
+    "target" : 8,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source" : 8,
+    "target" : 9,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 4,
-    "target" : 5,
+    "source" : 9,
+    "target" : 10,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 10,
+    "target" : 11,
     "shuffle" : {
       "type" : "FORWARD"
     },
