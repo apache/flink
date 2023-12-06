@@ -30,7 +30,7 @@ import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
 
-import java.time.{Duration, Instant, LocalDateTime, ZoneOffset}
+import java.time.{Duration, Instant, LocalDateTime, ZoneId, ZoneOffset}
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -47,11 +47,13 @@ class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTes
 
         def cancel() {}
       })
-    tEnv.createTemporaryView("test", stream, $"event_time".rowtime(), $"data")
+    tEnv.createTemporaryView("test", stream, Schema.newBuilder()
+      .columnByMetadata("event_time", DataTypes.TIMESTAMP(3), "rowtime", true)
+      .build())
     val result = tEnv.sqlQuery("SELECT * FROM test")
 
     val sink = new TestingAppendSink()
-    tEnv.toAppendStream[Row](result).addSink(sink)
+    tEnv.toDataStream(result).addSink(sink)
 
     assertThatThrownBy(() => env.execute())
       .hasMessageNotContaining("Rowtime timestamp is not defined. Please make sure that a " +
@@ -73,18 +75,20 @@ class TimeAttributesITCase(mode: StateBackendMode) extends StreamingWithStateTes
         }
     )
 
-    tEnv.createTemporaryView("test", stream, $"event_time".rowtime(), $"data")
+    tEnv.createTemporaryView("test", stream, Schema.newBuilder()
+      .columnByMetadata("event_time", DataTypes.TIMESTAMP(3), "rowtime", true)
+      .build())
     val result = tEnv.sqlQuery("SELECT * FROM test")
 
     val sink = new TestingAppendSink()
-    tEnv.toAppendStream[Row](result).addSink(sink)
+    tEnv.toDataStream(result).addSink(sink)
     env.execute()
 
     val formattedData = data.map {
       case (timestamp, data) =>
         val formattedTimestamp =
-          LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneOffset.UTC).toString
-        s"$formattedTimestamp,$data"
+          LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault()).toString
+        s"$timestamp,$data,$formattedTimestamp"
     }
     assertThat(formattedData.sorted).isEqualTo(sink.getAppendResults.sorted)
   }

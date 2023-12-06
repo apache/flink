@@ -190,7 +190,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -225,7 +225,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -260,7 +260,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected =
@@ -289,7 +289,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -322,7 +322,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -350,7 +350,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -378,7 +378,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -401,7 +401,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -446,7 +446,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -476,7 +476,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -508,7 +508,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -553,7 +553,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -593,7 +593,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -629,7 +629,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -657,7 +657,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -685,7 +685,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -716,7 +716,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -764,7 +764,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -801,7 +801,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -841,7 +841,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -873,7 +873,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -905,7 +905,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -926,7 +926,7 @@ class WindowAggregateITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {

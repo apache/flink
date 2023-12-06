@@ -66,7 +66,7 @@ class EnvironmentTest {
 
         // trigger translation
         Table table = tEnv.sqlQuery("SELECT * FROM test");
-        tEnv.toAppendStream(table, Row.class);
+        tEnv.toDataStream(table, Row.class);
 
         assertThat(env.getParallelism()).isEqualTo(128);
         assertThat(env.getConfig().getAutoWatermarkInterval()).isEqualTo(800);

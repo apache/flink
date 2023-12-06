@@ -130,7 +130,7 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
   @TestTemplate
   def testSimplePartitionFieldPredicate1(): Unit = {
     val query = "SELECT * FROM PartitionableTable WHERE part1 = 'A'"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -146,7 +146,7 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
   @TestTemplate
   def testPartialPartitionFieldPredicatePushDown(): Unit = {
     val query = "SELECT * FROM PartitionableTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -161,7 +161,7 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
   @TestTemplate
   def testUnconvertedExpression(): Unit = {
     val query = "select * from PartitionableTable where trim(part1) = 'A' and part2 > 1"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -175,7 +175,7 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
   @TestTemplate
   def testPushDownPartitionAndFiltersContainPartitionKeys(): Unit = {
     val query = "SELECT * FROM PartitionableAndFilterableTable WHERE part1 = 'A' AND id > 1"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -190,7 +190,7 @@ class PartitionableSourceITCase(val sourceFetchPartitions: Boolean, val useCatal
   @TestTemplate
   def testPushDownPartitionAndFiltersContainPartitionKeysWithSingleProjection(): Unit = {
     val query = "SELECT name FROM PartitionableAndFilterableTable WHERE part1 = 'A' AND id > 1"
-    val result = tEnv.sqlQuery(query).toAppendStream[Row]
+    val result = tEnv.sqlQuery(query).toDataStream(classOf[Row])
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()

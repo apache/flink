@@ -17,9 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.streaming.api.scala._
-import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendRowDataSink}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{IntType, VarCharType}
@@ -36,9 +33,9 @@ class ValuesITCase extends StreamingTestBase {
 
     val outputType = InternalTypeInfo.ofFields(new IntType(), new VarCharType(5))
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
+    val table = tEnv.sqlQuery(sqlQuery)
     val sink = new TestingAppendRowDataSink(outputType)
-    result.addSink(sink).setParallelism(1)
+    tEnv.toDataStream(table, outputType.getDataType).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List("+I(1,Alice)", "+I(1,Bob)")

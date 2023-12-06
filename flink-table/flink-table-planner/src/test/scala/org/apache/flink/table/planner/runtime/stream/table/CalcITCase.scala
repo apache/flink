@@ -62,7 +62,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('c, udfLen('c).as('len))
 
     val sink = new TestingAppendSink
-    result.toAppendStream[Row].addSink(sink)
+    result.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("Hello,5", "Hello world,11")
@@ -74,7 +74,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val ds = env.fromCollection(smallTupleData3).toTable(tEnv)
 
     val sink = new TestingAppendSink
-    ds.toAppendStream[Row].addSink(sink)
+    ds.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,1,Hi", "2,2,Hello", "3,2,Hello world")
@@ -102,7 +102,9 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val ds = env.fromCollection(smallNestedTupleData).toTable(tEnv, '_1, '_2).select('*)
 
     val sink = new TestingAppendSink
-    ds.toAppendStream[Row].addSink(sink)
+    ds.toDataStream(
+      DataTypes.ROW(DataTypes.ROW(DataTypes.INT(), DataTypes.INT()), DataTypes.STRING()))
+      .addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,1,one", "2,2,two", "3,3,three")
@@ -114,7 +116,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val ds = env.fromCollection(smallTupleData3).toTable(tEnv).select('_1)
 
     val sink = new TestingAppendSink
-    ds.toAppendStream[Row].addSink(sink)
+    ds.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1", "2", "3")
@@ -132,7 +134,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('a, 'b)
 
     val sink = new TestingAppendSink
-    ds.toAppendStream[Row].addSink(sink)
+    ds.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -168,7 +170,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('a, 'b, 'c)
 
     val sink = new TestingAppendSink
-    ds.toAppendStream[Row].addSink(sink)
+    ds.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,1,Hi", "2,2,Hello", "3,2,Hello world")
@@ -183,7 +185,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val ds = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
 
     val sink = new TestingAppendSink
-    ds.filter('a === 3).toAppendStream[Row].addSink(sink)
+    ds.filter('a === 3).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("3,2,Hello world")
@@ -199,7 +201,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val filterDs = ds.filter(false)
     val sink = new TestingAppendSink
-    filterDs.toAppendStream[Row].addSink(sink)
+    filterDs.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.isEmpty).isTrue
@@ -212,7 +214,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
      */
     val ds = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
     val sink = new TestingAppendSink
-    ds.filter(true).toAppendStream[Row].addSink(sink)
+    ds.filter(true).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,1,Hi", "2,2,Hello", "3,2,Hello world")
@@ -230,7 +232,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .filter('a % 2 === 0)
       .where($"b" === 3 || $"b" === 4 || $"b" === 5)
     val sink = new TestingAppendSink
-    filterDs.toAppendStream[Row].addSink(sink)
+    filterDs.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -254,7 +256,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .filter('a % 2 !== 0)
       .where(($"b" !== 1) && ($"b" !== 2) && ($"b" !== 3))
     val sink = new TestingAppendSink
-    filterDs.toAppendStream[Row].addSink(sink)
+    filterDs.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
     val expected = mutable.MutableList(
       "7,4,Comment#1",
@@ -279,7 +281,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('c)
 
     val sink = new TestingAppendSink
-    ds.toAppendStream[Row].addSink(sink)
+    ds.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("Hello")
@@ -302,7 +304,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('c)
 
     val sink = new TestingAppendSink
-    result.toAppendStream[Row].addSink(sink)
+    result.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("Hello", "Hello world")
@@ -324,7 +326,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val sink = new TestingAppendSink
     val result = t.select(func0('c), func1('c), func2('c))
-    result.toAppendStream[Row].addSink(sink)
+    result.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -346,7 +348,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         suffix + i
       }
     })('a, ">>"))
-    result.toAppendStream[Row].addSink(sink)
+    result.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -365,7 +367,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingAppendSink
     val result = t.select(NonStaticObjectScalarFunction('a, ">>"))
 
-    result.toAppendStream[Row].addSink(sink)
+    result.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -394,7 +396,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         // will cause ValidationException here, see FLINK-15162
         val result = t.select(new NonStaticClassScalarFunction()('a, ">>"))
 
-        result.toAppendStream[Row].addSink(sink)
+        result.toDataStream(classOf[Row]).addSink(sink)
 
         env.execute()
 
@@ -432,7 +434,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select(SubstringFunc('*))
 
     val sink = new TestingAppendSink
-    table.toAppendStream[Row].addSink(sink)
+    table.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = List("Foo", "mpl")
@@ -447,7 +449,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.createTemporaryFunction("func", NestingFunc)
     tEnv
       .sqlQuery("select func(func(f1)) from t1")
-      .toAppendStream[Row]
+      .toDataStream(classOf[Row])
       .addSink(new TestingAppendSink)
     env.execute()
   }
@@ -487,7 +489,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val ds = env.fromCollection(tupleData3).toTable(tEnv).select(map('_1, '_3))
 
     val sink = new TestingAppendSink
-    ds.toAppendStream[Row].addSink(sink)
+    ds.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -545,7 +547,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .dropColumns($"c2")
 
     val sink = new TestingAppendSink
-    result.toAppendStream[Row].addSink(sink)
+    result.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -567,7 +569,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .map(Func1('b))
 
     val sink = new TestingAppendSink
-    ds.toAppendStream[Row].addSink(sink)
+    ds.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("3", "4", "5")
@@ -586,7 +588,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .map(Func1('b))
 
     val sink = new TestingAppendSink
-    ds.toAppendStream[Row].addSink(sink)
+    ds.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("3", "4", "5")
@@ -602,7 +604,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .map(Func25('a))
 
     val sink = new TestingAppendSink
-    ds.toAppendStream[Row].addSink(sink)
+    ds.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     sink.getAppendResults.foreach {
@@ -619,7 +621,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .toTable(tEnv)
       .select(map('_2, 30, 10L, '_1))
 
-    val results = ds.toAppendStream[Row]
+    val results = ds.toDataStream(classOf[Row])
     val sink = new TestingAppendSink
     results.addSink(sink)
     env.execute()
@@ -635,7 +637,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .toTable(tEnv)
       .select(map('_1, '_3))
 
-    val results = ds.toAppendStream[Row]
+    val results = ds.toDataStream(classOf[Row])
     val sink = new TestingAppendSink
     results.addSink(sink)
     env.execute()
@@ -659,7 +661,10 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('*)
 
     val sink = new TestingAppendSink
-    table.toAppendStream[Row].addSink(sink)
+    table
+      .toDataStream(
+        DataTypes.ROW(DataTypes.ROW(DataTypes.INT(), DataTypes.INT()), DataTypes.STRING()))
+      .addSink(sink)
     env.execute()
 
     val expected = List("0,0,0", "1,1,1", "2,2,2")
@@ -675,7 +680,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
         .limit(1)
         .select(currentDatabase())
     val sink1 = new TestingAppendSink
-    result1.toAppendStream[Row].addSink(sink1)
+    result1.toDataStream(classOf[Row]).addSink(sink1)
     env.execute()
     assertThat(sink1.getAppendResults.sorted).isEqualTo(List(tEnv.getCurrentDatabase))
 
@@ -694,7 +699,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .limit(1)
       .select(currentDatabase())
     val sink2 = new TestingAppendSink
-    result2.toAppendStream[Row].addSink(sink2)
+    result2.toDataStream(classOf[Row]).addSink(sink2)
     env.execute()
     assertThat(sink2.getAppendResults.sorted).isEqualTo(List(tEnv.getCurrentDatabase))
   }

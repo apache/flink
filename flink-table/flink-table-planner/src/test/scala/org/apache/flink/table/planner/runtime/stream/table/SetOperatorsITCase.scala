@@ -49,7 +49,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val unionDs = ds1.unionAll(ds2).select('c)
 
     val sink = new TestingAppendSink
-    unionDs.toAppendStream[Row].addSink(sink)
+    unionDs.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("Hi", "Hello", "Hello world", "Hi", "Hello", "Hello world")
@@ -64,7 +64,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val unionDs = ds1.unionAll(ds2.select('a, 'b, 'c)).filter('b < 2).select('c)
 
     val sink = new TestingAppendSink
-    unionDs.toAppendStream[Row].addSink(sink)
+    unionDs.toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("Hi", "Hallo")
@@ -73,11 +73,27 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 
   @TestTemplate
   def testUnionWithAnyType(): Unit = {
-    val s1 = env.fromElements((1, new NonPojo), (2, new NonPojo)).toTable(tEnv, 'a, 'b)
-    val s2 = env.fromElements((3, new NonPojo), (4, new NonPojo)).toTable(tEnv, 'a, 'b)
+    val schema = Schema
+      .newBuilder()
+      .column("_1", DataTypes.INT())
+      .column(
+        "_2",
+        DataTypes.STRUCTURED(
+          classOf[NonPojo],
+          DataTypes.FIELD("x", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))))
+      .build()
+    val s1 = env.fromElements((1, new NonPojo), (2, new NonPojo)).toTable(tEnv, schema)
+    val s2 = env.fromElements((3, new NonPojo), (4, new NonPojo)).toTable(tEnv, schema)
 
     val sink = new TestingAppendSink
-    s1.unionAll(s2).toAppendStream[Row].addSink(sink)
+    s1.unionAll(s2)
+      .toDataStream(
+        DataTypes.ROW(
+          DataTypes.INT(),
+          DataTypes.STRUCTURED(
+            classOf[NonPojo],
+            DataTypes.FIELD("x", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())))))
+      .addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,{}", "2,{}", "3,{}", "4,{}")
@@ -94,7 +110,11 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       .toTable(tEnv, 'a, 'b)
 
     val sink = new TestingAppendSink
-    s1.unionAll(s2.select('b, 'a)).toAppendStream[Row].addSink(sink)
+    val result = s1
+      .unionAll(s2.select('b, 'a))
+      .toDataStream(
+        DataTypes.ROW(DataTypes.INT(), DataTypes.ROW(DataTypes.INT(), DataTypes.STRING())))
+      .addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,1,a", "2,2,b", "3,3,c", "4,4,d")

@@ -545,7 +545,7 @@ class LegacyTableSinkITCase {
   }
 
   @Test
-  def testToAppendStreamMultiRowtime(): Unit = {
+  def testToDataStreamMultiRowtime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -561,7 +561,7 @@ class LegacyTableSinkITCase {
       .select('num, 'w.rowtime, 'w.rowtime.as('rowtime2))
 
     assertThatExceptionOfType(classOf[TableException])
-      .isThrownBy(() => r.toAppendStream[Row])
+      .isThrownBy(() => r.toDataStream(classOf[Row]))
   }
 
   @Test

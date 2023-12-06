@@ -111,7 +111,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = if (useTimestampLtz) {
@@ -159,7 +159,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq("9")
@@ -220,7 +220,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         | GROUP BY 'a', TUMBLE(rowtime, INTERVAL '0.003' SECOND)
       """.stripMargin
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
     val expected = Seq(
       "1970-01-01T00:00:00.003,2",
@@ -308,7 +308,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -421,7 +421,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |GROUP BY currency, TUMBLE(currency_time, INTERVAL '5' SECOND)
         |""".stripMargin
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
     val expected = Seq(
       "US Dollar,1,102,1970-01-01T00:00,1970-01-01T00:00:05",
@@ -508,7 +508,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |GROUP BY TUMBLE(currency_time, INTERVAL '5' SECOND)
         |""".stripMargin
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
     val expected =
       Seq("1970-01-01T00:00,1970-01-01T00:00:05,702", "1970-01-01T00:00:15,1970-01-01T00:00:20,118")
@@ -537,7 +537,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |GROUP BY `string`, TUMBLE(rowtime, INTERVAL '0.005' SECOND)
         |""".stripMargin
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
     val expected = Seq(
       "Hi,1970-01-01T00:00,1970-01-01T00:00:00.005,1",
@@ -579,7 +579,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |GROUP BY c, SESSION(rowtime, INTERVAL '0.005' SECOND)
       """.stripMargin
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected = Seq(

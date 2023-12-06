@@ -92,7 +92,7 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected =
@@ -141,7 +141,7 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected =
@@ -185,7 +185,7 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected =
@@ -232,7 +232,7 @@ class WindowDeduplicateITCase(mode: StateBackendMode) extends StreamingWithState
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream(classOf[Row]).addSink(sink)
     env.execute()
 
     val expected =

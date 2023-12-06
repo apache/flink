@@ -43,7 +43,7 @@ class OverWindowValidationTest extends TableTestBase {
       "from T1"
 
     assertThatExceptionOfType(classOf[TableException])
-      .isThrownBy(() => streamUtil.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row])
+      .isThrownBy(() => streamUtil.tableEnv.sqlQuery(sqlQuery).toDataStream(classOf[Row]))
   }
 
   /** OVER clause is necessary for [[OverAgg0]] window function. */
