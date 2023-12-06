@@ -218,3 +218,44 @@ SELECT id, FIRST_VALUE(str) AS str FROM BatchTable GROUP BY id;
 +----+-------------+
 5 rows in set
 !ok
+
+# All plan caches will be invalidated after we change the config.
+SET 'table.optimizer.agg-phase-strategy' = 'ONE_PHASE';
+!output
++--------+
+| result |
++--------+
+|     OK |
++--------+
+1 row in set
+!ok
+
+SELECT * FROM BatchTable;
+!output
++----+-------------+
+| id |         str |
++----+-------------+
+|  1 | Hello World |
+|  2 |          Hi |
+|  2 |          Hi |
+|  3 |       Hello |
+|  3 |       World |
+|  4 |         ADD |
+|  5 |        LINE |
++----+-------------+
+7 rows in set
+!ok
+
+SELECT id, FIRST_VALUE(str) AS str FROM BatchTable GROUP BY id;
+!output
++----+-------------+
+| id |         str |
++----+-------------+
+|  1 | Hello World |
+|  2 |          Hi |
+|  3 |       Hello |
+|  4 |         ADD |
+|  5 |        LINE |
++----+-------------+
+5 rows in set
+!ok

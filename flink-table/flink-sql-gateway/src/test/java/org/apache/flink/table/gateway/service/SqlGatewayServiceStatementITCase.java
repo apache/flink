@@ -100,7 +100,7 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
                             .getSession(sessionHandle)
                             .getPlanCacheManager()
                             .getCacheStats();
-            assertThat(cacheStats).isEqualTo(new CacheStats(4, 11, 0, 0, 0, 0));
+            assertThat(cacheStats).isEqualTo(new CacheStats(4, 14, 0, 0, 0, 0));
         }
     }
 
