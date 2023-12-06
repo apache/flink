@@ -39,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -157,10 +156,11 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
                 new CompletableFuture<>();
         final TestingTaskExecutorGateway testingTaskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
-                        .setSubmitTaskConsumer(
-                                (tdd, ignored) -> {
-                                    taskDeploymentDescriptorFuture.complete(tdd);
-                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                        .setSubmitTasksConsumer(
+                                (tdds, ignored) -> {
+                                    taskDeploymentDescriptorFuture.complete(tdds.get(0));
+                                    return CompletableFuture.completedFuture(
+                                            Collections.singletonList(null));
                                 })
                         .createTestingTaskExecutorGateway();
 

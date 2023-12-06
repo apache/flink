@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -48,6 +47,7 @@ import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.SerializedValue;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -85,10 +85,8 @@ public interface TaskExecutorGateway
      * @param timeout of the submit operation
      * @return Future deploying result of each submit operation.
      */
-    CompletableFuture<Collection<TaskDeployResult>> submitTasks(
-            Collection<TaskDeploymentDescriptor> tdds,
-            JobMasterId jobMasterId,
-            @RpcTimeout Time timeout);
+    CompletableFuture<List<SerializableOptional<Throwable>>> submitTasks(
+            List<TaskDeploymentDescriptor> tdds, JobMasterId jobMasterId, @RpcTimeout Time timeout);
 
     /**
      * Update the task where the given partitions can be found.

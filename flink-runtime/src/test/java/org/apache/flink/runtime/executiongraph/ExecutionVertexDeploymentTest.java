@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -27,11 +26,13 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
@@ -254,22 +255,18 @@ public class ExecutionVertexDeploymentTest {
             extends SimpleAckingTaskManagerGateway {
 
         @Override
-        public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
-                Collection<TaskDeploymentDescriptor> tdds, Time timeout) {
-            final CompletableFuture<Collection<TaskDeployResult>> completableFuture =
-                    new CompletableFuture<>();
-            completableFuture.completeExceptionally(new Exception(ERROR_MESSAGE));
+        public CompletableFuture<List<SerializableOptional<Throwable>>> submitTasks(
+                List<TaskDeploymentDescriptor> tdds, Time timeout) {
 
-            return completableFuture;
+            return FutureUtils.completedExceptionally(new Exception(ERROR_MESSAGE));
         }
     }
 
     private static class SubmitBlockingSimpleAckingTaskManagerGateway
             extends SimpleAckingTaskManagerGateway {
-
         @Override
-        public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
-                Collection<TaskDeploymentDescriptor> tdds, Time timeout) {
+        public CompletableFuture<List<SerializableOptional<Throwable>>> submitTasks(
+                List<TaskDeploymentDescriptor> tdds, Time timeout) {
             return new CompletableFuture<>();
         }
     }

@@ -21,20 +21,20 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.Execution;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 /** Executor to batch deploy {@link Execution}. */
@@ -48,7 +48,7 @@ public class BatchExecutionDeployExecutor implements ExecutionDeployExecutor {
 
     private final Map<TaskManagerLocation, TaskBatchDeploymentGroup> taskManagerLocationMap;
 
-    private final Map<ExecutionAttemptID, CompletableFuture<Acknowledge>> deployResultMap;
+    private final List<CompletableFuture<Acknowledge>> deployResults;
 
     public BatchExecutionDeployExecutor(
             ExecutionOperations executionOperations,
@@ -57,8 +57,8 @@ public class BatchExecutionDeployExecutor implements ExecutionDeployExecutor {
         this.executionOperations = executionOperations;
         this.futureExecutor = futureExecutor;
         this.rpcTimeout = rpcTimeout;
-        this.taskManagerLocationMap = new ConcurrentHashMap<>();
-        this.deployResultMap = new ConcurrentHashMap<>();
+        this.taskManagerLocationMap = new HashMap<>();
+        this.deployResults = new ArrayList<>();
     }
 
     @Override
@@ -69,7 +69,7 @@ public class BatchExecutionDeployExecutor implements ExecutionDeployExecutor {
     @Override
     public void flushDeploy() {
         for (TaskBatchDeploymentGroup taskBatchDeploymentGroup : taskManagerLocationMap.values()) {
-            Collection<TaskDeploymentDescriptor> taskDeploymentDescriptors =
+            List<TaskDeploymentDescriptor> taskDeploymentDescriptors =
                     taskBatchDeploymentGroup.getTaskDeploymentDescriptors();
             CompletableFuture.supplyAsync(
                             () ->
@@ -81,23 +81,18 @@ public class BatchExecutionDeployExecutor implements ExecutionDeployExecutor {
                     .whenComplete(
                             (list, deployThrowable) -> {
                                 if (deployThrowable != null) {
-                                    for (CompletableFuture<Acknowledge> future :
-                                            deployResultMap.values()) {
+                                    for (CompletableFuture<Acknowledge> future : deployResults) {
                                         future.completeExceptionally(deployThrowable);
                                     }
                                     return;
                                 }
-                                for (TaskDeployResult taskDeployResult : list) {
-                                    final Throwable taskDeployResultThrowable =
-                                            taskDeployResult.getThrowable();
-                                    if (taskDeployResultThrowable != null) {
-                                        deployResultMap
-                                                .get(taskDeployResult.getExecutionAttemptID())
-                                                .completeExceptionally(taskDeployResultThrowable);
+
+                                for (int i = 0; i < list.size(); i++) {
+                                    final SerializableOptional<Throwable> throwable = list.get(i);
+                                    if (throwable.isPresent()) {
+                                        deployResults.get(i).completeExceptionally(throwable.get());
                                     } else {
-                                        deployResultMap
-                                                .get(taskDeployResult.getExecutionAttemptID())
-                                                .complete(Acknowledge.get());
+                                        deployResults.get(i).complete(Acknowledge.get());
                                     }
                                 }
                             });
@@ -120,7 +115,7 @@ public class BatchExecutionDeployExecutor implements ExecutionDeployExecutor {
                                                 logicalSlot.getTaskManagerGateway()))
                         .addTaskDeploymentDescriptor(deploymentDescriptor);
                 final CompletableFuture<Acknowledge> deployResult = new CompletableFuture<>();
-                deployResultMap.put(deploymentDescriptor.getExecutionAttemptId(), deployResult);
+                deployResults.add(deployResult);
                 return deployResult;
             } catch (Exception e) {
                 return FutureUtils.completedExceptionally(e);

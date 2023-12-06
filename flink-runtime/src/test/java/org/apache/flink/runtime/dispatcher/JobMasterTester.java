@@ -45,6 +45,7 @@ import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Iterables;
@@ -178,7 +179,7 @@ public class JobMasterTester implements Closeable {
     private TaskExecutorGateway createTaskExecutorGateway() {
         final TestingTaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
-                        .setSubmitTaskConsumer(this::onSubmitTaskConsumer)
+                        .setSubmitTasksConsumer(this::onSubmitTasksConsumer)
                         .setTriggerCheckpointFunction(this::onTriggerCheckpoint)
                         .setConfirmCheckpointFunction(this::onConfirmCheckpoint)
                         .createTestingTaskExecutorGateway();
@@ -241,8 +242,8 @@ public class JobMasterTester implements Closeable {
                                 completeAttemptCheckpoint(checkpointId, executionAttemptId));
     }
 
-    private CompletableFuture<Acknowledge> onSubmitTaskConsumer(
-            TaskDeploymentDescriptor taskDeploymentDescriptor, JobMasterId jobMasterId) {
+    private CompletableFuture<List<SerializableOptional<Throwable>>> onSubmitTasksConsumer(
+            List<TaskDeploymentDescriptor> taskDeploymentDescriptors, JobMasterId jobMasterId) {
         return jobMasterGateway
                 .requestJob(TIMEOUT)
                 .thenCompose(
@@ -252,13 +253,19 @@ public class JobMasterTester implements Closeable {
                                             executionGraphInfo
                                                     .getArchivedExecutionGraph()
                                                     .getAllExecutionVertices());
-                            descriptors.put(
-                                    taskDeploymentDescriptor.getExecutionAttemptId(),
-                                    taskDeploymentDescriptor);
+                            List<SerializableOptional<Throwable>> results =
+                                    new ArrayList<>(taskDeploymentDescriptors.size());
+                            for (TaskDeploymentDescriptor taskDeploymentDescriptor :
+                                    taskDeploymentDescriptors) {
+                                descriptors.put(
+                                        taskDeploymentDescriptor.getExecutionAttemptId(),
+                                        taskDeploymentDescriptor);
+                                results.add(SerializableOptional.ofNullable(null));
+                            }
                             if (descriptors.size() == numVertices) {
                                 descriptorsFuture.complete(new ArrayList<>(descriptors.values()));
                             }
-                            return CompletableFuture.completedFuture(Acknowledge.get());
+                            return CompletableFuture.completedFuture(results);
                         });
     }
 

@@ -22,22 +22,22 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 
-import java.util.Collection;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Group of TaskDeploymentDescriptor. */
 public class TaskBatchDeploymentGroup {
 
-    private final Collection<TaskDeploymentDescriptor> taskDeploymentDescriptors;
+    private final List<TaskDeploymentDescriptor> taskDeploymentDescriptors;
 
     private final TaskManagerGateway taskManagerGateway;
 
     public TaskBatchDeploymentGroup(TaskManagerGateway taskManagerGateway) {
-        this.taskDeploymentDescriptors = new ConcurrentLinkedDeque<>();
+        this.taskDeploymentDescriptors = new ArrayList<>();
         this.taskManagerGateway = taskManagerGateway;
     }
 
-    public Collection<TaskDeploymentDescriptor> getTaskDeploymentDescriptors() {
+    public List<TaskDeploymentDescriptor> getTaskDeploymentDescriptors() {
         return taskDeploymentDescriptors;
     }
 

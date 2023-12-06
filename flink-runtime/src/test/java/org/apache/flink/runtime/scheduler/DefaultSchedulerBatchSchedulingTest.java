@@ -37,7 +37,6 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -106,10 +105,12 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                     new ArrayBlockingQueue<>(parallelism);
             TestingTaskExecutorGateway testingTaskExecutorGateway =
                     new TestingTaskExecutorGatewayBuilder()
-                            .setSubmitTaskConsumer(
-                                    (tdd, ignored) -> {
-                                        submittedTasksQueue.offer(tdd.getExecutionAttemptId());
-                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                            .setSubmitTasksConsumer(
+                                    (tdds, ignored) -> {
+                                        submittedTasksQueue.offer(
+                                                tdds.get(0).getExecutionAttemptId());
+                                        return CompletableFuture.completedFuture(
+                                                Collections.singletonList(null));
                                     })
                             .createTestingTaskExecutorGateway();
 

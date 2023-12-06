@@ -20,7 +20,6 @@
 package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
@@ -31,6 +30,7 @@ import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -70,8 +70,8 @@ class BatchExecutionDeployExecutorTest {
                                 tdds.stream()
                                         .map(
                                                 tdd ->
-                                                        new TaskDeployResult(
-                                                                tdd.getExecutionAttemptId(), null))
+                                                        SerializableOptional.ofNullable(
+                                                                (Throwable) null))
                                         .collect(Collectors.toList())));
 
         final LogicalSlot slot =
@@ -106,12 +106,13 @@ class BatchExecutionDeployExecutorTest {
                                                             .equals(
                                                                     failedExecution
                                                                             .getAttemptId())) {
-                                                        return new TaskDeployResult(
-                                                                tdd.getExecutionAttemptId(),
-                                                                new Exception("Test Error"));
+                                                        final Throwable submitFailedException =
+                                                                new Exception("Submit failed");
+                                                        return SerializableOptional.ofNullable(
+                                                                submitFailedException);
                                                     }
-                                                    return new TaskDeployResult(
-                                                            tdd.getExecutionAttemptId(), null);
+                                                    return SerializableOptional.ofNullable(
+                                                            (Throwable) null);
                                                 })
                                         .collect(Collectors.toList())));
 

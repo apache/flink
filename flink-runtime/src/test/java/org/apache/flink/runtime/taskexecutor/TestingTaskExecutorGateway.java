@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -51,6 +50,7 @@ import org.apache.flink.util.function.QuadFunction;
 import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -71,13 +71,10 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
     private final BiConsumer<JobID, Throwable> disconnectJobManagerConsumer;
 
-    private final BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
-            submitTaskConsumer;
-
     private final BiFunction<
-                    Collection<TaskDeploymentDescriptor>,
+                    List<TaskDeploymentDescriptor>,
                     JobMasterId,
-                    CompletableFuture<Collection<TaskDeployResult>>>
+                    CompletableFuture<List<SerializableOptional<Throwable>>>>
             submitTasksConsumer;
 
     private final Function<
@@ -131,12 +128,10 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
             BiFunction<ResourceID, AllocatedSlotReport, CompletableFuture<Void>>
                     heartbeatJobManagerFunction,
             BiConsumer<JobID, Throwable> disconnectJobManagerConsumer,
-            BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
-                    submitTaskConsumer,
             BiFunction<
-                            Collection<TaskDeploymentDescriptor>,
+                            List<TaskDeploymentDescriptor>,
                             JobMasterId,
-                            CompletableFuture<Collection<TaskDeployResult>>>
+                            CompletableFuture<List<SerializableOptional<Throwable>>>>
                     submitTasksConsumer,
             Function<
                             Tuple6<
@@ -180,7 +175,6 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
         this.heartbeatJobManagerFunction = Preconditions.checkNotNull(heartbeatJobManagerFunction);
         this.disconnectJobManagerConsumer =
                 Preconditions.checkNotNull(disconnectJobManagerConsumer);
-        this.submitTaskConsumer = Preconditions.checkNotNull(submitTaskConsumer);
         this.submitTasksConsumer = Preconditions.checkNotNull(submitTasksConsumer);
         this.requestSlotFunction = Preconditions.checkNotNull(requestSlotFunction);
         this.freeSlotFunction = Preconditions.checkNotNull(freeSlotFunction);
@@ -219,14 +213,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
     }
 
     @Override
-    public CompletableFuture<Acknowledge> submitTask(
-            TaskDeploymentDescriptor tdd, JobMasterId jobMasterId, Time timeout) {
-        return submitTaskConsumer.apply(tdd, jobMasterId);
-    }
-
-    @Override
-    public CompletableFuture<Collection<TaskDeployResult>> submitTasks(
-            Collection<TaskDeploymentDescriptor> tdds, JobMasterId jobMasterId, Time timeout) {
+    public CompletableFuture<List<SerializableOptional<Throwable>>> submitTasks(
+            List<TaskDeploymentDescriptor> tdds, JobMasterId jobMasterId, Time timeout) {
         return submitTasksConsumer.apply(tdds, jobMasterId);
     }
 

@@ -48,7 +48,6 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
@@ -68,6 +67,7 @@ import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.runtime.util.NoOpGroupCache;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.junit.jupiter.api.Test;
@@ -581,10 +581,15 @@ class DefaultExecutionGraphDeploymentTest {
                 new ArrayBlockingQueue<>(numberTasks);
         TestingTaskExecutorGatewayBuilder testingTaskExecutorGatewayBuilder =
                 new TestingTaskExecutorGatewayBuilder();
-        testingTaskExecutorGatewayBuilder.setSubmitTaskConsumer(
-                (taskDeploymentDescriptor, jobMasterId) -> {
-                    submittedTasksQueue.offer(taskDeploymentDescriptor.getExecutionAttemptId());
-                    return CompletableFuture.completedFuture(Acknowledge.get());
+        testingTaskExecutorGatewayBuilder.setSubmitTasksConsumer(
+                (taskDeploymentDescriptors, jobMasterId) -> {
+                    List<SerializableOptional<Throwable>> results = new ArrayList<>();
+                    for (TaskDeploymentDescriptor taskDeploymentDescriptor :
+                            taskDeploymentDescriptors) {
+                        submittedTasksQueue.offer(taskDeploymentDescriptor.getExecutionAttemptId());
+                        results.add(SerializableOptional.ofNullable(null));
+                    }
+                    return CompletableFuture.completedFuture(results);
                 });
 
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();

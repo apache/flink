@@ -32,7 +32,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
-import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
@@ -51,6 +50,7 @@ import org.junit.Test;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -312,10 +312,11 @@ public class JobMasterQueryableStateTest extends TestLogger {
         final OneShotLatch oneTaskSubmittedLatch = new OneShotLatch();
         final TaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
-                        .setSubmitTaskConsumer(
-                                (taskDeploymentDescriptor, jobMasterId) -> {
+                        .setSubmitTasksConsumer(
+                                (taskDeploymentDescriptors, jobMasterId) -> {
                                     oneTaskSubmittedLatch.trigger();
-                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                    return CompletableFuture.completedFuture(
+                                            Collections.singletonList(null));
                                 })
                         .createTestingTaskExecutorGateway();
         JobMasterTestUtils.registerTaskExecutorAndOfferSlots(

@@ -47,6 +47,7 @@ import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.testutils.TestingUtils;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -56,6 +57,7 @@ import org.junit.Test;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -170,8 +172,8 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
                     new CompletableFuture<>();
             final CompletableFuture<ExecutionAttemptID> taskCancellationFuture =
                     new CompletableFuture<>();
-            final CompletableFuture<Acknowledge> taskSubmissionAcknowledgeFuture =
-                    new CompletableFuture<>();
+            final CompletableFuture<List<SerializableOptional<Throwable>>>
+                    taskSubmissionAcknowledgeFuture = new CompletableFuture<>();
             TaskExecutorGateway taskExecutorGateway =
                     createTaskExecutorGateway(
                             taskCancellationFuture,
@@ -197,7 +199,7 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
                             new ExecutionDeploymentReport(
                                     Collections.singleton(pendingExecutionId))));
 
-            taskSubmissionAcknowledgeFuture.complete(Acknowledge.get());
+            taskSubmissionAcknowledgeFuture.complete(Collections.singletonList(null));
 
             deploymentTrackerWrapper.getTaskDeploymentFuture().get();
             assertFalse(taskCancellationFuture.isDone());
@@ -239,13 +241,13 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
         return createTaskExecutorGateway(
                 taskCancellationFuture,
                 new CompletableFuture<>(),
-                CompletableFuture.completedFuture(Acknowledge.get()));
+                CompletableFuture.completedFuture(Collections.singletonList(null)));
     }
 
     private TaskExecutorGateway createTaskExecutorGateway(
             CompletableFuture<ExecutionAttemptID> taskCancellationFuture,
             CompletableFuture<ExecutionAttemptID> taskSubmissionFuture,
-            CompletableFuture<Acknowledge> taskSubmissionResponse) {
+            CompletableFuture<List<SerializableOptional<Throwable>>> taskSubmissionResponse) {
         TestingTaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
                         .setAddress(UUID.randomUUID().toString())
@@ -254,9 +256,10 @@ public class JobMasterExecutionDeploymentReconciliationTest extends TestLogger {
                                     taskCancellationFuture.complete(executionAttemptId);
                                     return CompletableFuture.completedFuture(Acknowledge.get());
                                 })
-                        .setSubmitTaskConsumer(
-                                (tdd, ignored) -> {
-                                    taskSubmissionFuture.complete(tdd.getExecutionAttemptId());
+                        .setSubmitTasksConsumer(
+                                (tdds, ignored) -> {
+                                    taskSubmissionFuture.complete(
+                                            tdds.get(0).getExecutionAttemptId());
                                     return taskSubmissionResponse;
                                 })
                         .createTestingTaskExecutorGateway();

@@ -25,7 +25,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
-import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -38,6 +37,7 @@ import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.QuadFunction;
@@ -46,6 +46,7 @@ import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -68,9 +69,9 @@ public class TestingTaskExecutorGatewayBuilder {
                     (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Acknowledge.get());
 
     private static final BiFunction<
-                    Collection<TaskDeploymentDescriptor>,
+                    List<TaskDeploymentDescriptor>,
                     JobMasterId,
-                    CompletableFuture<Collection<TaskDeployResult>>>
+                    CompletableFuture<List<SerializableOptional<Throwable>>>>
             NOOP_SUBMIT_TASKS_CONSUMER =
                     (ignoredA, ignoredB) ->
                             CompletableFuture.completedFuture(Collections.emptyList());
@@ -129,13 +130,10 @@ public class TestingTaskExecutorGatewayBuilder {
             heartbeatJobManagerFunction = NOOP_HEARTBEAT_JOBMANAGER_FUNCTION;
     private BiConsumer<JobID, Throwable> disconnectJobManagerConsumer =
             NOOP_DISCONNECT_JOBMANAGER_CONSUMER;
-    private BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
-            submitTaskConsumer = NOOP_SUBMIT_TASK_CONSUMER;
-
     private BiFunction<
-                    Collection<TaskDeploymentDescriptor>,
+                    List<TaskDeploymentDescriptor>,
                     JobMasterId,
-                    CompletableFuture<Collection<TaskDeployResult>>>
+                    CompletableFuture<List<SerializableOptional<Throwable>>>>
             submitTasksConsumer = NOOP_SUBMIT_TASKS_CONSUMER;
     private Function<
                     Tuple6<SlotID, JobID, AllocationID, ResourceProfile, String, ResourceManagerId>,
@@ -205,10 +203,13 @@ public class TestingTaskExecutorGatewayBuilder {
         return this;
     }
 
-    public TestingTaskExecutorGatewayBuilder setSubmitTaskConsumer(
-            BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>>
-                    submitTaskConsumer) {
-        this.submitTaskConsumer = submitTaskConsumer;
+    public TestingTaskExecutorGatewayBuilder setSubmitTasksConsumer(
+            BiFunction<
+                            List<TaskDeploymentDescriptor>,
+                            JobMasterId,
+                            CompletableFuture<List<SerializableOptional<Throwable>>>>
+                    submitTasksConsumer) {
+        this.submitTasksConsumer = submitTasksConsumer;
         return this;
     }
 
@@ -328,7 +329,6 @@ public class TestingTaskExecutorGatewayBuilder {
                 hostname,
                 heartbeatJobManagerFunction,
                 disconnectJobManagerConsumer,
-                submitTaskConsumer,
                 submitTasksConsumer,
                 requestSlotFunction,
                 freeSlotFunction,

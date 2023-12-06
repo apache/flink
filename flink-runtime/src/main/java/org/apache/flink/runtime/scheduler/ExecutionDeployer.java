@@ -76,7 +76,7 @@ public interface ExecutionDeployer {
                 final Time partitionRegistrationTimeout,
                 final BiConsumer<ExecutionVertexID, AllocationID> allocationReservationFunc,
                 final ComponentMainThreadExecutor mainThreadExecutor,
-                ScheduledExecutor futureExecutor,
+                final ScheduledExecutor futureExecutor,
                 final ExecutionDeployExecutor.Factory executionDeployExecutorFactory);
     }
 }

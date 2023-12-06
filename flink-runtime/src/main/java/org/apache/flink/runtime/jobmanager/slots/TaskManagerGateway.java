@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
@@ -32,9 +31,10 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.SerializedValue;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -49,14 +49,14 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
     String getAddress();
 
     /**
-     * Submit list of task to the task manager.
+     * Submit list of tasks to the task manager.
      *
      * @param tdds descriptor list of tasks to submit
      * @param timeout of the submit operation
      * @return Future deploying result of each submit operation.
      */
-    CompletableFuture<Collection<TaskDeployResult>> submitTasks(
-            Collection<TaskDeploymentDescriptor> tdds, Time timeout);
+    CompletableFuture<List<SerializableOptional<Throwable>>> submitTasks(
+            List<TaskDeploymentDescriptor> tdds, Time timeout);
 
     /**
      * Cancel the given task.

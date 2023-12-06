@@ -820,10 +820,11 @@ class JobMasterTest {
                     jobMaster.getSelfGateway(JobMasterGateway.class),
                     jobGraph.getJobID(),
                     new TestingTaskExecutorGatewayBuilder()
-                            .setSubmitTaskConsumer(
-                                    (taskDeploymentDescriptor, jobMasterId) -> {
+                            .setSubmitTasksConsumer(
+                                    (taskDeploymentDescriptors, jobMasterId) -> {
                                         taskSubmitLatch.trigger();
-                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                        return CompletableFuture.completedFuture(
+                                                Collections.singletonList(null));
                                     })
                             .createTestingTaskExecutorGateway(),
                     new LocalUnresolvedTaskManagerLocation());
@@ -1336,10 +1337,11 @@ class JobMasterTest {
             final CompletableFuture<TaskDeploymentDescriptor> tddFuture = new CompletableFuture<>();
             final TestingTaskExecutorGateway testingTaskExecutorGateway =
                     new TestingTaskExecutorGatewayBuilder()
-                            .setSubmitTaskConsumer(
-                                    (taskDeploymentDescriptor, jobMasterId) -> {
-                                        tddFuture.complete(taskDeploymentDescriptor);
-                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                            .setSubmitTasksConsumer(
+                                    (taskDeploymentDescriptors, jobMasterId) -> {
+                                        tddFuture.complete(taskDeploymentDescriptors.get(0));
+                                        return CompletableFuture.completedFuture(
+                                                Collections.singletonList(null));
                                     })
                             .createTestingTaskExecutorGateway();
             final LocalUnresolvedTaskManagerLocation taskManagerLocation =
@@ -2207,11 +2209,14 @@ class JobMasterTest {
                     new CompletableFuture<>();
             final TestingTaskExecutorGateway taskExecutorGateway =
                     new TestingTaskExecutorGatewayBuilder()
-                            .setSubmitTaskConsumer(
-                                    (taskDeploymentDescriptor, jobMasterId) -> {
+                            .setSubmitTasksConsumer(
+                                    (taskDeploymentDescriptors, jobMasterId) -> {
                                         taskDeploymentFuture.complete(
-                                                taskDeploymentDescriptor.getExecutionAttemptId());
-                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                                taskDeploymentDescriptors
+                                                        .get(0)
+                                                        .getExecutionAttemptId());
+                                        return CompletableFuture.completedFuture(
+                                                Collections.singletonList(null));
                                     })
                             .createTestingTaskExecutorGateway();
 

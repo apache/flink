@@ -31,7 +31,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeployResult;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -55,13 +54,13 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.types.SerializableOptional;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
@@ -647,26 +646,20 @@ public class Execution
                                                 .getAssignedResource()
                                                 .getTaskManagerGateway()
                                                 .submitTasks(
-                                                        Lists.newArrayList(deploymentDescriptor),
+                                                        Collections.singletonList(
+                                                                deploymentDescriptor),
                                                         rpcTimeout),
                                 executor)
                         .thenCompose(Function.identity())
                         .thenCompose(
                                 taskDeployResults -> {
-                                    final Optional<TaskDeployResult> taskDeployResultOptional =
-                                            taskDeployResults.stream().findAny();
-                                    checkArgument(taskDeployResultOptional.isPresent());
-                                    final TaskDeployResult taskDeployResult =
-                                            taskDeployResultOptional.get();
-                                    checkArgument(
-                                            taskDeployResult
-                                                    .getExecutionAttemptID()
-                                                    .equals(attemptId));
-                                    if (taskDeployResult.getThrowable() == null) {
-                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                    checkArgument(taskDeployResults.size() == 1);
+                                    final SerializableOptional<Throwable> throwable =
+                                            taskDeployResults.get(0);
+                                    if (throwable.isPresent()) {
+                                        return FutureUtils.completedExceptionally(throwable.get());
                                     } else {
-                                        return FutureUtils.completedExceptionally(
-                                                taskDeployResult.getThrowable());
+                                        return CompletableFuture.completedFuture(Acknowledge.get());
                                     }
                                 });
             } catch (Exception e) {
