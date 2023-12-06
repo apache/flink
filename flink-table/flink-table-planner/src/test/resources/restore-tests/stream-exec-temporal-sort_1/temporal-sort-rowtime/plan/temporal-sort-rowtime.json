@@ -18,18 +18,6 @@
               "name" : "double",
               "dataType" : "DOUBLE"
             }, {
-              "name" : "float",
-              "dataType" : "FLOAT"
-            }, {
-              "name" : "bigdec",
-              "dataType" : "DECIMAL(10, 2)"
-            }, {
-              "name" : "string",
-              "dataType" : "VARCHAR(2147483647)"
-            }, {
-              "name" : "name",
-              "dataType" : "VARCHAR(2147483647)"
-            }, {
               "name" : "rowtime",
               "kind" : "COMPUTED",
               "expression" : {
@@ -55,7 +43,7 @@
                   "internalName" : "$-$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
-                    "inputIndex" : 7,
+                    "inputIndex" : 3,
                     "type" : "TIMESTAMP(3)"
                   }, {
                     "kind" : "LITERAL",
@@ -70,33 +58,24 @@
           },
           "partitionKeys" : [ ]
         }
-      },
-      "abilities" : [ {
-        "type" : "ProjectPushDown",
-        "projectedFields" : [ [ 1 ], [ 0 ], [ 2 ] ],
-        "producedType" : "ROW<`int` INT, `ts` VARCHAR(2147483647), `double` DOUBLE> NOT NULL"
-      }, {
-        "type" : "ReadingMetadata",
-        "metadataKeys" : [ ],
-        "producedType" : "ROW<`int` INT, `ts` VARCHAR(2147483647), `double` DOUBLE> NOT NULL"
-      } ]
+      }
     },
-    "outputType" : "ROW<`int` INT, `ts` VARCHAR(2147483647), `double` DOUBLE>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, project=[int, ts, double], metadata=[]]], fields=[int, ts, double])",
+    "outputType" : "ROW<`ts` VARCHAR(2147483647), `int` INT, `double` DOUBLE>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[ts, int, double])",
     "inputProperties" : [ ]
   }, {
     "id" : 8,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
-      "inputIndex" : 0,
+      "inputIndex" : 1,
       "type" : "INT"
     }, {
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "inputIndex" : 0,
         "type" : "VARCHAR(2147483647)"
       } ],
       "type" : "TIMESTAMP(3)"

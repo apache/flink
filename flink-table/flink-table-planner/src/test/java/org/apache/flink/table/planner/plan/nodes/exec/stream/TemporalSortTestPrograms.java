@@ -23,27 +23,24 @@ import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
-import java.math.BigDecimal;
-
 /** {@link TableTestProgram} definitions for testing {@link StreamExecTemporalSort}. */
 public class TemporalSortTestPrograms {
 
     static final Row[] BEFORE_DATA = {
-        Row.of("2020-10-10 00:00:01", 1, 1d, 1f, new BigDecimal("1.11"), "Hi", "a"),
-        Row.of("2020-10-10 00:00:02", 2, 2d, 2f, new BigDecimal("2.22"), "Comment#1", "a"),
-        Row.of("2020-10-10 00:00:07", 5, 6d, 3f, null, "Hello", "b"),
-        Row.of("2020-10-10 00:00:07", 3, 3d, 3f, null, "Hello", "b"),
+        Row.of("2020-10-10 00:00:01", 1, 1d),
+        Row.of("2020-10-10 00:00:02", 2, 2d),
+        Row.of("2020-10-10 00:00:07", 5, 6d),
+        Row.of("2020-10-10 00:00:07", 3, 3d),
         // out of order
-        Row.of("2020-10-10 00:00:06", 6, 6d, 6f, new BigDecimal("6.66"), "Hi", "b"),
-        Row.of("2020-10-10 00:00:08", 3, null, 3f, new BigDecimal("3.33"), "Comment#2", "a"),
+        Row.of("2020-10-10 00:00:06", 6, 6d),
+        Row.of("2020-10-10 00:00:08", 3, null),
         // late event
-        Row.of("2020-10-10 00:00:04", 5, 5d, null, new BigDecimal("5.55"), "Hi", "a"),
-        Row.of("2020-10-10 00:00:16", 4, 4d, 4f, new BigDecimal("4.44"), "Hi", "b")
+        Row.of("2020-10-10 00:00:04", 5, 5d),
+        Row.of("2020-10-10 00:00:16", 4, 4d)
     };
 
     static final Row[] AFTER_DATA = {
-        Row.of("2020-10-10 00:00:40", 10, 3d, 3f, new BigDecimal("4.44"), "Comment#4", "a"),
-        Row.of("2020-10-10 00:00:42", 11, 4d, 4f, new BigDecimal("5.44"), "Comment#5", "d")
+        Row.of("2020-10-10 00:00:40", 10, 3d), Row.of("2020-10-10 00:00:42", 11, 4d)
     };
     static final TableTestProgram TEMPORAL_SORT_PROCTIME =
             TableTestProgram.of(
@@ -81,10 +78,6 @@ public class TemporalSortTestPrograms {
                                             "ts STRING",
                                             "`int` INT",
                                             "`double` DOUBLE",
-                                            "`float` FLOAT",
-                                            "`bigdec` DECIMAL(10, 2)",
-                                            "`string` STRING",
-                                            "`name` STRING",
                                             "`rowtime` AS TO_TIMESTAMP(`ts`)",
                                             "WATERMARK for `rowtime` AS `rowtime` - INTERVAL '1' SECOND")
                                     .producedBeforeRestore(BEFORE_DATA)
