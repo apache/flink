@@ -44,7 +44,7 @@ class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
         String ddl =
                 "CREATE TABLE inventory (\n"
                         + "  id BIGINT,\n"
-                        + "  name STRING,\n"
+                        + "  name STRING not null,\n"
                         + "  amount BIGINT,\n"
                         + "  price BIGINT,\n"
                         + "  type STRING\n"
@@ -154,6 +154,26 @@ class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
                         + "  avg(price),\n"
                         + "  count(id)\n"
                         + "FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCount() {
+        util.verifyRelPlan("SELECT count(*) FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCount1() {
+        util.verifyRelPlan("SELECT count(1) FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCountNullableColumn() {
+        util.verifyRelPlan("SELECT count(id) FROM inventory");
+    }
+
+    @Test
+    public void testCanPushDownLocalHashAggForCountNotNullColumn() {
+        util.verifyRelPlan("SELECT count(name) FROM inventory");
     }
 
     @Test
