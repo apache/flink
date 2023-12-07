@@ -57,6 +57,8 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 
+import javax.annotation.Nullable
+
 import java.util.Collections
 
 import scala.collection.JavaConverters._
@@ -187,6 +189,10 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
     addSqlTestExpr(sqlExpr, expected, validExprs)
   }
 
+  def testSqlApi(sqlExpr: String): Unit = {
+    addSqlTestExpr(sqlExpr, null, validExprs)
+  }
+
   def testExpectedAllApisException(
       expr: Expression,
       sqlExpr: String,
@@ -282,7 +288,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
 
   private def addSqlTestExpr(
       sqlExpr: String,
-      expected: String,
+      @Nullable expected: String,
       exprsContainer: mutable.ArrayBuffer[_],
       exceptionClass: Class[_ <: Throwable] = null): Unit = {
     // create RelNode from SQL expression
@@ -344,6 +350,10 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
       .zip(result)
       .foreach {
         case ((originalExpr, optimizedExpr, expected), actual) =>
+          if (expected == null) {
+            // no need to check the result
+            return
+          }
           val original = if (originalExpr == null) "" else s"for: [$originalExpr]"
           assertEquals(
             expected,

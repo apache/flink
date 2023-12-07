@@ -36,6 +36,10 @@ public class RandFunctionITCase extends BuiltInFunctionTestBase {
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
+                // RAND()
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
+                        .testSqlResult("RAND()", DataTypes.DOUBLE().notNull())
+                        .testTableApiResult(rand(), DataTypes.DOUBLE().notNull()),
                 // RAND(INT)
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
                         .onFieldsWithData(10)
@@ -49,6 +53,18 @@ public class RandFunctionITCase extends BuiltInFunctionTestBase {
                         .testSqlResult("RAND(f0)", 0.7304302967434272, DataTypes.DOUBLE().notNull())
                         .testTableApiResult(
                                 rand($("f0")), 0.7304302967434272, DataTypes.DOUBLE().notNull()),
+                // RAND_INTEGER(INT)
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
+                        .onFieldsWithData(5)
+                        .andDataTypes(DataTypes.INT())
+                        .testSqlResult("RAND_INTEGER(f0)", DataTypes.INT())
+                        .testTableApiResult(randInteger($("f0")), DataTypes.INT()),
+                // RAND_INTEGER(INT NOT NULL)
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
+                        .onFieldsWithData(5)
+                        .andDataTypes(DataTypes.INT().notNull())
+                        .testSqlResult("RAND_INTEGER(f0)", DataTypes.INT().notNull())
+                        .testTableApiResult(randInteger($("f0")), DataTypes.INT().notNull()),
                 // RAND_INTEGER(INT, INT)
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.RAND)
                         .onFieldsWithData(5, 10)

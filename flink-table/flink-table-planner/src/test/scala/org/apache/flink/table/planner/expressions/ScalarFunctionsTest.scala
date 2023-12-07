@@ -2668,6 +2668,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   @Test
   def testRandAndIf(): Unit = {
     // test RAND
+    testSqlApi("IF(1 = 1, RAND(), cast(1.0 as double))")
 
     // test RAND(INT) and IF(BOOLEAN, DOUBLE, DOUBLE NOT NULL)
     testSqlApi("IF(1 = 1, RAND(f7), cast(1.0 as double))", "0.731057369148862")
@@ -2679,6 +2680,15 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("IF(1 = 1, RAND(1), cast(1.0 as double))", "0.7308781907032909")
 
     // test RAND_INTEGER
+
+    // test RAND_INTEGER(INT) and IF(BOOLEAN, INT, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(f7), 1)")
+
+    // test RAND_INTEGER(INT NOT NULL) and IF(BOOLEAN, INT NOT NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(10), 1)")
+
+    // test RAND_INTEGER(NULL) and IF(BOOLEAN, NULL, INT NOT NULL)
+    testSqlApi("IF(1 = 1, RAND_INTEGER(cast(null as int)), 1)")
 
     // test RAND_INTEGER(INT, INT NOT NULL) and IF(BOOLEAN, INT, INT NOT NULL)
     testSqlApi("IF(1 = 1, RAND_INTEGER(f7, 10), 1)", "4")
