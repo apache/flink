@@ -583,7 +583,8 @@ SqlShowViews SqlShowViews() :
 }
 
 /**
-* SHOW TABLES FROM [catalog.] database sql call.
+* Parses a show tables statement.
+* SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE pattern ];
 */
 SqlShowTables SqlShowTables() :
 {
@@ -653,7 +654,7 @@ SqlShowColumns SqlShowColumns() :
 }
 
 /**
-* Parse a "Show Create Table" query and "Show Create View" query commands.
+* Parse a "Show Create Table" query and "Show Create View" and "Show Create Catalog" query commands.
 */
 SqlShowCreate SqlShowCreate() :
 {
@@ -675,6 +676,13 @@ SqlShowCreate SqlShowCreate() :
         sqlIdentifier = CompoundIdentifier()
         {
             return new SqlShowCreateView(pos, sqlIdentifier);
+        }
+    |
+        <CATALOG>
+        { pos = getPos(); }
+        sqlIdentifier = SimpleIdentifier()
+        {
+            return new SqlShowCreateCatalog(pos, sqlIdentifier);
         }
     )
 }

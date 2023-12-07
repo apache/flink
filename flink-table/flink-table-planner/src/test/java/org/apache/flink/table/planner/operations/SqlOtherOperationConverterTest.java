@@ -22,6 +22,7 @@ import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowCreateCatalogOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowModulesOperation;
@@ -185,6 +186,13 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
         assertThat(showTablesOperation.getCatalogName()).isNull();
         assertThat(showTablesOperation.getDatabaseName()).isNull();
         assertThat(showTablesOperation.getPreposition()).isNull();
+    }
+
+    @Test
+    void testShowCreateCatalog() {
+        Operation operation = parse("show create catalog cat1");
+        assertThat(operation).isInstanceOf(ShowCreateCatalogOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo("SHOW CREATE CATALOG cat1");
     }
 
     @Test
