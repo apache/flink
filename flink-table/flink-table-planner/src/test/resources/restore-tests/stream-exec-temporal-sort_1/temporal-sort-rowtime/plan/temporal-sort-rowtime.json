@@ -1,22 +1,22 @@
 {
-  "flinkVersion" : "",
+  "flinkVersion" : "1.19",
   "nodes" : [ {
-    "id" : 1,
+    "id" : 7,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
-              "name" : "a",
+              "name" : "ts",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "int",
               "dataType" : "INT"
             }, {
-              "name" : "b",
-              "dataType" : "BIGINT"
-            }, {
-              "name" : "c",
-              "dataType" : "VARCHAR(2147483647)"
+              "name" : "double",
+              "dataType" : "DOUBLE"
             }, {
               "name" : "rowtime",
               "kind" : "COMPUTED",
@@ -26,29 +26,12 @@
                   "internalName" : "$TO_TIMESTAMP$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
-                    "inputIndex" : 2,
+                    "inputIndex" : 0,
                     "type" : "VARCHAR(2147483647)"
                   } ],
                   "type" : "TIMESTAMP(3)"
                 },
-                "serializableString" : "TO_TIMESTAMP(`c`)"
-              }
-            }, {
-              "name" : "proctime",
-              "kind" : "COMPUTED",
-              "expression" : {
-                "rexNode" : {
-                  "kind" : "CALL",
-                  "internalName" : "$PROCTIME$1",
-                  "operands" : [ ],
-                  "type" : {
-                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-                    "nullable" : false,
-                    "precision" : 3,
-                    "kind" : "PROCTIME"
-                  }
-                },
-                "serializableString" : "PROCTIME()"
+                "serializableString" : "TO_TIMESTAMP(`ts`)"
               }
             } ],
             "watermarkSpecs" : [ {
@@ -73,45 +56,33 @@
               }
             } ]
           },
-          "partitionKeys" : [ ],
-          "options" : {
-            "connector" : "values"
-          }
+          "partitionKeys" : [ ]
         }
-      },
-      "abilities" : [ {
-        "type" : "ProjectPushDown",
-        "projectedFields" : [ [ 0 ], [ 2 ] ],
-        "producedType" : "ROW<`a` INT, `c` VARCHAR(2147483647)> NOT NULL"
-      }, {
-        "type" : "ReadingMetadata",
-        "metadataKeys" : [ ],
-        "producedType" : "ROW<`a` INT, `c` VARCHAR(2147483647)> NOT NULL"
-      } ]
+      }
     },
-    "outputType" : "ROW<`a` INT, `c` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c])",
+    "outputType" : "ROW<`ts` VARCHAR(2147483647), `int` INT, `double` DOUBLE>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[ts, int, double])",
     "inputProperties" : [ ]
   }, {
-    "id" : 2,
+    "id" : 8,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
-      "inputIndex" : 0,
+      "inputIndex" : 1,
       "type" : "INT"
     }, {
       "kind" : "CALL",
       "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "inputIndex" : 0,
         "type" : "VARCHAR(2147483647)"
       } ],
       "type" : "TIMESTAMP(3)"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 1,
-      "type" : "VARCHAR(2147483647)"
+      "inputIndex" : 2,
+      "type" : "DOUBLE"
     } ],
     "condition" : null,
     "inputProperties" : [ {
@@ -121,10 +92,10 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT, `rowtime` TIMESTAMP(3), `c` VARCHAR(2147483647)>",
-    "description" : "Calc(select=[a, TO_TIMESTAMP(c) AS rowtime, c])"
+    "outputType" : "ROW<`int` INT, `rowtime` TIMESTAMP(3), `double` DOUBLE>",
+    "description" : "Calc(select=[int, TO_TIMESTAMP(ts) AS rowtime, double])"
   }, {
-    "id" : 3,
+    "id" : 9,
     "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
       "kind" : "CALL",
@@ -152,7 +123,7 @@
     "outputType" : {
       "type" : "ROW",
       "fields" : [ {
-        "name" : "a",
+        "name" : "int",
         "fieldType" : "INT"
       }, {
         "name" : "rowtime",
@@ -162,13 +133,13 @@
           "kind" : "ROWTIME"
         }
       }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
+        "name" : "double",
+        "fieldType" : "DOUBLE"
       } ]
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
-    "id" : 4,
+    "id" : 10,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -180,7 +151,7 @@
     "outputType" : {
       "type" : "ROW",
       "fields" : [ {
-        "name" : "a",
+        "name" : "int",
         "fieldType" : "INT"
       }, {
         "name" : "rowtime",
@@ -190,13 +161,13 @@
           "kind" : "ROWTIME"
         }
       }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
+        "name" : "double",
+        "fieldType" : "DOUBLE"
       } ]
     },
     "description" : "Exchange(distribution=[single])"
   }, {
-    "id" : 5,
+    "id" : 11,
     "type" : "stream-exec-temporal-sort_1",
     "orderBy" : {
       "fields" : [ {
@@ -219,7 +190,7 @@
     "outputType" : {
       "type" : "ROW",
       "fields" : [ {
-        "name" : "a",
+        "name" : "int",
         "fieldType" : "INT"
       }, {
         "name" : "rowtime",
@@ -229,13 +200,13 @@
           "kind" : "ROWTIME"
         }
       }, {
-        "name" : "c",
-        "fieldType" : "VARCHAR(2147483647)"
+        "name" : "double",
+        "fieldType" : "DOUBLE"
       } ]
     },
-    "description" : "TemporalSort(orderBy=[rowtime ASC, c ASC])"
+    "description" : "TemporalSort(orderBy=[rowtime ASC, double ASC])"
   }, {
-    "id" : 6,
+    "id" : 12,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -250,10 +221,10 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT>",
-    "description" : "Calc(select=[a])"
+    "outputType" : "ROW<`int` INT>",
+    "description" : "Calc(select=[int])"
   }, {
-    "id" : 7,
+    "id" : 13,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -264,7 +235,7 @@
     },
     "dynamicTableSink" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
         "resolvedTable" : {
           "schema" : {
             "columns" : [ {
@@ -273,10 +244,7 @@
             } ],
             "watermarkSpecs" : [ ]
           },
-          "partitionKeys" : [ ],
-          "options" : {
-            "connector" : "values"
-          }
+          "partitionKeys" : [ ]
         }
       }
     },
@@ -288,47 +256,47 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` INT>",
-    "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a])"
+    "outputType" : "ROW<`int` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[int])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 7,
+    "target" : 8,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 3,
+    "source" : 8,
+    "target" : 9,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source" : 9,
+    "target" : 10,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 4,
-    "target" : 5,
+    "source" : 10,
+    "target" : 11,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 5,
-    "target" : 6,
+    "source" : 11,
+    "target" : 12,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 6,
-    "target" : 7,
+    "source" : 12,
+    "target" : 13,
     "shuffle" : {
       "type" : "FORWARD"
     },
