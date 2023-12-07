@@ -181,7 +181,7 @@ class AsyncLookupJoinITCase(
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("1,12,Julian", "3,15,Fabian")
@@ -194,7 +194,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("1,12,Julian,Julian", "2,15,Hello,Jark", "3,15,Fabian,Fabian")
@@ -207,7 +207,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
@@ -220,7 +220,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of T.proctime AS D ON T.id = D.id WHERE T.len <= D.age"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark,22", "3,15,Fabian,Fabian,33")
@@ -235,7 +235,7 @@ class AsyncLookupJoinITCase(
       "WHERE T.id > 1"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -252,7 +252,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of T.proctime AS D ON T.id = D.id AND T.content = D.name"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("1,12,Julian", "3,15,Fabian")
@@ -269,7 +269,7 @@ class AsyncLookupJoinITCase(
       "ON mod1(T.id, 4) = D.id AND T.content = D.name"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("1,12,Julian", "3,15,Fabian")
@@ -285,7 +285,7 @@ class AsyncLookupJoinITCase(
       "WHERE add(T.id, D.id) > 3 AND add(T.id, 2) > 3 AND add (D.id, 2) > 3"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("2,15,Hello,Jark", "3,15,Fabian,Fabian")
@@ -348,7 +348,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected =
@@ -365,7 +365,7 @@ class AsyncLookupJoinITCase(
       "where errorFunc(D.name) > cast(1000 as decimal(10,4))" // should exception here
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
 
     assertThatThrownBy(() => env.execute())
       .satisfies(anyCauseMatches(classOf[NumberFormatException], "Cannot parse"))
@@ -400,7 +400,7 @@ class AsyncLookupJoinITCase(
           |ON T.id = D.id
           |""".stripMargin
       val sink = new TestingAppendSink
-      tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+      tEnv.sqlQuery(sql).toDataStream.addSink(sink)
       env.execute()
 
       // Validate that only one cache is registered
@@ -447,7 +447,7 @@ class AsyncLookupJoinITCase(
                    |JOIN user_table for system_time as of T.proctime AS D
                    |ON T.id = D.id
                    |""".stripMargin)
-      .toAppendStream[Row]
+      .toDataStream
       .addSink(sink)
     env.execute()
 
@@ -466,7 +466,7 @@ class AsyncLookupJoinITCase(
                    |JOIN user_table_with_lookup_threshold3 for system_time as of T.proctime AS D
                    |ON T.id = D.id
                    |""".stripMargin)
-      .toAppendStream[Row]
+      .toDataStream
       .addSink(sink)
     env.execute()
 
@@ -496,7 +496,7 @@ class AsyncLookupJoinITCase(
                    |JOIN user_table_with_lookup_threshold2 for system_time as of T.proctime AS D
                    |ON T.id = D.id
                    |""".stripMargin)
-      .toAppendStream[Row]
+      .toDataStream
       .addSink(sink)
     env.execute()
 

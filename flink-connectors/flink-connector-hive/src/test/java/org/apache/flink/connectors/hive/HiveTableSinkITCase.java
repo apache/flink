@@ -895,9 +895,18 @@ class HiveTableSinkITCase {
                                             Types.STRING,
                                             Types.STRING,
                                             Types.STRING));
+                    /*tEnv.createTemporaryView(
+                    "my_table", stream, $("a"), $("b"), $("c"), $("d"), $("e"));*/
                     tEnv.createTemporaryView(
-                            "my_table", stream, $("a"), $("b"), $("c"), $("d"), $("e"));
-
+                            "my_table",
+                            stream,
+                            Schema.newBuilder()
+                                    .column("f0", DataTypes.INT())
+                                    .column("f1", DataTypes.STRING())
+                                    .column("f2", DataTypes.STRING())
+                                    .column("f3", DataTypes.STRING())
+                                    .column("f4", DataTypes.STRING())
+                                    .build());
                     // DDL
                     tEnv.executeSql(
                             "create external table sink_table (a int,b string,c string"

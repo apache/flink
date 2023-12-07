@@ -39,6 +39,17 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
 
   @Test
   def testToAppendStreamWithPojoType(): Unit = {
+    val schema = Schema
+      .newBuilder()
+      .column("user", DataTypes.BIGINT())
+      .column(
+        "product",
+        DataTypes.STRUCTURED(
+          classOf[ProductItem],
+          DataTypes.FIELD("id", DataTypes.BIGINT()),
+          DataTypes.FIELD("name", DataTypes.STRING())))
+      .column("amount", DataTypes.INT())
+      .build()
     val orderA = env.fromCollection(
       Seq(
         new Order(1L, new ProductItem("beer", 10L), 3),
@@ -52,9 +63,9 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
         new Order(4L, new ProductItem("beer", 10L), 1)))
 
     // convert DataStream to Table
-    val tableA = tEnv.fromDataStream(orderA, 'user, 'product, 'amount)
+    val tableA = tEnv.fromDataStream(orderA, schema)
     // register DataStream as Table
-    tEnv.createTemporaryView("OrderB", orderB, 'user, 'product, 'amount)
+    tEnv.createTemporaryView("OrderB", orderB, schema)
 
     // union the two tables
     val result = tEnv.sqlQuery(s"""
@@ -64,7 +75,20 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
         """.stripMargin)
 
     val sink = new StringSink[Order]()
-    result.toAppendStream[Order].addSink(sink)
+    result
+      .toDataStream(
+        DataTypes.STRUCTURED(
+          classOf[Order],
+          DataTypes.FIELD("user", DataTypes.BIGINT()),
+          DataTypes.FIELD(
+            "product",
+            DataTypes.STRUCTURED(
+              classOf[ProductItem],
+              DataTypes.FIELD("id", DataTypes.BIGINT()),
+              DataTypes.FIELD("name", DataTypes.STRING()))),
+          DataTypes.FIELD("amount", DataTypes.INT())
+        ))
+      .addSink(sink)
 
     env.execute()
 
@@ -86,11 +110,28 @@ class StreamTableEnvironmentITCase extends StreamingTestBase {
       ))
 
     // register DataStream as Table
-    tEnv.createTemporaryView("devices", devices, 'deviceId, 'deviceName, 'metrics)
+    tEnv.createTemporaryView(
+      "devices",
+      devices,
+      Schema
+        .newBuilder()
+        .column("deviceId", DataTypes.BIGINT())
+        .column("deviceName", DataTypes.STRING())
+        .column("metrics", DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT()))
+        .build()
+    )
 
     val result = tEnv.sqlQuery("SELECT * FROM devices WHERE deviceId >= 2")
     val sink = new StringSink[Device]()
-    result.toAppendStream[Device].addSink(sink)
+    result
+      .toDataStream(
+        DataTypes.STRUCTURED(
+          classOf[Device],
+          DataTypes.FIELD("deviceId", DataTypes.BIGINT()),
+          DataTypes.FIELD("deviceName", DataTypes.STRING()),
+          DataTypes.FIELD("metrics", DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT()))
+        ))
+      .addSink(sink)
 
     env.execute()
 

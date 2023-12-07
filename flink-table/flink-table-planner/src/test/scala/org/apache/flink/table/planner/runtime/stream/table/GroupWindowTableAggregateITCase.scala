@@ -72,7 +72,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
       .select('long, 'x, 'y)
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -117,7 +117,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
       .select('string, 'f0, 'f1)
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("Hello,2,2", "Hello,4,4", "Hello,8,8", "Hello World,9,9", "Hello,16,16")
@@ -138,7 +138,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
       .select('f0, 'f1)
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("5,5", "6,6", "7,7", "12,12", "13,13", "14,14", "19,19", "20,20", "21,21")
@@ -159,7 +159,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
       .select('w.start, 'w.end, 'long, 'x, 'y + 1)
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -205,7 +205,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
       .select('f0, 'f1)
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("2,2", "2,2", "3,3", "3,3")
@@ -232,7 +232,15 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
       .select('f0, 'f1, 'w.start, 'w.end, 'w.rowtime)
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable
+      .toDataStream(
+        DataTypes.ROW(
+          DataTypes.INT(),
+          DataTypes.INT(),
+          DataTypes.TIMESTAMP(3),
+          DataTypes.TIMESTAMP(3),
+          DataTypes.TIMESTAMP(3)))
+      .addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -276,7 +284,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
       .select('string, 'f0, 'f1, 'w.start, 'w.end)
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -312,7 +320,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
       .select('string, 'f0, 'f1, 'w.start, 'w.end)
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -339,7 +347,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
       .select('string, 'f0, 'f1, 'w.start, 'w.end)
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
     val expected = Seq(
       "Hallo,2,2,1970-01-01T00:00,1970-01-01T00:00:00.003",

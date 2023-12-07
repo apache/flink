@@ -161,7 +161,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         |GROUP BY `name`, window_start, window_end
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "WindowAggregate")
+    val testHarness = createHarnessTester(t1.toDataStream, "WindowAggregate")
     // window aggregate put window properties at the end of aggs
     val outputTypes =
       Array(
@@ -194,7 +194,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         |GROUP BY `name`, window_start, window_end
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "WindowAggregate")
+    val testHarness = createHarnessTester(t1.toDataStream, "WindowAggregate")
     // window aggregate put window properties at the end of aggs
     val assertor = new RowDataHarnessAssertor(
       Array(
@@ -328,7 +328,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         |GROUP BY `name`, window_start, window_end
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "WindowAggregate")
+    val testHarness = createHarnessTester(t1.toDataStream, "WindowAggregate")
     // window aggregate put window properties at the end of aggs
     val assertor = new RowDataHarnessAssertor(
       Array(
@@ -509,7 +509,7 @@ class WindowAggregateHarnessTest(backend: StateBackendMode, shiftTimeZone: ZoneI
         |GROUP BY `name`, window_start, window_end
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
-    val stream: DataStream[Row] = t1.toAppendStream[Row]
+    val stream: DataStream[Row] = t1.toDataStream
 
     val testHarness = createHarnessTesterForNoState(stream, "LocalWindowAggregate")
     // window aggregate put window properties at the end of aggs

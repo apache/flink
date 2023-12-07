@@ -217,7 +217,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -270,7 +270,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |""".stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -306,7 +306,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT b, c, e, g FROM ds1 JOIN ds2 ON b = e"
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq("1,Hi,1,Hallo", "2,Hello world,2,Hallo Welt", "2,Hello,2,Hallo Welt")
@@ -493,7 +493,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(

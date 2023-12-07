@@ -92,7 +92,7 @@ class WindowAggregateUseDaylightTimeHarnessTest(backend: StateBackendMode, timeZ
         |GROUP BY `name`, window_start, window_end
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "WindowAggregate")
+    val testHarness = createHarnessTester(t1.toDataStream, "WindowAggregate")
     // window aggregate put window properties at the end of aggs
     val assertor = new RowDataHarnessAssertor(
       Array(

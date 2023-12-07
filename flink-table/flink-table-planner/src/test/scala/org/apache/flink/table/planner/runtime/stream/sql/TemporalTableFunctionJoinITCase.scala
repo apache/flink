@@ -91,7 +91,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       "Rates",
       ratesHistory.createTemporalTableFunction($"proctime", $"currency"))
 
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(new TestingAppendSink)
     env.execute()
   }
@@ -106,7 +106,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
       .sqlQuery(
         "SELECT amount, currency, proctime() as proctime " +
           "FROM (VALUES (1, 2.0)) AS T(amount, currency)")
-      .toAppendStream[Row]
+      .toDataStream
     result.addSink(new TestingAppendSink)
     env.execute()
   }
@@ -162,7 +162,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
     tEnv.createTemporaryView(
       "Orders",
       tEnv.sqlQuery("SELECT * FROM Orders1 UNION ALL SELECT * FROM Orders2"))
-    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toDataStream
     result.addSink(new TestingAppendSink)
     env.execute()
   }
@@ -224,7 +224,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
 
     // Scan from registered table to test for interplay between
     // LogicalCorrelateToTemporalTableJoinRule and TableScanRule
-    val result = tEnv.from("TemporalJoinResult").toAppendStream[Row]
+    val result = tEnv.from("TemporalJoinResult").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()
@@ -297,7 +297,7 @@ class TemporalTableFunctionJoinITCase(state: StateBackendMode)
 
     // Scan from registered table to test for interplay between
     // LogicalCorrelateToTemporalTableJoinRule and TableScanRule
-    val result = tEnv.from("TemporalJoinResult").toAppendStream[Row]
+    val result = tEnv.from("TemporalJoinResult").toDataStream
     val sink = new TestingAppendSink
     result.addSink(sink)
     env.execute()

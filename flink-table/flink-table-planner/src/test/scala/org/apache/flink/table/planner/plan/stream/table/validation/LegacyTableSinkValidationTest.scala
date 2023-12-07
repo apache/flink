@@ -44,7 +44,7 @@ class LegacyTableSinkValidationTest extends TableTestBase {
         () => {
           t.groupBy('text)
             .select('text, 'id.count, 'num.sum)
-            .toAppendStream[Row]
+            .toDataStream
             .addSink(new TestingAppendSink)
           env.execute()
         })
@@ -93,7 +93,7 @@ class LegacyTableSinkValidationTest extends TableTestBase {
           ds1
             .leftOuterJoin(ds2, 'a === 'd && 'b === 'h)
             .select('c, 'g)
-            .toAppendStream[Row]
+            .toDataStream
             .addSink(new TestingAppendSink)
           env.execute()
         })

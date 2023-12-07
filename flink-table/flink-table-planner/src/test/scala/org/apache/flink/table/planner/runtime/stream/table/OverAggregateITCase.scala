@@ -79,7 +79,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .select('c, 'mycount, 'wAvg, 'countDist)
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -123,7 +123,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .select('c, weightAvgFun('a, 42, 'b, "2").over('w).as('wAvg))
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -197,7 +197,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       )
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -260,7 +260,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
         ('b.cast(DataTypes.FLOAT).as('b)).avg.distinct.over('w))
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
     val expected = Seq(
       "Hello,1,1,1.0",
@@ -316,7 +316,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       )
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
     val expected = Seq(
       "Hello,1,1,1.0",
@@ -372,7 +372,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
         ('b.cast(DataTypes.FLOAT).as('b)).avg.distinct.over('w))
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
     val expected = Seq(
       "Hello,1,1,1.0",
@@ -433,7 +433,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
         ('b.cast(DataTypes.FLOAT).as('b)).avg.distinct.over('w))
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
     val expected = Seq(
       "Hello,1,1,1.0",
@@ -485,7 +485,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .select('a, 'c.sum.over('w), 'c.min.over('w), countDist('e).over('w))
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -546,7 +546,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .select('a, 'c.sum.over('w), 'c.min.over('w), countDist('e).over('w))
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -607,7 +607,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .select('c, 'a, 'a.count.over('w), 'a.sum.over('w), countDist('a).over('w))
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -680,7 +680,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .select('c, 'b, 'a.count.over('w), 'a.sum.over('w), countDist('a).over('w))
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -732,7 +732,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
       .select('c, 'a, 'a.count.over('w), ('a / 'a).sum.over('w))
 
     val sink = new TestingAppendSink
-    windowedTable.toAppendStream[Row].addSink(sink)
+    windowedTable.toDataStream.addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(

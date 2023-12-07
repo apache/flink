@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.Watermark
+import org.apache.flink.table.api.{DataTypes, Schema}
 import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
@@ -173,7 +174,18 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
     resultPath = TempDirUtils.newFolder(tempFolder).toURI.toString
 
-    tEnv.createTemporaryView("my_table", dataStream, $("a"), $("b"), $("c"), $("d"), $("e"))
+    tEnv.createTemporaryView(
+      "my_table",
+      dataStream,
+      Schema
+        .newBuilder()
+        .column("f0", DataTypes.INT())
+        .column("f1", DataTypes.STRING())
+        .column("f2", DataTypes.STRING())
+        .column("f3", DataTypes.STRING())
+        .column("f4", DataTypes.STRING())
+        .build()
+    )
 
     val ddl: String = getDDL(
       timeExtractorKind,

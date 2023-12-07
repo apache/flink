@@ -190,7 +190,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -223,7 +223,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -250,7 +250,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -277,7 +277,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -315,7 +315,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -364,7 +364,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -406,7 +406,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -448,7 +448,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -474,7 +474,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -514,7 +514,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -541,7 +541,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -568,7 +568,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -598,7 +598,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -645,7 +645,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -676,7 +676,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))
@@ -707,7 +707,7 @@ class WindowDistinctAggregateITCase(splitDistinct: Boolean, backend: StateBacken
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     assertThat(sink.getAppendResults.sorted.mkString("\n"))

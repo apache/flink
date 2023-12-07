@@ -70,7 +70,7 @@ class CorrelateITCase extends StreamingTestBase {
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List("1,abc", "1,abc", "1,bcd", "1,bcd", "1,hhh", "1,hhh", "1,xxx", "1,xxx")
@@ -82,7 +82,7 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.createTemporarySystemFunction("str_split", new StringSplit())
     val query = "SELECT * FROM LATERAL TABLE(str_split()) as T0(d)"
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List("a", "b", "c")
@@ -94,7 +94,7 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.createTemporarySystemFunction("str_split", new StringSplit())
     val query = "SELECT * FROM LATERAL TABLE(str_split('Jack,John', ',')) as T0(d)"
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List("Jack", "John")
@@ -111,7 +111,7 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.createTemporarySystemFunction("str_split", new StringSplit())
     val query = "SELECT * FROM T1, LATERAL TABLE(str_split('Jack,John', ',')) as T0(d)"
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List(
@@ -129,7 +129,7 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.createTemporarySystemFunction("str_split", new NonDeterministicTableFunc())
     val query = "SELECT * FROM LATERAL TABLE(str_split('Jack#John')) as T0(d)"
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
     val res = sink.getAppendResults
@@ -147,7 +147,7 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.createTemporarySystemFunction("str_split", new NonDeterministicTableFunc())
     val query = "SELECT * FROM T1, LATERAL TABLE(str_split('Jack#John')) as T0(d)"
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
     env.execute()
 
     val res = sink.getAppendResults
@@ -172,7 +172,7 @@ class CorrelateITCase extends StreamingTestBase {
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(query1).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(query1).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List("1,abc", "1,bcd", "1,hhh", "1,xxx")
@@ -196,14 +196,14 @@ class CorrelateITCase extends StreamingTestBase {
                               |SELECT a, b, s
                               |FROM T1, LATERAL TABLE(str_split(c, ',')) as T2(s)
        """.stripMargin)
-    t1.toAppendStream[Row].addSink(sink1)
+    t1.toDataStream.addSink(sink1)
 
     // correlate 2
     val t2 = tEnv.sqlQuery(s"""
                               |SELECT a, c, s
                               |FROM T1, LATERAL TABLE(str_split(b, ',')) as T3(s)
       """.stripMargin)
-    t2.toAppendStream[Row].addSink(sink2)
+    t2.toDataStream.addSink(sink2)
 
     env.execute()
 
@@ -230,7 +230,7 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.createTemporarySystemFunction("tfFunc", new TableFunc7)
     tEnv
       .sqlQuery("SELECT rfFunc(a) as d, e FROM MyTable, LATERAL TABLE(tfFunc(rfFunc(a))) as T(e)")
-      .toAppendStream[Row]
+      .toDataStream
       .addSink(sink)
 
     env.execute()
@@ -255,7 +255,7 @@ class CorrelateITCase extends StreamingTestBase {
       """.stripMargin
 
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toDataStream.addSink(sink)
     env.execute()
 
     val expected = List("1,3018-06-10")
