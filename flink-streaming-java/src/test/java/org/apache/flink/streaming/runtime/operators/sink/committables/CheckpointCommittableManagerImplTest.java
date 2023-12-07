@@ -19,8 +19,6 @@
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.api.connector.sink2.Committer;
-import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
-import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions;
@@ -37,13 +35,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CheckpointCommittableManagerImplTest {
 
-    private static final SinkCommitterMetricGroup METRIC_GROUP =
-            MetricsGroupTestUtils.mockCommitterMetricGroup();
-
     @Test
     void testAddSummary() {
         final CheckpointCommittableManagerImpl<Integer> checkpointCommittables =
-                new CheckpointCommittableManagerImpl<>(2, 1, 1L, METRIC_GROUP);
+                new CheckpointCommittableManagerImpl<>(2, 1, 1L);
         assertThat(checkpointCommittables.getSubtaskCommittableManagers()).isEmpty();
 
         final CommittableSummary<Integer> first = new CommittableSummary<>(1, 1, 1L, 1, 0, 0);
@@ -67,7 +62,7 @@ class CheckpointCommittableManagerImplTest {
     @Test
     void testCommit() throws IOException, InterruptedException {
         final CheckpointCommittableManagerImpl<Integer> checkpointCommittables =
-                new CheckpointCommittableManagerImpl<>(1, 1, 1L, METRIC_GROUP);
+                new CheckpointCommittableManagerImpl<>(1, 1, 1L);
         checkpointCommittables.upsertSummary(new CommittableSummary<>(1, 1, 1L, 1, 0, 0));
         checkpointCommittables.upsertSummary(new CommittableSummary<>(2, 1, 1L, 2, 0, 0));
         checkpointCommittables.addCommittable(new CommittableWithLineage<>(3, 1L, 1));
@@ -91,7 +86,7 @@ class CheckpointCommittableManagerImplTest {
     @Test
     void testUpdateCommittableSummary() {
         final CheckpointCommittableManagerImpl<Integer> checkpointCommittables =
-                new CheckpointCommittableManagerImpl<>(1, 1, 1L, METRIC_GROUP);
+                new CheckpointCommittableManagerImpl<>(1, 1, 1L);
         checkpointCommittables.upsertSummary(new CommittableSummary<>(1, 1, 1L, 1, 0, 0));
         assertThatThrownBy(
                         () ->
@@ -108,8 +103,7 @@ class CheckpointCommittableManagerImplTest {
     public void testCopy(int subtaskId, int numberOfSubtasks, long checkpointId) {
 
         final CheckpointCommittableManagerImpl<Integer> original =
-                new CheckpointCommittableManagerImpl<>(
-                        subtaskId, numberOfSubtasks, checkpointId, METRIC_GROUP);
+                new CheckpointCommittableManagerImpl<>(subtaskId, numberOfSubtasks, checkpointId);
         original.upsertSummary(
                 new CommittableSummary<>(subtaskId, numberOfSubtasks, checkpointId, 1, 0, 0));
 

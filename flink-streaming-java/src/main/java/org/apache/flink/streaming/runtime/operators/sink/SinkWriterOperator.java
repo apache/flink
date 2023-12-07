@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.serialization.SerializationSchema.InitializationContext;
@@ -24,9 +25,8 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.connector.sink2.InitContext;
 import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.Sink.WriterInitContext;
+import org.apache.flink.api.connector.sink2.Sink.InitContext;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
@@ -133,7 +133,9 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     @Override
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
-        WriterInitContext initContext = createInitContext(context.getRestoredCheckpointId());
+        OptionalLong checkpointId = context.getRestoredCheckpointId();
+        InitContext initContext =
+                createInitContext(checkpointId.isPresent() ? checkpointId.getAsLong() : null);
         if (context.isRestored()) {
             if (committableSerializer != null) {
                 final ListState<List<CommT>> legacyCommitterState =
@@ -239,7 +241,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
     }
 
-    private WriterInitContext createInitContext(OptionalLong restoredCheckpointId) {
+    private Sink.InitContext createInitContext(@Nullable Long restoredCheckpointId) {
         return new InitContextImpl(
                 getRuntimeContext(),
                 processingTimeService,
@@ -268,7 +270,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
     }
 
-    private static class InitContextImpl extends InitContextBase implements WriterInitContext {
+    private static class InitContextImpl implements Sink.InitContext {
 
         private final ProcessingTimeService processingTimeService;
 
@@ -278,17 +280,22 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
         private final StreamConfig operatorConfig;
 
+        @Nullable private final Long restoredCheckpointId;
+
+        private final StreamingRuntimeContext runtimeContext;
+
         public InitContextImpl(
                 StreamingRuntimeContext runtimeContext,
                 ProcessingTimeService processingTimeService,
                 MailboxExecutor mailboxExecutor,
                 SinkWriterMetricGroup metricGroup,
                 StreamConfig operatorConfig,
-                OptionalLong restoredCheckpointId) {
-            super(runtimeContext, restoredCheckpointId);
+                @Nullable Long restoredCheckpointId) {
+            this.runtimeContext = checkNotNull(runtimeContext);
             this.mailboxExecutor = checkNotNull(mailboxExecutor);
             this.processingTimeService = checkNotNull(processingTimeService);
             this.metricGroup = checkNotNull(metricGroup);
+            this.restoredCheckpointId = restoredCheckpointId;
             this.operatorConfig = checkNotNull(operatorConfig);
         }
 
@@ -297,17 +304,26 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
             return new UserCodeClassLoader() {
                 @Override
                 public ClassLoader asClassLoader() {
-                    return getRuntimeContext().getUserCodeClassLoader();
+                    return runtimeContext.getUserCodeClassLoader();
                 }
 
                 @Override
                 public void registerReleaseHookIfAbsent(
                         String releaseHookName, Runnable releaseHook) {
-                    getRuntimeContext()
-                            .registerUserCodeClassLoaderReleaseHookIfAbsent(
-                                    releaseHookName, releaseHook);
+                    runtimeContext.registerUserCodeClassLoaderReleaseHookIfAbsent(
+                            releaseHookName, releaseHook);
                 }
             };
+        }
+
+        @Override
+        public int getNumberOfParallelSubtasks() {
+            return runtimeContext.getNumberOfParallelSubtasks();
+        }
+
+        @Override
+        public int getAttemptNumber() {
+            return runtimeContext.getAttemptNumber();
         }
 
         @Override
@@ -322,8 +338,20 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         }
 
         @Override
+        public int getSubtaskId() {
+            return runtimeContext.getIndexOfThisSubtask();
+        }
+
+        @Override
         public SinkWriterMetricGroup metricGroup() {
             return metricGroup;
+        }
+
+        @Override
+        public OptionalLong getRestoredCheckpointId() {
+            return restoredCheckpointId == null
+                    ? OptionalLong.empty()
+                    : OptionalLong.of(restoredCheckpointId);
         }
 
         @Override
@@ -334,14 +362,19 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
         @Override
         public boolean isObjectReuseEnabled() {
-            return getRuntimeContext().isObjectReuseEnabled();
+            return runtimeContext.isObjectReuseEnabled();
         }
 
         @Override
         public <IN> TypeSerializer<IN> createInputSerializer() {
             return operatorConfig
-                    .<IN>getTypeSerializerIn(0, getRuntimeContext().getUserCodeClassLoader())
+                    .<IN>getTypeSerializerIn(0, runtimeContext.getUserCodeClassLoader())
                     .duplicate();
+        }
+
+        @Override
+        public JobID getJobId() {
+            return runtimeContext.getJobId();
         }
     }
 }

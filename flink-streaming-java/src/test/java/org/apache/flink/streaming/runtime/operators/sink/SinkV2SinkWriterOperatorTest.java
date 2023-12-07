@@ -113,7 +113,7 @@ class SinkV2SinkWriterOperatorTest extends SinkWriterOperatorTestBase {
         }
 
         @Override
-        public void init(org.apache.flink.api.connector.sink2.Sink.WriterInitContext context) {
+        public void init(org.apache.flink.api.connector.sink2.Sink.InitContext context) {
             this.processingTimeService = context.getProcessingTimeService();
             this.processingTimeService.registerTimer(1000, this);
         }

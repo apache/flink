@@ -335,8 +335,8 @@ abstract class SinkWriterOperatorTestBase {
                                 SinkV2Assertions.assertThat(((CommittableSummary<?>) cs))
                                         .hasPendingCommittables(committables.size())
                                         .hasCheckpointId(
-                                                org.apache.flink.api.connector.sink2.InitContext
-                                                        .INITIAL_CHECKPOINT_ID)
+                                                org.apache.flink.api.connector.sink2.Sink
+                                                        .InitContext.INITIAL_CHECKPOINT_ID)
                                         .hasOverallCommittables(committables.size())
                                         .hasFailedCommittables(0));
         assertRestoredCommitterCommittable(
@@ -382,8 +382,8 @@ abstract class SinkWriterOperatorTestBase {
 
     @Test
     void testInitContext() throws Exception {
-        final AtomicReference<org.apache.flink.api.connector.sink2.Sink.WriterInitContext>
-                initContext = new AtomicReference<>();
+        final AtomicReference<org.apache.flink.api.connector.sink2.Sink.InitContext> initContext =
+                new AtomicReference<>();
         final org.apache.flink.api.connector.sink2.Sink<String> sink =
                 context -> {
                     initContext.set(context);
@@ -433,8 +433,8 @@ abstract class SinkWriterOperatorTestBase {
                                 SinkV2Assertions.assertThat((CommittableWithLineage<String>) cl)
                                         .hasCommittable(committable)
                                         .hasCheckpointId(
-                                                org.apache.flink.api.connector.sink2.InitContext
-                                                        .INITIAL_CHECKPOINT_ID)
+                                                org.apache.flink.api.connector.sink2.Sink
+                                                        .InitContext.INITIAL_CHECKPOINT_ID)
                                         .hasSubtaskId(0));
     }
 

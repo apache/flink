@@ -527,14 +527,13 @@ class SpeculativeSchedulerITCase {
 
         @Override
         public PrecommittingSinkWriter<Long, Tuple3<Integer, Integer, Map<Long, Long>>>
-                createWriter(WriterInitContext context) {
+                createWriter(InitContext context) {
             return new DummyPrecommittingSinkWriter(
                     context.getSubtaskId(), context.getAttemptNumber());
         }
 
         @Override
-        public Committer<Tuple3<Integer, Integer, Map<Long, Long>>> createCommitter(
-                CommitterInitContext context) {
+        public Committer<Tuple3<Integer, Integer, Map<Long, Long>>> createCommitter() {
             return new DummyCommitter();
         }
 

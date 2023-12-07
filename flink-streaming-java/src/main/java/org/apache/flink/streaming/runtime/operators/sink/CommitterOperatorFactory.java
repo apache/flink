@@ -64,7 +64,7 @@ public final class CommitterOperatorFactory<CommT>
                     new CommitterOperator<>(
                             processingTimeService,
                             sink.getCommittableSerializer(),
-                            context -> sink.createCommitter(context),
+                            sink.createCommitter(),
                             sink instanceof WithPostCommitTopology,
                             isBatchMode,
                             isCheckpointingEnabled);
