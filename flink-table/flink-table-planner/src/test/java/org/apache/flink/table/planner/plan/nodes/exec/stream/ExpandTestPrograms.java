@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.testutils;
+package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExpand;
 import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule;
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
 import org.apache.flink.table.test.program.SinkTestStep;
