@@ -98,7 +98,7 @@ public class AsyncSinkWriterThrottlingTest {
 
         public ThrottlingWriter(
                 ElementConverter<String, Long> elementConverter,
-                Sink.WriterInitContext context,
+                Sink.InitContext context,
                 int maxBatchSize,
                 int maxInFlightRequests) {
             super(

@@ -20,9 +20,8 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.api.connector.sink2.InitContext;
+import org.apache.flink.api.connector.sink2.Sink.InitContext;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
@@ -55,26 +54,21 @@ public class CommittableCollector<CommT> {
     private final int subtaskId;
 
     private final int numberOfSubtasks;
-    private final SinkCommitterMetricGroup metricGroup;
 
-    public CommittableCollector(
-            int subtaskId, int numberOfSubtasks, SinkCommitterMetricGroup metricGroup) {
+    public CommittableCollector(int subtaskId, int numberOfSubtasks) {
         this.subtaskId = subtaskId;
         this.numberOfSubtasks = numberOfSubtasks;
         this.checkpointCommittables = new TreeMap<>();
-        this.metricGroup = metricGroup;
     }
 
     /** For deep-copy. */
     CommittableCollector(
             Map<Long, CheckpointCommittableManagerImpl<CommT>> checkpointCommittables,
             int subtaskId,
-            int numberOfSubtasks,
-            SinkCommitterMetricGroup metricGroup) {
+            int numberOfSubtasks) {
         this.checkpointCommittables = new TreeMap<>(checkNotNull(checkpointCommittables));
         this.subtaskId = subtaskId;
         this.numberOfSubtasks = numberOfSubtasks;
-        this.metricGroup = metricGroup;
     }
 
     /**
@@ -82,16 +76,12 @@ public class CommittableCollector<CommT> {
      * should be used for to instantiate a collector for all Sink V2.
      *
      * @param context holding runtime of information
-     * @param metricGroup storing the committable metrics
      * @param <CommT> type of the committable
      * @return {@link CommittableCollector}
      */
-    public static <CommT> CommittableCollector<CommT> of(
-            RuntimeContext context, SinkCommitterMetricGroup metricGroup) {
+    public static <CommT> CommittableCollector<CommT> of(RuntimeContext context) {
         return new CommittableCollector<>(
-                context.getIndexOfThisSubtask(),
-                context.getNumberOfParallelSubtasks(),
-                metricGroup);
+                context.getIndexOfThisSubtask(), context.getNumberOfParallelSubtasks());
     }
 
     /**
@@ -99,14 +89,11 @@ public class CommittableCollector<CommT> {
      * to create a collector from the state of Sink V1.
      *
      * @param committables list of committables
-     * @param metricGroup storing the committable metrics
      * @param <CommT> type of committables
      * @return {@link CommittableCollector}
      */
-    static <CommT> CommittableCollector<CommT> ofLegacy(
-            List<CommT> committables, SinkCommitterMetricGroup metricGroup) {
-        CommittableCollector<CommT> committableCollector =
-                new CommittableCollector<>(0, 1, metricGroup);
+    static <CommT> CommittableCollector<CommT> ofLegacy(List<CommT> committables) {
+        CommittableCollector<CommT> committableCollector = new CommittableCollector<>(0, 1);
         // add a checkpoint with the lowest checkpoint id, this will be merged into the next
         // checkpoint data, subtask id is arbitrary
         CommittableSummary<CommT> summary =
@@ -224,8 +211,7 @@ public class CommittableCollector<CommT> {
                         .map(e -> Tuple2.of(e.getKey(), e.getValue().copy()))
                         .collect(Collectors.toMap((t) -> t.f0, (t) -> t.f1)),
                 subtaskId,
-                numberOfSubtasks,
-                metricGroup);
+                numberOfSubtasks);
     }
 
     Collection<CheckpointCommittableManagerImpl<CommT>> getCheckpointCommittables() {
@@ -240,8 +226,7 @@ public class CommittableCollector<CommT> {
                                 new CheckpointCommittableManagerImpl<>(
                                         subtaskId,
                                         numberOfSubtasks,
-                                        summary.getCheckpointId().orElse(EOI),
-                                        metricGroup))
+                                        summary.getCheckpointId().orElse(EOI)))
                 .upsertSummary(summary);
     }
 
