@@ -20,25 +20,28 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.leaderservice.ClientLeaderServices;
 
-/** A variant of the {@link ClientHighAvailabilityServices} for testing. */
-public class TestingClientHAServices implements ClientHighAvailabilityServices {
+/**
+ * A variant of the {@link org.apache.flink.runtime.leaderservice.ClientLeaderServices} for testing.
+ */
+public class TestingClientLeaderServices implements ClientLeaderServices {
 
     private final LeaderRetrievalService clusterRestEndpointLeaderRetriever;
 
-    private TestingClientHAServices(LeaderRetrievalService clusterRestEndpointLeaderRetriever) {
+    private TestingClientLeaderServices(LeaderRetrievalService clusterRestEndpointLeaderRetriever) {
         this.clusterRestEndpointLeaderRetriever = clusterRestEndpointLeaderRetriever;
     }
 
     @Override
-    public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+    public LeaderRetrievalService getRestEndpointLeaderRetriever() {
         return clusterRestEndpointLeaderRetriever;
     }
 
     @Override
     public void close() throws Exception {}
 
-    public static TestingClientHAServices createClientHAServices() {
-        return new TestingClientHAServices(new SettableLeaderRetrievalService());
+    public static TestingClientLeaderServices createClientLeaderServices() {
+        return new TestingClientLeaderServices(new SettableLeaderRetrievalService());
     }
 }

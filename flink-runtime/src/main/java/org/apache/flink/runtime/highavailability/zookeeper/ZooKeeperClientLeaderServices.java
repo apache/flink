@@ -19,21 +19,24 @@
 package org.apache.flink.runtime.highavailability.zookeeper;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderservice.ClientLeaderServices;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
-/** ZooKeeper based implementation for {@link ClientHighAvailabilityServices}. */
-public class ZooKeeperClientHAServices implements ClientHighAvailabilityServices {
+/**
+ * ZooKeeper based implementation for {@link
+ * org.apache.flink.runtime.leaderservice.ClientLeaderServices}.
+ */
+public class ZooKeeperClientLeaderServices implements ClientLeaderServices {
 
     private final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
 
     private final Configuration configuration;
 
-    public ZooKeeperClientHAServices(
+    public ZooKeeperClientLeaderServices(
             @Nonnull CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper,
             @Nonnull Configuration configuration) {
         this.curatorFrameworkWrapper = Preconditions.checkNotNull(curatorFrameworkWrapper);
@@ -41,7 +44,7 @@ public class ZooKeeperClientHAServices implements ClientHighAvailabilityServices
     }
 
     @Override
-    public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+    public LeaderRetrievalService getRestEndpointLeaderRetriever() {
         return ZooKeeperUtils.createLeaderRetrievalService(
                 curatorFrameworkWrapper.asCuratorFramework(),
                 ZooKeeperUtils.getLeaderPath(ZooKeeperUtils.getRestServerNode()),

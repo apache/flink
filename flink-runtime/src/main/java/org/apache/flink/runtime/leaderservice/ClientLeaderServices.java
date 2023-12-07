@@ -26,6 +26,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
  * and cluster happens via the REST endpoint.
  */
 public interface ClientLeaderServices extends AutoCloseable {
+
     /**
      * Get the leader retriever for the cluster's rest endpoint.
      *

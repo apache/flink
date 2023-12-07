@@ -16,23 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.highavailability;
+package org.apache.flink.runtime.leaderservice;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
-/** Default factory for creating client high availability services. */
-public class DefaultClientHighAvailabilityServicesFactory
-        implements ClientHighAvailabilityServicesFactory {
+/** Factory interface for {@link ClientLeaderServices}. */
+public interface ClientLeaderServicesFactory {
 
-    public static final DefaultClientHighAvailabilityServicesFactory INSTANCE =
-            new DefaultClientHighAvailabilityServicesFactory();
-
-    @Override
-    public ClientHighAvailabilityServices create(
-            Configuration configuration, FatalErrorHandler fatalErrorHandler) throws Exception {
-
-        return HighAvailabilityServicesUtils.createClientHAService(
-                configuration, fatalErrorHandler);
-    }
+    /**
+     * Creates a {@link ClientLeaderServices} instance.
+     *
+     * @param configuration Flink configuration
+     * @param fatalErrorHandler {@link FatalErrorHandler} fatalErrorHandler to handle unexpected
+     *     errors
+     * @return instance of {@link ClientLeaderServices}
+     * @throws Exception when HA services can not be created.
+     */
+    ClientLeaderServices create(Configuration configuration, FatalErrorHandler fatalErrorHandler)
+            throws Exception;
 }

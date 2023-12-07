@@ -23,7 +23,6 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderservice.LeaderServices;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -48,8 +47,7 @@ import java.util.concurrent.Executor;
  *   <li>Naming of RPC endpoints
  * </ul>
  */
-public interface HighAvailabilityServices
-        extends GloballyCleanableResource, ClientHighAvailabilityServices {
+public interface HighAvailabilityServices extends GloballyCleanableResource, AutoCloseable {
 
     // ------------------------------------------------------------------------
     //  Constants
@@ -77,10 +75,6 @@ public interface HighAvailabilityServices
      * components.
      */
     LeaderServices getLeaderServices();
-
-    default LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
-        return getLeaderServices().getRestEndpointLeaderRetriever();
-    }
 
     /**
      * Gets the checkpoint recovery factory for the job manager.

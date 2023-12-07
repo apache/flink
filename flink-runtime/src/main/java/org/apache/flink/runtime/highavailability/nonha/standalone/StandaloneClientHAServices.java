@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.highavailability.nonha.standalone;
 
-import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
+import org.apache.flink.runtime.leaderservice.ClientLeaderServices;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -28,10 +28,10 @@ import static org.apache.flink.runtime.highavailability.HighAvailabilityServices
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Non-HA implementation for {@link ClientHighAvailabilityServices}. The address to web monitor is
- * pre-configured.
+ * Non-HA implementation for {@link org.apache.flink.runtime.leaderservice.ClientLeaderServices}.
+ * The address to web monitor is pre-configured.
  */
-public class StandaloneClientHAServices implements ClientHighAvailabilityServices {
+public class StandaloneClientHAServices implements ClientLeaderServices {
 
     private final Object lock = new Object();
     private final String webMonitorAddress;
@@ -45,7 +45,7 @@ public class StandaloneClientHAServices implements ClientHighAvailabilityService
     }
 
     @Override
-    public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+    public LeaderRetrievalService getRestEndpointLeaderRetriever() {
         synchronized (lock) {
             checkState(running, "ClientHaService has already been closed.");
             return new StandaloneLeaderRetrievalService(webMonitorAddress, DEFAULT_LEADER_ID);

@@ -34,9 +34,10 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderSe
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHAServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneLeaderServices;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientHAServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientLeaderServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.leaderservice.ClientLeaderServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -147,7 +148,7 @@ public class HighAvailabilityServicesUtils {
         }
     }
 
-    public static ClientHighAvailabilityServices createClientHAService(
+    public static ClientLeaderServices createClientHAService(
             Configuration configuration, FatalErrorHandler fatalErrorHandler) throws Exception {
         HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(configuration);
 
@@ -158,7 +159,7 @@ public class HighAvailabilityServicesUtils {
                                 configuration, AddressResolution.TRY_ADDRESS_RESOLUTION);
                 return new StandaloneClientHAServices(webMonitorAddress);
             case ZOOKEEPER:
-                return new ZooKeeperClientHAServices(
+                return new ZooKeeperClientLeaderServices(
                         ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler),
                         configuration);
             case KUBERNETES:
@@ -311,19 +312,19 @@ public class HighAvailabilityServicesUtils {
                 classLoader);
     }
 
-    private static ClientHighAvailabilityServices createCustomClientHAServices(Configuration config)
+    private static ClientLeaderServices createCustomClientHAServices(Configuration config)
             throws FlinkException {
         return createCustomClientHAServices(
                 config.getString(HighAvailabilityOptions.HA_MODE), config);
     }
 
-    private static ClientHighAvailabilityServices createCustomClientHAServices(
+    private static ClientLeaderServices createCustomClientHAServices(
             String factoryClassName, Configuration config) throws FlinkException {
         final HighAvailabilityServicesFactory highAvailabilityServicesFactory =
                 loadCustomHighAvailabilityServicesFactory(factoryClassName);
 
         try {
-            return highAvailabilityServicesFactory.createClientHAServices(config);
+            return highAvailabilityServicesFactory.createClientLeaderServices(config);
         } catch (Exception e) {
             throw new FlinkException(
                     String.format(

@@ -40,15 +40,15 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.ClientHighAvailabilityServicesFactory;
-import org.apache.flink.runtime.highavailability.DefaultClientHighAvailabilityServicesFactory;
+import org.apache.flink.runtime.highavailability.DefaultClientLeaderServicesFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderservice.ClientLeaderServices;
+import org.apache.flink.runtime.leaderservice.ClientLeaderServicesFactory;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobStatusInfo;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -190,7 +190,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     private final T clusterId;
 
-    private final ClientHighAvailabilityServices clientHAServices;
+    private final ClientLeaderServices clientHAServices;
 
     private final LeaderRetrievalService webMonitorRetrievalService;
 
@@ -211,11 +211,10 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     private final Collection<HttpHeader> customHttpHeaders;
 
     public RestClusterClient(Configuration config, T clusterId) throws Exception {
-        this(config, clusterId, DefaultClientHighAvailabilityServicesFactory.INSTANCE);
+        this(config, clusterId, DefaultClientLeaderServicesFactory.INSTANCE);
     }
 
-    public RestClusterClient(
-            Configuration config, T clusterId, ClientHighAvailabilityServicesFactory factory)
+    public RestClusterClient(Configuration config, T clusterId, ClientLeaderServicesFactory factory)
             throws Exception {
         this(config, null, clusterId, new ExponentialWaitStrategy(10L, 2000L), factory);
     }
@@ -232,7 +231,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 restClient,
                 clusterId,
                 waitStrategy,
-                DefaultClientHighAvailabilityServicesFactory.INSTANCE);
+                DefaultClientLeaderServicesFactory.INSTANCE);
     }
 
     private RestClusterClient(
@@ -240,7 +239,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             @Nullable RestClient restClient,
             T clusterId,
             WaitStrategy waitStrategy,
-            ClientHighAvailabilityServicesFactory clientHAServicesFactory)
+            ClientLeaderServicesFactory clientHAServicesFactory)
             throws Exception {
         this.configuration = checkNotNull(configuration);
 
@@ -276,7 +275,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                                         + "services.",
                                                 exception)));
 
-        this.webMonitorRetrievalService = clientHAServices.getClusterRestEndpointLeaderRetriever();
+        this.webMonitorRetrievalService = clientHAServices.getRestEndpointLeaderRetriever();
         this.retryExecutorService =
                 Executors.newSingleThreadScheduledExecutor(
                         new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
@@ -312,8 +311,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             try {
                 clientHAServices.close();
             } catch (Exception e) {
-                LOG.error(
-                        "An error occurred during stopping the ClientHighAvailabilityServices", e);
+                LOG.error("An error occurred during stopping the ClientLeaderServices", e);
             }
         }
     }

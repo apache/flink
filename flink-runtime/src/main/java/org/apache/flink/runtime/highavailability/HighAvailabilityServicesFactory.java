@@ -20,6 +20,7 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.UnsupportedOperationExecutor;
+import org.apache.flink.runtime.leaderservice.ClientLeaderServices;
 
 import java.util.concurrent.Executor;
 
@@ -38,14 +39,15 @@ public interface HighAvailabilityServicesFactory {
             throws Exception;
 
     /**
-     * Create a {@link ClientHighAvailabilityServices} instance.
+     * Create a {@link org.apache.flink.runtime.leaderservice.ClientLeaderServices} instance.
      *
      * @param configuration Flink configuration
-     * @return instance of {@link ClientHighAvailabilityServices}
+     * @return instance of {@link org.apache.flink.runtime.leaderservice.ClientLeaderServices}
      * @throws Exception when ClientHAServices cannot be created
      */
-    default ClientHighAvailabilityServices createClientHAServices(Configuration configuration)
+    default ClientLeaderServices createClientLeaderServices(Configuration configuration)
             throws Exception {
-        return createHAServices(configuration, UnsupportedOperationExecutor.INSTANCE);
+        return createHAServices(configuration, UnsupportedOperationExecutor.INSTANCE)
+                .getLeaderServices();
     }
 }

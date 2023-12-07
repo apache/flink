@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.leaderservice.ClientLeaderServices;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
@@ -81,14 +82,14 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
     public void testCreateCustomClientHAServices() throws Exception {
         Configuration config = new Configuration();
 
-        ClientHighAvailabilityServices clientHAServices =
-                TestingClientHAServices.createClientHAServices();
+        ClientLeaderServices clientHAServices =
+                TestingClientLeaderServices.createClientLeaderServices();
         TestHAFactory.clientHAServices = clientHAServices;
 
         config.setString(HighAvailabilityOptions.HA_MODE, TestHAFactory.class.getName());
 
         // when
-        ClientHighAvailabilityServices actualClientHAServices =
+        ClientLeaderServices actualClientHAServices =
                 HighAvailabilityServicesUtils.createClientHAService(
                         config, NoOpFatalErrorHandler.INSTANCE);
 
@@ -131,7 +132,7 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
     public static class TestHAFactory implements HighAvailabilityServicesFactory {
 
         static HighAvailabilityServices haServices;
-        static ClientHighAvailabilityServices clientHAServices;
+        static ClientLeaderServices clientHAServices;
 
         @Override
         public HighAvailabilityServices createHAServices(
@@ -140,7 +141,7 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
         }
 
         @Override
-        public ClientHighAvailabilityServices createClientHAServices(Configuration configuration)
+        public ClientLeaderServices createClientLeaderServices(Configuration configuration)
                 throws Exception {
             return clientHAServices;
         }
