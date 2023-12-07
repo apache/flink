@@ -299,7 +299,7 @@
             } ],
             "watermarkSpecs" : [ ],
             "primaryKey" : {
-              "name" : "PK_132",
+              "name" : "PK_e",
               "type" : "PRIMARY_KEY",
               "columns" : [ "e" ]
             }
