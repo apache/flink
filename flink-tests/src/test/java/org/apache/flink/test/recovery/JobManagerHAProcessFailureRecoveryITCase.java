@@ -293,7 +293,8 @@ class JobManagerHAProcessFailureRecoveryITCase {
 
             // Leader listener
             TestingListener leaderListener = new TestingListener();
-            leaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
+            leaderRetrievalService =
+                    highAvailabilityServices.getLeaderServices().getDispatcherLeaderRetriever();
             leaderRetrievalService.start(leaderListener);
 
             // Initial submission

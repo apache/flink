@@ -350,7 +350,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         this.shuffleEnvironment = taskExecutorServices.getShuffleEnvironment();
         this.kvStateService = taskExecutorServices.getKvStateService();
         this.ioExecutor = taskExecutorServices.getIOExecutor();
-        this.resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
+        this.resourceManagerLeaderRetriever =
+                haServices.getLeaderServices().getResourceManagerLeaderRetriever();
 
         this.hardwareDescription =
                 HardwareDescription.extractFromSystem(taskExecutorServices.getManagedMemorySize());

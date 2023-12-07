@@ -20,7 +20,7 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderService;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderElectionService;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
@@ -205,24 +205,25 @@ public class LeaderElectionTest {
     }
 
     private static final class EmbeddedServiceClass implements ServiceClass {
-        private EmbeddedLeaderService embeddedLeaderService;
+        private EmbeddedLeaderElectionService embeddedLeaderService;
 
         @Override
         public void setup(FatalErrorHandler fatalErrorHandler) {
-            embeddedLeaderService = new EmbeddedLeaderService(EXECUTOR_RESOURCE.getExecutor());
+            embeddedLeaderService =
+                    new EmbeddedLeaderElectionService(EXECUTOR_RESOURCE.getExecutor());
         }
 
         @Override
         public void teardown() {
             if (embeddedLeaderService != null) {
-                embeddedLeaderService.shutdown();
+                embeddedLeaderService.close();
                 embeddedLeaderService = null;
             }
         }
 
         @Override
         public LeaderElection createLeaderElection() {
-            return embeddedLeaderService.createLeaderElectionService("embedded_leader_election");
+            return embeddedLeaderService.createLeaderElection("embedded_leader_election");
         }
     }
 

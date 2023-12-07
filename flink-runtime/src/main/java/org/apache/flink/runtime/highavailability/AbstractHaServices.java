@@ -24,10 +24,6 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
-import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -41,11 +37,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Abstract high availability services based on distributed system(e.g. Zookeeper, Kubernetes). It
- * will help with creating all the leader election/retrieval services and the cleanup. Please return
- * a proper leader name int the implementation of {@link #getLeaderPathForResourceManager}, {@link
- * #getLeaderPathForDispatcher}, {@link #getLeaderPathForJobManager}, {@link
- * #getLeaderPathForRestServer}. The returned leader name is the ConfigMap name in Kubernetes and
- * child path in Zookeeper.
+ * will help with creating all the leader election/retrieval services and the cleanup.
  *
  * <p>{@link #close()} and {@link #cleanupAllData()} should be implemented to destroy the resources.
  *
@@ -67,11 +59,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     private final JobResultStore jobResultStore;
 
-    private final DefaultLeaderElectionService leaderElectionService;
-
     protected AbstractHaServices(
             Configuration config,
-            LeaderElectionDriverFactory driverFactory,
             Executor ioExecutor,
             BlobStoreService blobStoreService,
             JobResultStore jobResultStore) {
@@ -80,54 +69,6 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         this.ioExecutor = checkNotNull(ioExecutor);
         this.blobStoreService = checkNotNull(blobStoreService);
         this.jobResultStore = checkNotNull(jobResultStore);
-
-        this.leaderElectionService = new DefaultLeaderElectionService(driverFactory);
-    }
-
-    @Override
-    public LeaderRetrievalService getResourceManagerLeaderRetriever() {
-        return createLeaderRetrievalService(getLeaderPathForResourceManager());
-    }
-
-    @Override
-    public LeaderRetrievalService getDispatcherLeaderRetriever() {
-        return createLeaderRetrievalService(getLeaderPathForDispatcher());
-    }
-
-    @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-        return createLeaderRetrievalService(getLeaderPathForJobManager(jobID));
-    }
-
-    @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(
-            JobID jobID, String defaultJobManagerAddress) {
-        return getJobManagerLeaderRetriever(jobID);
-    }
-
-    @Override
-    public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
-        return createLeaderRetrievalService(getLeaderPathForRestServer());
-    }
-
-    @Override
-    public LeaderElection getResourceManagerLeaderElection() {
-        return leaderElectionService.createLeaderElection(getLeaderPathForResourceManager());
-    }
-
-    @Override
-    public LeaderElection getDispatcherLeaderElection() {
-        return leaderElectionService.createLeaderElection(getLeaderPathForDispatcher());
-    }
-
-    @Override
-    public LeaderElection getJobManagerLeaderElection(JobID jobID) {
-        return leaderElectionService.createLeaderElection(getLeaderPathForJobManager(jobID));
-    }
-
-    @Override
-    public LeaderElection getClusterRestEndpointLeaderElection() {
-        return leaderElectionService.createLeaderElection(getLeaderPathForRestServer());
     }
 
     @Override
@@ -161,8 +102,8 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         }
 
         try {
-            if (leaderElectionService != null) {
-                leaderElectionService.close();
+            if (getLeaderServices() != null) {
+                getLeaderServices().close();
             }
         } catch (Throwable t) {
             exception = ExceptionUtils.firstOrSuppressed(t, exception);
@@ -226,14 +167,6 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     /**
-     * Create leader retrieval service with specified leaderName.
-     *
-     * @param leaderName ConfigMap name in Kubernetes or child node path in Zookeeper.
-     * @return Return LeaderRetrievalService using Zookeeper or Kubernetes.
-     */
-    protected abstract LeaderRetrievalService createLeaderRetrievalService(String leaderName);
-
-    /**
      * Create the checkpoint recovery factory for the job manager.
      *
      * @return Checkpoint recovery factory
@@ -274,37 +207,4 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
      * @throws Exception when do the cleanup operation on external storage.
      */
     protected abstract void internalCleanupJobData(JobID jobID) throws Exception;
-
-    /**
-     * Get the leader path for ResourceManager.
-     *
-     * @return Return the ResourceManager leader name. It is ConfigMap name in Kubernetes or child
-     *     node path in Zookeeper.
-     */
-    protected abstract String getLeaderPathForResourceManager();
-
-    /**
-     * Get the leader path for Dispatcher.
-     *
-     * @return Return the Dispatcher leader name. It is ConfigMap name in Kubernetes or child node
-     *     path in Zookeeper.
-     */
-    protected abstract String getLeaderPathForDispatcher();
-
-    /**
-     * Get the leader path for specific JobManager.
-     *
-     * @param jobID job id
-     * @return Return the JobManager leader name for specified job id. It is ConfigMap name in
-     *     Kubernetes or child node path in Zookeeper.
-     */
-    protected abstract String getLeaderPathForJobManager(final JobID jobID);
-
-    /**
-     * Get the leader path for RestServer.
-     *
-     * @return Return the RestServer leader name. It is ConfigMap name in Kubernetes or child node
-     *     path in Zookeeper.
-     */
-    protected abstract String getLeaderPathForRestServer();
 }

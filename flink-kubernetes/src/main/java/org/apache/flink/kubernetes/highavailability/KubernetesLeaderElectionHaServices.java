@@ -31,8 +31,10 @@ import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
-import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
+import org.apache.flink.runtime.leaderservice.DefaultLeaderServices;
+import org.apache.flink.runtime.leaderservice.LeaderServiceMaterialGenerator;
+import org.apache.flink.runtime.leaderservice.LeaderServices;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -50,7 +52,8 @@ import static org.apache.flink.kubernetes.utils.Constants.NAME_SEPARATOR;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Kubernetes HA services that use a single leader election service per JobManager. */
-public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
+public class KubernetesLeaderElectionHaServices extends AbstractHaServices
+        implements LeaderServiceMaterialGenerator {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(KubernetesLeaderElectionHaServices.class);
@@ -63,6 +66,8 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
     private final ExecutorService watchExecutorService;
 
     private final String lockIdentity;
+
+    private final DefaultLeaderServices leaderServices;
 
     KubernetesLeaderElectionHaServices(
             FlinkKubeClient kubeClient,
@@ -95,13 +100,6 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
             throws Exception {
         super(
                 configuration,
-                createDriverFactory(
-                        kubeClient,
-                        configMapSharedWatcher,
-                        watchExecutorService,
-                        clusterId,
-                        lockIdentity,
-                        configuration),
                 ioExecutor,
                 blobStoreService,
                 FileSystemJobResultStore.fromConfiguration(configuration, ioExecutor));
@@ -111,6 +109,7 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
         this.configMapSharedWatcher = checkNotNull(configMapSharedWatcher);
         this.watchExecutorService = checkNotNull(watchExecutorService);
         this.lockIdentity = checkNotNull(lockIdentity);
+        this.leaderServices = new DefaultLeaderServices(this);
     }
 
     private static LeaderElectionDriverFactory createDriverFactory(
@@ -131,13 +130,8 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
     }
 
     @Override
-    protected LeaderRetrievalService createLeaderRetrievalService(String componentId) {
-        return new DefaultLeaderRetrievalService(
-                new KubernetesLeaderRetrievalDriverFactory(
-                        configMapSharedWatcher,
-                        watchExecutorService,
-                        getClusterConfigMap(),
-                        componentId));
+    public LeaderServices getLeaderServices() {
+        return leaderServices;
     }
 
     @Override
@@ -211,22 +205,39 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices {
     }
 
     @Override
-    protected String getLeaderPathForResourceManager() {
+    public String getLeaderPathForResourceManager() {
         return "resourcemanager";
     }
 
     @Override
-    protected String getLeaderPathForDispatcher() {
+    public String getLeaderPathForDispatcher() {
         return "dispatcher";
     }
 
     @Override
-    protected String getLeaderPathForJobManager(JobID jobID) {
+    public String getLeaderPathForJobManager(JobID jobID) {
         return "job-" + jobID.toString();
     }
 
     @Override
-    protected String getLeaderPathForRestServer() {
+    public String getLeaderPathForRestServer() {
         return "restserver";
+    }
+
+    @Override
+    public LeaderElectionDriverFactory createLeaderElectionDriverFactory() {
+        return createDriverFactory(
+                kubeClient,
+                configMapSharedWatcher,
+                watchExecutorService,
+                clusterId,
+                lockIdentity,
+                configuration);
+    }
+
+    @Override
+    public LeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(String componentId) {
+        return new KubernetesLeaderRetrievalDriverFactory(
+                configMapSharedWatcher, watchExecutorService, getClusterConfigMap(), componentId);
     }
 }

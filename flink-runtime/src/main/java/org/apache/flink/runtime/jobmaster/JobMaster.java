@@ -319,7 +319,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         log.info("Initializing job '{}' ({}).", jobName, jid);
 
         resourceManagerLeaderRetriever =
-                highAvailabilityServices.getResourceManagerLeaderRetriever();
+                highAvailabilityServices.getLeaderServices().getResourceManagerLeaderRetriever();
 
         this.registeredTaskManagers = new HashMap<>();
         this.blocklistHandler =

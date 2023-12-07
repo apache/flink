@@ -48,7 +48,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>{@code DefaultLeaderElectionService} handles a single {@link LeaderContender}.
  */
 public class DefaultLeaderElectionService extends DefaultLeaderElection.ParentService
-        implements LeaderElectionService, LeaderElectionDriver.Listener, AutoCloseable {
+        implements LeaderElectionService, LeaderElectionDriver.Listener {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultLeaderElectionService.class);
 

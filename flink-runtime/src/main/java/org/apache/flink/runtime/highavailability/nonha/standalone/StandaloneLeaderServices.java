@@ -19,25 +19,27 @@
 package org.apache.flink.runtime.highavailability.nonha.standalone;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.nonha.AbstractNonHaServices;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.StandaloneLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
+import org.apache.flink.runtime.leaderservice.LeaderServices;
 
+import javax.annotation.concurrent.GuardedBy;
+
+import static org.apache.flink.runtime.highavailability.HighAvailabilityServices.DEFAULT_LEADER_ID;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * An implementation of the {@link HighAvailabilityServices} for the non-high-availability case.
- * This implementation can be used for testing, and for cluster setups that do not tolerate failures
- * of the master processes (JobManager, ResourceManager).
+ * An implementation of the {@link org.apache.flink.runtime.leaderservice.LeaderServices} for the
+ * non-high-availability case. This implementation can be used for testing, and for cluster setups
+ * that do not tolerate failures of the master processes (JobManager, ResourceManager).
  *
  * <p>This implementation has no dependencies on any external services. It returns a fix
- * pre-configured ResourceManager and JobManager, and stores checkpoints and metadata simply on the
- * heap or on a local file system and therefore in a storage without guarantees.
+ * pre-configured ResourceManager and JobManager.
  */
-public class StandaloneHaServices extends AbstractNonHaServices {
+public class StandaloneLeaderServices implements LeaderServices {
 
     /** The fix address of the ResourceManager. */
     private final String resourceManagerAddress;
@@ -47,13 +49,17 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 
     private final String clusterRestEndpointAddress;
 
+    private final Object lock;
+
+    private boolean closed;
+
     /**
      * Creates a new services class for the fix pre-defined leaders.
      *
      * @param resourceManagerAddress The fix address of the ResourceManager
      * @param clusterRestEndpointAddress
      */
-    public StandaloneHaServices(
+    public StandaloneLeaderServices(
             String resourceManagerAddress,
             String dispatcherAddress,
             String clusterRestEndpointAddress) {
@@ -62,62 +68,51 @@ public class StandaloneHaServices extends AbstractNonHaServices {
         this.dispatcherAddress = checkNotNull(dispatcherAddress, "dispatcherAddress");
         this.clusterRestEndpointAddress =
                 checkNotNull(clusterRestEndpointAddress, clusterRestEndpointAddress);
+        this.lock = new Object();
+        this.closed = false;
     }
 
-    // ------------------------------------------------------------------------
-    //  Services
-    // ------------------------------------------------------------------------
+    @Override
+    public LeaderElection getResourceManagerLeaderElection() {
+        synchronized (lock) {
+            checkNotClose();
+
+            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
+        }
+    }
 
     @Override
     public LeaderRetrievalService getResourceManagerLeaderRetriever() {
         synchronized (lock) {
-            checkNotShutdown();
+            checkNotClose();
 
             return new StandaloneLeaderRetrievalService(resourceManagerAddress, DEFAULT_LEADER_ID);
         }
     }
 
     @Override
+    public LeaderElection getDispatcherLeaderElection() {
+        synchronized (lock) {
+            checkNotClose();
+
+            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
+        }
+    }
+
+    @Override
     public LeaderRetrievalService getDispatcherLeaderRetriever() {
         synchronized (lock) {
-            checkNotShutdown();
+            checkNotClose();
 
             return new StandaloneLeaderRetrievalService(dispatcherAddress, DEFAULT_LEADER_ID);
         }
     }
 
     @Override
-    public LeaderElection getResourceManagerLeaderElection() {
-        synchronized (lock) {
-            checkNotShutdown();
-
-            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
-        }
-    }
-
-    @Override
-    public LeaderElection getDispatcherLeaderElection() {
-        synchronized (lock) {
-            checkNotShutdown();
-
-            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
-        }
-    }
-
-    @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID) {
-        synchronized (lock) {
-            checkNotShutdown();
-
-            return new StandaloneLeaderRetrievalService("UNKNOWN", DEFAULT_LEADER_ID);
-        }
-    }
-
-    @Override
-    public LeaderRetrievalService getJobManagerLeaderRetriever(
+    public LeaderRetrievalService getJobMasterLeaderRetriever(
             JobID jobID, String defaultJobManagerAddress) {
         synchronized (lock) {
-            checkNotShutdown();
+            checkNotClose();
 
             return new StandaloneLeaderRetrievalService(
                     defaultJobManagerAddress, DEFAULT_LEADER_ID);
@@ -125,30 +120,44 @@ public class StandaloneHaServices extends AbstractNonHaServices {
     }
 
     @Override
-    public LeaderElection getJobManagerLeaderElection(JobID jobID) {
+    public LeaderElection getJobMasterLeaderElection(JobID jobID) {
         synchronized (lock) {
-            checkNotShutdown();
+            checkNotClose();
 
             return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
         }
     }
 
     @Override
-    public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+    public LeaderElection getRestEndpointLeaderElection() {
         synchronized (lock) {
-            checkNotShutdown();
+            checkNotClose();
+
+            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
+        }
+    }
+
+    @Override
+    public LeaderRetrievalService getRestEndpointLeaderRetriever() {
+        synchronized (lock) {
+            checkNotClose();
 
             return new StandaloneLeaderRetrievalService(
                     clusterRestEndpointAddress, DEFAULT_LEADER_ID);
         }
     }
 
-    @Override
-    public LeaderElection getClusterRestEndpointLeaderElection() {
-        synchronized (lock) {
-            checkNotShutdown();
+    @GuardedBy("lock")
+    protected void checkNotClose() {
+        checkState(!closed, "leader services are shut down");
+    }
 
-            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
+    @Override
+    public void close() throws Exception {
+        synchronized (lock) {
+            if (!closed) {
+                closed = true;
+            }
         }
     }
 }

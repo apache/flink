@@ -27,6 +27,7 @@ import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
+import org.apache.flink.runtime.leaderservice.LeaderServices;
 
 import javax.annotation.concurrent.GuardedBy;
 
@@ -40,18 +41,21 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>This class returns the standalone variants for the checkpoint recovery factory, the submitted
  * job graph store, the running jobs registry and the blob store.
  */
-public abstract class AbstractNonHaServices implements HighAvailabilityServices {
+public class NonHaServices implements HighAvailabilityServices {
     protected final Object lock = new Object();
 
     private final JobResultStore jobResultStore;
 
     private final VoidBlobStore voidBlobStore;
 
+    private final LeaderServices leaderServices;
+
     private boolean shutdown;
 
-    public AbstractNonHaServices() {
+    public NonHaServices(LeaderServices leaderServices) {
         this.jobResultStore = new EmbeddedJobResultStore();
         this.voidBlobStore = new VoidBlobStore();
+        this.leaderServices = leaderServices;
 
         shutdown = false;
     }
@@ -59,6 +63,11 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
     // ----------------------------------------------------------------------
     // HighAvailabilityServices method implementations
     // ----------------------------------------------------------------------
+
+    @Override
+    public LeaderServices getLeaderServices() {
+        return leaderServices;
+    }
 
     @Override
     public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
@@ -100,6 +109,7 @@ public abstract class AbstractNonHaServices implements HighAvailabilityServices 
     public void close() throws Exception {
         synchronized (lock) {
             if (!shutdown) {
+                leaderServices.close();
                 shutdown = true;
             }
         }

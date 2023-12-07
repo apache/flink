@@ -126,10 +126,12 @@ public class DefaultDispatcherResourceManagerComponentFactory
 
         try {
             dispatcherLeaderRetrievalService =
-                    highAvailabilityServices.getDispatcherLeaderRetriever();
+                    highAvailabilityServices.getLeaderServices().getDispatcherLeaderRetriever();
 
             resourceManagerRetrievalService =
-                    highAvailabilityServices.getResourceManagerLeaderRetriever();
+                    highAvailabilityServices
+                            .getLeaderServices()
+                            .getResourceManagerLeaderRetriever();
 
             final LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever =
                     new RpcGatewayRetriever<>(
@@ -172,7 +174,9 @@ public class DefaultDispatcherResourceManagerComponentFactory
                             blobServer,
                             executor,
                             metricFetcher,
-                            highAvailabilityServices.getClusterRestEndpointLeaderElection(),
+                            highAvailabilityServices
+                                    .getLeaderServices()
+                                    .getRestEndpointLeaderElection(),
                             fatalErrorHandler);
 
             log.debug("Starting Dispatcher REST endpoint.");
@@ -225,7 +229,9 @@ public class DefaultDispatcherResourceManagerComponentFactory
             log.debug("Starting Dispatcher.");
             dispatcherRunner =
                     dispatcherRunnerFactory.createDispatcherRunner(
-                            highAvailabilityServices.getDispatcherLeaderElection(),
+                            highAvailabilityServices
+                                    .getLeaderServices()
+                                    .getDispatcherLeaderElection(),
                             fatalErrorHandler,
                             new HaServicesJobPersistenceComponentFactory(highAvailabilityServices),
                             ioExecutor,

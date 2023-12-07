@@ -1583,7 +1583,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                             jobGraph.getCheckpointingSettings(),
                             initializationTimestamp,
                             jobMasterServiceFactory),
-                    highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID()),
+                    highAvailabilityServices
+                            .getLeaderServices()
+                            .getJobMasterLeaderElection(jobGraph.getJobID()),
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
@@ -1656,7 +1658,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                                 jobMasterServiceFutures.offer(result));
                                         return result;
                                     })),
-                    highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID()),
+                    highAvailabilityServices
+                            .getLeaderServices()
+                            .getJobMasterLeaderElection(jobGraph.getJobID()),
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()
@@ -1708,7 +1712,9 @@ public class DispatcherTest extends AbstractDispatcherTest {
                             jobGraph.getCheckpointingSettings(),
                             initializationTimestamp,
                             new TestingJobMasterServiceFactory()),
-                    highAvailabilityServices.getJobManagerLeaderElection(jobGraph.getJobID()),
+                    highAvailabilityServices
+                            .getLeaderServices()
+                            .getJobMasterLeaderElection(jobGraph.getJobID()),
                     highAvailabilityServices.getJobResultStore(),
                     jobManagerServices
                             .getLibraryCacheManager()

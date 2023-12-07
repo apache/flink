@@ -88,7 +88,10 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
         this.rmProcessContext = checkNotNull(rmProcessContext);
 
         this.leaderElection =
-                rmProcessContext.getHighAvailabilityServices().getResourceManagerLeaderElection();
+                rmProcessContext
+                        .getHighAvailabilityServices()
+                        .getLeaderServices()
+                        .getResourceManagerLeaderElection();
         this.fatalErrorHandler = rmProcessContext.getFatalErrorHandler();
         this.ioExecutor = rmProcessContext.getIoExecutor();
 

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.FlinkException;
@@ -48,27 +49,24 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * A simple leader election service, which selects a leader among contenders and notifies listeners.
  *
- * <p>An election service for contenders can be created via {@link #createLeaderElectionService()},
- * a listener service for leader observers can be created via {@link
- * #createLeaderRetrievalService()}.
+ * <p>An election service for contenders can be created via {@link #createLeaderElection}.
  */
-public class EmbeddedLeaderService {
-
-    private static final Logger LOG = LoggerFactory.getLogger(EmbeddedLeaderService.class);
+public class EmbeddedLeaderElectionService implements LeaderElectionService {
+    private static final Logger LOG = LoggerFactory.getLogger(EmbeddedLeaderElectionService.class);
 
     private final Object lock = new Object();
 
     private final Executor notificationExecutor;
 
-    private final Set<EmbeddedLeaderElection> allLeaderContenders;
+    private final Set<EmbeddedLeaderElectionService.EmbeddedLeaderElection> allLeaderContenders;
 
-    private final Set<EmbeddedLeaderRetrievalService> listeners;
+    private final Set<EmbeddedLeaderElectionService.EmbeddedLeaderRetrievalService> listeners;
 
     /** proposed leader, which has been notified of leadership grant, but has not confirmed. */
-    private EmbeddedLeaderElection currentLeaderProposed;
+    private EmbeddedLeaderElectionService.EmbeddedLeaderElection currentLeaderProposed;
 
     /** actual leader that has confirmed leadership and of which listeners have been notified. */
-    private EmbeddedLeaderElection currentLeaderConfirmed;
+    private EmbeddedLeaderElectionService.EmbeddedLeaderElection currentLeaderConfirmed;
 
     /** fencing UID for the current leader (or proposed leader). */
     private volatile UUID currentLeaderSessionId;
@@ -81,7 +79,7 @@ public class EmbeddedLeaderService {
 
     // ------------------------------------------------------------------------
 
-    public EmbeddedLeaderService(Executor notificationsDispatcher) {
+    public EmbeddedLeaderElectionService(Executor notificationsDispatcher) {
         this.notificationExecutor = checkNotNull(notificationsDispatcher);
         this.allLeaderContenders = new HashSet<>();
         this.listeners = new HashSet<>();
@@ -98,7 +96,8 @@ public class EmbeddedLeaderService {
      * to any leader listeners. It simply notifies all contenders and listeners that the service is
      * no longer available.
      */
-    public void shutdown() {
+    @Override
+    public void close() {
         synchronized (lock) {
             shutdownInternally(new Exception("Leader election service is shutting down"));
         }
@@ -135,13 +134,14 @@ public class EmbeddedLeaderService {
             currentLeaderAddress = null;
 
             // fail all registered listeners
-            for (EmbeddedLeaderElection leaderElection : allLeaderContenders) {
+            for (EmbeddedLeaderElectionService.EmbeddedLeaderElection leaderElection :
+                    allLeaderContenders) {
                 leaderElection.shutdown(exceptionForHandlers);
             }
             allLeaderContenders.clear();
 
             // fail all registered listeners
-            for (EmbeddedLeaderRetrievalService service : listeners) {
+            for (EmbeddedLeaderElectionService.EmbeddedLeaderRetrievalService service : listeners) {
                 service.shutdown(exceptionForHandlers);
             }
             listeners.clear();
@@ -154,14 +154,15 @@ public class EmbeddedLeaderService {
     //  creating contenders and listeners
     // ------------------------------------------------------------------------
 
-    public LeaderElection createLeaderElectionService(String componentId) {
+    @Override
+    public LeaderElection createLeaderElection(String componentId) {
         checkState(!shutdown, "leader election service is shut down");
-        return new EmbeddedLeaderElection(componentId);
+        return new EmbeddedLeaderElectionService.EmbeddedLeaderElection(componentId);
     }
 
     public LeaderRetrievalService createLeaderRetrievalService() {
         checkState(!shutdown, "leader election service is shut down");
-        return new EmbeddedLeaderRetrievalService();
+        return new EmbeddedLeaderElectionService.EmbeddedLeaderRetrievalService();
     }
 
     // ------------------------------------------------------------------------
@@ -170,7 +171,8 @@ public class EmbeddedLeaderService {
 
     /** Callback from leader contenders when they start their service. */
     private void addContender(
-            EmbeddedLeaderElection embeddedLeaderElection, LeaderContender contender) {
+            EmbeddedLeaderElectionService.EmbeddedLeaderElection embeddedLeaderElection,
+            LeaderContender contender) {
         synchronized (lock) {
             checkState(!shutdown, "leader election is shut down");
             checkState(!embeddedLeaderElection.running, "leader election is already started");
@@ -198,7 +200,8 @@ public class EmbeddedLeaderService {
     }
 
     /** Callback from leader contenders when they stop their service. */
-    private void removeContender(EmbeddedLeaderElection embeddedLeaderElection) {
+    private void removeContender(
+            EmbeddedLeaderElectionService.EmbeddedLeaderElection embeddedLeaderElection) {
         synchronized (lock) {
             // if the leader election was not even started, simply do nothing
             if (!embeddedLeaderElection.running || shutdown) {
@@ -245,7 +248,7 @@ public class EmbeddedLeaderService {
 
     /** Callback from leader contenders when they confirm a leader grant. */
     private void confirmLeader(
-            final EmbeddedLeaderElection embeddedLeaderElection,
+            final EmbeddedLeaderElectionService.EmbeddedLeaderElection embeddedLeaderElection,
             final UUID leaderSessionId,
             final String leaderAddress) {
         synchronized (lock) {
@@ -284,7 +287,7 @@ public class EmbeddedLeaderService {
         final List<CompletableFuture<Void>> notifyListenerFutures =
                 new ArrayList<>(listeners.size());
 
-        for (EmbeddedLeaderRetrievalService listener : listeners) {
+        for (EmbeddedLeaderElectionService.EmbeddedLeaderRetrievalService listener : listeners) {
             notifyListenerFutures.add(notifyListener(address, leaderSessionId, listener.listener));
         }
 
@@ -304,7 +307,7 @@ public class EmbeddedLeaderService {
             } else {
                 // propose a leader and ask it
                 final UUID leaderSessionId = UUID.randomUUID();
-                EmbeddedLeaderElection embeddedLeaderElection =
+                EmbeddedLeaderElectionService.EmbeddedLeaderElection embeddedLeaderElection =
                         allLeaderContenders.iterator().next();
 
                 currentLeaderSessionId = leaderSessionId;
@@ -316,7 +319,7 @@ public class EmbeddedLeaderService {
                         embeddedLeaderElection.componentId);
 
                 return execute(
-                        new GrantLeadershipCall(
+                        new EmbeddedLeaderElectionService.GrantLeadershipCall(
                                 embeddedLeaderElection.contender, leaderSessionId, LOG));
             }
         } else {
@@ -329,12 +332,14 @@ public class EmbeddedLeaderService {
             @Nullable UUID leaderSessionId,
             LeaderRetrievalListener listener) {
         return CompletableFuture.runAsync(
-                new NotifyOfLeaderCall(address, leaderSessionId, listener, LOG),
+                new EmbeddedLeaderElectionService.NotifyOfLeaderCall(
+                        address, leaderSessionId, listener, LOG),
                 notificationExecutor);
     }
 
     private void addListener(
-            EmbeddedLeaderRetrievalService service, LeaderRetrievalListener listener) {
+            EmbeddedLeaderElectionService.EmbeddedLeaderRetrievalService service,
+            LeaderRetrievalListener listener) {
         synchronized (lock) {
             checkState(!shutdown, "leader election service is shut down");
             checkState(!service.running, "leader retrieval service is already started");
@@ -358,7 +363,8 @@ public class EmbeddedLeaderService {
         }
     }
 
-    private void removeListener(EmbeddedLeaderRetrievalService service) {
+    private void removeListener(
+            EmbeddedLeaderElectionService.EmbeddedLeaderRetrievalService service) {
         synchronized (lock) {
             // if the service was not even started, simply do nothing
             if (!service.running || shutdown) {
@@ -381,7 +387,7 @@ public class EmbeddedLeaderService {
     }
 
     @VisibleForTesting
-    CompletableFuture<Void> grantLeadership() {
+    public CompletableFuture<Void> grantLeadership() {
         synchronized (lock) {
             if (shutdown) {
                 return getShutDownFuture();
@@ -393,18 +399,18 @@ public class EmbeddedLeaderService {
 
     private CompletableFuture<Void> getShutDownFuture() {
         return FutureUtils.completedExceptionally(
-                new FlinkException("EmbeddedLeaderService has been shut down."));
+                new FlinkException("EmbeddedLeaderElectionService has been shut down."));
     }
 
     @VisibleForTesting
-    CompletableFuture<Void> revokeLeadership() {
+    public CompletableFuture<Void> revokeLeadership() {
         synchronized (lock) {
             if (shutdown) {
                 return getShutDownFuture();
             }
 
             if (currentLeaderProposed != null || currentLeaderConfirmed != null) {
-                final EmbeddedLeaderElection embeddedLeaderElection;
+                final EmbeddedLeaderElectionService.EmbeddedLeaderElection embeddedLeaderElection;
 
                 if (currentLeaderConfirmed != null) {
                     embeddedLeaderElection = currentLeaderConfirmed;
@@ -415,7 +421,9 @@ public class EmbeddedLeaderService {
                 LOG.info("Revoking leadership of {}.", embeddedLeaderElection.contender);
                 embeddedLeaderElection.isLeader = false;
                 CompletableFuture<Void> revokeLeadershipCallFuture =
-                        execute(new RevokeLeadershipCall(embeddedLeaderElection.contender));
+                        execute(
+                                new EmbeddedLeaderElectionService.RevokeLeadershipCall(
+                                        embeddedLeaderElection.contender));
 
                 CompletableFuture<Void> notifyAllListenersFuture = notifyAllListeners(null, null);
 

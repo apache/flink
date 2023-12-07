@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
+import org.apache.flink.runtime.highavailability.nonha.NonHaServices;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import java.util.Collections;
@@ -30,11 +31,15 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-/** {@link EmbeddedHaServices} extension to expose leadership granting and revoking. */
-public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
+/**
+ * {@link org.apache.flink.runtime.highavailability.nonha.NonHaServices} extension to expose
+ * leadership granting and revoking.
+ */
+public class EmbeddedHaServicesWithLeadershipControl extends NonHaServices
         implements HaLeadershipControl {
 
     private final CheckpointRecoveryFactory checkpointRecoveryFactory;
+    private final EmbeddedLeaderServices embeddedLeaderServices;
 
     public EmbeddedHaServicesWithLeadershipControl(Executor executor) {
         this(
@@ -67,45 +72,50 @@ public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
 
     public EmbeddedHaServicesWithLeadershipControl(
             Executor executor, CheckpointRecoveryFactory checkpointRecoveryFactory) {
-        super(executor);
+        super(new EmbeddedLeaderServices(executor));
         this.checkpointRecoveryFactory = checkpointRecoveryFactory;
+        this.embeddedLeaderServices = (EmbeddedLeaderServices) getLeaderServices();
     }
 
     @Override
     public CompletableFuture<Void> revokeDispatcherLeadership() {
-        final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
+        final EmbeddedLeaderElectionService dispatcherLeaderService =
+                embeddedLeaderServices.getDispatcherLeaderService();
         return dispatcherLeaderService.revokeLeadership();
     }
 
     @Override
     public CompletableFuture<Void> grantDispatcherLeadership() {
-        final EmbeddedLeaderService dispatcherLeaderService = getDispatcherLeaderService();
+        final EmbeddedLeaderElectionService dispatcherLeaderService =
+                embeddedLeaderServices.getDispatcherLeaderService();
         return dispatcherLeaderService.grantLeadership();
     }
 
     @Override
     public CompletableFuture<Void> revokeJobMasterLeadership(JobID jobId) {
-        final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
+        final EmbeddedLeaderElectionService jobMasterLeaderService =
+                embeddedLeaderServices.getJobManagerLeaderService(jobId);
         return jobMasterLeaderService.revokeLeadership();
     }
 
     @Override
     public CompletableFuture<Void> grantJobMasterLeadership(JobID jobId) {
-        final EmbeddedLeaderService jobMasterLeaderService = getJobManagerLeaderService(jobId);
+        final EmbeddedLeaderElectionService jobMasterLeaderService =
+                embeddedLeaderServices.getJobManagerLeaderService(jobId);
         return jobMasterLeaderService.grantLeadership();
     }
 
     @Override
     public CompletableFuture<Void> revokeResourceManagerLeadership() {
-        final EmbeddedLeaderService resourceManagerLeaderService =
-                getResourceManagerLeaderService();
+        final EmbeddedLeaderElectionService resourceManagerLeaderService =
+                embeddedLeaderServices.getResourceManagerLeaderService();
         return resourceManagerLeaderService.revokeLeadership();
     }
 
     @Override
     public CompletableFuture<Void> grantResourceManagerLeadership() {
-        final EmbeddedLeaderService resourceManagerLeaderService =
-                getResourceManagerLeaderService();
+        final EmbeddedLeaderElectionService resourceManagerLeaderService =
+                embeddedLeaderServices.getResourceManagerLeaderService();
         return resourceManagerLeaderService.grantLeadership();
     }
 

@@ -27,25 +27,25 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the {@link EmbeddedLeaderService}. */
-class EmbeddedLeaderServiceTest {
+/** Tests for the {@link EmbeddedLeaderElectionService}. */
+class EmbeddedLeaderElectionServiceTest {
 
     /**
-     * Tests that the {@link EmbeddedLeaderService} can handle a concurrent grant leadership call
-     * and a shutdown.
+     * Tests that the {@link EmbeddedLeaderElectionService} can handle a concurrent grant leadership
+     * call and a shutdown.
      */
     @Test
     public void testConcurrentGrantLeadershipAndShutdown() throws Exception {
         final ManuallyTriggeredScheduledExecutorService executorService =
                 new ManuallyTriggeredScheduledExecutorService();
-        final EmbeddedLeaderService embeddedLeaderService =
-                new EmbeddedLeaderService(executorService);
+        final EmbeddedLeaderElectionService embeddedLeaderService =
+                new EmbeddedLeaderElectionService(executorService);
 
         try {
             final TestingLeaderContender contender = new TestingLeaderContender();
 
             final LeaderElection leaderElection =
-                    embeddedLeaderService.createLeaderElectionService("component_id");
+                    embeddedLeaderService.createLeaderElection("component_id");
             leaderElection.startLeaderElection(contender);
             leaderElection.close();
 
@@ -57,7 +57,7 @@ class EmbeddedLeaderServiceTest {
             // the election service should still be running
             assertThat(embeddedLeaderService.isShutdown()).isFalse();
         } finally {
-            embeddedLeaderService.shutdown();
+            embeddedLeaderService.close();
 
             // triggers the grant event processing after shutdown
             executorService.triggerAll();
@@ -65,21 +65,21 @@ class EmbeddedLeaderServiceTest {
     }
 
     /**
-     * Tests that the {@link EmbeddedLeaderService} can handle a concurrent revoke leadership call
-     * and a shutdown.
+     * Tests that the {@link EmbeddedLeaderElectionService} can handle a concurrent revoke
+     * leadership call and a shutdown.
      */
     @Test
     public void testConcurrentRevokeLeadershipAndShutdown() throws Exception {
         final ManuallyTriggeredScheduledExecutorService executorService =
                 new ManuallyTriggeredScheduledExecutorService();
-        final EmbeddedLeaderService embeddedLeaderService =
-                new EmbeddedLeaderService(executorService);
+        final EmbeddedLeaderElectionService embeddedLeaderService =
+                new EmbeddedLeaderElectionService(executorService);
 
         try {
             final TestingLeaderContender contender = new TestingLeaderContender();
 
             final LeaderElection leaderElection =
-                    embeddedLeaderService.createLeaderElectionService("component_id");
+                    embeddedLeaderService.createLeaderElection("component_id");
             leaderElection.startLeaderElection(contender);
 
             // wait for the leadership
@@ -98,7 +98,7 @@ class EmbeddedLeaderServiceTest {
             // the election service should still be running
             assertThat(embeddedLeaderService.isShutdown()).isFalse();
         } finally {
-            embeddedLeaderService.shutdown();
+            embeddedLeaderService.close();
 
             // triggers the revoke event processing after shutdown
             executorService.triggerAll();

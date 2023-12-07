@@ -29,9 +29,10 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.NonHaServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHAServices;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
+import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneLeaderServices;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientHAServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
@@ -63,7 +64,7 @@ public class HighAvailabilityServicesUtils {
 
         switch (highAvailabilityMode) {
             case NONE:
-                return new EmbeddedHaServices(executor);
+                return new NonHaServices(new EmbeddedLeaderServices(executor));
 
             case ZOOKEEPER:
                 return createZooKeeperHaServices(config, executor, fatalErrorHandler);
@@ -127,8 +128,9 @@ public class HighAvailabilityServicesUtils {
                 final String webMonitorAddress =
                         getWebMonitorAddress(configuration, addressResolution);
 
-                return new StandaloneHaServices(
-                        resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress);
+                return new NonHaServices(
+                        new StandaloneLeaderServices(
+                                resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress));
             case ZOOKEEPER:
                 return createZooKeeperHaServices(configuration, executor, fatalErrorHandler);
             case KUBERNETES:

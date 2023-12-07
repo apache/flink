@@ -24,7 +24,7 @@ import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderservice.LeaderServices;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.Executors;
@@ -186,7 +186,6 @@ class AbstractHaServicesTest {
                 ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer) {
             super(
                     config,
-                    listener -> null,
                     ioExecutor,
                     blobStoreService,
                     TestingJobResultStore.builder()
@@ -199,11 +198,6 @@ class AbstractHaServicesTest {
             this.closeOperations = closeOperations;
             this.internalCleanupRunnable = internalCleanupRunnable;
             this.internalJobCleanupConsumer = internalJobCleanupConsumer;
-        }
-
-        @Override
-        protected LeaderRetrievalService createLeaderRetrievalService(String leaderName) {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
         }
 
         @Override
@@ -232,23 +226,8 @@ class AbstractHaServicesTest {
         }
 
         @Override
-        protected String getLeaderPathForResourceManager() {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
-        }
-
-        @Override
-        protected String getLeaderPathForDispatcher() {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
-        }
-
-        @Override
-        protected String getLeaderPathForJobManager(JobID jobID) {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
-        }
-
-        @Override
-        protected String getLeaderPathForRestServer() {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
+        public LeaderServices getLeaderServices() {
+            return null;
         }
     }
 }

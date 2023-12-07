@@ -730,7 +730,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
         final InetAddress taskManagerAddress =
                 LeaderRetrievalUtils.findConnectingAddress(
-                        haServices.getResourceManagerLeaderRetriever(),
+                        haServices.getLeaderServices().getResourceManagerLeaderRetriever(),
                         lookupTimeout,
                         rpcSystemUtils);
 

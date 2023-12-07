@@ -171,17 +171,21 @@ class ZooKeeperLeaderRetrievalTest {
                 FindConnectingAddress findConnectingAddress =
                         new FindConnectingAddress(
                                 timeout,
-                                highAvailabilityServices.getJobManagerLeaderRetriever(
-                                        HighAvailabilityServices.DEFAULT_JOB_ID,
-                                        "unused-default-address"));
+                                highAvailabilityServices
+                                        .getLeaderServices()
+                                        .getJobMasterLeaderRetriever(
+                                                HighAvailabilityServices.DEFAULT_JOB_ID,
+                                                "unused-default-address"));
 
                 thread = new Thread(findConnectingAddress);
 
                 thread.start();
 
                 leaderElection =
-                        highAvailabilityServices.getJobManagerLeaderElection(
-                                HighAvailabilityServices.DEFAULT_JOB_ID);
+                        highAvailabilityServices
+                                .getLeaderServices()
+                                .getJobMasterLeaderElection(
+                                        HighAvailabilityServices.DEFAULT_JOB_ID);
                 TestingContender correctLeaderAddressContender =
                         new TestingContender(correctAddress, leaderElection);
 
@@ -226,8 +230,10 @@ class ZooKeeperLeaderRetrievalTest {
         Duration timeout = Duration.ofSeconds(1L);
 
         LeaderRetrievalService leaderRetrievalService =
-                highAvailabilityServices.getJobManagerLeaderRetriever(
-                        HighAvailabilityServices.DEFAULT_JOB_ID, "unused-default-address");
+                highAvailabilityServices
+                        .getLeaderServices()
+                        .getJobMasterLeaderRetriever(
+                                HighAvailabilityServices.DEFAULT_JOB_ID, "unused-default-address");
         InetAddress result =
                 LeaderRetrievalUtils.findConnectingAddress(
                         leaderRetrievalService, timeout, RPC_SYSTEM);

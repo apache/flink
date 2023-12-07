@@ -33,7 +33,7 @@ import java.util.UUID;
  * the leader session id as well as the leader address can now be published for leader retrieval
  * services.
  */
-public interface LeaderElectionService {
+public interface LeaderElectionService extends AutoCloseable {
 
     /**
      * Creates a new {@link LeaderElection} instance that is registered to this {@code

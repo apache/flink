@@ -135,7 +135,9 @@ public class DefaultJobLeaderIdService implements JobLeaderIdService {
 
         if (!jobLeaderIdListeners.containsKey(jobId)) {
             LeaderRetrievalService leaderRetrievalService =
-                    highAvailabilityServices.getJobManagerLeaderRetriever(jobId);
+                    highAvailabilityServices
+                            .getLeaderServices()
+                            .getJobMasterLeaderRetriever(jobId, "UNKNOWN");
 
             JobLeaderIdListener jobIdListener =
                     new JobLeaderIdListener(jobId, jobLeaderIdActions, leaderRetrievalService);

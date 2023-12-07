@@ -26,8 +26,12 @@ import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriverFactory;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
+import org.apache.flink.runtime.leaderservice.DefaultLeaderServices;
+import org.apache.flink.runtime.leaderservice.LeaderServiceMaterialGenerator;
+import org.apache.flink.runtime.leaderservice.LeaderServices;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
@@ -59,9 +63,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *      |                 |       /checkpoint_id_counter
  * </pre>
  */
-public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices {
+public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices
+        implements LeaderServiceMaterialGenerator {
     /** The curator resource to use. */
     private final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
+
+    private final DefaultLeaderServices leaderServices;
 
     public ZooKeeperLeaderElectionHaServices(
             CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper,
@@ -71,14 +78,16 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices {
             throws Exception {
         super(
                 configuration,
-                new ZooKeeperLeaderElectionDriverFactory(
-                        ZooKeeperUtils.useNamespaceAndEnsurePath(
-                                curatorFrameworkWrapper.asCuratorFramework(),
-                                ZooKeeperUtils.getLeaderPath())),
                 executor,
                 blobStoreService,
                 FileSystemJobResultStore.fromConfiguration(configuration, executor));
         this.curatorFrameworkWrapper = checkNotNull(curatorFrameworkWrapper);
+        this.leaderServices = new DefaultLeaderServices(this);
+    }
+
+    @Override
+    public LeaderServices getLeaderServices() {
+        return leaderServices;
     }
 
     @Override
@@ -172,31 +181,38 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices {
     // ///////////////////////////////////////////////
 
     @Override
-    protected LeaderRetrievalService createLeaderRetrievalService(String componentId) {
-        // Maybe use a single service for leader retrieval
-        return ZooKeeperUtils.createLeaderRetrievalService(
-                curatorFrameworkWrapper.asCuratorFramework(),
-                ZooKeeperUtils.getLeaderPath(componentId),
-                configuration);
-    }
-
-    @Override
-    protected String getLeaderPathForResourceManager() {
+    public String getLeaderPathForResourceManager() {
         return ZooKeeperUtils.getResourceManagerNode();
     }
 
     @Override
-    protected String getLeaderPathForDispatcher() {
+    public String getLeaderPathForDispatcher() {
         return ZooKeeperUtils.getDispatcherNode();
     }
 
     @Override
-    protected String getLeaderPathForJobManager(JobID jobID) {
+    public String getLeaderPathForJobManager(JobID jobID) {
         return "job-" + jobID.toString();
     }
 
     @Override
-    protected String getLeaderPathForRestServer() {
+    public String getLeaderPathForRestServer() {
         return ZooKeeperUtils.getRestServerNode();
+    }
+
+    @Override
+    public LeaderElectionDriverFactory createLeaderElectionDriverFactory() throws Exception {
+        return new ZooKeeperLeaderElectionDriverFactory(
+                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                        curatorFrameworkWrapper.asCuratorFramework(),
+                        ZooKeeperUtils.getLeaderPath()));
+    }
+
+    @Override
+    public LeaderRetrievalDriverFactory createLeaderRetrievalDriverFactory(String componentId) {
+        return ZooKeeperUtils.createLeaderRetrievalDriverFactory(
+                curatorFrameworkWrapper.asCuratorFramework(),
+                ZooKeeperUtils.getLeaderPath(componentId),
+                configuration);
     }
 }

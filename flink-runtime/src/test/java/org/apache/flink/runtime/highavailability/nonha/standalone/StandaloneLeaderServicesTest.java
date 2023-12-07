@@ -20,42 +20,39 @@ package org.apache.flink.runtime.highavailability.nonha.standalone;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.leaderelection.LeaderContender;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
+import org.apache.flink.runtime.leaderelection.TestingContender;
+import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the {@link StandaloneHaServices}. */
-public class StandaloneHaServicesTest extends TestLogger {
+/** Tests for the {@link StandaloneLeaderServices}. */
+class StandaloneLeaderServicesTest extends TestLogger {
 
     private final String dispatcherAddress = "dispatcher";
     private final String resourceManagerAddress = "resourceManager";
     private final String webMonitorAddress = "webMonitor";
 
-    private StandaloneHaServices standaloneHaServices;
+    private StandaloneLeaderServices standaloneLeaderServices;
 
-    @Before
+    @BeforeEach
     public void setupTest() {
-
-        standaloneHaServices =
-                new StandaloneHaServices(
+        standaloneLeaderServices =
+                new StandaloneLeaderServices(
                         resourceManagerAddress, dispatcherAddress, webMonitorAddress);
     }
 
-    @After
+    @AfterEach
     public void teardownTest() throws Exception {
-        if (standaloneHaServices != null) {
-            standaloneHaServices.closeWithOptionalClean(true);
-            standaloneHaServices = null;
+        if (standaloneLeaderServices != null) {
+            standaloneLeaderServices.close();
+            standaloneLeaderServices = null;
         }
     }
 
@@ -66,19 +63,21 @@ public class StandaloneHaServicesTest extends TestLogger {
     @Test
     public void testLeaderElection() throws Exception {
         JobID jobId = new JobID();
-        LeaderContender jmLeaderContender = mock(LeaderContender.class);
-        LeaderContender rmLeaderContender = mock(LeaderContender.class);
 
         final LeaderElection jmLeaderElection =
-                standaloneHaServices.getJobManagerLeaderElection(jobId);
+                standaloneLeaderServices.getJobMasterLeaderElection(jobId);
+        TestingContender jmLeaderContender = new TestingContender("UNKNOWN", jmLeaderElection);
         jmLeaderElection.startLeaderElection(jmLeaderContender);
 
         final LeaderElection rmLeaderElection =
-                standaloneHaServices.getResourceManagerLeaderElection();
+                standaloneLeaderServices.getResourceManagerLeaderElection();
+        TestingContender rmLeaderContender = new TestingContender("UNKNOWN", rmLeaderElection);
         rmLeaderElection.startLeaderElection(rmLeaderContender);
 
-        verify(jmLeaderContender).grantLeadership(eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
-        verify(rmLeaderContender).grantLeadership(eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
+        assertThat(jmLeaderContender.getLeaderSessionID())
+                .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
+        assertThat(rmLeaderContender.getLeaderSessionID())
+                .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
     }
 
     /**
@@ -89,28 +88,31 @@ public class StandaloneHaServicesTest extends TestLogger {
     public void testJobManagerLeaderRetrieval() throws Exception {
         JobID jobId1 = new JobID();
         JobID jobId2 = new JobID();
-        LeaderRetrievalListener jmListener1 = mock(LeaderRetrievalListener.class);
-        LeaderRetrievalListener jmListener2 = mock(LeaderRetrievalListener.class);
-        LeaderRetrievalListener rmListener = mock(LeaderRetrievalListener.class);
+        TestingListener jmListener1 = new TestingListener();
+        TestingListener jmListener2 = new TestingListener();
+        TestingListener rmListener = new TestingListener();
 
         LeaderRetrievalService jmLeaderRetrievalService1 =
-                standaloneHaServices.getJobManagerLeaderRetriever(jobId1);
+                standaloneLeaderServices.getJobMasterLeaderRetriever(jobId1, "UNKNOWN");
         LeaderRetrievalService jmLeaderRetrievalService2 =
-                standaloneHaServices.getJobManagerLeaderRetriever(jobId2);
+                standaloneLeaderServices.getJobMasterLeaderRetriever(jobId2, "UNKNOWN");
         LeaderRetrievalService rmLeaderRetrievalService =
-                standaloneHaServices.getResourceManagerLeaderRetriever();
+                standaloneLeaderServices.getResourceManagerLeaderRetriever();
 
         jmLeaderRetrievalService1.start(jmListener1);
         jmLeaderRetrievalService2.start(jmListener2);
         rmLeaderRetrievalService.start(rmListener);
 
-        verify(jmListener1)
-                .notifyLeaderAddress(eq("UNKNOWN"), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
-        verify(jmListener2)
-                .notifyLeaderAddress(eq("UNKNOWN"), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
-        verify(rmListener)
-                .notifyLeaderAddress(
-                        eq(resourceManagerAddress), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
+        assertThat(jmListener1.waitForNewLeader()).isEqualTo("UNKNOWN");
+        assertThat(jmListener2.waitForNewLeader()).isEqualTo("UNKNOWN");
+        assertThat(rmListener.waitForNewLeader()).isEqualTo(resourceManagerAddress);
+
+        assertThat(jmListener1.getLeaderSessionID())
+                .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
+        assertThat(jmListener2.getLeaderSessionID())
+                .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
+        assertThat(rmListener.getLeaderSessionID())
+                .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
     }
 
     /**
@@ -123,22 +125,22 @@ public class StandaloneHaServicesTest extends TestLogger {
         JobID jobId2 = new JobID();
         final String jobManagerAddress1 = "foobar";
         final String jobManagerAddress2 = "barfoo";
-        LeaderRetrievalListener jmListener1 = mock(LeaderRetrievalListener.class);
-        LeaderRetrievalListener jmListener2 = mock(LeaderRetrievalListener.class);
+        TestingListener jmListener1 = new TestingListener();
+        TestingListener jmListener2 = new TestingListener();
 
         LeaderRetrievalService jmLeaderRetrievalService1 =
-                standaloneHaServices.getJobManagerLeaderRetriever(jobId1, jobManagerAddress1);
+                standaloneLeaderServices.getJobMasterLeaderRetriever(jobId1, jobManagerAddress1);
         LeaderRetrievalService jmLeaderRetrievalService2 =
-                standaloneHaServices.getJobManagerLeaderRetriever(jobId2, jobManagerAddress2);
+                standaloneLeaderServices.getJobMasterLeaderRetriever(jobId2, jobManagerAddress2);
 
         jmLeaderRetrievalService1.start(jmListener1);
         jmLeaderRetrievalService2.start(jmListener2);
 
-        verify(jmListener1)
-                .notifyLeaderAddress(
-                        eq(jobManagerAddress1), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
-        verify(jmListener2)
-                .notifyLeaderAddress(
-                        eq(jobManagerAddress2), eq(HighAvailabilityServices.DEFAULT_LEADER_ID));
+        assertThat(jmListener1.waitForNewLeader()).isEqualTo(jobManagerAddress1);
+        assertThat(jmListener2.waitForNewLeader()).isEqualTo(jobManagerAddress2);
+        assertThat(jmListener1.getLeaderSessionID())
+                .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
+        assertThat(jmListener2.getLeaderSessionID())
+                .isEqualTo(HighAvailabilityServices.DEFAULT_LEADER_ID);
     }
 }

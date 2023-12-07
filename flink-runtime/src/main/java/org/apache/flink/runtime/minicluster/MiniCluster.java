@@ -58,8 +58,9 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.NonHaServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.io.network.partition.ClusterPartitionManager;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -467,10 +468,12 @@ public class MiniCluster implements AutoCloseableAsync {
                         dispatcherResourceManagerComponentRpcServiceFactory,
                         metricQueryServiceRetriever);
 
-                resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
-                dispatcherLeaderRetriever = haServices.getDispatcherLeaderRetriever();
+                resourceManagerLeaderRetriever =
+                        haServices.getLeaderServices().getResourceManagerLeaderRetriever();
+                dispatcherLeaderRetriever =
+                        haServices.getLeaderServices().getDispatcherLeaderRetriever();
                 clusterRestEndpointLeaderRetrievalService =
-                        haServices.getClusterRestEndpointLeaderRetriever();
+                        haServices.getLeaderServices().getRestEndpointLeaderRetriever();
 
                 dispatcherGatewayRetriever =
                         new RpcGatewayRetriever<>(
@@ -607,7 +610,8 @@ public class MiniCluster implements AutoCloseableAsync {
             // therefore, SingletonHighAvailabilityServicesFactory is utilized here
             return new SingletonHighAvailabilityServicesFactory(
                     (config, embeddedLeaderElectionExecutor) ->
-                            new EmbeddedHaServices(embeddedLeaderElectionExecutor));
+                            new NonHaServices(
+                                    new EmbeddedLeaderServices(embeddedLeaderElectionExecutor)));
         } else {
             return new RegularHighAvailabilityServicesFactory();
         }
