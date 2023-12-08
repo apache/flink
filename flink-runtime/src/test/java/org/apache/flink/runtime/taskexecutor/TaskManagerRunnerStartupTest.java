@@ -50,6 +50,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -113,6 +114,7 @@ class TaskManagerRunnerStartupTest {
      * Tests that the TaskManagerRunner startup fails synchronously when the I/O directories are not
      * writable.
      */
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testIODirectoryNotWritable() throws Exception {
         File nonWritable = TempDirUtils.newFolder(tempFolder);

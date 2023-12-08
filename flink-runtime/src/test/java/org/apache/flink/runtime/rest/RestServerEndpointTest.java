@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.helpers.NOPLogger;
@@ -72,6 +73,7 @@ class RestServerEndpointTest {
         assertThat(Files.exists(testUploadDir)).isTrue();
     }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testCreateUploadDirFails(@TempDir File file) throws Exception {
         assertThat(file.setWritable(false));

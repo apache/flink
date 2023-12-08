@@ -31,6 +31,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -364,6 +365,7 @@ public class FsCheckpointStateOutputStreamTest {
      * This test checks that the stream does not check and clean the parent directory when
      * encountering a write error.
      */
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @TestTemplate
     void testStreamDoesNotTryToCleanUpParentOnError() throws Exception {
         final File directory = TempDirUtils.newFolder(tempDir);
