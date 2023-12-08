@@ -181,7 +181,7 @@ public class ParquetTimestampITCase extends FsStreamingSinkITCaseBase {
                                             Types.STRING,
                                             Types.STRING
                                         },
-                                        new String[] {"a", "b", "c", "d", "e"})));
+                                        new String[] {"f0", "f1", "f2", "f3", "f4"})));
     }
 
     @Override
@@ -198,7 +198,7 @@ public class ParquetTimestampITCase extends FsStreamingSinkITCaseBase {
                                             Types.STRING,
                                             Types.STRING
                                         },
-                                        new String[] {"a", "b", "c", "d", "e"})));
+                                        new String[] {"f0", "f1", "f2", "f3", "f4"})));
     }
 
     @Override
