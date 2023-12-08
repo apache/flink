@@ -40,6 +40,7 @@ import org.apache.flink.table.functions.hive.util.TestHiveUDTF;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.table.planner.runtime.utils.TestingRetractSink;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.RowToTuple2;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -225,8 +226,8 @@ public class HiveCatalogUdfITCase extends AbstractTestBase {
             StreamTableEnvironment streamTEnv = (StreamTableEnvironment) tEnv;
             TestingRetractSink sink = new TestingRetractSink();
             streamTEnv
-                    .toRetractStream(tEnv.sqlQuery(selectSql), Row.class)
-                    .map(new JavaToScala())
+                    .toChangelogStream(tEnv.sqlQuery(selectSql))
+                    .map(new RowToTuple2())
                     .addSink((SinkFunction) sink);
             env.execute("");
             results = JavaScalaConversionUtil.toJava(sink.getRetractResults());

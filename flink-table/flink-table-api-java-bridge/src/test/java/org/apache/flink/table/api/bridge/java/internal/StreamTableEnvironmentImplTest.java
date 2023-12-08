@@ -31,7 +31,6 @@ import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExecutorMock;
 import org.apache.flink.table.utils.PlannerMock;
-import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
 
@@ -69,7 +68,7 @@ class StreamTableEnvironmentImplTest {
         Duration minRetention = Duration.ofMinutes(1);
         tEnv.getConfig().setIdleStateRetention(minRetention);
         Table table = tEnv.fromDataStream(elements);
-        tEnv.toRetractStream(table, Row.class);
+        tEnv.toChangelogStream(table);
 
         assertThat(tEnv.getConfig().getIdleStateRetention()).isEqualTo(minRetention);
     }
