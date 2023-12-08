@@ -313,7 +313,7 @@ abstract class ExpressionTestBase(isStreaming: Boolean = true) {
 
   private def addTestExpr(
       relNode: RelNode,
-      expected: String,
+      @Nullable expected: String,
       summaryString: String,
       exceptionClass: Class[_ <: Throwable],
       exprs: mutable.ArrayBuffer[_]): Unit = {
