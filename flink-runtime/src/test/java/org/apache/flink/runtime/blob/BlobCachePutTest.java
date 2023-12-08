@@ -28,6 +28,7 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.commons.io.FileUtils;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -520,16 +521,19 @@ class BlobCachePutTest {
 
     // --------------------------------------------------------------------------------------------
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testPutBufferFailsNoJob() throws IOException {
         testPutBufferFails(null, TRANSIENT_BLOB);
     }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testPutBufferFailsForJob() throws IOException {
         testPutBufferFails(new JobID(), TRANSIENT_BLOB);
     }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testPutBufferFailsForJobHa() throws IOException {
         testPutBufferFails(new JobID(), PERMANENT_BLOB);
@@ -570,16 +574,19 @@ class BlobCachePutTest {
         }
     }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testPutBufferFailsIncomingNoJob() throws IOException {
         testPutBufferFailsIncoming(null, TRANSIENT_BLOB);
     }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testPutBufferFailsIncomingForJob() throws IOException {
         testPutBufferFailsIncoming(new JobID(), TRANSIENT_BLOB);
     }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testPutBufferFailsIncomingForJobHa() throws IOException {
         testPutBufferFailsIncoming(new JobID(), PERMANENT_BLOB);
@@ -631,16 +638,19 @@ class BlobCachePutTest {
         }
     }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testPutBufferFailsStoreNoJob() throws IOException {
         testPutBufferFailsStore(null, TRANSIENT_BLOB);
     }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testPutBufferFailsStoreForJob() throws IOException {
         testPutBufferFailsStore(new JobID(), TRANSIENT_BLOB);
     }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testPutBufferFailsStoreForJobHa() throws IOException {
         testPutBufferFailsStore(new JobID(), PERMANENT_BLOB);

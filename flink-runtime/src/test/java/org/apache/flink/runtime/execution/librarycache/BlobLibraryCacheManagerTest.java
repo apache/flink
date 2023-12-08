@@ -32,6 +32,7 @@ import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.UserCodeClassLoader;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -323,6 +324,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
     }
 
     @Test
+    @Ignore("FLINK-27082: Fails in Docker with root user")
     public void testRegisterAndDownload() throws IOException {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
 

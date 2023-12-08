@@ -24,6 +24,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -120,13 +121,16 @@ public class FileUtilsTest {
     }
 
     @Test
-    void testDeleteDirectory() throws Exception {
-
+    void testDeleteNonExistentDirectory() throws Exception {
         // deleting a non-existent file should not cause an error
 
         File doesNotExist = TempDirUtils.newFolder(temporaryFolder, "abc");
         FileUtils.deleteDirectory(doesNotExist);
+    }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
+    @Test
+    void testDeleteProtectedDirectory() throws Exception {
         // deleting a write protected file should throw an error
 
         File cannotDeleteParent = TempDirUtils.newFolder(temporaryFolder);

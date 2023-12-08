@@ -46,6 +46,7 @@ import org.apache.flink.util.IOUtils;
 
 import org.junit.Assert;
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -407,6 +408,7 @@ public class RocksDBStateBackendConfigTest {
     // ------------------------------------------------------------------------
 
     @Test
+    @Ignore("FLINK-27082: Fails in Docker with root user")
     public void testFailWhenNoLocalStorageDir() throws Exception {
         final File targetDir = tempFolder.newFolder();
         Assume.assumeTrue(
