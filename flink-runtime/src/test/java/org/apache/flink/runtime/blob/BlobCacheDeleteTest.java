@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
@@ -27,6 +28,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
@@ -210,11 +212,13 @@ public class BlobCacheDeleteTest extends TestLogger {
         }
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testDeleteTransientLocalFailsNoJob() throws IOException, InterruptedException {
         testDeleteTransientLocalFails(null);
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testDeleteTransientLocalFailsForJob() throws IOException, InterruptedException {
         testDeleteTransientLocalFails(new JobID());

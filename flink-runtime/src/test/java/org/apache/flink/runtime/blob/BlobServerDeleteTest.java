@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
@@ -29,6 +30,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
@@ -203,16 +205,19 @@ public class BlobServerDeleteTest extends TestLogger {
         }
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testDeleteTransientFailsNoJob() throws IOException {
         testDeleteBlobFails(null, TRANSIENT_BLOB);
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testDeleteTransientFailsForJob() throws IOException {
         testDeleteBlobFails(new JobID(), TRANSIENT_BLOB);
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testDeletePermanentFailsForJob() throws IOException {
         testDeleteBlobFails(new JobID(), PERMANENT_BLOB);

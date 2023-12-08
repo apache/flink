@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.rest;
 
+import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.helpers.NOPLogger;
 
@@ -81,6 +83,7 @@ public class RestServerEndpointTest extends TestLogger {
         assertTrue(Files.exists(testUploadDir));
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testCreateUploadDirFails() throws Exception {
         final File file = temporaryFolder.newFolder();

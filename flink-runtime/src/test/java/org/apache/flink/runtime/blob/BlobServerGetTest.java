@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Reference;
@@ -32,6 +33,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
@@ -153,6 +155,7 @@ public class BlobServerGetTest extends TestLogger {
      * Retrieves a BLOB from the HA store to a {@link BlobServer} which cannot create incoming
      * files. File transfers should fail.
      */
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testGetFailsIncomingForJobHa() throws IOException {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
@@ -225,6 +228,7 @@ public class BlobServerGetTest extends TestLogger {
      * Retrieves a BLOB from the HA store to a {@link BlobServer} which cannot create the final
      * storage file. File transfers should fail.
      */
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testGetFailsStoreForJobHa() throws IOException {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
