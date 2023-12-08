@@ -41,6 +41,7 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -158,6 +159,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
     }
 
     @Test
+    @Ignore("FLINK-27082: Fails in Docker with root user")
     public void testDoNotCancelJobIfSavepointFails() throws Exception {
         setUpWithCheckpointInterval(10L);
 

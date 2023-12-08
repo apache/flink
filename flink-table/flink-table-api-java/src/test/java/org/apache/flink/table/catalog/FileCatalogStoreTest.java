@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.util.OperatingSystem;
 
 import org.assertj.core.api.ThrowableAssert;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -63,6 +64,7 @@ class FileCatalogStoreTest {
         assertCatalogStoreNotOpened(() -> catalogStore.removeCatalog(DUMMY, true));
     }
 
+    @Disabled("FLINK-27082: Fails in Docker with root user")
     @Test
     void testCannotMakeStorePath() {
         assumeThat(OperatingSystem.isWindows())
