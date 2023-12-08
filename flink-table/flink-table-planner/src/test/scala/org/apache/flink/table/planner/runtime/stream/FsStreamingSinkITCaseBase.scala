@@ -25,8 +25,6 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{DataTypes, Schema}
-import org.apache.flink.table.api.Expressions.{$, withAllColumns}
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.testutils.junit.utils.TempDirUtils
