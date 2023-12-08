@@ -25,8 +25,6 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{DataTypes, Schema}
-import org.apache.flink.table.api.Expressions.$
 import org.apache.flink.table.data.TimestampData
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.testutils.junit.utils.TempDirUtils
@@ -176,15 +174,7 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
 
     tEnv.createTemporaryView(
       "my_table",
-      dataStream,
-      Schema
-        .newBuilder()
-        .column("f0", DataTypes.INT())
-        .column("f1", DataTypes.STRING())
-        .column("f2", DataTypes.STRING())
-        .column("f3", DataTypes.STRING())
-        .column("f4", DataTypes.STRING())
-        .build()
+      dataStream
     )
 
     val ddl: String = getDDL(
