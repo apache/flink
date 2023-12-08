@@ -27,6 +27,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
 
 import org.junit.jupiter.api.BeforeEach
 
+import java.time.Duration
 import java.util
 
 import scala.collection.JavaConversions._
@@ -41,7 +42,7 @@ class StreamingWithAggTestBase(
   override def before(): Unit = {
     super.before()
     // in order to cover more code paths
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     if (aggMode.isLocalAggEnabled) {
       tEnv.getConfig.set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,

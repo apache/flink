@@ -49,6 +49,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.math.{BigDecimal => JBigDecimal}
+import java.time.Duration
 
 import scala.collection.{mutable, Seq}
 import scala.math.BigDecimal.double2bigDecimal
@@ -1589,7 +1590,7 @@ class AggregateITCase(aggMode: AggMode, miniBatch: MiniBatchMode, backend: State
   def testGenericTypesWithoutStateClean(): Unit = {
     // because we don't provide a way to disable state cleanup.
     // TODO verify all tests with state cleanup closed.
-    tEnv.getConfig.setIdleStateRetentionTime(Time.days(0), Time.days(0))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofDays(0))
     val t = failingDataSource(Seq(1, 2, 3)).toTable(tEnv, 'a)
     val results = t
       .select(new GenericAggregateFunction()('a))

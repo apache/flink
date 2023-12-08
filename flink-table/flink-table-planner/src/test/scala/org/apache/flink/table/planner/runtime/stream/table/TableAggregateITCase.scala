@@ -33,6 +33,8 @@ import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
+import java.time.Duration
+
 /** Tests of groupby (without window) table aggregations */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -40,7 +42,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
   @BeforeEach
   override def before(): Unit = {
     super.before()
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
   }
 
   @TestTemplate
