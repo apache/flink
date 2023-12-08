@@ -84,7 +84,7 @@ class DataGeneratorConnectorITCase extends BatchTestBase {
                 TestingTableEnvironment.create(
                         EnvironmentSettings.newInstance().inStreamingMode().build(),
                         null,
-                        new TableConfig());
+                        TableConfig.getDefault());
 
         env.executeSql(
                 "CREATE TABLE datagen_t (\n"
