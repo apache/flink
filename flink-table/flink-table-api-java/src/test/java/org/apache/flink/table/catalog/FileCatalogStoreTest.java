@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.util.OperatingSystem;
 
 import org.assertj.core.api.ThrowableAssert;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -63,6 +64,7 @@ class FileCatalogStoreTest {
         assertCatalogStoreNotOpened(() -> catalogStore.removeCatalog(DUMMY, true));
     }
 
+    @Tag("org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser")
     @Test
     void testCannotMakeStorePath() {
         assumeThat(OperatingSystem.isWindows())

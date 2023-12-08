@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
@@ -30,6 +31,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.commons.io.FileUtils;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
@@ -558,16 +560,19 @@ public class BlobCachePutTest extends TestLogger {
 
     // --------------------------------------------------------------------------------------------
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testPutBufferFailsNoJob() throws IOException {
         testPutBufferFails(null, TRANSIENT_BLOB);
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testPutBufferFailsForJob() throws IOException {
         testPutBufferFails(new JobID(), TRANSIENT_BLOB);
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testPutBufferFailsForJobHa() throws IOException {
         testPutBufferFails(new JobID(), PERMANENT_BLOB);
@@ -621,16 +626,19 @@ public class BlobCachePutTest extends TestLogger {
         }
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testPutBufferFailsIncomingNoJob() throws IOException {
         testPutBufferFailsIncoming(null, TRANSIENT_BLOB);
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testPutBufferFailsIncomingForJob() throws IOException {
         testPutBufferFailsIncoming(new JobID(), TRANSIENT_BLOB);
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testPutBufferFailsIncomingForJobHa() throws IOException {
         testPutBufferFailsIncoming(new JobID(), PERMANENT_BLOB);
@@ -689,16 +697,19 @@ public class BlobCachePutTest extends TestLogger {
         }
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testPutBufferFailsStoreNoJob() throws IOException {
         testPutBufferFailsStore(null, TRANSIENT_BLOB);
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testPutBufferFailsStoreForJob() throws IOException {
         testPutBufferFailsStore(new JobID(), TRANSIENT_BLOB);
     }
 
+    @Category(FailsInGHAContainerWithRootUser.class)
     @Test
     public void testPutBufferFailsStoreForJobHa() throws IOException {
         testPutBufferFailsStore(new JobID(), PERMANENT_BLOB);

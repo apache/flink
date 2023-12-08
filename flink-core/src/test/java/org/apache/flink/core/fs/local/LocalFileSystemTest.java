@@ -25,6 +25,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -33,6 +34,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -236,6 +238,7 @@ public class LocalFileSystemTest extends TestLogger {
     }
 
     @Test
+    @Category(FailsInGHAContainerWithRootUser.class)
     public void testRenameFileWithNoAccess() throws IOException {
         final FileSystem fs = FileSystem.getLocalFileSystem();
 
