@@ -104,6 +104,8 @@ cd dev
 
 rm -rf .conda/pkgs
 
+sudo apt-get -q install zip
+
 zip -q -r "${TEST_DATA_DIR}/venv.zip" .conda
 
 deactivate
