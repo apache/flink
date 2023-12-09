@@ -33,18 +33,19 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 /** Deserializer to convert proto message type object to flink row type data. */
 public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
     private final Descriptor descriptor;
-    private final RowType rowType;
+    private final LogicalType logicalType;
     private final PbFormatContext formatContext;
 
     public PbCodegenRowDeserializer(
-            Descriptor descriptor, RowType rowType, PbFormatContext formatContext) {
-        this.rowType = rowType;
+            Descriptor descriptor, LogicalType logicalType, PbFormatContext formatContext) {
+        this.logicalType = logicalType;
         this.descriptor = descriptor;
         this.formatContext = formatContext;
     }
 
     @Override
-    public String codegen(String resultVar, String pbObjectCode, int indent)
+    public String codegen(
+            String resultVar, String pbObjectCode, int indent, String[] projectField, int depth)
             throws PbCodegenException {
         // The type of pbObjectCode is a general pb object,
         // it should be converted to RowData of flink internal type as resultVariable
@@ -54,25 +55,111 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
         String pbMessageVar = "message" + uid;
         String flinkRowDataVar = "rowData" + uid;
 
-        int fieldSize = rowType.getFieldNames().size();
-        String pbMessageTypeStr = PbFormatUtils.getFullJavaName(descriptor);
-        appender.appendLine(pbMessageTypeStr + " " + pbMessageVar + " = " + pbObjectCode);
-        appender.appendLine(
-                "GenericRowData " + flinkRowDataVar + " = new GenericRowData(" + fieldSize + ")");
-        int index = 0;
-        PbCodegenAppender splitAppender = new PbCodegenAppender(indent);
-        for (String fieldName : rowType.getFieldNames()) {
+        if (depth == projectField.length) {
+            RowType rowType = (RowType) logicalType;
+            int fieldSize = rowType.getFieldNames().size();
+            String pbMessageTypeStr = PbFormatUtils.getFullJavaName(descriptor);
+            appender.appendLine(pbMessageTypeStr + " " + pbMessageVar + " = " + pbObjectCode);
+            appender.appendLine(
+                    "GenericRowData "
+                            + flinkRowDataVar
+                            + " = new GenericRowData("
+                            + fieldSize
+                            + ")");
+            int index = 0;
+            PbCodegenAppender splitAppender = new PbCodegenAppender(indent);
+            for (String fieldName : rowType.getFieldNames()) {
+                int subUid = varUid.getAndIncrement();
+                String flinkRowEleVar = "elementDataVar" + subUid;
+
+                LogicalType subType = rowType.getTypeAt(rowType.getFieldIndex(fieldName));
+                FieldDescriptor elementFd = descriptor.findFieldByName(fieldName);
+                String strongCamelFieldName = PbFormatUtils.getStrongCamelCaseJsonName(fieldName);
+                PbCodegenDeserializer codegen =
+                        PbCodegenDeserializeFactory.getPbCodegenDes(
+                                elementFd, subType, formatContext);
+                splitAppender.appendLine("Object " + flinkRowEleVar + " = null");
+                boolean readDefaultValues = formatContext.getPbFormatConfig().isReadDefaultValues();
+                if (PbFormatUtils.isSimpleType(subType)) {
+                    readDefaultValues = formatContext.getReadDefaultValuesForPrimitiveTypes();
+                }
+
+                if (!readDefaultValues) {
+                    // works for both syntax=proto2/proto3 and readDefaultValues=false for non-primitive
+                    // types
+                    // readDefaultValues must be true in pb3 mode for primitive types
+                    String isMessageElementNonEmptyCode =
+                            isMessageElementNonEmptyCode(
+                                    pbMessageVar,
+                                    strongCamelFieldName,
+                                    PbFormatUtils.isRepeatedType(subType));
+                    splitAppender.begin("if(" + isMessageElementNonEmptyCode + "){");
+                }
+                String pbGetMessageElementCode =
+                        pbGetMessageElementCode(
+                                pbMessageVar,
+                                strongCamelFieldName,
+                                elementFd,
+                                PbFormatUtils.isArrayType(subType));
+                String code =
+                        codegen.codegen(
+                                flinkRowEleVar,
+                                pbGetMessageElementCode,
+                                splitAppender.currentIndent(),
+                                projectField,
+                                depth + 1);
+                splitAppender.appendSegment(code);
+                if (!readDefaultValues) {
+                    splitAppender.end("}");
+                }
+                splitAppender.appendLine(
+                        flinkRowDataVar + ".setField(" + index + ", " + flinkRowEleVar + ")");
+                if (PbCodegenUtils.needToSplit(splitAppender.code().length())) {
+                    String splitMethod =
+                            formatContext.splitDeserializerRowTypeMethod(
+                                    flinkRowDataVar,
+                                    pbMessageTypeStr,
+                                    pbMessageVar,
+                                    splitAppender.code());
+                    appender.appendSegment(splitMethod);
+                    splitAppender = new PbCodegenAppender();
+                }
+                index += 1;
+            }
+            if (!splitAppender.code().isEmpty()) {
+                String splitMethod =
+                        formatContext.splitDeserializerRowTypeMethod(
+                                flinkRowDataVar,
+                                pbMessageTypeStr,
+                                pbMessageVar,
+                                splitAppender.code());
+                appender.appendSegment(splitMethod);
+            }
+            appender.appendLine(resultVar + " = " + flinkRowDataVar);
+            return appender.code();
+        } else {
+            int fieldSize = 1;
+            String pbMessageTypeStr = PbFormatUtils.getFullJavaName(descriptor);
+            appender.appendLine(pbMessageTypeStr + " " + pbMessageVar + " = " + pbObjectCode);
+            appender.appendLine(
+                    "GenericRowData "
+                            + flinkRowDataVar
+                            + " = new GenericRowData("
+                            + fieldSize
+                            + ")");
+
             int subUid = varUid.getAndIncrement();
             String flinkRowEleVar = "elementDataVar" + subUid;
+            String fieldName = projectField[depth];
 
-            LogicalType subType = rowType.getTypeAt(rowType.getFieldIndex(fieldName));
             FieldDescriptor elementFd = descriptor.findFieldByName(fieldName);
             String strongCamelFieldName = PbFormatUtils.getStrongCamelCaseJsonName(fieldName);
             PbCodegenDeserializer codegen =
-                    PbCodegenDeserializeFactory.getPbCodegenDes(elementFd, subType, formatContext);
-            splitAppender.appendLine("Object " + flinkRowEleVar + " = null");
+                    PbCodegenDeserializeFactory.getPbCodegenDes(
+                            elementFd, logicalType, formatContext);
+            appender.appendLine("Object " + flinkRowEleVar + " = null");
             boolean readDefaultValues = formatContext.getPbFormatConfig().isReadDefaultValues();
-            if (PbFormatUtils.isSimpleType(subType)) {
+            if (PbFormatUtils.isSimpleType(logicalType)) {
                 readDefaultValues = formatContext.getReadDefaultValuesForPrimitiveTypes();
             }
 
@@ -84,41 +171,31 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
                         isMessageElementNonEmptyCode(
                                 pbMessageVar,
                                 strongCamelFieldName,
-                                PbFormatUtils.isRepeatedType(subType));
-                splitAppender.begin("if(" + isMessageElementNonEmptyCode + "){");
+                                PbFormatUtils.isRepeatedType(elementFd));
+                appender.begin("if(" + isMessageElementNonEmptyCode + "){");
             }
             String pbGetMessageElementCode =
                     pbGetMessageElementCode(
                             pbMessageVar,
                             strongCamelFieldName,
                             elementFd,
-                            PbFormatUtils.isArrayType(subType));
+                            PbFormatUtils.isArrayType(elementFd));
             String code =
                     codegen.codegen(
-                            flinkRowEleVar, pbGetMessageElementCode, splitAppender.currentIndent());
-            splitAppender.appendSegment(code);
+                            flinkRowEleVar,
+                            pbGetMessageElementCode,
+                            appender.currentIndent(),
+                            // top level need set the
+                            projectField,
+                            depth + 1);
+            appender.appendSegment(code);
             if (!readDefaultValues) {
-                splitAppender.end("}");
+                appender.end("}");
             }
-            splitAppender.appendLine(
-                    flinkRowDataVar + ".setField(" + index + ", " + flinkRowEleVar + ")");
-            if (PbCodegenUtils.needToSplit(splitAppender.code().length())) {
-                String splitMethod =
-                        formatContext.splitDeserializerRowTypeMethod(
-                                flinkRowDataVar,
-                                pbMessageTypeStr,
-                                pbMessageVar,
-                                splitAppender.code());
-                appender.appendSegment(splitMethod);
-                splitAppender = new PbCodegenAppender();
-            }
-            index += 1;
+
+            appender.appendLine(resultVar + " = " + flinkRowEleVar);
+            return appender.code();
         }
-        if (!splitAppender.code().isEmpty()) {
-            appender.appendSegment(splitAppender.code());
-        }
-        appender.appendLine(resultVar + " = " + flinkRowDataVar);
-        return appender.code();
     }
 
     private String pbGetMessageElementCode(

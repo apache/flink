@@ -48,7 +48,20 @@ public class MetaNoMultiProtoToRowTest {
         PbFormatConfig formatConfig =
                 new PbFormatConfig(
                         TestSimpleNomulti.SimpleTestNoMulti.class.getName(), false, false, "");
-        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig)
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"a"},
+                    new String[] {"b"},
+                    new String[] {"c"},
+                    new String[] {"d"},
+                    new String[] {"e"},
+                    new String[] {"f"},
+                    new String[] {"g"},
+                    new String[] {"h"},
+                    new String[] {"i"}
+                };
+        new PbRowDataDeserializationSchema(
+                        rowType, InternalTypeInfo.of(rowType), formatConfig, projectedField)
                 .open(null);
 
         new PbRowDataSerializationSchema(rowType, formatConfig).open(null);
@@ -63,7 +76,20 @@ public class MetaNoMultiProtoToRowTest {
         PbFormatConfig formatConfig =
                 new PbFormatConfig(
                         TestSimpleNomulti.SimpleTestNoMulti.class.getName(), false, false, "");
-        new PbRowDataDeserializationSchema(rowType, InternalTypeInfo.of(rowType), formatConfig)
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"a"},
+                    new String[] {"b"},
+                    new String[] {"c"},
+                    new String[] {"d"},
+                    new String[] {"e"},
+                    new String[] {"f"},
+                    new String[] {"g"},
+                    new String[] {"h"},
+                    new String[] {"i"}
+                };
+        new PbRowDataDeserializationSchema(
+                        rowType, InternalTypeInfo.of(rowType), formatConfig, projectedField)
                 .open(null);
         new PbRowDataSerializationSchema(rowType, formatConfig).open(null);
         // validation success

@@ -61,8 +61,20 @@ public class PbSchemaValidationUtils {
         TYPE_MATCH_MAP.put(JavaType.LONG, EnumSet.of(LogicalTypeRoot.BIGINT));
     }
 
-    public static void validate(Descriptors.Descriptor descriptor, RowType rowType) {
-        validateTypeMatch(descriptor, rowType);
+    public static void validate(
+            Descriptors.Descriptor descriptor, RowType rowType, String[][] projectedFields) {
+        // projectedFields null for serialization case
+        if (projectedFields == null) {
+            validateTypeMatch(descriptor, rowType);
+        } else {
+            for (int i = 0; i < rowType.getFieldCount(); i++) {
+                LogicalType fieldType = rowType.getTypeAt(i);
+                String[] nestedField = projectedFields[i];
+                String fieldName = nestedField[0];
+                FieldDescriptor fieldDescriptor = descriptor.findFieldByName(fieldName);
+                validateTypeMatchProjected(fieldDescriptor, fieldType, 0, nestedField);
+            }
+        }
     }
 
     /**
@@ -121,6 +133,101 @@ public class PbSchemaValidationUtils {
                 validateTypeMatch(
                         fd.getMessageType().findFieldByName(PbConstant.PB_MAP_VALUE_NAME),
                         mapType.getValueType());
+            } else {
+                // array type
+                if (!(logicalType instanceof ArrayType)) {
+                    throw new ValidationException(
+                            "Unexpected LogicalType: " + logicalType + ". It should be ArrayType");
+                }
+                ArrayType arrayType = (ArrayType) logicalType;
+                if (fd.getJavaType() == JavaType.MESSAGE) {
+                    // array message type
+                    LogicalType elementType = arrayType.getElementType();
+                    if (!(elementType instanceof RowType)) {
+                        throw new ValidationException(
+                                "Unexpected logicalType: "
+                                        + elementType
+                                        + ". It should be RowType");
+                    }
+                    validateTypeMatch(fd.getMessageType(), (RowType) elementType);
+                } else {
+                    // array simple type
+                    validateSimpleType(fd, arrayType.getElementType().getTypeRoot());
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate type match of projected general type.
+     *
+     * @param descriptor the {@link Descriptors.Descriptor} of the protobuf object.
+     * @param logicalType the corresponding {@link LogicalType} to the {@link FieldDescriptor}
+     * @param depth the level of recursion, used to get the protobuf field name
+     * @param projectedFields protobuf fields names
+     */
+    private static void validateTypeMatchProjected(
+            Descriptors.Descriptor descriptor,
+            LogicalType logicalType,
+            int depth,
+            String[] projectedFields) {
+        String fieldName = projectedFields[depth];
+        FieldDescriptor fieldDescriptor = descriptor.findFieldByName(fieldName);
+        if (null != fieldDescriptor) {
+            validateTypeMatchProjected(fieldDescriptor, logicalType, depth, projectedFields);
+        } else {
+            throw new ValidationException(
+                    "Column " + fieldName + " does not exists in definition of proto class.");
+        }
+    }
+
+    /**
+     * Validate type match of projected general type.
+     *
+     * @param fd the {@link Descriptors.Descriptor} of the protobuf object.
+     * @param logicalType the corresponding {@link LogicalType} to the {@link FieldDescriptor}
+     * @param depth the level of recursion, used to get the protobuf field name
+     * @param projectedFields protobuf fields names
+     */
+    private static void validateTypeMatchProjected(
+            FieldDescriptor fd, LogicalType logicalType, int depth, String[] projectedFields) {
+        if (!fd.isRepeated()) {
+            if (projectedFields.length == depth + 1) {
+                if (fd.getJavaType() != JavaType.MESSAGE) {
+                    // simple type
+                    validateSimpleType(fd, logicalType.getTypeRoot());
+                } else {
+                    // message type
+                    if (!(logicalType instanceof RowType)) {
+                        throw new ValidationException(
+                                "Unexpected LogicalType: "
+                                        + logicalType
+                                        + ". It should be RowType");
+                    }
+                    RowType rowType = (RowType) logicalType;
+                    validateTypeMatch(fd, rowType);
+                }
+            } else {
+                validateTypeMatchProjected(
+                        fd.getMessageType(), logicalType, depth + 1, projectedFields);
+            }
+        } else {
+            if (fd.isMapField()) {
+                // map type
+                if (!(logicalType instanceof MapType)) {
+                    throw new ValidationException(
+                            "Unexpected LogicalType: " + logicalType + ". It should be MapType");
+                }
+
+                MapType mapType = (MapType) logicalType;
+                validateSimpleType(
+                        fd.getMessageType().findFieldByName(PbConstant.PB_MAP_KEY_NAME),
+                        mapType.getKeyType().getTypeRoot());
+                validateTypeMatchProjected(
+                        fd.getMessageType().findFieldByName(PbConstant.PB_MAP_VALUE_NAME),
+                        mapType.getValueType(),
+                        depth,
+                        projectedFields);
             } else {
                 // array type
                 if (!(logicalType instanceof ArrayType)) {

@@ -20,7 +20,6 @@ package org.apache.flink.formats.protobuf.deserialize;
 
 import org.apache.flink.formats.protobuf.PbCodegenException;
 import org.apache.flink.formats.protobuf.PbFormatContext;
-import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.MapType;
@@ -28,29 +27,48 @@ import org.apache.flink.table.types.logical.RowType;
 
 import com.google.protobuf.Descriptors;
 
+import static org.apache.flink.formats.protobuf.util.PbFormatUtils.isArrayType;
+
 /** Codegen factory class which return {@link PbCodegenDeserializer} of different data type. */
 public class PbCodegenDeserializeFactory {
     public static PbCodegenDeserializer getPbCodegenDes(
             Descriptors.FieldDescriptor fd, LogicalType type, PbFormatContext formatContext)
             throws PbCodegenException {
-        // We do not use FieldDescriptor to check because there's no way to get
-        // element field descriptor of array type.
-        if (type instanceof RowType) {
-            return new PbCodegenRowDeserializer(fd.getMessageType(), (RowType) type, formatContext);
-        } else if (PbFormatUtils.isSimpleType(type)) {
-            return new PbCodegenSimpleDeserializer(fd, type);
-        } else if (type instanceof ArrayType) {
-            return new PbCodegenArrayDeserializer(
-                    fd, ((ArrayType) type).getElementType(), formatContext);
-        } else if (type instanceof MapType) {
-            return new PbCodegenMapDeserializer(fd, (MapType) type, formatContext);
+        return getPbCodegenDes(fd, type, formatContext, false);
+    }
+
+    public static PbCodegenDeserializer getPbCodegenDes(
+            Descriptors.FieldDescriptor fd,
+            LogicalType type,
+            PbFormatContext formatContext,
+            boolean withinRepeated)
+            throws PbCodegenException {
+        // We need to revert to FieldDescriptor to check as we only have the final LogicalType
+        // can not infer the intermediate logical type.
+        if (!fd.isRepeated() || withinRepeated) {
+            if (fd.getJavaType().equals(Descriptors.FieldDescriptor.JavaType.MESSAGE)) {
+                return new PbCodegenRowDeserializer(fd.getMessageType(), type, formatContext);
+            } else {
+                return new PbCodegenSimpleDeserializer(fd, type);
+            }
         } else {
-            throw new PbCodegenException("Do not support flink type: " + type);
+            // ArrayType and MapType does not contain nested field, just pass in the final row type
+            if (isArrayType(fd)) {
+                return new PbCodegenArrayDeserializer(
+                        fd, ((ArrayType) type).getElementType(), formatContext);
+            } else if (fd.isMapField()) {
+                return new PbCodegenMapDeserializer(fd, (MapType) type, formatContext);
+            } else {
+                throw new PbCodegenException("Do not support flink type: " + type);
+            }
         }
     }
 
     public static PbCodegenDeserializer getPbCodegenTopRowDes(
-            Descriptors.Descriptor descriptor, RowType rowType, PbFormatContext formatContext) {
-        return new PbCodegenRowDeserializer(descriptor, rowType, formatContext);
+            Descriptors.Descriptor descriptor,
+            RowType rowType,
+            PbFormatContext formatContext,
+            String[][] projectedFields) {
+        return new PbCodegenTopRowDeserializer(descriptor, rowType, formatContext, projectedFields);
     }
 }

@@ -19,8 +19,10 @@
 package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.testproto.RepeatedTest;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
@@ -31,7 +33,23 @@ public class RepeatedProtoToRowTest {
     @Test
     public void testRepeated() throws Exception {
         RepeatedTest simple = RepeatedTest.newBuilder().setA(1).addB(1).addB(2).build();
-        RowData row = ProtobufTestHelper.pbBytesToRow(RepeatedTest.class, simple.toByteArray());
+        RowType schema = PbToRowTypeUtil.generateRowType(RepeatedTest.getDescriptor());
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"a"},
+                    new String[] {"b"},
+                    new String[] {"c"},
+                    new String[] {"d"},
+                    new String[] {"e"},
+                    new String[] {"f"}
+                };
+
+        RowData row =
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        simple.toByteArray(),
+                        new PbFormatConfig(RepeatedTest.class.getName(), false, false, ""),
+                        projectedField);
 
         assertEquals(6, row.getArity());
         assertEquals(1, row.getInt(0));

@@ -57,7 +57,8 @@ public class ProtoToRowConverter {
     private final Method decodeMethod;
     private boolean isCodeSplit = false;
 
-    public ProtoToRowConverter(RowType rowType, PbFormatConfig formatConfig)
+    public ProtoToRowConverter(
+            RowType rowType, PbFormatConfig formatConfig, String[][] projectedFields)
             throws PbCodegenException {
         try {
             Descriptors.Descriptor descriptor =
@@ -100,11 +101,19 @@ public class ProtoToRowConverter {
                             + fullMessageClassName
                             + " message){");
             codegenAppender.appendLine("RowData rowData=null");
-            PbCodegenDeserializer codegenDes =
-                    PbCodegenDeserializeFactory.getPbCodegenTopRowDes(
-                            descriptor, rowType, pbFormatContext);
-            String genCode = codegenDes.codegen("rowData", "message", 0);
-            codegenAppender.appendSegment(genCode);
+
+            String genCode;
+            if (projectedFields != null && rowType != null) {
+                PbCodegenDeserializer codegenDes =
+                        PbCodegenDeserializeFactory.getPbCodegenTopRowDes(
+                                descriptor, rowType, pbFormatContext, projectedFields);
+                genCode = codegenDes.codegen("rowData", "message", 0, null, 0);
+                codegenAppender.appendSegment(genCode);
+
+            } else {
+                throw new UnsupportedOperationException("protobuf projected fields missing");
+            }
+
             codegenAppender.appendLine("return rowData");
             codegenAppender.appendSegment("}");
             if (!pbFormatContext.getSplitMethodStack().isEmpty()) {

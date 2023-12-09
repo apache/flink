@@ -19,7 +19,9 @@
 package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.testproto.OneofTest;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
@@ -31,7 +33,15 @@ public class OneofProtoToRowTest {
     @Test
     public void testSimple() throws Exception {
         OneofTest oneofTest = OneofTest.newBuilder().setA(1).setB(2).build();
-        RowData row = ProtobufTestHelper.pbBytesToRow(OneofTest.class, oneofTest.toByteArray());
+        RowType schema = PbToRowTypeUtil.generateRowType(OneofTest.getDescriptor());
+        String[][] projectedField = new String[][] {new String[] {"a"}, new String[] {"b"}};
+
+        RowData row =
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        oneofTest.toByteArray(),
+                        new PbFormatConfig(OneofTest.class.getName(), false, false, ""),
+                        projectedField);
         assertTrue(row.isNullAt(0));
         assertEquals(2, row.getInt(1));
     }

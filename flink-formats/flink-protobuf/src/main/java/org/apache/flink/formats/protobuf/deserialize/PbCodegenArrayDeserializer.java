@@ -43,7 +43,8 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
     }
 
     @Override
-    public String codegen(String resultVar, String pbObjectCode, int indent)
+    public String codegen(
+            String resultVar, String pbObjectCode, int indent, String[] projectField, int depth)
             throws PbCodegenException {
         // The type of pbObjectCode represents a general List object,
         // it should be converted to ArrayData of flink internal type as resultVariable.
@@ -75,8 +76,10 @@ public class PbCodegenArrayDeserializer implements PbCodegenDeserializer {
                         + iVar
                         + ")");
         PbCodegenDeserializer codegenDes =
-                PbCodegenDeserializeFactory.getPbCodegenDes(fd, elementType, formatContext);
-        String code = codegenDes.codegen(flinkArrEleVar, subPbObjVar, appender.currentIndent());
+                PbCodegenDeserializeFactory.getPbCodegenDes(fd, elementType, formatContext, true);
+        String code =
+                codegenDes.codegen(
+                        flinkArrEleVar, subPbObjVar, appender.currentIndent(), projectField, depth);
         appender.appendSegment(code);
         appender.appendLine(flinkArrVar + "[" + iVar + "]=" + flinkArrEleVar + "");
         appender.end("}");

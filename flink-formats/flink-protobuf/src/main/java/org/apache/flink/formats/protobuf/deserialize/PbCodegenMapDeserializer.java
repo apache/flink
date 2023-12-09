@@ -43,7 +43,8 @@ public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
     }
 
     @Override
-    public String codegen(String resultVar, String pbObjectCode, int indent)
+    public String codegen(
+            String resultVar, String pbObjectCode, int indent, String[] projectField, int depth)
             throws PbCodegenException {
         // The type of pbObjectCode is a general Map object,
         // it should be converted to MapData of flink internal type as resultVariable
@@ -97,13 +98,17 @@ public class PbCodegenMapDeserializer implements PbCodegenDeserializer {
                 keyDes.codegen(
                         flinkKeyVar,
                         "((" + pbKeyTypeStr + ")" + pbMapEntryVar + ".getKey())",
-                        appender.currentIndent());
+                        appender.currentIndent(),
+                        projectField,
+                        depth);
         appender.appendSegment(keyGenCode);
         String valueGenCode =
                 valueDes.codegen(
                         flinkValueVar,
                         "((" + pbValueTypeStr + ")" + pbMapEntryVar + ".getValue())",
-                        appender.currentIndent());
+                        appender.currentIndent(),
+                        projectField,
+                        depth);
         appender.appendSegment(valueGenCode);
         appender.appendLine(resultDataMapVar + ".put(" + flinkKeyVar + ", " + flinkValueVar + ")");
         appender.end("}");
