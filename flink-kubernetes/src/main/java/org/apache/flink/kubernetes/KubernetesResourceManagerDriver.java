@@ -68,6 +68,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_IGNORE_WATCH_DISCONNECT;
+
 /** Implementation of {@link ResourceManagerDriver} for Kubernetes deployment. */
 public class KubernetesResourceManagerDriver
         extends AbstractResourceManagerDriver<KubernetesWorkerNode> {
@@ -96,6 +98,12 @@ public class KubernetesResourceManagerDriver
 
     private FlinkPod taskManagerPodTemplate;
 
+    private final Boolean ignoreWatchDisconnect;
+
+    private Boolean readyToAcceptNotification;
+
+    private CompletableFuture<Void> reWatchFuture;
+
     public KubernetesResourceManagerDriver(
             Configuration flinkConfig,
             FlinkKubeClient flinkKubeClient,
@@ -106,6 +114,9 @@ public class KubernetesResourceManagerDriver
         this.flinkKubeClient = Preconditions.checkNotNull(flinkKubeClient);
         this.requestResourceFutures = new HashMap<>();
         this.running = false;
+        this.ignoreWatchDisconnect = flinkConfig.getBoolean(KUBERNETES_IGNORE_WATCH_DISCONNECT);
+        this.readyToAcceptNotification = false;
+        this.reWatchFuture = null;
     }
 
     // ------------------------------------------------------------------------
@@ -168,6 +179,11 @@ public class KubernetesResourceManagerDriver
     @Override
     public CompletableFuture<KubernetesWorkerNode> requestResource(
             TaskExecutorProcessSpec taskExecutorProcessSpec) {
+        if (ignoreWatchDisconnect) {
+            if (!readyToAcceptNotification && (reWatchFuture == null || reWatchFuture.isDone())) {
+                reWatchFuture = recoverPodWatcher();
+            }
+        }
         final KubernetesTaskManagerParameters parameters =
                 createKubernetesTaskManagerParameters(
                         taskExecutorProcessSpec, getBlockedNodeRetriever().getAllBlockedNodeIds());
@@ -255,6 +271,24 @@ public class KubernetesResourceManagerDriver
         log.info("Stopping TaskManager pod {}.", podName);
 
         stopPod(podName);
+    }
+
+    private CompletableFuture<Void> recoverPodWatcher() {
+        return CompletableFuture.runAsync(
+                () -> {
+                    if (running) {
+                        podsWatchOpt.ifPresent(KubernetesWatch::close);
+                        log.info("recover a new watch on TaskManager pods.");
+                        try {
+                            podsWatchOpt = watchTaskManagerPods();
+                            readyToAcceptNotification = true;
+                        } catch (Exception e) {
+                            log.info("Create a new watch failed: ", e);
+                            getResourceEventHandler().onError(e);
+                        }
+                    }
+                },
+                getMainThreadExecutor());
     }
 
     // ------------------------------------------------------------------------
@@ -445,24 +479,28 @@ public class KubernetesResourceManagerDriver
             handlePodEventsInMainThread(pods, PodEvent.ERROR);
         }
 
-        @Override
         public void handleError(Throwable throwable) {
-            if (throwable instanceof KubernetesTooOldResourceVersionException) {
-                getMainThreadExecutor()
-                        .execute(
-                                () -> {
-                                    if (running) {
-                                        podsWatchOpt.ifPresent(KubernetesWatch::close);
-                                        log.info("Creating a new watch on TaskManager pods.");
-                                        try {
-                                            podsWatchOpt = watchTaskManagerPods();
-                                        } catch (Exception e) {
-                                            getResourceEventHandler().onError(e);
-                                        }
-                                    }
-                                });
+            if (ignoreWatchDisconnect) {
+                readyToAcceptNotification = false;
+                log.info("k8s client watch lost by error", throwable);
             } else {
-                getResourceEventHandler().onError(throwable);
+                if (throwable instanceof KubernetesTooOldResourceVersionException) {
+                    getMainThreadExecutor()
+                            .execute(
+                                    () -> {
+                                        if (running) {
+                                            podsWatchOpt.ifPresent(KubernetesWatch::close);
+                                            log.info("Creating a new watch on TaskManager pods.");
+                                            try {
+                                                podsWatchOpt = watchTaskManagerPods();
+                                            } catch (Exception e) {
+                                                getResourceEventHandler().onError(e);
+                                            }
+                                        }
+                                    });
+                } else {
+                    getResourceEventHandler().onError(throwable);
+                }
             }
         }
     }

@@ -505,6 +505,13 @@ public class KubernetesConfigOptions {
                                     + "Flink. A typical use-case is when one uses Flink Kubernetes "
                                     + "Operator.");
 
+    public static final ConfigOption<Boolean> KUBERNETES_IGNORE_WATCH_DISCONNECT =
+            ConfigOptions.key("kubernetes.ignore-watch-disconnect")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "keep the jm running even watch disconnected ");
+
     /**
      * This will only be used to support blocklist mechanism, which is experimental currently, so we
      * do not want to expose this option in the documentation.
