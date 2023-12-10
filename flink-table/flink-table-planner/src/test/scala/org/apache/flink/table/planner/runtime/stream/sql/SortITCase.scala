@@ -48,7 +48,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.createTemporaryView("a", da)
 
     assertThatThrownBy(() => tEnv.sqlQuery(sqlQuery).toRetractStream[Row])
-      .hasMessage("Sort on a non-time-attribute field is not supported.")
+      .hasMessage("Sort on a time-attribute field is not supported.")
       .isInstanceOf[TableException]
   }
 
