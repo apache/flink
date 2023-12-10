@@ -55,3 +55,21 @@ function prepare_debug_files {
 
 	mkdir -p $DEBUG_FILES_OUTPUT_DIR || { echo "FAILURE: cannot create debug files directory '${DEBUG_FILES_OUTPUT_DIR}'." ; exit 1; }
 }
+
+function unset_debug_artifacts_if_empty {
+	if [ -z "${DEBUG_FILES_OUTPUT_DIR+x}" ]; then
+		echo "[ERROR] No environment variable DEBUG_FILES_OUTPUT_DIR was set."
+		exit 1
+	elif [ "$(ls -A ${DEBUG_FILES_OUTPUT_DIR} | wc -l)" -eq 0 ]; then
+		echo "[INFO] Unsetting environment variable DEBUG_FILES_OUTPUT_DIR because there were no artifacts produced."
+
+		if [ -n "${TF_BUILD+x}" ]; then
+			echo "##vso[task.setvariable variable=DEBUG_FILES_OUTPUT_DIR]"
+		elif [ -n "${GITHUB_ACTIONS+x}" ]; then
+			echo "debug-files-output-dir=" >> "$GITHUB_OUTPUT"
+		else
+			echo "[ERROR] No CI environment detected. Debug artifact-related variable won't be unset."
+			exit 1
+		fi
+	fi
+}
