@@ -110,6 +110,8 @@ if [[ "$TEST_EXIT_CODE" == 0 ]]; then
   kill $WATCHDOG_PID
   rm $DEBUG_FILES_OUTPUT_DIR/watchdog
   rm -f $DEBUG_FILES_OUTPUT_DIR/jps-traces.*
+
+  unset_debug_artifacts_if_empty
 fi
 
 # properly forward exit code
