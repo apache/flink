@@ -237,7 +237,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                     BlobUtils.createBlobCacheService(
                             configuration,
                             Reference.borrowed(workingDirectory.unwrap().getBlobStorageDirectory()),
-                            highAvailabilityServices.createBlobStore(),
+                            highAvailabilityServices.getPersistentServices().getBlobStore(),
                             null);
 
             final ExternalResourceInfoProvider externalResourceInfoProvider =

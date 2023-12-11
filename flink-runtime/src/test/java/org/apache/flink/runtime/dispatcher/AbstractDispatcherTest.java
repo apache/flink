@@ -102,13 +102,13 @@ public class AbstractDispatcherTest extends TestLogger {
                 new BlobServer(configuration, temporaryFolder.newFolder(), new VoidBlobStore());
     }
 
-    protected TestingDispatcher.Builder createTestingDispatcherBuilder() {
+    protected TestingDispatcher.Builder createTestingDispatcherBuilder() throws Exception {
         return TestingDispatcher.builder()
                 .setConfiguration(configuration)
                 .setHeartbeatServices(heartbeatServices)
                 .setHighAvailabilityServices(haServices)
-                .setJobGraphWriter(haServices.getJobGraphStore())
-                .setJobResultStore(haServices.getJobResultStore())
+                .setJobGraphWriter(haServices.getPersistentServices().getJobGraphStore())
+                .setJobResultStore(haServices.getPersistentServices().getJobResultStore())
                 .setJobManagerRunnerFactory(JobMasterServiceLeadershipRunnerFactory.INSTANCE)
                 .setCleanupRunnerFactory(CheckpointResourcesCleanupRunnerFactory.INSTANCE)
                 .setFatalErrorHandler(testingFatalErrorHandlerResource.getFatalErrorHandler())

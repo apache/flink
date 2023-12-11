@@ -19,15 +19,12 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.blob.BlobStore;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderservice.LeaderServices;
+import org.apache.flink.runtime.persistentservice.PersistentServices;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -76,36 +73,8 @@ public interface HighAvailabilityServices extends GloballyCleanableResource, Aut
      */
     LeaderServices getLeaderServices();
 
-    /**
-     * Gets the checkpoint recovery factory for the job manager.
-     *
-     * @return Checkpoint recovery factory
-     */
-    CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception;
-
-    /**
-     * Gets the submitted job graph store for the job manager.
-     *
-     * @return Submitted job graph store
-     * @throws Exception if the submitted job graph store could not be created
-     */
-    JobGraphStore getJobGraphStore() throws Exception;
-
-    /**
-     * Gets the store that holds information about the state of finished jobs.
-     *
-     * @return Store of finished job results
-     * @throws Exception if job result store could not be created
-     */
-    JobResultStore getJobResultStore() throws Exception;
-
-    /**
-     * Creates the BLOB store in which BLOBs are stored in a highly-available fashion.
-     *
-     * @return Blob store
-     * @throws IOException if the blob store could not be created
-     */
-    BlobStore createBlobStore() throws IOException;
+    /** Gets the {@link PersistentServices} for the job metadata. */
+    PersistentServices getPersistentServices();
 
     // ------------------------------------------------------------------------
     //  Shutdown and Cleanup

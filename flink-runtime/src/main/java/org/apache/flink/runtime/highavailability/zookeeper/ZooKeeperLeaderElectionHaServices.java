@@ -20,11 +20,9 @@ package org.apache.flink.runtime.highavailability.zookeeper;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
-import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriverFactory;
@@ -32,6 +30,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.leaderservice.DefaultLeaderServices;
 import org.apache.flink.runtime.leaderservice.LeaderServiceMaterialGenerator;
 import org.apache.flink.runtime.leaderservice.LeaderServices;
+import org.apache.flink.runtime.persistentservice.DefaultPersistentServices;
+import org.apache.flink.runtime.persistentservice.PersistentServices;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
@@ -70,19 +70,22 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices
 
     private final DefaultLeaderServices leaderServices;
 
+    private final PersistentServices persistentServices;
+
     public ZooKeeperLeaderElectionHaServices(
             CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper,
             Configuration configuration,
-            Executor executor,
-            BlobStoreService blobStoreService)
+            Executor executor)
             throws Exception {
-        super(
-                configuration,
-                executor,
-                blobStoreService,
-                FileSystemJobResultStore.fromConfiguration(configuration, executor));
+        super(configuration, executor);
         this.curatorFrameworkWrapper = checkNotNull(curatorFrameworkWrapper);
         this.leaderServices = new DefaultLeaderServices(this);
+        this.persistentServices =
+                new DefaultPersistentServices(
+                        configuration,
+                        executor,
+                        this::createCheckpointRecoveryFactory,
+                        this::createJobGraphStore);
     }
 
     @Override
@@ -91,6 +94,10 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices
     }
 
     @Override
+    public PersistentServices getPersistentServices() {
+        return persistentServices;
+    }
+
     public CheckpointRecoveryFactory createCheckpointRecoveryFactory() throws Exception {
         return new ZooKeeperCheckpointRecoveryFactory(
                 ZooKeeperUtils.useNamespaceAndEnsurePath(
@@ -99,7 +106,6 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices
                 ioExecutor);
     }
 
-    @Override
     public JobGraphStore createJobGraphStore() throws Exception {
         return ZooKeeperUtils.createJobGraphs(
                 curatorFrameworkWrapper.asCuratorFramework(), configuration);

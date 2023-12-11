@@ -18,22 +18,11 @@
 
 package org.apache.flink.runtime.highavailability.nonha;
 
-import org.apache.flink.runtime.blob.BlobStore;
-import org.apache.flink.runtime.blob.VoidBlobStore;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.JobResultStore;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
 import org.apache.flink.runtime.leaderservice.LeaderServices;
+import org.apache.flink.runtime.persistentservice.PersistentServices;
 
 import javax.annotation.concurrent.GuardedBy;
-
-import java.io.IOException;
-
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Abstract base class for non high-availability services.
@@ -44,18 +33,16 @@ import static org.apache.flink.util.Preconditions.checkState;
 public class NonHaServices implements HighAvailabilityServices {
     protected final Object lock = new Object();
 
-    private final JobResultStore jobResultStore;
-
-    private final VoidBlobStore voidBlobStore;
-
     private final LeaderServices leaderServices;
 
+    private final PersistentServices persistentServices;
+
+    @GuardedBy("lock")
     private boolean shutdown;
 
-    public NonHaServices(LeaderServices leaderServices) {
-        this.jobResultStore = new EmbeddedJobResultStore();
-        this.voidBlobStore = new VoidBlobStore();
+    public NonHaServices(LeaderServices leaderServices, PersistentServices persistentServices) {
         this.leaderServices = leaderServices;
+        this.persistentServices = persistentServices;
 
         shutdown = false;
     }
@@ -70,45 +57,15 @@ public class NonHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-        synchronized (lock) {
-            checkNotShutdown();
-
-            return new StandaloneCheckpointRecoveryFactory();
-        }
-    }
-
-    @Override
-    public JobGraphStore getJobGraphStore() throws Exception {
-        synchronized (lock) {
-            checkNotShutdown();
-
-            return new StandaloneJobGraphStore();
-        }
-    }
-
-    @Override
-    public JobResultStore getJobResultStore() throws Exception {
-        synchronized (lock) {
-            checkNotShutdown();
-
-            return jobResultStore;
-        }
-    }
-
-    @Override
-    public BlobStore createBlobStore() throws IOException {
-        synchronized (lock) {
-            checkNotShutdown();
-
-            return voidBlobStore;
-        }
+    public PersistentServices getPersistentServices() {
+        return persistentServices;
     }
 
     @Override
     public void close() throws Exception {
         synchronized (lock) {
             if (!shutdown) {
+                persistentServices.close();
                 leaderServices.close();
                 shutdown = true;
             }
@@ -118,18 +75,5 @@ public class NonHaServices implements HighAvailabilityServices {
     @Override
     public void cleanupAllData() throws Exception {
         // this stores no data, do nothing here
-    }
-
-    // ----------------------------------------------------------------------
-    // Helper methods
-    // ----------------------------------------------------------------------
-
-    @GuardedBy("lock")
-    protected void checkNotShutdown() {
-        checkState(!shutdown, "high availability services are shut down");
-    }
-
-    protected boolean isShutDown() {
-        return shutdown;
     }
 }

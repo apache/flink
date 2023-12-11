@@ -210,6 +210,7 @@ public class MiniDispatcherTest extends TestLogger {
             CommonTestUtils.waitUntilCondition(
                     () ->
                             !highAvailabilityServices
+                                    .getPersistentServices()
                                     .getJobResultStore()
                                     .getDirtyResults()
                                     .isEmpty());
@@ -355,8 +356,8 @@ public class MiniDispatcherTest extends TestLogger {
                         null,
                         new DispatcherOperationCaches(),
                         UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-                        highAvailabilityServices.getJobGraphStore(),
-                        highAvailabilityServices.getJobResultStore(),
+                        highAvailabilityServices.getPersistentServices().getJobGraphStore(),
+                        highAvailabilityServices.getPersistentServices().getJobResultStore(),
                         testingJobManagerRunnerFactory,
                         testingCleanupRunnerFactory,
                         ForkJoinPool.commonPool(),

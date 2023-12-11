@@ -26,8 +26,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.blob.BlobStoreService;
-import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.highavailability.nonha.NonHaServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderServices;
@@ -38,6 +36,7 @@ import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientLeader
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.leaderservice.ClientLeaderServices;
+import org.apache.flink.runtime.persistentservice.EmbeddedPersistentServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -65,7 +64,8 @@ public class HighAvailabilityServicesUtils {
 
         switch (highAvailabilityMode) {
             case NONE:
-                return new NonHaServices(new EmbeddedLeaderServices(executor));
+                return new NonHaServices(
+                        new EmbeddedLeaderServices(executor), new EmbeddedPersistentServices());
 
             case ZOOKEEPER:
                 return createZooKeeperHaServices(config, executor, fatalErrorHandler);
@@ -88,13 +88,11 @@ public class HighAvailabilityServicesUtils {
     private static HighAvailabilityServices createZooKeeperHaServices(
             Configuration configuration, Executor executor, FatalErrorHandler fatalErrorHandler)
             throws Exception {
-        BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(configuration);
-
         final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                 ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
 
         return new ZooKeeperLeaderElectionHaServices(
-                curatorFrameworkWrapper, configuration, executor, blobStoreService);
+                curatorFrameworkWrapper, configuration, executor);
     }
 
     public static HighAvailabilityServices createHighAvailabilityServices(
@@ -131,7 +129,8 @@ public class HighAvailabilityServicesUtils {
 
                 return new NonHaServices(
                         new StandaloneLeaderServices(
-                                resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress));
+                                resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress),
+                        new EmbeddedPersistentServices());
             case ZOOKEEPER:
                 return createZooKeeperHaServices(configuration, executor, fatalErrorHandler);
             case KUBERNETES:

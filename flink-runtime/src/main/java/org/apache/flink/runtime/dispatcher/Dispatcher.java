@@ -666,7 +666,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(dirtyJobResult.getJobId()));
         return cleanupRunnerFactory.create(
                 dirtyJobResult,
-                highAvailabilityServices.getCheckpointRecoveryFactory(),
+                highAvailabilityServices.getPersistentServices().getCheckpointRecoveryFactory(),
                 configuration,
                 ioExecutor);
     }

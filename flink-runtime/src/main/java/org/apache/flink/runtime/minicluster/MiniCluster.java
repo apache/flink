@@ -83,6 +83,7 @@ import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
+import org.apache.flink.runtime.persistentservice.EmbeddedPersistentServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.ResourceOverview;
@@ -444,7 +445,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         BlobUtils.createBlobServer(
                                 configuration,
                                 Reference.borrowed(workingDirectory.getBlobStorageDirectory()),
-                                haServices.createBlobStore());
+                                haServices.getPersistentServices().getBlobStore());
                 blobServer.start();
 
                 heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
@@ -453,7 +454,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         BlobUtils.createBlobCacheService(
                                 configuration,
                                 Reference.borrowed(workingDirectory.getBlobStorageDirectory()),
-                                haServices.createBlobStore(),
+                                haServices.getPersistentServices().getBlobStore(),
                                 new InetSocketAddress(
                                         InetAddress.getLocalHost(), blobServer.getPort()));
 
@@ -611,7 +612,8 @@ public class MiniCluster implements AutoCloseableAsync {
             return new SingletonHighAvailabilityServicesFactory(
                     (config, embeddedLeaderElectionExecutor) ->
                             new NonHaServices(
-                                    new EmbeddedLeaderServices(embeddedLeaderElectionExecutor)));
+                                    new EmbeddedLeaderServices(embeddedLeaderElectionExecutor),
+                                    new EmbeddedPersistentServices()));
         } else {
             return new RegularHighAvailabilityServicesFactory();
         }

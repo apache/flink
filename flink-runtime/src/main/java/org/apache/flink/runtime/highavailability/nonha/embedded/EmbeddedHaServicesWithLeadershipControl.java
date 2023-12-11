@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.highavailability.nonha.embedded;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.nonha.NonHaServices;
+import org.apache.flink.runtime.persistentservice.EmbeddedPersistentServices;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 
 import java.util.Collections;
@@ -37,8 +40,6 @@ import java.util.concurrent.Executor;
  */
 public class EmbeddedHaServicesWithLeadershipControl extends NonHaServices
         implements HaLeadershipControl {
-
-    private final CheckpointRecoveryFactory checkpointRecoveryFactory;
     private final EmbeddedLeaderServices embeddedLeaderServices;
 
     public EmbeddedHaServicesWithLeadershipControl(Executor executor) {
@@ -70,10 +71,19 @@ public class EmbeddedHaServicesWithLeadershipControl extends NonHaServices
                         }));
     }
 
+    @VisibleForTesting
     public EmbeddedHaServicesWithLeadershipControl(
             Executor executor, CheckpointRecoveryFactory checkpointRecoveryFactory) {
-        super(new EmbeddedLeaderServices(executor));
-        this.checkpointRecoveryFactory = checkpointRecoveryFactory;
+        super(
+                new EmbeddedLeaderServices(executor),
+                new EmbeddedPersistentServices(checkpointRecoveryFactory));
+        this.embeddedLeaderServices = (EmbeddedLeaderServices) getLeaderServices();
+    }
+
+    @VisibleForTesting
+    public EmbeddedHaServicesWithLeadershipControl(
+            Executor executor, JobResultStore jobResultStore) {
+        super(new EmbeddedLeaderServices(executor), new EmbeddedPersistentServices(jobResultStore));
         this.embeddedLeaderServices = (EmbeddedLeaderServices) getLeaderServices();
     }
 
@@ -117,13 +127,5 @@ public class EmbeddedHaServicesWithLeadershipControl extends NonHaServices
         final EmbeddedLeaderElectionService resourceManagerLeaderService =
                 embeddedLeaderServices.getResourceManagerLeaderService();
         return resourceManagerLeaderService.grantLeadership();
-    }
-
-    @Override
-    public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-        synchronized (lock) {
-            checkNotShutdown();
-            return checkpointRecoveryFactory;
-        }
     }
 }

@@ -384,7 +384,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
                         slotPoolService,
                         futureExecutor,
                         userCodeLoader,
-                        highAvailabilityServices.getCheckpointRecoveryFactory(),
+                        highAvailabilityServices
+                                .getPersistentServices()
+                                .getCheckpointRecoveryFactory(),
                         rpcTimeout,
                         blobWriter,
                         jobManagerJobMetricGroup,

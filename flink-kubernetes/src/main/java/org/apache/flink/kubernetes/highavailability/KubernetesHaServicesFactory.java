@@ -20,7 +20,6 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
-import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
 
@@ -36,7 +35,6 @@ public class KubernetesHaServicesFactory implements HighAvailabilityServicesFact
                 FlinkKubeClientFactory.getInstance()
                         .fromConfiguration(configuration, "kubernetes-ha-services"),
                 executor,
-                configuration,
-                BlobUtils.createBlobStoreFromConfig(configuration));
+                configuration);
     }
 }

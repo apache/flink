@@ -25,16 +25,16 @@ import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfigu
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
-import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
-import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
 import org.apache.flink.runtime.leaderservice.DefaultLeaderServices;
 import org.apache.flink.runtime.leaderservice.LeaderServiceMaterialGenerator;
 import org.apache.flink.runtime.leaderservice.LeaderServices;
+import org.apache.flink.runtime.persistentservice.DefaultPersistentServices;
+import org.apache.flink.runtime.persistentservice.PersistentServices;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -69,11 +69,10 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices
 
     private final DefaultLeaderServices leaderServices;
 
+    private final PersistentServices persistentServices;
+
     KubernetesLeaderElectionHaServices(
-            FlinkKubeClient kubeClient,
-            Executor ioExecutor,
-            Configuration configuration,
-            BlobStoreService blobStoreService)
+            FlinkKubeClient kubeClient, Executor ioExecutor, Configuration configuration)
             throws Exception {
         this(
                 kubeClient,
@@ -84,8 +83,7 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices
                 ioExecutor,
                 configuration.get(KubernetesConfigOptions.CLUSTER_ID),
                 UUID.randomUUID().toString(),
-                configuration,
-                blobStoreService);
+                configuration);
     }
 
     private KubernetesLeaderElectionHaServices(
@@ -95,14 +93,9 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices
             Executor ioExecutor,
             String clusterId,
             String lockIdentity,
-            Configuration configuration,
-            BlobStoreService blobStoreService)
+            Configuration configuration)
             throws Exception {
-        super(
-                configuration,
-                ioExecutor,
-                blobStoreService,
-                FileSystemJobResultStore.fromConfiguration(configuration, ioExecutor));
+        super(configuration, ioExecutor);
 
         this.kubeClient = checkNotNull(kubeClient);
         this.clusterId = checkNotNull(clusterId);
@@ -110,6 +103,12 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices
         this.watchExecutorService = checkNotNull(watchExecutorService);
         this.lockIdentity = checkNotNull(lockIdentity);
         this.leaderServices = new DefaultLeaderServices(this);
+        this.persistentServices =
+                new DefaultPersistentServices(
+                        configuration,
+                        ioExecutor,
+                        this::createCheckpointRecoveryFactory,
+                        this::createJobGraphStore);
     }
 
     private static LeaderElectionDriverFactory createDriverFactory(
@@ -135,7 +134,11 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices
     }
 
     @Override
-    protected CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
+    public PersistentServices getPersistentServices() {
+        return persistentServices;
+    }
+
+    public CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
         return KubernetesCheckpointRecoveryFactory.withoutLeadershipValidation(
                 kubeClient, configuration, ioExecutor, clusterId, this::getJobSpecificConfigMap);
     }
@@ -144,8 +147,7 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices
         return clusterId + NAME_SEPARATOR + jobID.toString() + NAME_SEPARATOR + "config-map";
     }
 
-    @Override
-    protected JobGraphStore createJobGraphStore() throws Exception {
+    public JobGraphStore createJobGraphStore() throws Exception {
         return KubernetesUtils.createJobGraphStore(
                 configuration, kubeClient, getClusterConfigMap(), lockIdentity);
     }

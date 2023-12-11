@@ -172,7 +172,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                                         TestingRetryStrategies.createWithNumberOfRetries(
                                                 numberOfErrors),
                                         jobManagerRunnerRegistry,
-                                        haServices.getJobGraphStore(),
+                                        haServices.getPersistentServices().getJobGraphStore(),
                                         blobServer,
                                         haServices,
                                         UnregisteredMetricGroups
@@ -195,11 +195,16 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
 
         assertThat(
                 "The JobGraph should be removed from JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
+                haServices.getPersistentServices().getJobGraphStore().getJobIds(),
                 IsEmptyCollection.empty());
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().hasJobResultEntryAsync(jobId).get());
+                () ->
+                        haServices
+                                .getPersistentServices()
+                                .getJobResultStore()
+                                .hasJobResultEntryAsync(jobId)
+                                .get());
     }
 
     @Test
@@ -235,7 +240,11 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
 
         assertThat(
                 "The JobResultStore should have this job still marked as dirty.",
-                haServices.getJobResultStore().hasDirtyJobResultEntryAsync(jobId).get(),
+                haServices
+                        .getPersistentServices()
+                        .getJobResultStore()
+                        .hasDirtyJobResultEntryAsync(jobId)
+                        .get(),
                 CoreMatchers.is(true));
 
         final DispatcherGateway dispatcherGateway =
@@ -250,7 +259,12 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         jobManagerRunnerCleanupFuture.complete(null);
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().hasCleanJobResultEntryAsync(jobId).get());
+                () ->
+                        haServices
+                                .getPersistentServices()
+                                .getJobResultStore()
+                                .hasCleanJobResultEntryAsync(jobId)
+                                .get());
     }
 
     @Test
@@ -316,11 +330,11 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
 
         assertThat(
                 "The JobGraph is still stored in the JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
+                haServices.getPersistentServices().getJobGraphStore().getJobIds(),
                 equalTo(Collections.singleton(jobId)));
         assertThat(
                 "The JobResultStore should have this job marked as dirty.",
-                haServices.getJobResultStore().getDirtyResults().stream()
+                haServices.getPersistentServices().getJobResultStore().getDirtyResults().stream()
                         .map(JobResult::getJobId)
                         .collect(Collectors.toSet()),
                 equalTo(Collections.singleton(jobId)));
@@ -328,7 +342,11 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         // Run a second dispatcher, that restores our finished job.
         final Dispatcher secondDispatcher =
                 createTestingDispatcherBuilder()
-                        .setRecoveredDirtyJobs(haServices.getJobResultStore().getDirtyResults())
+                        .setRecoveredDirtyJobs(
+                                haServices
+                                        .getPersistentServices()
+                                        .getJobResultStore()
+                                        .getDirtyResults())
                         .build(rpcService);
         secondDispatcher.start();
 
@@ -336,15 +354,24 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         leaderElection.isLeader(UUID.randomUUID());
 
         CommonTestUtils.waitUntilCondition(
-                () -> haServices.getJobResultStore().getDirtyResults().isEmpty());
+                () ->
+                        haServices
+                                .getPersistentServices()
+                                .getJobResultStore()
+                                .getDirtyResults()
+                                .isEmpty());
 
         assertThat(
                 "The JobGraph is not stored in the JobGraphStore.",
-                haServices.getJobGraphStore().getJobIds(),
+                haServices.getPersistentServices().getJobGraphStore().getJobIds(),
                 IsEmptyCollection.empty());
         assertTrue(
                 "The JobResultStore has the job listed as clean.",
-                haServices.getJobResultStore().hasJobResultEntryAsync(jobId).get());
+                haServices
+                        .getPersistentServices()
+                        .getJobResultStore()
+                        .hasJobResultEntryAsync(jobId)
+                        .get());
 
         assertThat(successfulJobGraphCleanup.get(), equalTo(jobId));
 

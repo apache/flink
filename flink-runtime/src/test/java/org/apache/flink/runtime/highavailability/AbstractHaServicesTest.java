@@ -21,10 +21,12 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
+import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderservice.LeaderServices;
+import org.apache.flink.runtime.persistentservice.PersistentServices;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.concurrent.Executors;
@@ -171,11 +173,54 @@ class AbstractHaServicesTest {
         }
     }
 
+    private static final class TestingPersistentServices implements PersistentServices {
+        private final BlobStoreService blobStoreService;
+        private final JobResultStore jobResultStore;
+
+        private TestingPersistentServices(
+                BlobStoreService blobStoreService, JobResultStore jobResultStore) {
+            this.jobResultStore = jobResultStore;
+            this.blobStoreService = blobStoreService;
+        }
+
+        @Override
+        public CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public JobGraphStore getJobGraphStore() throws Exception {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public JobResultStore getJobResultStore() throws Exception {
+            return jobResultStore;
+        }
+
+        @Override
+        public BlobStore getBlobStore() throws IOException {
+            return blobStoreService;
+        }
+
+        @Override
+        public void cleanup() throws Exception {
+            blobStoreService.cleanupAllData();
+        }
+
+        @Override
+        public void close() throws Exception {
+            blobStoreService.close();
+        }
+    }
+
     private static final class TestingHaServices extends AbstractHaServices {
 
         private final Queue<? super CloseOperations> closeOperations;
         private final RunnableWithException internalCleanupRunnable;
         private final ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer;
+
+        private final PersistentServices persistentServices;
 
         private TestingHaServices(
                 Configuration config,
@@ -184,30 +229,20 @@ class AbstractHaServicesTest {
                 Queue<? super CloseOperations> closeOperations,
                 RunnableWithException internalCleanupRunnable,
                 ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer) {
-            super(
-                    config,
-                    ioExecutor,
-                    blobStoreService,
-                    TestingJobResultStore.builder()
-                            .withMarkResultAsCleanConsumer(
-                                    ignoredJobId -> {
-                                        throw new AssertionError(
-                                                "Marking the job as clean shouldn't happen in the HaServices cleanup");
-                                    })
-                            .build());
+            super(config, ioExecutor);
             this.closeOperations = closeOperations;
             this.internalCleanupRunnable = internalCleanupRunnable;
             this.internalJobCleanupConsumer = internalJobCleanupConsumer;
-        }
-
-        @Override
-        protected CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
-        }
-
-        @Override
-        protected JobGraphStore createJobGraphStore() throws Exception {
-            throw new UnsupportedOperationException("Not supported by this test implementation.");
+            this.persistentServices =
+                    new TestingPersistentServices(
+                            blobStoreService,
+                            TestingJobResultStore.builder()
+                                    .withMarkResultAsCleanConsumer(
+                                            ignoredJobId -> {
+                                                throw new AssertionError(
+                                                        "Marking the job as clean shouldn't happen in the HaServices cleanup");
+                                            })
+                                    .build());
         }
 
         @Override
@@ -228,6 +263,11 @@ class AbstractHaServicesTest {
         @Override
         public LeaderServices getLeaderServices() {
             return null;
+        }
+
+        @Override
+        public PersistentServices getPersistentServices() {
+            return persistentServices;
         }
     }
 }

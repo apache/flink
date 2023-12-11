@@ -400,7 +400,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                     BlobUtils.createBlobServer(
                             configuration,
                             Reference.borrowed(workingDirectory.unwrap().getBlobStorageDirectory()),
-                            haServices.createBlobStore());
+                            haServices.getPersistentServices().getBlobStore());
             blobServer.start();
             configuration.setString(BlobServerOptions.PORT, String.valueOf(blobServer.getPort()));
             heartbeatServices = createHeartbeatServices(configuration);

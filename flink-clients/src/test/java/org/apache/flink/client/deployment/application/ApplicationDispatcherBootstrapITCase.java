@@ -176,13 +176,8 @@ class ApplicationDispatcherBootstrapITCase {
                         new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)))
                 .get();
         final EmbeddedHaServicesWithLeadershipControl haServices =
-                new EmbeddedHaServicesWithLeadershipControl(EXECUTOR_EXTENSION.getExecutor()) {
-
-                    @Override
-                    public JobResultStore getJobResultStore() {
-                        return jobResultStore;
-                    }
-                };
+                new EmbeddedHaServicesWithLeadershipControl(
+                        EXECUTOR_EXTENSION.getExecutor(), jobResultStore);
 
         final TestingMiniCluster.Builder clusterBuilder =
                 TestingMiniCluster.newBuilder(clusterConfiguration)

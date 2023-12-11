@@ -37,12 +37,16 @@ public class HaServicesJobPersistenceComponentFactory implements JobPersistenceC
 
     @Override
     public JobGraphStore createJobGraphStore() {
-        return create(highAvailabilityServices::getJobGraphStore, JobGraphStore.class);
+        return create(
+                () -> highAvailabilityServices.getPersistentServices().getJobGraphStore(),
+                JobGraphStore.class);
     }
 
     @Override
     public JobResultStore createJobResultStore() {
-        return create(highAvailabilityServices::getJobResultStore, JobResultStore.class);
+        return create(
+                () -> highAvailabilityServices.getPersistentServices().getJobResultStore(),
+                JobResultStore.class);
     }
 
     private <T> T create(SupplierWithException<T, ? extends Exception> supplier, Class<T> clazz) {

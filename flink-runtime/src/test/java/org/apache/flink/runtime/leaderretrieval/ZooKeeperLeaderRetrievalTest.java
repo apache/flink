@@ -21,7 +21,6 @@ package org.apache.flink.runtime.leaderretrieval;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
-import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -39,10 +38,12 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
+import org.junit.Rule;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -61,6 +62,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ZooKeeperLeaderRetrievalTest {
 
     private static final RpcSystem RPC_SYSTEM = RpcSystem.load();
+
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     @RegisterExtension
     private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -86,6 +89,10 @@ class ZooKeeperLeaderRetrievalTest {
         config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
         config.setString(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperExtension.getConnectString());
+        temporaryFolder.create();
+        config.setString(
+                HighAvailabilityOptions.HA_STORAGE_PATH,
+                temporaryFolder.newFolder().getAbsolutePath());
 
         highAvailabilityServices =
                 new ZooKeeperLeaderElectionHaServices(
@@ -93,8 +100,7 @@ class ZooKeeperLeaderRetrievalTest {
                                 config,
                                 testingFatalErrorHandlerResource.getTestingFatalErrorHandler()),
                         config,
-                        EXECUTOR_RESOURCE.getExecutor(),
-                        new VoidBlobStore());
+                        EXECUTOR_RESOURCE.getExecutor());
     }
 
     @AfterEach

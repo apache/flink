@@ -20,10 +20,6 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobStore;
-import org.apache.flink.runtime.blob.BlobStoreService;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -40,9 +36,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * will help with creating all the leader election/retrieval services and the cleanup.
  *
  * <p>{@link #close()} and {@link #cleanupAllData()} should be implemented to destroy the resources.
- *
- * <p>The abstract class is also responsible for determining which component service should be
- * reused. For example, {@link #jobResultStore} is created once and could be reused many times.
  */
 public abstract class AbstractHaServices implements HighAvailabilityServices {
 
@@ -54,41 +47,9 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     /** The runtime configuration. */
     protected final Configuration configuration;
 
-    /** Store for arbitrary blobs. */
-    private final BlobStoreService blobStoreService;
-
-    private final JobResultStore jobResultStore;
-
-    protected AbstractHaServices(
-            Configuration config,
-            Executor ioExecutor,
-            BlobStoreService blobStoreService,
-            JobResultStore jobResultStore) {
-
+    protected AbstractHaServices(Configuration config, Executor ioExecutor) {
         this.configuration = checkNotNull(config);
         this.ioExecutor = checkNotNull(ioExecutor);
-        this.blobStoreService = checkNotNull(blobStoreService);
-        this.jobResultStore = checkNotNull(jobResultStore);
-    }
-
-    @Override
-    public CheckpointRecoveryFactory getCheckpointRecoveryFactory() throws Exception {
-        return createCheckpointRecoveryFactory();
-    }
-
-    @Override
-    public JobGraphStore getJobGraphStore() throws Exception {
-        return createJobGraphStore();
-    }
-
-    @Override
-    public JobResultStore getJobResultStore() throws Exception {
-        return jobResultStore;
-    }
-
-    @Override
-    public BlobStore createBlobStore() {
-        return blobStoreService;
     }
 
     @Override
@@ -96,7 +57,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         Throwable exception = null;
 
         try {
-            blobStoreService.close();
+            getPersistentServices().close();
         } catch (Throwable t) {
             exception = t;
         }
@@ -132,7 +93,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         try {
             internalCleanup();
             deletedHAData = true;
-            blobStoreService.cleanupAllData();
+            getPersistentServices().cleanup();
         } catch (Exception t) {
             exception = t;
         }
@@ -165,21 +126,6 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
                 },
                 executor);
     }
-
-    /**
-     * Create the checkpoint recovery factory for the job manager.
-     *
-     * @return Checkpoint recovery factory
-     */
-    protected abstract CheckpointRecoveryFactory createCheckpointRecoveryFactory() throws Exception;
-
-    /**
-     * Create the submitted job graph store for the job manager.
-     *
-     * @return Submitted job graph store
-     * @throws Exception if the submitted job graph store could not be created
-     */
-    protected abstract JobGraphStore createJobGraphStore() throws Exception;
 
     /**
      * Closes the components which is used for external operations(e.g. Zookeeper Client, Kubernetes

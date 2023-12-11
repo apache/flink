@@ -27,6 +27,7 @@ import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderservice.LeaderServices;
+import org.apache.flink.runtime.persistentservice.PersistentServices;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
@@ -43,11 +44,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     private final TestingLeaderServices testingLeaderServices = new TestingLeaderServices();
 
-    private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
-
-    private volatile JobGraphStore jobGraphStore;
-
-    private volatile JobResultStore jobResultStore = new EmbeddedJobResultStore();
+    private final TestingPersistentServices testingPersistentServices =
+            new TestingPersistentServices();
 
     private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
@@ -98,15 +96,15 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     public void setCheckpointRecoveryFactory(CheckpointRecoveryFactory checkpointRecoveryFactory) {
-        this.checkpointRecoveryFactory = checkpointRecoveryFactory;
+        this.testingPersistentServices.checkpointRecoveryFactory = checkpointRecoveryFactory;
     }
 
     public void setJobGraphStore(JobGraphStore jobGraphStore) {
-        this.jobGraphStore = jobGraphStore;
+        this.testingPersistentServices.jobGraphStore = jobGraphStore;
     }
 
     public void setJobResultStore(JobResultStore jobResultStore) {
-        this.jobResultStore = jobResultStore;
+        this.testingPersistentServices.jobResultStore = jobResultStore;
     }
 
     public void setJobMasterLeaderElectionFunction(
@@ -143,35 +141,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
-        CheckpointRecoveryFactory factory = checkpointRecoveryFactory;
-
-        if (factory != null) {
-            return factory;
-        } else {
-            throw new IllegalStateException("CheckpointRecoveryFactory has not been set");
-        }
-    }
-
-    @Override
-    public JobGraphStore getJobGraphStore() {
-        JobGraphStore store = jobGraphStore;
-
-        if (store != null) {
-            return store;
-        } else {
-            throw new IllegalStateException("JobGraphStore has not been set");
-        }
-    }
-
-    @Override
-    public JobResultStore getJobResultStore() {
-        return jobResultStore;
-    }
-
-    @Override
-    public BlobStore createBlobStore() throws IOException {
-        return new VoidBlobStore();
+    public PersistentServices getPersistentServices() {
+        return testingPersistentServices;
     }
 
     // ------------------------------------------------------------------------
@@ -195,6 +166,54 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         }
 
         return FutureUtils.completedVoidFuture();
+    }
+
+    private class TestingPersistentServices implements PersistentServices {
+        private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
+
+        private volatile JobGraphStore jobGraphStore;
+
+        private volatile JobResultStore jobResultStore = new EmbeddedJobResultStore();
+
+        private volatile BlobStore blobStore = new VoidBlobStore();
+
+        @Override
+        public CheckpointRecoveryFactory getCheckpointRecoveryFactory() {
+            CheckpointRecoveryFactory factory = checkpointRecoveryFactory;
+
+            if (factory != null) {
+                return factory;
+            } else {
+                throw new IllegalStateException("CheckpointRecoveryFactory has not been set");
+            }
+        }
+
+        @Override
+        public JobGraphStore getJobGraphStore() {
+            JobGraphStore store = jobGraphStore;
+
+            if (store != null) {
+                return store;
+            } else {
+                throw new IllegalStateException("JobGraphStore has not been set");
+            }
+        }
+
+        @Override
+        public JobResultStore getJobResultStore() {
+            return jobResultStore;
+        }
+
+        @Override
+        public BlobStore getBlobStore() throws IOException {
+            return blobStore;
+        }
+
+        @Override
+        public void cleanup() throws Exception {}
+
+        @Override
+        public void close() throws Exception {}
     }
 
     private class TestingLeaderServices implements LeaderServices {
