@@ -16,14 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.api.connector.sink2;
+package org.apache.flink.api.connector.sink2;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.annotation.PublicEvolving;
 
-/** Allows expert users to implement a custom topology before {@link SinkWriter}. */
-@Experimental
-@Deprecated
-public interface WithPreWriteTopology<InputT>
-        extends Sink<InputT>, SupportsPreWriteTopology<InputT> {}
+import java.io.IOException;
+import java.util.List;
+
+/**
+ * A {@link SinkWriter} whose state needs to be checkpointed.
+ *
+ * @param <InputT> The type of the sink writer's input
+ * @param <WriterStateT> The type of the writer's state
+ */
+@PublicEvolving
+public interface StatefulSinkWriter<InputT, WriterStateT> extends SinkWriter<InputT> {
+    /**
+     * @return The writer's state.
+     * @throws IOException if fail to snapshot writer's state.
+     */
+    List<WriterStateT> snapshotState(long checkpointId) throws IOException;
+}
