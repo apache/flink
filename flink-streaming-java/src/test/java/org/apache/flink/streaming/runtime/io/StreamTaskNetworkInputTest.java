@@ -49,6 +49,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate
 import org.apache.flink.streaming.runtime.io.checkpointing.SingleCheckpointBarrierHandler;
 import org.apache.flink.streaming.runtime.io.checkpointing.UpstreamRecoveryTracker;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -399,6 +400,9 @@ public class StreamTaskNetworkInputTest {
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {}
+
+        @Override
+        public void emitRecordAttributes(RecordAttributes recordAttributes) {}
     }
 
     private static class VerifyRecordsDataOutput<T> extends NoOpDataOutput<T> {
