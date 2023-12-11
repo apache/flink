@@ -82,9 +82,9 @@ The tables below generally feature 5 columns:
 
 * The "Description" column provides information as to what a given attribute is reporting.
 
-### Checkpointing
+### Checkpointing and initialization
 
-Flink reports a single span trace for the whole checkpoint once checkpoint reaches a terminal state: COMPLETED or FAILED.
+Flink reports a single span trace for the whole checkpoint and job initialization events once that event reaches a terminal state: COMPLETED or FAILED.
 
 <table class="table table-bordered">
   <thead>
@@ -97,7 +97,7 @@ Flink reports a single span trace for the whole checkpoint once checkpoint reach
   </thead>
   <tbody>
     <tr>
-      <th rowspan="6">org.apache.flink.runtime.checkpoint.CheckpointStatsTracker</th>
+      <th rowspan="15">org.apache.flink.</br>runtime.checkpoint.</br>CheckpointStatsTracker</th>
       <th rowspan="6"><strong>Checkpoint</strong></th>
       <td>startTs</td>
       <td>Timestamp when the checkpoint has started.</td>
@@ -121,6 +121,43 @@ Flink reports a single span trace for the whole checkpoint once checkpoint reach
     <tr>
       <td>checkpointStatus</td>
       <td>What was the state of this checkpoint: FAILED or COMPLETED.</td>
+    </tr>
+    <tr>
+      <th rowspan="9"><strong>JobInitialization</strong></th>
+      <td>startTs</td>
+      <td>Timestamp when the job initialization has started.</td>
+    </tr>
+    <tr>
+      <td>endTs</td>
+      <td>Timestamp when the job initialization has finished.</td>
+    </tr>
+    <tr>
+      <td>checkpointId (optional)</td>
+      <td>Id of the checkpoint that the job recovered from (if any).</td>
+    </tr>
+    <tr>
+      <td>fullSize</td>
+      <td>Full size in bytes of the referenced state by the checkpoint that was used during recovery (if any).</td>
+    </tr>
+    <tr>
+      <td>(Max/Sum)MailboxStartDurationMs</td>
+      <td>The aggregated (max and sum) across all subtasks duration between subtask being created until all classes and objects of that subtask are initialize.</td>
+    </tr>
+    <tr>
+      <td>(Max/Sum)ReadOutputDataDurationMs</td>
+      <td>The aggregated (max and sum) across all subtasks duration of reading unaligned checkpoint's output buffers.</td>
+    </tr>
+    <tr>
+      <td>(Max/Sum)InitializeStateDurationMs</td>
+      <td>The aggregated (max and sum) across all subtasks duration to initialize a state backend (including state files download time)</td>
+    </tr>
+    <tr>
+      <td>(Max/Sum)GateRestoreDurationMs</td>
+      <td>The aggregated (max and sum) across all subtasks duration of reading unaligned checkpoint's input buffers.</td>
+    </tr>
+    <tr>
+      <td>(Max/Sum)DownloadStateDurationMs<br><br>(optional - currently only supported by RocksDB Incremental)</td>
+      <td>The aggregated (max and sum) across all subtasks duration of downloading state files from the DFS.</td>
     </tr>
   </tbody>
 </table>
