@@ -33,6 +33,7 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.AbstractStateBackend;
+import org.apache.flink.runtime.state.OperatorStateBackendParametersImpl;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
@@ -147,7 +148,8 @@ public class SourceOperatorTestContext implements AutoCloseable {
         final AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         return abstractStateBackend.createOperatorStateBackend(
-                env, "test-operator", Collections.emptyList(), cancelStreamRegistry);
+                new OperatorStateBackendParametersImpl(
+                        env, "test-operator", Collections.emptyList(), cancelStreamRegistry));
     }
 
     private Environment getTestingEnvironment() {

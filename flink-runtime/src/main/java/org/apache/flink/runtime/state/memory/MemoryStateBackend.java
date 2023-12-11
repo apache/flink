@@ -20,37 +20,26 @@ package org.apache.flink.runtime.state.memory;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.DefaultOperatorStateBackendBuilder;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.filesystem.AbstractFileStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackendBuilder;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TernaryBoolean;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -331,56 +320,42 @@ public class MemoryStateBackend extends AbstractFileStateBackend
 
     @Override
     public OperatorStateBackend createOperatorStateBackend(
-            Environment env,
-            String operatorIdentifier,
-            @Nonnull Collection<OperatorStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry)
-            throws Exception {
-
+            OperatorStateBackendParameters parameters) throws Exception {
         return new DefaultOperatorStateBackendBuilder(
-                        env.getUserCodeClassLoader().asClassLoader(),
-                        env.getExecutionConfig(),
+                        parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                        parameters.getEnv().getExecutionConfig(),
                         isUsingAsynchronousSnapshots(),
-                        stateHandles,
-                        cancelStreamRegistry)
+                        parameters.getStateHandles(),
+                        parameters.getCancelStreamRegistry())
                 .build();
     }
 
     @Override
     public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-            Environment env,
-            JobID jobID,
-            String operatorIdentifier,
-            TypeSerializer<K> keySerializer,
-            int numberOfKeyGroups,
-            KeyGroupRange keyGroupRange,
-            TaskKvStateRegistry kvStateRegistry,
-            TtlTimeProvider ttlTimeProvider,
-            MetricGroup metricGroup,
-            @Nonnull Collection<KeyedStateHandle> stateHandles,
-            CloseableRegistry cancelStreamRegistry)
-            throws BackendBuildingException {
+            KeyedStateBackendParameters<K> parameters) throws BackendBuildingException {
 
-        TaskStateManager taskStateManager = env.getTaskStateManager();
+        TaskStateManager taskStateManager = parameters.getEnv().getTaskStateManager();
         HeapPriorityQueueSetFactory priorityQueueSetFactory =
-                new HeapPriorityQueueSetFactory(keyGroupRange, numberOfKeyGroups, 128);
+                new HeapPriorityQueueSetFactory(
+                        parameters.getKeyGroupRange(), parameters.getNumberOfKeyGroups(), 128);
         LatencyTrackingStateConfig latencyTrackingStateConfig =
-                latencyTrackingConfigBuilder.setMetricGroup(metricGroup).build();
+                latencyTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
         return new HeapKeyedStateBackendBuilder<>(
-                        kvStateRegistry,
-                        keySerializer,
-                        env.getUserCodeClassLoader().asClassLoader(),
-                        numberOfKeyGroups,
-                        keyGroupRange,
-                        env.getExecutionConfig(),
-                        ttlTimeProvider,
+                        parameters.getKvStateRegistry(),
+                        parameters.getKeySerializer(),
+                        parameters.getEnv().getUserCodeClassLoader().asClassLoader(),
+                        parameters.getNumberOfKeyGroups(),
+                        parameters.getKeyGroupRange(),
+                        parameters.getEnv().getExecutionConfig(),
+                        parameters.getTtlTimeProvider(),
                         latencyTrackingStateConfig,
-                        stateHandles,
-                        AbstractStateBackend.getCompressionDecorator(env.getExecutionConfig()),
+                        parameters.getStateHandles(),
+                        AbstractStateBackend.getCompressionDecorator(
+                                parameters.getEnv().getExecutionConfig()),
                         taskStateManager.createLocalRecoveryConfig(),
                         priorityQueueSetFactory,
                         isUsingAsynchronousSnapshots(),
-                        cancelStreamRegistry)
+                        parameters.getCancelStreamRegistry())
                 .build();
     }
 

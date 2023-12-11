@@ -24,8 +24,11 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -72,20 +75,25 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                 "Batch execution specific time service can work only with BatchExecutionKeyedStateBackend");
 
         MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+        AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
+        JobID jobID = new JobID();
+        KeyGroupRange keyGroupRange = new KeyGroupRange(0, 1);
+        TaskKvStateRegistry kvStateRegistry = mockEnvironment.getTaskKvStateRegistry();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         AbstractKeyedStateBackend<Integer> stateBackend =
-                new MemoryStateBackend()
-                        .createKeyedStateBackend(
+                abstractStateBackend.createKeyedStateBackend(
+                        new KeyedStateBackendParametersImpl<>(
                                 mockEnvironment,
-                                new JobID(),
+                                jobID,
                                 "dummy",
                                 KEY_SERIALIZER,
                                 2,
-                                new KeyGroupRange(0, 1),
-                                mockEnvironment.getTaskKvStateRegistry(),
+                                keyGroupRange,
+                                kvStateRegistry,
                                 TtlTimeProvider.DEFAULT,
                                 new UnregisteredMetricsGroup(),
                                 Collections.emptyList(),
-                                new CloseableRegistry());
+                                cancelStreamRegistry));
         BatchExecutionInternalTimeServiceManager.create(
                 stateBackend,
                 this.getClass().getClassLoader(),

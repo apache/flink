@@ -27,6 +27,7 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
@@ -35,9 +36,11 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.OperatorStateBackendParametersImpl;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
@@ -49,6 +52,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.util.CloseableIterable;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.apache.commons.io.IOUtils;
 
@@ -93,6 +97,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
     /** This object is the factory for everything related to state backends and checkpointing. */
     private final StateBackend stateBackend;
 
+    private final SubTaskInitializationMetricsBuilder initializationMetrics;
     private final TtlTimeProvider ttlTimeProvider;
 
     private final InternalTimeServiceManager.Provider timeServiceManagerProvider;
@@ -104,6 +109,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         this(
                 environment,
                 stateBackend,
+                new SubTaskInitializationMetricsBuilder(
+                        SystemClock.getInstance().absoluteTimeMillis()),
                 TtlTimeProvider.DEFAULT,
                 InternalTimeServiceManagerImpl::create,
                 StreamTaskCancellationContext.alwaysRunning());
@@ -113,6 +120,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
     public StreamTaskStateInitializerImpl(
             Environment environment,
             StateBackend stateBackend,
+            SubTaskInitializationMetricsBuilder initializationMetrics,
             TtlTimeProvider ttlTimeProvider,
             InternalTimeServiceManager.Provider timeServiceManagerProvider,
             StreamTaskCancellationContext cancellationContext) {
@@ -120,6 +128,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         this.environment = environment;
         this.taskStateManager = Preconditions.checkNotNull(environment.getTaskStateManager());
         this.stateBackend = Preconditions.checkNotNull(stateBackend);
+        this.initializationMetrics = initializationMetrics;
         this.ttlTimeProvider = ttlTimeProvider;
         this.timeServiceManagerProvider = Preconditions.checkNotNull(timeServiceManagerProvider);
         this.cancellationContext = cancellationContext;
@@ -278,10 +287,11 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                 new BackendRestorerProcedure<>(
                         (stateHandles) ->
                                 stateBackend.createOperatorStateBackend(
-                                        environment,
-                                        operatorIdentifierText,
-                                        stateHandles,
-                                        cancelStreamRegistryForRestore),
+                                        new OperatorStateBackendParametersImpl(
+                                                environment,
+                                                operatorIdentifierText,
+                                                stateHandles,
+                                                cancelStreamRegistryForRestore)),
                         backendCloseableRegistry,
                         logDescription);
 
@@ -328,26 +338,30 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
         BackendRestorerProcedure<CheckpointableKeyedStateBackend<K>, KeyedStateHandle>
                 backendRestorer =
                         new BackendRestorerProcedure<>(
-                                (stateHandles) ->
-                                        loadStateBackendFromKeyedStateHandles(
-                                                        stateBackend,
-                                                        environment
-                                                                .getUserCodeClassLoader()
-                                                                .asClassLoader(),
-                                                        stateHandles)
-                                                .createKeyedStateBackend(
-                                                        environment,
-                                                        environment.getJobID(),
-                                                        operatorIdentifierText,
-                                                        keySerializer,
-                                                        taskInfo.getMaxNumberOfParallelSubtasks(),
-                                                        keyGroupRange,
-                                                        environment.getTaskKvStateRegistry(),
-                                                        ttlTimeProvider,
-                                                        metricGroup,
-                                                        stateHandles,
-                                                        cancelStreamRegistryForRestore,
-                                                        managedMemoryFraction),
+                                (stateHandles) -> {
+                                    KeyedStateBackendParametersImpl<K> parameters =
+                                            new KeyedStateBackendParametersImpl<>(
+                                                    environment,
+                                                    environment.getJobID(),
+                                                    operatorIdentifierText,
+                                                    keySerializer,
+                                                    taskInfo.getMaxNumberOfParallelSubtasks(),
+                                                    keyGroupRange,
+                                                    environment.getTaskKvStateRegistry(),
+                                                    ttlTimeProvider,
+                                                    metricGroup,
+                                                    initializationMetrics::addDurationMetric,
+                                                    stateHandles,
+                                                    cancelStreamRegistryForRestore,
+                                                    managedMemoryFraction);
+                                    return loadStateBackendFromKeyedStateHandles(
+                                                    stateBackend,
+                                                    environment
+                                                            .getUserCodeClassLoader()
+                                                            .asClassLoader(),
+                                                    stateHandles)
+                                            .createKeyedStateBackend(parameters);
+                                },
                                 backendCloseableRegistry,
                                 logDescription);
 

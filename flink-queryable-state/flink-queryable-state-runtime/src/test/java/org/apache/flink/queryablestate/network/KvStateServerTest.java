@@ -37,9 +37,11 @@ import org.apache.flink.queryablestate.server.KvStateServerImpl;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
+import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.KeyedStateBackendParametersImpl;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
@@ -109,19 +111,24 @@ class KvStateServerTest {
             DummyEnvironment dummyEnv = new DummyEnvironment("test", 1, 0);
             dummyEnv.setKvStateRegistry(registry);
             final JobID jobId = new JobID();
+            KeyGroupRange keyGroupRange = new KeyGroupRange(0, 0);
+            TaskKvStateRegistry kvStateRegistry =
+                    registry.createTaskRegistry(jobId, new JobVertexID());
+            CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
             AbstractKeyedStateBackend<Integer> backend =
                     abstractBackend.createKeyedStateBackend(
-                            dummyEnv,
-                            jobId,
-                            "test_op",
-                            IntSerializer.INSTANCE,
-                            numKeyGroups,
-                            new KeyGroupRange(0, 0),
-                            registry.createTaskRegistry(jobId, new JobVertexID()),
-                            TtlTimeProvider.DEFAULT,
-                            new UnregisteredMetricsGroup(),
-                            Collections.emptyList(),
-                            new CloseableRegistry());
+                            new KeyedStateBackendParametersImpl<>(
+                                    dummyEnv,
+                                    jobId,
+                                    "test_op",
+                                    IntSerializer.INSTANCE,
+                                    numKeyGroups,
+                                    keyGroupRange,
+                                    kvStateRegistry,
+                                    TtlTimeProvider.DEFAULT,
+                                    new UnregisteredMetricsGroup(),
+                                    Collections.emptyList(),
+                                    cancelStreamRegistry));
 
             final KvStateServerHandlerTest.TestRegistryListener registryListener =
                     new KvStateServerHandlerTest.TestRegistryListener();

@@ -82,12 +82,11 @@ class OperatorStateBackendTest {
         // we use the memory state backend as a subclass of the AbstractStateBackend
         final AbstractStateBackend abstractStateBackend = new MemoryStateBackend();
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
+        Environment env = createMockEnvironment();
         final OperatorStateBackend operatorStateBackend =
                 abstractStateBackend.createOperatorStateBackend(
-                        createMockEnvironment(),
-                        "test-operator",
-                        emptyStateHandles,
-                        cancelStreamRegistry);
+                        new OperatorStateBackendParametersImpl(
+                                env, "test-operator", emptyStateHandles, cancelStreamRegistry));
 
         assertThat(operatorStateBackend).isNotNull();
         assertThat(operatorStateBackend.getRegisteredStateNames()).isEmpty();
@@ -247,7 +246,8 @@ class OperatorStateBackendTest {
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         OperatorStateBackend operatorStateBackend =
                 abstractStateBackend.createOperatorStateBackend(
-                        env, "test-op-name", emptyStateHandles, cancelStreamRegistry);
+                        new OperatorStateBackendParametersImpl(
+                                env, "test-op-name", emptyStateHandles, cancelStreamRegistry));
 
         AtomicInteger copyCounter = new AtomicInteger(0);
         TypeSerializer<Integer> serializer =
@@ -395,12 +395,11 @@ class OperatorStateBackendTest {
         final AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
         CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 
+        Environment env = createMockEnvironment();
         final OperatorStateBackend operatorStateBackend =
                 abstractStateBackend.createOperatorStateBackend(
-                        createMockEnvironment(),
-                        "testOperator",
-                        emptyStateHandles,
-                        cancelStreamRegistry);
+                        new OperatorStateBackendParametersImpl(
+                                env, "testOperator", emptyStateHandles, cancelStreamRegistry));
 
         CheckpointStreamFactory streamFactory = new MemCheckpointStreamFactory(4096);
 
@@ -421,12 +420,12 @@ class OperatorStateBackendTest {
     void testSnapshotBroadcastStateWithEmptyOperatorState() throws Exception {
         final AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
 
+        Environment env = createMockEnvironment();
+        CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
         OperatorStateBackend operatorStateBackend =
                 abstractStateBackend.createOperatorStateBackend(
-                        createMockEnvironment(),
-                        "testOperator",
-                        emptyStateHandles,
-                        new CloseableRegistry());
+                        new OperatorStateBackendParametersImpl(
+                                env, "testOperator", emptyStateHandles, cancelStreamRegistry));
 
         final MapStateDescriptor<Integer, Integer> broadcastStateDesc =
                 new MapStateDescriptor<>(
@@ -543,12 +542,12 @@ class OperatorStateBackendTest {
     void testSnapshotRestoreSync() throws Exception {
         AbstractStateBackend abstractStateBackend = new MemoryStateBackend(2 * 4096);
 
+        Environment env1 = createMockEnvironment();
+        CloseableRegistry cancelStreamRegistry1 = new CloseableRegistry();
         OperatorStateBackend operatorStateBackend =
                 abstractStateBackend.createOperatorStateBackend(
-                        createMockEnvironment(),
-                        "test-op-name",
-                        emptyStateHandles,
-                        new CloseableRegistry());
+                        new OperatorStateBackendParametersImpl(
+                                env1, "test-op-name", emptyStateHandles, cancelStreamRegistry1));
         ListStateDescriptor<Serializable> stateDescriptor1 =
                 new ListStateDescriptor<>("test1", new JavaSerializer<>());
         ListStateDescriptor<Serializable> stateDescriptor2 =
@@ -609,12 +608,14 @@ class OperatorStateBackendTest {
             operatorStateBackend.close();
             operatorStateBackend.dispose();
 
+            Environment env = createMockEnvironment();
+            Collection<OperatorStateHandle> stateHandles =
+                    StateObjectCollection.singleton(stateHandle);
+            CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
             operatorStateBackend =
                     abstractStateBackend.createOperatorStateBackend(
-                            createMockEnvironment(),
-                            "testOperator",
-                            StateObjectCollection.singleton(stateHandle),
-                            new CloseableRegistry());
+                            new OperatorStateBackendParametersImpl(
+                                    env, "testOperator", stateHandles, cancelStreamRegistry));
 
             assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
             assertThat(operatorStateBackend.getRegisteredBroadcastStateNames()).hasSize(3);
@@ -795,12 +796,13 @@ class OperatorStateBackendTest {
             AbstractStateBackend abstractStateBackend = new MemoryStateBackend(4096);
             CloseableRegistry cancelStreamRegistry = new CloseableRegistry();
 
+            Environment env = createMockEnvironment();
+            Collection<OperatorStateHandle> stateHandles =
+                    StateObjectCollection.singleton(stateHandle);
             operatorStateBackend =
                     abstractStateBackend.createOperatorStateBackend(
-                            createMockEnvironment(),
-                            "testOperator",
-                            StateObjectCollection.singleton(stateHandle),
-                            cancelStreamRegistry);
+                            new OperatorStateBackendParametersImpl(
+                                    env, "testOperator", stateHandles, cancelStreamRegistry));
 
             assertThat(operatorStateBackend.getRegisteredStateNames()).hasSize(3);
             assertThat(operatorStateBackend.getRegisteredBroadcastStateNames()).hasSize(3);
@@ -1038,7 +1040,9 @@ class OperatorStateBackendTest {
             throws Exception {
         oldOperatorStateBackend.close();
         oldOperatorStateBackend.dispose();
+        Environment env = createMockEnvironment();
         return abstractStateBackend.createOperatorStateBackend(
-                createMockEnvironment(), "testOperator", toRestore, new CloseableRegistry());
+                new OperatorStateBackendParametersImpl(
+                        env, "testOperator", toRestore, new CloseableRegistry()));
     }
 }

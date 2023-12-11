@@ -702,12 +702,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     //  Core work methods of the Stream Task
     // ------------------------------------------------------------------------
 
-    public StreamTaskStateInitializer createStreamTaskStateInitializer() {
+    public StreamTaskStateInitializer createStreamTaskStateInitializer(
+            SubTaskInitializationMetricsBuilder initializationMetrics) {
         InternalTimeServiceManager.Provider timerServiceProvider =
                 configuration.getTimerServiceProvider(getUserCodeClassLoader());
         return new StreamTaskStateInitializerImpl(
                 getEnvironment(),
                 stateBackend,
+                initializationMetrics,
                 TtlTimeProvider.DEFAULT,
                 timerServiceProvider != null
                         ? timerServiceProvider
@@ -813,7 +815,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         initializationMetrics.addDurationMetric(
                 READ_OUTPUT_DATA_DURATION, readOutputDataTs - mailboxStartTs);
 
-        operatorChain.initializeStateAndOpenOperators(createStreamTaskStateInitializer());
+        operatorChain.initializeStateAndOpenOperators(
+                createStreamTaskStateInitializer(initializationMetrics));
 
         initializeStateEndTs = SystemClock.getInstance().absoluteTimeMillis();
         initializationMetrics.addDurationMetric(
