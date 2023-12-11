@@ -20,6 +20,7 @@ package org.apache.flink.table.test.program;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.test.program.FunctionTestStep.FunctionBehavior;
 import org.apache.flink.table.test.program.FunctionTestStep.FunctionPersistence;
@@ -176,6 +177,14 @@ public class TableTestProgram {
                 .collect(Collectors.toList());
     }
 
+    /** Convenience method to avoid casting. It assumes that the order of steps is not important. */
+    public List<TemporalFunctionTestStep> getSetupTemporalFunctionTestSteps() {
+        return setupSteps.stream()
+                .filter(s -> s.getKind() == TestKind.TEMPORAL_FUNCTION)
+                .map(TemporalFunctionTestStep.class::cast)
+                .collect(Collectors.toList());
+    }
+
     /**
      * Convenience method to avoid boilerplate code. It assumes that only a single SQL statement is
      * tested.
@@ -228,6 +237,20 @@ public class TableTestProgram {
                             FunctionBehavior.SYSTEM,
                             name,
                             function));
+            return this;
+        }
+
+        /** Setup step for registering a temporary system function. */
+        public Builder setupTemporarySystemTemporalTableFunction(
+                String name, String table, Expression timeAttribute, Expression primaryKey) {
+            this.setupSteps.add(
+                    new TemporalFunctionTestStep(
+                            TemporalFunctionTestStep.FunctionPersistence.TEMPORARY,
+                            TemporalFunctionTestStep.FunctionBehavior.SYSTEM,
+                            name,
+                            table,
+                            timeAttribute,
+                            primaryKey));
             return this;
         }
 
