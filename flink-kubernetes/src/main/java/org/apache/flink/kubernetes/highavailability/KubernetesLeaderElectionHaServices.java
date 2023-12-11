@@ -20,6 +20,7 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.leaderservice.DefaultLeaderServices;
 import org.apache.flink.runtime.leaderservice.LeaderServiceMaterialGenerator;
 import org.apache.flink.runtime.leaderservice.LeaderServices;
 import org.apache.flink.runtime.persistentservice.DefaultPersistentServices;
+import org.apache.flink.runtime.persistentservice.EmbeddedPersistentServices;
 import org.apache.flink.runtime.persistentservice.PersistentServices;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
@@ -102,13 +104,17 @@ public class KubernetesLeaderElectionHaServices extends AbstractHaServices
         this.configMapSharedWatcher = checkNotNull(configMapSharedWatcher);
         this.watchExecutorService = checkNotNull(watchExecutorService);
         this.lockIdentity = checkNotNull(lockIdentity);
-        this.leaderServices = new DefaultLeaderServices(this);
+        this.leaderServices =
+                new DefaultLeaderServices(
+                        this, configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE));
         this.persistentServices =
-                new DefaultPersistentServices(
-                        configuration,
-                        ioExecutor,
-                        this::createCheckpointRecoveryFactory,
-                        this::createJobGraphStore);
+                configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE)
+                        ? new DefaultPersistentServices(
+                                configuration,
+                                ioExecutor,
+                                this::createCheckpointRecoveryFactory,
+                                this::createJobGraphStore)
+                        : new EmbeddedPersistentServices();
     }
 
     private static LeaderElectionDriverFactory createDriverFactory(

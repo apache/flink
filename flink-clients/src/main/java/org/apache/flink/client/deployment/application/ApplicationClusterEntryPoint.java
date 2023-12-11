@@ -25,6 +25,7 @@ import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
@@ -102,6 +104,14 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
         // configure to execution configurations.
         if (PackagedProgramUtils.isPython(program.getMainClassName())) {
             ProgramOptionsUtils.configurePythonExecution(configuration, program);
+        }
+
+        if (!configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE)
+                && HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
+            configuration.set(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE, true);
+            LOG.warn(
+                    "Job recovery should not be disabled in application mode. {} will be ignored",
+                    HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE.key());
         }
     }
 

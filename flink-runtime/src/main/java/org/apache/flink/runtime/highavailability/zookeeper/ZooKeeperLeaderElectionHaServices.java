@@ -20,6 +20,7 @@ package org.apache.flink.runtime.highavailability.zookeeper;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.leaderservice.DefaultLeaderServices;
 import org.apache.flink.runtime.leaderservice.LeaderServiceMaterialGenerator;
 import org.apache.flink.runtime.leaderservice.LeaderServices;
 import org.apache.flink.runtime.persistentservice.DefaultPersistentServices;
+import org.apache.flink.runtime.persistentservice.EmbeddedPersistentServices;
 import org.apache.flink.runtime.persistentservice.PersistentServices;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
@@ -79,13 +81,17 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices
             throws Exception {
         super(configuration, executor);
         this.curatorFrameworkWrapper = checkNotNull(curatorFrameworkWrapper);
-        this.leaderServices = new DefaultLeaderServices(this);
+        this.leaderServices =
+                new DefaultLeaderServices(
+                        this, configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE));
         this.persistentServices =
-                new DefaultPersistentServices(
-                        configuration,
-                        executor,
-                        this::createCheckpointRecoveryFactory,
-                        this::createJobGraphStore);
+                configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE)
+                        ? new DefaultPersistentServices(
+                                configuration,
+                                executor,
+                                this::createCheckpointRecoveryFactory,
+                                this::createJobGraphStore)
+                        : new EmbeddedPersistentServices();
     }
 
     @Override

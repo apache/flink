@@ -220,6 +220,25 @@ public class HighAvailabilityOptions {
                                                     + "with unresolvable hostnames.")
                                     .build());
 
+    /**
+     * Whether to recover previous jobs in a JobManager failover, true by default. If true, each job
+     * will grant the leadership and recover all the previous state. Otherwise, the previous
+     * submitted jobs and job results will not be retained. This only take effect in session
+     * cluster.
+     */
+    @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY)
+    public static final ConfigOption<Boolean> HA_JOB_RECOVERY_ENABLE =
+            key("high-availability.enable-job-recovery")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether to recover previous jobs in a JobManager failover, true by default. If true, each job will grant "
+                                                    + "the leadership and recover all the previous state. Otherwise, the previous submitted jobs and job "
+                                                    + "results will not be retained. This only take effect in session cluster.")
+                                    .build());
+
     // ------------------------------------------------------------------------
     //  Deprecated options
     // ------------------------------------------------------------------------

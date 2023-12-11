@@ -21,8 +21,12 @@ package org.apache.flink.runtime.leaderservice;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderelection.StandaloneLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
+
+import static org.apache.flink.runtime.highavailability.HighAvailabilityServices.DEFAULT_LEADER_ID;
 
 /**
  * Default leader services based on distributed system(e.g. Zookeeper, Kubernetes). It will help
@@ -31,13 +35,16 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 public class DefaultLeaderServices implements LeaderServices {
     private final LeaderServiceMaterialGenerator leaderServiceMaterialGenerator;
     private final DefaultLeaderElectionService leaderElectionService;
+    private final boolean recoverJobs;
 
-    public DefaultLeaderServices(LeaderServiceMaterialGenerator leaderServiceMaterialGenerator)
+    public DefaultLeaderServices(
+            LeaderServiceMaterialGenerator leaderServiceMaterialGenerator, boolean recoverJobs)
             throws Exception {
         this.leaderServiceMaterialGenerator = leaderServiceMaterialGenerator;
         this.leaderElectionService =
                 new DefaultLeaderElectionService(
                         leaderServiceMaterialGenerator.createLeaderElectionDriverFactory());
+        this.recoverJobs = recoverJobs;
     }
 
     @Override
@@ -76,15 +83,24 @@ public class DefaultLeaderServices implements LeaderServices {
     @Override
     public LeaderRetrievalService getJobMasterLeaderRetriever(
             JobID jobID, String defaultJobManagerAddress) {
-        return new DefaultLeaderRetrievalService(
-                leaderServiceMaterialGenerator.createLeaderRetrievalDriverFactory(
-                        leaderServiceMaterialGenerator.getLeaderPathForJobManager(jobID)));
+        if (recoverJobs) {
+            return new DefaultLeaderRetrievalService(
+                    leaderServiceMaterialGenerator.createLeaderRetrievalDriverFactory(
+                            leaderServiceMaterialGenerator.getLeaderPathForJobManager(jobID)));
+        } else {
+            return new StandaloneLeaderRetrievalService(
+                    defaultJobManagerAddress, DEFAULT_LEADER_ID);
+        }
     }
 
     @Override
     public LeaderElection getJobMasterLeaderElection(JobID jobID) {
-        return leaderElectionService.createLeaderElection(
-                leaderServiceMaterialGenerator.getLeaderPathForJobManager(jobID));
+        if (recoverJobs) {
+            return leaderElectionService.createLeaderElection(
+                    leaderServiceMaterialGenerator.getLeaderPathForJobManager(jobID));
+        } else {
+            return new StandaloneLeaderElection(DEFAULT_LEADER_ID);
+        }
     }
 
     @Override

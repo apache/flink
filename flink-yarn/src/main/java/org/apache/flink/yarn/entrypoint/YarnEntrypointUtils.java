@@ -21,12 +21,14 @@ package org.apache.flink.yarn.entrypoint;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.Utils;
 import org.apache.flink.yarn.YarnConfigKeys;
@@ -75,6 +77,11 @@ public class YarnEntrypointUtils {
         if (!configuration.contains(RestOptions.BIND_PORT)) {
             // set the REST port to 0 to select it randomly
             configuration.setString(RestOptions.BIND_PORT, "0");
+        }
+
+        if (!configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE)
+                && HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
+            configuration.set(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE, true);
         }
 
         // if the user has set the deprecated YARN-specific config keys, we add the
