@@ -20,18 +20,13 @@ package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
-import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.ChangelogTestUtils;
@@ -40,17 +35,13 @@ import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CheckpointStorageLoader;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
-import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.delegate.DelegatingStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -62,9 +53,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import javax.annotation.Nonnull;
-
-import java.util.Collection;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
@@ -404,26 +392,13 @@ public class ChangelogStateBackendLoadingTest {
 
         @Override
         public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-                Environment env,
-                JobID jobID,
-                String operatorIdentifier,
-                TypeSerializer<K> keySerializer,
-                int numberOfKeyGroups,
-                KeyGroupRange keyGroupRange,
-                TaskKvStateRegistry kvStateRegistry,
-                TtlTimeProvider ttlTimeProvider,
-                MetricGroup metricGroup,
-                @Nonnull Collection<KeyedStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry) {
+                KeyedStateBackendParameters<K> parameters) {
             return null;
         }
 
         @Override
         public OperatorStateBackend createOperatorStateBackend(
-                Environment env,
-                String operatorIdentifier,
-                @Nonnull Collection<OperatorStateHandle> stateHandles,
-                CloseableRegistry cancelStreamRegistry) {
+                OperatorStateBackendParameters parameters) {
             return null;
         }
 

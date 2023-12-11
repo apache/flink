@@ -22,22 +22,18 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointTestUtils;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
-import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
@@ -56,14 +52,12 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskCancellationContext;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.CloseableIterable;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.annotation.Nonnull;
-
 import java.io.Closeable;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.OptionalLong;
 import java.util.Random;
@@ -142,31 +136,15 @@ public class StreamTaskStateInitializerImplTest {
         StateBackend mockingBackend =
                 spy(
                         new StateBackend() {
-
                             @Override
                             public <K> AbstractKeyedStateBackend<K> createKeyedStateBackend(
-                                    Environment env,
-                                    JobID jobID,
-                                    String operatorIdentifier,
-                                    TypeSerializer<K> keySerializer,
-                                    int numberOfKeyGroups,
-                                    KeyGroupRange keyGroupRange,
-                                    TaskKvStateRegistry kvStateRegistry,
-                                    TtlTimeProvider ttlTimeProvider,
-                                    MetricGroup metricGroup,
-                                    @Nonnull Collection<KeyedStateHandle> stateHandles,
-                                    CloseableRegistry cancelStreamRegistry)
-                                    throws Exception {
+                                    KeyedStateBackendParameters<K> parameters) throws Exception {
                                 return mock(AbstractKeyedStateBackend.class);
                             }
 
                             @Override
                             public OperatorStateBackend createOperatorStateBackend(
-                                    Environment env,
-                                    String operatorIdentifier,
-                                    @Nonnull Collection<OperatorStateHandle> stateHandles,
-                                    CloseableRegistry cancelStreamRegistry)
-                                    throws Exception {
+                                    OperatorStateBackendParameters parameters) throws Exception {
                                 return mock(OperatorStateBackend.class);
                             }
                         });
@@ -313,6 +291,8 @@ public class StreamTaskStateInitializerImplTest {
             return new StreamTaskStateInitializerImpl(
                     dummyEnvironment,
                     stateBackend,
+                    new SubTaskInitializationMetricsBuilder(
+                            SystemClock.getInstance().absoluteTimeMillis()),
                     TtlTimeProvider.DEFAULT,
                     new InternalTimeServiceManager.Provider() {
                         @Override
