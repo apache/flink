@@ -43,6 +43,7 @@ public interface TestStep {
         STATEMENT_SET,
         CONFIG,
         FUNCTION,
+        TEMPORAL_FUNCTION,
         SOURCE_WITHOUT_DATA,
         SOURCE_WITH_DATA,
         SOURCE_WITH_RESTORE_DATA,

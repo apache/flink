@@ -114,6 +114,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         return EnumSet.of(
                 TestKind.CONFIG,
                 TestKind.FUNCTION,
+                TestKind.TEMPORAL_FUNCTION,
                 TestKind.SOURCE_WITH_RESTORE_DATA,
                 TestKind.SINK_WITH_RESTORE_DATA);
     }
@@ -207,6 +208,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         }
 
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
+        program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
         final SqlTestStep sqlTestStep = program.getRunSqlTestStep();
 
@@ -271,6 +273,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         }
 
         program.getSetupFunctionTestSteps().forEach(s -> s.apply(tEnv));
+        program.getSetupTemporalFunctionTestSteps().forEach(s -> s.apply(tEnv));
 
         final CompiledPlan compiledPlan =
                 tEnv.loadPlan(PlanReference.fromFile(getPlanPath(program, metadata)));
