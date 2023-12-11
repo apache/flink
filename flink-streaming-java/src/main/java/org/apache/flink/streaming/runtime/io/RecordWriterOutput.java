@@ -28,6 +28,7 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.api.operators.Output;
+import org.apache.flink.streaming.api.watermark.InternalWatermark;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
@@ -145,12 +146,25 @@ public class RecordWriterOutput<OUT>
         }
 
         watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-        serializationDelegate.setInstance(mark);
 
-        try {
-            recordWriter.broadcastEmit(serializationDelegate);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e.getMessage(), e);
+        if (recordWriter.isSubpartitionDerivable()) {
+            serializationDelegate.setInstance(mark);
+
+            try {
+                recordWriter.broadcastEmit(serializationDelegate);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e.getMessage(), e);
+            }
+        } else {
+            for (int i = 0; i < recordWriter.getNumberOfSubpartitions(); i++) {
+                serializationDelegate.setInstance(new InternalWatermark(mark.getTimestamp(), i));
+
+                try {
+                    recordWriter.emit(serializationDelegate, i);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e.getMessage(), e);
+                }
+            }
         }
     }
 
