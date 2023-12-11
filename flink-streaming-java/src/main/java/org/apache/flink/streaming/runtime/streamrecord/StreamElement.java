@@ -32,7 +32,7 @@ public abstract class StreamElement {
      * @return True, if this element is a watermark, false otherwise.
      */
     public final boolean isWatermark() {
-        return getClass() == Watermark.class;
+        return this instanceof Watermark;
     }
 
     /**

@@ -46,6 +46,8 @@ public class IntermediateResultPartition {
     /** Number of subpartitions for dynamic graph. */
     private final int numberOfSubpartitionsForDynamicGraph;
 
+    private boolean isNumberOfPartitionConsumersUndefined = false;
+
     /** Whether this partition has produced all data. */
     private boolean dataAllProduced = false;
 
@@ -124,6 +126,11 @@ public class IntermediateResultPartition {
         return getEdgeManager().getConsumedPartitionGroupsById(partitionId);
     }
 
+    public boolean isNumberOfPartitionConsumersUndefined() {
+        getNumberOfSubpartitions();
+        return isNumberOfPartitionConsumersUndefined;
+    }
+
     public int getNumberOfSubpartitions() {
         if (!getProducer().getExecutionGraphAccessor().isDynamic()) {
             List<ConsumerVertexGroup> consumerVertexGroups = getConsumerVertexGroups();
@@ -149,6 +156,7 @@ public class IntermediateResultPartition {
     }
 
     private int computeNumberOfMaxPossiblePartitionConsumers() {
+        isNumberOfPartitionConsumersUndefined = true;
         final DistributionPattern distributionPattern =
                 getIntermediateResult().getConsumingDistributionPattern();
 

@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.util.XORShiftRandom;
 
@@ -101,7 +102,7 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
         }
     }
 
-    protected void emit(T record, int targetSubpartition) throws IOException {
+    public void emit(T record, int targetSubpartition) throws IOException {
         checkErroneous();
 
         targetPartition.emitRecord(serializeRecord(serializer, record), targetSubpartition);
@@ -163,6 +164,21 @@ public abstract class RecordWriter<T extends IOReadableWritable> implements Avai
     /** Sets the metric group for this RecordWriter. */
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         targetPartition.setMetricGroup(metrics);
+    }
+
+    public int getNumberOfSubpartitions() {
+        return numberOfSubpartitions;
+    }
+
+    /**
+     * Whether the subpartition where an element comes from can be derived from the existing
+     * information. If false, the caller of this writer should attach the subpartition information
+     * onto an element before writing it to a subpartition, if the element needs this information
+     * afterward.
+     */
+    public boolean isSubpartitionDerivable() {
+        return !(targetPartition instanceof ResultPartition
+                && ((ResultPartition) targetPartition).isNumberOfPartitionConsumerUndefined());
     }
 
     @Override

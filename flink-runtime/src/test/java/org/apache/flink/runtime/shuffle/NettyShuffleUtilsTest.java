@@ -191,7 +191,8 @@ class NettyShuffleUtilsTest {
                         numSubpartitions,
                         0,
                         false,
-                        true);
+                        true,
+                        false);
         ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor =
                 new ResultPartitionDeploymentDescriptor(partitionDescriptor, shuffleDescriptor, 1);
 
