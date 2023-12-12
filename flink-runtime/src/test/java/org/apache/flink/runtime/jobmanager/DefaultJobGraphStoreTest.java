@@ -45,10 +45,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -443,15 +443,21 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                                 })
                         .build();
         final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
+
         assertThrows(
-                CompletionException.class,
-                () ->
+                NoSuchElementException.class,
+                () -> {
+                    try {
                         jobGraphStore
                                 .putJobResourceRequirements(
                                         new JobID(),
                                         JobResourceRequirements.empty(),
                                         Executors.directExecutor())
-                                .join());
+                                .join();
+                    } catch (Exception exception) {
+                        throw exception.getCause();
+                    }
+                });
     }
 
     private JobGraphStore createAndStartJobGraphStore(

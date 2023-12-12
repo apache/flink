@@ -37,7 +37,11 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.*;
+import org.apache.flink.runtime.jobmanager.DefaultJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.TestingJobGraphListener;
+import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreUtil;
+import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStoreWatcher;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -254,7 +258,7 @@ public class ZookeeperDispatcherAsyncIoExecutorTest {
                 jobMasterLeaderElection.getStartFuture().isDone());
     }
 
-    public class TestExecutionGraphInfoStore implements ExecutionGraphInfoStore {
+    private class TestExecutionGraphInfoStore implements ExecutionGraphInfoStore {
 
         @Override
         public int size() {
