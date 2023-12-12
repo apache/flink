@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.testframe.environment.ClusterControllable;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.environment.TestEnvironmentSettings;
@@ -52,6 +53,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
+import org.apache.flink.streaming.api.operators.util.CollectRetryStrategyFactory;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLoggerExtension;
 
@@ -678,6 +680,7 @@ public abstract class SourceTestSuiteBase<T> {
                 operator,
                 serializer,
                 accumulatorName,
+                stream.getExecutionEnvironment().getConfiguration(),
                 stream.getExecutionEnvironment().getCheckpointConfig());
     }
 
@@ -774,16 +777,19 @@ public abstract class SourceTestSuiteBase<T> {
         private final CollectSinkOperator<T> operator;
         private final TypeSerializer<T> serializer;
         private final String accumulatorName;
+        private final ReadableConfig readableConfig;
         private final CheckpointConfig checkpointConfig;
 
         protected CollectIteratorBuilder(
                 CollectSinkOperator<T> operator,
                 TypeSerializer<T> serializer,
                 String accumulatorName,
+                ReadableConfig readableConfig,
                 CheckpointConfig checkpointConfig) {
             this.operator = operator;
             this.serializer = serializer;
             this.accumulatorName = accumulatorName;
+            this.readableConfig = readableConfig;
             this.checkpointConfig = checkpointConfig;
         }
 
@@ -794,6 +800,8 @@ public abstract class SourceTestSuiteBase<T> {
                             serializer,
                             accumulatorName,
                             checkpointConfig,
+                            CollectRetryStrategyFactory.INSTANCE.createRetryStrategySupplier(
+                                    readableConfig),
                             AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
             iterator.setJobClient(jobClient);
             return iterator;

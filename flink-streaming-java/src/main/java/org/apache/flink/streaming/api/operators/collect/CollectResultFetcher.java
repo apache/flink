@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.api.operators.collect;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
@@ -30,6 +31,7 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequestGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.RetryStrategy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,47 +45,66 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** A fetcher which fetches query results from sink and provides exactly-once semantics. */
 public class CollectResultFetcher<T> {
 
-    private static final int DEFAULT_RETRY_MILLIS = 100;
     private static final Logger LOG = LoggerFactory.getLogger(CollectResultFetcher.class);
 
+    private static final Consumer<RetryStrategy> DEFAULT_RETRY_ACTION_CONSUMER =
+            retryStrategy -> {
+                long delay = retryStrategy.getRetryDelay().toMillis();
+                if (delay > 0) {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(delay);
+                    } catch (InterruptedException e) {
+                        LOG.warn("Interrupted when sleeping before a retry", e);
+                    }
+                }
+            };
+
     private final AbstractCollectResultBuffer<T> buffer;
-
     private final CompletableFuture<OperatorID> operatorIdFuture;
+    private final Supplier<RetryStrategy> retryStrategySupplier;
+    private final Consumer<RetryStrategy> retryIntervalAction;
     private final String accumulatorName;
-    private final int retryMillis;
     private final long resultFetchTimeout;
-
     @Nullable private JobClient jobClient;
     @Nullable private CoordinationRequestGateway gateway;
-
     private boolean jobTerminated;
     private boolean closed;
-
-    public CollectResultFetcher(
-            AbstractCollectResultBuffer<T> buffer,
-            CompletableFuture<OperatorID> operatorIdFuture,
-            String accumulatorName,
-            long resultFetchTimeout) {
-        this(buffer, operatorIdFuture, accumulatorName, DEFAULT_RETRY_MILLIS, resultFetchTimeout);
-    }
 
     CollectResultFetcher(
             AbstractCollectResultBuffer<T> buffer,
             CompletableFuture<OperatorID> operatorIdFuture,
             String accumulatorName,
-            int retryMillis,
+            Supplier<RetryStrategy> retryStrategySupplier,
+            long resultFetchTimeout) {
+        this(
+                buffer,
+                operatorIdFuture,
+                accumulatorName,
+                retryStrategySupplier,
+                DEFAULT_RETRY_ACTION_CONSUMER,
+                resultFetchTimeout);
+    }
+
+    @VisibleForTesting
+    public CollectResultFetcher(
+            AbstractCollectResultBuffer<T> buffer,
+            CompletableFuture<OperatorID> operatorIdFuture,
+            String accumulatorName,
+            Supplier<RetryStrategy> retryStrategySupplier,
+            Consumer<RetryStrategy> retryIntervalAction,
             long resultFetchTimeout) {
         this.buffer = buffer;
-
         this.operatorIdFuture = operatorIdFuture;
         this.accumulatorName = accumulatorName;
-        this.retryMillis = retryMillis;
+        this.retryStrategySupplier = retryStrategySupplier;
+        this.retryIntervalAction = retryIntervalAction;
         this.resultFetchTimeout = resultFetchTimeout;
-
         this.jobTerminated = false;
         this.closed = false;
     }
@@ -101,9 +122,9 @@ public class CollectResultFetcher<T> {
             return null;
         }
 
-        // this is to avoid sleeping before first try
-        boolean beforeFirstTry = true;
-        do {
+        RetryStrategy retryStrategy = retryStrategySupplier.get();
+
+        while (retryStrategy.getNumRemainingRetries() > 0) {
             T res = buffer.next();
             if (res != null) {
                 // we still have user-visible results, just use them
@@ -111,11 +132,10 @@ public class CollectResultFetcher<T> {
             } else if (jobTerminated) {
                 // no user-visible results, but job has terminated, we have to return
                 return null;
-            } else if (!beforeFirstTry) {
-                // no results but job is still running, sleep before retry
-                sleepBeforeRetry();
             }
-            beforeFirstTry = false;
+
+            retryIntervalAction.accept(retryStrategy);
+            retryStrategy = retryStrategy.getNextRetryStrategy();
 
             if (isJobTerminated()) {
                 // job terminated, read results from accumulator
@@ -149,7 +169,14 @@ public class CollectResultFetcher<T> {
                 // the response will contain data (if any) starting exactly from requested offset
                 buffer.dealWithResponse(response, requestOffset);
             }
-        } while (true);
+        }
+
+        retryStrategy = retryStrategySupplier.get();
+        String jobID = jobClient != null ? jobClient.getJobID().toString() : "";
+        throw new IOException(
+                String.format(
+                        "RetryStrategy has reached the maximum number of reties: %s, but the job %s is still running!",
+                        retryStrategy.getNumRemainingRetries(), jobID));
     }
 
     public void close() {
@@ -234,19 +261,6 @@ public class CollectResultFetcher<T> {
 
         if (!isJobTerminated()) {
             jobClient.cancel();
-        }
-    }
-
-    private void sleepBeforeRetry() {
-        if (retryMillis <= 0) {
-            return;
-        }
-
-        try {
-            // TODO a more proper retry strategy?
-            Thread.sleep(retryMillis);
-        } catch (InterruptedException e) {
-            LOG.warn("Interrupted when sleeping before a retry", e);
         }
     }
 

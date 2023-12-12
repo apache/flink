@@ -26,9 +26,13 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.util.CloseableIterator;
+import org.apache.flink.util.concurrent.FixedRetryStrategy;
+import org.apache.flink.util.concurrent.RetryStrategy;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 /**
  * An iterator which iterates through the results of a query job.
@@ -49,9 +53,10 @@ import java.util.concurrent.CompletableFuture;
  */
 public class CollectResultIterator<T> implements CloseableIterator<T> {
 
+    private static final Supplier<RetryStrategy> DEFAULT_COLLECT_RETRY_STRATEGY_SUPPLIER =
+            () -> new FixedRetryStrategy(Integer.MAX_VALUE, Duration.ofMillis(100L));
     private final CollectResultFetcher<T> fetcher;
     private T bufferedResult;
-
     private CompletableFuture<OperatorID> operatorIdFuture;
     private TypeSerializer<T> serializer;
     private String accumulatorName;
@@ -63,6 +68,7 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
             TypeSerializer<T> serializer,
             String accumulatorName,
             CheckpointConfig checkpointConfig,
+            Supplier<RetryStrategy> collectRetryStrategySupplier,
             long resultFetchTimeout) {
         this.operatorIdFuture = operatorIdFuture;
         this.serializer = serializer;
@@ -72,7 +78,11 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
         AbstractCollectResultBuffer<T> buffer = createBuffer(serializer, checkpointConfig);
         this.fetcher =
                 new CollectResultFetcher<>(
-                        buffer, operatorIdFuture, accumulatorName, resultFetchTimeout);
+                        buffer,
+                        operatorIdFuture,
+                        accumulatorName,
+                        collectRetryStrategySupplier,
+                        resultFetchTimeout);
         this.bufferedResult = null;
     }
 
@@ -87,7 +97,7 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
                         buffer,
                         operatorIdFuture,
                         accumulatorName,
-                        retryMillis,
+                        DEFAULT_COLLECT_RETRY_STRATEGY_SUPPLIER,
                         AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
         this.bufferedResult = null;
     }
@@ -149,6 +159,7 @@ public class CollectResultIterator<T> implements CloseableIterator<T> {
                 this.serializer,
                 this.accumulatorName,
                 this.checkpointConfig,
+                DEFAULT_COLLECT_RETRY_STRATEGY_SUPPLIER,
                 this.resultFetchTimeout);
     }
 }
