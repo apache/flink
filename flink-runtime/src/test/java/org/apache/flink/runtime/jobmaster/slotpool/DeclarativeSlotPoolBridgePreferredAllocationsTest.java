@@ -45,10 +45,10 @@ import java.util.concurrent.CompletableFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(TestLoggerExtension.class)
-public class DeclarativeSlotPoolBridgePreferredAllocationsTest {
+class DeclarativeSlotPoolBridgePreferredAllocationsTest {
 
     @Test
-    public void testDeclarativeSlotPoolTakesPreferredAllocationsIntoAccount() throws Exception {
+    void testDeclarativeSlotPoolTakesPreferredAllocationsIntoAccount() throws Exception {
         final DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
                 new DeclarativeSlotPoolBridge(
                         new JobID(),
