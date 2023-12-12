@@ -30,9 +30,9 @@ import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
@@ -188,7 +188,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
         |GROUP BY `string`
       """.stripMargin
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     val expected = if (useTimestampLtz) {
       Seq(

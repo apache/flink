@@ -24,6 +24,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
@@ -390,7 +391,7 @@ class IntervalJoinITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     tEnv.createTemporaryView("T1", t1)
     tEnv.createTemporaryView("T2", t2)
     val sink = new TestingRetractSink
-    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     result.addSink(sink)
     env.execute()
     val expected = mutable.MutableList("A,1,5", "B,1,1")

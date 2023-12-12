@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.AggMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.planner.utils.TableTestUtil
+import org.apache.flink.table.planner.utils.{RowToTuple2, TableTestUtil}
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
@@ -127,7 +127,7 @@ class PruneAggregateCallITCase(
     val sink = new TestingRetractSink
     env.setMaxParallelism(1)
     env.setParallelism(1)
-    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     val expected = rows.map(_.toString)
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)

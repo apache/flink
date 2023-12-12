@@ -26,6 +26,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.JInt
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
@@ -83,7 +84,9 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
 
     val t1 = tEnv.sqlQuery(sql)
 
-    val testHarness = createHarnessTester(t1.toRetractStream[Row], "Rank(strategy=[RetractStrategy")
+    val testHarness = createHarnessTester(
+      t1.toChangelogStream.map(new RowToTuple2()).setDescription("Row to scala Tuple2"),
+      "Rank(strategy=[RetractStrategy")
     val assertor = new RowDataHarnessAssertor(
       Array(
         DataTypes.STRING().getLogicalType,
@@ -179,7 +182,9 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
 
     val t1 = tEnv.sqlQuery(sql)
 
-    val testHarness = createHarnessTester(t1.toRetractStream[Row], "Rank(strategy=[RetractStrategy")
+    val testHarness = createHarnessTester(
+      t1.toChangelogStream.map(new RowToTuple2()).setDescription("Row to scala Tuple2"),
+      "Rank(strategy=[RetractStrategy")
     val assertor = new RowDataHarnessAssertor(
       Array(
         DataTypes.STRING().getLogicalType,
@@ -247,7 +252,9 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
     val t1 = tEnv.sqlQuery(sql)
 
     val testHarness =
-      createHarnessTester(t1.toRetractStream[Row], "Rank(strategy=[UpdateFastStrategy")
+      createHarnessTester(
+        t1.toChangelogStream.map(new RowToTuple2),
+        "Rank(strategy=[UpdateFastStrategy")
     val assertor = new RowDataHarnessAssertor(
       Array(
         DataTypes.STRING().getLogicalType,

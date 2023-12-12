@@ -22,8 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.planner.utils.{RowToTuple2, TestDataTypeTableSourceWithTime}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
-import org.apache.flink.table.planner.utils.TestDataTypeTableSourceWithTime
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
@@ -102,7 +102,8 @@ class TimestampITCase extends StreamingTestBase {
     val sink = new TestingRetractSink()
     tEnv
       .sqlQuery("SELECT COUNT(a), c FROM T GROUP BY c")
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
       .addSink(sink)
     env.execute()
     val expected = Seq(
@@ -119,7 +120,8 @@ class TimestampITCase extends StreamingTestBase {
     val sink = new TestingRetractSink()
     tEnv
       .sqlQuery("SELECT COUNT(a), e FROM T GROUP BY e")
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
       .addSink(sink)
     env.execute()
     val expected = Seq(
@@ -136,7 +138,8 @@ class TimestampITCase extends StreamingTestBase {
     val sink = new TestingRetractSink()
     tEnv
       .sqlQuery("SELECT COUNT(DISTINCT c), b FROM T GROUP BY b")
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
       .addSink(sink)
     env.execute()
     val expected = Seq(
@@ -153,7 +156,8 @@ class TimestampITCase extends StreamingTestBase {
     val sink = new TestingRetractSink()
     tEnv
       .sqlQuery("SELECT COUNT(DISTINCT e), b FROM T GROUP BY b")
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
       .addSink(sink)
     env.execute()
     val expected = Seq(
@@ -170,7 +174,8 @@ class TimestampITCase extends StreamingTestBase {
     val sink = new TestingRetractSink()
     tEnv
       .sqlQuery("SELECT MAX(c), MIN(c), b FROM T GROUP BY b")
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
       .addSink(sink)
     env.execute()
     val expected = Seq(
@@ -192,7 +197,8 @@ class TimestampITCase extends StreamingTestBase {
                    |  (SELECT b, MAX(c) AS x, MIN(c) AS y FROM T GROUP BY b, c)
                    |GROUP BY b
        """.stripMargin)
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
       .addSink(sink)
     env.execute()
     val expected = Seq(

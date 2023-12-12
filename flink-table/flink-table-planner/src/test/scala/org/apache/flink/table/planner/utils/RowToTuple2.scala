@@ -15,25 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.flink.table.planner.utils
 
-package org.apache.flink.table.planner.utils;
-
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.types.Row;
-import org.apache.flink.types.RowKind;
-
-import scala.Tuple2;
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.types.{Row, RowKind}
 
 /** Row to scala Tuple2. */
-public class RowToTuple2 implements MapFunction<Row, Tuple2<Boolean, Row>> {
+class RowToTuple2 extends MapFunction[Row, (Boolean, Row)] {
 
-    @Override
-    public scala.Tuple2<Boolean, Row> map(Row value) throws Exception {
-        if (value.getKind().equals(RowKind.DELETE)
-                || value.getKind().equals(RowKind.UPDATE_BEFORE)) {
-            return new scala.Tuple2<>(false, value);
-        } else {
-            return new scala.Tuple2<>(true, value);
-        }
+  /**
+   * The mapping method. Takes an element from the input data set and transforms it into exactly one
+   * element.
+   *
+   * @param value
+   *   The input value.
+   * @return
+   *   The transformed value
+   * @throws Exception
+   *   This method may throw exceptions. Throwing an exception will cause the operation to fail and
+   *   may trigger recovery.
+   */
+  override def map(row: Row): (Boolean, Row) = {
+    if (row.getKind == RowKind.DELETE || row.getKind == RowKind.UPDATE_BEFORE) {
+      (false, row)
+    } else {
+      (true, row)
     }
+  }
 }

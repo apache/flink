@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.{Ag
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchOn
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => mLocalTime}
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
@@ -195,7 +196,7 @@ class SplitAggregateITCase(
        """.stripMargin)
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List(
@@ -212,7 +213,7 @@ class SplitAggregateITCase(
     val t1 = tEnv.sqlQuery("SELECT COUNT(DISTINCT c) FROM T")
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink).setParallelism(1)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List("5")
@@ -224,7 +225,7 @@ class SplitAggregateITCase(
     val t1 = tEnv.sqlQuery("SELECT COUNT(DISTINCT b), COUNT(DISTINCT c) FROM T")
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink).setParallelism(1)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List("6,5")
@@ -236,7 +237,7 @@ class SplitAggregateITCase(
     val t1 = tEnv.sqlQuery("SELECT a, SUM(b), COUNT(DISTINCT c), avg(b) FROM T GROUP BY a")
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,3,2,1", "2,29,5,3", "3,10,2,5", "4,21,3,5")
@@ -248,7 +249,7 @@ class SplitAggregateITCase(
     val t1 = tEnv.sqlQuery("SELECT a, COUNT(DISTINCT c) FROM T GROUP BY a")
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,2", "2,5", "3,2", "4,3")
@@ -260,7 +261,7 @@ class SplitAggregateITCase(
     val t1 = tEnv.sqlQuery("SELECT a, COUNT(DISTINCT b), MAX(b), MIN(b) FROM T GROUP BY a")
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,2,2,1", "2,4,5,2", "3,1,5,5", "4,2,6,5")
@@ -272,7 +273,7 @@ class SplitAggregateITCase(
     val t1 = tEnv.sqlQuery("SELECT a, COUNT(DISTINCT a), COUNT(b) FROM T GROUP BY a")
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,1,2", "2,1,8", "3,1,2", "4,1,4")
@@ -292,7 +293,7 @@ class SplitAggregateITCase(
        """.stripMargin)
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,1,2,1", "2,3,4,3", "3,1,null,5", "4,2,6,5")
@@ -313,7 +314,7 @@ class SplitAggregateITCase(
        """.stripMargin)
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("2,2,2,1", "5,1,4,2", "6,2,2,1")
@@ -338,7 +339,7 @@ class SplitAggregateITCase(
        """.stripMargin)
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("2,2,2", "4,1,1", "8,1,1")
@@ -363,7 +364,7 @@ class SplitAggregateITCase(
        """.stripMargin)
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("2,7,2,2", "4,6,1,1", "8,5,1,1")
@@ -387,7 +388,7 @@ class SplitAggregateITCase(
        """.stripMargin)
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List(
@@ -426,7 +427,7 @@ class SplitAggregateITCase(
 
     val t1 = tEnv.sqlQuery(sql)
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected =
@@ -465,7 +466,7 @@ class SplitAggregateITCase(
 
     val t1 = tEnv.sqlQuery(sql)
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,1,50", "1,ALL,50")
@@ -486,7 +487,7 @@ class SplitAggregateITCase(
        """.stripMargin)
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,2,1,2,1", "2,4,3,4,3", "3,1,1,null,5", "4,2,2,6,5")
@@ -508,7 +509,7 @@ class SplitAggregateITCase(
        """.stripMargin)
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,1,3,2,3,1", "2,3,24,8,29,3", "3,1,null,2,10,5", "4,2,6,4,21,5")
@@ -526,7 +527,7 @@ class SplitAggregateITCase(
        """.stripMargin)
 
     val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
+    t1.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = Map[String, List[String]](

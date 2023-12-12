@@ -25,8 +25,8 @@ import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
@@ -62,7 +62,7 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime"
 
     val sink = new TestingRetractSink
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -108,7 +108,7 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime"
 
     val sink = new TestingRetractSink
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -162,7 +162,7 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime, `int`"
 
     val sink = new TestingRetractSink
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -217,7 +217,7 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val sqlQuery = "SELECT key, str, `int` FROM T ORDER BY rowtime, `int`"
 
     val sink = new TestingRetractSink
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -247,7 +247,7 @@ class TemporalSortITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val sql = "SELECT a, b, c FROM T ORDER BY proctime"
 
     val sink = new TestingRetractSink
-    val results = tEnv.sqlQuery(sql).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 

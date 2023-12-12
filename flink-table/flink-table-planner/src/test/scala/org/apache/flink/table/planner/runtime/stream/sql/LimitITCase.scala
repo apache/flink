@@ -22,8 +22,8 @@ import org.apache.flink.table.api.{TableException, _}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.TestTemplate
@@ -48,7 +48,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
     val sql = "SELECT * FROM T LIMIT 4"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("book,1,12", "book,2,19", "book,4,11", "fruit,4,33")
@@ -71,7 +71,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
     val sql = "SELECT * FROM T LIMIT 4 OFFSET 2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("book,4,11", "fruit,4,33", "fruit,3,44", "fruit,5,22")
@@ -94,7 +94,7 @@ class LimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mod
 
     val sql = "SELECT * FROM T OFFSET 2"
 
-    assertThatThrownBy(() => tEnv.sqlQuery(sql).toRetractStream[Row])
+    assertThatThrownBy(() => tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2))
       .hasMessage("FETCH is missed, which on streaming table is not supported currently.")
       .isInstanceOf[TableException]
   }

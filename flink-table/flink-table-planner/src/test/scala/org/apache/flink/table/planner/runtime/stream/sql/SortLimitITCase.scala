@@ -22,8 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
@@ -48,7 +48,7 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val sql = "SELECT * FROM T ORDER BY num DESC LIMIT 2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("fruit,3,44", "fruit,4,33")
@@ -66,7 +66,7 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val sql = "SELECT a, max(b) FROM T GROUP BY a ORDER BY a LIMIT 2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,3", "2,4")
@@ -84,7 +84,7 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     val sql = "SELECT a, max(b) FROM T GROUP BY a ORDER BY a LIMIT 2 OFFSET 1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("2,4", "3,5")

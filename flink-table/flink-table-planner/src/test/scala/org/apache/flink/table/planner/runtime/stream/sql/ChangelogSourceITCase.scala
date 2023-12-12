@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.runtime.stream.sql.ChangelogSourceITCase._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithMiniBatchTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.{Row, RowKind}
@@ -76,7 +77,7 @@ class ChangelogSourceITCase(
 
   @TestTemplate
   def testToRetractStream(): Unit = {
-    val result = tEnv.sqlQuery(s"SELECT * FROM users").toRetractStream[Row]
+    val result = tEnv.sqlQuery(s"SELECT * FROM users").toChangelogStream.map(new RowToTuple2)
     val sink = new TestingRetractSink()
     result.addSink(sink).setParallelism(result.parallelism)
     env.execute()
@@ -137,7 +138,7 @@ class ChangelogSourceITCase(
          |FROM users
          |""".stripMargin
 
-    val result = tEnv.sqlQuery(query).toRetractStream[Row]
+    val result = tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2)
     val sink = new TestingRetractSink()
     result.addSink(sink).setParallelism(result.parallelism)
     env.execute()
@@ -248,7 +249,7 @@ class ChangelogSourceITCase(
          |""".stripMargin
 
     val sink = new TestingRetractSink
-    val result = tEnv.sqlQuery(sql).toRetractStream[Row]
+    val result = tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2)
     result.addSink(sink).setParallelism(result.parallelism)
     env.execute()
 

@@ -22,9 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.planner.utils.InternalConfigOptions
+import org.apache.flink.table.planner.utils.{InternalConfigOptions, RowToTuple2}
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.TestTemplate
@@ -47,7 +46,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val da = env.fromCollection(data).toTable(tEnv, 'a1, 'a2)
     tEnv.createTemporaryView("a", da)
 
-    assertThatThrownBy(() => tEnv.sqlQuery(sqlQuery).toRetractStream[Row])
+    assertThatThrownBy(() => tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2))
       .hasMessage("Sort on a non-time-attribute field is not supported.")
       .isInstanceOf[TableException]
   }
@@ -67,7 +66,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingRetractSink
     tEnv.getConfig
       .set(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, Boolean.box(true))
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -93,7 +92,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     tEnv.getConfig.set(
       InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED,
       Boolean.box(true))
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -118,7 +117,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingRetractSink
     tEnv.getConfig
       .set(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, Boolean.box(true))
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -143,7 +142,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingRetractSink
     tEnv.getConfig
       .set(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, Boolean.box(true))
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -174,7 +173,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingRetractSink
     tEnv.getConfig
       .set(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, Boolean.box(true))
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -203,7 +202,7 @@ class SortITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val sink = new TestingRetractSink
     tEnv.getConfig
       .set(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED, Boolean.box(true))
-    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val results = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 

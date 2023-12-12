@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
@@ -304,7 +305,7 @@ class AsyncLookupJoinITCase(
       "for system_time as of t1.proctime AS D ON t1.id = D.id"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql2).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
@@ -330,7 +331,7 @@ class AsyncLookupJoinITCase(
     val sink = new TestingRetractSink
     assertThatThrownBy(
       () => {
-        tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
+        tEnv.sqlQuery(sql2).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
 
         env.execute()
 

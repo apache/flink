@@ -26,6 +26,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
@@ -61,7 +62,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     val expected = List("book,2,19,1", "book,1,12,2", "fruit,3,44,1", "fruit,4,33,2")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
@@ -102,7 +103,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
@@ -426,7 +427,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List("book,1,22,2,1", "book,2,19,1,2", "fruit,3,44,1,1", "fruit,5,34,2,2")
@@ -463,7 +464,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List("book,2,19,1,2", "fruit,5,34,2,2")
@@ -1116,7 +1117,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
                    |  FROM MyView)
                    |WHERE rank_num <= 2
                    |""".stripMargin)
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
       .addSink(sink1)
       .setParallelism(1)
 
@@ -1131,7 +1133,8 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
            |  FROM MyView)
            |WHERE rank_num <= 2
            |""".stripMargin)
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
       .addSink(sink2)
       .setParallelism(1)
     env.execute()
@@ -1301,7 +1304,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -1344,7 +1347,7 @@ class RankITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     val expected = List("book,aws,1", "book,aws,2", "fruit,aws,3", "fruit,aws,4")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)

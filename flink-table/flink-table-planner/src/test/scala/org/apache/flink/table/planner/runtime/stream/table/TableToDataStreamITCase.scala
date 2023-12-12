@@ -25,6 +25,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.TestSinkContextTableSink
 import org.apache.flink.table.planner.runtime.utils.{AbstractExactlyOnceSink, StreamingTestBase, TestingRetractSink, TestSinkUtil}
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
@@ -115,7 +116,8 @@ final class TableToDataStreamITCase extends StreamingTestBase {
           |WHERE rowNum = 1
       """.stripMargin
       )
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
 
     val sink = new StringWithTimestampRetractSink[Row]
     dataStream.addSink(sink)

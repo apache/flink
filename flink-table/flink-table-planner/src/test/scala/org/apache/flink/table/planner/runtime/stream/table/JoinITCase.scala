@@ -28,9 +28,8 @@ import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.utils.CountAggFunction
+import org.apache.flink.table.planner.utils.{CountAggFunction, RowToTuple2}
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, Disabled, TestTemplate}
@@ -369,7 +368,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -383,7 +382,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val expected = Seq("Hi,Hallo")
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -403,7 +402,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "I am fine.,Hallo Welt wie")
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -418,7 +417,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val expected = Seq("Hello world, how are you?,Hallo Welt wie", "I am fine.,Hallo Welt wie")
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -439,7 +438,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "I am fine.,IJK")
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -454,7 +453,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val expected = Seq("6")
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -473,7 +472,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val expected = Seq("6,3", "4,2", "1,1")
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -494,7 +493,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val expected = Seq("2,1,Hello", "2,1,Hello world", "1,0,Hi")
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -509,7 +508,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "I am fine.,IJK")
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -529,7 +528,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "Comment#2,IJK")
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -574,7 +573,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -614,7 +613,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -654,7 +653,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -686,7 +685,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -717,7 +716,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -757,7 +756,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -797,7 +796,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -845,7 +844,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     )
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -895,7 +894,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "null,KLM"
     )
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -946,7 +945,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       "null,KLM"
     )
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -975,7 +974,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val results = ds1.join(ds2, 'a < 'd).select('a, 'd)
 
     val sink = new TestingRetractSink
-    results.toRetractStream[Row].addSink(sink).setParallelism(1)
+    results.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     val expected = Seq("6,10")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
@@ -991,7 +990,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joined = ds1.leftOuterJoin(table1, 'a === 'c)
 
     val sink = new TestingRetractSink
-    joined.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joined.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,left,null,null", "2,left,2,right")
@@ -1005,7 +1004,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.leftOuterJoin(ds2, 'b === 'e).select('b, 'c, 'e, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,Hi,null,null", "2,Hello world,null,null", "2,Hello,null,null")
@@ -1019,7 +1018,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.leftOuterJoin(ds2, 'b === 'e).select('b, 'c, 'e, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -1075,7 +1074,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('leftPk, 'leftA.count)
 
     val sink = new TestingRetractSink
-    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    resultTable.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,2")
@@ -1157,7 +1156,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .where('leftPk === 'rightPk)
 
     val sink = new TestingRetractSink
-    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    resultTable.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,5,1,2")
@@ -1232,7 +1231,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .where('leftPk === 'rightPk)
 
     val sink = new TestingRetractSink
-    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    resultTable.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,4,1,2", "1,5,1,2")
@@ -1266,7 +1265,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('leftPk, 'leftA.count)
 
     val sink = new TestingRetractSink
-    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    resultTable.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,2")
@@ -1427,7 +1426,8 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val result = leftTableWithPk
       .join(rightTable, 'a === 'bb && ('a < 4 || 'a > 4))
       .select('a, 'b, 'c, 'd)
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
 
     val sink = new TestingRetractSink
     result.addSink(sink).setParallelism(1)
@@ -1498,7 +1498,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.join(ds2).where('b === 'e).select('c, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
@@ -1513,7 +1513,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("Hi,Hallo")
@@ -1528,7 +1528,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.join(ds2).where('b === 'e && 'a < 6).select('c, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -1548,7 +1548,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.join(ds2).filter('a === 'd && 'b === 'h).select('c, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -1569,7 +1569,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.join(ds2).where('a === 'd).select('g.count)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("6")
@@ -1588,7 +1588,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('b.sum, 'g.count)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("6,3", "4,2", "1,1")
@@ -1609,7 +1609,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select('a, 'f, 'l)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("2,1,Hello", "2,1,Hello world", "1,0,Hi")
@@ -1624,7 +1624,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.join(ds2).filter('a === 'd && ('b === 'e || 'b === 'e - 10)).select('c, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "I am fine.,IJK")
@@ -1639,7 +1639,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.join(ds2).filter('b === 'h + 1 && 'a - 1 === 'd + 2).select('c, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -1713,7 +1713,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .where('leftA === 'rightA)
 
     val sink = new TestingRetractSink
-    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    resultTable.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("4,1,1,1", "4,1,2,1")
@@ -1734,7 +1734,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.leftOuterJoin(ds2, 'b === 'e).select('b, 'e)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,null", "2,null")
@@ -1752,7 +1752,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.leftOuterJoin(ds2, 'b === 'e).select('b, 'e, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,null,null", "2,null,null")
@@ -1770,7 +1770,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.leftOuterJoin(ds2, 'b === 'e && 'a < 'b).select('b, 'e, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,null,null", "2,null,null")
@@ -1785,7 +1785,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.leftOuterJoin(ds2, 'b === 'e).select('b, 'c, 'e, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,Hi,null,null", "2,Hello world,null,null", "2,Hello,null,null")
@@ -1800,7 +1800,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     val joinT = ds1.leftOuterJoin(ds2, 'b === 'e && 'a < 'd).select('a, 'b, 'c, 'e, 'g)
 
     val sink = new TestingRetractSink
-    joinT.toRetractStream[Row].addSink(sink).setParallelism(1)
+    joinT.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,1,Hi,null,null", "2,2,Hello,null,null", "3,2,Hello world,null,null")

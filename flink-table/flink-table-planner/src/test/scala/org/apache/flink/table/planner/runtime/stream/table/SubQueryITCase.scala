@@ -22,6 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
@@ -54,7 +55,7 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
     val result = tableA.where('a.in(tableB.select('x)))
 
     val sink = new TestingRetractSink
-    val results = result.toRetractStream[Row]
+    val results = result.toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -93,7 +94,7 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       .where('a.in(tableB.where('y.like("%Hanoi%")).groupBy('y).select('x.sum)))
 
     val sink = new TestingRetractSink
-    val results = result.toRetractStream[Row]
+    val results = result.toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 
@@ -136,7 +137,7 @@ class SubQueryITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(
       .where('a.in(tableB.select('x)) && 'b.in(tableC.select('w)))
 
     val sink = new TestingRetractSink
-    val results = result.toRetractStream[Row]
+    val results = result.toChangelogStream.map(new RowToTuple2)
     results.addSink(sink).setParallelism(1)
     env.execute()
 

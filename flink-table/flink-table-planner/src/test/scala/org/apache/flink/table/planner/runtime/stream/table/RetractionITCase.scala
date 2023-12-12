@@ -22,9 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.planner.utils.TableFunc0
+import org.apache.flink.table.planner.utils.{RowToTuple2, TableFunc0}
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
@@ -59,7 +58,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       .select('count, 'count.count.as('frequency))
 
     val sink = new TestingRetractSink
-    resultTable.toRetractStream[Row].addSink(sink)
+    resultTable.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = Seq("1,2", "2,1", "6,1")
@@ -77,7 +76,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       .select('cnt.sum)
 
     val sink = new TestingRetractSink
-    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    resultTable.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("10")
@@ -95,7 +94,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       .select('count, 'count.count)
 
     val sink = new TestingRetractSink
-    resultTable.toRetractStream[Row].addSink(sink)
+    resultTable.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = Seq("10,1")
@@ -132,7 +131,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       .select('sum, 'pk.count.as('count))
 
     val sink = new TestingRetractSink
-    resultTable.toRetractStream[Row].addSink(sink)
+    resultTable.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -172,7 +171,7 @@ class RetractionITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       .select('cnt, 'word.count.as('frequency))
 
     val sink = new TestingRetractSink
-    resultTable.toRetractStream[Row].addSink(sink)
+    resultTable.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = Seq("1,2", "2,1", "6,1")

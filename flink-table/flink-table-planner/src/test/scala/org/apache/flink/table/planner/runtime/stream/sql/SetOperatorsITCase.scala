@@ -22,8 +22,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
@@ -46,7 +46,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val sqlQuery = "SELECT a1, a2, a3 from A INTERSECT SELECT b1, b2, b3 from B"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     val expected = mutable.MutableList("1,1,Hi", "2,2,Hello", "3,2,Hello world")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
@@ -77,7 +77,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val sqlQuery = "SELECT a3 from T1 EXCEPT SELECT b3 from T2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     val expected = mutable.MutableList(
       "Hi5",
@@ -98,7 +98,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val sqlQuery = "SELECT c FROM T1 INTERSECT ALL SELECT c FROM T2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     val expected = mutable.MutableList("1", "2", "2")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
@@ -117,7 +117,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
       s"SELECT c FROM (($t1 UNION ALL $t1 UNION ALL $t1) EXCEPT ALL $t2)"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     val expected = mutable.MutableList(
       "Hi",

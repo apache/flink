@@ -25,9 +25,9 @@ import org.apache.flink.table.planner.plan.utils.NonPojo
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.TestTemplate
@@ -141,7 +141,7 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
     val tableB = env.fromCollection(dataB).toTable(tEnv, 'x, 'y)
 
     val sink = new TestingRetractSink
-    tableA.where('a.in(tableB.select('x))).toRetractStream[Row].addSink(sink)
+    tableA.where('a.in(tableB.select('x))).toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = Seq(
@@ -179,7 +179,8 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 
     tableA
       .where('a.in(tableB.where('y.like("%Hanoi%")).groupBy('y).select('x.sum)))
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
       .addSink(sink)
     env.execute()
 
@@ -222,7 +223,8 @@ class SetOperatorsITCase(mode: StateBackendMode) extends StreamingWithStateTestB
 
     tableA
       .where('a.in(tableB.select('x)) && 'b.in(tableC.select('w)))
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
       .addSink(sink)
     env.execute()
 

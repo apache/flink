@@ -28,9 +28,8 @@ import org.apache.flink.table.planner.runtime.utils.{JavaUserDefinedAggFunctions
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
-import org.apache.flink.table.planner.utils.CountMinMax
+import org.apache.flink.table.planner.utils.{CountMinMax, RowToTuple2}
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
@@ -56,7 +55,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('e, call(classOf[DataViewTestAgg], 'd, 'e).distinct())
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,10", "2,21", "3,12")
@@ -86,7 +85,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('max_price)
 
     val sink = new TestingRetractSink()
-    topQuery.toRetractStream[Row].addSink(sink).setParallelism(1)
+    topQuery.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     assertThat(sink.getRetractResults.sorted).isEqualTo(List("5"))
@@ -114,7 +113,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('min_price)
 
     val sink = new TestingRetractSink()
-    topQuery.toRetractStream[Row].addSink(sink).setParallelism(1)
+    topQuery.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     assertThat(sink.getRetractResults.sorted).isEqualTo(List("6"))
@@ -129,7 +128,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('e, testAgg.distinct('a, 'a), testAgg('a, 'a))
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,3,3", "2,3,4", "3,4,4")
@@ -164,7 +163,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
         testAgg('a, 'b))
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("A,2,5,1,1,1", "B,3,12,4,2,3", "C,2,9,4,3,4", "D,1,9,9,4,9")
@@ -179,7 +178,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('e, 'a.count.distinct, 'b.count)
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,4,5", "2,4,7", "3,2,3")
@@ -192,7 +191,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 //      .select('c.firstValue, 'c.lastValue, 'c.LISTAGG("#"))
 //
 //    val sink = new TestingRetractSink()
-//    t.toRetractStream[Row].addSink(sink)
+//    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
 //    env.execute()
 //
 //    val expected = mutable.MutableList("Hi,Hello world,Hi#Hello#Hello world")
@@ -207,7 +206,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .distinct()
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,null", "2,null", "3,null", "4,null", "5,null", "6,null")
@@ -223,7 +222,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .distinct()
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList("1,5", "2,7", "3,3")
@@ -237,7 +236,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('a.sum, 'b.sum)
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List("231,91")
@@ -252,7 +251,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('b, 'a.sum)
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,1", "2,5", "3,15", "4,34", "5,65", "6,111")
@@ -269,7 +268,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('cnt, 'b.count.as('freq), 'b.min.as('min), 'b.max.as('max))
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,1,1,1", "2,1,2,2", "3,1,3,3", "4,1,4,4", "5,1,5,5", "6,1,6,6")
@@ -286,7 +285,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('a, 'f.max, 'g.min)
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,1,1", "2,3,2", "3,6,4", "4,10,7", "5,15,11")
@@ -308,7 +307,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
         'd.listAgg("-"))
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -332,7 +331,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('b, 'a.collect)
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List(
@@ -369,7 +368,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('b, distinct('c), call(classOf[DataViewTestAgg], 'c, 'b))
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,1,2", "2,1,5", "3,1,10", "4,4,20", "5,2,12")
@@ -413,7 +412,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('f0, 'f1, 'f2)
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List("21,1,21")
@@ -430,7 +429,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('b, 'f0, 'f1, 'f2)
 
     val sink = new TestingRetractSink()
-    t.toRetractStream[Row].addSink(sink)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List("1,1,1,1", "2,2,2,3", "3,3,4,6", "4,4,7,10", "5,5,11,15", "6,6,16,21")
@@ -460,7 +459,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('b, distinct('c), call(classOf[DataViewTestAgg], 'c, 'b))
 
     val sink = new TestingRetractSink
-    t.toRetractStream[Row].addSink(sink).setParallelism(1)
+    t.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List("1,1,2", "2,1,5", "3,1,10", "4,4,20", "5,2,12")
@@ -479,7 +478,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       .select('b, 'c, 'a.max.as('a))
       .groupBy('b)
       .select('b, 'a.max)
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
 
     val sink = new TestingRetractSink
     results.addSink(sink).setParallelism(1)
@@ -502,7 +502,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
         'b.cast(DECIMAL(30, 20)).sum.as('b),
         'c.cast(DECIMAL(25, 20)).sum.as('c),
         'd.cast(DECIMAL(32, 8)).sum.as('d))
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
 
     val sink = new TestingRetractSink
     results.addSink(sink).setParallelism(1)
@@ -527,7 +528,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
         'b.cast(DECIMAL(30, 20)).sum0.as('b),
         'c.cast(DECIMAL(25, 20)).sum0.as('c),
         'd.cast(DECIMAL(32, 8)).sum0.as('d))
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
 
     val sink = new TestingRetractSink
     results.addSink(sink).setParallelism(1)
@@ -552,7 +554,8 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
         'b.cast(DECIMAL(30, 20)).avg.as('b),
         'c.cast(DECIMAL(25, 20)).avg.as('c),
         'd.cast(DECIMAL(32, 8)).avg.as('d))
-      .toRetractStream[Row]
+      .toChangelogStream
+      .map(new RowToTuple2)
 
     val sink = new TestingRetractSink
     results.addSink(sink).setParallelism(1)

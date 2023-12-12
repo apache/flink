@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
@@ -90,7 +91,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .select(lit("1").count())
 
     val sink = new TestingRetractSink
-    ds.toRetractStream[Row].addSink(sink).setParallelism(1)
+    ds.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable.MutableList("3")

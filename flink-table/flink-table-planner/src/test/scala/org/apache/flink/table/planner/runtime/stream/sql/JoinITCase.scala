@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
@@ -102,7 +103,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val sqlQuery = "SELECT * FROM A, B WHERE (a2 = 1 and b2 = 2) or (a1 = 2 and b1 = 4)"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable.Seq(
@@ -120,7 +121,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val sqlQuery = "SELECT * FROM A, B WHERE (a2 = 1 AND true) OR (a1 = 2 AND b1 = 4) "
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable
@@ -172,7 +173,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val sqlQuery = "SELECT * FROM a, b WHERE (a1 = 1 AND b1 = 3) OR (a1 = 2 AND b3 is null) "
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable.MutableList("1,2,hi a2,3,4,hi b1", "2,3,hi a3,4,5,null").toList
@@ -290,7 +291,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val sqlQuery = "SELECT a3, b4 FROM A, B WHERE a2 = b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
@@ -318,7 +319,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT a1, b1 FROM A JOIN B ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("3,3", "1,1", "3,3", "2,2", "3,3", "2,2")
@@ -330,7 +331,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val sqlQuery = "SELECT a3, b4 FROM A, B WHERE a2 = b2 AND a2 < 2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("Hi,Hallo")
@@ -342,7 +343,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT a1, b1, b3 FROM A JOIN B ON a1 = b1 AND a1 = b3"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("2,2,2", "3,3,3")
@@ -364,7 +365,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val sqlQuery = "SELECT a1, a1, c2 FROM Table3 INNER JOIN Table5 ON d1 = d2 where d1 is true"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,1,Hello world", "1,1,Hi", "3,3,Hello world", "3,3,Hi")
@@ -381,7 +382,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     tEnv.createTemporaryView("Table5", ds2)
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("Hello world, how are you?,Hallo Welt wie", "I am fine.,Hallo Welt wie")
@@ -398,7 +399,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     tEnv.createTemporaryView("Table5", ds2)
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -418,7 +419,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         "WHERE a1 = b1 AND a1 < 4"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected =
@@ -431,7 +432,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val sqlQuery = "SELECT COUNT(b4), COUNT(a2) FROM A, B WHERE a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("6,6")
@@ -447,7 +448,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT b, c, e, g FROM ds1 LEFT OUTER JOIN ds2 ON b = e"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,Hi,null,null", "2,Hello world,null,null", "2,Hello,null,null")
@@ -463,7 +464,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT b, c, e, g FROM ds1 LEFT OUTER JOIN ds2 ON b = e"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,Hi,1,Hallo", "2,Hello world,2,Hallo Welt", "2,Hello,2,Hallo Welt")
@@ -515,7 +516,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val sqlQuery = "SELECT a3, b4 FROM A FULL OUTER JOIN B ON a2 = b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -549,7 +550,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     tEnv.createTemporaryView("Table5", ds2)
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -578,7 +579,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val sqlQuery = "SELECT a3, b4 FROM A RIGHT OUTER JOIN B ON a2 = b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -609,7 +610,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) JOIN ($query2) ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,1", "2,2", "3,3")
@@ -623,7 +624,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) JOIN ($query2) ON a2 = b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,1,1,1")
@@ -635,7 +636,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT a1, b1 FROM A LEFT JOIN B ON a1 = b1 AND a2 > b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("3,null", "1,null", "2,null")
@@ -649,7 +650,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) LEFT JOIN ($query2) ON a1 = b1 AND a2 > b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,null", "3,null", "2,null")
@@ -662,7 +663,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) LEFT JOIN B ON a1 = b1 AND a2 > b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,null", "3,null", "2,null")
@@ -676,7 +677,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) LEFT JOIN ($query2) ON a2 = b2 AND a1 > b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,1,null,null", "3,2,null,null", "2,2,null,null")
@@ -688,7 +689,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT a1, b1 FROM A LEFT JOIN B ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,1", "2,2", "3,3", "2,2", "3,3", "3,3")
@@ -702,7 +703,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) LEFT JOIN ($query2) ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("2,2", "1,1", "3,3")
@@ -715,7 +716,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) LEFT JOIN B ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("3,3", "3,3", "3,3", "2,2", "2,2", "1,1")
@@ -729,7 +730,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) LEFT JOIN ($query2) ON a2 = b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,1,1,1", "3,2,null,null", "2,2,null,null")
@@ -741,7 +742,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT a1, b1 FROM A RIGHT JOIN B ON a1 = b1 AND a2 > b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -770,7 +771,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) RIGHT JOIN ($query2) ON a1 = b1 AND a2 > b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("null,1", "null,3", "null,2", "null,5", "null,4")
@@ -783,7 +784,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) RIGHT JOIN B ON a1 = b1 AND a2 > b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -813,7 +814,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
 
     env.setParallelism(1)
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected =
@@ -826,7 +827,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT a1, b1 FROM A RIGHT JOIN B ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -855,7 +856,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) RIGHT JOIN ($query2) ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("1,1", "2,2", "null,5", "3,3", "null,4")
@@ -868,7 +869,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) RIGHT JOIN B ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -897,7 +898,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) RIGHT JOIN ($query2) ON a2 = b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected =
@@ -910,7 +911,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT a1, b1 FROM A FULL JOIN B ON a1 = b1 AND a2 > b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -943,7 +944,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) FULL JOIN ($query2) ON a1 = b1 AND a2 > b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -965,7 +966,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) FULL JOIN B ON a1 = b1 AND a2 > b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -999,7 +1000,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
 
     env.setParallelism(1)
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -1020,7 +1021,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = "SELECT a1, b1 FROM A FULL JOIN B ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -1050,7 +1051,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) FULL JOIN ($query2) ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("null,4", "1,1", "3,3", "2,2", "null,5")
@@ -1063,7 +1064,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, b1 FROM ($query1) FULL JOIN B ON a1 = b1"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -1092,7 +1093,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val query = s"SELECT a1, a2, b1, b2 FROM ($query1) FULL JOIN ($query2) ON a2 = b2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(query).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(query).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq(
@@ -1138,7 +1139,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |""".stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -1181,7 +1182,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |""".stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -1223,7 +1224,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |""".stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -1266,7 +1267,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |""".stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -1309,7 +1310,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |""".stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -1355,7 +1356,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
         |""".stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = mutable.MutableList(
@@ -1390,7 +1391,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
 
     val t3 = tEnv.sqlQuery("select T1.a, b, c from T1, T2 WHERE T1.a = T2.a")
     val sink = new TestingRetractSink
-    t3.toRetractStream[Row].addSink(sink).setParallelism(1)
+    t3.toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
     val expected = List("1,1,-1", "2,2,-2", "3,3,-3")
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
@@ -1416,7 +1417,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = List("500")
@@ -1435,7 +1436,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
     val sql = "SELECT c, g FROM T3 join T5 on funcWithOpen(a + d) where b = e"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("Hi,Hallo", "Hello,Hallo Welt", "Hello world,Hallo Welt")
@@ -1653,7 +1654,7 @@ class JoinITCase(state: StateBackendMode) extends StreamingWithStateTestBase(sta
 
   private def checkResult(sql: String, expected: Seq[Row]): Unit = {
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expectedResult = expected

@@ -124,7 +124,8 @@ class TableSourceITCase extends StreamingTestBase {
 
   @Test
   def testProjectWithoutInputRef(): Unit = {
-    val result = tEnv.sqlQuery("SELECT COUNT(*) FROM MyTable").toRetractStream[Row]
+    val result =
+      tEnv.sqlQuery("SELECT COUNT(*) FROM MyTable").toChangelogStream.map(new RowToTuple2)
     val sink = new TestingRetractSink()
     result.addSink(sink).setParallelism(result.parallelism)
     env.execute()

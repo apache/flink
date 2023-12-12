@@ -26,6 +26,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
@@ -122,7 +123,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         |WITH T1 AS (SELECT b, COLLECT(c) as `set` FROM T GROUP BY b)
         |SELECT b, id, point FROM T1, UNNEST(T1.`set`) AS A(id, point) WHERE b < 3
       """.stripMargin
-    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     val sink = new TestingRetractSink
     result.addSink(sink)
     env.execute()
@@ -154,7 +155,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         |WITH T1 AS (SELECT a, COLLECT(b) as `set` FROM T GROUP BY a)
         |SELECT a, s FROM T1 LEFT JOIN UNNEST(T1.`set`) AS A(s) ON TRUE WHERE a < 5
       """.stripMargin
-    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     val sink = new TestingRetractSink
     result.addSink(sink).setParallelism(1)
     env.execute()
@@ -185,7 +186,7 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
         |)
         |SELECT b, s FROM T1, UNNEST(T1.`set`) AS A(s) where b < 3
       """.stripMargin
-    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val result = tEnv.sqlQuery(sqlQuery).toChangelogStream.map(new RowToTuple2)
     val sink = new TestingRetractSink
     result.addSink(sink).setParallelism(1)
     env.execute()

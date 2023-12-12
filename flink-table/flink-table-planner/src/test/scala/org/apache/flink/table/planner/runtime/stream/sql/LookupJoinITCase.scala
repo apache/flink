@@ -28,6 +28,7 @@ import org.apache.flink.table.data.binary.BinaryStringData
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.TestAddWithOpen
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.runtime.functions.table.fullcache.inputformat.FullCacheTestInputFormat
 import org.apache.flink.table.runtime.functions.table.lookup.LookupCacheManager
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
@@ -714,7 +715,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
       "for system_time as of t1.proctime AS D ON t1.id = D.id"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql2).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("3,Fabian,33", "8,null,null", "9,null,null")
@@ -736,7 +737,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
       "for system_time as of t1.proctime AS D ON D.id = 3"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql2).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("3,Fabian,33", "8,Fabian,33", "9,Fabian,33")
@@ -759,7 +760,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, cacheType: LookupCacheType)
       "for system_time as of t1.proctime AS D ON D.id = 3"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql2).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql2).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("3", "8", "9")

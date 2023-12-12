@@ -24,13 +24,12 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.planner.utils.{Top3WithMapView, Top3WithRetractInput}
+import org.apache.flink.table.planner.utils.{RowToTuple2, Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.{deleteRecord, insertRecord}
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
@@ -64,7 +63,9 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
       .select('a, 'b1, 'b2)
 
     tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
-    val testHarness = createHarnessTester(resultTable.toRetractStream[Row], "GroupTableAggregate")
+    val testHarness = createHarnessTester(
+      resultTable.toChangelogStream.map(new RowToTuple2()).setDescription("Row to scala Tuple2"),
+      "GroupTableAggregate")
     val assertor = new RowDataHarnessAssertor(
       Array(
         DataTypes.INT().getLogicalType,
@@ -170,7 +171,9 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
       .select('b1, 'b2)
 
     tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
-    val testHarness = createHarnessTester(resultTable.toRetractStream[Row], "GroupTableAggregate")
+    val testHarness = createHarnessTester(
+      resultTable.toChangelogStream.map(new RowToTuple2()).setDescription("Row to scala Tuple2"),
+      "GroupTableAggregate")
     val outputTypes = Array(DataTypes.INT().getLogicalType, DataTypes.INT().getLogicalType)
     (testHarness, outputTypes)
   }

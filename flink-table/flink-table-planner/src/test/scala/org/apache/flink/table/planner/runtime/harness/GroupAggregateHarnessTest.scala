@@ -28,6 +28,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.CountNullNonNull
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
@@ -88,7 +89,8 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     val t1 = tEnv.sqlQuery(sql)
 
     tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
-    val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
+    val testHarness =
+      createHarnessTester(t1.toChangelogStream.map(new RowToTuple2), "GroupAggregate")
     val assertor = new RowDataHarnessAssertor(
       Array(DataTypes.STRING().getLogicalType, DataTypes.BIGINT().getLogicalType))
 
@@ -236,7 +238,8 @@ class GroupAggregateHarnessTest(mode: StateBackendMode, miniBatch: MiniBatchMode
     val t1 = tEnv.sqlQuery(sql)
 
     tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
-    val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
+    val testHarness =
+      createHarnessTester(t1.toChangelogStream.map(new RowToTuple2), "GroupAggregate")
     val outputTypes = Array(
       DataTypes.STRING().getLogicalType,
       DataTypes.BIGINT().getLogicalType,

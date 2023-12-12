@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.rules.logical.PushLimitIntoTableSourceScanRule
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingRetractSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
-import org.apache.flink.types.Row
+import org.apache.flink.table.planner.utils.RowToTuple2
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, Test}
@@ -62,7 +62,7 @@ class LimitableSourceITCase extends StreamingTestBase() {
     val sql = "SELECT * FROM Source LIMIT 4"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("book,1,12", "book,2,19", "book,4,11", "fruit,4,33")
@@ -74,7 +74,7 @@ class LimitableSourceITCase extends StreamingTestBase() {
     val sql = "SELECT * FROM Source LIMIT 4 OFFSET 2"
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink).setParallelism(1)
     env.execute()
 
     val expected = Seq("book,4,11", "fruit,4,33", "fruit,3,44", "fruit,5,22")

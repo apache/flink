@@ -24,12 +24,11 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.ConcatDistinctAggFunction
-import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingWithStateTestBase, TestData, TestingAppendSink, TestingRetractSink}
+import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, RowToTuple2}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy._
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
@@ -988,7 +987,7 @@ class WindowAggregateITCase(
         """.stripMargin
     val sink = new TestingRetractSink()
     val res = tEnv.sqlQuery(sql)
-    res.toRetractStream[Row].addSink(sink)
+    res.toChangelogStream.map(new RowToTuple2).addSink(sink)
     // do not verify the result due to proctime window aggregate result is non-deterministic
     env.execute()
   }

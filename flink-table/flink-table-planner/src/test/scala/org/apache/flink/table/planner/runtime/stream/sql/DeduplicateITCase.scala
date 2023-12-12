@@ -27,9 +27,9 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.planner.utils.RowToTuple2
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assumptions.assumeThat
@@ -74,7 +74,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List(
@@ -104,7 +104,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List(
@@ -135,7 +135,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List(
@@ -165,7 +165,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       """.stripMargin
 
     val sink = new TestingRetractSink
-    tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink)
+    tEnv.sqlQuery(sql).toChangelogStream.map(new RowToTuple2).addSink(sink)
     env.execute()
 
     val expected = List(

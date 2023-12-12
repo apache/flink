@@ -27,12 +27,11 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.planner.runtime.utils.TestData.{smallTupleData3, tupleData3, tupleData5}
-import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestUtil}
+import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, RowToTuple2, TableTestUtil}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.test.junit5.MiniClusterExtension
 import org.apache.flink.test.util.TestBaseUtils
-import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.junit.jupiter.api.Assertions._
@@ -581,7 +580,7 @@ class LegacyTableSinkITCase {
       .select('num, 'w.rowtime, 'w.rowtime.as('rowtime2))
 
     assertThatExceptionOfType(classOf[TableException])
-      .isThrownBy(() => r.toRetractStream[Row])
+      .isThrownBy(() => r.toChangelogStream.map(new RowToTuple2))
   }
 
   @Test
