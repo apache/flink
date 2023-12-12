@@ -48,7 +48,7 @@ public class StandaloneClientFactory implements ClusterClientFactory<StandaloneC
     @Nullable
     public StandaloneClusterId getClusterId(Configuration configuration) {
         checkNotNull(configuration);
-        return StandaloneClusterId.getInstance();
+        return StandaloneClusterId.fromConfiguration(configuration);
     }
 
     @Override
