@@ -39,6 +39,7 @@ public interface TestStep {
      */
     enum TestKind {
         SQL,
+        TABLE_API,
         STATEMENT_SET,
         CONFIG,
         FUNCTION,

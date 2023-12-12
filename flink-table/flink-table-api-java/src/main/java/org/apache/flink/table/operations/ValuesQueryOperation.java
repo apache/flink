@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Table operation that computes new table using given {@link Expression}s from its input relational
@@ -61,6 +62,26 @@ public class ValuesQueryOperation implements QueryOperation {
 
         return OperationUtils.formatWithChildren(
                 "Values", args, getChildren(), Operation::asSummaryString);
+    }
+
+    @Override
+    public String asSerializableString() {
+        final String selectColumns = OperationUtils.formatSelectColumns(resolvedSchema);
+        return String.format(
+                "SELECT %s FROM (VALUES %s\n) VAL$0(%s)",
+                selectColumns,
+                OperationUtils.indent(
+                        values.stream()
+                                .map(
+                                        row ->
+                                                row.stream()
+                                                        .map(
+                                                                ResolvedExpression
+                                                                        ::asSerializableString)
+                                                        .collect(
+                                                                Collectors.joining(", ", "(", ")")))
+                                .collect(Collectors.joining(",\n"))),
+                selectColumns);
     }
 
     @Override
