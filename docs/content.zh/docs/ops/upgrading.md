@@ -70,6 +70,8 @@ That same code would have to be recompiled when upgrading to 1.16.0 though.
 ```
 建议定期获取 Savepoint ，以便能够从之前的时间点重新启动应用程序。
 
+如果你想使用detach模式触发 Savepoint，只需添加选项`-detached`。
+
 * 作获取 Savepoint 并停止应用程序。
 ```bash
 > ./bin/flink cancel -s [ Savepoint 的路径] <jobID>
@@ -216,6 +218,7 @@ val mappedEvents: DataStream[(Int, Long)] = events
 ```shell
 $ bin/flink stop [--savepointPath :savepointPath] :jobId
 ```
+如果你想使用detach模式触发Savepoint，在命令行后添加选项`-detached`即可。
 
 更多详情，请阅读 [savepoint documentation]({{< ref "docs/ops/state/savepoints" >}}).
 

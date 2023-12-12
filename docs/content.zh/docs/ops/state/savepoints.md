@@ -142,6 +142,14 @@ $ bin/flink savepoint :jobId [:targetDirectory]
 $ bin/flink savepoint --type [native/canonical] :jobId [:targetDirectory]
 ```
 
+使用上述命令触发savepoint时，client需要等待savepoint制作完成，因此当任务的状态较大时，可能会导致client出现超时的情况。在这种情况下可以使用detach模式来触发savepoint。
+
+```shell
+$ bin/flink savepoint :jobId [:targetDirectory] -detached
+```
+
+使用该命令时，client拿到本次savepoint的trigger id后立即返回，可以通过[REST API]({{< ref "docs/ops/rest_api" >}}/#jobs-jobid-checkpoints-triggerid)来监控本次savepoint的制作情况。
+
 #### 使用 YARN 触发 Savepoint
 
 ```shell
@@ -159,6 +167,8 @@ $ bin/flink stop --type [native/canonical] --savepointPath [:targetDirectory] :j
 ```
 
 这将自动触发 ID 为 `:jobid` 的作业的 Savepoint，并停止该作业。此外，你可以指定一个目标文件系统目录来存储 Savepoint 。该目录需要能被 JobManager(s) 和 TaskManager(s) 访问。你也可以指定创建 Savepoint 的格式。如果没有指定，会采用标准格式创建 Savepoint。
+
+如果你想使用detach模式触发Savepoint，在命令行后添加选项`-detached`即可。
 
 ### 从 Savepoint 恢复
 

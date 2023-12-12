@@ -103,6 +103,7 @@ There are two ways of taking a savepoint from a running streaming application.
 > ./bin/flink savepoint <jobID> [pathToSavepoint]
 ```
 It is recommended to periodically take savepoints in order to be able to restart an application from a previous point in time.
+If you want to trigger a savepoint in detached mode, just add the option `-detached`.
 
 * Taking a savepoint and stopping the application as a single action. 
 ```bash
@@ -250,6 +251,8 @@ You can do this with the command:
 ```shell
 $ bin/flink stop [--savepointPath :savepointPath] :jobId
 ```
+
+If you want to trigger the savepoint in detached mode, add option `-detached` to the command.
 
 For more details, please read the [savepoint documentation]({{< ref "docs/ops/state/savepoints" >}}).
 

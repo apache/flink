@@ -123,6 +123,43 @@ Lastly, you can optionally provide what should be the [binary format]({{< ref "d
 
 The path to the savepoint can be used later on to [restart the Flink job](#starting-a-job-from-a-savepoint).
 
+If the state of the job is quite big, the client will get a timeout exception since it should wait for the savepoint finished.
+```
+Triggering savepoint for job bec5244e09634ad71a80785937a9732d.
+Waiting for response...
+
+--------------------------------------------------------------
+The program finished with the following exception:
+
+org.apache.flink.util.FlinkException: Triggering a savepoint for the job bec5244e09634ad71a80785937a9732d failed.
+        at org.apache.flink.client.cli.CliFrontend.triggerSavepoint(CliFrontend. java:828)
+        at org.apache.flink.client.cli.CliFrontend.lambda$savepopint$8(CliFrontend.java:794)
+        at org.apache.flink.client.cli.CliFrontend.runClusterAction(CliFrontend.java:1078)
+        at org.apache.flink.client.cli.CliFrontend.savepoint(CliFrontend.java:779)
+        at org.apache.flink.client.cli.CliFrontend.parseAndRun(CliFrontend.java:1150)
+        at org.apache.flink.client.cli.CliFrontend.lambda$mainInternal$9(CliFrontend.java:1226)
+        at org.apache.flink.runtime.security.contexts.NoOpSecurityContext.runSecured(NoOpSecurityContext.java:28)
+        at org.apache.flink.client.cli.CliFrontend.mainInternal(CliFrontend.java:1226)
+        at org.apache.flink.client.cli.CliFrontend.main(CliFronhtend.java:1194)
+Caused by: java.util.concurrent.TimeoutException
+        at java.util.concurrent.CompletableFuture.timedGet(CompletableFuture.java:1784)
+        at java.util.concurrent.CompletableFuture.get(CompletableFuture.java:1928)
+        at org.apache.flink.client.cli.CliFrontend.triggerSavepoint(CliFrontend.java:822)
+        ... 8 more
+```
+In this case, we could use "-detached" option to trigger a detached savepoint, the client will return immediately as soon as the trigger id returns.
+```bash
+$ ./bin/flink savepoint \
+      $JOB_ID \ 
+      /tmp/flink-savepoints
+      -detached
+```
+```
+Triggering savepoint in detached mode for job bec5244e09634ad71a80785937a9732d.
+Successfully trigger manual savepoint, triggerId: 2505bbd12c5b58fd997d0f193db44b97
+```
+We could get the status of the detached savepoint by [rest api]({{< ref "docs/ops/rest_api" >}}/#jobs-jobid-checkpoints-triggerid).
+
 #### Disposing a Savepoint
 
 The `savepoint` action can be also used to remove savepoints. `--dispose` with the corresponding 
@@ -211,6 +248,8 @@ records to process after the savepoint taken while stopping.
 Use the `--drain` flag if you want to terminate the job permanently. 
 If you want to resume the job at a later point in time, then do not drain the pipeline because it could lead to incorrect results when the job is resumed.
 {{< /hint >}}
+
+If you want to trigger the savepoint in detached mode, add option `-detached` to the command.
 
 Lastly, you can optionally provide what should be the [binary format]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) of the savepoint.
 
