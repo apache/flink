@@ -120,9 +120,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
 
     @Override
     public EnumSet<TestKind> supportedRunSteps() {
-        return EnumSet.of(
-                TestKind.SQL, TestKind.TABLE_API // the step can be defined, but is ignored
-                );
+        return EnumSet.of(TestKind.SQL);
     }
 
     @AfterEach

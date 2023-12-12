@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 
 /** Describes a relational operation that was created from applying a {@link TableFunction}. */
 @Internal
@@ -37,8 +36,6 @@ public class CalculatedQueryOperation implements QueryOperation {
     private final ContextResolvedFunction resolvedFunction;
     private final List<ResolvedExpression> arguments;
     private final ResolvedSchema resolvedSchema;
-
-    private static final AtomicLong uniqueTableIdGenerator = new AtomicLong(0);
 
     public CalculatedQueryOperation(
             ContextResolvedFunction resolvedFunction,
@@ -74,12 +71,13 @@ public class CalculatedQueryOperation implements QueryOperation {
 
     @Override
     public String asSerializableString() {
+        // if we ever add multi-way join in JoinQueryOperation we need to sort out uniqueness of the
+        // table name
         return String.format(
-                "LATERAL TABLE(%s) T$%d(%s)",
+                "LATERAL TABLE(%s) T$0(%s)",
                 resolvedFunction
                         .toCallExpression(arguments, resolvedSchema.toPhysicalRowDataType())
                         .asSerializableString(),
-                uniqueTableIdGenerator.getAndIncrement(),
                 OperationUtils.formatSelectColumns(resolvedSchema));
     }
 
