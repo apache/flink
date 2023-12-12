@@ -77,6 +77,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
+import org.apache.flink.streaming.api.operators.util.CollectRetryStrategyFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
@@ -108,10 +109,12 @@ import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.RetryStrategy;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * A DataStream represents a stream of elements of the same type. A DataStream can be transformed
@@ -1440,14 +1443,20 @@ public class DataStream<T> {
         CollectSinkOperatorFactory<T> factory =
                 new CollectSinkOperatorFactory<>(serializer, accumulatorName);
         CollectSinkOperator<T> operator = (CollectSinkOperator<T>) factory.getOperator();
+
+        Supplier<RetryStrategy> retryStrategySupplier =
+                CollectRetryStrategyFactory.INSTANCE.createRetryStrategySupplier(
+                        env.getConfiguration());
         long resultFetchTimeout =
                 env.getConfiguration().get(AkkaOptions.ASK_TIMEOUT_DURATION).toMillis();
+
         CollectResultIterator<T> iterator =
                 new CollectResultIterator<>(
                         operator.getOperatorIdFuture(),
                         serializer,
                         accumulatorName,
                         env.getCheckpointConfig(),
+                        retryStrategySupplier,
                         resultFetchTimeout);
         CollectStreamSink<T> sink = new CollectStreamSink<>(this, factory);
         sink.name("Data stream collect sink");

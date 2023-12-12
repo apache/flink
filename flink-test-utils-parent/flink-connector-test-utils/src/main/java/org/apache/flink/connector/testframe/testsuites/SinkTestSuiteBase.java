@@ -53,7 +53,9 @@ import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.streaming.api.operators.collect.CollectStreamSink;
+import org.apache.flink.streaming.api.operators.util.CollectRetryStrategyFactory;
 import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.concurrent.RetryStrategy;
 
 import org.apache.commons.math3.util.Precision;
 import org.junit.jupiter.api.DisplayName;
@@ -77,6 +79,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.testframe.utils.MetricQuerier.getJobDetails;
@@ -608,11 +611,16 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
         CollectStreamSink<T> sink = new CollectStreamSink<>(stream, factory);
         sink.name("Data stream collect sink");
         stream.getExecutionEnvironment().addOperator(sink.getTransformation());
+        final Supplier<RetryStrategy> collectRetryStrategySupplier =
+                CollectRetryStrategyFactory.INSTANCE.createRetryStrategySupplier(
+                        stream.getExecutionEnvironment().getConfiguration());
+
         return new CollectResultIterator<>(
                 operator.getOperatorIdFuture(),
                 serializer,
                 accumulatorName,
                 stream.getExecutionEnvironment().getCheckpointConfig(),
+                collectRetryStrategySupplier,
                 AkkaOptions.ASK_TIMEOUT_DURATION.defaultValue().toMillis());
     }
 
