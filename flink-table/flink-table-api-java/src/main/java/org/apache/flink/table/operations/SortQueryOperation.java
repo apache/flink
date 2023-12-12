@@ -89,7 +89,8 @@ public class SortQueryOperation implements QueryOperation {
         final StringBuilder s =
                 new StringBuilder(
                         String.format(
-                                "SELECT * FROM (%s\n) ORDER BY %s",
+                                "SELECT %s FROM (%s\n) ORDER BY %s",
+                                OperationUtils.formatSelectColumns(getResolvedSchema()),
                                 OperationUtils.indent(child.asSerializableString()),
                                 order.stream()
                                         .map(ResolvedExpression::asSerializableString)

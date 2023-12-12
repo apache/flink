@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -80,21 +81,19 @@ public class SourceQueryOperation implements QueryOperation {
 
     @Override
     public String asSerializableString() {
-        final StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append(
+        String s =
                 String.format(
                         "SELECT %s FROM %s",
                         getResolvedSchema().getColumnNames().stream()
                                 .map(EncodingUtils::escapeIdentifier)
                                 .collect(Collectors.joining(", ")),
-                        getContextResolvedTable().getIdentifier().asSerializableString()));
+                        getContextResolvedTable().getIdentifier().asSerializableString());
 
-        if (dynamicOptions != null) {
-            stringBuilder.append(
-                    String.format("OPTIONS (%s)", OperationUtils.formatProperties(dynamicOptions)));
+        if (dynamicOptions != null && !dynamicOptions.isEmpty()) {
+            throw new TableException("Dynamic source options are not SQL serializable yet.");
         }
 
-        return stringBuilder.toString();
+        return s;
     }
 
     @Override

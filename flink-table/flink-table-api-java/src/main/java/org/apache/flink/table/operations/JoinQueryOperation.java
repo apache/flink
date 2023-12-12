@@ -21,7 +21,6 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.utils.EncodingUtils;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -109,12 +108,9 @@ public class JoinQueryOperation implements QueryOperation {
 
     @Override
     public String asSerializableString() {
-        // TODO: correlated
         return String.format(
                 "SELECT %s FROM (%s\n) %s JOIN %s ON %s",
-                resolvedSchema.getColumnNames().stream()
-                        .map(EncodingUtils::escapeIdentifier)
-                        .collect(Collectors.joining(", ")),
+                OperationUtils.formatSelectColumns(resolvedSchema),
                 OperationUtils.indent(left.asSerializableString()),
                 joinType.toString().replaceAll("_", " "),
                 rightToSerializable(),

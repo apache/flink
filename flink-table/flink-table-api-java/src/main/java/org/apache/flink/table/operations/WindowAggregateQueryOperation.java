@@ -254,8 +254,8 @@ public class WindowAggregateQueryOperation implements QueryOperation {
             switch (type) {
                 case SLIDE:
                     return String.format(
-                            "HOP((%s), DESCRIPTOR(%s), %s, %s)",
-                            table,
+                            "HOP((%s\n), DESCRIPTOR(%s), %s, %s)",
+                            OperationUtils.indent(table),
                             timeAttribute.asSerializableString(),
                             slide.asSerializableString(),
                             size.asSerializableString());
@@ -263,8 +263,8 @@ public class WindowAggregateQueryOperation implements QueryOperation {
                     throw new TableException("Session windows are not SQL serializable yet.");
                 case TUMBLE:
                     return String.format(
-                            "TUMBLE((%s), DESCRIPTOR(%s), %s)",
-                            table,
+                            "TUMBLE((%s\n), DESCRIPTOR(%s), %s)",
+                            OperationUtils.indent(table),
                             timeAttribute.asSerializableString(),
                             size.asSerializableString());
                 default:

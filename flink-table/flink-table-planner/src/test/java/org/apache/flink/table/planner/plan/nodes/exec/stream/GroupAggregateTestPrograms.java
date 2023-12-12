@@ -31,9 +31,6 @@ import org.apache.flink.types.Row;
 
 import java.time.Duration;
 
-import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.call;
-
 /** {@link TableTestProgram} definitions for testing {@link StreamExecGroupAggregate}. */
 public class GroupAggregateTestPrograms {
 
@@ -217,7 +214,7 @@ public class GroupAggregateTestPrograms {
                     .runSql(GROUP_BY_DISTINCT.getRunSqlTestStep().sql)
                     .build();
 
-    public static final TableTestProgram GROUP_BY_UDF_WITH_MERGE =
+    static final TableTestProgram GROUP_BY_UDF_WITH_MERGE =
             TableTestProgram.of(
                             "group-aggregate-udf-with-merge",
                             "validates udfs with merging using group by")
@@ -255,15 +252,6 @@ public class GroupAggregateTestPrograms {
                                     + "my_avg(e, a) as s1, "
                                     + "my_concat(d) as c1 "
                                     + "FROM source_t GROUP BY e")
-                    .runTableApi(
-                            env ->
-                                    env.from("source_t")
-                                            .groupBy($("e"))
-                                            .select(
-                                                    $("e"),
-                                                    call("my_avg", $("e"), $("a")).as("s1"),
-                                                    call("my_concat", $("d")).as("c1")),
-                            "sink_t")
                     .build();
 
     static final TableTestProgram GROUP_BY_UDF_WITH_MERGE_MINI_BATCH =

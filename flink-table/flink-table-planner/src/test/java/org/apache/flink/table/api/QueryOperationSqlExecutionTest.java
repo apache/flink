@@ -20,10 +20,6 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.GroupAggregateTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.GroupWindowAggregateTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.JoinTestPrograms;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.SortTestPrograms;
 import org.apache.flink.table.test.program.TableApiTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.test.program.TableTestProgramRunner;
@@ -70,10 +66,10 @@ public class QueryOperationSqlExecutionTest implements TableTestProgramRunner {
                 QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION,
                 QueryOperationTestPrograms.UNION_ALL_QUERY_OPERATION,
                 QueryOperationTestPrograms.LATERAL_JOIN_QUERY_OPERATION,
-                GroupWindowAggregateTestPrograms.GROUP_HOP_WINDOW_EVENT_TIME,
-                SortTestPrograms.SORT_LIMIT_DESC,
-                GroupAggregateTestPrograms.GROUP_BY_UDF_WITH_MERGE,
-                JoinTestPrograms.NON_WINDOW_INNER_JOIN);
+                QueryOperationTestPrograms.GROUP_HOP_WINDOW_EVENT_TIME,
+                QueryOperationTestPrograms.SORT_LIMIT_DESC,
+                QueryOperationTestPrograms.GROUP_BY_UDF_WITH_MERGE,
+                QueryOperationTestPrograms.NON_WINDOW_INNER_JOIN);
     }
 
     @ParameterizedTest
@@ -95,9 +91,19 @@ public class QueryOperationSqlExecutionTest implements TableTestProgramRunner {
         program.getSetupSinkTestSteps()
                 .forEach(
                         s -> {
-                            assertThat(TestValuesTableFactory.getRawResultsAsStrings(s.name))
-                                    .containsExactlyInAnyOrderElementsOf(s.getExpectedAsStrings());
+                            final List<String> expectedAsStrings = s.getExpectedAsStrings();
+                            if (isAppendOnly(expectedAsStrings)) {
+                                assertThat(TestValuesTableFactory.getResultsAsStrings(s.name))
+                                        .containsExactlyInAnyOrderElementsOf(expectedAsStrings);
+                            } else {
+                                assertThat(TestValuesTableFactory.getRawResultsAsStrings(s.name))
+                                        .containsExactlyInAnyOrderElementsOf(expectedAsStrings);
+                            }
                         });
+    }
+
+    private boolean isAppendOnly(List<String> expectedAsStrings) {
+        return expectedAsStrings.stream().allMatch(str -> str.startsWith("+I"));
     }
 
     private static TableEnvironment setupEnv(TableTestProgram program) {

@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.utils.EncodingUtils;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -67,8 +66,10 @@ public class ValuesQueryOperation implements QueryOperation {
 
     @Override
     public String asSerializableString() {
+        final String selectColumns = OperationUtils.formatSelectColumns(resolvedSchema);
         return String.format(
-                "SELECT * FROM (VALUES %s\n) $VAL0(%s)",
+                "SELECT %s FROM (VALUES %s\n) VAL$0(%s)",
+                selectColumns,
                 OperationUtils.indent(
                         values.stream()
                                 .map(
@@ -80,9 +81,7 @@ public class ValuesQueryOperation implements QueryOperation {
                                                         .collect(
                                                                 Collectors.joining(", ", "(", ")")))
                                 .collect(Collectors.joining(",\n"))),
-                resolvedSchema.getColumnNames().stream()
-                        .map(EncodingUtils::escapeIdentifier)
-                        .collect(Collectors.joining(", ")));
+                selectColumns);
     }
 
     @Override

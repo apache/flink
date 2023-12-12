@@ -18,16 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.api.Slide;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
 
 import java.math.BigDecimal;
-
-import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.api.Expressions.lit;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecGroupWindowAggregate}. */
 public class GroupWindowAggregateTestPrograms {
@@ -139,7 +135,7 @@ public class GroupWindowAggregateTestPrograms {
                                     + "GROUP BY name, TUMBLE(proctime, INTERVAL '5' SECOND)")
                     .build();
 
-    public static final TableTestProgram GROUP_HOP_WINDOW_EVENT_TIME =
+    static final TableTestProgram GROUP_HOP_WINDOW_EVENT_TIME =
             TableTestProgram.of(
                             "group-window-aggregate-hop-event-time",
                             "validates group by using hopping window with event time")
@@ -167,17 +163,6 @@ public class GroupWindowAggregateTestPrograms {
                                             "+I[c, 1]",
                                             "+I[d, 2]")
                                     .build())
-                    .runTableApi(
-                            env ->
-                                    env.from("source_t")
-                                            .window(
-                                                    Slide.over(lit(10).seconds())
-                                                            .every(lit(5).seconds())
-                                                            .on($("rowtime"))
-                                                            .as("w"))
-                                            .groupBy($("name"), $("w"))
-                                            .select($("name"), lit(1).count()),
-                            "sink_t")
                     .runSql(
                             "INSERT INTO sink_t SELECT "
                                     + "name, "

@@ -48,7 +48,8 @@ public class DistinctQueryOperation implements QueryOperation {
     @Override
     public String asSerializableString() {
         return String.format(
-                "SELECT DISTINCT * FROM (%s\n)",
+                "SELECT DISTINCT %s FROM (%s\n)",
+                OperationUtils.formatSelectColumns(getResolvedSchema()),
                 OperationUtils.indent(child.asSerializableString()));
     }
 
