@@ -22,13 +22,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesImpl;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServicesMaterialProvider;
 import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.leaderelection.LeaderElection;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingContender;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionListener;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriver;
+import org.apache.flink.runtime.leaderservice.DefaultLeaderServices;
+import org.apache.flink.runtime.persistentservice.DefaultPersistentServices;
 import org.apache.flink.runtime.rpc.AddressResolution;
 import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
@@ -94,13 +97,25 @@ class ZooKeeperLeaderRetrievalTest {
                 HighAvailabilityOptions.HA_STORAGE_PATH,
                 temporaryFolder.newFolder().getAbsolutePath());
 
-        highAvailabilityServices =
-                new ZooKeeperLeaderElectionHaServices(
+        ZooKeeperHaServicesMaterialProvider zooKeeperHaServicesMaterialProvider =
+                new ZooKeeperHaServicesMaterialProvider(
                         ZooKeeperUtils.startCuratorFramework(
                                 config,
                                 testingFatalErrorHandlerResource.getTestingFatalErrorHandler()),
                         config,
                         EXECUTOR_RESOURCE.getExecutor());
+
+        highAvailabilityServices =
+                new HighAvailabilityServicesImpl(
+                        new DefaultLeaderServices(
+                                zooKeeperHaServicesMaterialProvider,
+                                config.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE)),
+                        new DefaultPersistentServices(
+                                config,
+                                EXECUTOR_RESOURCE.getExecutor(),
+                                zooKeeperHaServicesMaterialProvider
+                                        ::createCheckpointRecoveryFactory,
+                                zooKeeperHaServicesMaterialProvider::createJobGraphStore));
     }
 
     @AfterEach

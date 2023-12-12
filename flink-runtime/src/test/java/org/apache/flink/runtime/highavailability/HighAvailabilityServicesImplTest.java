@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.leaderelection.LeaderElection;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderservice.LeaderServices;
 import org.apache.flink.runtime.persistentservice.PersistentServices;
 import org.apache.flink.runtime.testutils.TestingJobResultStore;
@@ -40,13 +41,12 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for the {@link AbstractHaServices}. */
-class AbstractHaServicesTest {
+/** Tests for the {@link HighAvailabilityServicesImpl}. */
+class HighAvailabilityServicesImplTest {
 
     /**
      * Tests that we first delete all pointers from the HA services before deleting the blobs. See
@@ -61,8 +61,6 @@ class AbstractHaServicesTest {
 
         final TestingHaServices haServices =
                 new TestingHaServices(
-                        new Configuration(),
-                        Executors.directExecutor(),
                         testingBlobStoreService,
                         closeOperations,
                         () -> closeOperations.offer(CloseOperations.HA_CLEANUP),
@@ -90,8 +88,6 @@ class AbstractHaServicesTest {
 
         final TestingHaServices haServices =
                 new TestingHaServices(
-                        new Configuration(),
-                        Executors.directExecutor(),
                         testingBlobStoreService,
                         closeOperations,
                         () -> {
@@ -115,8 +111,6 @@ class AbstractHaServicesTest {
 
         final TestingHaServices haServices =
                 new TestingHaServices(
-                        new Configuration(),
-                        Executors.directExecutor(),
                         testingBlobStoreService,
                         closeOperations,
                         () -> {},
@@ -214,26 +208,86 @@ class AbstractHaServicesTest {
         }
     }
 
-    private static final class TestingHaServices extends AbstractHaServices {
-
+    private static final class TestingLeaderServices implements LeaderServices {
         private final Queue<? super CloseOperations> closeOperations;
         private final RunnableWithException internalCleanupRunnable;
         private final ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer;
 
-        private final PersistentServices persistentServices;
+        private TestingLeaderServices(
+                Queue<? super CloseOperations> closeOperations,
+                RunnableWithException internalCleanupRunnable,
+                ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer) {
+            this.closeOperations = closeOperations;
+            this.internalCleanupRunnable = internalCleanupRunnable;
+            this.internalJobCleanupConsumer = internalJobCleanupConsumer;
+        }
 
+        @Override
+        public LeaderRetrievalService getRestEndpointLeaderRetriever() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public LeaderElection getResourceManagerLeaderElection() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public LeaderRetrievalService getResourceManagerLeaderRetriever() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public LeaderElection getDispatcherLeaderElection() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public LeaderRetrievalService getDispatcherLeaderRetriever() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public LeaderRetrievalService getJobMasterLeaderRetriever(
+                JobID jobID, String defaultJobManagerAddress) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public LeaderElection getJobMasterLeaderElection(JobID jobID) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public LeaderElection getRestEndpointLeaderElection() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void close() throws Exception {
+            closeOperations.offer(CloseOperations.HA_CLOSE);
+        }
+
+        @Override
+        public void cleanupServices() throws Exception {
+            internalCleanupRunnable.run();
+        }
+
+        @Override
+        public void cleanupJobData(JobID jobID) throws Exception {
+            internalJobCleanupConsumer.accept(jobID);
+        }
+    }
+
+    private static final class TestingHaServices extends HighAvailabilityServicesImpl {
         private TestingHaServices(
-                Configuration config,
-                Executor ioExecutor,
                 BlobStoreService blobStoreService,
                 Queue<? super CloseOperations> closeOperations,
                 RunnableWithException internalCleanupRunnable,
                 ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer) {
-            super(config, ioExecutor);
-            this.closeOperations = closeOperations;
-            this.internalCleanupRunnable = internalCleanupRunnable;
-            this.internalJobCleanupConsumer = internalJobCleanupConsumer;
-            this.persistentServices =
+            super(
+                    new TestingLeaderServices(
+                            closeOperations, internalCleanupRunnable, internalJobCleanupConsumer),
                     new TestingPersistentServices(
                             blobStoreService,
                             TestingJobResultStore.builder()
@@ -242,32 +296,7 @@ class AbstractHaServicesTest {
                                                 throw new AssertionError(
                                                         "Marking the job as clean shouldn't happen in the HaServices cleanup");
                                             })
-                                    .build());
-        }
-
-        @Override
-        protected void internalClose() {
-            closeOperations.offer(CloseOperations.HA_CLOSE);
-        }
-
-        @Override
-        protected void internalCleanup() throws Exception {
-            internalCleanupRunnable.run();
-        }
-
-        @Override
-        protected void internalCleanupJobData(JobID jobID) throws Exception {
-            internalJobCleanupConsumer.accept(jobID);
-        }
-
-        @Override
-        public LeaderServices getLeaderServices() {
-            return null;
-        }
-
-        @Override
-        public PersistentServices getPersistentServices() {
-            return persistentServices;
+                                    .build()));
         }
     }
 }

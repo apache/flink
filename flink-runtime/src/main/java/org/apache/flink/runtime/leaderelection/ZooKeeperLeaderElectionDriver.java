@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
@@ -255,8 +254,9 @@ public class ZooKeeperLeaderElectionDriver implements LeaderElectionDriver, Lead
     }
 
     /**
-     * This selector finds all connection info nodes. See {@link ZooKeeperLeaderElectionHaServices}
-     * for more details on the Znode layout.
+     * This selector finds all connection info nodes. See {@link
+     * org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServicesMaterialProvider} for
+     * more details on the Znode layout.
      */
     private static class ConnectionInfoNodeSelector implements TreeCacheSelector {
         @Override

@@ -58,4 +58,23 @@ public interface LeaderServices extends ClientLeaderServices {
 
     /** Gets the {@link LeaderElection} for the cluster's rest endpoint. */
     LeaderElection getRestEndpointLeaderElection();
+
+    /**
+     * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap).
+     *
+     * <p>If an exception occurs during internal cleanup, we will continue the cleanup and report
+     * exceptions only after all cleanup steps have been attempted.
+     *
+     * @throws Exception when do the cleanup operation on external storage.
+     */
+    default void cleanupServices() throws Exception {}
+
+    /**
+     * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap) for
+     * the specified Job. Method implementations need to be thread-safe.
+     *
+     * @param jobID The identifier of the job to cleanup.
+     * @throws Exception when do the cleanup operation on external storage.
+     */
+    default void cleanupJobData(JobID jobID) throws Exception {}
 }

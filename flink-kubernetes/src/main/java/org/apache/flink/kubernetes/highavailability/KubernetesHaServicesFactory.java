@@ -19,9 +19,14 @@
 package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesImpl;
+import org.apache.flink.runtime.leaderservice.DefaultLeaderServices;
+import org.apache.flink.runtime.persistentservice.DefaultPersistentServices;
+import org.apache.flink.runtime.persistentservice.EmbeddedPersistentServices;
 
 import java.util.concurrent.Executor;
 
@@ -31,10 +36,24 @@ public class KubernetesHaServicesFactory implements HighAvailabilityServicesFact
     @Override
     public HighAvailabilityServices createHAServices(Configuration configuration, Executor executor)
             throws Exception {
-        return new KubernetesLeaderElectionHaServices(
-                FlinkKubeClientFactory.getInstance()
-                        .fromConfiguration(configuration, "kubernetes-ha-services"),
-                executor,
-                configuration);
+        KubernetesHaServicesMaterialProvider kubernetesHaServicesMaterialProvider =
+                new KubernetesHaServicesMaterialProvider(
+                        FlinkKubeClientFactory.getInstance()
+                                .fromConfiguration(configuration, "kubernetes-ha-services"),
+                        executor,
+                        configuration);
+
+        return new HighAvailabilityServicesImpl(
+                new DefaultLeaderServices(
+                        kubernetesHaServicesMaterialProvider,
+                        configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE)),
+                configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE)
+                        ? new DefaultPersistentServices(
+                                configuration,
+                                executor,
+                                kubernetesHaServicesMaterialProvider
+                                        ::createCheckpointRecoveryFactory,
+                                kubernetesHaServicesMaterialProvider::createJobGraphStore)
+                        : new EmbeddedPersistentServices());
     }
 }

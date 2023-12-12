@@ -33,9 +33,11 @@ import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClie
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneLeaderServices;
 import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientLeaderServices;
-import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperLeaderElectionHaServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServicesMaterialProvider;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.leaderservice.ClientLeaderServices;
+import org.apache.flink.runtime.leaderservice.DefaultLeaderServices;
+import org.apache.flink.runtime.persistentservice.DefaultPersistentServices;
 import org.apache.flink.runtime.persistentservice.EmbeddedPersistentServices;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.AddressResolution;
@@ -91,8 +93,22 @@ public class HighAvailabilityServicesUtils {
         final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper =
                 ZooKeeperUtils.startCuratorFramework(configuration, fatalErrorHandler);
 
-        return new ZooKeeperLeaderElectionHaServices(
-                curatorFrameworkWrapper, configuration, executor);
+        ZooKeeperHaServicesMaterialProvider zooKeeperHaServicesMaterialProvider =
+                new ZooKeeperHaServicesMaterialProvider(
+                        curatorFrameworkWrapper, configuration, executor);
+
+        return new HighAvailabilityServicesImpl(
+                new DefaultLeaderServices(
+                        zooKeeperHaServicesMaterialProvider,
+                        configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE)),
+                configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE)
+                        ? new DefaultPersistentServices(
+                                configuration,
+                                executor,
+                                zooKeeperHaServicesMaterialProvider
+                                        ::createCheckpointRecoveryFactory,
+                                zooKeeperHaServicesMaterialProvider::createJobGraphStore)
+                        : new EmbeddedPersistentServices());
     }
 
     public static HighAvailabilityServices createHighAvailabilityServices(

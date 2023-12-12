@@ -19,7 +19,8 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.leaderservice.LeaderServices;
+import org.apache.flink.runtime.persistentservice.PersistentServices;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -37,19 +38,30 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>{@link #close()} and {@link #cleanupAllData()} should be implemented to destroy the resources.
  */
-public abstract class AbstractHaServices implements HighAvailabilityServices {
+public class HighAvailabilityServicesImpl implements HighAvailabilityServices {
 
-    protected final Logger logger = LoggerFactory.getLogger(getClass());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     /** The executor to run external IO operations on. */
-    protected final Executor ioExecutor;
+    private final LeaderServices leaderServices;
 
     /** The runtime configuration. */
-    protected final Configuration configuration;
+    private final PersistentServices persistentServices;
 
-    protected AbstractHaServices(Configuration config, Executor ioExecutor) {
-        this.configuration = checkNotNull(config);
-        this.ioExecutor = checkNotNull(ioExecutor);
+    public HighAvailabilityServicesImpl(
+            LeaderServices leaderServices, PersistentServices persistentServices) {
+        this.leaderServices = checkNotNull(leaderServices);
+        this.persistentServices = checkNotNull(persistentServices);
+    }
+
+    @Override
+    public LeaderServices getLeaderServices() {
+        return leaderServices;
+    }
+
+    @Override
+    public PersistentServices getPersistentServices() {
+        return persistentServices;
     }
 
     @Override
@@ -57,21 +69,13 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         Throwable exception = null;
 
         try {
-            getPersistentServices().close();
+            persistentServices.close();
         } catch (Throwable t) {
             exception = t;
         }
 
         try {
-            if (getLeaderServices() != null) {
-                getLeaderServices().close();
-            }
-        } catch (Throwable t) {
-            exception = ExceptionUtils.firstOrSuppressed(t, exception);
-        }
-
-        try {
-            internalClose();
+            leaderServices.close();
         } catch (Throwable t) {
             exception = ExceptionUtils.firstOrSuppressed(t, exception);
         }
@@ -91,9 +95,9 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
         boolean deletedHAData = false;
 
         try {
-            internalCleanup();
+            leaderServices.cleanupServices();
             deletedHAData = true;
-            getPersistentServices().cleanup();
+            persistentServices.cleanup();
         } catch (Exception t) {
             exception = t;
         }
@@ -117,7 +121,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
                 () -> {
                     logger.info("Clean up the high availability data for job {}.", jobID);
                     try {
-                        internalCleanupJobData(jobID);
+                        leaderServices.cleanupJobData(jobID);
                     } catch (Exception e) {
                         throw new CompletionException(e);
                     }
@@ -126,31 +130,4 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
                 },
                 executor);
     }
-
-    /**
-     * Closes the components which is used for external operations(e.g. Zookeeper Client, Kubernetes
-     * Client).
-     *
-     * @throws Exception if the close operation failed
-     */
-    protected abstract void internalClose() throws Exception;
-
-    /**
-     * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap).
-     *
-     * <p>If an exception occurs during internal cleanup, we will continue the cleanup in {@link
-     * #cleanupAllData} and report exceptions only after all cleanup steps have been attempted.
-     *
-     * @throws Exception when do the cleanup operation on external storage.
-     */
-    protected abstract void internalCleanup() throws Exception;
-
-    /**
-     * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap) for
-     * the specified Job. Method implementations need to be thread-safe.
-     *
-     * @param jobID The identifier of the job to cleanup.
-     * @throws Exception when do the cleanup operation on external storage.
-     */
-    protected abstract void internalCleanupJobData(JobID jobID) throws Exception;
 }

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.leaderelection.StandaloneLeaderElection;
 import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.StandaloneLeaderRetrievalService;
+import org.apache.flink.util.ExceptionUtils;
 
 import static org.apache.flink.runtime.highavailability.HighAvailabilityServices.DEFAULT_LEADER_ID;
 
@@ -111,8 +112,33 @@ public class DefaultLeaderServices implements LeaderServices {
 
     @Override
     public void close() throws Exception {
-        if (leaderElectionService != null) {
+        Throwable exception = null;
+
+        try {
             leaderElectionService.close();
+        } catch (Throwable t) {
+            exception = ExceptionUtils.firstOrSuppressed(t, exception);
         }
+
+        try {
+            leaderServiceMaterialGenerator.closeServices();
+        } catch (Throwable t) {
+            exception = ExceptionUtils.firstOrSuppressed(t, exception);
+        }
+
+        if (exception != null) {
+            ExceptionUtils.rethrowException(
+                    exception, "Could not properly close the " + getClass().getSimpleName());
+        }
+    }
+
+    @Override
+    public void cleanupJobData(JobID jobID) throws Exception {
+        leaderServiceMaterialGenerator.cleanupJobData(jobID);
+    }
+
+    @Override
+    public void cleanupServices() throws Exception {
+        leaderServiceMaterialGenerator.cleanupServices();
     }
 }

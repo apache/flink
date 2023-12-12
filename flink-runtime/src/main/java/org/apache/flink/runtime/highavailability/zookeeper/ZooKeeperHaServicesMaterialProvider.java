@@ -20,20 +20,13 @@ package org.apache.flink.runtime.highavailability.zookeeper;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointRecoveryFactory;
-import org.apache.flink.runtime.highavailability.AbstractHaServices;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionDriverFactory;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalDriverFactory;
-import org.apache.flink.runtime.leaderservice.DefaultLeaderServices;
 import org.apache.flink.runtime.leaderservice.LeaderServiceMaterialGenerator;
-import org.apache.flink.runtime.leaderservice.LeaderServices;
-import org.apache.flink.runtime.persistentservice.DefaultPersistentServices;
-import org.apache.flink.runtime.persistentservice.EmbeddedPersistentServices;
-import org.apache.flink.runtime.persistentservice.PersistentServices;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
@@ -65,43 +58,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *      |                 |       /checkpoint_id_counter
  * </pre>
  */
-public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices
-        implements LeaderServiceMaterialGenerator {
+public class ZooKeeperHaServicesMaterialProvider implements LeaderServiceMaterialGenerator {
     /** The curator resource to use. */
     private final CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
 
-    private final DefaultLeaderServices leaderServices;
+    private final Executor ioExecutor;
 
-    private final PersistentServices persistentServices;
+    private final Configuration configuration;
 
-    public ZooKeeperLeaderElectionHaServices(
+    public ZooKeeperHaServicesMaterialProvider(
             CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper,
             Configuration configuration,
             Executor executor)
             throws Exception {
-        super(configuration, executor);
+        this.ioExecutor = executor;
+        this.configuration = configuration;
         this.curatorFrameworkWrapper = checkNotNull(curatorFrameworkWrapper);
-        this.leaderServices =
-                new DefaultLeaderServices(
-                        this, configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE));
-        this.persistentServices =
-                configuration.get(HighAvailabilityOptions.HA_JOB_RECOVERY_ENABLE)
-                        ? new DefaultPersistentServices(
-                                configuration,
-                                executor,
-                                this::createCheckpointRecoveryFactory,
-                                this::createJobGraphStore)
-                        : new EmbeddedPersistentServices();
-    }
-
-    @Override
-    public LeaderServices getLeaderServices() {
-        return leaderServices;
-    }
-
-    @Override
-    public PersistentServices getPersistentServices() {
-        return persistentServices;
     }
 
     public CheckpointRecoveryFactory createCheckpointRecoveryFactory() throws Exception {
@@ -115,21 +87,6 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices
     public JobGraphStore createJobGraphStore() throws Exception {
         return ZooKeeperUtils.createJobGraphs(
                 curatorFrameworkWrapper.asCuratorFramework(), configuration);
-    }
-
-    @Override
-    protected void internalClose() {
-        curatorFrameworkWrapper.close();
-    }
-
-    @Override
-    protected void internalCleanup() throws Exception {
-        cleanupZooKeeperPaths();
-    }
-
-    @Override
-    protected void internalCleanupJobData(JobID jobID) throws Exception {
-        deleteZNode(ZooKeeperUtils.getLeaderPathForJob(jobID));
     }
 
     /** Cleans up leftover ZooKeeper paths. */
@@ -226,5 +183,20 @@ public class ZooKeeperLeaderElectionHaServices extends AbstractHaServices
                 curatorFrameworkWrapper.asCuratorFramework(),
                 ZooKeeperUtils.getLeaderPath(componentId),
                 configuration);
+    }
+
+    @Override
+    public void closeServices() throws Exception {
+        curatorFrameworkWrapper.close();
+    }
+
+    @Override
+    public void cleanupServices() throws Exception {
+        cleanupZooKeeperPaths();
+    }
+
+    @Override
+    public void cleanupJobData(JobID jobID) throws Exception {
+        deleteZNode(ZooKeeperUtils.getLeaderPathForJob(jobID));
     }
 }
