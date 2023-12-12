@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Process Function for ROWS clause event-time bounded OVER window.
@@ -251,11 +252,12 @@ public class RowTimeRowsBoundedPrecedingFunction<K>
                     if (null == retractList) {
                         // find the smallest timestamp
                         retractTs = Long.MAX_VALUE;
-                        for (Long dataTs : inputState.keys()) {
+                        for (Map.Entry<Long, List<RowData>> entry : inputState.entries()) {
+                            Long dataTs = entry.getKey();
                             if (dataTs < retractTs) {
                                 retractTs = dataTs;
                                 // get the oldest rows to retract them
-                                retractList = inputState.get(dataTs);
+                                retractList = entry.getValue();
                             }
                         }
                     }
