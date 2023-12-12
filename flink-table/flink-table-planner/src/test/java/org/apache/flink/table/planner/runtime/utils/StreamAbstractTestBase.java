@@ -22,9 +22,13 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Base class for unit tests that run multiple tests and want to reuse the same Flink cluster. */
 public class StreamAbstractTestBase {
+
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
     private static final int DEFAULT_PARALLELISM = 4;
 

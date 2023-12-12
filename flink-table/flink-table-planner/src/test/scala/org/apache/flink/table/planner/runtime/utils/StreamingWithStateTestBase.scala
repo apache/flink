@@ -36,12 +36,13 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
-import org.apache.flink.testutils.junit.utils.TempDirUtils
+import org.apache.flink.util.FileUtils
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
 
-import java.io.File
+import java.io.{File, IOException}
+import java.nio.file.Files
 import java.util
 
 import scala.collection.JavaConversions._
@@ -63,7 +64,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   override def before(): Unit = {
     super.before()
     // set state backend
-    baseCheckpointPath = tempFolder.toFile
+    baseCheckpointPath = Files.createTempDirectory("junit").toFile
     state match {
       case HEAP_BACKEND =>
         val conf = new Configuration()
@@ -82,6 +83,12 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   @AfterEach
   override def after(): Unit = {
     super.after()
+    try {
+      FileUtils.deleteDirectory(baseCheckpointPath)
+    } catch {
+      case e: IOException =>
+        log.error("The temporary files are not being deleted gracefully.", e)
+    }
     assertThat(FailingCollectionSource.failedBefore).isTrue
   }
 
