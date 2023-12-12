@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.api.operators;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -116,7 +115,6 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                 StreamTaskCancellationContext.alwaysRunning());
     }
 
-    @VisibleForTesting
     public StreamTaskStateInitializerImpl(
             Environment environment,
             StateBackend stateBackend,
