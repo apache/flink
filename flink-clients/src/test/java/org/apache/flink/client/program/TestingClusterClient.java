@@ -56,6 +56,11 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
             stopWithSavepointFunction =
                     (ignore1, ignore2, savepointPath, formatType) ->
                             CompletableFuture.completedFuture(savepointPath);
+    private QuadFunction<JobID, Boolean, String, SavepointFormatType, CompletableFuture<String>>
+            stopWithDetachedSavepointFunction =
+                    (ignore1, ignore2, savepointPath, formatType) ->
+                            CompletableFuture.completedFuture(new TriggerId().toString());
+
     private TriFunction<JobID, String, SavepointFormatType, CompletableFuture<String>>
             triggerSavepointFunction =
                     (ignore, savepointPath, formatType) ->
@@ -82,6 +87,12 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
             QuadFunction<JobID, Boolean, String, SavepointFormatType, CompletableFuture<String>>
                     stopWithSavepointFunction) {
         this.stopWithSavepointFunction = stopWithSavepointFunction;
+    }
+
+    public void setStopWithDetachedSavepointFunction(
+            QuadFunction<JobID, Boolean, String, SavepointFormatType, CompletableFuture<String>>
+                    stopWithDetachedSavepointFunction) {
+        this.stopWithDetachedSavepointFunction = stopWithDetachedSavepointFunction;
     }
 
     public void setTriggerSavepointFunction(
@@ -169,6 +180,16 @@ public class TestingClusterClient<T> implements ClusterClient<T> {
             @Nullable String savepointDirectory,
             SavepointFormatType formatType) {
         return stopWithSavepointFunction.apply(
+                jobId, advanceToEndOfEventTime, savepointDirectory, formatType);
+    }
+
+    @Override
+    public CompletableFuture<String> stopWithDetachedSavepoint(
+            JobID jobId,
+            boolean advanceToEndOfEventTime,
+            @org.jetbrains.annotations.Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
+        return stopWithDetachedSavepointFunction.apply(
                 jobId, advanceToEndOfEventTime, savepointDirectory, formatType);
     }
 
