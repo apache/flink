@@ -24,11 +24,11 @@ import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -61,21 +61,24 @@ public class SingleJobJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public void putJobGraph(JobGraph jobGraph) throws Exception {
+    public CompletableFuture<Void> putJobGraph(JobGraph jobGraph, Executor executor)
+            throws Exception {
         if (!Objects.equals(this.jobGraph.getJobID(), jobGraph.getJobID())) {
             throw new FlinkException(
                     "Cannot put additional jobs into this submitted job graph store.");
         }
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override
-    public CompletableFuture<Void> putJobGraphAsync(
-            JobGraph jobGraph, Optional<Executor> ioExecutor) throws Exception {
-        return null;
+    public CompletableFuture<Void> putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements, Executor executor)
+            throws Exception {
+        return FutureUtils.runAsync(
+                () -> putJobResourceRequirements(jobId, jobResourceRequirements), executor);
     }
 
-    @Override
-    public void putJobResourceRequirements(
+    private void putJobResourceRequirements(
             JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
         Preconditions.checkArgument(
                 jobId.equals(jobGraph.getJobID()),

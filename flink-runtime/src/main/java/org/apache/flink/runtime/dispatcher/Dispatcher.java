@@ -643,7 +643,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void persistAndRunJob(JobGraph jobGraph) throws Exception {
         CompletableFuture<Void> completableFuture =
-                jobGraphWriter.putJobGraphAsync(jobGraph, Optional.of(ioExecutor));
+                jobGraphWriter.putJobGraph(jobGraph, ioExecutor);
         initJobClientExpiredTime(jobGraph);
         runJob(createJobMasterRunner(jobGraph), ExecutionType.SUBMISSION);
         if (completableFuture != null) {
@@ -1174,14 +1174,12 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                             return maxParallelismPerJobVertex;
                         })
                 .thenAccept(
-                        maxParallelismPerJobVertex ->
-                                validateMaxParallelism(
-                                        jobResourceRequirements, maxParallelismPerJobVertex))
-                .thenRunAsync(
-                        () -> {
+                        (maxParallelismPerJobVertex) -> {
+                            validateMaxParallelism(
+                                    jobResourceRequirements, maxParallelismPerJobVertex);
                             try {
                                 jobGraphWriter.putJobResourceRequirements(
-                                        jobId, jobResourceRequirements);
+                                        jobId, jobResourceRequirements, ioExecutor);
                             } catch (Exception e) {
                                 throw new CompletionException(
                                         new RestHandlerException(
@@ -1189,8 +1187,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                 HttpResponseStatus.INTERNAL_SERVER_ERROR,
                                                 e));
                             }
-                        },
-                        ioExecutor)
+                        })
                 .thenComposeAsync(
                         ignored ->
                                 performOperationOnJobMasterGateway(

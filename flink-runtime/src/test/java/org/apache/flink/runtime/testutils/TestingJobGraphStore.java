@@ -38,7 +38,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
@@ -116,6 +115,11 @@ public class TestingJobGraphStore implements JobGraphStore {
     }
 
     @Override
+    public CompletableFuture<Void> putJobGraph(JobGraph jobGraph, Executor ioExecutor)
+            throws Exception {
+        return FutureUtils.runAsync(() -> putJobGraph(jobGraph), ioExecutor);
+    }
+
     public synchronized void putJobGraph(JobGraph jobGraph) throws Exception {
         verifyIsStarted();
         putJobGraphConsumer.accept(jobGraph);
@@ -123,17 +127,13 @@ public class TestingJobGraphStore implements JobGraphStore {
     }
 
     @Override
-    public CompletableFuture<Void> putJobGraphAsync(
-            JobGraph jobGraph, Optional<Executor> ioExecutor) throws Exception {
-        verifyIsStarted();
-        putJobGraphConsumer.accept(jobGraph);
-        storedJobs.put(jobGraph.getJobID(), jobGraph);
-        CompletableFuture<Void> completableFuture = new CompletableFuture<Void>();
-        completableFuture.complete(null);
-        return completableFuture;
+    public CompletableFuture<Void> putJobResourceRequirements(
+            JobID jobId, JobResourceRequirements jobResourceRequirements, Executor ioExecutor)
+            throws Exception {
+        return FutureUtils.runAsync(
+                () -> putJobResourceRequirements(jobId, jobResourceRequirements), ioExecutor);
     }
 
-    @Override
     public void putJobResourceRequirements(
             JobID jobId, JobResourceRequirements jobResourceRequirements) throws Exception {
         verifyIsStarted();
