@@ -167,6 +167,25 @@ public interface ClusterClient<T> extends AutoCloseable {
             final SavepointFormatType formatType);
 
     /**
+     * Stops a program on Flink cluster whose job-manager is configured in this client's
+     * configuration. Stopping works only for streaming programs. Be aware, that the program might
+     * continue to run for a while after sending the stop command, because after sources stopped to
+     * emit data all operators need to finish processing.
+     *
+     * @param jobId the job ID of the streaming program to stop
+     * @param advanceToEndOfEventTime flag indicating if the source should inject a {@code
+     *     MAX_WATERMARK} in the pipeline
+     * @param savepointDirectory directory the savepoint should be written to
+     * @param formatType a binary format of the savepoint
+     * @return the savepoint trigger id
+     */
+    CompletableFuture<String> stopWithDetachedSavepoint(
+            final JobID jobId,
+            final boolean advanceToEndOfEventTime,
+            @Nullable final String savepointDirectory,
+            final SavepointFormatType formatType);
+
+    /**
      * Triggers a savepoint for the job identified by the job id. The savepoint will be written to
      * the given savepoint directory, or {@link
      * org.apache.flink.configuration.CheckpointingOptions#SAVEPOINT_DIRECTORY} if it is null.

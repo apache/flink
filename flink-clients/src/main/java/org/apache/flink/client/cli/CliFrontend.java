@@ -581,23 +581,26 @@ public class CliFrontend {
                 activeCommandLine,
                 commandLine,
                 (clusterClient, effectiveConfiguration) -> {
-                    final String savepointPath;
-                    try {
-                        savepointPath =
-                                clusterClient
-                                        .stopWithSavepoint(
-                                                jobId,
-                                                advanceToEndOfEventTime,
-                                                targetDirectory,
-                                                formatType)
-                                        .get(
-                                                getClientTimeout(effectiveConfiguration).toMillis(),
-                                                TimeUnit.MILLISECONDS);
-                    } catch (Exception e) {
-                        throw new FlinkException(
-                                "Could not stop with a savepoint job \"" + jobId + "\".", e);
+                    // Trigger savepoint in detached mode
+                    if (stopOptions.isDetached()) {
+                        // trigger stop-with-savepoint in detached mode and
+                        // return the trigger id immediately
+                        stopWithDetachedSavepoint(
+                                clusterClient,
+                                jobId,
+                                advanceToEndOfEventTime,
+                                targetDirectory,
+                                formatType,
+                                getClientTimeout(effectiveConfiguration));
+                    } else {
+                        stopWithSavepoint(
+                                clusterClient,
+                                jobId,
+                                advanceToEndOfEventTime,
+                                targetDirectory,
+                                formatType,
+                                getClientTimeout(effectiveConfiguration));
                     }
-                    logAndSysout("Savepoint completed. Path: " + savepointPath);
                 });
     }
 
@@ -801,6 +804,58 @@ public class CliFrontend {
                                     getClientTimeout(effectiveConfiguration));
                         }
                     });
+        }
+    }
+
+    /** Sends a SavepointTriggerMessage to the job manager. */
+    private void stopWithSavepoint(
+            ClusterClient<?> clusterClient,
+            JobID jobId,
+            boolean advanceToEndOfEventTime,
+            String targetDirectory,
+            SavepointFormatType formatType,
+            Duration clientTimeout)
+            throws FlinkException {
+        logAndSysout("Triggering stop-with-savepoint for job " + jobId + '.');
+
+        CompletableFuture<String> savepointPathFuture =
+                clusterClient.stopWithSavepoint(
+                        jobId, advanceToEndOfEventTime, targetDirectory, formatType);
+
+        logAndSysout("Waiting for response...");
+
+        try {
+            final String savepointPath =
+                    savepointPathFuture.get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+
+            logAndSysout("Savepoint completed. Path: " + savepointPath);
+        } catch (Exception e) {
+            throw new FlinkException("Could not stop with a savepoint job \"" + jobId + "\".", e);
+        }
+    }
+
+    /** Sends a SavepointTriggerMessage to the job manager in detached mode. */
+    private void stopWithDetachedSavepoint(
+            ClusterClient<?> clusterClient,
+            JobID jobId,
+            boolean advanceToEndOfEventTime,
+            String targetDirectory,
+            SavepointFormatType formatType,
+            Duration clientTimeout)
+            throws FlinkException {
+        logAndSysout("Triggering stop-with-savepoint in detached mode for job " + jobId + '.');
+        try {
+            final String triggerId =
+                    clusterClient
+                            .stopWithDetachedSavepoint(
+                                    jobId, advanceToEndOfEventTime, targetDirectory, formatType)
+                            .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
+            logAndSysout(
+                    "Successfully trigger stop-with-savepoint in detached mode, triggerId: "
+                            + triggerId);
+        } catch (Exception e) {
+            throw new FlinkException(
+                    "Could not stop with a detached savepoint job \"" + jobId + "\".", e);
         }
     }
 

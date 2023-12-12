@@ -270,6 +270,15 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
         }
 
         @Override
+        public CompletableFuture<String> stopWithDetachedSavepoint(
+                JobID jobId,
+                boolean advanceToEndOfEventTime,
+                @org.jetbrains.annotations.Nullable String savepointDirectory,
+                SavepointFormatType formatType) {
+            return null;
+        }
+
+        @Override
         public CompletableFuture<String> triggerSavepoint(
                 JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
             return null;

@@ -505,35 +505,16 @@ public class RestClusterClient<T> implements ClusterClient<T> {
             final boolean advanceToEndOfTime,
             @Nullable final String savepointDirectory,
             final SavepointFormatType formatType) {
+        return stopWithSavepoint(jobId, advanceToEndOfTime, savepointDirectory, formatType, false);
+    }
 
-        final StopWithSavepointTriggerHeaders stopWithSavepointTriggerHeaders =
-                StopWithSavepointTriggerHeaders.getInstance();
-
-        final SavepointTriggerMessageParameters stopWithSavepointTriggerMessageParameters =
-                stopWithSavepointTriggerHeaders.getUnresolvedMessageParameters();
-        stopWithSavepointTriggerMessageParameters.jobID.resolve(jobId);
-
-        final CompletableFuture<TriggerResponse> responseFuture =
-                sendRequest(
-                        stopWithSavepointTriggerHeaders,
-                        stopWithSavepointTriggerMessageParameters,
-                        new StopWithSavepointRequestBody(
-                                savepointDirectory, advanceToEndOfTime, formatType, null));
-
-        return responseFuture
-                .thenCompose(
-                        savepointTriggerResponseBody -> {
-                            final TriggerId savepointTriggerId =
-                                    savepointTriggerResponseBody.getTriggerId();
-                            return pollSavepointAsync(jobId, savepointTriggerId);
-                        })
-                .thenApply(
-                        savepointInfo -> {
-                            if (savepointInfo.getFailureCause() != null) {
-                                throw new CompletionException(savepointInfo.getFailureCause());
-                            }
-                            return savepointInfo.getLocation();
-                        });
+    @Override
+    public CompletableFuture<String> stopWithDetachedSavepoint(
+            final JobID jobId,
+            final boolean advanceToEndOfTime,
+            @Nullable final String savepointDirectory,
+            final SavepointFormatType formatType) {
+        return stopWithSavepoint(jobId, advanceToEndOfTime, savepointDirectory, formatType, true);
     }
 
     @Override
@@ -619,6 +600,30 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         });
     }
 
+    public CompletableFuture<String> stopWithSavepoint(
+            final JobID jobId,
+            final boolean advanceToEndOfTime,
+            @Nullable final String savepointDirectory,
+            final SavepointFormatType formatType,
+            final boolean isDetachedMode) {
+
+        final StopWithSavepointTriggerHeaders stopWithSavepointTriggerHeaders =
+                StopWithSavepointTriggerHeaders.getInstance();
+
+        final SavepointTriggerMessageParameters stopWithSavepointTriggerMessageParameters =
+                stopWithSavepointTriggerHeaders.getUnresolvedMessageParameters();
+        stopWithSavepointTriggerMessageParameters.jobID.resolve(jobId);
+
+        final CompletableFuture<TriggerResponse> responseFuture =
+                sendRequest(
+                        stopWithSavepointTriggerHeaders,
+                        stopWithSavepointTriggerMessageParameters,
+                        new StopWithSavepointRequestBody(
+                                savepointDirectory, advanceToEndOfTime, formatType, null));
+
+        return getSavepointTriggerFuture(jobId, isDetachedMode, responseFuture);
+    }
+
     private CompletableFuture<String> triggerSavepoint(
             final JobID jobId,
             final @Nullable String savepointDirectory,
@@ -638,6 +643,13 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         new SavepointTriggerRequestBody(
                                 savepointDirectory, cancelJob, formatType, null));
 
+        return getSavepointTriggerFuture(jobId, isDetachedMode, responseFuture);
+    }
+
+    private CompletableFuture<String> getSavepointTriggerFuture(
+            JobID jobId,
+            boolean isDetachedMode,
+            CompletableFuture<TriggerResponse> responseFuture) {
         CompletableFuture<String> futureResult;
         if (isDetachedMode) {
             // we just return the savepoint trigger id in detached savepoint,
