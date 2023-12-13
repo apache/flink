@@ -138,6 +138,26 @@ class UnionResultSubpartitionViewTest {
         assertThat(buffers1).allMatch(Buffer::isRecycled);
     }
 
+    @Test
+    public void testDataAvailableBeforeRegistration() {
+        view = new UnionResultSubpartitionView((ResultSubpartitionView x) -> {});
+        view0 = new TestingResultSubpartitionView(view, buffers0);
+
+        view0.notifyDataAvailable();
+
+        ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog1 =
+                view.getAvailabilityAndBacklog(true);
+        assertThat(availabilityAndBacklog1.getBacklog()).isZero();
+        assertThat(availabilityAndBacklog1.isAvailable()).isFalse();
+
+        view.notifyViewCreated(0, view0);
+
+        ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog2 =
+                view.getAvailabilityAndBacklog(true);
+        assertThat(availabilityAndBacklog2.getBacklog()).isPositive();
+        assertThat(availabilityAndBacklog2.isAvailable()).isTrue();
+    }
+
     private static class TestingResultSubpartitionView extends NoOpResultSubpartitionView {
         private final BufferAvailabilityListener listener;
         private final List<Buffer> buffers;
