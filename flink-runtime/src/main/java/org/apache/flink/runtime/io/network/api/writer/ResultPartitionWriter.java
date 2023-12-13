@@ -68,7 +68,7 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
      */
     void broadcastRecord(ByteBuffer record) throws IOException;
 
-    /** Writes the given {@link AbstractEvent} to all channels. */
+    /** Writes the given {@link AbstractEvent} to all subpartitions. */
     void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException;
 
     /** Timeout the aligned barrier to unaligned barrier. */

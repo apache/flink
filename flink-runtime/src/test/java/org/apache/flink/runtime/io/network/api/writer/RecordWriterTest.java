@@ -86,10 +86,10 @@ class RecordWriterTest {
     /** Tests broadcasting events when no records have been emitted yet. */
     @TestTemplate
     void testBroadcastEventNoRecords() throws Exception {
-        int numberOfChannels = 4;
+        int numberOfSubpartitions = 4;
         int bufferSize = 32;
 
-        ResultPartition partition = createResultPartition(bufferSize, numberOfChannels);
+        ResultPartition partition = createResultPartition(bufferSize, numberOfSubpartitions);
         RecordWriter<ByteArrayIO> writer = createRecordWriter(partition);
         CheckpointBarrier barrier =
                 new CheckpointBarrier(
@@ -102,7 +102,7 @@ class RecordWriterTest {
 
         assertThat(partition.getBufferPool().bestEffortGetNumOfUsedBuffers()).isZero();
 
-        for (int i = 0; i < numberOfChannels; i++) {
+        for (int i = 0; i < numberOfSubpartitions; i++) {
             assertThat(partition.getNumberOfQueuedBuffers(i)).isOne();
             ResultSubpartitionView view =
                     partition.createSubpartitionView(i, new NoOpBufferAvailablityListener());
@@ -117,11 +117,11 @@ class RecordWriterTest {
     @TestTemplate
     void testBroadcastEventMixedRecords() throws Exception {
         Random rand = new XORShiftRandom();
-        int numberOfChannels = 4;
+        int numberOfSubpartitions = 4;
         int bufferSize = 32;
         int lenBytes = 4; // serialized length
 
-        ResultPartition partition = createResultPartition(bufferSize, numberOfChannels);
+        ResultPartition partition = createResultPartition(bufferSize, numberOfSubpartitions);
         RecordWriter<ByteArrayIO> writer = createRecordWriter(partition);
         CheckpointBarrier barrier =
                 new CheckpointBarrier(
@@ -129,7 +129,7 @@ class RecordWriterTest {
                         Integer.MAX_VALUE + 199L,
                         CheckpointOptions.forCheckpointWithDefaultLocation());
 
-        // Emit records on some channels first (requesting buffers), then
+        // Emit records on some subpartitions first (requesting buffers), then
         // broadcast the event. The record buffers should be emitted first, then
         // the event. After the event, no new buffer should be requested.
 
@@ -157,7 +157,7 @@ class RecordWriterTest {
         if (isBroadcastWriter) {
             assertThat(partition.getBufferPool().bestEffortGetNumOfUsedBuffers()).isEqualTo(3);
 
-            for (int i = 0; i < numberOfChannels; i++) {
+            for (int i = 0; i < numberOfSubpartitions; i++) {
                 assertThat(partition.getNumberOfQueuedBuffers(i))
                         .isEqualTo(4); // 3 buffer + 1 event
 
@@ -192,7 +192,7 @@ class RecordWriterTest {
             assertThat(partition.getNumberOfQueuedBuffers(3)).isOne(); // 0 buffers + 1 event
 
             // every queue's last element should be the event
-            for (int i = 0; i < numberOfChannels; i++) {
+            for (int i = 0; i < numberOfSubpartitions; i++) {
                 BufferOrEvent boe = parseBuffer(views[i].getNextBuffer().buffer(), i);
                 assertThat(boe.isEvent()).isTrue();
                 assertThat(boe.getEvent()).isEqualTo(barrier);
@@ -201,7 +201,8 @@ class RecordWriterTest {
     }
 
     /**
-     * Tests that event buffers are properly recycled when broadcasting events to multiple channels.
+     * Tests that event buffers are properly recycled when broadcasting events to multiple
+     * subpartitions.
      */
     @TestTemplate
     void testBroadcastEventBufferReferenceCounting() throws Exception {
@@ -232,7 +233,7 @@ class RecordWriterTest {
 
     /**
      * Tests that broadcasted events' buffers are independent (in their (reader) indices) once they
-     * are put into the queue for Netty when broadcasting events to multiple channels.
+     * are put into the queue for Netty when broadcasting events to multiple subpartitions.
      */
     @TestTemplate
     void testBroadcastEventBufferIndependence() throws Exception {
@@ -241,7 +242,7 @@ class RecordWriterTest {
 
     /**
      * Tests that broadcasted records' buffers are independent (in their (reader) indices) once they
-     * are put into the queue for Netty when broadcasting events to multiple channels.
+     * are put into the queue for Netty when broadcasting events to multiple subpartitions.
      */
     @TestTemplate
     void testBroadcastEmitBufferIndependence() throws Exception {
@@ -253,12 +254,12 @@ class RecordWriterTest {
      */
     @TestTemplate
     void testBroadcastEmitRecord(@TempDir Path tempPath) throws Exception {
-        final int numberOfChannels = 4;
+        final int numberOfSubpartitions = 4;
         final int bufferSize = 32;
         final int numValues = 8;
         final int serializationLength = 4;
 
-        final ResultPartition partition = createResultPartition(bufferSize, numberOfChannels);
+        final ResultPartition partition = createResultPartition(bufferSize, numberOfSubpartitions);
         final RecordWriter<SerializationTestType> writer = createRecordWriter(partition);
         final RecordDeserializer<SerializationTestType> deserializer =
                 new SpillingAdaptiveSpanningRecordDeserializer<>(
@@ -278,10 +279,10 @@ class RecordWriterTest {
                     .isEqualTo(numRequiredBuffers);
         } else {
             assertThat(partition.getBufferPool().bestEffortGetNumOfUsedBuffers())
-                    .isEqualTo(numRequiredBuffers * numberOfChannels);
+                    .isEqualTo(numRequiredBuffers * numberOfSubpartitions);
         }
 
-        for (int i = 0; i < numberOfChannels; i++) {
+        for (int i = 0; i < numberOfSubpartitions; i++) {
             assertThat(partition.getNumberOfQueuedBuffers(i)).isEqualTo(numRequiredBuffers);
             ResultSubpartitionView view =
                     partition.createSubpartitionView(i, new NoOpBufferAvailablityListener());

@@ -42,7 +42,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>It maintains a list of {@link MemorySegment}s as a joint buffer. Data will be appended to the
  * joint buffer sequentially. When writing a record, an index entry will be appended first. An index
  * entry consists of 4 fields: 4 bytes for record length, 4 bytes for {@link Buffer.DataType} and 8
- * bytes for address pointing to the next index entry of the same channel which will be used to
+ * bytes for address pointing to the next index entry of the same subpartition which will be used to
  * index the next record to read when coping data from this {@link DataBuffer}. For simplicity, no
  * index entry can span multiple segments. The corresponding record data is seated right after its
  * index entry and different from the index entry, records have variable length thus may span
@@ -120,7 +120,7 @@ public abstract class SortBuffer implements DataBuffer {
     /** Record bytes remaining after last copy, which must be read first in next copy. */
     protected int recordRemainingBytes;
 
-    /** Used to index the current available channel to read data from. */
+    /** Used to index the current available subpartition to read data from. */
     protected int readOrderIndex = -1;
 
     protected SortBuffer(
@@ -141,7 +141,7 @@ public abstract class SortBuffer implements DataBuffer {
         this.firstIndexEntryAddresses = new long[numSubpartitions];
         this.lastIndexEntryAddresses = new long[numSubpartitions];
 
-        // initialized with -1 means the corresponding channel has no data
+        // initialized with -1 means the corresponding subpartition has no data
         Arrays.fill(firstIndexEntryAddresses, -1L);
         Arrays.fill(lastIndexEntryAddresses, -1L);
 
@@ -150,8 +150,8 @@ public abstract class SortBuffer implements DataBuffer {
             checkArgument(customReadOrder.length == numSubpartitions, "Illegal data read order.");
             System.arraycopy(customReadOrder, 0, this.subpartitionReadOrder, 0, numSubpartitions);
         } else {
-            for (int channel = 0; channel < numSubpartitions; ++channel) {
-                this.subpartitionReadOrder[channel] = channel;
+            for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
+                this.subpartitionReadOrder[subpartition] = subpartition;
             }
         }
     }
@@ -161,7 +161,7 @@ public abstract class SortBuffer implements DataBuffer {
      * either all data of target record will be written or nothing will be written.
      */
     @Override
-    public boolean append(ByteBuffer source, int targetChannel, Buffer.DataType dataType)
+    public boolean append(ByteBuffer source, int targetSubpartition, Buffer.DataType dataType)
             throws IOException {
         checkArgument(source.hasRemaining(), "Cannot append empty data.");
         checkState(!isFinished, "Sort buffer is already finished.");
@@ -175,7 +175,7 @@ public abstract class SortBuffer implements DataBuffer {
         }
 
         // write the index entry and record or event data
-        writeIndex(targetChannel, totalBytes, dataType);
+        writeIndex(targetSubpartition, totalBytes, dataType);
         writeRecord(source);
 
         ++numTotalRecords;
@@ -184,7 +184,7 @@ public abstract class SortBuffer implements DataBuffer {
         return false;
     }
 
-    private void writeIndex(int channelIndex, int numRecordBytes, Buffer.DataType dataType) {
+    private void writeIndex(int subpartitionIndex, int numRecordBytes, Buffer.DataType dataType) {
         MemorySegment segment = segments.get(writeSegmentIndex);
 
         // record length takes the high 32 bits and data type takes the low 32 bits
@@ -193,16 +193,16 @@ public abstract class SortBuffer implements DataBuffer {
         // segment index takes the high 32 bits and segment offset takes the low 32 bits
         long indexEntryAddress = ((long) writeSegmentIndex << 32) | writeSegmentOffset;
 
-        long lastIndexEntryAddress = lastIndexEntryAddresses[channelIndex];
-        lastIndexEntryAddresses[channelIndex] = indexEntryAddress;
+        long lastIndexEntryAddress = lastIndexEntryAddresses[subpartitionIndex];
+        lastIndexEntryAddresses[subpartitionIndex] = indexEntryAddress;
 
         if (lastIndexEntryAddress >= 0) {
-            // link the previous index entry of the given channel to the new index entry
+            // link the previous index entry of the given subpartition to the new index entry
             segment = segments.get(getSegmentIndexFromPointer(lastIndexEntryAddress));
             segment.putLong(
                     getSegmentOffsetFromPointer(lastIndexEntryAddress) + 8, indexEntryAddress);
         } else {
-            firstIndexEntryAddresses[channelIndex] = indexEntryAddress;
+            firstIndexEntryAddresses[subpartitionIndex] = indexEntryAddress;
         }
 
         // move the write position forward so as to write the corresponding record
@@ -315,11 +315,11 @@ public abstract class SortBuffer implements DataBuffer {
         return numBytesToCopy;
     }
 
-    protected void updateReadChannelAndIndexEntryAddress() {
-        // skip the channels without any data
+    protected void updateReadSubpartitionAndIndexEntryAddress() {
+        // skip the subpartitions without any data
         while (++readOrderIndex < firstIndexEntryAddresses.length) {
-            int channelIndex = subpartitionReadOrder[readOrderIndex];
-            if ((readIndexEntryAddress = firstIndexEntryAddresses[channelIndex]) >= 0) {
+            int subpartitionIndex = subpartitionReadOrder[readOrderIndex];
+            if ((readIndexEntryAddress = firstIndexEntryAddresses[subpartitionIndex]) >= 0) {
                 break;
             }
         }
@@ -355,7 +355,7 @@ public abstract class SortBuffer implements DataBuffer {
         isFinished = true;
 
         // prepare for reading
-        updateReadChannelAndIndexEntryAddress();
+        updateReadSubpartitionAndIndexEntryAddress();
     }
 
     @Override

@@ -144,7 +144,7 @@ public enum PartitionTestUtils {
             int bufferSize,
             byte[] dataBytes)
             throws Exception {
-        List<BufferWithChannel> buffers = new ArrayList<>();
+        List<BufferWithSubpartition> buffers = new ArrayList<>();
         for (int i = 0; i < numSubpartitions; ++i) {
             for (int j = 0; j < numBuffersPerSubpartition; ++j) {
                 Buffer.DataType dataType =
@@ -157,7 +157,7 @@ public enum PartitionTestUtils {
                 Buffer buffer =
                         new NetworkBuffer(
                                 segment, FreeingBufferRecycler.INSTANCE, dataType, bufferSize);
-                buffers.add(new BufferWithChannel(buffer, i));
+                buffers.add(new BufferWithSubpartition(buffer, i));
             }
         }
 
