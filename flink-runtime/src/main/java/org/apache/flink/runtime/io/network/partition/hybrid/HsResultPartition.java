@@ -62,7 +62,7 @@ public class HsResultPartition extends ResultPartition {
 
     public static final String INDEX_FILE_SUFFIX = ".hybrid.index";
 
-    public static final int BROADCAST_CHANNEL = 0;
+    public static final int BROADCAST_SUBPARTITION = 0;
 
     private final HsFileDataIndex dataIndex;
 
@@ -186,7 +186,7 @@ public class HsResultPartition extends ResultPartition {
     private void broadcast(ByteBuffer record, Buffer.DataType dataType) throws IOException {
         resultPartitionBytes.incAll(record.remaining());
         if (isBroadcastOnly) {
-            emit(record, BROADCAST_CHANNEL, dataType);
+            emit(record, BROADCAST_SUBPARTITION, dataType);
         } else {
             for (int i = 0; i < numSubpartitions; i++) {
                 emit(record.duplicate(), i, dataType);
@@ -213,8 +213,8 @@ public class HsResultPartition extends ResultPartition {
             throw new PartitionNotFoundException(getPartitionId());
         }
         // if broadcastOptimize is enabled, map every subpartitionId to the special broadcast
-        // channel.
-        subpartitionId = isBroadcastOnly ? BROADCAST_CHANNEL : subpartitionId;
+        // subpartition.
+        subpartitionId = isBroadcastOnly ? BROADCAST_SUBPARTITION : subpartitionId;
 
         HsSubpartitionConsumer subpartitionConsumer =
                 new HsSubpartitionConsumer(availabilityListener);

@@ -234,7 +234,7 @@ class HsResultPartitionTest {
         final int numBuffers = 10;
         final int numRecords = 10;
         final int numConsumers = 2;
-        final int targetChannel = 0;
+        final int targetSubpartition = 0;
         final Random random = new Random();
 
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
@@ -242,13 +242,13 @@ class HsResultPartitionTest {
             List<ByteBuffer> dataWritten = new ArrayList<>();
             for (int i = 0; i < numRecords; i++) {
                 ByteBuffer record = generateRandomData(bufferSize, random);
-                resultPartition.emitRecord(record, targetChannel);
+                resultPartition.emitRecord(record, targetSubpartition);
                 dataWritten.add(record);
             }
             resultPartition.finish();
 
             Tuple2[] viewAndListeners =
-                    createMultipleConsumerView(resultPartition, targetChannel, 2);
+                    createMultipleConsumerView(resultPartition, targetSubpartition, 2);
 
             List<List<Buffer>> dataRead = new ArrayList<>();
             for (int i = 0; i < numConsumers; i++) {
