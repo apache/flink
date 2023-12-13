@@ -1177,9 +1177,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         (maxParallelismPerJobVertex) -> {
                             validateMaxParallelism(
                                     jobResourceRequirements, maxParallelismPerJobVertex);
+                        })
+                .thenRunAsync(
+                        () -> {
                             try {
-                                jobGraphWriter.putJobResourceRequirements(
-                                        jobId, jobResourceRequirements, ioExecutor);
+                                jobGraphWriter
+                                        .putJobResourceRequirements(
+                                                jobId, jobResourceRequirements, ioExecutor)
+                                        .get();
                             } catch (Exception e) {
                                 throw new CompletionException(
                                         new RestHandlerException(
@@ -1187,7 +1192,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                 HttpResponseStatus.INTERNAL_SERVER_ERROR,
                                                 e));
                             }
-                        })
+                        },
+                        ioExecutor)
                 .thenComposeAsync(
                         ignored ->
                                 performOperationOnJobMasterGateway(
