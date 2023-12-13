@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -41,8 +42,10 @@ import org.apache.flink.util.clock.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -81,7 +84,9 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
             Clock clock,
             Time idleSlotTimeout,
-            Time rpcTimeout) {
+            Time rpcTimeout,
+            Duration slotRequestMaxInterval,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         this.jobId = jobId;
         this.clock = clock;
         this.rpcTimeout = rpcTimeout;
@@ -89,10 +94,16 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
 
         this.declarativeSlotPool =
                 declarativeSlotPoolFactory.create(
-                        jobId, this::declareResourceRequirements, idleSlotTimeout, rpcTimeout);
+                        jobId,
+                        this::declareResourceRequirements,
+                        idleSlotTimeout,
+                        rpcTimeout,
+                        slotRequestMaxInterval,
+                        componentMainThreadExecutor);
     }
 
-    protected DeclarativeSlotPool getDeclarativeSlotPool() {
+    @VisibleForTesting
+    public DeclarativeSlotPool getDeclarativeSlotPool() {
         return declarativeSlotPool;
     }
 

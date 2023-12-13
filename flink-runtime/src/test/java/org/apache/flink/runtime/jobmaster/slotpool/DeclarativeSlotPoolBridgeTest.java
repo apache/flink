@@ -23,7 +23,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
@@ -55,6 +54,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -65,8 +65,7 @@ class DeclarativeSlotPoolBridgeTest {
     private static final Time rpcTimeout = Time.seconds(20);
     private static final JobID jobId = new JobID();
     private static final JobMasterId jobMasterId = JobMasterId.generate();
-    private final ComponentMainThreadExecutor mainThreadExecutor =
-            ComponentMainThreadExecutorServiceAdapter.forMainThread();
+    private final ComponentMainThreadExecutor mainThreadExecutor = forMainThread();
     @Parameter private RequestSlotMatchingStrategy requestSlotMatchingStrategy;
 
     @Parameters(name = "RequestSlotMatchingStrategy: {0}")
@@ -280,7 +279,9 @@ class DeclarativeSlotPoolBridgeTest {
                 rpcTimeout,
                 Time.seconds(20),
                 Time.seconds(20),
-                requestSlotMatchingStrategy);
+                requestSlotMatchingStrategy,
+                Duration.ZERO,
+                forMainThread());
     }
 
     static PhysicalSlot createAllocatedSlot(AllocationID allocationID) {

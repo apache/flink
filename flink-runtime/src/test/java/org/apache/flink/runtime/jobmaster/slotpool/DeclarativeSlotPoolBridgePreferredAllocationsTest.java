@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
@@ -34,12 +33,14 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DeclarativeSlotPoolBridgePreferredAllocationsTest {
@@ -54,12 +55,11 @@ class DeclarativeSlotPoolBridgePreferredAllocationsTest {
                         TestingUtils.infiniteTime(),
                         TestingUtils.infiniteTime(),
                         TestingUtils.infiniteTime(),
-                        PreferredAllocationRequestSlotMatchingStrategy.INSTANCE);
+                        PreferredAllocationRequestSlotMatchingStrategy.INSTANCE,
+                        Duration.ZERO,
+                        forMainThread());
 
-        declarativeSlotPoolBridge.start(
-                JobMasterId.generate(),
-                "localhost",
-                ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        declarativeSlotPoolBridge.start(JobMasterId.generate(), "localhost", forMainThread());
 
         final LocalTaskManagerLocation localTaskManagerLocation = new LocalTaskManagerLocation();
 

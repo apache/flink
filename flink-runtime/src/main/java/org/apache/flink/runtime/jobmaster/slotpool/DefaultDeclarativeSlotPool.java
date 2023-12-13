@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -42,14 +43,18 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -103,12 +108,20 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final RequirementMatcher requirementMatcher = new DefaultRequirementMatcher();
 
+    @Nonnull private final ComponentMainThreadExecutor componentMainThreadExecutor;
+
+    // For slots(resources) requests by batch.
+    @Nonnull private final Duration slotRequestMaxInterval;
+    @Nullable private ScheduledFuture<?> slotRequestMaxIntervalTimeoutFuture;
+
     public DefaultDeclarativeSlotPool(
             JobID jobId,
             AllocatedSlotPool slotPool,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
             Time idleSlotTimeout,
-            Time rpcTimeout) {
+            Time rpcTimeout,
+            Duration slotRequestMaxInterval,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
 
         this.jobId = jobId;
         this.slotPool = slotPool;
@@ -118,6 +131,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         this.totalResourceRequirements = ResourceCounter.empty();
         this.fulfilledResourceRequirements = ResourceCounter.empty();
         this.slotToRequirementProfileMappings = new HashMap<>();
+        this.componentMainThreadExecutor = Preconditions.checkNotNull(componentMainThreadExecutor);
+        this.slotRequestMaxInterval = Preconditions.checkNotNull(slotRequestMaxInterval);
     }
 
     @Override
@@ -127,7 +142,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         }
         totalResourceRequirements = totalResourceRequirements.add(increment);
 
-        declareResourceRequirements();
+        doDeclareResourceRequirements();
     }
 
     @Override
@@ -137,7 +152,25 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         }
         totalResourceRequirements = totalResourceRequirements.subtract(decrement);
 
-        declareResourceRequirements();
+        doDeclareResourceRequirements();
+    }
+
+    private void doDeclareResourceRequirements() {
+        if (slotRequestMaxInterval.toMillis() <= 0L) {
+            declareResourceRequirements();
+            return;
+        }
+
+        if (slotRequestMaxIntervalTimeoutFuture != null
+                && !slotRequestMaxIntervalTimeoutFuture.isDone()
+                && !slotRequestMaxIntervalTimeoutFuture.isCancelled()) {
+            slotRequestMaxIntervalTimeoutFuture.cancel(true);
+        }
+        slotRequestMaxIntervalTimeoutFuture =
+                componentMainThreadExecutor.schedule(
+                        this::declareResourceRequirements,
+                        slotRequestMaxInterval.toMillis(),
+                        TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -598,5 +631,28 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @VisibleForTesting
     ResourceCounter getFulfilledResourceRequirements() {
         return fulfilledResourceRequirements;
+    }
+
+    @VisibleForTesting
+    @Nonnull
+    public ComponentMainThreadExecutor getComponentMainThreadExecutor() {
+        return componentMainThreadExecutor;
+    }
+
+    @VisibleForTesting
+    @Nonnull
+    public Duration getSlotRequestMaxInterval() {
+        return slotRequestMaxInterval;
+    }
+
+    @VisibleForTesting
+    public void tryWaitSlotRequestMaxIntervalTimeout() {
+        if (Objects.nonNull(slotRequestMaxIntervalTimeoutFuture)) {
+            try {
+                slotRequestMaxIntervalTimeoutFuture.get();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

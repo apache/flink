@@ -71,7 +71,9 @@ public class TestingSlotPoolServiceBuilder implements SlotPoolServiceFactory {
     @Nonnull
     @Override
     public SlotPoolService createSlotPoolService(
-            @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
+            @Nonnull JobID jobId,
+            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         return new TestingSlotPoolService(
                 jobId,
                 startConsumer,

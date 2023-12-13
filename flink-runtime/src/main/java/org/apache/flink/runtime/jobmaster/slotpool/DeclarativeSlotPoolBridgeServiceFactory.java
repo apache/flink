@@ -20,9 +20,12 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.util.clock.Clock;
 
 import javax.annotation.Nonnull;
+
+import java.time.Duration;
 
 /** Factory for {@link DeclarativeSlotPoolBridge}. */
 public class DeclarativeSlotPoolBridgeServiceFactory extends AbstractSlotPoolServiceFactory {
@@ -34,15 +37,18 @@ public class DeclarativeSlotPoolBridgeServiceFactory extends AbstractSlotPoolSer
             @Nonnull Time rpcTimeout,
             @Nonnull Time slotIdleTimeout,
             @Nonnull Time batchSlotTimeout,
+            @Nonnull Duration slotRequestMaxInterval,
             @Nonnull RequestSlotMatchingStrategy requestSlotMatchingStrategy) {
-        super(clock, rpcTimeout, slotIdleTimeout, batchSlotTimeout);
+        super(clock, rpcTimeout, slotIdleTimeout, batchSlotTimeout, slotRequestMaxInterval);
         this.requestSlotMatchingStrategy = requestSlotMatchingStrategy;
     }
 
     @Nonnull
     @Override
     public SlotPoolService createSlotPoolService(
-            @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
+            @Nonnull JobID jobId,
+            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         return new DeclarativeSlotPoolBridge(
                 jobId,
                 declarativeSlotPoolFactory,
@@ -50,6 +56,8 @@ public class DeclarativeSlotPoolBridgeServiceFactory extends AbstractSlotPoolSer
                 rpcTimeout,
                 slotIdleTimeout,
                 batchSlotTimeout,
-                requestSlotMatchingStrategy);
+                requestSlotMatchingStrategy,
+                slotRequestMaxInterval,
+                componentMainThreadExecutor);
     }
 }

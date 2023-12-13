@@ -20,9 +20,12 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.util.clock.Clock;
 
 import javax.annotation.Nonnull;
+
+import java.time.Duration;
 
 /** Factory for the {@link DeclarativeSlotPoolService}. */
 public class DeclarativeSlotPoolServiceFactory implements SlotPoolServiceFactory {
@@ -30,18 +33,32 @@ public class DeclarativeSlotPoolServiceFactory implements SlotPoolServiceFactory
     private final Clock clock;
     private final Time idleSlotTimeout;
     private final Time rpcTimeout;
+    private final @Nonnull Duration slotRequestMaxInterval;
 
-    public DeclarativeSlotPoolServiceFactory(Clock clock, Time idleSlotTimeout, Time rpcTimeout) {
+    public DeclarativeSlotPoolServiceFactory(
+            Clock clock,
+            Time idleSlotTimeout,
+            Time rpcTimeout,
+            @Nonnull Duration slotRequestMaxInterval) {
         this.clock = clock;
         this.idleSlotTimeout = idleSlotTimeout;
         this.rpcTimeout = rpcTimeout;
+        this.slotRequestMaxInterval = slotRequestMaxInterval;
     }
 
     @Nonnull
     @Override
     public SlotPoolService createSlotPoolService(
-            @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
+            @Nonnull JobID jobId,
+            DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         return new DeclarativeSlotPoolService(
-                jobId, declarativeSlotPoolFactory, clock, idleSlotTimeout, rpcTimeout);
+                jobId,
+                declarativeSlotPoolFactory,
+                clock,
+                idleSlotTimeout,
+                rpcTimeout,
+                slotRequestMaxInterval,
+                componentMainThreadExecutor);
     }
 }

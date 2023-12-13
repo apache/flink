@@ -19,10 +19,15 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.function.Consumer;
+
+import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_MAX_INTERVAL;
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 
 /** Builder for {@link DefaultDeclarativeSlotPool}. */
 final class DefaultDeclarativeSlotPoolBuilder {
@@ -32,6 +37,8 @@ final class DefaultDeclarativeSlotPoolBuilder {
             ignored -> {};
     private Time idleSlotTimeout = Time.seconds(20);
     private Time rpcTimeout = Time.seconds(20);
+    private Duration slotRequestMaxInterval = SLOT_REQUEST_MAX_INTERVAL.defaultValue();
+    private ComponentMainThreadExecutor componentMainThreadExecutor = forMainThread();
 
     public DefaultDeclarativeSlotPoolBuilder setAllocatedSlotPool(
             AllocatedSlotPool allocatedSlotPool) {
@@ -50,13 +57,21 @@ final class DefaultDeclarativeSlotPoolBuilder {
         return this;
     }
 
+    public DefaultDeclarativeSlotPoolBuilder setSlotRequestMaxInterval(
+            Duration slotRequestMaxInterval) {
+        this.slotRequestMaxInterval = slotRequestMaxInterval;
+        return this;
+    }
+
     public DefaultDeclarativeSlotPool build() {
         return new DefaultDeclarativeSlotPool(
                 new JobID(),
                 allocatedSlotPool,
                 notifyNewResourceRequirements,
                 idleSlotTimeout,
-                rpcTimeout);
+                rpcTimeout,
+                slotRequestMaxInterval,
+                componentMainThreadExecutor);
     }
 
     public static DefaultDeclarativeSlotPoolBuilder builder() {

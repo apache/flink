@@ -31,7 +31,11 @@ import org.apache.flink.util.clock.SystemClock;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+
+import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_MAX_INTERVAL;
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 
 /** Builder for a {@link DeclarativeSlotPoolBridge}. */
 public class DeclarativeSlotPoolBridgeBuilder {
@@ -41,6 +45,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
             Time.fromDuration(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue());
     private Time idleSlotTimeout = TestingUtils.infiniteTime();
     private Clock clock = SystemClock.getInstance();
+    private Duration slotRequestMaxInterval = SLOT_REQUEST_MAX_INTERVAL.defaultValue();
 
     @Nullable
     private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
@@ -61,6 +66,12 @@ public class DeclarativeSlotPoolBridgeBuilder {
 
     public DeclarativeSlotPoolBridgeBuilder setIdleSlotTimeout(Time idleSlotTimeout) {
         this.idleSlotTimeout = idleSlotTimeout;
+        return this;
+    }
+
+    public DeclarativeSlotPoolBridgeBuilder setSlotRequestMaxInterval(
+            Duration slotRequestMaxInterval) {
+        this.slotRequestMaxInterval = slotRequestMaxInterval;
         return this;
     }
 
@@ -88,7 +99,9 @@ public class DeclarativeSlotPoolBridgeBuilder {
                 TestingUtils.infiniteTime(),
                 idleSlotTimeout,
                 batchSlotTimeout,
-                requestSlotMatchingStrategy);
+                requestSlotMatchingStrategy,
+                slotRequestMaxInterval,
+                forMainThread());
     }
 
     public DeclarativeSlotPoolBridge buildAndStart(

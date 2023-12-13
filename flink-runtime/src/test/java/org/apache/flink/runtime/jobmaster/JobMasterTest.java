@@ -83,6 +83,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolService;
+import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.FreeSlotInfoTrackerTestUtils;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
@@ -175,6 +177,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_MAX_INTERVAL;
 import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
@@ -485,7 +488,9 @@ class JobMasterTest {
         @Nonnull
         @Override
         public SlotPoolService createSlotPoolService(
-                @Nonnull JobID jobId, DeclarativeSlotPoolFactory declarativeSlotPoolFactory) {
+                @Nonnull JobID jobId,
+                DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
+                @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
             return new TestingSlotPool(jobId, hasReceivedSlotOffers);
         }
     }
@@ -1054,6 +1059,41 @@ class JobMasterTest {
                 expectAllRemainingInputSplits = this::flattenCollection;
 
         runRequestNextInputSplitTest(expectAllRemainingInputSplits);
+    }
+
+    @Test
+    void testSlotRequestMaxIntervalAndComponentMainThreadExecutorPassing() throws Exception {
+
+        DeclarativeSlotPoolService slotPoolService;
+        DefaultDeclarativeSlotPool declarativeSlotPool;
+
+        JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withJobMasterId(jobMasterId)
+                        .withConfiguration(configuration)
+                        .withHighAvailabilityServices(haServices)
+                        .withHeartbeatServices(heartbeatServices)
+                        .createJobMaster();
+        slotPoolService = (DeclarativeSlotPoolService) jobMaster.getSlotPoolService();
+        declarativeSlotPool = (DefaultDeclarativeSlotPool) slotPoolService.getDeclarativeSlotPool();
+        assertThat(declarativeSlotPool.getSlotRequestMaxInterval())
+                .isEqualTo(SLOT_REQUEST_MAX_INTERVAL.defaultValue());
+        assertThat(declarativeSlotPool.getComponentMainThreadExecutor()).isNotNull();
+
+        Duration slotRequestMaxIntervalManually = Duration.ofMillis(50L);
+        configuration.set(SLOT_REQUEST_MAX_INTERVAL, slotRequestMaxIntervalManually);
+        jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withJobMasterId(jobMasterId)
+                        .withConfiguration(configuration)
+                        .withHighAvailabilityServices(haServices)
+                        .withHeartbeatServices(heartbeatServices)
+                        .createJobMaster();
+        slotPoolService = (DeclarativeSlotPoolService) jobMaster.getSlotPoolService();
+        declarativeSlotPool = (DefaultDeclarativeSlotPool) slotPoolService.getDeclarativeSlotPool();
+        assertThat(declarativeSlotPool.getSlotRequestMaxInterval())
+                .isEqualTo(slotRequestMaxIntervalManually);
+        assertThat(declarativeSlotPool.getComponentMainThreadExecutor()).isNotNull();
     }
 
     private void runRequestNextInputSplitTest(
