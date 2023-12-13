@@ -59,6 +59,7 @@ This table lists the `source` / `binary` compatibility guarantees for each annot
 Consider the code written against a `Public` API in 1.15.2:
 * The code can continue to run when upgrading to Flink 1.15.3 without recompiling, because patch version upgrades for `Public` APIs guarantee `binary` compatibility.
 * The same code may have to be recompiled when upgrading from 1.15.x to 1.16.0, because minor version upgrades for `Public` APIs only provide `source` compatibility, not `binary` compatibility.
+* Code change may be required when upgrading from 1.x to 2.x because major version upgrades for `Public` APIs provide neither `source` nor `binary` compatibility.
 
 Consider the code written against a `PublicEvolving` API in 1.15.2:
 * The code can continue to run when upgrading to Flink 1.15.3 without recompiling, because patch version upgrades for `PublicEvolving` APIs guarantee `binary` compatibility.
