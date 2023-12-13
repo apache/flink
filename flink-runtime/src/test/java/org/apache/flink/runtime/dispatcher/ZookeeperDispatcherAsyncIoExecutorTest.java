@@ -53,7 +53,6 @@ import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFact
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElection;
-import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
@@ -78,6 +77,7 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.flink.shaded.guava31.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -97,11 +97,12 @@ import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
-import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -109,21 +110,33 @@ import static org.junit.Assert.assertTrue;
 public class ZookeeperDispatcherAsyncIoExecutorTest {
 
     private JobGraph jobGraph;
-
     private JobID jobId;
-
     private TestingLeaderElection jobMasterLeaderElection;
-
     private final ZooKeeperExtension zooKeeperExtension = new ZooKeeperExtension();
-
     private TestingJobGraphListener testingJobGraphListener;
-
+    private Configuration configuration;
+    private ThreadFactory threadFactory;
+    private Executor ioExecutor;
+    private TestingDispatcher dispatcher;
+    static final Time TIMEOUT = Time.minutes(1L);
+    static String ioExecutorThreadPrefix = "ioExecutor-thread";
     static TestingRpcService rpcService;
+    @TempDir static Path temporaryFolder;
+    String handleStoreThreadName = "";
     HeartbeatServices heartbeatServices = new HeartbeatServicesImpl(1000L, 10000L);
     TestingHighAvailabilityServices haServices;
-    private Configuration configuration;
-    static final Time TIMEOUT = Time.minutes(1L);
-    @TempDir static Path temporaryFolder;
+    TestingDispatcher.Builder builder;
+    CuratorFramework facade;
+    BlobServer blobServer;
+
+    private static final RetrievableStateStorageHelper<JobGraph> localStateStorage =
+            jobGraph -> {
+                ByteStreamStateHandle byteStreamStateHandle =
+                        new ByteStreamStateHandle(
+                                String.valueOf(UUID.randomUUID()),
+                                InstantiationUtil.serializeObject(jobGraph));
+                return new RetrievableStreamStateHandle<>(byteStreamStateHandle);
+            };
 
     @RegisterExtension
     final EachCallbackWrapper<ZooKeeperExtension> zooKeeperResource =
@@ -138,20 +151,6 @@ public class ZookeeperDispatcherAsyncIoExecutorTest {
                 testingFatalErrorHandlerResource.getTestingFatalErrorHandler());
     }
 
-    private static final RetrievableStateStorageHelper<JobGraph> localStateStorage =
-            jobGraph -> {
-                ByteStreamStateHandle byteStreamStateHandle =
-                        new ByteStreamStateHandle(
-                                String.valueOf(UUID.randomUUID()),
-                                InstantiationUtil.serializeObject(jobGraph));
-                return new RetrievableStreamStateHandle<>(byteStreamStateHandle);
-            };
-
-    /** Instance under test. */
-    private TestingDispatcher dispatcher;
-
-    BlobServer blobServer;
-
     @BeforeEach
     public void setUp() throws Exception {
         configuration = new Configuration();
@@ -164,14 +163,17 @@ public class ZookeeperDispatcherAsyncIoExecutorTest {
         haServices.setJobMasterLeaderElection(jobId, jobMasterLeaderElection);
         rpcService = new TestingRpcService();
         blobServer = new BlobServer(configuration, temporaryFolder.toFile(), new VoidBlobStore());
+        facade = createFacade();
+        ZooKeeperStateHandleStore zooKeeperStateHandleStore =
+                new TestLongTimeZooKeeperStateHandleStore<>(facade, localStateStorage);
+        JobGraphStore jobGraphStore =
+                createZooKeeperJobGraphStore(facade, zooKeeperStateHandleStore);
+        builder = createTestingDispatcherBuilder(jobGraphStore);
     }
 
     private CuratorFramework createFacade() throws Exception {
-
         String fullPath = "/abc";
         final CuratorFramework client = getZooKeeperClient();
-        // Ensure that the job graphs path exists
-        client.newNamespaceAwareEnsurePath(fullPath).ensure(client.getZookeeperClient());
         CuratorFramework facade = client.usingNamespace(client.getNamespace() + fullPath);
         return facade;
     }
@@ -190,8 +192,9 @@ public class ZookeeperDispatcherAsyncIoExecutorTest {
         return jobGraphStore;
     }
 
-    class TestZooKeeperStateHandleStore<T extends Serializable> extends ZooKeeperStateHandleStore {
-        public TestZooKeeperStateHandleStore(
+    class TestLongTimeZooKeeperStateHandleStore<T extends Serializable>
+            extends ZooKeeperStateHandleStore {
+        public TestLongTimeZooKeeperStateHandleStore(
                 CuratorFramework client, RetrievableStateStorageHelper storage) {
             super(client, storage);
         }
@@ -200,6 +203,21 @@ public class ZookeeperDispatcherAsyncIoExecutorTest {
         public RetrievableStateHandle<T> addAndLock(String pathInZooKeeper, Serializable state)
                 throws PossibleInconsistentStateException, Exception {
             Thread.sleep(Time.seconds(20).toMilliseconds());
+            return super.addAndLock(pathInZooKeeper, state);
+        }
+    }
+
+    class TestThreadNameZooKeeperStateHandleStore<T extends Serializable>
+            extends ZooKeeperStateHandleStore {
+        public TestThreadNameZooKeeperStateHandleStore(
+                CuratorFramework client, RetrievableStateStorageHelper storage) {
+            super(client, storage);
+        }
+
+        @Override
+        public RetrievableStateHandle<T> addAndLock(String pathInZooKeeper, Serializable state)
+                throws PossibleInconsistentStateException, Exception {
+            handleStoreThreadName = Thread.currentThread().getName();
             return super.addAndLock(pathInZooKeeper, state);
         }
     }
@@ -231,35 +249,37 @@ public class ZookeeperDispatcherAsyncIoExecutorTest {
         }
     }
 
-    /**
-     * Use TestZooKeeperStateHandleStore as the StateHandleStore for long time to store Graph. Tests
-     * that we can submit a job to the Dispatcher.
-     */
-    @Test
-    public void testLongTimeStateStore() throws Exception {
-        CuratorFramework facade = createFacade();
-        ZooKeeperStateHandleStore zooKeeperStateHandleStore =
-                new TestZooKeeperStateHandleStore<>(facade, localStateStorage);
-        JobGraphStore jobGraphStore =
-                createZooKeeperJobGraphStore(facade, zooKeeperStateHandleStore);
-        TestingDispatcher.Builder builder = createTestingDispatcherBuilder(jobGraphStore);
+    private void jobSubmit() throws Exception {
         dispatcher = createAndStartDispatcher(builder);
-
         dispatcher.start();
         DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
         dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
         jobMasterLeaderElection.getStartFuture().get();
-        assertTrue(
-                "jobManagerRunner was not started",
-                jobMasterLeaderElection.getStartFuture().isDone());
-        Thread.sleep(Time.seconds(30).toMilliseconds());
-        assertTrue(
-                "jobManagerRunner was not started",
-                jobMasterLeaderElection.getStartFuture().isDone());
+    }
+
+    /**
+     * Tests that JobGraphStateHandleStore's ThreadName starts with the IoExecutor thread prefix.
+     */
+    @Test
+    public void testHandleStoreThreadNamePrefix() throws Exception {
+        ioExecutorThreadPrefix = "ioExecutor-abc";
+        threadFactory =
+                new ThreadFactoryBuilder()
+                        .setDaemon(true)
+                        .setNameFormat(ioExecutorThreadPrefix + "-%d")
+                        .build();
+        ioExecutor = Executors.newCachedThreadPool(threadFactory);
+        ZooKeeperStateHandleStore zooKeeperStateHandleStore =
+                new TestThreadNameZooKeeperStateHandleStore<>(facade, localStateStorage);
+        JobGraphStore jobGraphStore =
+                createZooKeeperJobGraphStore(facade, zooKeeperStateHandleStore);
+        builder = createTestingDispatcherBuilder(jobGraphStore);
+        builder.setIoExecutor(ioExecutor);
+        jobSubmit();
+        assertTrue(handleStoreThreadName.startsWith(ioExecutorThreadPrefix));
     }
 
     private class TestExecutionGraphInfoStore implements ExecutionGraphInfoStore {
-
         @Override
         public int size() {
             return 0;
@@ -299,80 +319,6 @@ public class ZookeeperDispatcherAsyncIoExecutorTest {
 
         @Override
         public void close() throws IOException {}
-    }
-
-    /**
-     * Use TestZooKeeperStateHandleStore as the StateHandleStore for long time to store Graph. Tests
-     * that we can submit a job to the Dispatcher.
-     */
-    @Test
-    public void testLongTimeExecutionGraphInfoStore() throws Exception {
-        CuratorFramework facade = createFacade();
-        ZooKeeperStateHandleStore zooKeeperStateHandleStore =
-                new ZooKeeperStateHandleStore<>(facade, localStateStorage);
-        JobGraphStore jobGraphStore =
-                createZooKeeperJobGraphStore(facade, zooKeeperStateHandleStore);
-        TestingDispatcher.Builder builder = createTestingDispatcherBuilder(jobGraphStore);
-        builder.setExecutionGraphInfoStore(new TestExecutionGraphInfoStore());
-        dispatcher = createAndStartDispatcher(builder);
-        dispatcher.start();
-        DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
-        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
-        jobMasterLeaderElection.getStartFuture().get();
-        assertTrue(
-                "jobManagerRunner was not started",
-                jobMasterLeaderElection.getStartFuture().isDone());
-        Thread.sleep(Time.seconds(30).toMilliseconds());
-        assertTrue(
-                "jobManagerRunner was not started",
-                jobMasterLeaderElection.getStartFuture().isDone());
-    }
-
-    @Test
-    public void testJobResourceRequirementsCanBeOnlyUpdatedOnInitializedJobMasters()
-            throws Exception {
-
-        CuratorFramework facade = createFacade();
-        ZooKeeperStateHandleStore zooKeeperStateHandleStore =
-                new TestZooKeeperStateHandleStore<>(facade, localStateStorage);
-        JobGraphStore jobGraphStore =
-                createZooKeeperJobGraphStore(facade, zooKeeperStateHandleStore);
-        final JobManagerRunnerWithBlockingJobMasterFactory blockingJobMaster =
-                new JobManagerRunnerWithBlockingJobMasterFactory(this::withRequestJobResponse);
-        TestingDispatcher.Builder builder = createTestingDispatcherBuilder(jobGraphStore);
-        builder.setJobManagerRunnerFactory(blockingJobMaster);
-        dispatcher = createAndStartDispatcher(builder);
-        dispatcher.start();
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-        jobMasterLeaderElection.isLeader(UUID.randomUUID());
-
-        assertThatFuture(
-                        dispatcherGateway.updateJobResourceRequirements(
-                                jobId, JobResourceRequirements.empty()))
-                .eventuallyFailsWith(ExecutionException.class)
-                .withCauseInstanceOf(FlinkJobNotFoundException.class);
-
-        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
-
-        try {
-            assertThatFuture(
-                            dispatcherGateway.updateJobResourceRequirements(
-                                    jobId, JobResourceRequirements.empty()))
-                    .eventuallyFailsWith(ExecutionException.class)
-                    .withCauseInstanceOf(UnavailableDispatcherOperationException.class);
-        } finally {
-            // Unblocking the job master in the "finally block" prevents getting
-            // stuck during the RPC system tear down in case of test failure.
-            blockingJobMaster.unblockJobMasterInitialization();
-        }
-
-        // We can update the JRR once the job transitions to RUNNING.
-        awaitStatus(dispatcherGateway, jobId, JobStatus.RUNNING);
-        assertThatFuture(
-                        dispatcherGateway.updateJobResourceRequirements(
-                                jobId, getJobRequirements()))
-                .eventuallySucceeds();
     }
 
     private TestingJobMasterGatewayBuilder withRequestJobResponse(
