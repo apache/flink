@@ -109,10 +109,7 @@ public class PbCodegenRowDeserializer implements PbCodegenDeserializer {
             index += 1;
         }
         if (!splitAppender.code().isEmpty()) {
-            String splitMethod =
-                    formatContext.splitDeserializerRowTypeMethod(
-                            flinkRowDataVar, pbMessageTypeStr, pbMessageVar, splitAppender.code());
-            appender.appendSegment(splitMethod);
+            appender.appendSegment(splitAppender.code());
         }
         appender.appendLine(resultVar + " = " + flinkRowDataVar);
         return appender.code();
