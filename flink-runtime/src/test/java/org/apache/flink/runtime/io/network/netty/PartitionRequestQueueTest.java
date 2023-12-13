@@ -234,10 +234,9 @@ class PartitionRequestQueueTest {
         }
 
         @Override
-        public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+        public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
             int numBuffers = buffersInBacklog.get();
-            return new AvailabilityWithBacklog(
-                    numCreditsAvailable > 0 && numBuffers > 0, numBuffers);
+            return new AvailabilityWithBacklog(isCreditAvailable && numBuffers > 0, numBuffers);
         }
     }
 
@@ -267,7 +266,7 @@ class PartitionRequestQueueTest {
         }
 
         @Override
-        public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+        public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
             return new AvailabilityWithBacklog(true, 0);
         }
     }
@@ -320,7 +319,7 @@ class PartitionRequestQueueTest {
 
     private static class NextIsEventResultSubpartitionView extends NoOpResultSubpartitionView {
         @Override
-        public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+        public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
             return new AvailabilityWithBacklog(true, 0);
         }
     }

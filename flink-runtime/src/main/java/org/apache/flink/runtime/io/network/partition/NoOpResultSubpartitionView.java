@@ -51,7 +51,7 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
     }
 
     @Override
-    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
         return new AvailabilityWithBacklog(false, 0);
     }
 

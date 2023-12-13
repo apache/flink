@@ -93,11 +93,11 @@ public class TieredStorageResultSubpartitionViewTest {
     @Test
     void testGetAvailabilityAndBacklog() {
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog1 =
-                tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(0);
+                tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(false);
         assertThat(availabilityAndBacklog1.getBacklog()).isEqualTo(1);
         assertThat(availabilityAndBacklog1.isAvailable()).isEqualTo(false);
         ResultSubpartitionView.AvailabilityWithBacklog availabilityAndBacklog2 =
-                tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(2);
+                tieredStorageResultSubpartitionView.getAvailabilityAndBacklog(true);
         assertThat(availabilityAndBacklog2.getBacklog()).isEqualTo(1);
         assertThat(availabilityAndBacklog2.isAvailable()).isEqualTo(true);
     }

@@ -121,10 +121,10 @@ public class HsSubpartitionConsumer
     }
 
     @Override
-    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
         synchronized (lock) {
-            boolean availability = numCreditsAvailable > 0;
-            if (numCreditsAvailable <= 0
+            boolean availability = isCreditAvailable;
+            if (!isCreditAvailable
                     && cachedNextDataType != null
                     && cachedNextDataType == Buffer.DataType.EVENT_BUFFER) {
                 availability = true;

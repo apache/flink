@@ -238,7 +238,7 @@ class CancelPartitionRequestTest {
         public void acknowledgeAllDataProcessed() {}
 
         @Override
-        public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+        public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
             return new AvailabilityWithBacklog(true, 0);
         }
 

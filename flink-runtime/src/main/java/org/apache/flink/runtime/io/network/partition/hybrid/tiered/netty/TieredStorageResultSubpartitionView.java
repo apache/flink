@@ -93,12 +93,12 @@ public class TieredStorageResultSubpartitionView implements ResultSubpartitionVi
     }
 
     @Override
-    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable) {
         if (findCurrentNettyPayloadQueue()) {
             NettyPayloadManager currentQueue =
                     nettyPayloadManagers.get(managerIndexContainsCurrentSegment);
-            boolean availability = numCreditsAvailable > 0;
-            if (numCreditsAvailable == 0 && isEventOrError(currentQueue)) {
+            boolean availability = isCreditAvailable;
+            if (!isCreditAvailable && isEventOrError(currentQueue)) {
                 availability = true;
             }
             return new AvailabilityWithBacklog(availability, getBacklog());

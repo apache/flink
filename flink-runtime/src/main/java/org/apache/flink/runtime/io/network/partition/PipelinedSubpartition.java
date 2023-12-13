@@ -589,10 +589,10 @@ public class PipelinedSubpartition extends ResultSubpartition implements Channel
     }
 
     public ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog(
-            int numCreditsAvailable) {
+            boolean isCreditAvailable) {
         synchronized (buffers) {
             boolean isAvailable;
-            if (numCreditsAvailable > 0) {
+            if (isCreditAvailable) {
                 isAvailable = isDataAvailableUnsafe();
             } else {
                 isAvailable = getNextBufferTypeUnsafe().isEvent();
