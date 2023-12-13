@@ -447,6 +447,13 @@ public class JobManagerOptions {
                     .defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
                     .withDescription("The timeout for a idle slot in Slot Pool.");
 
+    @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
+    public static final ConfigOption<Duration> SLOT_REQUEST_MAX_INTERVAL =
+            key("slot.request.max-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(20L))
+                    .withDescription("The max interval duration for slots request.");
+
     /** Config parameter determining the scheduler implementation. */
     @Documentation.Section({
         Documentation.Sections.EXPERT_SCHEDULING,

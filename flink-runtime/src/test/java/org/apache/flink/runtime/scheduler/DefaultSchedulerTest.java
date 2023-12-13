@@ -1600,7 +1600,8 @@ public class DefaultSchedulerTest {
         final SlotPool slotPool =
                 new DeclarativeSlotPoolBridgeBuilder()
                         .setBatchSlotTimeout(slotTimeout)
-                        .buildAndStart(singleThreadMainThreadExecutor);
+                        .setMainThreadExecutor(singleThreadMainThreadExecutor)
+                        .buildAndStart();
         final PhysicalSlotProvider slotProvider =
                 new PhysicalSlotProviderImpl(
                         LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);

@@ -19,7 +19,10 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.slots.ResourceRequirement;
+
+import javax.annotation.Nonnull;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -39,7 +42,9 @@ final class TestingDeclarativeSlotPoolFactory implements DeclarativeSlotPoolFact
             JobID jobId,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
             Duration idleSlotTimeout,
-            Duration rpcTimeout) {
+            Duration rpcTimeout,
+            Duration slotRequestMaxInterval,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         return builder.build();
     }
 }

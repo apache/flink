@@ -21,7 +21,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
@@ -125,7 +124,7 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
     private SlotPool createAndSetUpSlotPool() throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(resourceManagerGateway)
-                .buildAndStart(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+                .buildAndStart();
     }
 
     private void connectToResourceManager(SlotPool slotPool) {
@@ -135,6 +134,6 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
     private SlotPool createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
                 .setResourceManagerGateway(null)
-                .buildAndStart(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+                .buildAndStart();
     }
 }
