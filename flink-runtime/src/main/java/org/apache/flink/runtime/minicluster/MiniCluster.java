@@ -57,8 +57,8 @@ import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesImpl;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
-import org.apache.flink.runtime.highavailability.nonha.NonHaServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
@@ -611,7 +611,7 @@ public class MiniCluster implements AutoCloseableAsync {
             // therefore, SingletonHighAvailabilityServicesFactory is utilized here
             return new SingletonHighAvailabilityServicesFactory(
                     (config, embeddedLeaderElectionExecutor) ->
-                            new NonHaServices(
+                            new HighAvailabilityServicesImpl(
                                     new EmbeddedLeaderServices(embeddedLeaderElectionExecutor),
                                     new EmbeddedPersistentServices()));
         } else {

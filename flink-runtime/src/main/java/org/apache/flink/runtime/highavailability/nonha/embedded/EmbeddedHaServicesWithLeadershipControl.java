@@ -24,8 +24,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesImpl;
 import org.apache.flink.runtime.highavailability.JobResultStore;
-import org.apache.flink.runtime.highavailability.nonha.NonHaServices;
 import org.apache.flink.runtime.persistentservice.EmbeddedPersistentServices;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 
@@ -35,10 +35,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * {@link org.apache.flink.runtime.highavailability.nonha.NonHaServices} extension to expose
- * leadership granting and revoking.
+ * {@link org.apache.flink.runtime.highavailability.HighAvailabilityServicesImpl} extension to
+ * expose leadership granting and revoking.
  */
-public class EmbeddedHaServicesWithLeadershipControl extends NonHaServices
+public class EmbeddedHaServicesWithLeadershipControl extends HighAvailabilityServicesImpl
         implements HaLeadershipControl {
     private final EmbeddedLeaderServices embeddedLeaderServices;
 

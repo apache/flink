@@ -27,7 +27,6 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
-import org.apache.flink.runtime.highavailability.nonha.NonHaServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedLeaderServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHAServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneLeaderServices;
@@ -66,7 +65,7 @@ public class HighAvailabilityServicesUtils {
 
         switch (highAvailabilityMode) {
             case NONE:
-                return new NonHaServices(
+                return new HighAvailabilityServicesImpl(
                         new EmbeddedLeaderServices(executor), new EmbeddedPersistentServices());
 
             case ZOOKEEPER:
@@ -143,7 +142,7 @@ public class HighAvailabilityServicesUtils {
                 final String webMonitorAddress =
                         getWebMonitorAddress(configuration, addressResolution);
 
-                return new NonHaServices(
+                return new HighAvailabilityServicesImpl(
                         new StandaloneLeaderServices(
                                 resourceManagerRpcUrl, dispatcherRpcUrl, webMonitorAddress),
                         new EmbeddedPersistentServices());
