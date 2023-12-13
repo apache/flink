@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
@@ -41,6 +40,7 @@ import org.junit.jupiter.api.Test;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -419,7 +419,7 @@ class DefaultDeclarativeSlotPoolTest {
 
     @Test
     void testReturnIdleSlotsAfterTimeout() {
-        final Time idleSlotTimeout = Time.seconds(10);
+        final Duration idleSlotTimeout = Duration.ofSeconds(10);
         final long offerTime = 0;
         final DefaultDeclarativeSlotPool slotPool =
                 DefaultDeclarativeSlotPoolBuilder.builder()
@@ -443,7 +443,7 @@ class DefaultDeclarativeSlotPoolTest {
         // decrease the resource requirements so that slots are no longer needed
         slotPool.decreaseResourceRequirementsBy(resourceRequirements);
 
-        slotPool.releaseIdleSlots(offerTime + idleSlotTimeout.toMilliseconds());
+        slotPool.releaseIdleSlots(offerTime + idleSlotTimeout.toMillis());
 
         final Collection<AllocationID> freedSlots = freeSlotConsumer.drainFreedSlots();
 
@@ -463,7 +463,7 @@ class DefaultDeclarativeSlotPoolTest {
 
     @Test
     void testOnlyReturnExcessIdleSlots() {
-        final Time idleSlotTimeout = Time.seconds(10);
+        final Duration idleSlotTimeout = Duration.ofSeconds(10);
         final long offerTime = 0;
         final DefaultDeclarativeSlotPool slotPool =
                 DefaultDeclarativeSlotPoolBuilder.builder()
@@ -483,7 +483,7 @@ class DefaultDeclarativeSlotPoolTest {
         final ResourceCounter excessRequirements = resourceRequirements.subtract(requiredResources);
         slotPool.decreaseResourceRequirementsBy(excessRequirements);
 
-        slotPool.releaseIdleSlots(offerTime + idleSlotTimeout.toMilliseconds());
+        slotPool.releaseIdleSlots(offerTime + idleSlotTimeout.toMillis());
 
         assertThat(acceptedSlots).isNotEmpty();
         assertThat(slotPool.getFulfilledResourceRequirements()).isEqualTo(requiredResources);

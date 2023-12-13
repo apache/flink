@@ -185,7 +185,7 @@ class DefaultSchedulerBatchSchedulingTest {
             ComponentMainThreadExecutor mainThreadExecutor, Time batchSlotTimeout)
             throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
-                .setBatchSlotTimeout(batchSlotTimeout)
+                .setBatchSlotTimeout(batchSlotTimeout.toDuration())
                 .buildAndStart(mainThreadExecutor);
     }
 

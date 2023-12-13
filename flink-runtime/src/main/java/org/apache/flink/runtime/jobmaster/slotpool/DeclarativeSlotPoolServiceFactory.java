@@ -19,19 +19,21 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.clock.Clock;
 
 import javax.annotation.Nonnull;
+
+import java.time.Duration;
 
 /** Factory for the {@link DeclarativeSlotPoolService}. */
 public class DeclarativeSlotPoolServiceFactory implements SlotPoolServiceFactory {
 
     private final Clock clock;
-    private final Time idleSlotTimeout;
-    private final Time rpcTimeout;
+    private final Duration idleSlotTimeout;
+    private final Duration rpcTimeout;
 
-    public DeclarativeSlotPoolServiceFactory(Clock clock, Time idleSlotTimeout, Time rpcTimeout) {
+    public DeclarativeSlotPoolServiceFactory(
+            Clock clock, Duration idleSlotTimeout, Duration rpcTimeout) {
         this.clock = clock;
         this.idleSlotTimeout = idleSlotTimeout;
         this.rpcTimeout = rpcTimeout;

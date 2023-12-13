@@ -18,9 +18,9 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.function.Consumer;
 
@@ -30,8 +30,8 @@ final class DefaultDeclarativeSlotPoolBuilder {
     private AllocatedSlotPool allocatedSlotPool = new DefaultAllocatedSlotPool();
     private Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements =
             ignored -> {};
-    private Time idleSlotTimeout = Time.seconds(20);
-    private Time rpcTimeout = Time.seconds(20);
+    private Duration idleSlotTimeout = Duration.ofSeconds(20);
+    private Duration rpcTimeout = Duration.ofSeconds(20);
 
     public DefaultDeclarativeSlotPoolBuilder setAllocatedSlotPool(
             AllocatedSlotPool allocatedSlotPool) {
@@ -45,7 +45,7 @@ final class DefaultDeclarativeSlotPoolBuilder {
         return this;
     }
 
-    public DefaultDeclarativeSlotPoolBuilder setIdleSlotTimeout(Time idleSlotTimeout) {
+    public DefaultDeclarativeSlotPoolBuilder setIdleSlotTimeout(Duration idleSlotTimeout) {
         this.idleSlotTimeout = idleSlotTimeout;
         return this;
     }

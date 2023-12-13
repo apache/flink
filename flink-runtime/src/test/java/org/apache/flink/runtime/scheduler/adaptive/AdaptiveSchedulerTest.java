@@ -19,7 +19,6 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
@@ -536,8 +535,8 @@ public class AdaptiveSchedulerTest {
                         jobGraph.getJobID(),
                         new DefaultAllocatedSlotPool(),
                         ignored -> {},
-                        Time.minutes(10),
-                        Time.minutes(10));
+                        Duration.ofMinutes(10),
+                        Duration.ofMinutes(10));
 
         final Configuration configuration = createConfigurationWithNoTimeouts();
         configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
@@ -2312,8 +2311,8 @@ public class AdaptiveSchedulerTest {
                 jobId,
                 new DefaultAllocatedSlotPool(),
                 ignored -> {},
-                Time.fromDuration(idleSlotTimeout),
-                Time.fromDuration(DEFAULT_TIMEOUT));
+                idleSlotTimeout,
+                DEFAULT_TIMEOUT);
     }
 
     private static JobGraph createJobGraph() {

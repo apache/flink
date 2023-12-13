@@ -57,6 +57,7 @@ import org.apache.flink.util.clock.SystemClock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -151,12 +152,9 @@ public final class DefaultSlotPoolServiceSchedulerFactory
     public static DefaultSlotPoolServiceSchedulerFactory fromConfiguration(
             Configuration configuration, JobType jobType, boolean isDynamicGraph) {
 
-        final Time rpcTimeout =
-                Time.fromDuration(configuration.get(RpcOptions.ASK_TIMEOUT_DURATION));
-        final Time slotIdleTimeout =
-                Time.fromDuration(configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT));
-        final Time batchSlotTimeout =
-                Time.fromDuration(configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+        final Duration rpcTimeout = configuration.get(RpcOptions.ASK_TIMEOUT_DURATION);
+        final Duration slotIdleTimeout = configuration.get(JobManagerOptions.SLOT_IDLE_TIMEOUT);
+        final Duration batchSlotTimeout = configuration.get(JobManagerOptions.SLOT_REQUEST_TIMEOUT);
 
         final SlotPoolServiceFactory slotPoolServiceFactory;
         final SchedulerNGFactory schedulerNGFactory;

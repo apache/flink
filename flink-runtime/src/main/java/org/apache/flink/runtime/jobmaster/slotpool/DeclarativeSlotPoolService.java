@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -56,7 +57,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
 
     private final JobID jobId;
 
-    private final Time rpcTimeout;
+    private final Duration rpcTimeout;
 
     private final DeclarativeSlotPool declarativeSlotPool;
 
@@ -80,8 +81,8 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
             JobID jobId,
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
             Clock clock,
-            Time idleSlotTimeout,
-            Time rpcTimeout) {
+            Duration idleSlotTimeout,
+            Duration rpcTimeout) {
         this.jobId = jobId;
         this.clock = clock;
         this.rpcTimeout = rpcTimeout;
