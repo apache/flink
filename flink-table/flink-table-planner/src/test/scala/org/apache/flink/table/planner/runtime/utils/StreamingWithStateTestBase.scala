@@ -36,13 +36,14 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
+import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.util.FileUtils
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
+import org.slf4j.LoggerFactory
 
 import java.io.{File, IOException}
-import java.nio.file.Files
 import java.util
 
 import scala.collection.JavaConversions._
@@ -56,6 +57,8 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     case ROCKSDB_BACKEND => true
   }
 
+  private val log = LoggerFactory.getLogger(classOf[StreamingWithStateTestBase])
+
   private val classLoader = Thread.currentThread.getContextClassLoader
 
   var baseCheckpointPath: File = _
@@ -64,7 +67,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   override def before(): Unit = {
     super.before()
     // set state backend
-    baseCheckpointPath = Files.createTempDirectory("junit").toFile
+    baseCheckpointPath = TempDirUtils.newFolder(tempFolder)
     state match {
       case HEAP_BACKEND =>
         val conf = new Configuration()
@@ -87,7 +90,14 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
       FileUtils.deleteDirectory(baseCheckpointPath)
     } catch {
       case e: IOException =>
-        log.error("The temporary files are not being deleted gracefully.", e)
+        if (baseCheckpointPath.exists) {
+          log.error(
+            s"The temporary files are not being deleted gracefully, remaining files " +
+              s"${FileUtils.listFilesInDirectory(baseCheckpointPath.toPath, _ => true)}.",
+            e)
+        } else {
+          log.error("The temporary files are not being deleted gracefully.", e)
+        }
     }
     assertThat(FailingCollectionSource.failedBefore).isTrue
   }
