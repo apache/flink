@@ -142,18 +142,26 @@ public class TieredStorageProducerClient {
      * @param accumulatedBuffer one accumulated buffer of this subpartition
      */
     private void writeAccumulatedBuffer(
-            TieredStorageSubpartitionId subpartitionId, Buffer accumulatedBuffer) {
+            TieredStorageSubpartitionId subpartitionId,
+            Buffer accumulatedBuffer,
+            int numRemainingConsecutiveBuffers) {
         try {
             Buffer compressedBuffer = compressBufferIfPossible(accumulatedBuffer);
             if (currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()] == null) {
-                chooseStorageTierToStartSegment(subpartitionId);
+                chooseStorageTierToStartSegment(subpartitionId, numRemainingConsecutiveBuffers + 1);
             }
             if (!currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
-                    subpartitionId, compressedBuffer, bufferAccumulator)) {
-                chooseStorageTierToStartSegment(subpartitionId);
+                    subpartitionId,
+                    compressedBuffer,
+                    bufferAccumulator,
+                    numRemainingConsecutiveBuffers)) {
+                chooseStorageTierToStartSegment(subpartitionId, numRemainingConsecutiveBuffers + 1);
                 checkState(
                         currentSubpartitionTierAgent[subpartitionId.getSubpartitionId()].tryWrite(
-                                subpartitionId, compressedBuffer, bufferAccumulator),
+                                subpartitionId,
+                                compressedBuffer,
+                                bufferAccumulator,
+                                numRemainingConsecutiveBuffers),
                         "Failed to write the first buffer to the new segment");
             }
         } catch (IOException ioe) {
@@ -163,14 +171,15 @@ public class TieredStorageProducerClient {
         updateMetricStatistics(1, accumulatedBuffer.readableBytes());
     }
 
-    private void chooseStorageTierToStartSegment(TieredStorageSubpartitionId subpartitionId)
-            throws IOException {
+    private void chooseStorageTierToStartSegment(
+            TieredStorageSubpartitionId subpartitionId, int totalNumBuffers) throws IOException {
         int subpartitionIndex = subpartitionId.getSubpartitionId();
         int segmentIndex = currentSubpartitionSegmentId[subpartitionIndex];
         int nextSegmentIndex = segmentIndex + 1;
 
         for (TierProducerAgent tierProducerAgent : tierProducerAgents) {
-            if (tierProducerAgent.tryStartNewSegment(subpartitionId, nextSegmentIndex)) {
+            if (tierProducerAgent.tryStartNewSegment(
+                    subpartitionId, nextSegmentIndex, totalNumBuffers)) {
                 // Update the segment index and the chosen storage tier for the subpartition.
                 currentSubpartitionSegmentId[subpartitionIndex] = nextSegmentIndex;
                 currentSubpartitionTierAgent[subpartitionIndex] = tierProducerAgent;

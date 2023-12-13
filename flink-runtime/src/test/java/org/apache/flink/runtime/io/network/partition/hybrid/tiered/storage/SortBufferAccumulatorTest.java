@@ -29,6 +29,8 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -60,6 +62,21 @@ class SortBufferAccumulatorTest {
 
     @Test
     void testAccumulateRecordsAndGenerateBuffers() throws IOException {
+        testAccumulateRecordsAndGenerateBuffers(
+                true,
+                Arrays.asList(
+                        Buffer.DataType.DATA_BUFFER, Buffer.DataType.DATA_BUFFER_WITH_CLEAR_END));
+    }
+
+    @Test
+    void testAccumulateRecordsAndGenerateBuffersWithPartialRecordUnallowed() throws IOException {
+        testAccumulateRecordsAndGenerateBuffers(
+                false, Collections.singletonList(Buffer.DataType.DATA_BUFFER_WITH_CLEAR_END));
+    }
+
+    private void testAccumulateRecordsAndGenerateBuffers(
+            boolean isPartialRecordAllowed, Collection<Buffer.DataType> expectedDataTypes)
+            throws IOException {
         int numBuffers = 10;
         int numRecords = 1000;
         int indexEntrySize = 16;
@@ -74,9 +91,11 @@ class SortBufferAccumulatorTest {
         // The test use only one buffer for sort, and when it is full, the sort buffer will be
         // flushed.
         try (SortBufferAccumulator bufferAccumulator =
-                new SortBufferAccumulator(1, 2, BUFFER_SIZE_BYTES, memoryManager)) {
+                new SortBufferAccumulator(
+                        1, 2, BUFFER_SIZE_BYTES, memoryManager, isPartialRecordAllowed)) {
             bufferAccumulator.setup(
-                    ((subpartition, buffer) -> {
+                    ((subpartition, buffer, numRemainingBuffers) -> {
+                        assertThat(buffer.getDataType()).isIn(expectedDataTypes);
                         numReceivedFinishedBuffer.incrementAndGet();
                         buffer.recycleBuffer();
                     }));
@@ -105,6 +124,15 @@ class SortBufferAccumulatorTest {
 
     @Test
     void testWriteLargeRecord() throws IOException {
+        testWriteLargeRecord(true);
+    }
+
+    @Test
+    void testWriteLargeRecordWithPartialRecordUnallowed() throws IOException {
+        testWriteLargeRecord(false);
+    }
+
+    private void testWriteLargeRecord(boolean isPartialRecordAllowed) throws IOException {
         int numBuffers = 15;
         Random random = new Random();
         TieredStorageMemoryManager memoryManager = createStorageMemoryManager(numBuffers);
@@ -112,11 +140,12 @@ class SortBufferAccumulatorTest {
         // The test use only one buffer for sort, and when it is full, the sort buffer will be
         // flushed.
         try (SortBufferAccumulator bufferAccumulator =
-                new SortBufferAccumulator(1, 2, BUFFER_SIZE_BYTES, memoryManager)) {
+                new SortBufferAccumulator(
+                        1, 2, BUFFER_SIZE_BYTES, memoryManager, isPartialRecordAllowed)) {
             AtomicInteger numReceivedBuffers = new AtomicInteger(0);
             bufferAccumulator.setup(
-                    (subpartitionIndex, buffer) -> {
-                        numReceivedBuffers.getAndIncrement();
+                    (subpartitionIndex, buffer, numRemainingBuffers) -> {
+                        numReceivedBuffers.getAndAdd(1);
                         buffer.recycleBuffer();
                     });
             ByteBuffer largeRecord = generateRandomData(BUFFER_SIZE_BYTES * numBuffers, random);
@@ -138,8 +167,8 @@ class SortBufferAccumulatorTest {
         TieredStorageMemoryManager memoryManager = createStorageMemoryManager(numBuffers);
 
         try (SortBufferAccumulator bufferAccumulator =
-                new SortBufferAccumulator(1, 1, bufferSize, memoryManager)) {
-            bufferAccumulator.setup((subpartitionIndex, buffers) -> {});
+                new SortBufferAccumulator(1, 1, bufferSize, memoryManager, true)) {
+            bufferAccumulator.setup((subpartitionIndex, buffer, numRemainingBuffers) -> {});
             assertThatThrownBy(
                             () ->
                                     bufferAccumulator.receive(
@@ -158,8 +187,10 @@ class SortBufferAccumulatorTest {
         TieredStorageMemoryManager tieredStorageMemoryManager =
                 createStorageMemoryManager(numBuffers);
         SortBufferAccumulator bufferAccumulator =
-                new SortBufferAccumulator(1, 2, BUFFER_SIZE_BYTES, tieredStorageMemoryManager);
-        bufferAccumulator.setup(((subpartition, buffer) -> buffer.recycleBuffer()));
+                new SortBufferAccumulator(
+                        1, 2, BUFFER_SIZE_BYTES, tieredStorageMemoryManager, true);
+        bufferAccumulator.setup(
+                ((subpartition, buffer, numRemainingBuffers) -> buffer.recycleBuffer()));
         bufferAccumulator.receive(
                 generateRandomData(1, new Random()),
                 new TieredStorageSubpartitionId(0),

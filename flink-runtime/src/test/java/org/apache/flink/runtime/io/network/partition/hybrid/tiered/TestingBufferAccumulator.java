@@ -25,18 +25,18 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.BufferAccumulator;
+import org.apache.flink.util.function.TriConsumer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.function.BiConsumer;
 
 /** Test implementation for {@link BufferAccumulator}. */
 public class TestingBufferAccumulator implements BufferAccumulator {
 
-    private BiConsumer<TieredStorageSubpartitionId, Buffer> bufferFlusher;
+    private TriConsumer<TieredStorageSubpartitionId, Buffer, Integer> bufferFlusher;
 
     @Override
-    public void setup(BiConsumer<TieredStorageSubpartitionId, Buffer> bufferFlusher) {
+    public void setup(TriConsumer<TieredStorageSubpartitionId, Buffer, Integer> bufferFlusher) {
         this.bufferFlusher = bufferFlusher;
     }
 
@@ -51,7 +51,8 @@ public class TestingBufferAccumulator implements BufferAccumulator {
         bufferFlusher.accept(
                 subpartitionId,
                 new NetworkBuffer(
-                        recordData, FreeingBufferRecycler.INSTANCE, dataType, recordData.size()));
+                        recordData, FreeingBufferRecycler.INSTANCE, dataType, recordData.size()),
+                0);
     }
 
     @Override
