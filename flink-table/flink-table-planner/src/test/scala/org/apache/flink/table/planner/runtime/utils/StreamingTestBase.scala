@@ -17,21 +17,18 @@
  */
 package org.apache.flink.table.planner.runtime.utils
 
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.{EnvironmentSettings, ImplicitExpressionConversions}
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.test.junit5.MiniClusterExtension
 import org.apache.flink.types.Row
 
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
-import org.junit.jupiter.api.extension.RegisterExtension
 import org.junit.jupiter.api.io.TempDir
 
 import java.nio.file.Path
 
-class StreamingTestBase {
+class StreamingTestBase extends StreamAbstractTestBase {
 
   var env: StreamExecutionEnvironment = _
   var tEnv: StreamTableEnvironment = _
@@ -67,15 +64,4 @@ class StreamingTestBase {
     (0 until args.length).foreach(i => row.setField(i, args(i)))
     row
   }
-}
-
-object StreamingTestBase {
-
-  @RegisterExtension
-  private val _: MiniClusterExtension = new MiniClusterExtension(
-    () =>
-      new MiniClusterResourceConfiguration.Builder()
-        .setNumberTaskManagers(1)
-        .setNumberSlotsPerTaskManager(4)
-        .build())
 }
