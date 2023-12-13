@@ -55,9 +55,14 @@ This table lists the `source` / `binary` compatibility guarantees for each annot
 |  `Experimental`  |    {{< xmark >}}/{{< xmark >}}     |    {{< xmark >}}/{{< xmark >}}     |    {{< xmark >}}/{{< xmark >}}     |
 
 {{< hint info >}}
-{{< label Example >}}  
-Code written against a `PublicEvolving` API in 1.15.2 will continue to run in 1.15.3, without having to recompile the code.  
-That same code would have to be recompiled when upgrading to 1.16.0 though.
+{{< label Example >}}
+Consider the code written against a `Public` API in 1.15.2:
+* The code can continue to run when upgrading to Flink 1.15.3 without recompiling, because patch version upgrades for `Public` APIs guarantee `binary` compatibility.
+* The same code may have to be recompiled when upgrading from 1.15.x to 1.16.0, because minor version upgrades for `Public` APIs only provide `source` compatibility, not `binary` compatibility.
+
+Consider the code written against a `PublicEvolving` API in 1.15.2:
+* The code can continue to run when upgrading to Flink 1.15.3 without recompiling, because patch version upgrades for `PublicEvolving` APIs guarantee `binary` compatibility.
+* A code change may be required when upgrading from 1.15.x to Flink 1.16.0, because minor version upgrades for `PublicEvolving` APIs provide neither `source` nor binary compatibility.
 {{< /hint >}}
 
 ### Deprecated API Migration Period
@@ -65,11 +70,11 @@ When an API is deprecated, it is marked with the `@Deprecated` annotation and a 
 According to [FLIP-321](https://cwiki.apache.org/confluence/display/FLINK/FLIP-321%3A+Introduce+an+API+deprecation+process), 
 starting from release 1.18, each deprecated API will have a guaranteed migration period depending on the API stability level:
 
-|    Annotation    |          Guaranteed Migration Period           |
-|:----------------:|:----------------------------------------------:|
-|     `Public`     |                2 minor releases                |
-| `PublicEvolving` |                1 minor release                 |
-|  `Experimental`  | 1 patch release for the affected minor release |
+|    Annotation    |          Guaranteed Migration Period           |Could be removed after the migration period|
+|:----------------:|:----------------------------------------------:|:-----------------------------------------:|
+|     `Public`     |                2 minor releases                |            Next major version             |
+| `PublicEvolving` |                1 minor release                 |            Next minor version             |
+|  `Experimental`  | 1 patch release for the affected minor release |            Next patch version             |
 
 The source code of a deprecated API will be kept for at least the guaranteed migration period, 
 and may be removed at any point after the migration period has passed.
