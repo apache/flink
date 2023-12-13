@@ -21,7 +21,6 @@ package org.apache.flink.streaming.api.connector.sink2;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
@@ -33,8 +32,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
  * unexpected side-effects.
  */
 @Experimental
-public interface SupportsPreCommitTopology<WriterResultT, CommittableT>
-        extends SupportsCommitter<CommittableT> {
+public interface SupportsPreCommitTopology<WriterResultT, CommittableT> {
 
     /**
      * Intercepts and modifies the committables sent on checkpoint or at end of input. Implementers

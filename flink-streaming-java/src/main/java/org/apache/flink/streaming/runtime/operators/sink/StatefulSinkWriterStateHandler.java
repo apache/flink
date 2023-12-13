@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
 import org.apache.flink.api.connector.sink2.SupportsWriterState;
 import org.apache.flink.api.connector.sink2.SupportsWriterState.WithCompatibleState;
@@ -79,10 +78,12 @@ final class StatefulSinkWriterStateHandler<InputT, WriterStateT>
 
     private StatefulSinkWriter<InputT, WriterStateT> sinkWriter;
 
-    public StatefulSinkWriterStateHandler(StatefulSink<InputT, WriterStateT> sink) {
-        this.sink = sink;
+    public StatefulSinkWriterStateHandler(SupportsWriterState<InputT, WriterStateT> sink) {
+        Preconditions.checkArgument(
+                sink instanceof Sink, "Should be an instance of " + Sink.class.getName());
+        this.sink = (Sink<InputT>) sink;
         Collection<String> previousSinkStateNames =
-                sink instanceof StatefulSink.WithCompatibleState
+                sink instanceof SupportsWriterState.WithCompatibleState
                         ? ((WithCompatibleState) sink).getCompatibleWriterStateNames()
                         : Collections.emptyList();
         this.writerStateSimpleVersionedSerializer = sink.getWriterStateSerializer();
@@ -114,10 +115,6 @@ final class StatefulSinkWriterStateHandler<InputT, WriterStateT>
                                 preRawState, writerStateSimpleVersionedSerializer);
                 previousSinkStates.add(previousSinkState);
                 Iterables.addAll(states, previousSinkState.get());
-            }
-
-            if (!(sink instanceof SupportsWriterState)) {
-                throw new IllegalArgumentException("Sink should implement SupportsWriterState");
             }
 
             sinkWriter = ((SupportsWriterState) sink).restoreWriter(initContext, states);

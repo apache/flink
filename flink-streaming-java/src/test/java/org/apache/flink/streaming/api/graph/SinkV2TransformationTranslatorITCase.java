@@ -67,10 +67,7 @@ public class SinkV2TransformationTranslatorITCase
                         .setWriterUidHash(writerHash)
                         .setCommitterUidHash(committerHash)
                         .build();
-        src.sinkTo(
-                        TestSinkV2.<Integer>newBuilder().setDefaultCommitter().build(),
-                        operatorsUidHashes)
-                .name(NAME);
+        src.sinkTo(sinkWithCommitter(), operatorsUidHashes).name(NAME);
 
         final StreamGraph streamGraph = env.getStreamGraph();
 
@@ -87,9 +84,7 @@ public class SinkV2TransformationTranslatorITCase
         final String sinkUid = "f6b178ce445dc3ffaa06bad27a51fead";
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStreamSource<Integer> src = env.fromElements(1, 2);
-        src.sinkTo(TestSinkV2.<Integer>newBuilder().setDefaultCommitter().build())
-                .name(NAME)
-                .uid(sinkUid);
+        src.sinkTo(sinkWithCommitter()).name(NAME).uid(sinkUid);
 
         final StreamGraph streamGraph = env.getStreamGraph();
         assertEquals(findWriter(streamGraph).getTransformationUID(), sinkUid);

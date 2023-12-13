@@ -69,5 +69,6 @@ public interface TwoPhaseCommittingSink<InputT, CommT>
 
     /** A {@link SinkWriter} that performs the first part of a two-phase commit protocol. */
     @PublicEvolving
+    @Deprecated
     interface PrecommittingSinkWriter<InputT, CommT> extends CommittingSinkWriter<InputT, CommT> {}
 }

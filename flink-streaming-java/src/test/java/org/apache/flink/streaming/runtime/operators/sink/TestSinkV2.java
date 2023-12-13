@@ -20,14 +20,19 @@ package org.apache.flink.streaming.runtime.operators.sink;
 
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.StatefulSink;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.connector.sink2.SupportsWriterState;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
-import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
+import org.apache.flink.streaming.api.connector.sink2.SupportsPostCommitTopology;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.util.Preconditions;
@@ -60,9 +65,17 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         this.writer = writer;
     }
 
-    public SinkWriter<InputT> createWriter(InitContext context) {
+    @Override
+    public SinkWriter<InputT> createWriter(WriterInitContext context) throws IOException {
         writer.init(context);
         return writer;
+    }
+
+    @Override
+    @Deprecated
+    public SinkWriter<InputT> createWriter(InitContext context) {
+        throw new UnsupportedOperationException(
+                "CreateWriter.createWriter(WriterInitContext) is implemented instead");
     }
 
     DefaultSinkWriter<InputT> getWriter() {
@@ -170,7 +183,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
     }
 
     private static class TestSinkV2TwoPhaseCommittingSink<InputT> extends TestSinkV2<InputT>
-            implements TwoPhaseCommittingSink<InputT, String> {
+            implements SupportsCommitter<String> {
         private final DefaultCommitter committer;
         private final SimpleVersionedSerializer<String> committableSerializer;
 
@@ -184,7 +197,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         }
 
         @Override
-        public Committer<String> createCommitter() {
+        public Committer<String> createCommitter(CommitterInitContext context) {
             committer.init();
             return committer;
         }
@@ -195,8 +208,8 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         }
 
         @Override
-        public PrecommittingSinkWriter<InputT, String> createWriter(InitContext context) {
-            return (PrecommittingSinkWriter<InputT, String>) super.createWriter(context);
+        public SinkWriter<InputT> createWriter(WriterInitContext context) throws IOException {
+            return super.createWriter(context);
         }
     }
 
@@ -204,7 +217,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
 
     private static class TestSinkV2WithPostCommitTopology<InputT>
             extends TestSinkV2TwoPhaseCommittingSink<InputT>
-            implements WithPostCommitTopology<InputT, String> {
+            implements SupportsPostCommitTopology<String> {
         public TestSinkV2WithPostCommitTopology(
                 DefaultSinkWriter<InputT> writer,
                 SimpleVersionedSerializer<String> committableSerializer,
@@ -219,7 +232,8 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
     }
 
     private static class TestStatefulSinkV2<InputT> extends TestSinkV2WithPostCommitTopology<InputT>
-            implements StatefulSink<InputT, String>, StatefulSink.WithCompatibleState {
+            implements SupportsWriterState<InputT, String>,
+                    SupportsWriterState.WithCompatibleState {
         private String compatibleState;
 
         public TestStatefulSinkV2(
@@ -238,7 +252,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
 
         @Override
         public StatefulSinkWriter<InputT, String> restoreWriter(
-                InitContext context, Collection<String> recoveredState) {
+                WriterInitContext context, Collection<String> recoveredState) {
             DefaultStatefulSinkWriter<InputT> statefulWriter =
                     (DefaultStatefulSinkWriter) getWriter();
 
@@ -292,15 +306,14 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
             // noting to do here
         }
 
-        public void init(InitContext context) {
+        public void init(WriterInitContext context) {
             // context is not used in default case
         }
     }
 
-    /** Base class for out testing {@link TwoPhaseCommittingSink.PrecommittingSinkWriter}. */
+    /** Base class for out testing {@link CommittingSinkWriter}. */
     protected static class DefaultCommittingSinkWriter<InputT> extends DefaultSinkWriter<InputT>
-            implements TwoPhaseCommittingSink.PrecommittingSinkWriter<InputT, String>,
-                    Serializable {
+            implements CommittingSinkWriter<InputT, String>, Serializable {
 
         @Override
         public void flush(boolean endOfInput) throws IOException, InterruptedException {
@@ -321,7 +334,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
      */
     protected static class DefaultStatefulSinkWriter<InputT>
             extends DefaultCommittingSinkWriter<InputT>
-            implements StatefulSink.StatefulSinkWriter<InputT, String> {
+            implements StatefulSinkWriter<InputT, String> {
 
         @Override
         public List<String> snapshotState(long checkpointId) throws IOException {

@@ -74,6 +74,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.translators.CacheTransformationTranslator;
 import org.apache.flink.streaming.util.NoOpIntMap;
 import org.apache.flink.streaming.util.TestExpandingSink;
+import org.apache.flink.streaming.util.TestExpandingSinkWithMixin;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -896,6 +897,28 @@ public class StreamGraphGeneratorTest extends TestLogger {
         // Parallelism is set to -1 (default parallelism identifier) to imitate the behavior of
         // the table planner. Parallelism should be set automatically after translating.
         sourceDataStream.sinkTo(new TestExpandingSink()).setParallelism(-1);
+
+        StreamGraph graph = env.getStreamGraph();
+
+        graph.getStreamNodes()
+                .forEach(
+                        node -> {
+                            if (!node.getOperatorName().startsWith("Source")) {
+                                Assertions.assertThat(node.getParallelism()).isEqualTo(2);
+                            }
+                        });
+    }
+
+    @Test
+    public void testAutoParallelismForExpandedTransformationsWithMixin() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        env.setParallelism(2);
+
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
+        // Parallelism is set to -1 (default parallelism identifier) to imitate the behavior of
+        // the table planner. Parallelism should be set automatically after translating.
+        sourceDataStream.sinkTo(new TestExpandingSinkWithMixin()).setParallelism(-1);
 
         StreamGraph graph = env.getStreamGraph();
 
