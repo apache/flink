@@ -21,13 +21,13 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
+import org.apache.flink.util.function.TriConsumer;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -57,22 +57,30 @@ public class HashBufferAccumulator
      * construction, requiring the field to be initialized during setup. Therefore, it is necessary
      * to verify whether this field is null before using it.
      */
-    @Nullable private BiConsumer<TieredStorageSubpartitionId, Buffer> accumulatedBufferFlusher;
+    @Nullable
+    private TriConsumer<TieredStorageSubpartitionId, Buffer, Integer> accumulatedBufferFlusher;
 
     public HashBufferAccumulator(
-            int numSubpartitions, int bufferSize, TieredStorageMemoryManager memoryManager) {
+            int numSubpartitions,
+            int bufferSize,
+            TieredStorageMemoryManager memoryManager,
+            boolean isPartialRecordAllowed) {
         this.memoryManager = memoryManager;
         this.hashSubpartitionBufferAccumulators =
                 new HashSubpartitionBufferAccumulator[numSubpartitions];
         for (int i = 0; i < numSubpartitions; i++) {
             hashSubpartitionBufferAccumulators[i] =
                     new HashSubpartitionBufferAccumulator(
-                            new TieredStorageSubpartitionId(i), bufferSize, this);
+                            new TieredStorageSubpartitionId(i),
+                            bufferSize,
+                            this,
+                            isPartialRecordAllowed);
         }
     }
 
     @Override
-    public void setup(BiConsumer<TieredStorageSubpartitionId, Buffer> accumulatedBufferFlusher) {
+    public void setup(
+            TriConsumer<TieredStorageSubpartitionId, Buffer, Integer> accumulatedBufferFlusher) {
         this.accumulatedBufferFlusher = accumulatedBufferFlusher;
     }
 
@@ -99,8 +107,11 @@ public class HashBufferAccumulator
 
     @Override
     public void flushAccumulatedBuffers(
-            TieredStorageSubpartitionId subpartitionId, Buffer accumulatedBuffer) {
-        checkNotNull(accumulatedBufferFlusher).accept(subpartitionId, accumulatedBuffer);
+            TieredStorageSubpartitionId subpartitionId,
+            Buffer accumulatedBuffer,
+            int numRemainingConsecutiveBuffers) {
+        checkNotNull(accumulatedBufferFlusher)
+                .accept(subpartitionId, accumulatedBuffer, numRemainingConsecutiveBuffers);
     }
 
     private HashSubpartitionBufferAccumulator getSubpartitionAccumulator(

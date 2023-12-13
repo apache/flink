@@ -71,7 +71,8 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
     }
 
     @Override
-    public boolean tryStartNewSegment(TieredStorageSubpartitionId subpartitionId, int segmentId) {
+    public boolean tryStartNewSegment(
+            TieredStorageSubpartitionId subpartitionId, int segmentId, int minNumBuffers) {
         cacheDataManager.startSegment(subpartitionId.getSubpartitionId(), segmentId);
         // The remote storage tier should always be able to start a new segment.
         return true;
@@ -79,9 +80,16 @@ public class RemoteTierProducerAgent implements TierProducerAgent {
 
     @Override
     public boolean tryWrite(
-            TieredStorageSubpartitionId subpartitionId, Buffer buffer, Object bufferOwner) {
+            TieredStorageSubpartitionId subpartitionId,
+            Buffer buffer,
+            Object bufferOwner,
+            int numRemainingConsecutiveBuffers) {
         int subpartitionIndex = subpartitionId.getSubpartitionId();
-        if (currentSubpartitionSegmentWriteBuffers[subpartitionIndex] + 1 > numBuffersPerSegment) {
+        if (currentSubpartitionSegmentWriteBuffers[subpartitionIndex] != 0
+                && currentSubpartitionSegmentWriteBuffers[subpartitionIndex]
+                                + 1
+                                + numRemainingConsecutiveBuffers
+                        > numBuffersPerSegment) {
             cacheDataManager.finishSegment(subpartitionIndex);
             currentSubpartitionSegmentWriteBuffers[subpartitionIndex] = 0;
             return false;

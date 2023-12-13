@@ -271,53 +271,60 @@ public interface Buffer {
      */
     enum DataType {
         /** {@link #NONE} indicates that there is no buffer. */
-        NONE(false, false, false, false, false),
+        NONE(false, false, false, false, false, false),
 
         /** {@link #DATA_BUFFER} indicates that this buffer represents a non-event data buffer. */
-        DATA_BUFFER(true, false, false, false, false),
+        DATA_BUFFER(true, false, false, false, false, true),
 
         /**
          * {@link #EVENT_BUFFER} indicates that this buffer represents serialized data of an event.
          * Note that this type can be further divided into more fine-grained event types like {@link
          * #ALIGNED_CHECKPOINT_BARRIER} and etc.
          */
-        EVENT_BUFFER(false, true, false, false, false),
+        EVENT_BUFFER(false, true, false, false, false, false),
 
         /** Same as EVENT_BUFFER, but the event has been prioritized (e.g. it skipped buffers). */
-        PRIORITIZED_EVENT_BUFFER(false, true, false, true, false),
+        PRIORITIZED_EVENT_BUFFER(false, true, false, true, false, false),
 
         /**
          * {@link #ALIGNED_CHECKPOINT_BARRIER} indicates that this buffer represents a serialized
          * checkpoint barrier of aligned exactly-once checkpoint mode.
          */
-        ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, false),
+        ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, false, false),
 
         /**
          * {@link #TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER} indicates that this buffer represents a
          * serialized checkpoint barrier of aligned exactly-once checkpoint mode, that can be
          * time-out'ed to an unaligned checkpoint barrier.
          */
-        TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, true),
+        TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER(false, true, true, false, true, false),
 
         /**
          * Indicates that this subpartition state is fully recovered (emitted). Further data can be
          * consumed after unblocking.
          */
-        RECOVERY_COMPLETION(false, true, true, false, false),
+        RECOVERY_COMPLETION(false, true, true, false, false, false),
 
         /** {@link #END_OF_SEGMENT} indicates that a segment is finished in a subpartition. */
-        END_OF_SEGMENT(false, true, false, false, false),
+        END_OF_SEGMENT(false, true, false, false, false, false),
+
+        /**
+         * {@link #DATA_BUFFER_WITH_CLEAR_END} indicates that this buffer represents a non-event
+         * data buffer, and that at the end of this buffer there is no data cut and split into the
+         * next buffer.
+         */
+        DATA_BUFFER_WITH_CLEAR_END(true, false, false, false, false, false),
 
         /**
          * {@link #END_OF_DATA} indicates that there will be no more data buffer in a subpartition.
          */
-        END_OF_DATA(false, true, false, false, false),
+        END_OF_DATA(false, true, false, false, false, false),
 
         /** {@link #END_OF_PARTITION} marks a subpartition as fully consumed. */
-        END_OF_PARTITION(false, true, false, false, false),
+        END_OF_PARTITION(false, true, false, false, false, false),
 
         /** Contains the metadata used during a recovery process. */
-        RECOVERY_METADATA(false, true, false, false, false);
+        RECOVERY_METADATA(false, true, false, false, false, false);
 
         private final boolean isBuffer;
         private final boolean isEvent;
@@ -333,12 +340,15 @@ public interface Buffer {
          */
         private final boolean requiresAnnouncement;
 
+        private final boolean isPartialRecord;
+
         DataType(
                 boolean isBuffer,
                 boolean isEvent,
                 boolean isBlockingUpstream,
                 boolean hasPriority,
-                boolean requiresAnnouncement) {
+                boolean requiresAnnouncement,
+                boolean isPartialRecord) {
             checkState(
                     !(requiresAnnouncement && hasPriority),
                     "DataType [%s] has both priority and requires announcement, which is not supported "
@@ -350,6 +360,7 @@ public interface Buffer {
             this.isBlockingUpstream = isBlockingUpstream;
             this.hasPriority = hasPriority;
             this.requiresAnnouncement = requiresAnnouncement;
+            this.isPartialRecord = isPartialRecord;
         }
 
         public boolean isBuffer() {
@@ -370,6 +381,10 @@ public interface Buffer {
 
         public boolean requiresAnnouncement() {
             return requiresAnnouncement;
+        }
+
+        public boolean isPartialRecord() {
+            return isPartialRecord;
         }
 
         public static DataType getDataType(AbstractEvent event, boolean hasPriority) {

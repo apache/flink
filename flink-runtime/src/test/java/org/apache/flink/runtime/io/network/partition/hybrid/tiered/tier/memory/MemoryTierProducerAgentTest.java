@@ -56,10 +56,10 @@ class MemoryTierProducerAgentTest {
     void testTryStartNewSegment() {
         try (MemoryTierProducerAgent memoryTierProducerAgent =
                 createMemoryTierProducerAgent(false)) {
-            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isFalse();
+            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0)).isFalse();
             memoryTierProducerAgent.connectionEstablished(
                     SUBPARTITION_ID, new TestingNettyConnectionWriter.Builder().build());
-            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isTrue();
+            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0)).isTrue();
         }
     }
 
@@ -77,7 +77,7 @@ class MemoryTierProducerAgentTest {
                             .setNumQueuedBufferPayloadsSupplier(() -> numQueuedBuffers)
                             .build();
             memoryTierProducerAgent.connectionEstablished(SUBPARTITION_ID, connectionWriter);
-            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isTrue();
+            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0)).isTrue();
         }
     }
 
@@ -95,7 +95,7 @@ class MemoryTierProducerAgentTest {
                             .setNumQueuedBufferPayloadsSupplier(() -> numQueuedBuffers)
                             .build();
             memoryTierProducerAgent.connectionEstablished(SUBPARTITION_ID, connectionWriter);
-            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isFalse();
+            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0)).isFalse();
         }
     }
 
@@ -124,7 +124,7 @@ class MemoryTierProducerAgentTest {
                         new TieredStorageResourceRegistry())) {
             memoryTierProducerAgent.connectionEstablished(
                     SUBPARTITION_ID, new TestingNettyConnectionWriter.Builder().build());
-            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0)).isFalse();
+            assertThat(memoryTierProducerAgent.tryStartNewSegment(SUBPARTITION_ID, 0, 0)).isFalse();
         }
     }
 
@@ -139,13 +139,15 @@ class MemoryTierProducerAgentTest {
                             memoryTierProducerAgent.tryWrite(
                                     SUBPARTITION_ID,
                                     BufferBuilderTestUtils.buildSomeBuffer(),
-                                    this))
+                                    this,
+                                    0))
                     .isTrue();
             assertThat(
                             memoryTierProducerAgent.tryWrite(
                                     SUBPARTITION_ID,
                                     BufferBuilderTestUtils.buildSomeBuffer(),
-                                    this))
+                                    this,
+                                    0))
                     .isFalse();
         }
     }

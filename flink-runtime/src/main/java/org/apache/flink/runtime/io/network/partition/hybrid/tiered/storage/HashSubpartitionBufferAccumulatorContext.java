@@ -41,7 +41,11 @@ public interface HashSubpartitionBufferAccumulatorContext {
      *
      * @param subpartitionId the subpartition id
      * @param accumulatedBuffer the accumulated buffer
+     * @param numRemainingConsecutiveBuffers number of buffers that would be passed in the following
+     *     invocations and should be written to the same segment as this one
      */
     void flushAccumulatedBuffers(
-            TieredStorageSubpartitionId subpartitionId, Buffer accumulatedBuffer);
+            TieredStorageSubpartitionId subpartitionId,
+            Buffer accumulatedBuffer,
+            int numRemainingConsecutiveBuffers);
 }

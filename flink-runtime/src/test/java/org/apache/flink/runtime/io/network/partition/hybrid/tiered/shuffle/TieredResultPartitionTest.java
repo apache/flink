@@ -287,7 +287,8 @@ class TieredResultPartitionTest {
                         () -> bufferPool,
                         fileChannelManager,
                         readBufferPool,
-                        readIOExecutor);
+                        readIOExecutor,
+                        false);
         taskIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup();
         resultPartition.setup();
