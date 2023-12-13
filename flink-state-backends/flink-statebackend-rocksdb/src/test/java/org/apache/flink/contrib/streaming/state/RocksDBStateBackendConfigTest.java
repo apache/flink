@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.testutils.junit.FailsInGHAContainerWithRootUser;
+import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 
 import org.junit.Assert;
@@ -66,6 +67,7 @@ import org.rocksdb.util.SizeUnit;
 
 import java.io.File;
 import java.util.Arrays;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -365,6 +367,50 @@ public class RocksDBStateBackendConfigTest {
         RocksDBStateBackend rocksDbBackend =
                 new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
         rocksDbBackend.setDbStoragePath("relative/path");
+    }
+
+    @Test
+    public void testCleanRelocatedDbLogs() throws Exception {
+        final File folder = tempFolder.newFolder();
+        final File relocatedDBLogDir = tempFolder.newFolder("db_logs");
+        final File logFile = new File(relocatedDBLogDir, "taskManager.log");
+        Files.createFile(logFile.toPath());
+        System.setProperty("log.file", logFile.getAbsolutePath());
+
+        final String dbStoragePath = new Path(folder.toURI().toString()).toString();
+        final EmbeddedRocksDBStateBackend rocksDbBackend = new EmbeddedRocksDBStateBackend();
+        rocksDbBackend.setDbStoragePath(dbStoragePath);
+
+        final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
+        RocksDBKeyedStateBackend<Integer> keyedBackend =
+                createKeyedStateBackend(rocksDbBackend, env, IntSerializer.INSTANCE);
+        // clear unused file
+        FileUtils.deleteFileOrDirectory(logFile);
+
+        File instanceBasePath = keyedBackend.getInstanceBasePath();
+        File instanceRocksDBPath =
+                RocksDBKeyedStateBackendBuilder.getInstanceRocksDBPath(instanceBasePath);
+
+        // avoid tests without relocate.
+        Assume.assumeTrue(instanceRocksDBPath.getAbsolutePath().length() <= 255 - "_LOG".length());
+
+        String relocatedDbLogPrefix =
+                RocksDBResourceContainer.resolveRelocatedDbLogPrefix(
+                        instanceRocksDBPath.getAbsolutePath());
+        java.nio.file.Path[] relocatedDbLogs;
+        try {
+            relocatedDbLogs = FileUtils.listDirectory(relocatedDBLogDir.toPath());
+            assertTrue(relocatedDbLogs[0].getFileName().startsWith(relocatedDbLogPrefix));
+            // add a rolled log file
+            Files.createTempFile(relocatedDBLogDir.toPath(), relocatedDbLogPrefix, ".suffix");
+        } finally {
+            IOUtils.closeQuietly(keyedBackend);
+            keyedBackend.dispose();
+            env.close();
+        }
+
+        relocatedDbLogs = FileUtils.listDirectory(relocatedDBLogDir.toPath());
+        assertEquals(0, relocatedDbLogs.length);
     }
 
     // ------------------------------------------------------------------------
