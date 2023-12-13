@@ -237,15 +237,15 @@ class PipelinedSubpartitionWithReadViewTest {
     @TestTemplate
     void testBasicPipelinedProduceConsumeLogic() throws Exception {
         // Empty => should return null
-        assertThat(readView.getAvailabilityAndBacklog(0).isAvailable()).isFalse();
+        assertThat(readView.getAvailabilityAndBacklog(false).isAvailable()).isFalse();
         assertNoNextBuffer(readView);
-        assertThat(readView.getAvailabilityAndBacklog(0).isAvailable())
+        assertThat(readView.getAvailabilityAndBacklog(false).isAvailable())
                 .isFalse(); // also after getNextBuffer()
         assertThat(availablityListener.getNumNotifications()).isZero();
 
         // Add data to the queue...
         subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
-        assertThat(readView.getAvailabilityAndBacklog(0).isAvailable()).isFalse();
+        assertThat(readView.getAvailabilityAndBacklog(false).isAvailable()).isFalse();
 
         assertThat(subpartition.getTotalNumberOfBuffersUnsafe()).isOne();
         assertThat(subpartition.getBuffersInBacklogUnsafe()).isZero();
@@ -264,7 +264,7 @@ class PipelinedSubpartitionWithReadViewTest {
 
         // Add data to the queue...
         subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
-        assertThat(readView.getAvailabilityAndBacklog(0).isAvailable()).isFalse();
+        assertThat(readView.getAvailabilityAndBacklog(false).isAvailable()).isFalse();
 
         assertThat(subpartition.getTotalNumberOfBuffersUnsafe()).isEqualTo(2);
         assertThat(subpartition.getBuffersInBacklogUnsafe()).isZero();
@@ -283,11 +283,11 @@ class PipelinedSubpartitionWithReadViewTest {
 
         // fill with: buffer, event, and buffer
         subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
-        assertThat(readView.getAvailabilityAndBacklog(0).isAvailable()).isFalse();
+        assertThat(readView.getAvailabilityAndBacklog(false).isAvailable()).isFalse();
         subpartition.add(createEventBufferConsumer(BUFFER_SIZE, Buffer.DataType.EVENT_BUFFER));
-        assertThat(readView.getAvailabilityAndBacklog(0).isAvailable()).isFalse();
+        assertThat(readView.getAvailabilityAndBacklog(false).isAvailable()).isFalse();
         subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
-        assertThat(readView.getAvailabilityAndBacklog(0).isAvailable()).isFalse();
+        assertThat(readView.getAvailabilityAndBacklog(false).isAvailable()).isFalse();
 
         assertThat(subpartition.getTotalNumberOfBuffersUnsafe()).isEqualTo(5);
         assertThat(subpartition.getBuffersInBacklogUnsafe())
@@ -460,7 +460,7 @@ class PipelinedSubpartitionWithReadViewTest {
 
         int numberOfConsumableBuffers = 0;
         try (final CloseableRegistry closeableRegistry = new CloseableRegistry()) {
-            while (readView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable()) {
+            while (readView.getAvailabilityAndBacklog(true).isAvailable()) {
                 ResultSubpartition.BufferAndBacklog bufferAndBacklog = readView.getNextBuffer();
                 assertThat(bufferAndBacklog).isNotNull();
 
@@ -561,14 +561,14 @@ class PipelinedSubpartitionWithReadViewTest {
         assertThat(availablityListener.getNumNotifications()).isEqualTo(numNotifications);
 
         // view not available and no buffer can be read
-        assertThat(readView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable()).isFalse();
+        assertThat(readView.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
         assertNoNextBuffer(readView);
     }
 
     private void resumeConsumptionAndCheckAvailability(int availableCredit, boolean dataAvailable) {
         readView.resumeConsumption();
 
-        assertThat(readView.getAvailabilityAndBacklog(availableCredit).isAvailable())
+        assertThat(readView.getAvailabilityAndBacklog(availableCredit > 0).isAvailable())
                 .isEqualTo(dataAvailable);
     }
 
@@ -642,7 +642,7 @@ class PipelinedSubpartitionWithReadViewTest {
             assertThat(bufferAndBacklog.isDataAvailable())
                     .as("data available")
                     .isEqualTo(expectedIsDataAvailable);
-            assertThat(readView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable())
+            assertThat(readView.getAvailabilityAndBacklog(true).isAvailable())
                     .as("data available")
                     .isEqualTo(expectedIsDataAvailable);
             assertThat(bufferAndBacklog.buffersInBacklog())
@@ -651,7 +651,7 @@ class PipelinedSubpartitionWithReadViewTest {
             assertThat(bufferAndBacklog.isEventAvailable())
                     .as("event available")
                     .isEqualTo(expectedIsEventAvailable);
-            assertThat(readView.getAvailabilityAndBacklog(0).isAvailable())
+            assertThat(readView.getAvailabilityAndBacklog(false).isAvailable())
                     .as("event available")
                     .isEqualTo(expectedIsEventAvailable);
 

@@ -69,10 +69,10 @@ public interface ResultSubpartitionView {
      * Get the availability and backlog of the view. The availability represents if the view is
      * ready to get buffer from it. The backlog represents the number of available data buffers.
      *
-     * @param numCreditsAvailable the available credits for this {@link ResultSubpartitionView}.
+     * @param isCreditAvailable the availability of credits for this {@link ResultSubpartitionView}.
      * @return availability and backlog.
      */
-    AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable);
+    AvailabilityWithBacklog getAvailabilityAndBacklog(boolean isCreditAvailable);
 
     int unsynchronizedGetNumberOfQueuedBuffers();
 

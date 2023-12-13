@@ -190,7 +190,7 @@ class CreditBasedSequenceNumberingViewReader
      */
     @Override
     public ResultSubpartitionView.AvailabilityWithBacklog getAvailabilityAndBacklog() {
-        return subpartitionView.getAvailabilityAndBacklog(numCreditsAvailable);
+        return subpartitionView.getAvailabilityAndBacklog(numCreditsAvailable > 0);
     }
 
     /**
@@ -239,7 +239,7 @@ class CreditBasedSequenceNumberingViewReader
 
     @VisibleForTesting
     ResultSubpartitionView.AvailabilityWithBacklog hasBuffersAvailable() {
-        return subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE);
+        return subpartitionView.getAvailabilityAndBacklog(true);
     }
 
     @Override

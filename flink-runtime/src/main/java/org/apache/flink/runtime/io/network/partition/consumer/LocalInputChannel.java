@@ -319,7 +319,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         ResultSubpartitionView subpartitionView = checkNotNull(this.subpartitionView);
         subpartitionView.resumeConsumption();
 
-        if (subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable()) {
+        if (subpartitionView.getAvailabilityAndBacklog(true).isAvailable()) {
             notifyChannelNonEmpty();
         }
     }

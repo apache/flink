@@ -138,8 +138,7 @@ class FileChannelBoundedDataTest extends BoundedDataTestBase {
 
         // the next buffer is null in view because FileBufferReader has no available buffers for
         // reading ahead
-        assertThat(subpartitionView.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable())
-                .isFalse();
+        assertThat(subpartitionView.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
         // recycle a buffer to trigger notification of data available
         buffer1.buffer().recycleBuffer();
         assertThat(listener.isAvailable).isTrue();

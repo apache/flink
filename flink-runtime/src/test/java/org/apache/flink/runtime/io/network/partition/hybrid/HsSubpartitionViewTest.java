@@ -287,7 +287,7 @@ class HsSubpartitionViewTest {
                 TestingHsDataView.builder().setGetBacklogSupplier(() -> 0).build());
 
         AvailabilityWithBacklog availabilityAndBacklog =
-                subpartitionView.getAvailabilityAndBacklog(0);
+                subpartitionView.getAvailabilityAndBacklog(false);
         assertThat(availabilityAndBacklog.getBacklog()).isZero();
 
         assertThat(notifyAvailableFuture).isNotCompleted();
@@ -304,7 +304,7 @@ class HsSubpartitionViewTest {
         subpartitionView.setDiskDataView(
                 TestingHsDataView.builder().setGetBacklogSupplier(() -> backlog).build());
         AvailabilityWithBacklog availabilityAndBacklog =
-                subpartitionView.getAvailabilityAndBacklog(1);
+                subpartitionView.getAvailabilityAndBacklog(true);
         assertThat(availabilityAndBacklog.getBacklog()).isEqualTo(backlog);
         // positive credit always available.
         assertThat(availabilityAndBacklog.isAvailable()).isTrue();
@@ -329,7 +329,7 @@ class HsSubpartitionViewTest {
         subpartitionView.getNextBuffer();
 
         AvailabilityWithBacklog availabilityAndBacklog =
-                subpartitionView.getAvailabilityAndBacklog(0);
+                subpartitionView.getAvailabilityAndBacklog(false);
         assertThat(availabilityAndBacklog.getBacklog()).isEqualTo(backlog);
         // if credit is non-positive, only event can be available.
         assertThat(availabilityAndBacklog.isAvailable()).isFalse();
@@ -354,7 +354,7 @@ class HsSubpartitionViewTest {
         subpartitionView.getNextBuffer();
 
         AvailabilityWithBacklog availabilityAndBacklog =
-                subpartitionView.getAvailabilityAndBacklog(0);
+                subpartitionView.getAvailabilityAndBacklog(false);
         assertThat(availabilityAndBacklog.getBacklog()).isEqualTo(backlog);
         // if credit is non-positive, only event can be available.
         assertThat(availabilityAndBacklog.isAvailable()).isTrue();

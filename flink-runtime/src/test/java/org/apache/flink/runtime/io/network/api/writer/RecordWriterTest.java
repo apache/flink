@@ -111,7 +111,7 @@ class RecordWriterTest {
             BufferOrEvent boe = parseBuffer(view.getNextBuffer().buffer(), i);
             assertThat(boe.isEvent()).isTrue();
             assertThat(boe.getEvent()).isEqualTo(barrier);
-            assertThat(view.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable()).isFalse();
+            assertThat(view.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
         }
     }
 
@@ -388,7 +388,7 @@ class RecordWriterTest {
 
             assertRecords += DeserializationUtils.deserializeRecords(expectedRecords, deserializer);
         }
-        assertThat(view.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable()).isFalse();
+        assertThat(view.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
         assertThat(assertRecords).isEqualTo(numValues);
     }
 

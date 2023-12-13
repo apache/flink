@@ -226,8 +226,7 @@ class SortMergeResultPartitionTest {
 
                     if (!buffer.isBuffer()) {
                         ++numEndOfPartitionEvents;
-                        assertThat(view.getAvailabilityAndBacklog(Integer.MAX_VALUE).isAvailable())
-                                .isFalse();
+                        assertThat(view.getAvailabilityAndBacklog(true).isAvailable()).isFalse();
                         view.releaseAllResources();
                     }
                     bufferAndBacklog = view.getNextBuffer();
