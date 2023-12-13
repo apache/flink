@@ -23,7 +23,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -58,6 +57,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DeclarativeSlotPoolService}. */
@@ -65,8 +65,7 @@ class DeclarativeSlotPoolServiceTest {
 
     private static final JobID jobId = new JobID();
     private static final JobMasterId jobMasterId = JobMasterId.generate();
-    private final ComponentMainThreadExecutor mainThreadExecutor =
-            ComponentMainThreadExecutorServiceAdapter.forMainThread();
+    private final ComponentMainThreadExecutor mainThreadExecutor = forMainThread();
     private static final String address = "localhost";
 
     @Test
@@ -360,9 +359,11 @@ class DeclarativeSlotPoolServiceTest {
                         declarativeSlotPoolFactory,
                         SystemClock.getInstance(),
                         Duration.ofSeconds(20L),
-                        Duration.ofSeconds(20L));
+                        Duration.ofSeconds(20L),
+                        Duration.ZERO,
+                        mainThreadExecutor);
 
-        declarativeSlotPoolService.start(jobMasterId, address, mainThreadExecutor);
+        declarativeSlotPoolService.start(jobMasterId, address);
 
         return declarativeSlotPoolService;
     }

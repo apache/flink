@@ -186,7 +186,8 @@ class DefaultSchedulerBatchSchedulingTest {
             throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
                 .setBatchSlotTimeout(batchSlotTimeout.toDuration())
-                .buildAndStart(mainThreadExecutor);
+                .setMainThreadExecutor(mainThreadExecutor)
+                .buildAndStart();
     }
 
     private JobGraph createBatchJobGraph(int parallelism) {

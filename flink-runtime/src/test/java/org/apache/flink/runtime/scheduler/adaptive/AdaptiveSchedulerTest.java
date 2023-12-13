@@ -151,6 +151,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
@@ -536,7 +537,9 @@ public class AdaptiveSchedulerTest {
                         new DefaultAllocatedSlotPool(),
                         ignored -> {},
                         Duration.ofMinutes(10),
-                        Duration.ofMinutes(10));
+                        Duration.ofMinutes(10),
+                        Duration.ZERO,
+                        mainThreadExecutor);
 
         final Configuration configuration = createConfigurationWithNoTimeouts();
         configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
@@ -2312,7 +2315,9 @@ public class AdaptiveSchedulerTest {
                 new DefaultAllocatedSlotPool(),
                 ignored -> {},
                 idleSlotTimeout,
-                DEFAULT_TIMEOUT);
+                DEFAULT_TIMEOUT,
+                Duration.ZERO,
+                forMainThread());
     }
 
     private static JobGraph createJobGraph() {

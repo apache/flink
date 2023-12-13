@@ -66,8 +66,6 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     private final RequestSlotMatchingStrategy requestSlotMatchingStrategy;
 
-    @Nullable private ComponentMainThreadExecutor componentMainThreadExecutor;
-
     private final Duration batchSlotTimeout;
     private boolean isBatchSlotRequestTimeoutCheckDisabled;
 
@@ -80,8 +78,17 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             Duration rpcTimeout,
             Duration idleSlotTimeout,
             Duration batchSlotTimeout,
-            RequestSlotMatchingStrategy requestSlotMatchingStrategy) {
-        super(jobId, declarativeSlotPoolFactory, clock, idleSlotTimeout, rpcTimeout);
+            RequestSlotMatchingStrategy requestSlotMatchingStrategy,
+            Duration slotRequestMaxInterval,
+            @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
+        super(
+                jobId,
+                declarativeSlotPoolFactory,
+                clock,
+                idleSlotTimeout,
+                rpcTimeout,
+                slotRequestMaxInterval,
+                componentMainThreadExecutor);
 
         this.idleSlotTimeout = idleSlotTimeout;
         this.batchSlotTimeout = Preconditions.checkNotNull(batchSlotTimeout);
@@ -107,8 +114,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     }
 
     @Override
-    protected void onStart(ComponentMainThreadExecutor componentMainThreadExecutor) {
-        this.componentMainThreadExecutor = componentMainThreadExecutor;
+    protected void onStart() {
 
         getDeclarativeSlotPool().registerNewSlotsListener(this::newSlotsAreAvailable);
 

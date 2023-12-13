@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 
 import java.time.Duration;
@@ -31,5 +32,7 @@ public interface DeclarativeSlotPoolFactory {
             JobID jobId,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
             Duration idleSlotTimeout,
-            Duration rpcTimeout);
+            Duration rpcTimeout,
+            Duration slotRequestMaxInterval,
+            ComponentMainThreadExecutor componentMainThreadExecutor);
 }

@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -49,8 +50,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -104,18 +108,28 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final RequirementMatcher requirementMatcher = new DefaultRequirementMatcher();
 
+    @Nonnull private final ComponentMainThreadExecutor componentMainThreadExecutor;
+
+    // For slots(resources) requests by batch.
+    @Nonnull private final Duration slotRequestMaxInterval;
+    @Nullable private ScheduledFuture<?> slotRequestFuture;
+
     public DefaultDeclarativeSlotPool(
             JobID jobId,
             AllocatedSlotPool slotPool,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
             Duration idleSlotTimeout,
-            Duration rpcTimeout) {
+            Duration rpcTimeout,
+            Duration slotRequestMaxInterval,
+            ComponentMainThreadExecutor componentMainThreadExecutor) {
 
         this.jobId = jobId;
         this.slotPool = slotPool;
         this.notifyNewResourceRequirements = notifyNewResourceRequirements;
         this.idleSlotTimeout = idleSlotTimeout;
         this.rpcTimeout = rpcTimeout;
+        this.componentMainThreadExecutor = Preconditions.checkNotNull(componentMainThreadExecutor);
+        this.slotRequestMaxInterval = Preconditions.checkNotNull(slotRequestMaxInterval);
         this.totalResourceRequirements = ResourceCounter.empty();
         this.fulfilledResourceRequirements = ResourceCounter.empty();
         this.slotToRequirementProfileMappings = new HashMap<>();
@@ -128,7 +142,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         }
         totalResourceRequirements = totalResourceRequirements.add(increment);
 
-        declareResourceRequirements();
+        doDeclareResourceRequirements();
     }
 
     @Override
@@ -138,7 +152,25 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         }
         totalResourceRequirements = totalResourceRequirements.subtract(decrement);
 
-        declareResourceRequirements();
+        doDeclareResourceRequirements();
+    }
+
+    private void doDeclareResourceRequirements() {
+        if (slotRequestMaxInterval.toMillis() <= 0L) {
+            declareResourceRequirements();
+            return;
+        }
+
+        if (slotRequestFuture != null
+                && !slotRequestFuture.isDone()
+                && !slotRequestFuture.isCancelled()) {
+            slotRequestFuture.cancel(true);
+        }
+        slotRequestFuture =
+                componentMainThreadExecutor.schedule(
+                        this::declareResourceRequirements,
+                        slotRequestMaxInterval.toMillis(),
+                        TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -602,5 +634,16 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     @VisibleForTesting
     ResourceCounter getFulfilledResourceRequirements() {
         return fulfilledResourceRequirements;
+    }
+
+    @VisibleForTesting
+    void tryWaitSlotRequestIsDone() {
+        if (Objects.nonNull(slotRequestFuture)) {
+            try {
+                slotRequestFuture.get();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

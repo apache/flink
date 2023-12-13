@@ -33,6 +33,9 @@ import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_MAX_INTERVAL;
+import static org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter.forMainThread;
+
 /** Builder for a {@link DeclarativeSlotPoolBridge}. */
 public class DeclarativeSlotPoolBridgeBuilder {
 
@@ -40,6 +43,8 @@ public class DeclarativeSlotPoolBridgeBuilder {
     private Duration batchSlotTimeout = JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue();
     private Duration idleSlotTimeout = TestingUtils.infiniteTime().toDuration();
     private Clock clock = SystemClock.getInstance();
+    private Duration slotRequestMaxInterval = SLOT_REQUEST_MAX_INTERVAL.defaultValue();
+    private ComponentMainThreadExecutor mainThreadExecutor = forMainThread();
 
     @Nullable
     private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
@@ -63,6 +68,12 @@ public class DeclarativeSlotPoolBridgeBuilder {
         return this;
     }
 
+    public DeclarativeSlotPoolBridgeBuilder setSlotRequestMaxInterval(
+            Duration slotRequestMaxInterval) {
+        this.slotRequestMaxInterval = slotRequestMaxInterval;
+        return this;
+    }
+
     public DeclarativeSlotPoolBridgeBuilder setClock(Clock clock) {
         this.clock = clock;
         return this;
@@ -79,6 +90,12 @@ public class DeclarativeSlotPoolBridgeBuilder {
         return this;
     }
 
+    public DeclarativeSlotPoolBridgeBuilder setMainThreadExecutor(
+            ComponentMainThreadExecutor mainThreadExecutor) {
+        this.mainThreadExecutor = mainThreadExecutor;
+        return this;
+    }
+
     public DeclarativeSlotPoolBridge build() {
         return new DeclarativeSlotPoolBridge(
                 jobId,
@@ -87,19 +104,30 @@ public class DeclarativeSlotPoolBridgeBuilder {
                 TestingUtils.infiniteTime().toDuration(),
                 idleSlotTimeout,
                 batchSlotTimeout,
-                requestSlotMatchingStrategy);
+                requestSlotMatchingStrategy,
+                slotRequestMaxInterval,
+                mainThreadExecutor);
     }
 
-    public DeclarativeSlotPoolBridge buildAndStart(
-            ComponentMainThreadExecutor componentMainThreadExecutor) throws Exception {
-        final DeclarativeSlotPoolBridge slotPool = build();
+    public DeclarativeSlotPoolBridge buildAndStart() throws Exception {
+        final DeclarativeSlotPoolBridge slotPool =
+                new DeclarativeSlotPoolBridge(
+                        jobId,
+                        new DefaultDeclarativeSlotPoolFactory(),
+                        clock,
+                        TestingUtils.infiniteTime().toDuration(),
+                        idleSlotTimeout,
+                        batchSlotTimeout,
+                        requestSlotMatchingStrategy,
+                        slotRequestMaxInterval,
+                        mainThreadExecutor);
 
-        slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
+        slotPool.start(JobMasterId.generate(), "foobar");
 
         if (resourceManagerGateway != null) {
             CompletableFuture.runAsync(
                             () -> slotPool.connectToResourceManager(resourceManagerGateway),
-                            componentMainThreadExecutor)
+                            mainThreadExecutor)
                     .join();
         }
 
