@@ -62,7 +62,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ExtendWith(ParameterizedTestExtension.class)
 class DeclarativeSlotPoolBridgeTest {
 
-    private static final Time rpcTimeout = Time.seconds(20);
+    private static final Duration rpcTimeout = Duration.ofSeconds(20);
     private static final JobID jobId = new JobID();
     private static final JobMasterId jobMasterId = JobMasterId.generate();
     private final ComponentMainThreadExecutor mainThreadExecutor =
@@ -186,7 +186,7 @@ class DeclarativeSlotPoolBridgeTest {
                                                 declarativeSlotPoolBridge.requestNewAllocatedSlot(
                                                         slotRequestId,
                                                         ResourceProfile.UNKNOWN,
-                                                        rpcTimeout);
+                                                        Time.fromDuration(rpcTimeout));
                                         slotFuture.whenComplete(
                                                 (physicalSlot, throwable) -> {
                                                     if (throwable != null) {
@@ -216,7 +216,9 @@ class DeclarativeSlotPoolBridgeTest {
 
             final CompletableFuture<PhysicalSlot> slotFuture =
                     declarativeSlotPoolBridge.requestNewAllocatedSlot(
-                            new SlotRequestId(), ResourceProfile.UNKNOWN, rpcTimeout);
+                            new SlotRequestId(),
+                            ResourceProfile.UNKNOWN,
+                            Time.fromDuration(rpcTimeout));
 
             final LocalTaskManagerLocation localTaskManagerLocation =
                     new LocalTaskManagerLocation();
@@ -278,8 +280,8 @@ class DeclarativeSlotPoolBridgeTest {
                 declarativeSlotPoolFactory,
                 SystemClock.getInstance(),
                 rpcTimeout,
-                Time.seconds(20),
-                Time.seconds(20),
+                Duration.ofSeconds(20),
+                Duration.ofSeconds(20),
                 requestSlotMatchingStrategy);
     }
 

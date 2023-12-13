@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
@@ -31,15 +30,15 @@ import org.apache.flink.util.clock.SystemClock;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 /** Builder for a {@link DeclarativeSlotPoolBridge}. */
 public class DeclarativeSlotPoolBridgeBuilder {
 
     private JobID jobId = new JobID();
-    private Time batchSlotTimeout =
-            Time.fromDuration(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue());
-    private Time idleSlotTimeout = TestingUtils.infiniteTime();
+    private Duration batchSlotTimeout = JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue();
+    private Duration idleSlotTimeout = TestingUtils.infiniteTime().toDuration();
     private Clock clock = SystemClock.getInstance();
 
     @Nullable
@@ -54,12 +53,12 @@ public class DeclarativeSlotPoolBridgeBuilder {
         return this;
     }
 
-    public DeclarativeSlotPoolBridgeBuilder setBatchSlotTimeout(Time batchSlotTimeout) {
+    public DeclarativeSlotPoolBridgeBuilder setBatchSlotTimeout(Duration batchSlotTimeout) {
         this.batchSlotTimeout = batchSlotTimeout;
         return this;
     }
 
-    public DeclarativeSlotPoolBridgeBuilder setIdleSlotTimeout(Time idleSlotTimeout) {
+    public DeclarativeSlotPoolBridgeBuilder setIdleSlotTimeout(Duration idleSlotTimeout) {
         this.idleSlotTimeout = idleSlotTimeout;
         return this;
     }
@@ -85,7 +84,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
                 jobId,
                 new DefaultDeclarativeSlotPoolFactory(),
                 clock,
-                TestingUtils.infiniteTime(),
+                TestingUtils.infiniteTime().toDuration(),
                 idleSlotTimeout,
                 batchSlotTimeout,
                 requestSlotMatchingStrategy);

@@ -52,6 +52,7 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ScheduledExecutorService;
@@ -60,7 +61,7 @@ import java.util.function.Function;
 
 /** Builder for {@link AdaptiveScheduler}. */
 public class AdaptiveSchedulerBuilder {
-    private static final Time DEFAULT_TIMEOUT = Time.seconds(300);
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(300);
 
     private final JobGraph jobGraph;
 
@@ -75,7 +76,7 @@ public class AdaptiveSchedulerBuilder {
     private CheckpointRecoveryFactory checkpointRecoveryFactory =
             new StandaloneCheckpointRecoveryFactory();
     private DeclarativeSlotPool declarativeSlotPool;
-    private Time rpcTimeout = DEFAULT_TIMEOUT;
+    private Duration rpcTimeout = DEFAULT_TIMEOUT;
     private BlobWriter blobWriter = VoidBlobWriter.getInstance();
     private JobManagerJobMetricGroup jobManagerJobMetricGroup =
             UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
@@ -157,7 +158,7 @@ public class AdaptiveSchedulerBuilder {
     }
 
     public AdaptiveSchedulerBuilder setRpcTimeout(final Time rpcTimeout) {
-        this.rpcTimeout = rpcTimeout;
+        this.rpcTimeout = rpcTimeout.toDuration();
         return this;
     }
 
@@ -246,7 +247,7 @@ public class AdaptiveSchedulerBuilder {
                         new DefaultExecutionDeploymentTracker(),
                         executorService,
                         executorService,
-                        rpcTimeout,
+                        Time.fromDuration(rpcTimeout),
                         jobManagerJobMetricGroup,
                         blobWriter,
                         shuffleMaster,

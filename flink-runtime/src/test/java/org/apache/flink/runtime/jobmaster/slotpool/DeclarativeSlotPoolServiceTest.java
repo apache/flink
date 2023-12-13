@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -47,6 +46,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -359,8 +359,8 @@ class DeclarativeSlotPoolServiceTest {
                         jobId,
                         declarativeSlotPoolFactory,
                         SystemClock.getInstance(),
-                        Time.seconds(20L),
-                        Time.seconds(20L));
+                        Duration.ofSeconds(20L),
+                        Duration.ofSeconds(20L));
 
         declarativeSlotPoolService.start(jobMasterId, address, mainThreadExecutor);
 

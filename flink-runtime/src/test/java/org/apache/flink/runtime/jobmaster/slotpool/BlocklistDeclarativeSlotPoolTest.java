@@ -18,7 +18,6 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.blocklist.BlockedTaskManagerChecker;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -33,6 +32,7 @@ import org.apache.flink.runtime.util.ResourceCounter;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -305,8 +305,8 @@ class BlocklistDeclarativeSlotPoolTest {
                     new DefaultAllocatedSlotPool(),
                     ignored -> {},
                     blockedTaskManagerChecker,
-                    Time.seconds(20),
-                    Time.seconds(20));
+                    Duration.ofSeconds(20),
+                    Duration.ofSeconds(20));
         }
 
         public static BlocklistDeclarativeSlotPoolBuilder builder() {

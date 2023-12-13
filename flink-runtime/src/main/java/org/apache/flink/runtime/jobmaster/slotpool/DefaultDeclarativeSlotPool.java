@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -87,8 +88,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements;
 
-    private final Time idleSlotTimeout;
-    private final Time rpcTimeout;
+    private final Duration idleSlotTimeout;
+    private final Duration rpcTimeout;
 
     private final JobID jobId;
     protected final AllocatedSlotPool slotPool;
@@ -107,8 +108,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             JobID jobId,
             AllocatedSlotPool slotPool,
             Consumer<? super Collection<ResourceRequirement>> notifyNewResourceRequirements,
-            Time idleSlotTimeout,
-            Time rpcTimeout) {
+            Duration idleSlotTimeout,
+            Duration rpcTimeout) {
 
         this.jobId = jobId;
         this.slotPool = slotPool;
@@ -499,7 +500,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         while (!excessResources.isEmpty() && freeSlotIterator.hasNext()) {
             final AllocatedSlotPool.FreeSlotInfo idleSlot = freeSlotIterator.next();
 
-            if (currentTimeMillis >= idleSlot.getFreeSince() + idleSlotTimeout.toMilliseconds()) {
+            if (currentTimeMillis >= idleSlot.getFreeSince() + idleSlotTimeout.toMillis()) {
                 final ResourceProfile matchingProfile =
                         getMatchingResourceProfile(idleSlot.getAllocationId());
 
@@ -546,7 +547,10 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             final CompletableFuture<Acknowledge> freeSlotFuture =
                     slotToReturn
                             .getTaskManagerGateway()
-                            .freeSlot(slotToReturn.getAllocationId(), cause, rpcTimeout);
+                            .freeSlot(
+                                    slotToReturn.getAllocationId(),
+                                    cause,
+                                    Time.fromDuration(rpcTimeout));
 
             freeSlotFuture.whenComplete(
                     (Acknowledge ignored, Throwable throwable) -> {
