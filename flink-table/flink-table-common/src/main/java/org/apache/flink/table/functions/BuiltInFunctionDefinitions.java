@@ -2095,6 +2095,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition WINDOW_START =
             BuiltInFunctionDefinition.newBuilder()
                     .name("start")
+                    .callSyntax("window_start", SqlCallSyntax.WINDOW_START_END)
                     .kind(OTHER)
                     .inputTypeStrategy(SpecificInputTypeStrategies.windowTimeIndicator())
                     .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
@@ -2103,6 +2104,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition WINDOW_END =
             BuiltInFunctionDefinition.newBuilder()
                     .name("end")
+                    .callSyntax("window_end", SqlCallSyntax.WINDOW_START_END)
                     .kind(OTHER)
                     .inputTypeStrategy(SpecificInputTypeStrategies.windowTimeIndicator())
                     .outputTypeStrategy(explicit(DataTypes.TIMESTAMP(3)))
@@ -2115,6 +2117,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition ORDER_ASC =
             BuiltInFunctionDefinition.newBuilder()
                     .name("asc")
+                    .callSyntax("ASC", SqlCallSyntax.UNARY_SUFFIX_OP)
                     .kind(OTHER)
                     .inputTypeStrategy(sequence(ANY))
                     .outputTypeStrategy(argument(0))
@@ -2123,6 +2126,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition ORDER_DESC =
             BuiltInFunctionDefinition.newBuilder()
                     .name("desc")
+                    .callSyntax("DESC", SqlCallSyntax.UNARY_SUFFIX_OP)
                     .kind(OTHER)
                     .inputTypeStrategy(sequence(ANY))
                     .outputTypeStrategy(argument(0))

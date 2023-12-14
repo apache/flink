@@ -20,6 +20,8 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.util.StringUtils;
 
 import java.util.Arrays;
@@ -27,6 +29,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /** Helper methods for {@link Operation}s. */
@@ -43,9 +47,29 @@ public class OperationUtils {
      * @return string with increased indentation
      */
     static String indent(String item) {
-        return "\n"
-                + OPERATION_INDENT
-                + item.replace("\n" + OPERATION_INDENT, "\n" + OPERATION_INDENT + OPERATION_INDENT);
+
+        // '([^']|'')*': Matches the escape sequence "'...'" where the content between "'"
+        // characters can contain anything except "'" unless its doubled ('').
+        //
+        // Then each match is checked. If it starts with "'", it's left unchanged
+        // (escaped sequence). Otherwise, it replaces newlines within the match with indent.
+
+        Pattern pattern = Pattern.compile("('([^']|'')*')|\\n");
+        Matcher matcher = pattern.matcher(item);
+        StringBuffer output = new StringBuffer();
+
+        while (matcher.find()) {
+            final String group = matcher.group();
+            if (group.startsWith("'")) {
+                matcher.appendReplacement(output, Matcher.quoteReplacement(group));
+            } else {
+                String replaced = group.replaceAll("\n", "\n" + OPERATION_INDENT);
+                matcher.appendReplacement(output, Matcher.quoteReplacement(replaced));
+            }
+        }
+        matcher.appendTail(output);
+
+        return "\n" + OPERATION_INDENT + output;
     }
 
     /**
@@ -92,6 +116,12 @@ public class OperationUtils {
                         .collect(Collectors.joining());
 
         return stringBuilder.append(childrenDescription).toString();
+    }
+
+    public static String formatSelectColumns(ResolvedSchema schema) {
+        return schema.getColumnNames().stream()
+                .map(EncodingUtils::escapeIdentifier)
+                .collect(Collectors.joining(", "));
     }
 
     public static String formatParameter(String name, Object value) {

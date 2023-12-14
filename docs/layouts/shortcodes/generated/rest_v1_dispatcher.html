@@ -1829,7 +1829,7 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       <td class="text-left">Response code: <code>202 Accepted</code></td>
     </tr>
     <tr>
-      <td colspan="2">Triggers a checkpoint. This async operation would return a 'triggerid' for further query identifier.</td>
+      <td colspan="2">Triggers a checkpoint. The 'checkpointType' parameter does not support 'INCREMENTAL' option for now. See FLINK-33723. This async operation would return a 'triggerid' for further query identifier.</td>
     </tr>
     <tr>
       <td colspan="2">Path parameters</td>

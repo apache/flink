@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Expresses sort operation of rows of the underlying relational operation with given order. It also
@@ -81,6 +82,31 @@ public class SortQueryOperation implements QueryOperation {
 
         return OperationUtils.formatWithChildren(
                 "Sort", args, getChildren(), Operation::asSummaryString);
+    }
+
+    @Override
+    public String asSerializableString() {
+        final StringBuilder s =
+                new StringBuilder(
+                        String.format(
+                                "SELECT %s FROM (%s\n) ORDER BY %s",
+                                OperationUtils.formatSelectColumns(getResolvedSchema()),
+                                OperationUtils.indent(child.asSerializableString()),
+                                order.stream()
+                                        .map(ResolvedExpression::asSerializableString)
+                                        .collect(Collectors.joining(", "))));
+
+        if (offset >= 0) {
+            s.append(" OFFSET ");
+            s.append(offset);
+            s.append(" ROWS");
+        }
+        if (fetch >= 0) {
+            s.append(" FETCH NEXT ");
+            s.append(fetch);
+            s.append(" ROWS ONLY");
+        }
+        return s.toString();
     }
 
     @Override
