@@ -533,7 +533,7 @@ public class SortMergeResultPartition extends ResultPartition {
     }
 
     @Override
-    public ResultSubpartitionView createSubpartitionView(
+    protected ResultSubpartitionView createSubpartitionView(
             int subpartitionIndex, BufferAvailabilityListener availabilityListener)
             throws IOException {
         synchronized (lock) {

@@ -39,6 +39,7 @@ import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava32.com.google.common.collect.Iterators;
@@ -122,7 +123,7 @@ public class RemoteInputChannel extends InputChannel {
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
-            int consumedSubpartitionIndex,
+            ResultSubpartitionIndexSet consumedSubpartitionIndexSet,
             ConnectionID connectionId,
             ConnectionManager connectionManager,
             int initialBackOff,
@@ -137,7 +138,7 @@ public class RemoteInputChannel extends InputChannel {
                 inputGate,
                 channelIndex,
                 partitionId,
-                consumedSubpartitionIndex,
+                consumedSubpartitionIndexSet,
                 initialBackOff,
                 maxBackoff,
                 numBytesIn,
@@ -177,12 +178,12 @@ public class RemoteInputChannel extends InputChannel {
     /** Requests a remote subpartition. */
     @VisibleForTesting
     @Override
-    public void requestSubpartition() throws IOException, InterruptedException {
+    public void requestSubpartitions() throws IOException, InterruptedException {
         if (partitionRequestClient == null) {
             LOG.debug(
-                    "{}: Requesting REMOTE subpartition {} of partition {}. {}",
+                    "{}: Requesting REMOTE subpartitions {} of partition {}. {}",
                     this,
-                    consumedSubpartitionIndex,
+                    consumedSubpartitionIndexSet,
                     partitionId,
                     channelStatePersister);
             // Create a client and request the partition
@@ -196,7 +197,7 @@ public class RemoteInputChannel extends InputChannel {
             }
 
             partitionRequestClient.requestSubpartition(
-                    partitionId, consumedSubpartitionIndex, this, 0);
+                    partitionId, consumedSubpartitionIndexSet, this, 0);
         }
     }
 
@@ -206,7 +207,7 @@ public class RemoteInputChannel extends InputChannel {
 
         if (increaseBackoff()) {
             partitionRequestClient.requestSubpartition(
-                    partitionId, consumedSubpartitionIndex, this, 0);
+                    partitionId, consumedSubpartitionIndexSet, this, 0);
         } else {
             failPartitionRequest();
         }

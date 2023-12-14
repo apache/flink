@@ -62,7 +62,7 @@ public class TestingPartitionRequestListener implements PartitionRequestListener
 
     @Override
     public void notifyPartitionCreated(ResultPartition partition) throws IOException {
-        reader.notifySubpartitionCreated(partition, 0);
+        reader.notifySubpartitionsCreated(partition, new ResultSubpartitionIndexSet(0));
     }
 
     @Override

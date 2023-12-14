@@ -218,7 +218,7 @@ public class CheckpointedInputGateTest {
                                 .setChannelFactory(InputChannelBuilder::buildRemoteChannel)
                                 .build();
                 singleInputGate.setup();
-                ((RemoteInputChannel) singleInputGate.getChannel(0)).requestSubpartition();
+                ((RemoteInputChannel) singleInputGate.getChannel(0)).requestSubpartitions();
 
                 final TaskMailboxImpl mailbox = new TaskMailboxImpl();
                 MailboxExecutorImpl mailboxExecutor =
@@ -355,7 +355,7 @@ public class CheckpointedInputGateTest {
                         mailboxExecutor,
                         UpstreamRecoveryTracker.forInputGate(singleInputGate));
         for (int i = 0; i < numberOfChannels; i++) {
-            ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartition();
+            ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartitions();
         }
         return checkpointedInputGate;
     }
@@ -395,7 +395,7 @@ public class CheckpointedInputGateTest {
                         mailboxExecutor,
                         UpstreamRecoveryTracker.forInputGate(singleInputGate));
         for (int i = 0; i < numberOfChannels; i++) {
-            ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartition();
+            ((RemoteInputChannel) checkpointedInputGate.getChannel(i)).requestSubpartitions();
         }
         return checkpointedInputGate;
     }

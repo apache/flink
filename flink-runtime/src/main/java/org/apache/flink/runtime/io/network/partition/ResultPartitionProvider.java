@@ -27,7 +27,7 @@ public interface ResultPartitionProvider {
     /** Returns the requested intermediate result partition input view. */
     ResultSubpartitionView createSubpartitionView(
             ResultPartitionID partitionId,
-            int index,
+            ResultSubpartitionIndexSet indexSet,
             BufferAvailabilityListener availabilityListener)
             throws IOException;
 
@@ -36,7 +36,7 @@ public interface ResultPartitionProvider {
      * view immediately, otherwise register the listener and return empty.
      *
      * @param partitionId the result partition id
-     * @param index the index
+     * @param indexSet the index set
      * @param availabilityListener the buffer availability listener
      * @param partitionRequestListener the partition request listener
      * @return the result subpartition view
@@ -44,7 +44,7 @@ public interface ResultPartitionProvider {
      */
     Optional<ResultSubpartitionView> createSubpartitionViewOrRegisterListener(
             ResultPartitionID partitionId,
-            int index,
+            ResultSubpartitionIndexSet indexSet,
             BufferAvailabilityListener availabilityListener,
             PartitionRequestListener partitionRequestListener)
             throws IOException;

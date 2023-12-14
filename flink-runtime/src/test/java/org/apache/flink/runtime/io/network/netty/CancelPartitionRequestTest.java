@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionRequestListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestPooledBufferProvider;
@@ -86,7 +87,7 @@ class CancelPartitionRequestTest {
             // Return infinite subpartition
             when(partitions.createSubpartitionViewOrRegisterListener(
                             eq(pid),
-                            eq(0),
+                            any(ResultSubpartitionIndexSet.class),
                             any(BufferAvailabilityListener.class),
                             any(PartitionRequestListener.class)))
                     .thenAnswer(
@@ -100,7 +101,12 @@ class CancelPartitionRequestTest {
             Channel ch = connect(serverAndClient);
 
             // Request for non-existing input channel => results in cancel request
-            ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID(), Integer.MAX_VALUE))
+            ch.writeAndFlush(
+                            new PartitionRequest(
+                                    pid,
+                                    new ResultSubpartitionIndexSet(0),
+                                    new InputChannelID(),
+                                    Integer.MAX_VALUE))
                     .await();
 
             // Wait for the notification
@@ -137,7 +143,7 @@ class CancelPartitionRequestTest {
             // Return infinite subpartition
             when(partitions.createSubpartitionViewOrRegisterListener(
                             eq(pid),
-                            eq(0),
+                            any(ResultSubpartitionIndexSet.class),
                             any(BufferAvailabilityListener.class),
                             any(PartitionRequestListener.class)))
                     .thenAnswer(
@@ -159,7 +165,12 @@ class CancelPartitionRequestTest {
             // Request for non-existing input channel => results in cancel request
             InputChannelID inputChannelId = new InputChannelID();
 
-            ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId, Integer.MAX_VALUE))
+            ch.writeAndFlush(
+                            new PartitionRequest(
+                                    pid,
+                                    new ResultSubpartitionIndexSet(0),
+                                    inputChannelId,
+                                    Integer.MAX_VALUE))
                     .await();
 
             // Wait for the notification

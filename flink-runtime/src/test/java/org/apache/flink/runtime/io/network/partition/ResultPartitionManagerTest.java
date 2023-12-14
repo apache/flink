@@ -35,9 +35,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ResultPartitionManagerTest {
 
     /**
-     * Tests that {@link ResultPartitionManager#createSubpartitionView(ResultPartitionID, int,
-     * BufferAvailabilityListener)} would throw {@link PartitionNotFoundException} if this partition
-     * was not registered before.
+     * Tests that {@link ResultPartitionProvider#createSubpartitionView(ResultPartitionID,
+     * ResultSubpartitionIndexSet, BufferAvailabilityListener)} would throw {@link
+     * PartitionNotFoundException} if this partition was not registered before.
      */
     @Test
     void testThrowPartitionNotFoundException() {
@@ -48,8 +48,9 @@ class ResultPartitionManagerTest {
     }
 
     /**
-     * Tests {@link ResultPartitionManager#createSubpartitionView(ResultPartitionID, int,
-     * BufferAvailabilityListener)} successful if this partition was already registered before.
+     * Tests {@link ResultPartitionProvider#createSubpartitionView(ResultPartitionID,
+     * ResultSubpartitionIndexSet, BufferAvailabilityListener)} successful if this partition was
+     * already registered before.
      */
     @Test
     void testCreateViewForRegisteredPartition() throws Exception {
@@ -58,7 +59,9 @@ class ResultPartitionManagerTest {
 
         partitionManager.registerResultPartition(partition);
         partitionManager.createSubpartitionView(
-                partition.getPartitionId(), 0, new NoOpBufferAvailablityListener());
+                partition.getPartitionId(),
+                new ResultSubpartitionIndexSet(0),
+                new NoOpBufferAvailablityListener());
     }
 
     /**
@@ -78,7 +81,7 @@ class ResultPartitionManagerTest {
         assertThat(
                         partitionManager.createSubpartitionViewOrRegisterListener(
                                 partition.getPartitionId(),
-                                0,
+                                new ResultSubpartitionIndexSet(0),
                                 new NoOpBufferAvailablityListener(),
                                 partitionRequestListener))
                 .isPresent();
@@ -113,7 +116,7 @@ class ResultPartitionManagerTest {
         assertThat(
                         partitionManager.createSubpartitionViewOrRegisterListener(
                                 partition.getPartitionId(),
-                                0,
+                                new ResultSubpartitionIndexSet(0),
                                 new NoOpBufferAvailablityListener(),
                                 partitionRequestListener))
                 .isNotPresent();
@@ -169,7 +172,7 @@ class ResultPartitionManagerTest {
         CompletableFuture<PartitionRequestListener> timeoutFuture2 = new CompletableFuture<>();
         partitionManager.createSubpartitionViewOrRegisterListener(
                 partition1.getPartitionId(),
-                0,
+                new ResultSubpartitionIndexSet(0),
                 new NoOpBufferAvailablityListener(),
                 new NettyPartitionRequestListener(
                         TestingResultPartitionProvider.newBuilder().build(),
@@ -178,12 +181,12 @@ class ResultPartitionManagerTest {
                                 .setPartitionRequestListenerTimeoutConsumer(
                                         timeoutFuture1::complete)
                                 .build(),
-                        0,
+                        new ResultSubpartitionIndexSet(0),
                         partition1.getPartitionId(),
                         0L));
         partitionManager.createSubpartitionViewOrRegisterListener(
                 partition2.getPartitionId(),
-                0,
+                new ResultSubpartitionIndexSet(0),
                 new NoOpBufferAvailablityListener(),
                 new NettyPartitionRequestListener(
                         TestingResultPartitionProvider.newBuilder().build(),
@@ -192,7 +195,7 @@ class ResultPartitionManagerTest {
                                 .setPartitionRequestListenerTimeoutConsumer(
                                         timeoutFuture2::complete)
                                 .build(),
-                        0,
+                        new ResultSubpartitionIndexSet(0),
                         partition2.getPartitionId()));
         scheduledExecutor.triggerScheduledTasks();
 
