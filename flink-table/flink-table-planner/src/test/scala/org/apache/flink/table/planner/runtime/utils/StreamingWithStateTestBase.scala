@@ -27,9 +27,9 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
-import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
+import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
@@ -38,14 +38,12 @@ import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
 import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.util.FileUtils
-
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
 import org.slf4j.LoggerFactory
 
 import java.io.{File, IOException}
 import java.util
-
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -67,6 +65,8 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   override def before(): Unit = {
     super.before()
     // set state backend
+
+    // subfolder are managed here because the tests could fail during cleanup when concurrently executed (see FLINK-33820)
     baseCheckpointPath = TempDirUtils.newFolder(tempFolder)
     state match {
       case HEAP_BACKEND =>
