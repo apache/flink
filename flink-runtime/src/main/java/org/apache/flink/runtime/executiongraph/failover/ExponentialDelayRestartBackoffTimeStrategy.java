@@ -111,6 +111,12 @@ public class ExponentialDelayRestartBackoffTimeStrategy implements RestartBackof
     @Override
     public void notifyFailure(Throwable cause) {
         long now = clock.absoluteTimeMillis();
+
+        // Merge multiple failures into one attempt if there are tasks will be restarted later.
+        if (now <= nextRestartTimestamp) {
+            return;
+        }
+
         if ((now - nextRestartTimestamp) >= resetBackoffThresholdMS) {
             setInitialBackoff();
         }
