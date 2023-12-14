@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
 /** Describe the different data sources in {@link TieredStorageConsumerClient}. */
 public class TieredStorageConsumerSpec {
@@ -29,15 +29,15 @@ public class TieredStorageConsumerSpec {
 
     private final TieredStorageInputChannelId tieredStorageInputChannelId;
 
-    private final TieredStorageSubpartitionId tieredStorageSubpartitionId;
+    private final ResultSubpartitionIndexSet tieredStorageSubpartitionIds;
 
     public TieredStorageConsumerSpec(
             TieredStoragePartitionId tieredStoragePartitionId,
             TieredStorageInputChannelId tieredStorageInputChannelId,
-            TieredStorageSubpartitionId tieredStorageSubpartitionId) {
+            ResultSubpartitionIndexSet tieredStorageSubpartitionIds) {
         this.tieredStoragePartitionId = tieredStoragePartitionId;
         this.tieredStorageInputChannelId = tieredStorageInputChannelId;
-        this.tieredStorageSubpartitionId = tieredStorageSubpartitionId;
+        this.tieredStorageSubpartitionIds = tieredStorageSubpartitionIds;
     }
 
     public TieredStoragePartitionId getPartitionId() {
@@ -48,7 +48,7 @@ public class TieredStorageConsumerSpec {
         return tieredStorageInputChannelId;
     }
 
-    public TieredStorageSubpartitionId getSubpartitionId() {
-        return tieredStorageSubpartitionId;
+    public ResultSubpartitionIndexSet getSubpartitionIds() {
+        return tieredStorageSubpartitionIds;
     }
 }

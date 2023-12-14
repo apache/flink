@@ -22,6 +22,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
@@ -61,7 +62,7 @@ class RemoteTierConsumerAgentTest {
                                 new TieredStorageConsumerSpec(
                                         partitionId,
                                         new TieredStorageInputChannelId(0),
-                                        new TieredStorageSubpartitionId(0))),
+                                        new ResultSubpartitionIndexSet(0))),
                         new RemoteStorageScanner(remoteStoragePath),
                         new TestingPartitionFileReader.Builder().build(),
                         1024);
@@ -93,7 +94,7 @@ class RemoteTierConsumerAgentTest {
                                 new TieredStorageConsumerSpec(
                                         partitionId,
                                         new TieredStorageInputChannelId(0),
-                                        new TieredStorageSubpartitionId(0))),
+                                        new ResultSubpartitionIndexSet(0))),
                         new RemoteStorageScanner(remoteStoragePath),
                         partitionFileReader,
                         1024);

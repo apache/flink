@@ -85,7 +85,9 @@ public class RemoteTierConsumerAgent implements TierConsumerAgent, AvailabilityN
         this.remoteStorageScanner.registerAvailabilityAndPriorityNotifier(this);
         for (TieredStorageConsumerSpec spec : tieredStorageConsumerSpecs) {
             Set<TieredStorageSubpartitionId> subpartitionIds = new HashSet<>();
-            subpartitionIds.add(spec.getSubpartitionId());
+            for (int subpartitionId : spec.getSubpartitionIds().values()) {
+                subpartitionIds.add(new TieredStorageSubpartitionId(subpartitionId));
+            }
             initSubpartitionIds.put(spec.getPartitionId(), subpartitionIds);
             availableSubpartitionsQueues.putIfAbsent(
                     spec.getPartitionId(), new DeduplicatedQueue<>());

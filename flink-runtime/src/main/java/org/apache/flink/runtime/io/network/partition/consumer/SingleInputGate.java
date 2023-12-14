@@ -30,6 +30,7 @@ import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.RecoveryMetadata;
 import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -40,7 +41,6 @@ import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvi
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageInputChannelId;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStoragePartitionId;
@@ -225,6 +225,23 @@ public class SingleInputGate extends IndexedInputGate {
     // The availability notifier will be null if the tiered storage is not enabled.
     @Nullable private AvailabilityNotifier availabilityNotifier;
 
+    /**
+     * A map containing the status of the last consumed buffer in each input channel. The status
+     * contains the following information: 1) whether the buffer contains partial record, and 2) the
+     * index of the subpartition where the buffer comes from.
+     */
+    private final Map<Integer, Tuple2<Boolean, Integer>> lastBufferStatusMapInTieredStore =
+            new HashMap<>();
+
+    /** A map of counters for the number of {@link EndOfData}s received from each input channel. */
+    private final int[] endOfDatas;
+
+    /**
+     * A map of counters for the number of {@link EndOfPartitionEvent}s received from each input
+     * channel.
+     */
+    private final int[] endOfPartitions;
+
     public SingleInputGate(
             String owningTaskName,
             int gateIndex,
@@ -272,6 +289,11 @@ public class SingleInputGate extends IndexedInputGate {
         this.tieredStorageConsumerClient = null;
         this.tieredStorageConsumerSpecs = null;
         this.availabilityNotifier = null;
+
+        this.endOfDatas = new int[numberOfInputChannels];
+        Arrays.fill(endOfDatas, 0);
+        this.endOfPartitions = new int[numberOfInputChannels];
+        Arrays.fill(endOfPartitions, 0);
     }
 
     protected PrioritizedDeque<InputChannel> getInputChannelsWithData() {
@@ -355,6 +377,9 @@ public class SingleInputGate extends IndexedInputGate {
                         inputChannelsForCurrentPartition.put(
                                 realInputChannel.getChannelInfo(), realInputChannel);
                         channels[inputChannel.getChannelIndex()] = realInputChannel;
+                        if (enabledTieredStorage()) {
+                            queueChannel(realInputChannel, null, false);
+                        }
                     } catch (Throwable t) {
                         inputChannel.setError(t);
                         return;
@@ -820,6 +845,27 @@ public class SingleInputGate extends IndexedInputGate {
                     continue;
                 }
 
+                int numSubpartitions = inputChannel.getConsumedSubpartitionIndexSet().size();
+                if (numSubpartitions > 1) {
+                    switch (buffer.get().getDataType()) {
+                        case END_OF_DATA:
+                            endOfDatas[inputChannel.getChannelIndex()]++;
+                            if (endOfDatas[inputChannel.getChannelIndex()] < numSubpartitions) {
+                                continue;
+                            }
+                            break;
+                        case END_OF_PARTITION:
+                            endOfPartitions[inputChannel.getChannelIndex()]++;
+                            if (endOfPartitions[inputChannel.getChannelIndex()]
+                                    < numSubpartitions) {
+                                continue;
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
                 final boolean morePriorityEvents =
                         inputChannelsWithData.getNumPriorityElements() > 0;
                 if (buffer.get().getDataType().hasPriority()) {
@@ -869,6 +915,19 @@ public class SingleInputGate extends IndexedInputGate {
             lastPrioritySequenceNumber[inputChannel.getChannelIndex()] =
                     bufferAndAvailability.getSequenceNumber();
         }
+
+        Buffer buffer = bufferAndAvailability.buffer();
+        if (buffer.getDataType() == Buffer.DataType.RECOVERY_METADATA) {
+            RecoveryMetadata recoveryMetadata =
+                    (RecoveryMetadata)
+                            EventSerializer.fromSerializedEvent(
+                                    buffer.getNioBufferReadable(), getClass().getClassLoader());
+            lastBufferStatusMapInTieredStore.put(
+                    inputChannel.getChannelIndex(),
+                    Tuple2.of(
+                            buffer.getDataType() == Buffer.DataType.DATA_BUFFER,
+                            recoveryMetadata.getFinalBufferSubpartitionId()));
+        }
         return Optional.of(bufferAndAvailability.buffer());
     }
 
@@ -876,30 +935,56 @@ public class SingleInputGate extends IndexedInputGate {
             throws IOException {
         TieredStorageConsumerSpec tieredStorageConsumerSpec =
                 checkNotNull(tieredStorageConsumerSpecs).get(inputChannel.getChannelIndex());
+        Tuple2<Boolean, Integer> lastBufferStatus =
+                lastBufferStatusMapInTieredStore.computeIfAbsent(
+                        inputChannel.getChannelIndex(), key -> Tuple2.of(false, -1));
+        boolean isLastBufferPartialRecord = lastBufferStatus.f0;
+        int lastSubpartitionId = lastBufferStatus.f1;
 
-        int subpartitionId =
-                checkNotNull(tieredStorageConsumerClient)
-                        .peekNextBufferSubpartitionId(
-                                tieredStorageConsumerSpec.getPartitionId(),
-                                new ResultSubpartitionIndexSet(
-                                        tieredStorageConsumerSpec
-                                                .getSubpartitionId()
-                                                .getSubpartitionId()));
-        if (subpartitionId < 0) {
-            return Optional.empty();
+        while (true) {
+            int subpartitionId;
+            if (isLastBufferPartialRecord) {
+                subpartitionId = lastSubpartitionId;
+            } else {
+                subpartitionId =
+                        checkNotNull(tieredStorageConsumerClient)
+                                .peekNextBufferSubpartitionId(
+                                        tieredStorageConsumerSpec.getPartitionId(),
+                                        tieredStorageConsumerSpec.getSubpartitionIds());
+            }
+
+            if (subpartitionId < 0) {
+                return Optional.empty();
+            }
+
+            // If the data is available in the specific partition and subpartition, read buffer
+            // through consumer client.
+            Optional<Buffer> buffer =
+                    checkNotNull(tieredStorageConsumerClient)
+                            .getNextBuffer(
+                                    tieredStorageConsumerSpec.getPartitionId(),
+                                    new TieredStorageSubpartitionId(subpartitionId));
+
+            if (buffer.isPresent()) {
+                if (!(inputChannel instanceof RecoveredInputChannel)) {
+                    queueChannel(checkNotNull(inputChannel), null, false);
+                }
+                lastBufferStatusMapInTieredStore.put(
+                        inputChannel.getChannelIndex(),
+                        Tuple2.of(
+                                buffer.get().getDataType() == Buffer.DataType.DATA_BUFFER,
+                                subpartitionId));
+            } else {
+                if (!isLastBufferPartialRecord
+                        && inputChannel.getConsumedSubpartitionIndexSet().size() > 1) {
+                    // Continue to check other subpartitions that have been marked as
+                    // available.
+                    continue;
+                }
+            }
+
+            return buffer;
         }
-
-        // If the data is available in the specific partition and subpartition, read buffer through
-        // consumer client.
-        Optional<Buffer> buffer =
-                checkNotNull(tieredStorageConsumerClient)
-                        .getNextBuffer(
-                                tieredStorageConsumerSpec.getPartitionId(),
-                                new TieredStorageSubpartitionId(subpartitionId));
-        // Continue to read buffer from consumer client until the specific partition and
-        // subpartition is unavailable because an empty buffer is read.
-        buffer.ifPresent(result -> queueChannel(checkNotNull(inputChannel), null, false));
-        return buffer;
     }
 
     private boolean enabledTieredStorage() {
@@ -1216,9 +1301,11 @@ public class SingleInputGate extends IndexedInputGate {
             this.channelIdMap = new HashMap<>();
             for (int index = 0; index < checkNotNull(tieredStorageConsumerSpecs).size(); index++) {
                 TieredStorageConsumerSpec spec = tieredStorageConsumerSpecs.get(index);
-                subpartitionIdMap
-                        .computeIfAbsent(spec.getPartitionId(), ignore -> new HashMap<>())
-                        .put(spec.getSubpartitionId(), index);
+                for (int subpartitionId : spec.getSubpartitionIds().values()) {
+                    subpartitionIdMap
+                            .computeIfAbsent(spec.getPartitionId(), ignore -> new HashMap<>())
+                            .put(new TieredStorageSubpartitionId(subpartitionId), index);
+                }
                 channelIdMap
                         .computeIfAbsent(spec.getPartitionId(), ignore -> new HashMap<>())
                         .put(spec.getInputChannelId(), index);

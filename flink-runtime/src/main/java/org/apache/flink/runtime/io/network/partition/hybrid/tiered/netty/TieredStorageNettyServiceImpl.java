@@ -159,11 +159,14 @@ public class TieredStorageNettyServiceImpl implements TieredStorageNettyService 
             List<Supplier<InputChannel>> inputChannelProviders) {
         checkState(tieredStorageConsumerSpecs.size() == inputChannelProviders.size());
         for (int index = 0; index < tieredStorageConsumerSpecs.size(); ++index) {
-            setupInputChannel(
-                    index,
-                    tieredStorageConsumerSpecs.get(index).getPartitionId(),
-                    tieredStorageConsumerSpecs.get(index).getSubpartitionId(),
-                    inputChannelProviders.get(index));
+            for (int subpartitionId :
+                    tieredStorageConsumerSpecs.get(index).getSubpartitionIds().values()) {
+                setupInputChannel(
+                        index,
+                        tieredStorageConsumerSpecs.get(index).getPartitionId(),
+                        new TieredStorageSubpartitionId(subpartitionId),
+                        inputChannelProviders.get(index));
+            }
         }
     }
 

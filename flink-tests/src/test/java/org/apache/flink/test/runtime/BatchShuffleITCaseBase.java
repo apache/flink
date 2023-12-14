@@ -41,6 +41,7 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
@@ -67,34 +68,51 @@ class BatchShuffleITCaseBase {
     private static Path tmpDir;
 
     @BeforeAll
-    static void setup(@TempDir Path path) throws Exception {
+    static void setupClass(@TempDir Path path) throws Exception {
         tmpDir = TempDirUtils.newFolder(path, UUID.randomUUID().toString()).toPath();
     }
 
+    @BeforeEach
+    public void setup() {
+        Arrays.fill(NUM_RECEIVED_RECORDS, 0);
+    }
+
     protected JobGraph createJobGraph(
-            int numRecordsToSend, boolean failExecution, Configuration configuration) {
-        return createJobGraph(numRecordsToSend, failExecution, false, configuration);
+            int numRecordsToSend,
+            boolean failExecution,
+            Configuration configuration,
+            boolean enableAdaptiveAutoParallelism) {
+        return createJobGraph(
+                numRecordsToSend,
+                failExecution,
+                false,
+                configuration,
+                enableAdaptiveAutoParallelism);
     }
 
     protected JobGraph createJobGraph(
             int numRecordsToSend,
             boolean failExecution,
             boolean deletePartitionFile,
-            Configuration configuration) {
-        configuration.setBoolean(BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED, false);
+            Configuration configuration,
+            boolean enableAdaptiveAutoParallelism) {
+        configuration.setBoolean(
+                BatchExecutionOptions.ADAPTIVE_AUTO_PARALLELISM_ENABLED,
+                enableAdaptiveAutoParallelism);
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(10, 0L));
+        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(2, 0L));
         env.setParallelism(NUM_SLOTS_PER_TASK_MANAGER);
 
         DataStream<String> source =
                 new DataStreamSource<>(
-                        env,
-                        BasicTypeInfo.STRING_TYPE_INFO,
-                        new StreamSource<>(new StringSource(numRecordsToSend)),
-                        true,
-                        "source",
-                        Boundedness.BOUNDED);
+                                env,
+                                BasicTypeInfo.STRING_TYPE_INFO,
+                                new StreamSource<>(new StringSource(numRecordsToSend)),
+                                true,
+                                "source",
+                                Boundedness.BOUNDED)
+                        .setParallelism(PARALLELISM);
         source.rebalance()
                 .map(value -> value)
                 .shuffle()

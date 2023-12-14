@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -31,10 +33,13 @@ import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
+import org.apache.flink.runtime.io.network.api.RecoveryMetadata;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferProvider;
+import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
+import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.PrioritizedDeque;
@@ -61,6 +66,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType.RECOVERY_METADATA;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -776,15 +782,36 @@ public class RemoteInputChannel extends InputChannel {
         // skip all priority events (only buffers are stored anyways)
         Iterators.advance(iterator, receivedBuffers.getNumPriorityElements());
 
+        int finalBufferSubpartitionId = -1;
         while (iterator.hasNext()) {
             SequenceBuffer sequenceBuffer = iterator.next();
             if (sequenceBuffer.buffer.isBuffer()) {
                 if (shouldBeSpilled(sequenceBuffer.sequenceNumber)) {
                     inflightBuffers.add(sequenceBuffer.buffer.retainBuffer());
+                    finalBufferSubpartitionId = sequenceBuffer.subpartitionId;
                 } else {
                     break;
                 }
             }
+        }
+
+        if (finalBufferSubpartitionId >= 0 && consumedSubpartitionIndexSet.size() > 1) {
+            MemorySegment memorySegment;
+            try {
+                memorySegment =
+                        MemorySegmentFactory.wrap(
+                                EventSerializer.toSerializedEvent(
+                                                new RecoveryMetadata(finalBufferSubpartitionId))
+                                        .array());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            inflightBuffers.add(
+                    new NetworkBuffer(
+                            memorySegment,
+                            FreeingBufferRecycler.INSTANCE,
+                            RECOVERY_METADATA,
+                            memorySegment.size()));
         }
 
         return inflightBuffers;

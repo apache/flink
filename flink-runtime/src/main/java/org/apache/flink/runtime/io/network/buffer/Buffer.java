@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -304,7 +306,18 @@ public interface Buffer {
         RECOVERY_COMPLETION(false, true, true, false, false),
 
         /** {@link #END_OF_SEGMENT} indicates that a segment is finished in a subpartition. */
-        END_OF_SEGMENT(false, true, false, false, false);
+        END_OF_SEGMENT(false, true, false, false, false),
+
+        /**
+         * {@link #END_OF_DATA} indicates that there will be no more data buffer in a subpartition.
+         */
+        END_OF_DATA(false, true, false, false, false),
+
+        /** {@link #END_OF_PARTITION} marks a subpartition as fully consumed. */
+        END_OF_PARTITION(false, true, false, false, false),
+
+        /** Contains the metadata used during a recovery process. */
+        RECOVERY_METADATA(false, true, false, false, false);
 
         private final boolean isBuffer;
         private final boolean isEvent;
@@ -364,6 +377,10 @@ public interface Buffer {
                 return PRIORITIZED_EVENT_BUFFER;
             } else if (event instanceof EndOfChannelStateEvent) {
                 return RECOVERY_COMPLETION;
+            } else if (event instanceof EndOfData) {
+                return END_OF_DATA;
+            } else if (event instanceof EndOfPartitionEvent) {
+                return END_OF_PARTITION;
             } else if (!(event instanceof CheckpointBarrier)) {
                 return EVENT_BUFFER;
             }
