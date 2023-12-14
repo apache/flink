@@ -159,7 +159,7 @@ class SortMergeResultPartitionTest {
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
             ByteBuffer record = EventSerializer.toSerializedEvent(EndOfPartitionEvent.INSTANCE);
             recordDataWritten(
-                    record, dataWritten, subpartition, numBytesWritten, DataType.EVENT_BUFFER);
+                    record, dataWritten, subpartition, numBytesWritten, DataType.END_OF_PARTITION);
         }
 
         ResultSubpartitionView[] views = createSubpartitionViews(partition, numSubpartitions);

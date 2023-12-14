@@ -48,6 +48,12 @@ public class DeduplicatedQueue<T> {
         return queue.peek();
     }
 
+    public T poll() {
+        T t = queue.poll();
+        set.remove(t);
+        return t;
+    }
+
     public void remove(T t) {
         if (set.remove(t)) {
             queue.remove(t);
@@ -56,5 +62,9 @@ public class DeduplicatedQueue<T> {
 
     public Iterable<T> values() {
         return queue;
+    }
+
+    public boolean isEmpty() {
+        return set.isEmpty();
     }
 }
