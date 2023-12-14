@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.types.IntValue;
@@ -150,7 +151,9 @@ class RecordWriterDelegateTest {
         ResultSubpartitionView readView =
                 recordWriter
                         .getTargetPartition()
-                        .createSubpartitionView(0, new NoOpBufferAvailablityListener());
+                        .createSubpartitionView(
+                                new ResultSubpartitionIndexSet(0),
+                                new NoOpBufferAvailablityListener());
         Buffer buffer = readView.getNextBuffer().buffer();
 
         buffer.recycleBuffer();
@@ -172,7 +175,9 @@ class RecordWriterDelegateTest {
                 assertThat(partition.getNumberOfQueuedBuffers(i)).isOne();
 
                 ResultSubpartitionView view =
-                        partition.createSubpartitionView(i, new NoOpBufferAvailablityListener());
+                        partition.createSubpartitionView(
+                                new ResultSubpartitionIndexSet(i),
+                                new NoOpBufferAvailablityListener());
                 BufferOrEvent boe = RecordWriterTest.parseBuffer(view.getNextBuffer().buffer(), i);
                 assertThat(boe.isEvent()).isTrue();
                 assertThat(boe.getEvent()).isEqualTo(message);

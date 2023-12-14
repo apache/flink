@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 
 /**
@@ -31,7 +32,7 @@ public class TestingPartitionRequestClient implements PartitionRequestClient {
     @Override
     public void requestSubpartition(
             ResultPartitionID partitionId,
-            int subpartitionIndex,
+            ResultSubpartitionIndexSet subpartitionIndexSet,
             RemoteInputChannel inputChannel,
             int delayMs) {}
 

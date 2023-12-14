@@ -88,7 +88,7 @@ class PartitionRequestServerHandler extends SimpleChannelInboundHandler<NettyMes
                                 request.receiverId, request.credit, outboundQueue);
 
                 reader.requestSubpartitionViewOrRegisterListener(
-                        partitionProvider, request.partitionId, request.queueIndex);
+                        partitionProvider, request.partitionId, request.queueIndexSet);
 
             }
             // ----------------------------------------------------------------

@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportExcept
 import org.apache.flink.runtime.io.network.netty.exception.TransportException;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
@@ -402,8 +403,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
-            inputChannels[0].requestSubpartition();
-            inputChannels[1].requestSubpartition();
+            inputChannels[0].requestSubpartitions();
+            inputChannels[1].requestSubpartitions();
 
             // The two input channels should send partition requests
             assertThat(channel.isWritable()).isTrue();
@@ -525,7 +526,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
-            inputChannel.requestSubpartition();
+            inputChannel.requestSubpartitions();
 
             // This should send the partition request
             Object readFromOutbound = channel.readOutbound();
@@ -688,8 +689,8 @@ class CreditBasedPartitionRequestClientHandlerTest {
             inputGate.setBufferPool(bufferPool);
             inputGate.setupChannels();
 
-            inputChannels[0].requestSubpartition();
-            inputChannels[1].requestSubpartition();
+            inputChannels[0].requestSubpartitions();
+            inputChannels[1].requestSubpartitions();
             channel.readOutbound();
             channel.readOutbound();
 
@@ -817,7 +818,7 @@ class CreditBasedPartitionRequestClientHandlerTest {
                     inputGate,
                     0,
                     new ResultPartitionID(),
-                    0,
+                    new ResultSubpartitionIndexSet(0),
                     InputChannelBuilder.STUB_CONNECTION_ID,
                     new TestingConnectionManager(),
                     0,

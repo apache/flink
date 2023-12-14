@@ -25,6 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.testutils.serialization.types.IntType;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
@@ -106,7 +107,8 @@ class BroadcastRecordWriterTest {
             final int numberOfTotalRecords = numberOfRecords + numberOfRandomRecords;
             // verify the data correctness in every subpartition queue
             verifyDeserializationResults(
-                    partition.createSubpartitionView(i, new NoOpBufferAvailablityListener()),
+                    partition.createSubpartitionView(
+                            new ResultSubpartitionIndexSet(i), new NoOpBufferAvailablityListener()),
                     deserializer,
                     serializedRecords.get(i),
                     numberOfRecords + 1,
@@ -142,7 +144,8 @@ class BroadcastRecordWriterTest {
         // simulate consumption of first buffer consumer; this should not free buffers
         assertThat(partition.getNumberOfQueuedBuffers(0)).isOne();
         ResultSubpartitionView view0 =
-                partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+                partition.createSubpartitionView(
+                        new ResultSubpartitionIndexSet(0), new NoOpBufferAvailablityListener());
         closeConsumer(view0, 2 * recordSize);
         assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isEqualTo(2);
 
@@ -152,7 +155,8 @@ class BroadcastRecordWriterTest {
         // fully free first buffer
         assertThat(partition.getNumberOfQueuedBuffers(1)).isOne();
         ResultSubpartitionView view1 =
-                partition.createSubpartitionView(1, new NoOpBufferAvailablityListener());
+                partition.createSubpartitionView(
+                        new ResultSubpartitionIndexSet(1), new NoOpBufferAvailablityListener());
         closeConsumer(view1, 2 * recordSize);
         assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isEqualTo(2);
     }

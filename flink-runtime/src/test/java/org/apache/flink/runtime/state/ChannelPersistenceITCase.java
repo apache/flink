@@ -40,6 +40,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
@@ -128,14 +129,16 @@ class ChannelPersistenceITCase {
                             subpartitions);
             reader.readOutputData(new BufferWritingResultPartition[] {resultPartition}, false);
             ResultSubpartitionView view =
-                    resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+                    resultPartition.createSubpartitionView(
+                            new ResultSubpartitionIndexSet(0), new NoOpBufferAvailablityListener());
             assertThat(
                             collectBytes(
                                     () -> Optional.ofNullable(view.getNextBuffer()),
                                     BufferAndBacklog::buffer))
                     .isEqualTo(resultSubpartitionInfoData);
             ResultSubpartitionView futureView =
-                    resultPartition.createSubpartitionView(1, new NoOpBufferAvailablityListener());
+                    resultPartition.createSubpartitionView(
+                            new ResultSubpartitionIndexSet(1), new NoOpBufferAvailablityListener());
             assertThat(
                             collectBytes(
                                     () -> Optional.ofNullable(futureView.getNextBuffer()),
@@ -156,7 +159,8 @@ class ChannelPersistenceITCase {
                     .readOutputData(new BufferWritingResultPartition[] {resultPartition}, true);
             resultPartition.emitRecord(ByteBuffer.wrap(dataAfterRecovery), 0);
             ResultSubpartitionView view =
-                    resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+                    resultPartition.createSubpartitionView(
+                            new ResultSubpartitionIndexSet(0), new NoOpBufferAvailablityListener());
             if (type != ResultPartitionType.PIPELINED_APPROXIMATE) {
                 assertThat(view.getNextBuffer().buffer().getDataType())
                         .isEqualTo(RECOVERY_COMPLETION);

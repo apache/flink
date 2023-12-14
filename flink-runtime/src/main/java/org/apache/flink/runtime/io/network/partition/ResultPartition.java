@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -300,6 +301,24 @@ public abstract class ResultPartition implements ResultPartitionWriter {
         metrics.registerResultPartitionBytesCounter(
                 partitionId.getPartitionId(), resultPartitionBytes);
     }
+
+    @Override
+    public ResultSubpartitionView createSubpartitionView(
+            ResultSubpartitionIndexSet indexSet, BufferAvailabilityListener availabilityListener)
+            throws IOException {
+        // The ability to support multiple indexes is to be provided in subsequent commits of
+        // the corresponding pull request. As the function is about to be supported uniformly with
+        // one set of code, they will be placed in a common method shared by all shuffle
+        // implementations, and that will be this method.
+        Iterator<Integer> iterator = indexSet.values().iterator();
+        int index = iterator.next();
+        Preconditions.checkState(!iterator.hasNext());
+        return createSubpartitionView(index, availabilityListener);
+    }
+
+    /** Returns a reader for the subpartition with the given index. */
+    protected abstract ResultSubpartitionView createSubpartitionView(
+            int index, BufferAvailabilityListener availabilityListener) throws IOException;
 
     /**
      * Whether this partition is released.

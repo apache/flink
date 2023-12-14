@@ -41,6 +41,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartitionIndexSet;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -391,7 +392,8 @@ class HsResultPartitionTest {
         assertThatThrownBy(
                         () ->
                                 resultPartition.createSubpartitionView(
-                                        0, new NoOpBufferAvailablityListener()))
+                                        new ResultSubpartitionIndexSet(0),
+                                        new NoOpBufferAvailablityListener()))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -404,7 +406,8 @@ class HsResultPartitionTest {
         assertThatThrownBy(
                         () ->
                                 resultPartition.createSubpartitionView(
-                                        0, new NoOpBufferAvailablityListener()))
+                                        new ResultSubpartitionIndexSet(0),
+                                        new NoOpBufferAvailablityListener()))
                 .isInstanceOf(PartitionNotFoundException.class);
     }
 
@@ -465,11 +468,13 @@ class HsResultPartitionTest {
                                 .setSpillingStrategyType(
                                         HybridShuffleConfiguration.SpillingStrategyType.SELECTIVE)
                                 .build())) {
-            partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+            partition.createSubpartitionView(
+                    new ResultSubpartitionIndexSet(0), new NoOpBufferAvailablityListener());
             assertThatThrownBy(
                             () ->
                                     partition.createSubpartitionView(
-                                            0, new NoOpBufferAvailablityListener()))
+                                            new ResultSubpartitionIndexSet(0),
+                                            new NoOpBufferAvailablityListener()))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("Multiple consumer is not allowed");
         }
@@ -488,12 +493,14 @@ class HsResultPartitionTest {
                                 .setSpillingStrategyType(
                                         HybridShuffleConfiguration.SpillingStrategyType.FULL)
                                 .build())) {
-            partition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
+            partition.createSubpartitionView(
+                    new ResultSubpartitionIndexSet(0), new NoOpBufferAvailablityListener());
             assertThatNoException()
                     .isThrownBy(
                             () ->
                                     partition.createSubpartitionView(
-                                            0, new NoOpBufferAvailablityListener()));
+                                            new ResultSubpartitionIndexSet(0),
+                                            new NoOpBufferAvailablityListener()));
         }
     }
 
@@ -686,7 +693,10 @@ class HsResultPartitionTest {
         for (int subpartition = 0; subpartition < numSubpartitions; ++subpartition) {
             TestingBufferAvailabilityListener listener = new TestingBufferAvailabilityListener();
             viewAndListeners[subpartition] =
-                    Tuple2.of(partition.createSubpartitionView(subpartition, listener), listener);
+                    Tuple2.of(
+                            partition.createSubpartitionView(
+                                    new ResultSubpartitionIndexSet(subpartition), listener),
+                            listener);
         }
         return viewAndListeners;
     }
@@ -701,7 +711,10 @@ class HsResultPartitionTest {
         for (int consumer = 0; consumer < numConsumers; ++consumer) {
             TestingBufferAvailabilityListener listener = new TestingBufferAvailabilityListener();
             viewAndListeners[consumer] =
-                    Tuple2.of(partition.createSubpartitionView(subpartitionId, listener), listener);
+                    Tuple2.of(
+                            partition.createSubpartitionView(
+                                    new ResultSubpartitionIndexSet(subpartitionId), listener),
+                            listener);
         }
         return viewAndListeners;
     }
