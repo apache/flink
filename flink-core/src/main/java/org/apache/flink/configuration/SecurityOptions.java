@@ -420,7 +420,7 @@ public class SecurityOptions {
 
     @Documentation.Section(Documentation.Sections.SECURITY_SSL)
     public static final ConfigOption<String> SSL_INTERNAL_CERT_FINGERPRINT_ALGORITHM =
-            key("security.ssl.internal.cert.fingerprint.algorithm")
+            key("security.ssl.internal.cert.algorithm")
                     .stringType()
                     .defaultValue("SHA1")
                     .withDescription(
@@ -499,7 +499,7 @@ public class SecurityOptions {
 
     @Documentation.Section(Documentation.Sections.SECURITY_SSL)
     public static final ConfigOption<String> SSL_REST_CERT_FINGERPRINT_ALGORITHM =
-            key("security.ssl.rest.cert.fingerprint.algorithm")
+            key("security.ssl.rest.cert.algorithm")
                     .stringType()
                     .defaultValue("SHA1")
                     .withDescription(
