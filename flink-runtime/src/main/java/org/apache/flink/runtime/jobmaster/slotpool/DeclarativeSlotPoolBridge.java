@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +74,9 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     private boolean isJobRestarting = false;
 
+    private final boolean slotBatchAllocatable;
+    private final Set<PhysicalSlot> receivedSlots;
+
     public DeclarativeSlotPoolBridge(
             JobID jobId,
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,
@@ -82,6 +86,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             Time batchSlotTimeout,
             RequestSlotMatchingStrategy requestSlotMatchingStrategy,
             Duration slotRequestMaxInterval,
+            boolean slotBatchAllocatable,
             @Nonnull ComponentMainThreadExecutor componentMainThreadExecutor) {
         super(
                 jobId,
@@ -104,6 +109,8 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
         this.pendingRequests = new LinkedHashMap<>();
         this.fulfilledRequests = new HashMap<>();
+        this.slotBatchAllocatable = slotBatchAllocatable;
+        this.receivedSlots = new HashSet<>();
     }
 
     @Override
@@ -210,10 +217,54 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     @VisibleForTesting
     void newSlotsAreAvailable(Collection<? extends PhysicalSlot> newSlots) {
+        if (slotBatchAllocatable) {
+            newSlotsAvailableForSlotBatchAllocatable(newSlots);
+        } else {
+            newSlotsAvailableForNonSlotBatchAllocatable(newSlots);
+        }
+    }
+
+    private void newSlotsAvailableForSlotBatchAllocatable(
+            Collection<? extends PhysicalSlot> newSlots) {
+
+        receivedSlots.addAll(newSlots);
+        log.debug("Received new available slots: {}, receivedSlots: {}", newSlots, receivedSlots);
+
+        if (receivedSlots.size() >= pendingRequests.size()) {
+            final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
+                    requestSlotMatchingStrategy.matchRequestsAndSlots(
+                            receivedSlots, pendingRequests.values());
+            if (requestSlotMatches.size() == pendingRequests.size()) {
+                reserveMatchedFreeSlots(requestSlotMatches);
+                fulfillMatchedSlots(requestSlotMatches);
+                receivedSlots.clear();
+            } else if (requestSlotMatches.size() < pendingRequests.size()) {
+                // Do nothing and waiting slots.
+            } else {
+                // For requestSlotMatches.size() > pendingRequests.size()
+                receivedSlots.clear();
+                throw new IllegalStateException(
+                        "The number of matched slots is not equals to the pendingRequests.");
+            }
+        }
+    }
+
+    private void newSlotsAvailableForNonSlotBatchAllocatable(
+            Collection<? extends PhysicalSlot> newSlots) {
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
                 requestSlotMatchingStrategy.matchRequestsAndSlots(
                         newSlots, pendingRequests.values());
+        reserveMatchedFreeSlots(requestSlotMatches);
+        fulfillMatchedSlots(requestSlotMatches);
+    }
 
+    @VisibleForTesting
+    Set<PhysicalSlot> getReceivedSlots() {
+        return receivedSlots;
+    }
+
+    private void reserveMatchedFreeSlots(
+            Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches) {
         for (RequestSlotMatchingStrategy.RequestSlotMatch match : requestSlotMatches) {
             final PendingRequest pendingRequest = match.getPendingRequest();
             final PhysicalSlot slot = match.getSlot();
@@ -229,7 +280,10 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                     slot.getAllocationId(),
                     pendingRequest.getResourceProfile());
         }
+    }
 
+    private void fulfillMatchedSlots(
+            Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches) {
         // we have to first reserve all matching slots before fulfilling the requests
         // otherwise it can happen that the scheduler reserves one of the new slots
         // for a request which has been triggered by fulfilling a pending request
@@ -566,5 +620,9 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                     (DefaultDeclarativeSlotPool) getDeclarativeSlotPool();
             slotPool.tryWaitSlotRequestMaxIntervalTimeout();
         }
+    }
+
+    public boolean isSlotBatchAllocatable() {
+        return slotBatchAllocatable;
     }
 }

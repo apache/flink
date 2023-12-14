@@ -849,7 +849,8 @@ public class TaskManagerOptions {
     /** Type of {@link TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE}. */
     public enum TaskManagerLoadBalanceMode {
         NONE,
-        SLOTS;
+        SLOTS,
+        TASKS;
 
         /**
          * The method is mainly to load the {@link

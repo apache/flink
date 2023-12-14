@@ -76,12 +76,14 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
+import org.apache.flink.runtime.jobgraph.JobType;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridge;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolFactory;
 import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPool;
@@ -140,6 +142,9 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -176,9 +181,14 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
+import static org.apache.flink.configuration.JobManagerOptions.SCHEDULER;
 import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_MAX_INTERVAL;
+import static org.apache.flink.configuration.JobManagerOptions.SchedulerType;
 import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
+import static org.apache.flink.configuration.TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE;
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1094,6 +1104,146 @@ class JobMasterTest {
         assertThat(declarativeSlotPool.getSlotRequestMaxInterval())
                 .isEqualTo(slotRequestMaxIntervalManually);
         assertThat(declarativeSlotPool.getComponentMainThreadExecutor()).isNotNull();
+    }
+
+    @ParameterizedTest
+    @MethodSource("getCasesArgumentMatrix")
+    void testSlotBatchAllocatablePassing(
+            SchedulerType schedulerType,
+            JobType jobType,
+            TaskManagerLoadBalanceMode tmBalanceMode,
+            boolean checkable,
+            boolean expectedSlotAllocatable)
+            throws Exception {
+
+        DeclarativeSlotPoolBridge declarativeSlotPoolBridge;
+        jobGraph.setJobType(jobType);
+        configuration.set(SCHEDULER, schedulerType);
+        configuration.set(TASK_MANAGER_LOAD_BALANCE_MODE, tmBalanceMode);
+
+        JobMaster jobMaster = createJobMaster();
+
+        SlotPoolService slotPoolService = jobMaster.getSlotPoolService();
+        if (checkable) {
+            assertThat(slotPoolService).isInstanceOf(DeclarativeSlotPoolBridge.class);
+            declarativeSlotPoolBridge = (DeclarativeSlotPoolBridge) slotPoolService;
+            assertThat(declarativeSlotPoolBridge.isSlotBatchAllocatable())
+                    .isEqualTo(expectedSlotAllocatable);
+        } else {
+            assertThat(slotPoolService).isNotInstanceOf(DeclarativeSlotPoolBridge.class);
+        }
+    }
+
+    private static Stream<Arguments> getCasesArgumentMatrix() {
+        return Stream.of(
+                Arguments.of(
+                        SchedulerType.Default,
+                        JobType.STREAMING,
+                        TaskManagerLoadBalanceMode.NONE,
+                        true,
+                        false),
+                Arguments.of(
+                        SchedulerType.Default,
+                        JobType.STREAMING,
+                        TaskManagerLoadBalanceMode.SLOTS,
+                        true,
+                        false),
+                Arguments.of(
+                        SchedulerType.Default,
+                        JobType.STREAMING,
+                        TaskManagerLoadBalanceMode.TASKS,
+                        true,
+                        true),
+                Arguments.of(
+                        SchedulerType.Default,
+                        JobType.BATCH,
+                        TaskManagerLoadBalanceMode.NONE,
+                        true,
+                        false),
+                Arguments.of(
+                        SchedulerType.Default,
+                        JobType.BATCH,
+                        TaskManagerLoadBalanceMode.SLOTS,
+                        true,
+                        false),
+                Arguments.of(
+                        SchedulerType.Default,
+                        JobType.BATCH,
+                        TaskManagerLoadBalanceMode.TASKS,
+                        true,
+                        false),
+                Arguments.of(
+                        SchedulerType.Adaptive,
+                        JobType.STREAMING,
+                        TaskManagerLoadBalanceMode.NONE,
+                        false,
+                        false),
+                Arguments.of(
+                        SchedulerType.Adaptive,
+                        JobType.STREAMING,
+                        TaskManagerLoadBalanceMode.SLOTS,
+                        false,
+                        false),
+                Arguments.of(
+                        SchedulerType.Adaptive,
+                        JobType.STREAMING,
+                        TaskManagerLoadBalanceMode.TASKS,
+                        false,
+                        false),
+                Arguments.of(
+                        SchedulerType.Adaptive,
+                        JobType.BATCH,
+                        TaskManagerLoadBalanceMode.NONE,
+                        true,
+                        false),
+                Arguments.of(
+                        SchedulerType.Adaptive,
+                        JobType.BATCH,
+                        TaskManagerLoadBalanceMode.SLOTS,
+                        true,
+                        false),
+                Arguments.of(
+                        SchedulerType.Adaptive,
+                        JobType.BATCH,
+                        TaskManagerLoadBalanceMode.TASKS,
+                        true,
+                        false),
+
+                // Ignored.
+                // Arguments.of(SchedulerType.AdaptiveBatch, JobType.STREAMING,
+                // TaskManagerLoadBalanceMode.NONE, true, false),
+                // Arguments.of(SchedulerType.AdaptiveBatch, JobType.STREAMING,
+                // TaskManagerLoadBalanceMode.SLOTS, true, false),
+                // Arguments.of(SchedulerType.AdaptiveBatch, JobType.STREAMING,
+                // TaskManagerLoadBalanceMode.TASKS, true, true),
+
+                Arguments.of(
+                        SchedulerType.AdaptiveBatch,
+                        JobType.BATCH,
+                        TaskManagerLoadBalanceMode.NONE,
+                        true,
+                        false),
+                Arguments.of(
+                        SchedulerType.AdaptiveBatch,
+                        JobType.BATCH,
+                        TaskManagerLoadBalanceMode.SLOTS,
+                        true,
+                        false),
+                Arguments.of(
+                        SchedulerType.AdaptiveBatch,
+                        JobType.BATCH,
+                        TaskManagerLoadBalanceMode.TASKS,
+                        true,
+                        false));
+    }
+
+    private JobMaster createJobMaster() throws Exception {
+        return new JobMasterBuilder(jobGraph, rpcService)
+                .withJobMasterId(jobMasterId)
+                .withConfiguration(configuration)
+                .withHighAvailabilityServices(haServices)
+                .withHeartbeatServices(heartbeatServices)
+                .createJobMaster();
     }
 
     private void runRequestNextInputSplitTest(
