@@ -562,7 +562,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         null,
                         System.currentTimeMillis());
         ExecutionGraphInfo executionGraphInfo = new ExecutionGraphInfo(archivedExecutionGraph);
-        writeToExecutionGraphInfoStore(executionGraphInfo);
+        FutureUtils.runAsync(
+                () -> {
+                    writeToExecutionGraphInfoStore(executionGraphInfo);
+                },
+                ioExecutor);
         return archiveExecutionGraphToHistoryServer(executionGraphInfo);
     }
 
