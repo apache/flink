@@ -38,7 +38,6 @@ under the License.
 		<fs.gs.connector.version>hadoop3-2.2.15</fs.gs.connector.version>
 		<!-- Set this to the highest version of grpc artifacts from gcs-connector and google-cloud-storage -->
 		<fs.gs.grpc.version>1.50.3</fs.gs.grpc.version>
-		<fs.gs.google.guava.version>31.1-jre</fs.gs.google.guava.version>
 	</properties>
 
 	<dependencies>
@@ -62,12 +61,6 @@ under the License.
 			<artifactId>flink-fs-hadoop-shaded</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 
@@ -81,26 +74,6 @@ under the License.
 				<exclusion>
 					<groupId>org.apache.commons</groupId>
 					<artifactId>commons-lang3</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.checkerframework</groupId>
-					<artifactId>checker-qual</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.j2objc</groupId>
-					<artifactId>j2objc-annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>failureaccess</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>listenablefuture</artifactId>
 				</exclusion>
 				<!-- exclude dependency because of its GPLv2 license, see https://github.com/apache/flink/pull/15599#issuecomment-850241316 -->
 				<exclusion>
@@ -141,18 +114,28 @@ under the License.
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>animal-sniffer-annotations</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>failureaccess</artifactId>
+				</exclusion>
+				<exclusion>
+				    <groupId>com.google.guava</groupId>
+					<artifactId>listenablefuture</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.checkerframework</groupId>
+					<artifactId>checker-qual</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.j2objc</groupId>
+					<artifactId>j2objc-annotations</artifactId>
+				</exclusion>
 				<!-- exclude dependency because of its GPLv2 license, see https://github.com/apache/flink/pull/15599#issuecomment-850241316 -->
 				<exclusion>
 					<groupId>javax.annotation</groupId>
 					<artifactId>javax.annotation-api</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-			<version>${fs.gs.google.guava.version}</version>
-			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 
 	</dependencies>
@@ -188,11 +171,7 @@ under the License.
 				<scope>import</scope>
 			</dependency>
 
-			<dependency>
-				<groupId>com.google.guava</groupId>
-				<artifactId>guava</artifactId>
-				<version>${fs.gs.google.guava.version}</version>
-			</dependency>
+
 
 		</dependencies>
 	</dependencyManagement>
