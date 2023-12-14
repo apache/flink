@@ -245,7 +245,6 @@ public class TableTestProgram {
                 String name, String table, Expression timeAttribute, Expression primaryKey) {
             this.setupSteps.add(
                     new TemporalFunctionTestStep(
-                            TemporalFunctionTestStep.FunctionPersistence.TEMPORARY,
                             TemporalFunctionTestStep.FunctionBehavior.SYSTEM,
                             name,
                             table,

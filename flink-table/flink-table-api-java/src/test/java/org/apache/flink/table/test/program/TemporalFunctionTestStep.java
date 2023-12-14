@@ -25,19 +25,12 @@ import org.apache.flink.table.functions.TemporalTableFunction;
 /** Test step for registering a (temporary) (system or catalog) function. */
 public final class TemporalFunctionTestStep implements TestStep {
 
-    /** Whether function should be temporary or not. */
-    enum FunctionPersistence {
-        TEMPORARY,
-        PERSISTENT
-    }
-
     /** Whether function should be persisted in a catalog or not. */
     enum FunctionBehavior {
         SYSTEM,
         CATALOG
     }
 
-    public final FunctionPersistence persistence;
     public final FunctionBehavior behavior;
     public final String name;
     public final String table;
@@ -45,13 +38,11 @@ public final class TemporalFunctionTestStep implements TestStep {
     public final Expression primaryKey;
 
     TemporalFunctionTestStep(
-            FunctionPersistence persistence,
             FunctionBehavior behavior,
             String name,
             String table,
             Expression timeAttribute,
             Expression primaryKey) {
-        this.persistence = persistence;
         this.behavior = behavior;
         this.name = name;
         this.table = table;
@@ -68,18 +59,9 @@ public final class TemporalFunctionTestStep implements TestStep {
         TemporalTableFunction function =
                 env.from(table).createTemporalTableFunction(timeAttribute, primaryKey);
         if (behavior == FunctionBehavior.SYSTEM) {
-            if (persistence == FunctionPersistence.TEMPORARY) {
-                env.createTemporarySystemFunction(name, function);
-
-            } else {
-                throw new UnsupportedOperationException("System functions must be temporary.");
-            }
+            env.createTemporarySystemFunction(name, function);
         } else {
-            if (persistence == FunctionPersistence.TEMPORARY) {
-                env.createTemporaryFunction(name, function);
-            } else {
-                throw new UnsupportedOperationException("Temporal Functions must be temporary.");
-            }
+            env.createTemporaryFunction(name, function);
         }
     }
 }
