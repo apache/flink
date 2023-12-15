@@ -36,14 +36,11 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
-import org.apache.flink.testutils.junit.utils.TempDirUtils
-import org.apache.flink.util.FileUtils
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
 import org.slf4j.LoggerFactory
 
-import java.io.{File, IOException}
 import java.nio.file.Files
 import java.util
 
