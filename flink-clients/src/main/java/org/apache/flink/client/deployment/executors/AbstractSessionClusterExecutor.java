@@ -77,15 +77,9 @@ public class AbstractSessionClusterExecutor<
             throws Exception {
         final JobGraph jobGraph =
                 PipelineExecutorUtils.getJobGraph(pipeline, configuration, userCodeClassloader);
-        final ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
-        checkState(clusterID != null);
-        final ClusterDescriptor<ClusterID> clusterDescriptor =
-                cachedClusterDescriptors.get(
-                        clusterID,
-                        () -> clusterClientFactory.createClusterDescriptor(configuration));
 
         final ClusterClientProvider<ClusterID> clusterClientProvider =
-                clusterDescriptor.retrieve(clusterID);
+                retrieveClusterClientProvider(configuration);
         ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
         return clusterClient
                 .submitJob(jobGraph)
@@ -110,17 +104,9 @@ public class AbstractSessionClusterExecutor<
     public CompletableFuture<Set<AbstractID>> listCompletedClusterDatasetIds(
             Configuration configuration, ClassLoader userCodeClassloader) throws Exception {
 
-        try (final ClusterDescriptor<ClusterID> clusterDescriptor =
-                clusterClientFactory.createClusterDescriptor(configuration)) {
-            final ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
-            checkState(clusterID != null);
-
-            final ClusterClientProvider<ClusterID> clusterClientProvider =
-                    clusterDescriptor.retrieve(clusterID);
-
-            final ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
-            return clusterClient.listCompletedClusterDatasetIds();
-        }
+        final ClusterClient<ClusterID> clusterClient =
+                retrieveClusterClientProvider(configuration).getClusterClient();
+        return clusterClient.listCompletedClusterDatasetIds();
     }
 
     @Override
@@ -129,18 +115,23 @@ public class AbstractSessionClusterExecutor<
             Configuration configuration,
             ClassLoader userCodeClassloader)
             throws Exception {
-        try (final ClusterDescriptor<ClusterID> clusterDescriptor =
-                clusterClientFactory.createClusterDescriptor(configuration)) {
-            final ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
-            checkState(clusterID != null);
+        final ClusterClient<ClusterID> clusterClient =
+                retrieveClusterClientProvider(configuration).getClusterClient();
+        return clusterClient
+                .invalidateClusterDataset(new IntermediateDataSetID(clusterDatasetId))
+                .thenApply(acknowledge -> null);
+    }
 
-            final ClusterClientProvider<ClusterID> clusterClientProvider =
-                    clusterDescriptor.retrieve(clusterID);
+    private ClusterClientProvider<ClusterID> retrieveClusterClientProvider(
+            Configuration configuration) throws Exception {
+        ClusterID clusterID = clusterClientFactory.getClusterId(configuration);
+        checkState(clusterID != null);
 
-            final ClusterClient<ClusterID> clusterClient = clusterClientProvider.getClusterClient();
-            return clusterClient
-                    .invalidateClusterDataset(new IntermediateDataSetID(clusterDatasetId))
-                    .thenApply(acknowledge -> null);
-        }
+        final ClusterDescriptor<ClusterID> clusterDescriptor =
+                cachedClusterDescriptors.get(
+                        clusterID,
+                        () -> clusterClientFactory.createClusterDescriptor(configuration));
+
+        return clusterDescriptor.retrieve(clusterID);
     }
 }

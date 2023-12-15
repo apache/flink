@@ -34,6 +34,8 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 
     private final Configuration config;
 
+    private final RestClusterClient<StandaloneClusterId> restClusterClient;
+
     private final ReusableClientHAServices reusableClientHAServices;
 
     private final StandaloneClusterId standaloneClusterId;
@@ -45,11 +47,11 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
             this.reusableClientHAServices =
                     DefaultReusableClientHAServicesFactory.INSTANCE.createReusableClientHAServices(
                             config);
+            this.restClusterClient =
+                    new RestClusterClient<>(config, standaloneClusterId, reusableClientHAServices);
         } catch (Exception e) {
             throw new RuntimeException(
-                    "Couldn't create reusable client high available services to standalone cluster: "
-                            + standaloneClusterId,
-                    e);
+                    "Couldn't connect to standalone cluster: " + standaloneClusterId, e);
         }
     }
 
@@ -63,15 +65,7 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
     @Override
     public ClusterClientProvider<StandaloneClusterId> retrieve(
             StandaloneClusterId standaloneClusterId) throws ClusterRetrieveException {
-        return () -> {
-            try {
-                return new RestClusterClient<>(
-                        config, standaloneClusterId, reusableClientHAServices);
-            } catch (Exception e) {
-                throw new RuntimeException(
-                        "Couldn't retrieve standalone cluster: " + standaloneClusterId, e);
-            }
-        };
+        return () -> restClusterClient;
     }
 
     @Override
@@ -102,6 +96,11 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
 
     @Override
     public void close() {
-        // nothing to do
+        try {
+            restClusterClient.close();
+            reusableClientHAServices.close();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }
