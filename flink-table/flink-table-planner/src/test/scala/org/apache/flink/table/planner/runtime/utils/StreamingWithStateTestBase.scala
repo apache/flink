@@ -87,19 +87,6 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   @AfterEach
   override def after(): Unit = {
     super.after()
-    try {
-      FileUtils.deleteDirectory(baseCheckpointPath)
-    } catch {
-      case e: IOException =>
-        if (baseCheckpointPath.exists) {
-          log.error(
-            s"The temporary files are not being deleted gracefully, remaining files " +
-              s"${FileUtils.listFilesInDirectory(baseCheckpointPath.toPath, _ => true)}.",
-            e)
-        } else {
-          log.error("The temporary files are not being deleted gracefully.", e)
-        }
-    }
     assertThat(FailingCollectionSource.failedBefore).isTrue
   }
 
