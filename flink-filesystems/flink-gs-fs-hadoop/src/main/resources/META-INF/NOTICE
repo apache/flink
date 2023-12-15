@@ -33,6 +33,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.google.flogger:flogger-system-backend:0.7.1
 - com.google.flogger:flogger:0.7.1
 - com.google.flogger:google-extensions:0.7.1
+- com.google.guava:guava:jar:31.1-jre
+- com.google.guava:failureaccess:jar:1.0.1
 - com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava
 - com.google.http-client:google-http-client-apache-v2:1.42.3
 - com.google.http-client:google-http-client-appengine:1.42.3
@@ -63,8 +65,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - io.opencensus:opencensus-contrib-resource-util:0.31.0
 - io.opencensus:opencensus-exporter-metrics-util:0.31.0
 - io.opencensus:opencensus-exporter-stats-stackdriver:0.31.0
-- io.opencensus:opencensus-impl:0.31.0
 - io.opencensus:opencensus-impl-core:0.31.0
+- io.opencensus:opencensus-impl:0.31.0
 - io.opencensus:opencensus-proto:0.2.0
 - io.perfmark:perfmark-api:0.25.0
 - org.apache.httpcomponents:httpclient:4.5.13
