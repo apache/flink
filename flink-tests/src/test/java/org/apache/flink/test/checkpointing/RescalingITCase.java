@@ -766,7 +766,7 @@ public class RescalingITCase extends TestLogger {
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
             final Object lock = ctx.getCheckpointLock();
-            final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+            final int subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             while (running) {
 
@@ -774,7 +774,10 @@ public class RescalingITCase extends TestLogger {
                     synchronized (lock) {
                         for (int value = subtaskIndex;
                                 value < numberKeys;
-                                value += getRuntimeContext().getNumberOfParallelSubtasks()) {
+                                value +=
+                                        getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks()) {
 
                             ctx.collect(value);
                         }
@@ -850,7 +853,8 @@ public class RescalingITCase extends TestLogger {
             sum.update(s);
 
             if (count % numberElements == 0) {
-                out.collect(Tuple2.of(getRuntimeContext().getIndexOfThisSubtask(), s));
+                out.collect(
+                        Tuple2.of(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), s));
                 workCompletedLatch.countDown();
             }
         }
@@ -961,7 +965,8 @@ public class RescalingITCase extends TestLogger {
         @Override
         public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
 
-            checkCorrectSnapshot[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+            checkCorrectSnapshot[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] =
+                    counter;
 
             int div = counter / NUM_PARTITIONS;
             int mod = counter % NUM_PARTITIONS;
@@ -983,7 +988,8 @@ public class RescalingITCase extends TestLogger {
             for (Integer v : state) {
                 counter += v;
             }
-            checkCorrectRestore[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+            checkCorrectRestore[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] =
+                    counter;
         }
     }
 
@@ -1008,7 +1014,8 @@ public class RescalingITCase extends TestLogger {
 
             counterPartitions.clear();
 
-            checkCorrectSnapshot[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+            checkCorrectSnapshot[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] =
+                    counter;
 
             int div = counter / NUM_PARTITIONS;
             int mod = counter % NUM_PARTITIONS;
@@ -1044,7 +1051,8 @@ public class RescalingITCase extends TestLogger {
                 for (int v : counterPartitions.get()) {
                     counter += v;
                 }
-                checkCorrectRestore[getRuntimeContext().getIndexOfThisSubtask()] = counter;
+                checkCorrectRestore[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] =
+                        counter;
             }
         }
     }

@@ -196,8 +196,9 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
         Collection<CommT> committables =
                 ((PrecommittingSinkWriter<?, CommT>) sinkWriter).prepareCommit();
         StreamingRuntimeContext runtimeContext = getRuntimeContext();
-        final int indexOfThisSubtask = runtimeContext.getIndexOfThisSubtask();
-        final int numberOfParallelSubtasks = runtimeContext.getNumberOfParallelSubtasks();
+        final int indexOfThisSubtask = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
+        final int numberOfParallelSubtasks =
+                runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
 
         // Emit only committable summary if there are legacy committables
         if (!legacyCommittables.isEmpty()) {

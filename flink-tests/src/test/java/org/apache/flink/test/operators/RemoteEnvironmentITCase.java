@@ -79,7 +79,10 @@ public class RemoteEnvironmentITCase extends TestLogger {
                                     public void mapPartition(
                                             Iterable<Integer> values, Collector<Integer> out)
                                             throws Exception {
-                                        out.collect(getRuntimeContext().getIndexOfThisSubtask());
+                                        out.collect(
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask());
                                     }
                                 });
         List<Integer> resultCollection = result.collect();

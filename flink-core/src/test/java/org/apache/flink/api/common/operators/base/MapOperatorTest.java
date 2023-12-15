@@ -97,9 +97,9 @@ public class MapOperatorTest implements java.io.Serializable {
                         public void open(OpenContext openContext) throws Exception {
                             opened.set(true);
                             RuntimeContext ctx = getRuntimeContext();
-                            assertEquals(0, ctx.getIndexOfThisSubtask());
-                            assertEquals(1, ctx.getNumberOfParallelSubtasks());
-                            assertEquals(taskName, ctx.getTaskName());
+                            assertEquals(0, ctx.getTaskInfo().getIndexOfThisSubtask());
+                            assertEquals(1, ctx.getTaskInfo().getNumberOfParallelSubtasks());
+                            assertEquals(taskName, ctx.getTaskInfo().getTaskName());
                         }
 
                         @Override

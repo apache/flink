@@ -169,11 +169,12 @@ public class StickyAllocationAndLocalRecoveryTestJob {
         @Override
         public void run(SourceContext<Long> sourceContext) throws Exception {
 
-            int numberOfParallelSubtasks = getRuntimeContext().getNumberOfParallelSubtasks();
-            int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            int numberOfParallelSubtasks =
+                    getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+            int subtaskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             // the source emits one final event and shuts down once we have reached max attempts.
-            if (getRuntimeContext().getAttemptNumber() > maxAttempts) {
+            if (getRuntimeContext().getTaskInfo().getAttemptNumber() > maxAttempts) {
                 synchronized (sourceContext.getCheckpointLock()) {
                     sourceContext.collect(Long.MAX_VALUE - subtaskIdx);
                 }
@@ -211,7 +212,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
             sourceCurrentKeyState =
                     context.getOperatorStateStore().getListState(currentKeyDescriptor);
 
-            currentKey = getRuntimeContext().getIndexOfThisSubtask();
+            currentKey = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             Iterable<Long> iterable = sourceCurrentKeyState.get();
             if (iterable != null) {
                 Iterator<Long> iterator = iterable.iterator();
@@ -309,7 +310,8 @@ public class StickyAllocationAndLocalRecoveryTestJob {
             StreamingRuntimeContext runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
             String allocationID = runtimeContext.getAllocationIDAsString();
             // Pattern of the name: "Flat Map -> Sink: Unnamed (4/4)#0". Remove "#0" part:
-            String taskNameWithSubtasks = runtimeContext.getTaskNameWithSubtasks().split("#")[0];
+            String taskNameWithSubtasks =
+                    runtimeContext.getTaskInfo().getTaskNameWithSubtasks().split("#")[0];
 
             final int thisJvmPid = getJvmPid();
             final Set<Integer> killedJvmPids = new HashSet<>();
@@ -344,7 +346,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
                                             + "on JVM with PID %d to unexpected allocation %s on JVM with PID %d.\n"
                                             + "Complete information from before the crash: %s.",
                                     taskNameWithSubtasks,
-                                    runtimeContext.getAttemptNumber(),
+                                    runtimeContext.getTaskInfo().getAttemptNumber(),
                                     infoForThisTask.allocationId,
                                     infoForThisTask.jvmPid,
                                     allocationID,
@@ -382,9 +384,9 @@ public class StickyAllocationAndLocalRecoveryTestJob {
 
         private boolean shouldTaskFailForThisAttempt() {
             RuntimeContext runtimeContext = getRuntimeContext();
-            int numSubtasks = runtimeContext.getNumberOfParallelSubtasks();
-            int subtaskIdx = runtimeContext.getIndexOfThisSubtask();
-            int attempt = runtimeContext.getAttemptNumber();
+            int numSubtasks = runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
+            int subtaskIdx = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
+            int attempt = runtimeContext.getTaskInfo().getAttemptNumber();
             return (attempt % numSubtasks) == subtaskIdx;
         }
 

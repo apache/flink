@@ -99,7 +99,8 @@ public class BatchCompactOperator<T> extends AbstractStreamOperator<CompactOutpu
                 path = paths.get(0);
             } else if (paths.size() > 1) {
                 Path targetPath =
-                        createCompactedFile(paths, getRuntimeContext().getAttemptNumber());
+                        createCompactedFile(
+                                paths, getRuntimeContext().getTaskInfo().getAttemptNumber());
                 path =
                         CompactFileUtils.doCompact(
                                 fileSystem,

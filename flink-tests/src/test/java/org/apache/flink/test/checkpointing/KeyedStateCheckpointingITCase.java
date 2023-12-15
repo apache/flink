@@ -215,12 +215,12 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
             final Object lockingObject = ctx.getCheckpointLock();
-            final int step = getRuntimeContext().getNumberOfParallelSubtasks();
+            final int step = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
 
             int nextElement =
                     lastEmitted >= 0
                             ? lastEmitted + step
-                            : getRuntimeContext().getIndexOfThisSubtask();
+                            : getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
             while (isRunning && nextElement < numElements) {
 

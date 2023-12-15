@@ -288,7 +288,7 @@ class LocalRecoveryITCase {
             StreamingRuntimeContext runtimeContext = (StreamingRuntimeContext) getRuntimeContext();
             String allocationId = runtimeContext.getAllocationIDAsString();
             // Pattern of the name: "Flat Map -> Sink: Unnamed (4/4)#0". Remove "#0" part:
-            String myName = runtimeContext.getTaskNameWithSubtasks().split("#")[0];
+            String myName = runtimeContext.getTaskInfo().getTaskNameWithSubtasks().split("#")[0];
 
             ListStateDescriptor<TaskNameAllocationID> previousAllocationsStateDescriptor =
                     new ListStateDescriptor<>("sourceState", TaskNameAllocationID.class);

@@ -252,7 +252,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             return;
         }
 
-        final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+        final int subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
         final SourceReaderContext context =
                 new SourceReaderContext() {
@@ -307,7 +307,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
                     @Override
                     public int currentParallelism() {
-                        return getRuntimeContext().getNumberOfParallelSubtasks();
+                        return getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
                     }
                 };
 
@@ -483,7 +483,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                             output::emitLatencyMarker,
                             latencyTrackingInterval,
                             getOperatorID(),
-                            getRuntimeContext().getIndexOfThisSubtask());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
     }
 
@@ -690,7 +690,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private void registerReader() {
         operatorEventGateway.sendEventToCoordinator(
                 new ReaderRegistrationEvent(
-                        getRuntimeContext().getIndexOfThisSubtask(), localHostname));
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), localHostname));
     }
 
     // --------------- methods for unit tests ------------

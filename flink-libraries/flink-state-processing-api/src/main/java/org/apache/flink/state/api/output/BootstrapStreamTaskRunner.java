@@ -104,7 +104,7 @@ public class BootstrapStreamTaskRunner<IN>
         this.task.setName(
                 streamConfig.getOperatorName()
                         + "-bootstrap-thread-"
-                        + getRuntimeContext().getIndexOfThisSubtask());
+                        + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         this.task.start();
     }
 

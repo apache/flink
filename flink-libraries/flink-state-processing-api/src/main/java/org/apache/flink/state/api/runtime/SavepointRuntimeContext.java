@@ -20,7 +20,8 @@ package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -83,43 +84,18 @@ public final class SavepointRuntimeContext implements RuntimeContext {
     }
 
     @Override
-    public JobID getJobId() {
-        return ctx.getJobId();
+    public JobInfo getJobInfo() {
+        return ctx.getJobInfo();
     }
 
     @Override
-    public String getTaskName() {
-        return ctx.getTaskName();
+    public TaskInfo getTaskInfo() {
+        return ctx.getTaskInfo();
     }
 
     @Override
     public OperatorMetricGroup getMetricGroup() {
         return ctx.getMetricGroup();
-    }
-
-    @Override
-    public int getNumberOfParallelSubtasks() {
-        return ctx.getNumberOfParallelSubtasks();
-    }
-
-    @Override
-    public int getMaxNumberOfParallelSubtasks() {
-        return ctx.getMaxNumberOfParallelSubtasks();
-    }
-
-    @Override
-    public int getIndexOfThisSubtask() {
-        return ctx.getIndexOfThisSubtask();
-    }
-
-    @Override
-    public int getAttemptNumber() {
-        return ctx.getAttemptNumber();
-    }
-
-    @Override
-    public String getTaskNameWithSubtasks() {
-        return ctx.getTaskNameWithSubtasks();
     }
 
     @Override
