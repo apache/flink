@@ -72,12 +72,10 @@ class HashBufferAccumulatorTest {
                 new HashBufferAccumulator(1, NETWORK_BUFFER_SIZE, tieredStorageMemoryManager)) {
             AtomicInteger numReceivedFinishedBuffer = new AtomicInteger(0);
             bufferAccumulator.setup(
-                    ((subpartition, buffers) ->
-                            buffers.forEach(
-                                    buffer -> {
-                                        numReceivedFinishedBuffer.incrementAndGet();
-                                        buffer.recycleBuffer();
-                                    })));
+                    ((subpartition, buffer) -> {
+                        numReceivedFinishedBuffer.incrementAndGet();
+                        buffer.recycleBuffer();
+                    }));
 
             int numRecordBytesSinceLastEvent = 0;
             int numExpectBuffers = 0;
@@ -115,8 +113,7 @@ class HashBufferAccumulatorTest {
                 createStorageMemoryManager(numBuffers);
         try (HashBufferAccumulator bufferAccumulator =
                 new HashBufferAccumulator(1, NETWORK_BUFFER_SIZE, tieredStorageMemoryManager)) {
-            bufferAccumulator.setup(
-                    ((subpartition, buffers) -> buffers.forEach(Buffer::recycleBuffer)));
+            bufferAccumulator.setup(((subpartition, buffer) -> buffer.recycleBuffer()));
 
             ByteBuffer endEvent = EventSerializer.toSerializedEvent(EndOfPartitionEvent.INSTANCE);
             bufferAccumulator.receive(
@@ -138,8 +135,7 @@ class HashBufferAccumulatorTest {
                 createStorageMemoryManager(numBuffers);
         HashBufferAccumulator bufferAccumulator =
                 new HashBufferAccumulator(1, NETWORK_BUFFER_SIZE, tieredStorageMemoryManager);
-        bufferAccumulator.setup(
-                ((subpartition, buffers) -> buffers.forEach(Buffer::recycleBuffer)));
+        bufferAccumulator.setup(((subpartition, buffer) -> buffer.recycleBuffer()));
         bufferAccumulator.receive(
                 generateRandomData(1, new Random()),
                 new TieredStorageSubpartitionId(0),

@@ -23,8 +23,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageSubpartitionId;
 
-import java.util.List;
-
 /**
  * This interface is used by {@link HashSubpartitionBufferAccumulator} to operate {@link
  * HashBufferAccumulator}.
@@ -42,8 +40,8 @@ public interface HashSubpartitionBufferAccumulatorContext {
      * Flush the accumulated {@link Buffer}s of the subpartition.
      *
      * @param subpartitionId the subpartition id
-     * @param accumulatedBuffers the accumulated buffers
+     * @param accumulatedBuffer the accumulated buffer
      */
     void flushAccumulatedBuffers(
-            TieredStorageSubpartitionId subpartitionId, List<Buffer> accumulatedBuffers);
+            TieredStorageSubpartitionId subpartitionId, Buffer accumulatedBuffer);
 }
