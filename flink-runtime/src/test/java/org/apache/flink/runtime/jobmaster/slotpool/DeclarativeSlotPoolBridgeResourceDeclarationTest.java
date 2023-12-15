@@ -29,7 +29,6 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,7 +50,7 @@ import static org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBri
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link DeclarativeSlotPoolBridge}. */
-@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+@ExtendWith(ParameterizedTestExtension.class)
 class DeclarativeSlotPoolBridgeResourceDeclarationTest {
 
     private static final JobMasterId jobMasterId = JobMasterId.generate();
@@ -138,7 +137,6 @@ class DeclarativeSlotPoolBridgeResourceDeclarationTest {
 
             // waiting for the timeout
             assertThatFuture(allocationFuture).failsWithin(Duration.ofMinutes(1));
-            Thread.sleep(5L);
             // when the allocation fails the requirements should be reduced (it is the users
             // responsibility to retry)
             CompletableFuture.runAsync(

@@ -35,7 +35,6 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
 import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -60,7 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link DeclarativeSlotPoolBridge}. */
-@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+@ExtendWith(ParameterizedTestExtension.class)
 class DeclarativeSlotPoolBridgeTest {
 
     private static final Time rpcTimeout = Time.seconds(20);
@@ -201,10 +200,7 @@ class DeclarativeSlotPoolBridgeTest {
 
             declarativeSlotPoolBridge.close();
 
-            assertThatThrownBy(
-                            () -> {
-                                FutureUtils.waitForAll(slotFutures).get();
-                            })
+            assertThatThrownBy(() -> FutureUtils.waitForAll(slotFutures).get())
                     .as("The slot futures should be completed exceptionally.")
                     .isInstanceOf(ExecutionException.class);
         }

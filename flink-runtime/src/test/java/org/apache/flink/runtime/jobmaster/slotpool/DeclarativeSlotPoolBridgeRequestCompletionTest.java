@@ -28,12 +28,10 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.CheckedSupplier;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -47,7 +45,6 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests how the {@link DeclarativeSlotPoolBridge} completes slot requests. */
-@ExtendWith(TestLoggerExtension.class)
 class DeclarativeSlotPoolBridgeRequestCompletionTest {
 
     private static final Time TIMEOUT = SlotPoolUtils.TIMEOUT;
