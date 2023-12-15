@@ -183,8 +183,6 @@ under the License.
 				<scope>import</scope>
 			</dependency>
 
-
-
 		</dependencies>
 	</dependencyManagement>
 
@@ -218,11 +216,6 @@ under the License.
 								<relocation>
 									<pattern>org.apache.flink.runtime.util</pattern>
 									<shadedPattern>org.apache.flink.fs.gs.org.apache.flink.runtime.util</shadedPattern>
-								</relocation>
-								<!-- shade google guava version-->
-								<relocation>
-									<pattern>com.google.common</pattern>
-									<shadedPattern>org.apache.flink.fs.gs.com.google.common</shadedPattern>
 								</relocation>
 							</relocations>
 
