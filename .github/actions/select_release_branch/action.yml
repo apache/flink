@@ -1,0 +1,57 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: "Release branch selection"
+description: "Selects the release branch."
+inputs:
+  release-branch-index:
+    description: "The index of the release branch: (1 - most-recent release; 2 - 2nd most-recent; ...)."
+    required: true
+outputs:
+  branch:
+    description: "The selected branch."
+    value: "${{ steps.branch-selection.outputs.branch }}"
+  commit-hash:
+    description: "The hash of the branches HEAD."
+    value: "${{ steps.extract-commit-hash.outputs.commit-hash }}"
+  commit-hash-short:
+    description: "The hash of the branches HEAD."
+    value: "${{ steps.extract-commit-hash.outputs.commit-hash-short }}"
+runs:
+  using: "composite"
+  steps:
+    - name: "Selects the release branch"
+      id: branch-selection
+      shell: bash
+      run: |
+        # actions/checkout only fetches one branch but we need all the branch information from origin
+        git fetch --no-tags --depth=1 origin
+
+        # filters the release branches and sorts by version
+        selected_branch="$(git branch --remotes | grep -o "release-[0-9]\{1,\}\.[0-9]\{1,\}" | sort -u -t'.' -k2,2V | tail -${{ inputs.release-branch-index }} | head -1)"
+        echo "INFO: Selected release branch: ${selected_branch}"
+        echo "branch=${selected_branch}" >> "$GITHUB_OUTPUT"
+    - name: "Extracts ${{ steps.branch-selection.outputs.branch }} HEAD commit hash"
+      id: extract-commit-hash
+      shell: bash
+      run: |
+        head_commit_hash="$(git show-ref --head --verify --hash refs/remotes/origin/${{ steps.branch-selection.outputs.branch }})"
+
+        echo "INFO: HEAD commit hash: ${head_commit_hash}"
+        echo "commit-hash=${head_commit_hash}" >> "$GITHUB_OUTPUT"
+        echo "commit-hash-short=${head_commit_hash:0:11}" >> "$GITHUB_OUTPUT"
