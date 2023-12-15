@@ -61,8 +61,13 @@ under the License.
 			<artifactId>flink-fs-hadoop-shaded</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
-
 
 		<dependency>
 			<groupId>com.google.cloud</groupId>
@@ -137,7 +142,6 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-
 	</dependencies>
 
 	<dependencyManagement>
@@ -191,29 +195,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<filters>
-								<filter>
-									<artifact>org.apache.flink:flink-fs-hadoop-shaded</artifact>
-									<excludes>
-										<exclude>com/google/common/**</exclude>
-										<exclude>org/checkerframework/**</exclude>
-										<exclude>com/google/errorprone/**</exclude>
-										<exclude>com/google/j2objc/**</exclude>
-										<exclude>com/google/thirdparty/publicsuffix/**</exclude>
-									</excludes>
-								</filter>
-								<filter>
-									<artifact>*</artifact>
-									<excludes>
-										<exclude>properties.dtd</exclude>
-										<exclude>PropertyList-1.0.dtd</exclude>
-										<exclude>mozilla/**</exclude>
-										<exclude>META-INF/maven/**</exclude>
-										<exclude>META-INF/NOTICE.txt</exclude>
-										<exclude>META-INF/LICENSE.txt</exclude>
-									</excludes>
-								</filter>
-							</filters>
 							<artifactSet>
 								<includes>
 									<include>*:*</include>
