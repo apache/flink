@@ -158,6 +158,18 @@ public class RestOptions {
                     .withDescription(
                             "The maximum time in ms for the client to establish a TCP connection.");
 
+    /**
+     * Config parameter indicating whether to reuse the TCP connection between client and
+     * JobManager.
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Boolean> CONNECTION_REUSE =
+            key("rest.connection-reuse")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Config parameter indicating whether to reuse the TCP connection between client and JobManager.");
+
     /** The maximum time in ms for a connection to stay idle before failing. */
     @Documentation.Section(Documentation.Sections.EXPERT_REST)
     public static final ConfigOption<Long> IDLENESS_TIMEOUT =

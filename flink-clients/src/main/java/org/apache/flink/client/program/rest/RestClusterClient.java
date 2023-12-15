@@ -163,6 +163,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -186,10 +187,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     private final RestClient restClient;
 
-    private final ExecutorService executorService =
-            Executors.newFixedThreadPool(
-                    Runtime.getRuntime().availableProcessors() * 2,
-                    new ExecutorThreadFactory("Flink-RestClusterClient-IO"));
+    private final ExecutorService executorService = ForkJoinPool.commonPool();
 
     private final WaitStrategy waitStrategy;
 
