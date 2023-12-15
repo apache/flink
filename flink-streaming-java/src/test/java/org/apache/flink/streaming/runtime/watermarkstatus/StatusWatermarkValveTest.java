@@ -125,7 +125,7 @@ class StatusWatermarkValveTest {
 
         valve.inputWatermark(new Watermark(50), 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
-        assertThat(valve.getInputChannelStatus(0).watermark).isEqualTo(25);
+        assertThat(valve.getSubpartitionStatus(0).watermark).isEqualTo(25);
 
         valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 0, valveOutput);
         assertThat(valveOutput.popLastSeenOutput()).isEqualTo(WatermarkStatus.ACTIVE);
@@ -357,17 +357,17 @@ class StatusWatermarkValveTest {
         // let channel 2 become active again; since the min watermark has now advanced to 7,
         // channel 2 should have been marked as non-aligned.
         valve.inputWatermarkStatus(WatermarkStatus.ACTIVE, 2, valveOutput);
-        assertThat(valve.getInputChannelStatus(2).isWatermarkAligned).isFalse();
+        assertThat(valve.getSubpartitionStatus(2).isWatermarkAligned).isFalse();
 
         // during the realignment process, watermarks should still be accepted by channel 2 (but
         // shouldn't yield new watermarks)
         valve.inputWatermark(new Watermark(5), 2, valveOutput);
-        assertThat(valve.getInputChannelStatus(2).watermark).isEqualTo(5);
+        assertThat(valve.getSubpartitionStatus(2).watermark).isEqualTo(5);
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         // let channel 2 catch up with the min watermark; now should be realigned
         valve.inputWatermark(new Watermark(9), 2, valveOutput);
-        assertThat(valve.getInputChannelStatus(2).isWatermarkAligned).isTrue();
+        assertThat(valve.getSubpartitionStatus(2).isWatermarkAligned).isTrue();
         assertThat(valveOutput.popLastSeenOutput()).isNull();
 
         // check that realigned inputs is now taken into account for watermark advancement
