@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.operators.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
@@ -48,21 +48,25 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
 
     private final ExternalResourceInfoProvider externalResourceInfoProvider;
 
-    private final JobID jobID;
-
     public DistributedRuntimeUDFContext(
+            JobInfo jobInfo,
             TaskInfo taskInfo,
             UserCodeClassLoader userCodeClassLoader,
             ExecutionConfig executionConfig,
             Map<String, Future<Path>> cpTasks,
             Map<String, Accumulator<?, ?>> accumulators,
             OperatorMetricGroup metrics,
-            ExternalResourceInfoProvider externalResourceInfoProvider,
-            JobID jobID) {
-        super(taskInfo, userCodeClassLoader, executionConfig, accumulators, cpTasks, metrics);
+            ExternalResourceInfoProvider externalResourceInfoProvider) {
+        super(
+                jobInfo,
+                taskInfo,
+                userCodeClassLoader,
+                executionConfig,
+                accumulators,
+                cpTasks,
+                metrics);
         this.externalResourceInfoProvider =
                 Preconditions.checkNotNull(externalResourceInfoProvider);
-        this.jobID = jobID;
     }
 
     @Override
@@ -111,11 +115,6 @@ public class DistributedRuntimeUDFContext extends AbstractRuntimeUDFContext {
             throw new IllegalArgumentException(
                     "The broadcast variable with name '" + name + "' has not been set.");
         }
-    }
-
-    @Override
-    public JobID getJobId() {
-        return jobID;
     }
 
     @Override

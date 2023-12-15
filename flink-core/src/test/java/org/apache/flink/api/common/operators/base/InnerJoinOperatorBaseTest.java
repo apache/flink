@@ -108,8 +108,9 @@ public class InnerJoinOperatorBaseTest implements Serializable {
                     @Override
                     public void open(OpenContext openContext) throws Exception {
                         opened.compareAndSet(false, true);
-                        assertEquals(0, getRuntimeContext().getIndexOfThisSubtask());
-                        assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+                        assertEquals(0, getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
+                        assertEquals(
+                                1, getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
                     }
 
                     @Override

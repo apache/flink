@@ -98,7 +98,7 @@ public class DataStreamWithSharedPartitionNodeITCase {
         @Override
         public void invoke(Integer value, Context context) throws Exception {
             synchronized (resultLock) {
-                String key = name + "-" + getRuntimeContext().getIndexOfThisSubtask();
+                String key = name + "-" + getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
                 result.compute(key, (k, v) -> v == null ? new ArrayList<>() : v).add(value);
             }
         }

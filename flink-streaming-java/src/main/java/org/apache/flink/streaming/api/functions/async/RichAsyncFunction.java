@@ -20,7 +20,8 @@ package org.apache.flink.streaming.api.functions.async;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobInfo;
+import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.DoubleCounter;
 import org.apache.flink.api.common.accumulators.Histogram;
@@ -109,43 +110,8 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         }
 
         @Override
-        public JobID getJobId() {
-            return runtimeContext.getJobId();
-        }
-
-        @Override
-        public String getTaskName() {
-            return runtimeContext.getTaskName();
-        }
-
-        @Override
         public OperatorMetricGroup getMetricGroup() {
             return runtimeContext.getMetricGroup();
-        }
-
-        @Override
-        public int getNumberOfParallelSubtasks() {
-            return runtimeContext.getNumberOfParallelSubtasks();
-        }
-
-        @Override
-        public int getMaxNumberOfParallelSubtasks() {
-            return runtimeContext.getMaxNumberOfParallelSubtasks();
-        }
-
-        @Override
-        public int getIndexOfThisSubtask() {
-            return runtimeContext.getIndexOfThisSubtask();
-        }
-
-        @Override
-        public int getAttemptNumber() {
-            return runtimeContext.getAttemptNumber();
-        }
-
-        @Override
-        public String getTaskNameWithSubtasks() {
-            return runtimeContext.getTaskNameWithSubtasks();
         }
 
         @Override
@@ -282,6 +248,16 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
             throw new UnsupportedOperationException(
                     "Broadcast variables are not supported in rich async functions.");
         }
+
+        @Override
+        public JobInfo getJobInfo() {
+            return runtimeContext.getJobInfo();
+        }
+
+        @Override
+        public TaskInfo getTaskInfo() {
+            return runtimeContext.getTaskInfo();
+        }
     }
 
     private static class RichAsyncFunctionIterationRuntimeContext
@@ -314,11 +290,6 @@ public abstract class RichAsyncFunction<IN, OUT> extends AbstractRichFunction
         public <T extends Value> T getPreviousIterationAggregate(String name) {
             throw new UnsupportedOperationException(
                     "Iteration aggregators are not supported in rich async functions.");
-        }
-
-        @Override
-        public JobID getJobId() {
-            return iterationRuntimeContext.getJobId();
         }
     }
 }

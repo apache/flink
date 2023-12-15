@@ -109,7 +109,10 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 @Override
                                 public void open(OpenContext openContext) {
                                     assertEquals(
-                                            1, getRuntimeContext().getNumberOfParallelSubtasks());
+                                            1,
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
@@ -185,7 +188,10 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 @Override
                                 public void open(OpenContext openContext) {
                                     assertEquals(
-                                            1, getRuntimeContext().getNumberOfParallelSubtasks());
+                                            1,
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
@@ -267,7 +273,10 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 @Override
                                 public void open(OpenContext openContext) {
                                     assertEquals(
-                                            1, getRuntimeContext().getNumberOfParallelSubtasks());
+                                            1,
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 
@@ -347,7 +356,10 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
                                 @Override
                                 public void open(OpenContext openContext) {
                                     assertEquals(
-                                            1, getRuntimeContext().getNumberOfParallelSubtasks());
+                                            1,
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getNumberOfParallelSubtasks());
                                     open = true;
                                 }
 

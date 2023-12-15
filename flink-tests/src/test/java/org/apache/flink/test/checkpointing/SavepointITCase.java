@@ -1482,7 +1482,7 @@ public class SavepointITCase extends TestLogger {
         public void open(OpenContext openContext) throws Exception {
             if (data == null) {
                 // We need this to be large, because we want to test with files
-                Random rand = new Random(getRuntimeContext().getIndexOfThisSubtask());
+                Random rand = new Random(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
                 data =
                         new byte
                                 [(int)
@@ -1693,7 +1693,8 @@ public class SavepointITCase extends TestLogger {
 
         @Override
         public List<Integer> snapshotState(long checkpointId, long timestamp) throws Exception {
-            iterTestCheckpointVerify[getRuntimeContext().getIndexOfThisSubtask()] = emittedCount;
+            iterTestCheckpointVerify[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] =
+                    emittedCount;
             return Collections.singletonList(emittedCount);
         }
 
@@ -1703,9 +1704,11 @@ public class SavepointITCase extends TestLogger {
                 this.emittedCount = state.get(0);
             }
             Assert.assertEquals(
-                    iterTestCheckpointVerify[getRuntimeContext().getIndexOfThisSubtask()],
+                    iterTestCheckpointVerify[
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()],
                     emittedCount);
-            iterTestRestoreWait[getRuntimeContext().getIndexOfThisSubtask()].trigger();
+            iterTestRestoreWait[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()]
+                    .trigger();
         }
     }
 
@@ -1729,7 +1732,8 @@ public class SavepointITCase extends TestLogger {
             }
 
             if (30 == value) {
-                iterTestSnapshotWait[getRuntimeContext().getIndexOfThisSubtask()].trigger();
+                iterTestSnapshotWait[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()]
+                        .trigger();
             }
         }
     }

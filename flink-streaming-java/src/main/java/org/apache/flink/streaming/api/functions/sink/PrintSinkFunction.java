@@ -70,7 +70,9 @@ public class PrintSinkFunction<IN> extends RichSinkFunction<IN>
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
         StreamingRuntimeContext context = (StreamingRuntimeContext) getRuntimeContext();
-        writer.open(context.getIndexOfThisSubtask(), context.getNumberOfParallelSubtasks());
+        writer.open(
+                context.getTaskInfo().getIndexOfThisSubtask(),
+                context.getTaskInfo().getNumberOfParallelSubtasks());
     }
 
     @Override

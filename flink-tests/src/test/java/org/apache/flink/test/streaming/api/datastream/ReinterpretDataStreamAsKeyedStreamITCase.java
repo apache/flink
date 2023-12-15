@@ -169,7 +169,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            int subtaskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             dos =
                     new DataOutputStream(
                             new BufferedOutputStream(
@@ -213,7 +213,7 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+            int subtaskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             File partitionFile = allPartitions.get(subtaskIdx);
             fileLength = partitionFile.length();
             waitForFailurePos = fileLength * 3 / 4;
@@ -315,7 +315,8 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         @Override
         public void open(OpenContext openContext) throws Exception {
             super.open(openContext);
-            Preconditions.checkState(getRuntimeContext().getNumberOfParallelSubtasks() == 1);
+            Preconditions.checkState(
+                    getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks() == 1);
         }
 
         @Override

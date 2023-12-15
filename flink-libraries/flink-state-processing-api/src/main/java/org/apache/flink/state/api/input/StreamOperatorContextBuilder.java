@@ -77,7 +77,7 @@ class StreamOperatorContextBuilder {
             @Nullable StateBackend applicationStateBackend,
             ExecutionConfig executionConfig) {
         this.ctx = ctx;
-        this.maxParallelism = ctx.getMaxNumberOfParallelSubtasks();
+        this.maxParallelism = ctx.getTaskInfo().getMaxNumberOfParallelSubtasks();
         this.configuration = configuration;
         this.operatorState = operatorState;
         this.split = split;

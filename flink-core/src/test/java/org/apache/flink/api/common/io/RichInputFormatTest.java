@@ -50,7 +50,8 @@ public class RichInputFormatTest {
                         new HashMap<String, Accumulator<?, ?>>(),
                         UnregisteredMetricsGroup.createOperatorMetricGroup()));
 
-        assertEquals(inputFormat.getRuntimeContext().getIndexOfThisSubtask(), 1);
-        assertEquals(inputFormat.getRuntimeContext().getNumberOfParallelSubtasks(), 3);
+        assertEquals(inputFormat.getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), 1);
+        assertEquals(
+                inputFormat.getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(), 3);
     }
 }

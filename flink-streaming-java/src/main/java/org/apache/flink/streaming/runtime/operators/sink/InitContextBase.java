@@ -41,17 +41,17 @@ class InitContextBase implements InitContext {
 
     @Override
     public int getNumberOfParallelSubtasks() {
-        return runtimeContext.getNumberOfParallelSubtasks();
+        return runtimeContext.getTaskInfo().getNumberOfParallelSubtasks();
     }
 
     @Override
     public int getAttemptNumber() {
-        return runtimeContext.getAttemptNumber();
+        return runtimeContext.getTaskInfo().getAttemptNumber();
     }
 
     @Override
     public int getSubtaskId() {
-        return runtimeContext.getIndexOfThisSubtask();
+        return runtimeContext.getTaskInfo().getIndexOfThisSubtask();
     }
 
     @Override
@@ -61,7 +61,7 @@ class InitContextBase implements InitContext {
 
     @Override
     public JobID getJobId() {
-        return runtimeContext.getJobId();
+        return runtimeContext.getJobInfo().getJobId();
     }
 
     RuntimeContext getRuntimeContext() {

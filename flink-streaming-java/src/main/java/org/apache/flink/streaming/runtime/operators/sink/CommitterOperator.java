@@ -125,8 +125,8 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
                                 .getListState(STREAMING_COMMITTER_RAW_STATES_DESC),
                         new CommittableCollectorSerializer<>(
                                 committableSerializer,
-                                getRuntimeContext().getIndexOfThisSubtask(),
-                                getRuntimeContext().getNumberOfParallelSubtasks(),
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
                                 metricGroup));
         if (context.isRestored()) {
             committableCollectorState.get().forEach(cc -> committableCollector.merge(cc));

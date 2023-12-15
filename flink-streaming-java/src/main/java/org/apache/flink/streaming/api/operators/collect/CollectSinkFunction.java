@@ -240,7 +240,7 @@ public class CollectSinkFunction<IN> extends RichSinkFunction<IN>
     @Override
     public void open(OpenContext openContext) throws Exception {
         Preconditions.checkState(
-                getRuntimeContext().getNumberOfParallelSubtasks() == 1,
+                getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks() == 1,
                 "The parallelism of CollectSinkFunction must be 1");
 
         initBuffer();

@@ -320,7 +320,8 @@ public class AggregatorConvergenceITCase extends MultipleProgramsTestBase {
 
             aggr = getIterationRuntimeContext().getIterationAggregator(aggName);
 
-            if (superstep > 1 && getIterationRuntimeContext().getIndexOfThisSubtask() == 0) {
+            if (superstep > 1
+                    && getIterationRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 0) {
                 LongValue val = getIterationRuntimeContext().getPreviousIterationAggregate(aggName);
                 aggr_value[superstep - 2] = val.getValue();
             }

@@ -192,17 +192,17 @@ public class SavepointEnvironment implements Environment {
 
     @Override
     public JobInfo getJobInfo() {
-        return null;
+        return ctx.getJobInfo();
     }
 
     @Override
     public TaskInfo getTaskInfo() {
         return new TaskInfoImpl(
-                ctx.getTaskName(),
+                ctx.getTaskInfo().getTaskName(),
                 maxParallelism,
                 indexOfSubtask,
-                ctx.getNumberOfParallelSubtasks(),
-                ctx.getAttemptNumber());
+                ctx.getTaskInfo().getNumberOfParallelSubtasks(),
+                ctx.getTaskInfo().getAttemptNumber());
     }
 
     @Override
@@ -357,7 +357,7 @@ public class SavepointEnvironment implements Environment {
             this.prioritizedOperatorSubtaskState =
                     PrioritizedOperatorSubtaskState.emptyNotRestored();
             this.configuration = new Configuration();
-            this.indexOfSubtask = ctx.getIndexOfThisSubtask();
+            this.indexOfSubtask = ctx.getTaskInfo().getIndexOfThisSubtask();
         }
 
         public Builder setSubtaskIndex(int indexOfSubtask) {

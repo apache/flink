@@ -163,9 +163,9 @@ class CoGroupOperatorCollectionTest implements Serializable {
             isOpened = true;
 
             RuntimeContext ctx = getRuntimeContext();
-            assertThat(ctx.getTaskName()).isEqualTo("Test UDF");
-            assertThat(ctx.getNumberOfParallelSubtasks()).isEqualTo(4);
-            assertThat(ctx.getIndexOfThisSubtask()).isZero();
+            assertThat(ctx.getTaskInfo().getTaskName()).isEqualTo("Test UDF");
+            assertThat(ctx.getTaskInfo().getNumberOfParallelSubtasks()).isEqualTo(4);
+            assertThat(ctx.getTaskInfo().getIndexOfThisSubtask()).isZero();
         }
 
         @Override

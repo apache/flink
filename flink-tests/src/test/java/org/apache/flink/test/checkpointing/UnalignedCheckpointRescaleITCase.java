@@ -613,8 +613,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                     LOG.info(
                             "Duplicate record {} @ {} subtask ({} attempt)",
                             intValue,
-                            getRuntimeContext().getIndexOfThisSubtask(),
-                            getRuntimeContext().getAttemptNumber());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                            getRuntimeContext().getTaskInfo().getAttemptNumber());
                     firstDuplicate = false;
                 }
             }
