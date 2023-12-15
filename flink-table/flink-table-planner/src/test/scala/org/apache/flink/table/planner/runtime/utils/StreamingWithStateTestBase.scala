@@ -44,6 +44,7 @@ import org.junit.jupiter.api.{AfterEach, BeforeEach}
 import org.slf4j.LoggerFactory
 
 import java.io.{File, IOException}
+import java.nio.file.Files
 import java.util
 
 import scala.collection.JavaConversions._
@@ -68,8 +69,8 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     super.before()
     // set state backend
 
-    // subfolder are managed here because the tests could fail during cleanup when concurrently executed (see FLINK-33820)
-    baseCheckpointPath = TempDirUtils.newFolder(tempFolder)
+    val baseCheckpointPath = Files.createTempDirectory(getClass.getCanonicalName)
+    Files.deleteIfExists(baseCheckpointPath);
     state match {
       case HEAP_BACKEND =>
         val conf = new Configuration()
