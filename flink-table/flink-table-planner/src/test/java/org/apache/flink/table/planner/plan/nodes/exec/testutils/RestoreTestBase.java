@@ -247,6 +247,8 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                         TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS,
                         TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
 
+        program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
+
         for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
             final String id = TestValuesTableFactory.registerData(sourceTestStep.dataAfterRestore);
             final Map<String, String> options = new HashMap<>();
