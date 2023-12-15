@@ -54,7 +54,7 @@ class NettyServerFromPortRangeTest {
         assertThat(listeningPort2).isEqualTo(port2.getPort());
     }
 
-    private NettyConfig getConfig(NetUtils.Port... ports) {
+    private static NettyConfig getConfig(NetUtils.Port... ports) {
         String portRangeStr =
                 Arrays.stream(ports)
                         .map(NetUtils.Port::getPort)
