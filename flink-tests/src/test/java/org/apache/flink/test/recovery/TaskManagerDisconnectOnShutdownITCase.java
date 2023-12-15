@@ -239,7 +239,7 @@ public class TaskManagerDisconnectOnShutdownITCase {
                 createResourceManagerRuntimeServicesConfiguration(Configuration configuration)
                         throws ConfigurationException {
             return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
-                    StandaloneResourceManagerFactory.getConfigurationWithoutMaxResourceIfSet(
+                    StandaloneResourceManagerFactory.getConfigurationWithoutResourceLimitationIfSet(
                             configuration),
                     ArbitraryWorkerResourceSpecFactory.INSTANCE);
         }

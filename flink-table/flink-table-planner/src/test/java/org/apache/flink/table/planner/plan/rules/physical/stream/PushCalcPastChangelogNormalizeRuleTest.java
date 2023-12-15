@@ -26,25 +26,25 @@ import org.apache.flink.table.planner.factories.TableFactoryHarness;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.STRING;
 
 /** Tests for {@link PushCalcPastChangelogNormalizeRule}. */
-public class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
+class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
 
     private StreamTableTestUtil util;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         util = streamTestUtil(TableConfig.getDefault());
     }
 
     @Test
-    public void testWithSinglePrimaryKeyFilter() {
+    void testWithSinglePrimaryKeyFilter() {
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(
@@ -61,7 +61,7 @@ public class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWithMultipleFilters() {
+    void testWithMultipleFilters() {
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(
@@ -82,7 +82,7 @@ public class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testWithMultiplePrimaryKeyColumns() {
+    void testWithMultiplePrimaryKeyColumns() {
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(
@@ -100,7 +100,7 @@ public class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testOnlyProjection() {
+    void testOnlyProjection() {
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(
@@ -118,7 +118,7 @@ public class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testFilterAndProjection() {
+    void testFilterAndProjection() {
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(
@@ -141,7 +141,7 @@ public class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
     }
 
     @Test
-    public void testPartialPrimaryKeyFilterAndProjection() {
+    void testPartialPrimaryKeyFilterAndProjection() {
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(

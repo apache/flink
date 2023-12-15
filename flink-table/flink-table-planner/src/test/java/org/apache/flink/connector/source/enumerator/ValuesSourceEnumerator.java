@@ -20,6 +20,7 @@ package org.apache.flink.connector.source.enumerator;
 
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.connector.source.TerminatingLogic;
 import org.apache.flink.connector.source.ValuesSource;
 import org.apache.flink.connector.source.split.ValuesSourceSplit;
 
@@ -38,12 +39,15 @@ public class ValuesSourceEnumerator implements SplitEnumerator<ValuesSourceSplit
 
     private final SplitEnumeratorContext<ValuesSourceSplit> context;
     private final Queue<ValuesSourceSplit> remainingSplits;
+    private final TerminatingLogic terminatingLogic;
 
     public ValuesSourceEnumerator(
             SplitEnumeratorContext<ValuesSourceSplit> context,
-            List<ValuesSourceSplit> remainingSplits) {
+            List<ValuesSourceSplit> remainingSplits,
+            TerminatingLogic terminatingLogic) {
         this.context = context;
         this.remainingSplits = new ArrayDeque<>(remainingSplits);
+        this.terminatingLogic = terminatingLogic;
     }
 
     @Override
@@ -54,6 +58,8 @@ public class ValuesSourceEnumerator implements SplitEnumerator<ValuesSourceSplit
         final ValuesSourceSplit nextSplit = remainingSplits.poll();
         if (nextSplit != null) {
             context.assignSplit(nextSplit, subtaskId);
+        } else if (terminatingLogic == TerminatingLogic.INFINITE) {
+            context.assignSplit(new ValuesSourceSplit(-1, TerminatingLogic.INFINITE), subtaskId);
         } else {
             context.signalNoMoreSplits(subtaskId);
         }

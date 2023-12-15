@@ -80,7 +80,7 @@ public class ChangelogTestUtils {
                     stateHandle.getCheckpointId(),
                     stateHandle.getSharedState(),
                     stateHandle.getPrivateState(),
-                    stateHandle.getMetaStateHandle(),
+                    stateHandle.getMetaDataStateHandle(),
                     stateHandle.getCheckpointedSize(),
                     stateHandle.getStateHandleId());
             this.stateHandle = stateHandle;

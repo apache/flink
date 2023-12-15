@@ -32,6 +32,7 @@ import org.apache.flink.table.types.inference.strategies.CompositeArgumentTypeSt
 import org.apache.flink.table.types.inference.strategies.ConstraintArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FamilyArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ItemAtIndexArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.LiteralArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.OrInputTypeStrategy;
@@ -368,6 +369,9 @@ public final class InputTypeStrategies {
     public static InputTypeStrategy arrayFullyComparableElementType() {
         return new ArrayComparableElementTypeStrategy(StructuredComparison.FULL);
     }
+
+    /** @see ItemAtIndexArgumentTypeStrategy */
+    public static final ArgumentTypeStrategy ITEM_AT_INDEX = new ItemAtIndexArgumentTypeStrategy();
 
     // --------------------------------------------------------------------------------------------
 

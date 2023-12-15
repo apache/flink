@@ -21,15 +21,15 @@ package org.apache.flink.table.planner.runtime.stream.sql;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The IT case for DELETE statement in streaming mode. */
-public class DeleteTableITCase extends StreamingTestBase {
+class DeleteTableITCase extends StreamingTestBase {
 
     @Test
-    public void testDelete() {
+    void testDelete() {
         tEnv().executeSql("CREATE TABLE t (a int) WITH ('connector' = 'test-update-delete')");
         assertThatThrownBy(() -> tEnv().executeSql("DELETE FROM t"))
                 .isInstanceOf(TableException.class)

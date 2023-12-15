@@ -21,14 +21,14 @@ package org.apache.flink.table.planner.plan.stream.sql;
 import org.apache.flink.table.planner.utils.JavaStreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Plan test for INSERT INTO. */
-public class InsertIntoValuesTest extends TableTestBase {
+class InsertIntoValuesTest extends TableTestBase {
     private final JavaStreamTableTestUtil util = javaStreamTestUtil();
 
     @Test
-    public void testTypeInferenceWithNestedTypes() {
+    void testTypeInferenceWithNestedTypes() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE t1 ("

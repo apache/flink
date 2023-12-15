@@ -163,7 +163,7 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
         clusterSideConfig.removeConfig(JobManagerOptions.BIND_HOST);
         clusterSideConfig.removeConfig(TaskManagerOptions.BIND_HOST);
         clusterSideConfig.removeConfig(TaskManagerOptions.HOST);
-        return clusterSideConfig.toMap();
+        return clusterSideConfig.toFileWritableMap();
     }
 
     @VisibleForTesting

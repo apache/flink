@@ -28,14 +28,13 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.TestingTableEnvironment;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,13 +43,13 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for adaptive hash join. */
-public class AdaptiveHashJoinITCase extends TestLogger {
+class AdaptiveHashJoinITCase {
 
-    public static final int DEFAULT_PARALLELISM = 3;
+    private static final int DEFAULT_PARALLELISM = 3;
 
-    @ClassRule
-    public static MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberTaskManagers(1)
@@ -69,8 +68,8 @@ public class AdaptiveHashJoinITCase extends TestLogger {
                     null,
                     TableConfig.getDefault());
 
-    @Before
-    public void before() throws Exception {
+    @BeforeEach
+    void before() throws Exception {
         tEnv.getConfig()
                 .getConfiguration()
                 .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
@@ -129,13 +128,13 @@ public class AdaptiveHashJoinITCase extends TestLogger {
                         + ")");
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         TestValuesTableFactory.clearAllData();
     }
 
     @Test
-    public void testBuildLeftIntKeyAdaptiveHashJoin() throws Exception {
+    void testBuildLeftIntKeyAdaptiveHashJoin() throws Exception {
         tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t1 JOIN t2 ON t1.x=t2.a")
                 .await(60, TimeUnit.SECONDS);
 
@@ -143,7 +142,7 @@ public class AdaptiveHashJoinITCase extends TestLogger {
     }
 
     @Test
-    public void testBuildRightIntKeyAdaptiveHashJoin() throws Exception {
+    void testBuildRightIntKeyAdaptiveHashJoin() throws Exception {
         tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t2 JOIN t1 ON t1.x=t2.a")
                 .await(60, TimeUnit.SECONDS);
 
@@ -151,7 +150,7 @@ public class AdaptiveHashJoinITCase extends TestLogger {
     }
 
     @Test
-    public void testBuildLeftStringKeyAdaptiveHashJoin() throws Exception {
+    void testBuildLeftStringKeyAdaptiveHashJoin() throws Exception {
         tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t1 JOIN t2 ON t1.z=t2.c")
                 .await(60, TimeUnit.SECONDS);
 
@@ -159,7 +158,7 @@ public class AdaptiveHashJoinITCase extends TestLogger {
     }
 
     @Test
-    public void testBuildRightStringKeyAdaptiveHashJoin() throws Exception {
+    void testBuildRightStringKeyAdaptiveHashJoin() throws Exception {
         tEnv.executeSql("INSERT INTO sink SELECT x, z, a, b, c FROM t2 JOIN t1 ON t1.z=t2.c")
                 .await(60, TimeUnit.SECONDS);
 
@@ -168,7 +167,7 @@ public class AdaptiveHashJoinITCase extends TestLogger {
 
     private void asserResult(String sinkTableName, int resultSize) {
         // Due to concern OOM and record value is same, here just assert result size
-        List<String> result = TestValuesTableFactory.getResults(sinkTableName);
+        List<String> result = TestValuesTableFactory.getResultsAsStrings(sinkTableName);
         assertThat(result.size()).isEqualTo(resultSize);
     }
 

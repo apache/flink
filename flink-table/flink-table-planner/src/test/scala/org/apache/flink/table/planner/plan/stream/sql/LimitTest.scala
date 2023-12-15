@@ -21,13 +21,14 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.{Before, Test}
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 class LimitTest extends TableTestBase {
 
   protected val util = streamTestUtil()
 
-  @Before
+  @BeforeEach
   def setup(): Unit = {
     util.addDataStream[(Int, String, Long)](
       "MyTable",
@@ -48,9 +49,10 @@ class LimitTest extends TableTestBase {
     util.verifyExecPlan("SELECT * FROM MyTable LIMIT 0")
   }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testNegativeLimitWithoutOffset(): Unit = {
-    util.verifyExecPlan("SELECT * FROM MyTable LIMIT -1")
+    assertThatExceptionOfType(classOf[SqlParserException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT * FROM MyTable LIMIT -1"))
   }
 
   @Test
@@ -73,9 +75,10 @@ class LimitTest extends TableTestBase {
     util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 0 OFFSET 10")
   }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testLimitWithNegativeOffset(): Unit = {
-    util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET -1")
+    assertThatExceptionOfType(classOf[SqlParserException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET -1"))
   }
 
   @Test

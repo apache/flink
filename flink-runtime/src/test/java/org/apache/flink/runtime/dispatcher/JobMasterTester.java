@@ -204,9 +204,7 @@ public class JobMasterTester implements Closeable {
                                                                     "Task descriptor for %s not found.",
                                                                     executionAttemptId)));
                     try {
-                        return descriptor
-                                .getSerializedTaskInformation()
-                                .deserializeValue(Thread.currentThread().getContextClassLoader());
+                        return descriptor.getTaskInformation();
                     } catch (Exception e) {
                         throw new IllegalStateException(
                                 String.format(

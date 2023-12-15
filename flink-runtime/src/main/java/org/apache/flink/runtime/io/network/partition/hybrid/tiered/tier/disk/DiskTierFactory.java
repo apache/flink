@@ -90,8 +90,7 @@ public class DiskTierFactory implements TierFactory {
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
-            Duration bufferRequestTimeout,
-            int maxBufferReadAhead) {
+            Duration bufferRequestTimeout) {
         ProducerMergedPartitionFileIndex partitionFileIndex =
                 new ProducerMergedPartitionFileIndex(
                         isBroadcastOnly ? 1 : numSubpartitions,
@@ -122,8 +121,7 @@ public class DiskTierFactory implements TierFactory {
                 bufferPool,
                 ioExecutor,
                 maxRequestedBuffers,
-                bufferRequestTimeout,
-                maxBufferReadAhead);
+                bufferRequestTimeout);
     }
 
     @Override

@@ -17,11 +17,9 @@
  */
 package org.apache.flink.api.scala.metrics
 
-import org.apache.flink.util.TestLogger
+import org.junit.jupiter.api.Test
 
-import org.junit.Test
-
-class ScalaGaugeTest extends TestLogger {
+class ScalaGaugeTest {
 
   @Test
   def testGaugeCorrectValue(): Unit = {

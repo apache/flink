@@ -28,8 +28,10 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.operations.ProjectQueryOperation;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -38,7 +40,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
@@ -73,8 +75,10 @@ import static org.assertj.core.api.Assertions.catchThrowable;
  */
 @Execution(ExecutionMode.CONCURRENT)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ExtendWith(MiniClusterExtension.class)
 abstract class BuiltInFunctionTestBase {
+
+    @RegisterExtension
+    public static final MiniClusterExtension MINI_CLUSTER_EXTENSION = new MiniClusterExtension();
 
     Configuration getConfiguration() {
         return new Configuration();
@@ -281,6 +285,7 @@ abstract class BuiltInFunctionTestBase {
                 List<AbstractDataType<?>> tableApiDataType,
                 List<AbstractDataType<?>> sqlDataType) {
             testItems.add(new TableApiResultTestItem(expression, result, tableApiDataType));
+            testItems.add(new TableApiSqlResultTestItem(expression, result, tableApiDataType));
             testItems.add(
                     new SqlResultTestItem(String.join(",", sqlExpression), result, sqlDataType));
             return this;
@@ -449,6 +454,36 @@ abstract class BuiltInFunctionTestBase {
         @Override
         public String toString() {
             return "[API] "
+                    + expression.stream()
+                            .map(Expression::asSummaryString)
+                            .collect(Collectors.joining(", "));
+        }
+    }
+
+    private static class TableApiSqlResultTestItem extends ResultTestItem<List<Expression>> {
+
+        TableApiSqlResultTestItem(
+                List<Expression> expressions,
+                List<Object> results,
+                List<AbstractDataType<?>> dataTypes) {
+            super(expressions, results, dataTypes);
+        }
+
+        @Override
+        Table query(TableEnvironment env, Table inputTable) {
+            final Table select = inputTable.select(expression.toArray(new Expression[] {}));
+            final ProjectQueryOperation projectQueryOperation =
+                    (ProjectQueryOperation) select.getQueryOperation();
+            final String exprAsSerializableString =
+                    projectQueryOperation.getProjectList().stream()
+                            .map(ResolvedExpression::asSerializableString)
+                            .collect(Collectors.joining(", "));
+            return env.sqlQuery("SELECT " + exprAsSerializableString + " FROM " + inputTable);
+        }
+
+        @Override
+        public String toString() {
+            return "[API as SQL] "
                     + expression.stream()
                             .map(Expression::asSummaryString)
                             .collect(Collectors.joining(", "));

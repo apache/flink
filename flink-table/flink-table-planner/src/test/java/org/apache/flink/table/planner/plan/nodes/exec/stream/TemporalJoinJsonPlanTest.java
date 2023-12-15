@@ -24,19 +24,19 @@ import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.api.Expressions.$;
 
 /** Test json serialization/deserialization for TemporalJoin. */
-public class TemporalJoinJsonPlanTest extends TableTestBase {
+class TemporalJoinJsonPlanTest extends TableTestBase {
 
     private StreamTableTestUtil util;
     private TableEnvironment tEnv;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
 
@@ -66,7 +66,7 @@ public class TemporalJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testJoinTemporalFunction() {
+    void testJoinTemporalFunction() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a int\n"
@@ -83,7 +83,7 @@ public class TemporalJoinJsonPlanTest extends TableTestBase {
     }
 
     @Test
-    public void testTemporalTableJoin() {
+    void testTemporalTableJoin() {
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a int\n"

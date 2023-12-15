@@ -202,7 +202,7 @@ public class UpdateJobResourceRequirementsITCase {
         }
     }
 
-    private static int getNumberRunningTasks(RestClusterClient<?> restClusterClient, JobID jobId) {
+    public static int getNumberRunningTasks(RestClusterClient<?> restClusterClient, JobID jobId) {
         final JobDetailsInfo jobDetailsInfo = restClusterClient.getJobDetails(jobId).join();
         return jobDetailsInfo.getJobVertexInfos().stream()
                 .map(JobDetailsInfo.JobVertexDetailsInfo::getTasksPerState)

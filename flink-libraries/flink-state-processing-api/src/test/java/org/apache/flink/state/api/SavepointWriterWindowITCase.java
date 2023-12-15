@@ -146,7 +146,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         DataStream<Tuple2<String, Integer>> bootstrapData =
-                env.fromCollection(WORDS)
+                env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1))
                         .returns(TUPLE_TYPE_INFO)
                         .assignTimestampsAndWatermarks(
@@ -190,7 +190,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         DataStream<Tuple2<String, Integer>> bootstrapData =
-                env.fromCollection(WORDS)
+                env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1))
                         .returns(TUPLE_TYPE_INFO)
                         .assignTimestampsAndWatermarks(
@@ -236,7 +236,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         DataStream<Tuple2<String, Integer>> bootstrapData =
-                env.fromCollection(WORDS)
+                env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1), TUPLE_TYPE_INFO)
                         .assignTimestampsAndWatermarks(
                                 WatermarkStrategy.<Tuple2<String, Integer>>noWatermarks()
@@ -283,7 +283,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         DataStream<Tuple2<String, Integer>> bootstrapData =
-                env.fromCollection(WORDS)
+                env.fromData(WORDS)
                         .map(word -> Tuple2.of(word, 1))
                         .returns(TUPLE_TYPE_INFO)
                         .assignTimestampsAndWatermarks(

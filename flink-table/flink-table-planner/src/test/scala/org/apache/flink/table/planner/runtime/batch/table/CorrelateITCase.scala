@@ -237,7 +237,7 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testUserDefinedTableFunctionWithParameter(): Unit = {
     val richTableFunc1 = new RichTableFunc1
-    registerFunction("RichTableFunc1", richTableFunc1)
+    tEnv.createTemporarySystemFunction("RichTableFunc1", richTableFunc1)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("word_separator" -> "#"))
 
     val result = testData
@@ -252,9 +252,9 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testUserDefinedTableFunctionWithScalarFunctionWithParameters(): Unit = {
     val richTableFunc1 = new RichTableFunc1
-    registerFunction("RichTableFunc1", richTableFunc1)
+    tEnv.createTemporarySystemFunction("RichTableFunc1", richTableFunc1)
     val richFunc2 = new RichFunc2
-    registerFunction("RichFunc2", richFunc2)
+    tEnv.createTemporarySystemFunction("RichFunc2", richFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(
       env,
       Map("word_separator" -> "#", "string.value" -> "test"))
@@ -295,7 +295,7 @@ class CorrelateITCase extends BatchTestBase {
   @Test
   def testTableFunctionWithVariableArguments(): Unit = {
     val varArgsFunc0 = new VarArgsFunc0
-    registerFunction("VarArgsFunc0", varArgsFunc0)
+    tEnv.createTemporarySystemFunction("VarArgsFunc0", varArgsFunc0)
 
     val result = testData
       .select('c)

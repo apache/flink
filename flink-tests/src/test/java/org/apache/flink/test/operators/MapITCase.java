@@ -35,6 +35,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
@@ -81,8 +82,11 @@ public class MapITCase extends MultipleProgramsTestBase {
          */
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        env.getConfig().setNumberOfExecutionRetries(1000);
-        env.getConfig().setTaskCancellationInterval(50000);
+        env.getConfig().enableObjectReuse();
+        String key = "key";
+        String value = "value";
+        Configuration configuration = Configuration.fromMap(Collections.singletonMap(key, value));
+        env.getConfig().setGlobalJobParameters(configuration);
 
         DataSet<String> ds = CollectionDataSets.getStringDataSet(env);
         DataSet<String> identityMapDs =
@@ -90,16 +94,10 @@ public class MapITCase extends MultipleProgramsTestBase {
                         new RichMapFunction<String, String>() {
                             @Override
                             public String map(String value) throws Exception {
-                                Assert.assertTrue(
-                                        1000
-                                                == getRuntimeContext()
-                                                        .getExecutionConfig()
-                                                        .getNumberOfExecutionRetries());
-                                Assert.assertTrue(
-                                        50000
-                                                == getRuntimeContext()
-                                                        .getExecutionConfig()
-                                                        .getTaskCancellationInterval());
+                                Assert.assertTrue(getRuntimeContext().isObjectReuseEnabled());
+                                Assert.assertEquals(
+                                        getRuntimeContext().getGlobalJobParameters(),
+                                        configuration.toMap());
                                 return value;
                             }
                         });

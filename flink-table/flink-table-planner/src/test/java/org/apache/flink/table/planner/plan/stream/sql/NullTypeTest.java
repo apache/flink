@@ -25,71 +25,82 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.utils.JavaStreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for usages of {@link DataTypes#NULL()}. */
-public class NullTypeTest extends TableTestBase {
+class NullTypeTest extends TableTestBase {
 
     private final JavaStreamTableTestUtil util = javaStreamTestUtil();
 
     @Test
-    public void testValues() {
-        expectedException().expect(ValidationException.class);
-        expectedException().expectMessage("Illegal use of 'NULL'");
-        util.verifyExecPlan("SELECT * FROM (VALUES (1, NULL), (2, NULL)) AS T(a, b)");
+    void testValues() {
+        assertThatThrownBy(
+                        () ->
+                                util.verifyExecPlan(
+                                        "SELECT * FROM (VALUES (1, NULL), (2, NULL)) AS T(a, b)"))
+                .hasMessageContaining("Illegal use of 'NULL'")
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testValuesWithoutTypeCoercion() {
+    void testValuesWithoutTypeCoercion() {
         // should work if we enable type coercion, works already in Table API
-        expectedException().expect(ValidationException.class);
-        expectedException().expectMessage("Illegal use of 'NULL'");
-        util.verifyExecPlan("SELECT * FROM (VALUES (1, NULL), (2, 1)) AS T(a, b)");
+        assertThatThrownBy(
+                        () ->
+                                util.verifyExecPlan(
+                                        "SELECT * FROM (VALUES (1, NULL), (2, 1)) AS T(a, b)"))
+                .hasMessageContaining("Illegal use of 'NULL'")
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testSetOperationWithoutTypeCoercion() {
+    void testSetOperationWithoutTypeCoercion() {
         // we might want to support type coercion here
-        expectedException().expect(ValidationException.class);
-        expectedException().expectMessage("Parameters must be of the same type");
-        util.verifyExecPlan("SELECT ARRAY[1,2] IN (ARRAY[1], ARRAY[1,2], ARRAY[NULL, NULL, NULL])");
+        assertThatThrownBy(
+                        () ->
+                                util.verifyExecPlan(
+                                        "SELECT ARRAY[1,2] IN (ARRAY[1], ARRAY[1,2], ARRAY[NULL, NULL, NULL])"))
+                .hasMessageContaining("Parameters must be of the same type")
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testBuiltInFunction() {
-        expectedException().expect(ValidationException.class);
-        expectedException().expectMessage("Illegal use of 'NULL'");
-        util.verifyExecPlan("SELECT ABS(NULL)");
+    void testBuiltInFunction() {
+        assertThatThrownBy(() -> util.verifyExecPlan("SELECT ABS(NULL)"))
+                .hasMessageContaining("Illegal use of 'NULL'")
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testArrayConstructor() {
-        expectedException().expect(ValidationException.class);
-        expectedException().expectMessage("Parameters must be of the same type");
-        util.verifyExecPlan("SELECT ARRAY[NULL]");
+    void testArrayConstructor() {
+        assertThatThrownBy(() -> util.verifyExecPlan("SELECT ARRAY[NULL]"))
+                .hasMessageContaining("Parameters must be of the same type")
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testMapConstructor() {
-        expectedException().expect(ValidationException.class);
-        expectedException().expectMessage("Parameters must be of the same type");
-        util.verifyExecPlan("SELECT MAP[NULL, NULL]");
+    void testMapConstructor() {
+        assertThatThrownBy(() -> util.verifyExecPlan("SELECT MAP[NULL, NULL]"))
+                .hasMessageContaining("Parameters must be of the same type")
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testFunctionReturningNull() {
-        expectedException().expect(ValidationException.class);
-        expectedException().expectMessage("SQL validation failed. Invalid function call");
+    void testFunctionReturningNull() {
         util.addTemporarySystemFunction("NullTypeFunction", NullTypeFunction.class);
-        util.verifyExecPlan("SELECT NullTypeFunction(12)");
+        assertThatThrownBy(() -> util.verifyExecPlan("SELECT NullTypeFunction(12)"))
+                .hasMessageContaining("SQL validation failed. Invalid function call")
+                .isInstanceOf(ValidationException.class);
     }
 
     @Test
-    public void testNestedNull() {
-        expectedException().expect(ValidationException.class);
-        expectedException().expectMessage("SQL validation failed. Invalid function call");
+    void testNestedNull() {
         util.addTemporarySystemFunction("NestedNullTypeFunction", NestedNullTypeFunction.class);
-        util.verifyExecPlan("SELECT NestedNullTypeFunction(12)");
+        assertThatThrownBy(() -> util.verifyExecPlan("SELECT NestedNullTypeFunction(12)"))
+                .hasMessageContaining("SQL validation failed. Invalid function call")
+                .isInstanceOf(ValidationException.class);
     }
 
     // --------------------------------------------------------------------------------------------

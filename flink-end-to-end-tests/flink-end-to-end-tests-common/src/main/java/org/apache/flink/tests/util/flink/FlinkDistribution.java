@@ -418,7 +418,7 @@ public final class FlinkDistribution {
         mergedConfig.addAll(config);
 
         final List<String> configurationLines =
-                mergedConfig.toMap().entrySet().stream()
+                mergedConfig.toFileWritableMap().entrySet().stream()
                         .map(entry -> entry.getKey() + ": " + entry.getValue())
                         .collect(Collectors.toList());
 

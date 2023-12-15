@@ -18,13 +18,25 @@
 
 package org.apache.flink.orc;
 
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.planner.runtime.stream.FsStreamingSinkITCaseBase;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /** Checkpoint ITCase for {@link OrcFileFormatFactory}. */
-public class OrcFsStreamingSinkITCase extends FsStreamingSinkITCaseBase {
+class OrcFsStreamingSinkITCase extends FsStreamingSinkITCaseBase {
+
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(4)
+                            .build());
 
     @Override
     public String[] additionalProperties() {

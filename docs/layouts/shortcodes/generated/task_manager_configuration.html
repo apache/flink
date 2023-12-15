@@ -57,6 +57,12 @@
             <td>Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.</td>
         </tr>
         <tr>
+            <td><h5>taskmanager.load-balance.mode</h5></td>
+            <td style="word-wrap: break-word;">NONE</td>
+            <td><p>Enum</p></td>
+            <td>Mode for the load-balance allocation strategy across all available <code class="highlighter-rouge">TaskManagers</code>.<ul><li>The <code class="highlighter-rouge">SLOTS</code> mode tries to spread out the slots evenly across all available <code class="highlighter-rouge">TaskManagers</code>.</li><li>The <code class="highlighter-rouge">NONE</code> mode is the default mode without any specified strategy.</li></ul><br /><br />Possible values:<ul><li>"NONE"</li><li>"SLOTS"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>taskmanager.network.bind-policy</h5></td>
             <td style="word-wrap: break-word;">"ip"</td>
             <td>String</td>
@@ -128,6 +134,24 @@
             <td style="word-wrap: break-word;">10 s</td>
             <td>Duration</td>
             <td>Timeout used for identifying inactive slots. The TaskManager will free the slot if it does not become active within the given amount of time. Inactive slots can be caused by an out-dated slot request. If no value is configured, then it will fall back to <code class="highlighter-rouge">pekko.ask.timeout</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.system-out.log.cache-upper-size</h5></td>
+            <td style="word-wrap: break-word;">100 kb</td>
+            <td>MemorySize</td>
+            <td>The cache upper size when Flink caches current line context of <code class="highlighter-rouge">System.out</code> or <code class="highlighter-rouge">System.err</code> when <code class="highlighter-rouge">taskmanager.system-out.mode</code> is LOG.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.system-out.log.thread-name.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to log the thread name when <code class="highlighter-rouge">taskmanager.system-out.mode</code> is LOG.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.system-out.mode</h5></td>
+            <td style="word-wrap: break-word;">DEFAULT</td>
+            <td><p>Enum</p></td>
+            <td>Redirection mode of <code class="highlighter-rouge">System.out</code> and <code class="highlighter-rouge">System.err</code> for all <code class="highlighter-rouge">TaskManagers</code>.<ul><li><code class="highlighter-rouge">DEFAULT</code>: <code class="highlighter-rouge">TaskManagers</code> don't redirect the <code class="highlighter-rouge">System.out</code> and <code class="highlighter-rouge">System.err</code>, it's the default value.</li><li><code class="highlighter-rouge">LOG</code>: <code class="highlighter-rouge">TaskManagers</code> redirect <code class="highlighter-rouge">System.out</code> and <code class="highlighter-rouge">System.err</code> to LOG.info and LOG.error.</li><li><code class="highlighter-rouge">IGNORE</code>: <code class="highlighter-rouge">TaskManagers</code> ignore <code class="highlighter-rouge">System.out</code> and <code class="highlighter-rouge">System.err</code> directly.</li></ul><br /><br />Possible values:<ul><li>"DEFAULT"</li><li>"LOG"</li><li>"IGNORE"</li></ul></td>
         </tr>
     </tbody>
 </table>

@@ -161,7 +161,7 @@ public class SavepointWriterUidModificationITCase {
 
     private static StateBootstrapTransformation<Integer> bootstrap(
             StreamExecutionEnvironment env, Collection<Integer> data) {
-        return OperatorTransformation.bootstrapWith(env.fromCollection(data))
+        return OperatorTransformation.bootstrapWith(env.fromData(data))
                 .keyBy(v -> v)
                 .transform(new StateBootstrapper());
     }
@@ -194,7 +194,7 @@ public class SavepointWriterUidModificationITCase {
         final List<CloseableIterator<Integer>> iterators = new ArrayList<>();
         for (Tuple2<Collection<Integer>, String> assertion : assertions) {
             iterators.add(
-                    env.fromCollection(assertion.f0)
+                    env.fromData(assertion.f0)
                             .keyBy(v -> v)
                             .map(new StateReader())
                             .uid(assertion.f1)

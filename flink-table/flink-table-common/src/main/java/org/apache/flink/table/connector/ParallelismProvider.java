@@ -20,14 +20,13 @@ package org.apache.flink.table.connector;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.connector.sink.DynamicTableSink.SinkRuntimeProvider;
+import org.apache.flink.table.connector.source.ScanTableSource.ScanRuntimeProvider;
 
 import java.util.Optional;
 
 /**
  * Parallelism provider for other connector providers. It allows to express a custom parallelism for
- * the connector runtime implementation. Otherwise the parallelism is determined by the planner.
- *
- * <p>Note: Currently, this interface only works with {@link SinkRuntimeProvider}.
+ * the connector runtime implementation. Otherwise, the parallelism is determined by the planner.
  */
 @PublicEvolving
 public interface ParallelismProvider {
@@ -38,9 +37,10 @@ public interface ParallelismProvider {
      * <p>The parallelism denotes how many parallel instances of a source or sink will be spawned
      * during the execution.
      *
-     * <p>Enforcing a different parallelism for sinks might mess up the changelog if the input is
-     * not {@link ChangelogMode#insertOnly()}. Therefore, a primary key is required by which the
-     * input will be shuffled before records enter the {@link SinkRuntimeProvider} implementation.
+     * <p>Enforcing a different parallelism for sources/sinks might mess up the changelog if the
+     * output/input is not {@link ChangelogMode#insertOnly()}. Therefore, a primary key is required
+     * by which the output/input will be shuffled after/before records leave/enter the {@link
+     * ScanRuntimeProvider}/{@link SinkRuntimeProvider} implementation.
      *
      * @return empty if the connector does not provide a custom parallelism, then the planner will
      *     decide the number of parallel instances by itself.

@@ -22,17 +22,17 @@ import org.apache.flink.table.planner.utils.BatchTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.apache.calcite.sql.SqlMatchRecognize;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link SqlMatchRecognize}. */
-public class MatchRecognizeTest extends TableTestBase {
+class MatchRecognizeTest extends TableTestBase {
 
     private BatchTableTestUtil util;
 
-    @Before
-    public void before() {
+    @BeforeEach
+    void before() {
         util = batchTestUtil(TableConfig.getDefault());
         util.getTableEnv()
                 .executeSql(
@@ -47,13 +47,13 @@ public class MatchRecognizeTest extends TableTestBase {
                                 + ")");
     }
 
-    @After
-    public void after() {
+    @AfterEach
+    void after() {
         util.getTableEnv().executeSql("DROP TABLE Ticker");
     }
 
     @Test
-    public void testCascadeMatch() {
+    void testCascadeMatch() {
         String sqlQuery =
                 "SELECT *\n"
                         + "FROM (\n"

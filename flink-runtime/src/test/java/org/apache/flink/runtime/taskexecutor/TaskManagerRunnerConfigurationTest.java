@@ -97,7 +97,7 @@ class TaskManagerRunnerConfigurationTest {
             assertThat(taskManagerRpcService.getAddress()).isEqualTo(taskmanagerHost);
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
-            highAvailabilityServices.closeAndCleanupAllData();
+            highAvailabilityServices.closeWithOptionalClean(true);
         }
     }
 
@@ -115,7 +115,7 @@ class TaskManagerRunnerConfigurationTest {
             assertThat(taskManagerRpcService.getAddress()).isNotNull().isNotEmpty();
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
-            highAvailabilityServices.closeAndCleanupAllData();
+            highAvailabilityServices.closeWithOptionalClean(true);
         }
     }
 
@@ -136,7 +136,7 @@ class TaskManagerRunnerConfigurationTest {
             assertThat(taskManagerRpcService.getAddress()).matches(InetAddresses::isInetAddress);
         } finally {
             maybeCloseRpcService(taskManagerRpcService);
-            highAvailabilityServices.closeAndCleanupAllData();
+            highAvailabilityServices.closeWithOptionalClean(true);
             IOUtils.closeQuietly(testJobManagerSocket);
         }
     }
@@ -159,7 +159,7 @@ class TaskManagerRunnerConfigurationTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessage("Invalid port range definition: -1");
         } finally {
-            highAvailabilityServices.closeAndCleanupAllData();
+            highAvailabilityServices.closeWithOptionalClean(true);
         }
     }
 

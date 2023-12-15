@@ -825,7 +825,7 @@ result = orders.over_window(Over
 Table orders = tEnv.from("Orders");
 
 // 对 user-defined aggregate functions 使用互异（互不相同、去重）聚合
-tEnv.registerFunction("myUdagg", new MyUdagg());
+tEnv.createTemporarySystemFunction("myUdagg", MyUdagg.class);
 orders.groupBy("users")
     .select(
         $("users"),
@@ -1026,8 +1026,7 @@ join 表和表函数的结果。左（外部）表的每一行都会 join 表函
 {{< tab "Java" >}}
 ```java
 // 注册 User-Defined Table Function
-TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
-tableEnv.registerFunction("split", split);
+tableEnv.createTemporarySystemFunction("split", MySplitUDTF.class);
 
 // join
 Table orders = tableEnv.from("Orders");
@@ -1075,8 +1074,7 @@ join 表和表函数的结果。左（外部）表的每一行都会 join 表函
 {{< tab "Java" >}}
 ```java
 // 注册 User-Defined Table Function
-TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
-tableEnv.registerFunction("split", split);
+tableEnv.createTemporarySystemFunction("split", MySplitUDTF.class);
 
 // join
 Table orders = tableEnv.from("Orders");
@@ -1128,7 +1126,7 @@ Table ratesHistory = tableEnv.from("RatesHistory");
 TemporalTableFunction rates = ratesHistory.createTemporalTableFunction(
     "r_proctime",
     "r_currency");
-tableEnv.registerFunction("rates", rates);
+tableEnv.createTemporarySystemFunction("rates", rates);
 
 // 基于时间属性和键与“Orders”表关联
 Table orders = tableEnv.from("Orders");
@@ -2175,19 +2173,14 @@ table = input.over_window([w: OverWindow].alias("w"))
 使用用户定义的标量函数或内置标量函数执行 map 操作。如果输出类型是复合类型，则输出将被展平。
 
 ```java
+@FunctionHint(input = @DataTypeHint("STRING"), output = @DataTypeHint("ROW<s1 STRING, s2 STRING>"))
 public class MyMapFunction extends ScalarFunction {
     public Row eval(String a) {
         return Row.of(a, "pre-" + a);
     }
-
-    @Override
-    public TypeInformation<?> getResultType(Class<?>[] signature) {
-        return Types.ROW(Types.STRING(), Types.STRING());
-    }
 }
 
-ScalarFunction func = new MyMapFunction();
-tableEnv.registerFunction("func", func);
+tableEnv.createTemporarySystemFunction("func", MyMapFunction.class);
 
 Table table = input
   .map(call("func", $("c")).as("a", "b"));
@@ -2252,6 +2245,7 @@ table = input.map(pandas_func).alias('a', 'b')
 使用表函数执行 `flatMap` 操作。
 
 ```java
+@FunctionHint(input = @DataTypeHint("STRING"), output = @DataTypeHint("ROW<s1 STRING, i INT>"))
 public class MyFlatMapFunction extends TableFunction<Row> {
 
     public void eval(String str) {
@@ -2262,15 +2256,9 @@ public class MyFlatMapFunction extends TableFunction<Row> {
             }
         }
     }
-
-    @Override
-    public TypeInformation<Row> getResultType() {
-        return Types.ROW(Types.STRING(), Types.INT());
-    }
 }
 
-TableFunction func = new MyFlatMapFunction();
-tableEnv.registerFunction("func", func);
+tableEnv.createTemporarySystemFunction("func", MyFlatMapFunction.class);
 
 Table table = input
   .flatMap(call("func", $("c")).as("a", "b"));
@@ -2364,13 +2352,21 @@ public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
     }
 
     @Override
-    public TypeInformation<Row> getResultType() {
-        return new RowTypeInfo(Types.INT, Types.INT);
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        return TypeInference.newBuilder()
+                .typedArguments(DataTypes.INT())
+                .accumulatorTypeStrategy(
+                        TypeStrategies.explicit(
+                                DataTypes.STRUCTURED(
+                                        MyMinMaxAcc.class,
+                                        DataTypes.FIELD("min", DataTypes.INT()),
+                                        DataTypes.FIELD("max", DataTypes.INT()))))
+                .outputTypeStrategy(TypeStrategies.explicit(DataTypes.INT()))
+                .build();
     }
 }
 
-AggregateFunction myAggFunc = new MyMinMax();
-tableEnv.registerFunction("myAggFunc", myAggFunc);
+tableEnv.createTemporarySystemFunction("myAggFunc", MyMinMax.class);
 Table table = input
   .groupBy($("key"))
   .aggregate(call("myAggFunc", $("a")).as("x", "y"))
@@ -2406,9 +2402,17 @@ class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
     Row.of(Integer.valueOf(acc.min), Integer.valueOf(acc.max))
   }
 
-  override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Types.INT, Types.INT)
-  }
+  override def getTypeInference(typeFactory: DataTypeFactory): TypeInference =
+    TypeInference.newBuilder
+      .typedArguments(DataTypes.INT)
+      .accumulatorTypeStrategy(
+        TypeStrategies.explicit(
+          DataTypes.STRUCTURED(
+            classOf[MyMinMaxAcc],
+            DataTypes.FIELD("min", DataTypes.INT),
+            DataTypes.FIELD("max", DataTypes.INT))))
+      .outputTypeStrategy(TypeStrategies.explicit(DataTypes.INT))
+      .build
 }
 
 val myAggFunc = new MyMinMax
@@ -2491,8 +2495,7 @@ t.aggregate(pandas_udaf.alias("a", "b")) \
 {{< tabs "group-window-agg" >}}
 {{< tab "Java" >}}
 ```java
-AggregateFunction myAggFunc = new MyMinMax();
-tableEnv.registerFunction("myAggFunc", myAggFunc);
+tableEnv.createTemporarySystemFunction("myAggFunc", MyMinMax.class);
 
 Table table = input
     .window(Tumble.over(lit(5).minutes())
@@ -2596,7 +2599,7 @@ public class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2A
     }
 }
 
-tEnv.registerFunction("top2", new Top2());
+tEnv.createTemporarySystemFunction("top2", Top2.class);
 Table orders = tableEnv.from("Orders");
 Table result = orders
     .groupBy($("key"))

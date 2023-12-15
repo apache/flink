@@ -22,17 +22,17 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.TestTemplate
+import org.junit.jupiter.api.extension.ExtendWith
 
-@RunWith(classOf[Parameterized])
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
-  @Test
+  @TestTemplate
   def test(): Unit = {
     val data = List(
       ("book", 1, 12),
@@ -52,10 +52,10 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     env.execute()
 
     val expected = Seq("fruit,3,44", "fruit,4,33")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testRetractSortLimit(): Unit = {
     val data = List((1, 1), (1, 2), (1, 3), (2, 2), (2, 3), (2, 4), (3, 3), (3, 4), (3, 5))
 
@@ -70,10 +70,10 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     env.execute()
 
     val expected = Seq("1,3", "2,4")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
-  @Test
+  @TestTemplate
   def testRetractSortLimitWithOffset(): Unit = {
     val data = List((1, 1), (1, 2), (1, 3), (2, 2), (2, 3), (2, 4), (3, 3), (3, 4), (3, 5))
 
@@ -88,6 +88,6 @@ class SortLimitITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     env.execute()
 
     val expected = Seq("2,4", "3,5")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 }

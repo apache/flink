@@ -150,6 +150,14 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- ArchUnit test dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Table API Scala dependencies -->
 
 		<dependency>

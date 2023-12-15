@@ -73,7 +73,7 @@ public class HsSpillingStrategyUtils {
             BufferConsumptionPriorityIterator bufferConsumptionPriorityIterator = heap.poll();
             BufferIndexAndChannel bufferIndexAndChannel = bufferConsumptionPriorityIterator.next();
             subpartitionToHighPriorityBuffers
-                    .computeIfAbsent(bufferIndexAndChannel.getChannel(), ArrayList::new)
+                    .computeIfAbsent(bufferIndexAndChannel.getChannel(), k -> new ArrayList<>())
                     .add(bufferIndexAndChannel);
             // if this iterator has next, re-added it.
             if (bufferConsumptionPriorityIterator.hasNext()) {

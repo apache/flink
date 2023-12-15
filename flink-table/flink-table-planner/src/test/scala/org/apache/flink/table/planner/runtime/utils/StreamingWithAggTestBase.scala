@@ -23,9 +23,9 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
 
-import org.junit.Before
-import org.junit.runners.Parameterized
+import org.junit.jupiter.api.BeforeEach
 
 import java.util
 
@@ -37,7 +37,7 @@ class StreamingWithAggTestBase(
     backend: StateBackendMode)
   extends StreamingWithMiniBatchTestBase(miniBatch, backend) {
 
-  @Before
+  @BeforeEach
   override def before(): Unit = {
     super.before()
     // in order to cover more code paths
@@ -63,7 +63,7 @@ object StreamingWithAggTestBase {
   val LocalGlobalOn = AggMode(isLocalAggEnabled = true)
   val LocalGlobalOff = AggMode(isLocalAggEnabled = false)
 
-  @Parameterized.Parameters(name = "LocalGlobal={0}, {1}, StateBackend={2}")
+  @Parameters(name = "LocalGlobal={0}, {1}, StateBackend={2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
     Seq[Array[AnyRef]](
       Array(LocalGlobalOff, MiniBatchOff, HEAP_BACKEND),

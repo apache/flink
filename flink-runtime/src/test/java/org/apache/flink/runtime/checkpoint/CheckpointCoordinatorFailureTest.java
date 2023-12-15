@@ -170,7 +170,6 @@ class CheckpointCoordinatorFailureTest {
         assertThat(pendingCheckpoint.isDisposed()).isTrue();
 
         // make sure that the subtask state has been discarded after we could not complete it.
-        verify(operatorSubtaskState).discardState();
         verify(operatorSubtaskState.getManagedOperatorState().iterator().next()).discardState();
         verify(operatorSubtaskState.getRawOperatorState().iterator().next()).discardState();
         verify(operatorSubtaskState.getManagedKeyedState().iterator().next()).discardState();

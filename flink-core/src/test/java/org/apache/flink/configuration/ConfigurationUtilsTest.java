@@ -18,14 +18,18 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -36,13 +40,20 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
 
 /** Tests for the {@link ConfigurationUtils}. */
-public class ConfigurationUtilsTest extends TestLogger {
+@ExtendWith(ParameterizedTestExtension.class)
+public class ConfigurationUtilsTest {
 
-    @Test
-    public void testPropertiesToConfiguration() {
+    @Parameter public boolean standardYaml;
+
+    @Parameters(name = "standardYaml: {0}")
+    public static Collection<Boolean> parameters() {
+        return Arrays.asList(true, false);
+    }
+
+    @TestTemplate
+    void testPropertiesToConfiguration() {
         final Properties properties = new Properties();
         final int entries = 10;
 
@@ -59,8 +70,8 @@ public class ConfigurationUtilsTest extends TestLogger {
         assertThat(configuration.toMap()).hasSize(properties.size());
     }
 
-    @Test
-    public void testHideSensitiveValues() {
+    @TestTemplate
+    void testHideSensitiveValues() {
         final Map<String, String> keyValuePairs = new HashMap<>();
         keyValuePairs.put("foobar", "barfoo");
         final String secretKey1 = "secret.key";
@@ -80,8 +91,8 @@ public class ConfigurationUtilsTest extends TestLogger {
         assertThat(hiddenSensitiveValues).isEqualTo(expectedKeyValuePairs);
     }
 
-    @Test
-    public void testGetPrefixedKeyValuePairs() {
+    @TestTemplate
+    void testGetPrefixedKeyValuePairs() {
         final String prefix = "test.prefix.";
         final Map<String, String> expectedKeyValuePairs =
                 new HashMap<String, String>() {
@@ -100,33 +111,49 @@ public class ConfigurationUtilsTest extends TestLogger {
         assertThat(resultKeyValuePairs).isEqualTo(expectedKeyValuePairs);
     }
 
-    @Test
-    public void testConvertToString() {
+    @TestTemplate
+    void testConvertToString() {
         // String
-        assertEquals("Simple String", ConfigurationUtils.convertToString("Simple String"));
+        assertThat(ConfigurationUtils.convertToString("Simple String", standardYaml))
+                .isEqualTo("Simple String");
 
         // Duration
-        assertEquals("0 ms", ConfigurationUtils.convertToString(Duration.ZERO));
-        assertEquals("123 ms", ConfigurationUtils.convertToString(Duration.ofMillis(123L)));
-        assertEquals("1234 s", ConfigurationUtils.convertToString(Duration.ofMillis(1_234_000L)));
-        assertEquals("25 h", ConfigurationUtils.convertToString(Duration.ofHours(25L)));
+        assertThat(ConfigurationUtils.convertToString(Duration.ZERO, standardYaml))
+                .isEqualTo("0 ms");
+        assertThat(ConfigurationUtils.convertToString(Duration.ofMillis(123L), standardYaml))
+                .isEqualTo("123 ms");
+        assertThat(ConfigurationUtils.convertToString(Duration.ofMillis(1_234_000L), standardYaml))
+                .isEqualTo("1234 s");
+        assertThat(ConfigurationUtils.convertToString(Duration.ofHours(25L), standardYaml))
+                .isEqualTo("25 h");
 
         // List
-        final List<Object> listElements = new ArrayList<>();
+        List<Object> listElements = new ArrayList<>();
         listElements.add("Test;String");
         listElements.add(Duration.ZERO);
         listElements.add(42);
-        assertEquals("'Test;String';0 ms;42", ConfigurationUtils.convertToString(listElements));
-
+        if (standardYaml) {
+            assertThat("[Test;String, 0 ms, 42]")
+                    .isEqualTo(ConfigurationUtils.convertToString(listElements, true));
+        } else {
+            assertThat("'Test;String';0 ms;42")
+                    .isEqualTo(ConfigurationUtils.convertToString(listElements, false));
+        }
         // Map
-        final Map<Object, Object> mapElements = new HashMap<>();
+        Map<Object, Object> mapElements = new HashMap<>();
         mapElements.put("A:,B", "C:,D");
         mapElements.put(10, 20);
-        assertEquals("'''A:,B'':''C:,D''',10:20", ConfigurationUtils.convertToString(mapElements));
+        if (standardYaml) {
+            assertThat("{'A:,B': 'C:,D', 10: 20}")
+                    .isEqualTo(ConfigurationUtils.convertToString(mapElements, true));
+        } else {
+            assertThat("'''A:,B'':''C:,D''',10:20")
+                    .isEqualTo(ConfigurationUtils.convertToString(mapElements, false));
+        }
     }
 
-    @Test
-    public void testRandomTempDirectorySelection() {
+    @TestTemplate
+    void testRandomTempDirectorySelection() {
         final Configuration configuration = new Configuration();
         final StringBuilder tempDirectories = new StringBuilder();
         final int numberTempDirectories = 20;

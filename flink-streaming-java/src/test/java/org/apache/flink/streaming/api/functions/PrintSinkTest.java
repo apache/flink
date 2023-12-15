@@ -26,8 +26,7 @@ import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
 import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -200,7 +199,7 @@ class PrintSinkTest {
 
         @Override
         public SinkWriterMetricGroup metricGroup() {
-            return InternalSinkWriterMetricGroup.mock(new UnregisteredMetricsGroup());
+            return MetricsGroupTestUtils.mockWriterMetricGroup();
         }
 
         @Override

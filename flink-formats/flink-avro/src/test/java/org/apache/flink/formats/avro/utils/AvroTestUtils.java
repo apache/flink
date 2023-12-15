@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro.utils;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
@@ -32,13 +33,14 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.Date;
@@ -297,8 +299,21 @@ public final class AvroTestUtils {
      * @return serialized record
      */
     public static byte[] writeRecord(GenericRecord record, Schema schema) throws IOException {
+        return writeRecord(record, schema, AvroEncoding.BINARY);
+    }
+
+    /**
+     * Writes given record using specified schema.
+     *
+     * @param record record to serialize
+     * @param schema schema to use for serialization
+     * @param encoding serialization approach to use
+     * @return serialized record
+     */
+    public static byte[] writeRecord(GenericRecord record, Schema schema, AvroEncoding encoding)
+            throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(stream, null);
+        Encoder encoder = createEncoder(encoding, schema, stream);
 
         new GenericDatumWriter<>(schema).write(record, encoder);
         encoder.flush();
@@ -311,14 +326,25 @@ public final class AvroTestUtils {
      * @param record record to serialize
      * @return serialized record
      */
-    public static <T extends SpecificRecord> byte[] writeRecord(T record) throws IOException {
+    public static <T extends SpecificRecord> byte[] writeRecord(T record, AvroEncoding encoding)
+            throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(stream, null);
+        Encoder encoder = createEncoder(encoding, record.getSchema(), stream);
 
         @SuppressWarnings("unchecked")
         SpecificDatumWriter<T> writer = new SpecificDatumWriter<>((Class<T>) record.getClass());
         writer.write(record, encoder);
         encoder.flush();
         return stream.toByteArray();
+    }
+
+    /** Creates an Avro encoder using the requested serialization approach. */
+    public static Encoder createEncoder(
+            AvroEncoding encoding, Schema schema, OutputStream outputStream) throws IOException {
+        if (encoding == AvroEncoding.JSON) {
+            return EncoderFactory.get().jsonEncoder(schema, outputStream);
+        } else {
+            return EncoderFactory.get().binaryEncoder(outputStream, null);
+        }
     }
 }

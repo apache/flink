@@ -31,14 +31,15 @@ import org.apache.flink.table.planner.plan.optimize.program.FlinkHepRuleSetProgr
 import org.apache.flink.table.planner.plan.optimize.program.HEP_RULES_EXECUTION_TYPE;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.testutils.junit.SharedObjects;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
 import org.apache.flink.testutils.junit.SharedReference;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,11 +52,12 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link PushProjectIntoTableSourceScanRule}. */
-public class PushProjectIntoTableSourceScanRuleTest
-        extends PushProjectIntoLegacyTableSourceScanRuleTest {
+class PushProjectIntoTableSourceScanRuleTest extends PushProjectIntoLegacyTableSourceScanRuleTest {
 
-    @Rule public final SharedObjects sharedObjects = SharedObjects.create();
+    @RegisterExtension
+    private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
+    @BeforeEach
     @Override
     public void setup() {
         util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
@@ -177,7 +179,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testProjectWithMapType() {
+    void testProjectWithMapType() {
         String sqlQuery = "SELECT id, testMap['e']\n" + "FROM NestedTable";
         util().verifyRelPlan(sqlQuery);
     }
@@ -196,7 +198,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testComplicatedNestedProject() {
+    void testComplicatedNestedProject() {
         String sqlQuery =
                 "SELECT id,"
                         + "    deepNested.nested1.name AS nestedName,\n"
@@ -206,14 +208,14 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testProjectWithDuplicateMetadataKey() {
+    void testProjectWithDuplicateMetadataKey() {
         String sqlQuery = "SELECT id, metadata_3, metadata_1 FROM MetadataTable";
 
         util().verifyRelPlan(sqlQuery);
     }
 
     @Test
-    public void testNestProjectWithMetadata() {
+    void testNestProjectWithMetadata() {
         String sqlQuery =
                 "SELECT id,"
                         + "    deepNested.nested1 AS nested1,\n"
@@ -224,7 +226,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testNestProjectWithUpsertSource() {
+    void testNestProjectWithUpsertSource() {
         String sqlQuery =
                 "SELECT id,"
                         + "    deepNested.nested1 AS nested1,\n"
@@ -235,7 +237,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testNestedProjectFieldAccessWithITEM() {
+    void testNestedProjectFieldAccessWithITEM() {
         util().verifyRelPlan(
                         "SELECT "
                                 + "`Result`.`Mid`.data_arr[ID].`value`, "
@@ -244,7 +246,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testNestedProjectFieldAccessWithITEMWithConstantIndex() {
+    void testNestedProjectFieldAccessWithITEMWithConstantIndex() {
         util().verifyRelPlan(
                         "SELECT "
                                 + "`Result`.`Mid`.data_arr[2].`value`, "
@@ -253,7 +255,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testNestedProjectFieldAccessWithITEMContainsTopLevelAccess() {
+    void testNestedProjectFieldAccessWithITEMContainsTopLevelAccess() {
         util().verifyRelPlan(
                         "SELECT "
                                 + "`Result`.`Mid`.data_arr[2].`value`, "
@@ -264,7 +266,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testProjectFieldAccessWithITEM() {
+    void testProjectFieldAccessWithITEM() {
         util().verifyRelPlan(
                         "SELECT "
                                 + "`Result`.data_arr[ID].`value`, "
@@ -276,7 +278,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testMetadataProjectionWithoutProjectionPushDownWhenSupported() {
+    void testMetadataProjectionWithoutProjectionPushDownWhenSupported() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
@@ -290,7 +292,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupported() {
+    void testMetadataProjectionWithoutProjectionPushDownWhenNotSupported() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
@@ -304,7 +306,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testMetadataProjectionWithoutProjectionPushDownWhenSupportedAndNoneSelected() {
+    void testMetadataProjectionWithoutProjectionPushDownWhenSupportedAndNoneSelected() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
@@ -320,7 +322,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testMetadataProjectionWithoutProjectionPushDownWhenNotSupportedAndNoneSelected() {
+    void testMetadataProjectionWithoutProjectionPushDownWhenNotSupportedAndNoneSelected() {
         final SharedReference<List<String>> appliedKeys = sharedObjects.add(new ArrayList<>());
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
@@ -334,7 +336,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testProjectionIncludingOnlyMetadata() {
+    void testProjectionIncludingOnlyMetadata() {
         replaceProgramWithProjectMergeRule();
 
         final AtomicReference<DataType> appliedProjectionDataType = new AtomicReference<>(null);
@@ -374,7 +376,7 @@ public class PushProjectIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testProjectionWithMetadataAndPhysicalFields() {
+    void testProjectionWithMetadataAndPhysicalFields() {
         replaceProgramWithProjectMergeRule();
 
         final AtomicReference<DataType> appliedProjectionDataType = new AtomicReference<>(null);

@@ -163,6 +163,17 @@ under the License.
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- This dependency is added for `flink-benchmarks` project which will
+		use zookeeper testing server to benchmark olap performance. This dependency
+		is added here to ensure that its version is consistent with the flink
+		version in the `flink-benchmarks` and to avoid conflicts. Removing this
+		dependency may cause failure of `flink-benchmarks`. -->
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
+		</dependency>
+
 	</dependencies>
 
 	<!-- build a test jar -->

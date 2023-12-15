@@ -39,6 +39,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
+import org.apache.flink.runtime.util.NoOpGroupCache;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -200,6 +201,8 @@ public class TaskManagerServicesBuilder {
                 libraryCacheManager,
                 slotAllocationSnapshotPersistenceService,
                 sharedResources,
-                NoOpShuffleDescriptorsCache.INSTANCE);
+                new NoOpGroupCache<>(),
+                new NoOpGroupCache<>(),
+                new NoOpGroupCache<>());
     }
 }

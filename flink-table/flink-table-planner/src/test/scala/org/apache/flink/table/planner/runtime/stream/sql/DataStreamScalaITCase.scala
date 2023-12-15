@@ -18,31 +18,34 @@
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration
 import org.apache.flink.streaming.api.scala.{CloseableIterator, DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api.{DataTypes, Table, TableResult}
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 import org.apache.flink.table.planner.runtime.stream.sql.DataStreamScalaITCase.{ComplexCaseClass, ImmutableCaseClass}
-import org.apache.flink.test.util.AbstractTestBase
+import org.apache.flink.test.junit5.MiniClusterExtension
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
+import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.containsInAnyOrder
-import org.junit.{Before, Test}
-import org.junit.Assert.{assertEquals, assertThat}
+import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.extension.RegisterExtension
 
 import java.util
 
 import scala.collection.JavaConverters._
 
 /** Tests for connecting to the Scala [[DataStream]] API. */
-class DataStreamScalaITCase extends AbstractTestBase {
+class DataStreamScalaITCase {
 
   private var env: StreamExecutionEnvironment = _
 
   private var tableEnv: StreamTableEnvironment = _
 
-  @Before
+  @BeforeEach
   def before(): Unit = {
     env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(4)
@@ -122,6 +125,14 @@ class DataStreamScalaITCase extends AbstractTestBase {
 }
 
 object DataStreamScalaITCase {
+
+  @RegisterExtension
+  private val _: MiniClusterExtension = new MiniClusterExtension(
+    () =>
+      new MiniClusterResourceConfiguration.Builder()
+        .setNumberTaskManagers(1)
+        .setNumberSlotsPerTaskManager(4)
+        .build())
 
   case class ComplexCaseClass(var c: Int, var a: String, var p: ImmutableCaseClass)
 

@@ -151,7 +151,7 @@ public class SinkITCase extends AbstractTestBase {
     public void writerAndCommitterAndGlobalCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
-        env.fromCollection(SOURCE_DATA)
+        env.fromData(SOURCE_DATA)
                 .sinkTo(
                         TestSink.newBuilder()
                                 .setDefaultCommitter(
@@ -193,7 +193,7 @@ public class SinkITCase extends AbstractTestBase {
     public void writerAndCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
-        env.fromCollection(SOURCE_DATA)
+        env.fromData(SOURCE_DATA)
                 .sinkTo(
                         TestSink.newBuilder()
                                 .setDefaultCommitter(
@@ -238,7 +238,7 @@ public class SinkITCase extends AbstractTestBase {
     public void writerAndGlobalCommitterExecuteInBatchMode() throws Exception {
         final StreamExecutionEnvironment env = buildBatchEnv();
 
-        env.fromCollection(SOURCE_DATA)
+        env.fromData(SOURCE_DATA)
                 .sinkTo(
                         TestSink.newBuilder()
                                 .setCommittableSerializer(

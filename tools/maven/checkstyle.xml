@@ -61,7 +61,7 @@ This file is based on the checkstyle file of Apache Beam.
 	-->
 
 	<module name="FileLength">
-		<property name="max" value="3000"/>
+		<property name="max" value="3100"/>
 	</module>
 
 	<!-- All Java AST specific tests live under TreeWalker module. -->

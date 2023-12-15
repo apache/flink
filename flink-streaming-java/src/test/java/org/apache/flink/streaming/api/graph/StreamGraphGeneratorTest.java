@@ -52,10 +52,10 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
-import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.CacheTransformation;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
@@ -129,7 +129,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         env.setBufferTimeout(77); // set timeout to some recognizable number
 
-        env.fromElements(1, 2, 3, 4, 5)
+        env.fromData(1, 2, 3, 4, 5)
                 .map(value -> value)
                 .setBufferTimeout(-1)
                 .name("A")
@@ -158,7 +158,8 @@ public class StreamGraphGeneratorTest extends TestLogger {
                     Assertions.assertThat(node.getBufferTimeout()).isEqualTo(77L);
                     break;
                 default:
-                    Assertions.assertThat(node.getOperator()).isInstanceOf(StreamSource.class);
+                    Assertions.assertThat(node.getOperatorFactory())
+                            .isInstanceOf(SourceOperatorFactory.class);
             }
         }
     }
@@ -174,7 +175,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source = env.fromElements(1, 10);
+        DataStream<Integer> source = env.fromData(1, 10);
         DataStream<Integer> rebalanceMap = source.rebalance().map(new NoOpIntMap());
 
         // verify that only the partitioning that was set last is used
@@ -253,7 +254,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         OutputTypeConfigurableFunction<Integer> function = new OutputTypeConfigurableFunction<>();
 
-        DataStream<Integer> source = env.fromElements(1, 10);
+        DataStream<Integer> source = env.fromData(1, 10);
 
         NoOpUdfOperator<Integer> udfOperator = new NoOpUdfOperator<>(function);
 
@@ -274,7 +275,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
     public void testOutputTypeConfigurationWithOneInputTransformation() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source = env.fromElements(1, 10);
+        DataStream<Integer> source = env.fromData(1, 10);
 
         OutputTypeConfigurableOperationWithOneInput outputTypeConfigurableOperation =
                 new OutputTypeConfigurableOperationWithOneInput();
@@ -297,8 +298,8 @@ public class StreamGraphGeneratorTest extends TestLogger {
     public void testOutputTypeConfigurationWithTwoInputTransformation() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source1 = env.fromElements(1, 10);
-        DataStream<Integer> source2 = env.fromElements(2, 11);
+        DataStream<Integer> source1 = env.fromData(1, 10);
+        DataStream<Integer> source2 = env.fromData(2, 11);
 
         ConnectedStreams<Integer, Integer> connectedSource = source1.connect(source2);
 
@@ -323,9 +324,9 @@ public class StreamGraphGeneratorTest extends TestLogger {
     public void testMultipleInputTransformation() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source1 = env.fromElements(1, 10);
-        DataStream<Long> source2 = env.fromElements(2L, 11L);
-        DataStream<String> source3 = env.fromElements("42", "44");
+        DataStream<Integer> source1 = env.fromData(1, 10);
+        DataStream<Long> source2 = env.fromData(2L, 11L);
+        DataStream<String> source3 = env.fromData("42", "44");
 
         MultipleInputTransformation<String> transform =
                 new MultipleInputTransformation<String>(
@@ -469,7 +470,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().setMaxParallelism(maxParallelism);
 
-        DataStream<Integer> source = env.fromElements(1, 2, 3);
+        DataStream<Integer> source = env.fromData(1, 2, 3);
 
         DataStream<Integer> keyedResult = source.keyBy(value -> value).map(new NoOpIntMap());
 
@@ -492,7 +493,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().setMaxParallelism(globalMaxParallelism);
 
-        DataStream<Integer> source = env.fromElements(1, 2, 3);
+        DataStream<Integer> source = env.fromData(1, 2, 3);
 
         DataStream<Integer> keyedResult1 = source.keyBy(value -> value).map(new NoOpIntMap());
 
@@ -526,7 +527,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(globalParallelism);
 
-        DataStream<Integer> source = env.fromElements(1, 2, 3);
+        DataStream<Integer> source = env.fromData(1, 2, 3);
 
         DataStream<Integer> keyedResult1 = source.keyBy(value -> value).map(new NoOpIntMap());
 
@@ -566,15 +567,15 @@ public class StreamGraphGeneratorTest extends TestLogger {
         int maxParallelism = 42;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStream<Integer> input1 = env.fromElements(1, 2, 3, 4).setMaxParallelism(128);
-        DataStream<Integer> input2 = env.fromElements(1, 2, 3, 4).setMaxParallelism(129);
+        DataStream<Long> input1 = env.fromSequence(1, 4).setMaxParallelism(128);
+        DataStream<Long> input2 = env.fromSequence(1, 4).setMaxParallelism(129);
 
         env.getConfig().setMaxParallelism(maxParallelism);
 
-        DataStream<Integer> keyedResult =
+        DataStream<Long> keyedResult =
                 input1.connect(input2)
                         .keyBy(value -> value, value -> value)
-                        .map(new NoOpIntCoMap());
+                        .map(new NoOpLongCoMap());
 
         keyedResult.sinkTo(new DiscardingSink<>());
 
@@ -596,7 +597,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
     @Test
     public void testSinkIdComparison() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStream<Integer> source = env.fromElements(1, 2, 3);
+        DataStream<Integer> source = env.fromData(1, 2, 3);
         for (int i = 0; i < 32; i++) {
             if (i % 2 == 0) {
                 source.addSink(
@@ -617,7 +618,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
     public void testIteration() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
         IterativeStream<Integer> iteration = source.iterate(3000);
         iteration.name("iteration").setParallelism(2);
         DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
@@ -654,7 +655,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
     @Test
     public void testEnableSlotSharing() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
         DataStream<Integer> mapDataStream = sourceDataStream.map(x -> x + 1);
 
         final List<Transformation<?>> transformations = new ArrayList<>();
@@ -678,7 +679,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
     public void testSetManagedMemoryWeight() {
         final int weight = 123;
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        final DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
         source.getTransformation()
                 .declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, weight);
         source.print().name("sink");
@@ -711,7 +712,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
                 StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, resourceProfile3);
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<Integer> sourceDataStream =
-                env.fromElements(1, 2, 3).slotSharingGroup(slotSharingGroup1);
+                env.fromData(1, 2, 3).slotSharingGroup(slotSharingGroup1);
         final DataStream<Integer> mapDataStream1 =
                 sourceDataStream.map(x -> x + 1).slotSharingGroup(slotSharingGroup2);
         final DataStream<Integer> mapDataStream2 = mapDataStream1.map(x -> x * 2);
@@ -796,7 +797,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
                         .build();
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup("ssg1");
+        final DataStream<Integer> source = env.fromData(1).slotSharingGroup("ssg1");
         source.map(value -> value)
                 .slotSharingGroup(ssg2)
                 .map(value -> value * 2)
@@ -830,7 +831,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
                 SlotSharingGroup.newBuilder("ssg").setCpuCores(2).setTaskHeapMemoryMB(200).build();
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        final DataStream<Integer> source = env.fromElements(1).slotSharingGroup(ssg);
+        final DataStream<Integer> source = env.fromData(1).slotSharingGroup(ssg);
         source.map(value -> value)
                 .slotSharingGroup(ssgConflict)
                 .sinkTo(new DiscardingSink<>())
@@ -861,7 +862,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
     public void testResetBatchExchangeModeInStreamingExecution() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
         PartitionTransformation<Integer> transformation =
                 new PartitionTransformation<>(
                         sourceDataStream.getTransformation(),
@@ -891,7 +892,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         env.setParallelism(2);
 
-        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
         // Parallelism is set to -1 (default parallelism identifier) to imitate the behavior of
         // the table planner. Parallelism should be set automatically after translating.
         sourceDataStream.sinkTo(new TestExpandingSink()).setParallelism(-1);
@@ -912,7 +913,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         final TestingStreamExecutionEnvironment env = new TestingStreamExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        DataStream<Integer> source = env.fromElements(1, 2, 3);
+        DataStream<Integer> source = env.fromData(1, 2, 3);
         final int upstreamParallelism = 3;
         CachedDataStream<Integer> cachedStream =
                 source.keyBy(i -> i)
@@ -942,7 +943,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
 
         final int upstreamParallelism = 2;
         SingleOutputStreamOperator<Integer> stream =
-                env.fromElements(1, 2, 3).map(i -> i).setParallelism(upstreamParallelism);
+                env.fromData(1, 2, 3).map(i -> i).setParallelism(upstreamParallelism);
         final DataStream<Integer> sideOutputCache =
                 stream.getSideOutput(new OutputTag<Integer>("1") {}).cache();
         Assertions.assertThat(sideOutputCache.getTransformation())
@@ -1151,14 +1152,14 @@ public class StreamGraphGeneratorTest extends TestLogger {
         }
     }
 
-    static class NoOpIntCoMap implements CoMapFunction<Integer, Integer, Integer> {
+    static class NoOpLongCoMap implements CoMapFunction<Long, Long, Long> {
         private static final long serialVersionUID = 1886595528149124270L;
 
-        public Integer map1(Integer value) throws Exception {
+        public Long map1(Long value) throws Exception {
             return value;
         }
 
-        public Integer map2(Integer value) throws Exception {
+        public Long map2(Long value) throws Exception {
             return value;
         }
     }

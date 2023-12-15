@@ -85,6 +85,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -161,7 +162,7 @@ class StreamingJobGraphGeneratorTest {
         env.setParallelism(1);
 
         DataStream<Tuple2<String, String>> input =
-                env.fromElements("a", "b", "c", "d", "e", "f")
+                env.fromData("a", "b", "c", "d", "e", "f")
                         .map(
                                 new MapFunction<String, Tuple2<String, String>>() {
 
@@ -216,7 +217,7 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testDisabledCheckpointing() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(0).print();
+        env.fromData(0).print();
         StreamGraph streamGraph = env.getStreamGraph();
         assertThat(streamGraph.getCheckpointConfig().isCheckpointingEnabled())
                 .withFailMessage("Checkpointing enabled")
@@ -241,7 +242,7 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testEnabledUnalignedCheckAndDisabledCheckpointing() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(0).print();
+        env.fromData(0).print();
         StreamGraph streamGraph = env.getStreamGraph();
         assertThat(streamGraph.getCheckpointConfig().isCheckpointingEnabled())
                 .withFailMessage("Checkpointing enabled")
@@ -402,7 +403,7 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testUnalignedCheckAndAtLeastOnce() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(0).print();
+        env.fromData(0).print();
         StreamGraph streamGraph = env.getStreamGraph();
         env.enableCheckpointing(1000, CheckpointingMode.AT_LEAST_ONCE);
         env.getCheckpointConfig().enableUnalignedCheckpoints(true);
@@ -439,7 +440,7 @@ class StreamingJobGraphGeneratorTest {
         env.setParallelism(2);
 
         // fromElements -> CHAIN(Map -> Print)
-        env.fromElements(1, 2, 3)
+        env.fromData(1, 2, 3)
                 .map(
                         new MapFunction<Integer, Integer>() {
                             @Override
@@ -763,7 +764,7 @@ class StreamingJobGraphGeneratorTest {
     void testExchangeModePipelined() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         // fromElements -> Map -> Print
-        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
 
         DataStream<Integer> partitionAfterSourceDataStream =
                 new DataStream<>(
@@ -804,7 +805,7 @@ class StreamingJobGraphGeneratorTest {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.setBufferTimeout(-1);
         // fromElements -> Map -> Print
-        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
 
         DataStream<Integer> partitionAfterSourceDataStream =
                 new DataStream<>(
@@ -846,7 +847,7 @@ class StreamingJobGraphGeneratorTest {
     void testExchangeModeUndefined() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         // fromElements -> Map -> Print
-        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
 
         DataStream<Integer> partitionAfterSourceDataStream =
                 new DataStream<>(
@@ -886,7 +887,7 @@ class StreamingJobGraphGeneratorTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         // fromElements -> Map -> Print
-        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
 
         DataStream<Integer> partitionAfterSourceDataStream =
                 new DataStream<>(
@@ -926,7 +927,7 @@ class StreamingJobGraphGeneratorTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         // fromElements -> Map -> Print
-        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
 
         DataStream<Integer> partitionAfterSourceDataStream =
                 new DataStream<>(
@@ -963,7 +964,7 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testStreamingJobTypeByDefault() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements("test").sinkTo(new DiscardingSink<>());
+        env.fromData("test").sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
         assertThat(jobGraph.getJobType()).isEqualTo(JobType.STREAMING);
     }
@@ -972,7 +973,7 @@ class StreamingJobGraphGeneratorTest {
     void testBatchJobType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-        env.fromElements("test").sinkTo(new DiscardingSink<>());
+        env.fromData("test").sinkTo(new DiscardingSink<>());
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
         assertThat(jobGraph.getJobType()).isEqualTo(JobType.BATCH);
     }
@@ -983,7 +984,7 @@ class StreamingJobGraphGeneratorTest {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.setParallelism(4);
         env.disableOperatorChaining();
-        DataStream<Integer> source = env.fromElements(1);
+        DataStream<Integer> source = env.fromData(1);
         source
                 // set the same parallelism as the source to make it a FORWARD exchange
                 .map(value -> value)
@@ -1024,7 +1025,7 @@ class StreamingJobGraphGeneratorTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setBufferTimeout(100);
 
-        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
         PartitionTransformation<Integer> transformation =
                 new PartitionTransformation<>(
                         sourceDataStream.getTransformation(),
@@ -1043,7 +1044,7 @@ class StreamingJobGraphGeneratorTest {
         env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
         env.setBufferTimeout(-1);
 
-        env.fromElements(1, 2, 3).map(value -> value).print();
+        env.fromData(1, 2, 3).map(value -> value).print();
 
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
         for (JobVertex vertex : jobGraph.getVertices()) {
@@ -1060,7 +1061,7 @@ class StreamingJobGraphGeneratorTest {
     void testIteration() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
         IterativeStream<Integer> iteration = source.iterate(3000);
         iteration.name("iteration").setParallelism(2);
         DataStream<Integer> map = iteration.map(x -> x + 1).name("map").setParallelism(2);
@@ -1113,9 +1114,10 @@ class StreamingJobGraphGeneratorTest {
 
     @Test
     void testYieldingOperatorNotChainableToTaskChainedToLegacySource() {
+        // TODO: this test can be removed when the legacy SourceFunction API gets removed
         StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
 
-        chainEnv.fromElements(1)
+        chainEnv.addSource(new LegacySource())
                 .map((x) -> x)
                 // not chainable because of YieldingOperatorFactory and legacy source
                 .transform(
@@ -1137,7 +1139,7 @@ class StreamingJobGraphGeneratorTest {
     void testYieldingOperatorChainableToTaskNotChainedToLegacySource() {
         StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
 
-        chainEnv.fromElements(1)
+        chainEnv.fromData(1)
                 .disableChaining()
                 .map((x) -> x)
                 .transform(
@@ -1161,9 +1163,10 @@ class StreamingJobGraphGeneratorTest {
      */
     @Test
     void testYieldingOperatorProperlyChainedOnLegacySources() {
+        // TODO: this test can be removed when the legacy SourceFunction API gets removed
         StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.createLocalEnvironment(1);
 
-        chainEnv.fromElements(1)
+        chainEnv.addSource(new LegacySource())
                 .map((x) -> x)
                 // should automatically break chain here
                 .transform("test", BasicTypeInfo.INT_TYPE_INFO, new YieldingTestOperatorFactory<>())
@@ -1191,7 +1194,7 @@ class StreamingJobGraphGeneratorTest {
         configuration.set(PipelineOptions.MAX_PARALLELISM, 10);
         try (StreamExecutionEnvironment chainEnv =
                 StreamExecutionEnvironment.createLocalEnvironment(1, configuration)) {
-            chainEnv.fromElements(1)
+            chainEnv.fromData(1)
                     .map(x -> x)
                     // should automatically break chain here
                     .map(x -> x)
@@ -1275,7 +1278,7 @@ class StreamingJobGraphGeneratorTest {
     }
 
     private DataStream<Integer> createSource(StreamExecutionEnvironment env, int index) {
-        return env.fromElements(index).name("source" + index).map(i -> i).name("map" + index);
+        return env.fromData(index).name("source" + index).map(i -> i).name("map" + index);
     }
 
     @Test
@@ -1283,8 +1286,8 @@ class StreamingJobGraphGeneratorTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(60_000L);
 
-        DataStreamSource<String> source1 = env.fromElements("1");
-        DataStreamSource<Integer> source2 = env.fromElements(1);
+        DataStreamSource<String> source1 = env.fromData("1");
+        DataStreamSource<Integer> source2 = env.fromData(1);
         source1.connect(source2)
                 .transform(
                         "test",
@@ -1483,7 +1486,7 @@ class StreamingJobGraphGeneratorTest {
         StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.disableOperatorChaining();
-        DataStreamSource<Integer> source = env.fromElements(1, 2, 3);
+        DataStreamSource<Integer> source = env.fromData(1, 2, 3);
         final DataStream<Integer> partitioned =
                 new DataStream<>(
                         env,
@@ -1594,7 +1597,7 @@ class StreamingJobGraphGeneratorTest {
                 StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, resourceProfile3);
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(1, 2, 3)
+        env.fromData(1, 2, 3)
                 .name(slotSharingGroup1)
                 .slotSharingGroup(slotSharingGroup1)
                 .map(x -> x + 1)
@@ -1637,7 +1640,7 @@ class StreamingJobGraphGeneratorTest {
                 StreamGraphGenerator.DEFAULT_SLOT_SHARING_GROUP, resourceProfile);
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(1, 2, 3).map(x -> x + 1);
+        env.fromData(1, 2, 3).map(x -> x + 1);
 
         final StreamGraph streamGraph = env.getStreamGraph();
         streamGraph.setSlotSharingGroupResource(slotSharingGroupResource);
@@ -1821,7 +1824,7 @@ class StreamingJobGraphGeneratorTest {
         env.setParallelism(2);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
         CachedDataStream<Integer> cachedStream =
                 source.map(i -> i + 1).name("map-1").map(i -> i + 1).name("map-2").cache();
         assertThat(cachedStream.getTransformation()).isInstanceOf(CacheTransformation.class);
@@ -1873,7 +1876,7 @@ class StreamingJobGraphGeneratorTest {
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.disableOperatorChaining();
 
-        DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+        DataStream<Integer> sourceDataStream = env.fromData(1, 2, 3);
         DataStream<Integer> partitionAfterSourceDataStream =
                 new DataStream<>(
                         env,
@@ -1899,7 +1902,7 @@ class StreamingJobGraphGeneratorTest {
     void testHybridPartitionReuse() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
-        DataStream<Integer> source = env.fromElements(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        DataStream<Integer> source = env.fromData(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
         DataStream<Integer> partition1 =
                 new DataStream<>(
@@ -2013,7 +2016,7 @@ class StreamingJobGraphGeneratorTest {
     void testIntermediateDataSetReuse() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setBufferTimeout(-1);
-        DataStream<Integer> source = env.fromElements(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        DataStream<Integer> source = env.fromData(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
         // these two vertices can reuse the same intermediate dataset
         source.rebalance().sinkTo(new DiscardingSink<>()).setParallelism(2).name("sink1");
@@ -2082,7 +2085,7 @@ class StreamingJobGraphGeneratorTest {
     @Test
     void testStreamConfigSerializationException() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Integer> source = env.fromElements(1, 2, 3);
+        DataStreamSource<Integer> source = env.fromData(1, 2, 3);
         env.addOperator(
                 new OneInputTransformation<>(
                         source.getTransformation(),
@@ -2101,7 +2104,7 @@ class StreamingJobGraphGeneratorTest {
     @Test
     public void testCoordinatedSerializationException() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Integer> source = env.fromElements(1, 2, 3);
+        DataStreamSource<Integer> source = env.fromData(1, 2, 3);
         env.addOperator(
                 new OneInputTransformation<>(
                         source.getTransformation(),
@@ -2122,7 +2125,7 @@ class StreamingJobGraphGeneratorTest {
                 StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        final DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
         // source -> (map1 -> map2) -> sink
         source.rebalance()
                 .map(v -> v)
@@ -2173,7 +2176,7 @@ class StreamingJobGraphGeneratorTest {
                 StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        final DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
         source.rebalance()
                 .sinkTo(new TestSinkWithSupportsConcurrentExecutionAttempts())
                 .name("sink");
@@ -2230,7 +2233,7 @@ class StreamingJobGraphGeneratorTest {
                 StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        final DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
         source.rebalance().writeUsingOutputFormat(outputFormat).name("sink");
 
         final StreamGraph streamGraph = env.getStreamGraph();
@@ -2257,7 +2260,7 @@ class StreamingJobGraphGeneratorTest {
                 StreamExecutionEnvironment.getExecutionEnvironment(new Configuration());
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
+        final DataStream<Integer> source = env.fromData(1, 2, 3).name("source");
         source.rebalance().addSink(function).name("sink");
 
         final StreamGraph streamGraph = env.getStreamGraph();
@@ -2345,7 +2348,7 @@ class StreamingJobGraphGeneratorTest {
         }
 
         @Override
-        public Committer<Void> createCommitter() throws IOException {
+        public Committer<Void> createCommitter(CommitterInitContext context) throws IOException {
             return new Committer<Void>() {
                 @Override
                 public void commit(Collection<CommitRequest<Void>> committables)
@@ -2478,7 +2481,7 @@ class StreamingJobGraphGeneratorTest {
         env.setParallelism(1);
         DataStream<Long> source;
         if (inputNames.length == 1) {
-            source = env.fromElements(1L, 2L, 3L).setDescription(inputNames[0]);
+            source = env.fromData(1L, 2L, 3L).setDescription(inputNames[0]);
         } else {
             MultipleInputTransformation<Long> transform =
                     new MultipleInputTransformation<>(
@@ -2547,10 +2550,10 @@ class StreamingJobGraphGeneratorTest {
         env.setBufferTimeout(-1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
-        final DataStream<Integer> source1 = env.fromElements(1, 2, 3).name("source1");
+        final DataStream<Integer> source1 = env.fromData(1, 2, 3).name("source1");
         source1.rebalance().map(v -> v).name("map1");
 
-        final DataStream<Integer> source2 = env.fromElements(4, 5, 6).name("source2");
+        final DataStream<Integer> source2 = env.fromData(4, 5, 6).name("source2");
         final DataStream<Integer> partitioned =
                 new DataStream<>(
                         env,
@@ -2651,5 +2654,14 @@ class StreamingJobGraphGeneratorTest {
         public Set<AbstractID> listCompletedClusterDatasets() {
             return new HashSet<>(completedClusterDatasetIds);
         }
+    }
+
+    private static class LegacySource implements SourceFunction<Integer> {
+        public void run(SourceContext<Integer> sourceContext) {
+            sourceContext.collect(1);
+        }
+
+        @Override
+        public void cancel() {}
     }
 }

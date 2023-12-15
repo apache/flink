@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompositeStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
@@ -29,8 +30,10 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -163,6 +166,18 @@ public class OperatorState implements CompositeStateHandle {
         }
 
         return newState;
+    }
+
+    public List<StateObject> getDiscardables() {
+        List<StateObject> toDispose =
+                operatorSubtaskStates.values().stream()
+                        .flatMap(op -> op.getDiscardables().stream())
+                        .collect(Collectors.toList());
+
+        if (coordinatorState != null) {
+            toDispose.add(coordinatorState);
+        }
+        return toDispose;
     }
 
     @Override

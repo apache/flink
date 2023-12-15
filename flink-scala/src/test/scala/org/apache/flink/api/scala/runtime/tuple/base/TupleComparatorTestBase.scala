@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.ComparatorTestBase
 import org.assertj.core.api.AssertionsForClassTypes.assertThat
 
 abstract class TupleComparatorTestBase[T <: Product] extends ComparatorTestBase[T] {
-  override protected def deepEquals(message: String, should: T, is: T) {
+  override protected def deepEquals(message: String, should: T, is: T): Unit = {
     for (i <- 0 until should.productArity) {
       assertThat(is.productElement(i)).isEqualTo(should.productElement(i))
     }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /** Interface for creating result partitions. */
 public interface ResultPartitionProvider {
@@ -29,4 +30,29 @@ public interface ResultPartitionProvider {
             int index,
             BufferAvailabilityListener availabilityListener)
             throws IOException;
+
+    /**
+     * If the upstream task's partition has been registered, returns the result subpartition input
+     * view immediately, otherwise register the listener and return empty.
+     *
+     * @param partitionId the result partition id
+     * @param index the index
+     * @param availabilityListener the buffer availability listener
+     * @param partitionRequestListener the partition request listener
+     * @return the result subpartition view
+     * @throws IOException the thrown exception
+     */
+    Optional<ResultSubpartitionView> createSubpartitionViewOrRegisterListener(
+            ResultPartitionID partitionId,
+            int index,
+            BufferAvailabilityListener availabilityListener,
+            PartitionRequestListener partitionRequestListener)
+            throws IOException;
+
+    /**
+     * Release the given listener in this result partition provider.
+     *
+     * @param listener the given listener
+     */
+    void releasePartitionRequestListener(PartitionRequestListener listener);
 }

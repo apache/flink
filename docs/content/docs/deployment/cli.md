@@ -151,6 +151,35 @@ $ ./bin/flink savepoint \
 Triggering the savepoint disposal through the `savepoint` action does not only remove the data from 
 the storage but makes Flink clean up the savepoint-related metadata as well.
 
+### Creating a Checkpoint
+[Checkpoints]({{< ref "docs/ops/state/checkpoints" >}}) can also be manually created to save the 
+current state. To get the difference between checkpoint and savepoint, please refer to 
+[Checkpoints vs. Savepoints]({{< ref "docs/ops/state/checkpoints_vs_savepoints" >}}). All that's 
+needed to trigger a checkpoint manually is the JobID:
+```bash
+$ ./bin/flink checkpoint \
+      $JOB_ID
+```
+```
+Triggering checkpoint for job 99c59fead08c613763944f533bf90c0f.
+Waiting for response...
+Checkpoint(CONFIGURED) 26 for job 99c59fead08c613763944f533bf90c0f completed.
+You can resume your program from this checkpoint with the run command.
+```
+If you want to trigger a full checkpoint while the job periodically triggering incremental checkpoints, 
+please use the `--full` option.
+```bash
+$ ./bin/flink checkpoint \
+      $JOB_ID \
+      --full
+```
+```
+Triggering checkpoint for job 99c59fead08c613763944f533bf90c0f.
+Waiting for response...
+Checkpoint(FULL) 78 for job 99c59fead08c613763944f533bf90c0f completed.
+You can resume your program from this checkpoint with the run command.
+```
+
 ### Terminating a Job
 
 #### Stopping a Job Gracefully Creating a Final Savepoint
@@ -297,6 +326,13 @@ Here's an overview of actions supported by Flink's CLI tool:
                 necessary to specify a savepoint directory besides the JobID, if the 
                 <a href="{{< ref "docs/deployment/config" >}}#state-savepoints-dir">state.savepoints.dir</a> 
                 parameter was not specified in <code class="highlighter-rouge">conf/flink-conf.yaml</code>.
+            </td>
+        </tr>
+        <tr>
+            <td><code class="highlighter-rouge">checkpoint</code></td>
+            <td>
+                This action can be used to create checkpoints for a given job. The checkpoint type
+                (full or incremental) can be specified.
             </td>
         </tr>
         <tr>

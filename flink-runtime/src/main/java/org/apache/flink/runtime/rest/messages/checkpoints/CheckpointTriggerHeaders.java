@@ -63,7 +63,9 @@ public class CheckpointTriggerHeaders
 
     @Override
     protected String getAsyncOperationDescription() {
-        return "Triggers a checkpoint.";
+        return "Triggers a checkpoint."
+                + " The 'checkpointType' parameter does not support 'INCREMENTAL' option for now."
+                + " See FLINK-33723.";
     }
 
     @Override

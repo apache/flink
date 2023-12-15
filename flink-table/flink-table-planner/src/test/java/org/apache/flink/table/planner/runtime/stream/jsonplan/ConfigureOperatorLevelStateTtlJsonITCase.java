@@ -113,7 +113,7 @@ class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
                         "+I[Jerry, 1, 2, 99.9]",
                         "+I[Olivia, 2, 4, 1100.0]",
                         "+I[Michael, 1, 3, 599.9]");
-        assertResult(expected, TestValuesTableFactory.getResults("OrdersStats"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("OrdersStats"));
     }
 
     @Test
@@ -187,7 +187,7 @@ class ConfigureOperatorLevelStateTtlJsonITCase extends JsonPlanTestBase {
         List<String> expected =
                 Arrays.asList(
                         "+I[1, 1000002, TRUCK]", "+I[1, 1000004, RAIL]", "+I[1, 1000005, AIR]");
-        assertResult(expected, TestValuesTableFactory.getResults("OrdersShipInfo"));
+        assertResult(expected, TestValuesTableFactory.getResultsAsStrings("OrdersShipInfo"));
     }
 
     private static Map<String, String> getProperties(

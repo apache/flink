@@ -34,9 +34,10 @@ The [predefined data sources]({{< ref "docs/dev/datastream/overview" >}}#data-so
 ingesting data from collections and iterators.
 The [predefined data sinks]({{< ref "docs/dev/datastream/overview" >}}#data-sinks) support writing to files, to stdout and stderr, and to sockets.
 
-## Bundled Connectors
+## Flink Project Connectors
 
-Connectors provide code for interfacing with various third-party systems. Currently these systems are supported:
+Connectors provide code for interfacing with various third-party systems. 
+Currently these systems are supported as part of the Apache Flink project:
 
  * [Apache Kafka]({{< ref "docs/connectors/datastream/kafka" >}}) (source/sink)
  * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (source/sink)
@@ -59,8 +60,6 @@ components are usually required, e.g. servers for the data stores or message que
 Note also that while the streaming connectors listed in this section are part of the
 Flink project and are included in source releases, they are not included in the binary distributions. 
 Further instructions can be found in the corresponding subsections.
-
-Filesystem source formats are gradually replaced with new Flink Source API starting with Flink 1.14.0.
 
 ## Connectors in Apache Bahir
 

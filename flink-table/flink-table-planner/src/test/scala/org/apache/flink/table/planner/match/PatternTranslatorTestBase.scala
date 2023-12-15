@@ -36,21 +36,13 @@ import org.apache.flink.table.planner.plan.utils.MatchUtil
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.types.logical.{IntType, RowType}
 import org.apache.flink.types.Row
-import org.apache.flink.util.TestLogger
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
-import org.junit.{ComparisonFailure, Rule}
-import org.junit.Assert._
-import org.junit.rules.ExpectedException
+import org.assertj.core.api.Assertions.fail
 import org.mockito.Mockito.{mock, when}
 
-abstract class PatternTranslatorTestBase extends TestLogger {
-
-  private val expectedException = ExpectedException.none()
-
-  @Rule
-  def thrown: ExpectedException = expectedException
+abstract class PatternTranslatorTestBase {
 
   // setup test utils
   private val testTableTypeInfo = new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO)
@@ -139,16 +131,14 @@ abstract class PatternTranslatorTestBase extends TestLogger {
       currentRight = currentRight.getPrevious
 
       if (!sameName || !sameQuantifier || !sameTimes || !sameSkipStrategy || !sameTimeWindow) {
-        throw new ComparisonFailure(
-          "Compiled different pattern.",
-          expected.toString,
-          actual.toString)
+        throw new AssertionError(
+          s"Compiled different pattern. expected: $expected, actual: $actual")
       }
 
     } while (currentLeft != null)
 
     if (currentRight != null) {
-      throw new ComparisonFailure("Compiled different pattern.", expected.toString, actual.toString)
+      throw new AssertionError(s"Compiled different pattern. expected: $expected, actual: $actual")
     }
   }
 }

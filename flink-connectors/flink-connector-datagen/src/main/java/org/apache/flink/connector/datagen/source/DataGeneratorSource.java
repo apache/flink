@@ -19,6 +19,7 @@
 package org.apache.flink.connector.datagen.source;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -34,6 +35,7 @@ import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 
 import java.util.Collection;
 
@@ -92,14 +94,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Experimental
 public class DataGeneratorSource<OUT>
         implements Source<OUT, NumberSequenceSplit, Collection<NumberSequenceSplit>>,
-                ResultTypeQueryable<OUT> {
+                ResultTypeQueryable<OUT>,
+                OutputTypeConfigurable<OUT> {
 
     private static final long serialVersionUID = 1L;
 
     private final SourceReaderFactory<OUT, NumberSequenceSplit> sourceReaderFactory;
-    private final TypeInformation<OUT> typeInfo;
+    private TypeInformation<OUT> typeInfo;
 
     private final NumberSequenceSource numberSource;
+
+    private final GeneratorFunction<Long, OUT> generatorFunction;
 
     /**
      * Instantiates a new {@code DataGeneratorSource}.
@@ -130,23 +135,42 @@ public class DataGeneratorSource<OUT>
             TypeInformation<OUT> typeInfo) {
         this(
                 new GeneratorSourceReaderFactory<>(generatorFunction, rateLimiterStrategy),
+                generatorFunction,
                 count,
                 typeInfo);
-        ClosureCleaner.clean(
-                generatorFunction, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
         ClosureCleaner.clean(
                 rateLimiterStrategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
     }
 
     private DataGeneratorSource(
             SourceReaderFactory<OUT, NumberSequenceSplit> sourceReaderFactory,
+            GeneratorFunction<Long, OUT> generatorFunction,
             long count,
             TypeInformation<OUT> typeInfo) {
         this.sourceReaderFactory = checkNotNull(sourceReaderFactory);
+        this.generatorFunction = checkNotNull(generatorFunction);
+        this.typeInfo = checkNotNull(typeInfo);
+        long to = count > 0 ? count - 1 : 0; // a noop source (0 elements) is used in Table tests
+        this.numberSource = new NumberSequenceSource(0, to);
+        ClosureCleaner.clean(
+                generatorFunction, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
         ClosureCleaner.clean(
                 sourceReaderFactory, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
-        this.typeInfo = checkNotNull(typeInfo);
-        this.numberSource = new NumberSequenceSource(0, count - 1);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
+        this.typeInfo = outTypeInfo;
+        if (generatorFunction instanceof OutputTypeConfigurable) {
+            ((OutputTypeConfigurable<OUT>) generatorFunction)
+                    .setOutputType(outTypeInfo, executionConfig);
+        }
+    }
+
+    @VisibleForTesting
+    public GeneratorFunction<Long, OUT> getGeneratorFunction() {
+        return generatorFunction;
     }
 
     // ------------------------------------------------------------------------

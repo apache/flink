@@ -98,8 +98,7 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
             BatchShuffleReadBufferPool bufferPool,
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
-            Duration bufferRequestTimeout,
-            int maxBufferReadAhead) {
+            Duration bufferRequestTimeout) {
         checkArgument(
                 numBytesPerSegment >= bufferSizeBytes,
                 "One segment should contain at least one buffer.");
@@ -134,8 +133,7 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
                         ioExecutor,
                         maxRequestedBuffers,
                         bufferRequestTimeout,
-                        maxBufferReadAhead,
-                        this::retrieveFirstBufferIndexInSegment,
+                        this::firstBufferIndexToSegmentId,
                         partitionFileReader);
 
         nettyService.registerProducer(partitionId, this);
@@ -218,14 +216,16 @@ public class DiskTierProducerAgent implements TierProducerAgent, NettyServicePro
 
     private void releaseResources() {
         if (!isReleased) {
-            firstBufferIndexInSegment.clear();
+            for (Map<Integer, Integer> subFirstBufferIndexInSegment : firstBufferIndexInSegment) {
+                subFirstBufferIndexInSegment.clear();
+            }
             diskCacheManager.release();
             diskIOScheduler.release();
             isReleased = true;
         }
     }
 
-    private Integer retrieveFirstBufferIndexInSegment(int subpartitionId, int bufferIndex) {
+    private Integer firstBufferIndexToSegmentId(int subpartitionId, int bufferIndex) {
         return firstBufferIndexInSegment.size() > subpartitionId
                 ? firstBufferIndexInSegment.get(subpartitionId).get(bufferIndex)
                 : null;

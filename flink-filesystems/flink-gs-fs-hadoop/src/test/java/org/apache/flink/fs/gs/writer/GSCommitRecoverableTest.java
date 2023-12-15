@@ -133,4 +133,42 @@ public class GSCommitRecoverableTest {
             assertEquals(expectedObjectName, componentBlobIdentifier.objectName);
         }
     }
+
+    @Test
+    public void shouldGetComponentBlobIdsWithEntropy() {
+
+        // configure options, if this test configuration has a temporary bucket name, set it
+        Configuration flinkConfig = new Configuration();
+        if (temporaryBucketName != null) {
+            flinkConfig.set(GSFileSystemOptions.WRITER_TEMPORARY_BUCKET_NAME, temporaryBucketName);
+        }
+        // enable filesink entropy
+        flinkConfig.set(GSFileSystemOptions.ENABLE_FILESINK_ENTROPY, Boolean.TRUE);
+        GSFileSystemOptions options = new GSFileSystemOptions(flinkConfig);
+        GSCommitRecoverable commitRecoverable =
+                new GSCommitRecoverable(blobIdentifier, componentObjectIds);
+        List<GSBlobIdentifier> componentBlobIdentifiers =
+                commitRecoverable.getComponentBlobIds(options);
+
+        for (int i = 0; i < componentObjectIds.size(); i++) {
+            UUID componentObjectId = componentObjectIds.get(i);
+            GSBlobIdentifier componentBlobIdentifier = componentBlobIdentifiers.get(i);
+
+            // if a temporary bucket is specified in options, the component blob identifier
+            // should be in this bucket; otherwise, it should be in the bucket with the final blob
+            assertEquals(
+                    temporaryBucketName == null ? blobIdentifier.bucketName : temporaryBucketName,
+                    componentBlobIdentifier.bucketName);
+
+            // make sure the name is what is expected
+            String expectedObjectName =
+                    String.format(
+                            "%s.inprogress/%s/%s/%s",
+                            componentObjectId,
+                            blobIdentifier.bucketName,
+                            blobIdentifier.objectName,
+                            componentObjectId);
+            assertEquals(expectedObjectName, componentBlobIdentifier.objectName);
+        }
+    }
 }

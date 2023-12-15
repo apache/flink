@@ -313,7 +313,7 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
   
 - `fromParallelCollection(SplittableIterator, Class)` - 从迭代器并行创建数据流。class 参数指定迭代器返回元素的数据类型。
   
-- `generateSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
+- `fromSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
 
 自定义：
 
@@ -357,7 +357,7 @@ Source 是你的程序从中读取其输入的地方。你可以用 `StreamExecu
   
 - `fromParallelCollection(SplittableIterator, Class)` - 从迭代器并行创建数据流。class 参数指定迭代器返回元素的数据类型。
   
-- `generateSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
+- `fromSequence(from, to)` - 基于给定间隔内的数字序列并行生成数据流。
 
 自定义：
 

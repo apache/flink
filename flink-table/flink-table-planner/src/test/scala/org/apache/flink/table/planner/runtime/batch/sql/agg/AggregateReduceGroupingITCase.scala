@@ -33,7 +33,6 @@ import java.sql.Date
 import java.time.LocalDateTime
 
 import scala.collection.JavaConverters._
-import scala.collection.Seq
 
 class AggregateReduceGroupingITCase extends BatchTestBase {
 

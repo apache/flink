@@ -1,6 +1,6 @@
 ---
 title: "指标"
-weight: 6
+weight: 5
 type: docs
 aliases:
   - /zh/ops/metrics.html

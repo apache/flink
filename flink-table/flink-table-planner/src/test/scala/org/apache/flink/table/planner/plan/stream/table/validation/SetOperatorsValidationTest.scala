@@ -25,12 +25,12 @@ import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType}
+import org.junit.jupiter.api.Test
 
 class SetOperatorsValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionFieldsNameNotOverlap1(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -38,16 +38,19 @@ class SetOperatorsValidationTest extends TableTestBase {
     val ds1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = env.fromCollection(TestData.tupleData5).toTable(tEnv, 'a, 'b, 'd, 'c, 'e)
 
-    val unionDs = ds1.unionAll(ds2)
-
     val sink = new TestingAppendSink
-    unionDs.toAppendStream[Row].addSink(sink)
-    env.execute()
 
-    assertEquals(true, sink.getAppendResults.isEmpty)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () => {
+          val unionDs = ds1.unionAll(ds2)
+          unionDs.toDataStream.addSink(sink)
+          env.execute()
+        })
+    assertThat(sink.getAppendResults.isEmpty).isTrue
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionFieldsNameNotOverlap2(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -58,15 +61,19 @@ class SetOperatorsValidationTest extends TableTestBase {
       .toTable(tEnv, 'a, 'b, 'c, 'd, 'e)
       .select('a, 'b, 'c)
 
-    val unionDs = ds1.unionAll(ds2)
     val sink = new TestingAppendSink
-    unionDs.toAppendStream[Row].addSink(sink)
-    env.execute()
 
-    assertEquals(true, sink.getAppendResults.isEmpty)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () => {
+          val unionDs = ds1.unionAll(ds2)
+          unionDs.toDataStream.addSink(sink)
+          env.execute()
+        })
+    assertThat(sink.getAppendResults.isEmpty).isTrue
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionTablesFromDifferentEnv(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv1 = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
@@ -76,6 +83,7 @@ class SetOperatorsValidationTest extends TableTestBase {
     val ds2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv2, 'a, 'b, 'c)
 
     // Must fail. Tables are bound to different TableEnvironments.
-    ds1.unionAll(ds2)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => ds1.unionAll(ds2))
   }
 }

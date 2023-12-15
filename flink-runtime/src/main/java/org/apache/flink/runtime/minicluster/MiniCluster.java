@@ -31,6 +31,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -76,6 +77,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
+import org.apache.flink.runtime.metrics.TraceReporterSetup;
 import org.apache.flink.runtime.metrics.groups.ProcessMetricGroup;
 import org.apache.flink.runtime.metrics.util.MetricUtils;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -894,6 +896,13 @@ public class MiniCluster implements AutoCloseableAsync {
                 dispatcherGateway -> dispatcherGateway.triggerCheckpoint(jobID, rpcTimeout));
     }
 
+    public CompletableFuture<Long> triggerCheckpoint(JobID jobID, CheckpointType checkpointType) {
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway.triggerCheckpointAndGetCheckpointID(
+                                jobID, checkpointType, rpcTimeout));
+    }
+
     public CompletableFuture<String> stopWithSavepoint(
             JobID jobId,
             String targetDirectory,
@@ -1126,6 +1135,8 @@ public class MiniCluster implements AutoCloseableAsync {
         return new MetricRegistryImpl(
                 MetricRegistryConfiguration.fromConfiguration(config, maximumMessageSizeInBytes),
                 ReporterSetup.fromConfiguration(
+                        config, miniClusterConfiguration.getPluginManager()),
+                TraceReporterSetup.fromConfiguration(
                         config, miniClusterConfiguration.getPluginManager()));
     }
 
@@ -1276,15 +1287,7 @@ public class MiniCluster implements AutoCloseableAsync {
 
             // shut down high-availability services
             if (haServices != null) {
-                try {
-                    if (cleanupHaData) {
-                        haServices.closeAndCleanupAllData();
-                    } else {
-                        haServices.close();
-                    }
-                } catch (Exception e) {
-                    exception = ExceptionUtils.firstOrSuppressed(e, exception);
-                }
+                haServices.closeWithOptionalClean(cleanupHaData);
                 haServices = null;
             }
 

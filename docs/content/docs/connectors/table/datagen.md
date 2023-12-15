@@ -39,7 +39,7 @@ Usage
 -----
 
 By default, a DataGen table will create an unbounded number of rows with a random value for each column.
-For variable sized types, char/varchar/binary/varbinary/string/array/map/multiset, the length can be specified.
+For types, char/varchar/binary/varbinary/string/array/map/multiset, the length can be specified.
 Additionally, a total number of rows can be specified, resulting in a bounded table.
 
 There also exists a sequence generator, where users specify a sequence of start and end values.
@@ -75,6 +75,21 @@ WITH (
     'number-of-rows' = '10'
 )
 LIKE Orders (EXCLUDING ALL)
+```
+
+Further more, for variable sized types, varchar/string/varbinary/bytes, you can specify whether to enable variable-length data generation.
+
+```sql
+CREATE TABLE Orders (
+    order_number BIGINT,
+    price        DECIMAL(32,2),
+    buyer        ROW<first_name STRING, last_name STRING>,
+    order_time   TIMESTAMP(3),
+    seller       VARCHAR(150)
+) WITH (
+  'connector' = 'datagen',
+  'fields.seller.var-len' = 'true'
+)
 ```
 
 Types
@@ -241,13 +256,13 @@ Connector Options
       <td>Long</td>
       <td>Rows per second to control the emit rate.</td>
     </tr>
-        <tr>
-          <td><h5>number-of-rows</h5></td>
-          <td>optional</td>
-          <td style="word-wrap: break-word;">(none)</td>
-          <td>Long</td>
-          <td>The total number of rows to emit. By default, the table is unbounded.</td>
-        </tr>
+    <tr>
+      <td><h5>number-of-rows</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Long</td>
+      <td>The total number of rows to emit. By default, the table is unbounded.</td>
+    </tr>
     <tr>
       <td><h5>fields.#.kind</h5></td>
       <td>optional</td>
@@ -282,6 +297,13 @@ Connector Options
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
       <td>Size or length of the collection for generating char/varchar/binary/varbinary/string/array/map/multiset types.</td>
+    </tr>
+    <tr>
+      <td><h5>fields.#.var-len</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Whether to generate a variable-length data, please notice that it should only be used for variable-length types (varchar, string, varbinary, bytes).</td>
     </tr>
     <tr>
       <td><h5>fields.#.start</h5></td>

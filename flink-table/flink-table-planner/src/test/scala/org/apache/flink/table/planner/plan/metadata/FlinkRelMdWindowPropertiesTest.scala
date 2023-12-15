@@ -22,8 +22,8 @@ import org.apache.flink.table.planner.plan.logical.WindowSpec
 import org.apache.flink.table.types.logical.LogicalType
 
 import org.apache.calcite.util.ImmutableBitSet
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 /** Test for [[FlinkRelMdWindowProperties]]. */
 class FlinkRelMdWindowPropertiesTest extends FlinkRelMdHandlerTestBase {

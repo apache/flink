@@ -20,12 +20,12 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.planner.plan.common.DistinctAggregateTestBase
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 /** Test for [[FlinkAggregateExpandDistinctAggregatesRule]]. */
 class FlinkAggregateExpandDistinctAggregatesRuleTest extends DistinctAggregateTestBase(false) {
 
-  @Before
+  @BeforeEach
   override def setup(): Unit = {
     util.buildBatchProgram(FlinkBatchProgram.PHYSICAL)
     super.setup()

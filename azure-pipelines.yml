@@ -36,10 +36,10 @@ trigger:
 
 resources:
   containers:
-  # Container with Maven 3.8.6, SSL to have the same environment everywhere.
+  # Container with SSL to have the same environment everywhere.
   # see https://github.com/apache/flink-connector-shared-utils/tree/ci_utils
   - container: flink-build-container
-    image: chesnay/flink-ci:java_8_11_17_maven_386_v2
+    image: chesnay/flink-ci:java_8_11_17_21_maven_386
     # On AZP provided machines, set this flag to allow writing coredumps in docker
     options: --privileged
 
@@ -76,7 +76,7 @@ stages:
             vmImage: 'ubuntu-20.04'
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2"
           run_end_to_end: false
           container: flink-build-container
           jdk: 8
@@ -96,5 +96,5 @@ stages:
       - template: tools/azure-pipelines/build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
-          environment: PROFILE="-Dflink.hadoop.version=2.10.2 -Dscala-2.12"
+          environment: PROFILE="-Dflink.hadoop.version=2.10.2"
           container: flink-build-container

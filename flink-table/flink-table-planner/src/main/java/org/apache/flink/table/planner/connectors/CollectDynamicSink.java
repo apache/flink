@@ -206,6 +206,13 @@ public final class CollectDynamicSink implements DynamicTableSink {
                     || (this.rowIterator != null && this.rowIterator.firstRowProcessed)
                     || iterator.hasNext();
         }
+
+        @Override
+        public void reset() {
+            iterator = iterator.copy();
+            rowDataIterator = null;
+            rowIterator = null;
+        }
     }
 
     private static final class CloseableRowIteratorWrapper<T> implements CloseableIterator<T> {

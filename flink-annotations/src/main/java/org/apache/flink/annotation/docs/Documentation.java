@@ -106,6 +106,8 @@ public final class Documentation {
 
         public static final String METRIC_REPORTERS = "metric_reporters";
 
+        public static final String TRACE_REPORTERS = "trace_reporters";
+
         private Sections() {}
     }
 

@@ -116,7 +116,7 @@ public class DataStreamTest extends TestLogger {
     public void testErgonomicWatermarkStrategy() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<String> input = env.fromElements("bonjour");
+        DataStream<String> input = env.fromData("bonjour");
 
         // as soon as you have a chain of methods the first call needs a generic
         input.assignTimestampsAndWatermarks(
@@ -140,7 +140,7 @@ public class DataStreamTest extends TestLogger {
         env.setParallelism(4);
 
         DataStream<Long> input1 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -160,7 +160,7 @@ public class DataStreamTest extends TestLogger {
                                 });
 
         DataStream<Long> input6 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -181,7 +181,7 @@ public class DataStreamTest extends TestLogger {
                                 });
 
         DataStream<Long> input2 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -192,7 +192,7 @@ public class DataStreamTest extends TestLogger {
                         .setParallelism(4);
 
         DataStream<Long> input3 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -214,7 +214,7 @@ public class DataStreamTest extends TestLogger {
                         .setParallelism(4);
 
         DataStream<Long> input4 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -225,7 +225,7 @@ public class DataStreamTest extends TestLogger {
                         .setParallelism(2);
 
         DataStream<Long> input5 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .map(
                                 new MapFunction<Long, Long>() {
                                     @Override
@@ -313,7 +313,7 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Long> dataStream1 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .name("testSource1")
                         .map(
                                 new MapFunction<Long, Long>() {
@@ -325,7 +325,7 @@ public class DataStreamTest extends TestLogger {
                         .name("testMap");
 
         DataStream<Long> dataStream2 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .name("testSource2")
                         .map(
                                 new MapFunction<Long, Long>() {
@@ -383,8 +383,8 @@ public class DataStreamTest extends TestLogger {
     public void testPartitioning() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Tuple2<Long, Long>> src1 = env.fromElements(new Tuple2<>(0L, 0L));
-        DataStream<Tuple2<Long, Long>> src2 = env.fromElements(new Tuple2<>(0L, 0L));
+        DataStream<Tuple2<Long, Long>> src1 = env.fromData(new Tuple2<>(0L, 0L));
+        DataStream<Tuple2<Long, Long>> src2 = env.fromData(new Tuple2<>(0L, 0L));
         ConnectedStreams<Tuple2<Long, Long>, Tuple2<Long, Long>> connected = src1.connect(src2);
 
         // Testing DataStream grouping
@@ -599,7 +599,7 @@ public class DataStreamTest extends TestLogger {
     public void testParallelism() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Tuple2<Long, Long>> src = env.fromElements(new Tuple2<>(0L, 0L));
+        DataStreamSource<Tuple2<Long, Long>> src = env.fromData(new Tuple2<>(0L, 0L));
         env.setParallelism(10);
 
         SingleOutputStreamOperator<Long> map =
@@ -657,14 +657,7 @@ public class DataStreamTest extends TestLogger {
                         .getStreamNode(sink.getTransformation().getId())
                         .getParallelism());
 
-        try {
-            src.setParallelism(3);
-            fail();
-        } catch (IllegalArgumentException success) {
-            // do nothing
-        }
-
-        DataStreamSource<Long> parallelSource = env.generateSequence(0, 0);
+        DataStreamSource<Long> parallelSource = env.fromSequence(0, 0);
         parallelSource.sinkTo(new DiscardingSink<Long>());
         assertEquals(7, getStreamGraph(env).getStreamNode(parallelSource.getId()).getParallelism());
 
@@ -718,7 +711,7 @@ public class DataStreamTest extends TestLogger {
                         "setResources", ResourceSpec.class, ResourceSpec.class);
         sinkMethod.setAccessible(true);
 
-        DataStream<Long> source1 = env.generateSequence(0, 0);
+        DataStream<Long> source1 = env.fromSequence(0, 0);
         opMethod.invoke(source1, minResource1, preferredResource1);
 
         DataStream<Long> map1 =
@@ -731,7 +724,7 @@ public class DataStreamTest extends TestLogger {
                         });
         opMethod.invoke(map1, minResource2, preferredResource2);
 
-        DataStream<Long> source2 = env.generateSequence(0, 0);
+        DataStream<Long> source2 = env.fromSequence(0, 0);
         opMethod.invoke(source2, minResource3, preferredResource3);
 
         DataStream<Long> map2 =
@@ -830,7 +823,7 @@ public class DataStreamTest extends TestLogger {
     public void testTypeInfo() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Long> src1 = env.generateSequence(0, 0);
+        DataStream<Long> src1 = env.fromSequence(0, 0);
         assertEquals(TypeExtractor.getForClass(Long.class), src1.getType());
 
         DataStream<Tuple2<Integer, String>> map =
@@ -899,7 +892,7 @@ public class DataStreamTest extends TestLogger {
     @Deprecated
     public void testKeyedStreamProcessTranslation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Long> src = env.generateSequence(0, 0);
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
 
         ProcessFunction<Long, Integer> processFunction =
                 new ProcessFunction<Long, Integer>() {
@@ -934,7 +927,7 @@ public class DataStreamTest extends TestLogger {
     @Test
     public void testKeyedStreamKeyedProcessTranslation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Long> src = env.generateSequence(0, 0);
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
 
         KeyedProcessFunction<Long, Long, Integer> keyedProcessFunction =
                 new KeyedProcessFunction<Long, Long, Integer>() {
@@ -969,7 +962,7 @@ public class DataStreamTest extends TestLogger {
     @Test
     public void testProcessTranslation() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        DataStreamSource<Long> src = env.generateSequence(0, 0);
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
 
         ProcessFunction<Long, Integer> processFunction =
                 new ProcessFunction<Long, Integer>() {
@@ -1009,7 +1002,7 @@ public class DataStreamTest extends TestLogger {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<Long> srcOne =
-                env.generateSequence(0L, 5L)
+                env.fromSequence(0L, 5L)
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<Long>() {
 
@@ -1022,7 +1015,7 @@ public class DataStreamTest extends TestLogger {
                         .keyBy((KeySelector<Long, Long>) value -> value);
 
         final DataStream<String> srcTwo =
-                env.fromElements("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
+                env.fromData("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<String>() {
                                     @Override
@@ -1063,7 +1056,7 @@ public class DataStreamTest extends TestLogger {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<Long> srcOne =
-                env.generateSequence(0L, 5L)
+                env.fromSequence(0L, 5L)
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<Long>() {
 
@@ -1075,7 +1068,7 @@ public class DataStreamTest extends TestLogger {
                                 });
 
         final DataStream<String> srcTwo =
-                env.fromElements("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
+                env.fromData("Test:0", "Test:1", "Test:2", "Test:3", "Test:4", "Test:5")
                         .assignTimestampsAndWatermarks(
                                 new CustomWmEmitter<String>() {
                                     @Override
@@ -1112,7 +1105,7 @@ public class DataStreamTest extends TestLogger {
         // global window
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         DataStream<Long> dataStream1 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .windowAll(GlobalWindows.create())
                         .trigger(PurgingTrigger.of(CountTrigger.of(10)))
                         .reduce(
@@ -1135,7 +1128,7 @@ public class DataStreamTest extends TestLogger {
 
         // keyed window
         DataStream<Long> dataStream2 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .keyBy(value -> value)
                         .window(TumblingEventTimeWindows.of(Time.milliseconds(1000)))
                         .trigger(PurgingTrigger.of(CountTrigger.of(10)))
@@ -1166,7 +1159,7 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Long> dataStream1 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .name("testSource1")
                         .setDescription("this is test source 1")
                         .map(
@@ -1180,7 +1173,7 @@ public class DataStreamTest extends TestLogger {
                         .setDescription("this is test map 1");
 
         DataStream<Long> dataStream2 =
-                env.generateSequence(0, 0)
+                env.fromSequence(0, 0)
                         .name("testSource2")
                         .setDescription("this is test source 2")
                         .map(
@@ -1248,7 +1241,7 @@ public class DataStreamTest extends TestLogger {
     public void operatorTest() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Long> src = env.generateSequence(0, 0);
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
 
         MapFunction<Long, Integer> mapFunction =
                 new MapFunction<Long, Integer>() {
@@ -1334,8 +1327,8 @@ public class DataStreamTest extends TestLogger {
     public void testKeyedConnectedStreamsType() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Integer> stream1 = env.fromElements(1, 2);
-        DataStreamSource<Integer> stream2 = env.fromElements(1, 2);
+        DataStreamSource<Integer> stream1 = env.fromData(1, 2);
+        DataStreamSource<Integer> stream2 = env.fromData(1, 2);
 
         ConnectedStreams<Integer, Integer> connectedStreams =
                 stream1.connect(stream2).keyBy(v -> v, v -> v);
@@ -1350,7 +1343,7 @@ public class DataStreamTest extends TestLogger {
     public void sinkKeyTest() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSink<Long> sink = env.generateSequence(1, 100).print();
+        DataStreamSink<Long> sink = env.fromSequence(1, 100).print();
         assertEquals(
                 0,
                 getStreamGraph(env)
@@ -1376,7 +1369,7 @@ public class DataStreamTest extends TestLogger {
                     }
                 };
 
-        DataStreamSink<Long> sink2 = env.generateSequence(1, 100).keyBy(key1).print();
+        DataStreamSink<Long> sink2 = env.fromSequence(1, 100).keyBy(key1).print();
 
         assertEquals(
                 1,
@@ -1416,7 +1409,7 @@ public class DataStreamTest extends TestLogger {
                     }
                 };
 
-        DataStreamSink<Long> sink3 = env.generateSequence(1, 100).keyBy(key2).print();
+        DataStreamSink<Long> sink3 = env.fromSequence(1, 100).keyBy(key2).print();
 
         assertEquals(
                 1,
@@ -1442,7 +1435,7 @@ public class DataStreamTest extends TestLogger {
     public void testChannelSelectors() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStreamSource<Long> src = env.generateSequence(0, 0);
+        DataStreamSource<Long> src = env.fromSequence(0, 0);
 
         DataStream<Long> broadcast = src.broadcast();
         DataStreamSink<Long> broadcastSink = broadcast.print();
@@ -1556,7 +1549,7 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<Integer[], String>> input =
-                env.fromElements(new Tuple2<>(new Integer[] {1, 2}, "barfoo"));
+                env.fromData(new Tuple2<>(new Integer[] {1, 2}, "barfoo"));
 
         Assert.assertEquals(
                 expectedKeyType, TypeExtractor.getKeySelectorTypes(keySelector, input.getType()));
@@ -1576,7 +1569,7 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<TestEnum, String>> input =
-                env.fromElements(Tuple2.of(TestEnum.FOO, "Foo"), Tuple2.of(TestEnum.BAR, "Bar"));
+                env.fromData(Tuple2.of(TestEnum.FOO, "Foo"), Tuple2.of(TestEnum.BAR, "Bar"));
 
         expectedException.expect(InvalidProgramException.class);
         expectedException.expectMessage(
@@ -1592,8 +1585,7 @@ public class DataStreamTest extends TestLogger {
     public void testPOJOWithNestedArrayNoHashCodeKeyRejection() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<POJOWithHashCode> input =
-                env.fromElements(new POJOWithHashCode(new int[] {1, 2}));
+        DataStream<POJOWithHashCode> input = env.fromData(new POJOWithHashCode(new int[] {1, 2}));
 
         TypeInformation<?> expectedTypeInfo =
                 new TupleTypeInfo<Tuple1<int[]>>(
@@ -1611,8 +1603,7 @@ public class DataStreamTest extends TestLogger {
     public void testPOJOWithNestedArrayAndHashCodeWorkAround() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<POJOWithHashCode> input =
-                env.fromElements(new POJOWithHashCode(new int[] {1, 2}));
+        DataStream<POJOWithHashCode> input = env.fromData(new POJOWithHashCode(new int[] {1, 2}));
 
         input.keyBy(
                         new KeySelector<POJOWithHashCode, POJOWithHashCode>() {
@@ -1645,7 +1636,7 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<POJOWithoutHashCode> input =
-                env.fromElements(new POJOWithoutHashCode(new int[] {1, 2}));
+                env.fromData(new POJOWithoutHashCode(new int[] {1, 2}));
 
         // adjust the rule
         expectedException.expect(InvalidProgramException.class);
@@ -1660,7 +1651,7 @@ public class DataStreamTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<Integer[], String>> input =
-                env.fromElements(new Tuple2<>(new Integer[] {1, 2}, "test-test"));
+                env.fromData(new Tuple2<>(new Integer[] {1, 2}, "test-test"));
 
         TypeInformation<?> expectedTypeInfo =
                 new TupleTypeInfo<Tuple2<Integer[], String>>(
@@ -1687,7 +1678,7 @@ public class DataStreamTest extends TestLogger {
         env.setParallelism(1);
         env.setMaxParallelism(1);
 
-        DataStream<Integer> input = env.fromElements(new Integer(10000));
+        DataStream<Integer> input = env.fromData(new Integer(10000));
 
         KeyedStream<Integer, Object> keyedStream =
                 input.keyBy(

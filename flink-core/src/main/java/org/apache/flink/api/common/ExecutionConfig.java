@@ -149,12 +149,19 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     @Deprecated private long executionRetryDelay = DEFAULT_RESTART_DELAY;
 
+    /**
+     * @deprecated The field is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
+     */
+    @Deprecated
     private RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration =
             new RestartStrategies.FallbackRestartStrategyConfiguration();
 
     // ------------------------------- User code values --------------------------------------------
-
-    private GlobalJobParameters globalJobParameters = new GlobalJobParameters();
 
     // Serializers and types registered with Kryo and the PojoSerializer
     // we store them in linked maps/sets to ensure they are registered in order in all kryo
@@ -436,8 +443,15 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      * 	1000 // delay between retries));
      * }</pre>
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
      * @param restartStrategyConfiguration Configuration defining the restart strategy to use
      */
+    @Deprecated
     @PublicEvolving
     public void setRestartStrategy(
             RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
@@ -448,10 +462,16 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     /**
      * Returns the restart strategy which has been set for the current job.
      *
+     * @deprecated The method is marked as deprecated because starting from Flink 1.19, the usage of
+     *     all complex Java objects related to configuration, including their getter and setter
+     *     methods, should be replaced by ConfigOption. In a future major version of Flink, this
+     *     method will be removed entirely. It is recommended to switch to using the ConfigOptions
+     *     provided by {@link org.apache.flink.configuration.RestartStrategyOptions} for configuring
+     *     restart strategies.
      * @return The specified restart configuration
      */
+    @Deprecated
     @PublicEvolving
-    @SuppressWarnings("deprecation")
     public RestartStrategies.RestartStrategyConfiguration getRestartStrategy() {
         if (restartStrategyConfiguration
                 instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
@@ -762,7 +782,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     }
 
     public GlobalJobParameters getGlobalJobParameters() {
-        return globalJobParameters;
+        return configuration
+                .getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
+                .map(MapBasedJobParameters::new)
+                .orElse(new MapBasedJobParameters(Collections.emptyMap()));
     }
 
     /**
@@ -772,7 +795,11 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
      */
     public void setGlobalJobParameters(GlobalJobParameters globalJobParameters) {
         Preconditions.checkNotNull(globalJobParameters, "globalJobParameters shouldn't be null");
-        this.globalJobParameters = globalJobParameters;
+        setGlobalJobParameters(globalJobParameters.toMap());
+    }
+
+    private void setGlobalJobParameters(Map<String, String> parameters) {
+        configuration.set(PipelineOptions.GLOBAL_JOB_PARAMETERS, parameters);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -985,7 +1012,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                             || (null != restartStrategyConfiguration
                                     && restartStrategyConfiguration.equals(
                                             other.restartStrategyConfiguration)))
-                    && Objects.equals(globalJobParameters, other.globalJobParameters)
                     && registeredTypesWithKryoSerializerClasses.equals(
                             other.registeredTypesWithKryoSerializerClasses)
                     && defaultKryoSerializerClasses.equals(other.defaultKryoSerializerClasses)
@@ -1002,7 +1028,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         return Objects.hash(
                 configuration,
                 restartStrategyConfiguration,
-                globalJobParameters,
                 registeredTypesWithKryoSerializerClasses,
                 defaultKryoSerializerClasses,
                 registeredKryoTypes,
@@ -1018,8 +1043,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
                 + executionRetryDelay
                 + ", restartStrategyConfiguration="
                 + restartStrategyConfiguration
-                + ", globalJobParameters="
-                + globalJobParameters
                 + ", registeredTypesWithKryoSerializers="
                 + registeredTypesWithKryoSerializers
                 + ", registeredTypesWithKryoSerializerClasses="
@@ -1150,7 +1173,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
         configuration.getOptional(PipelineOptions.FORCE_KRYO).ifPresent(this::setForceKryo);
         configuration
                 .getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
-                .<GlobalJobParameters>map(MapBasedJobParameters::new)
                 .ifPresent(this::setGlobalJobParameters);
 
         configuration
@@ -1202,7 +1224,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
     /**
      * @return A copy of internal {@link #configuration}. Note it is missing all options that are
      *     stored as plain java fields in {@link ExecutionConfig}, for example {@link
-     *     #registeredKryoTypes} or {@link #globalJobParameters}.
+     *     #registeredKryoTypes}.
      */
     @Internal
     public Configuration toConfiguration() {

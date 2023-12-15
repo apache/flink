@@ -1002,7 +1002,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         return dispatcherCachedOperationsHandler.getCheckpointStatus(operationKey);
     }
 
-    private CompletableFuture<Long> triggerCheckpointAndGetCheckpointID(
+    @Override
+    public CompletableFuture<Long> triggerCheckpointAndGetCheckpointID(
             final JobID jobID, final CheckpointType checkpointType, final Time timeout) {
         return performOperationOnJobMasterGateway(
                 jobID,

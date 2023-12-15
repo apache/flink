@@ -23,14 +23,14 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
 
-import org.junit.{Before, Test}
+import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.time.Duration
 
 class TwoStageAggregateTest extends TableTestBase {
 
   private var util: StreamTableTestUtil = _
-  @Before
+  @BeforeEach
   def before(): Unit = {
     util = streamTestUtil()
     util.tableEnv.getConfig

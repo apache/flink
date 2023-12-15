@@ -575,9 +575,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         final CompletableFuture<? extends Throwable> errorFuture =
                 this.testingFatalErrorHandlerResource.getFatalErrorHandler().getErrorFuture();
-        assertThat(
-                errorFuture.get(100, TimeUnit.MILLISECONDS),
-                IsInstanceOf.instanceOf(FlinkException.class));
+        assertThat(errorFuture.get(), IsInstanceOf.instanceOf(FlinkException.class));
         testingFatalErrorHandlerResource.getFatalErrorHandler().clearError();
     }
 

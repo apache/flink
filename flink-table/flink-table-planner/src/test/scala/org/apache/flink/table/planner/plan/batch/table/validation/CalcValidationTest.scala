@@ -21,88 +21,86 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit._
-import org.junit.Assert._
+import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import org.junit.jupiter.api.Test
 
 class CalcValidationTest extends TableTestBase {
 
   @Test
   def testSelectInvalidFieldFields(): Unit = {
-    expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Cannot resolve field [foo], input field list:[a, b, c].")
     val util = batchTestUtil()
-    util
-      .addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
-      // must fail. Field 'foo does not exist
-      .select('a, 'foo)
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () =>
+          util
+            .addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+            // must fail. Field 'foo does not exist
+            .select('a, 'foo))
+      .withMessageContaining("Cannot resolve field [foo], input field list:[a, b, c].")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testFilterInvalidFieldName(): Unit = {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // must fail. Field 'foo does not exist
-    t.filter('foo === 2)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.filter('foo === 2))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSelectInvalidField() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // Must fail. Field foo does not exist
-    t.select($"a" + 1, $"foo" + 2)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select($"a" + 1, $"foo" + 2))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSelectAmbiguousFieldNames() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // Must fail. Field foo does not exist
-    t.select(($"a" + 1).as("foo"), ($"b" + 2).as("foo"))
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.select(($"a" + 1).as("foo"), ($"b" + 2).as("foo")))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testFilterInvalidField() {
     val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // Must fail. Field foo does not exist.
-    t.filter($"foo" === 17)
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => t.filter($"foo" === 17))
   }
 
   @Test
   def testAliasStarException(): Unit = {
     val util = batchTestUtil()
 
-    try {
-      util.addTableSource[(Int, Long, String)]("Table1", '*, 'b, 'c)
-      fail("TableException expected")
-    } catch {
-      case _: ValidationException => // ignore
-    }
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.addTableSource[(Int, Long, String)]("Table1", '*, 'b, 'c))
 
-    try {
-      util.addTableSource[(Int, Long, String)]("Table3").as("*", "b", "c")
-      fail("ValidationException expected")
-    } catch {
-      case _: ValidationException => // ignore
-    }
-    try {
-      util.addTableSource[(Int, Long, String)]("Table4", 'a, 'b, 'c).select('*, 'b)
-      fail("ValidationException expected")
-    } catch {
-      case _: ValidationException => // ignore
-    }
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.addTableSource[(Int, Long, String)]("Table3").as("*", "b", "c"))
+
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () => util.addTableSource[(Int, Long, String)]("Table4", 'a, 'b, 'c).select('*, 'b))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDuplicateFlattening(): Unit = {
     val util = batchTestUtil()
     val table = util.addTableSource[((Int, Long), (String, Boolean), String)]("MyTable", 'a, 'b, 'c)
 
-    table.select('a.flatten(), 'a.flatten())
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => table.select('a.flatten(), 'a.flatten()))
   }
 }

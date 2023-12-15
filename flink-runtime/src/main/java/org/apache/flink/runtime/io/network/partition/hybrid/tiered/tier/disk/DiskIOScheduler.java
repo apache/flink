@@ -48,6 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -81,12 +82,6 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
     private final BatchShuffleReadBufferPool bufferPool;
 
     /**
-     * The maximum number of buffers that can be allocated and still not recycled for a
-     * subpartition, which ensures that each subpartition can be consumed evenly.
-     */
-    private final int maxBufferReadAhead;
-
-    /**
      * The maximum number of buffers that can be allocated and still not recycled by a single {@link
      * DiskIOScheduler} for all subpartitions. This ensures that different {@link DiskIOScheduler}s
      * in the TaskManager can evenly use the buffer pool.
@@ -100,10 +95,11 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
     private final Duration bufferRequestTimeout;
 
     /**
-     * Retrieve the segment id if the buffer index represents the first buffer. The first integer is
-     * the id of subpartition, and the second integer is buffer index and the value is segment id.
+     * Get the segment id if the buffer index represents the first buffer in a segment. The first
+     * integer is the id of subpartition, and the second integer is buffer index and the value is
+     * segment id.
      */
-    private final BiFunction<Integer, Integer, Integer> firstBufferIndexInSegmentRetriever;
+    private final BiFunction<Integer, Integer, Integer> segmentIdGetter;
 
     private final PartitionFileReader partitionFileReader;
 
@@ -126,16 +122,14 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
             ScheduledExecutorService ioExecutor,
             int maxRequestedBuffers,
             Duration bufferRequestTimeout,
-            int maxBufferReadAhead,
-            BiFunction<Integer, Integer, Integer> firstBufferIndexInSegmentRetriever,
+            BiFunction<Integer, Integer, Integer> segmentIdGetter,
             PartitionFileReader partitionFileReader) {
         this.partitionId = partitionId;
         this.bufferPool = checkNotNull(bufferPool);
         this.ioExecutor = checkNotNull(ioExecutor);
         this.maxRequestedBuffers = maxRequestedBuffers;
         this.bufferRequestTimeout = checkNotNull(bufferRequestTimeout);
-        this.maxBufferReadAhead = maxBufferReadAhead;
-        this.firstBufferIndexInSegmentRetriever = firstBufferIndexInSegmentRetriever;
+        this.segmentIdGetter = segmentIdGetter;
         this.partitionFileReader = partitionFileReader;
         bufferPool.registerRequester(this);
     }
@@ -148,7 +142,11 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
             isRunning = false;
         }
         if (numBuffersRead == 0) {
-            ioExecutor.schedule(this::triggerScheduling, 5, TimeUnit.MILLISECONDS);
+            try {
+                ioExecutor.schedule(this::triggerScheduling, 5, TimeUnit.MILLISECONDS);
+            } catch (RejectedExecutionException e) {
+                ignoreRejectedExecutionOnShutdown(e);
+            }
         } else {
             triggerScheduling();
         }
@@ -302,24 +300,34 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
                             <= maxRequestedBuffers
                     && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
                 isRunning = true;
-                ioExecutor.execute(
-                        () -> {
-                            try {
-                                run();
-                            } catch (Throwable throwable) {
-                                LOG.error("Failed to read data.", throwable);
-                                // handle un-expected exception as unhandledExceptionHandler is not
-                                // worked for ScheduledExecutorService.
-                                FatalExitExceptionHandler.INSTANCE.uncaughtException(
-                                        Thread.currentThread(), throwable);
-                            }
-                        });
+                try {
+                    ioExecutor.execute(
+                            () -> {
+                                try {
+                                    run();
+                                } catch (Throwable throwable) {
+                                    LOG.error("Failed to read data.", throwable);
+                                    // handle un-expected exception as unhandledExceptionHandler is
+                                    // not worked for ScheduledExecutorService.
+                                    FatalExitExceptionHandler.INSTANCE.uncaughtException(
+                                            Thread.currentThread(), throwable);
+                                }
+                            });
+                } catch (RejectedExecutionException e) {
+                    ignoreRejectedExecutionOnShutdown(e);
+                }
             }
         }
     }
 
     private long getBufferRequestTimeoutTime() {
         return bufferPool.getLastBufferOperationTimestamp() + bufferRequestTimeout.toMillis();
+    }
+
+    private void ignoreRejectedExecutionOnShutdown(RejectedExecutionException e) {
+        LOG.warn(
+                "Attempt to submit a task to the shut down batch read thread pool should be ignored. No more tasks should be accepted.",
+                e);
     }
 
     /**
@@ -478,8 +486,7 @@ public class DiskIOScheduler implements Runnable, BufferRecycler, NettyServicePr
 
         private void updateSegmentId() {
             Integer segmentId =
-                    firstBufferIndexInSegmentRetriever.apply(
-                            subpartitionId.getSubpartitionId(), nextBufferIndex);
+                    segmentIdGetter.apply(subpartitionId.getSubpartitionId(), nextBufferIndex);
             if (segmentId != null) {
                 nextSegmentId = segmentId;
                 writeToNettyConnectionWriter(NettyPayload.newSegment(segmentId));

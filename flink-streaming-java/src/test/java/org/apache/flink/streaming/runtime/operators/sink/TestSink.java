@@ -49,7 +49,13 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertNotNull;
 
-/** A {@link Sink TestSink} for all the sink related tests. */
+/**
+ * A {@link Sink TestSink} for all the sink related tests. Use only for tests where {@link
+ * SinkV1Adapter} should be tested.
+ *
+ * @deprecated Use {@link TestSinkV2} instead.
+ */
+@Deprecated
 public class TestSink<T> implements Sink<T, String, String, String> {
 
     public static final String END_OF_INPUT_STR = "end of input";
@@ -178,11 +184,6 @@ public class TestSink<T> implements Sink<T, String, String, String> {
         public Builder<T> setDefaultCommitter(Supplier<Queue<String>> queueSupplier) {
             this.committer = new DefaultCommitter(queueSupplier);
             this.committableSerializer = StringCommittableSerializer.INSTANCE;
-            return this;
-        }
-
-        public Builder<T> setGlobalCommitter(GlobalCommitter<String, String> globalCommitter) {
-            this.globalCommitter = globalCommitter;
             return this;
         }
 
@@ -363,10 +364,6 @@ public class TestSink<T> implements Sink<T, String, String, String> {
 
         private final String committedSuccessData;
 
-        DefaultGlobalCommitter() {
-            this("");
-        }
-
         DefaultGlobalCommitter(String committedSuccessData) {
             this.committedSuccessData = committedSuccessData;
         }
@@ -394,39 +391,6 @@ public class TestSink<T> implements Sink<T, String, String, String> {
         @Override
         public void endOfInput() {
             commit(Collections.singletonList(END_OF_INPUT_STR));
-        }
-    }
-
-    /** A {@link GlobalCommitter} that always re-commits global committables it received. */
-    static class RetryOnceGlobalCommitter extends DefaultGlobalCommitter {
-
-        private final Set<String> seen = new LinkedHashSet<>();
-
-        @Override
-        public List<String> filterRecoveredCommittables(List<String> globalCommittables) {
-            return globalCommittables;
-        }
-
-        @Override
-        public String combine(List<String> committables) {
-            return String.join("|", committables);
-        }
-
-        @Override
-        public void endOfInput() {}
-
-        @Override
-        public List<String> commit(List<String> committables) {
-            committables.forEach(
-                    c -> {
-                        if (seen.remove(c)) {
-                            checkNotNull(committedData);
-                            committedData.add(c);
-                        } else {
-                            seen.add(c);
-                        }
-                    });
-            return new ArrayList<>(seen);
         }
     }
 

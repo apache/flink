@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 
 /**
  * Internal implementation to commit a specific committable and handle the response.
@@ -32,16 +33,23 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
     private CommT committable;
     private int numRetries;
     private CommitRequestState state;
+    private SinkCommitterMetricGroup metricGroup;
 
-    protected CommitRequestImpl(CommT committable) {
+    protected CommitRequestImpl(CommT committable, SinkCommitterMetricGroup metricGroup) {
         this.committable = committable;
+        this.metricGroup = metricGroup;
         state = CommitRequestState.RECEIVED;
     }
 
-    protected CommitRequestImpl(CommT committable, int numRetries, CommitRequestState state) {
+    protected CommitRequestImpl(
+            CommT committable,
+            int numRetries,
+            CommitRequestState state,
+            SinkCommitterMetricGroup metricGroup) {
         this.committable = committable;
         this.numRetries = numRetries;
         this.state = state;
+        this.metricGroup = metricGroup;
     }
 
     boolean isFinished() {
@@ -65,14 +73,14 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
     @Override
     public void signalFailedWithKnownReason(Throwable t) {
         state = CommitRequestState.FAILED;
-        // TODO: FLINK-25857 add metric later
+        metricGroup.getNumCommittablesFailureCounter().inc();
         // let the user configure a strategy for failing and apply it here
     }
 
     @Override
     public void signalFailedWithUnknownReason(Throwable t) {
         state = CommitRequestState.FAILED;
-        // TODO: FLINK-25857 add metric later
+        metricGroup.getNumCommittablesFailureCounter().inc();
         // let the user configure a strategy for failing and apply it here
         throw new IllegalStateException("Failed to commit " + committable, t);
     }
@@ -81,7 +89,7 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
     public void retryLater() {
         state = CommitRequestState.RETRY;
         numRetries++;
-        // TODO: FLINK-25857 add metric later
+        metricGroup.getNumCommittablesRetryCounter().inc();
     }
 
     @Override
@@ -92,8 +100,8 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
 
     @Override
     public void signalAlreadyCommitted() {
-        // TODO: FLINK-25857 add metric later
         state = CommitRequestState.COMMITTED;
+        metricGroup.getNumCommittablesAlreadyCommittedCounter().inc();
     }
 
     void setSelected() {
@@ -103,10 +111,11 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
     void setCommittedIfNoError() {
         if (state == CommitRequestState.RECEIVED) {
             state = CommitRequestState.COMMITTED;
+            metricGroup.getNumCommittablesSuccessCounter().inc();
         }
     }
 
     CommitRequestImpl<CommT> copy() {
-        return new CommitRequestImpl<>(committable, numRetries, state);
+        return new CommitRequestImpl<>(committable, numRetries, state, metricGroup);
     }
 }

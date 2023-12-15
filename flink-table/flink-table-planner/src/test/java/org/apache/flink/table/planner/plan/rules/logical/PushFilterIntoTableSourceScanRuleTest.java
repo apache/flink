@@ -30,15 +30,14 @@ import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /** Test for {@link PushFilterIntoTableSourceScanRule}. */
-public class PushFilterIntoTableSourceScanRuleTest
-        extends PushFilterIntoTableSourceScanRuleTestBase {
+class PushFilterIntoTableSourceScanRuleTest extends PushFilterIntoTableSourceScanRuleTestBase {
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup() {
         util = batchTestUtil(TableConfig.getDefault());
         ((BatchTableTestUtil) util).buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
         CalciteConfig calciteConfig =
@@ -122,7 +121,7 @@ public class PushFilterIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testLowerUpperPushdown() {
+    void testLowerUpperPushdown() {
         String ddl =
                 "CREATE TABLE MTable (\n"
                         + "  a STRING,\n"
@@ -137,7 +136,7 @@ public class PushFilterIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testWithInterval() {
+    void testWithInterval() {
         String ddl =
                 "CREATE TABLE MTable (\n"
                         + "a TIMESTAMP(3),\n"
@@ -153,31 +152,31 @@ public class PushFilterIntoTableSourceScanRuleTest
     }
 
     @Test
-    public void testBasicNestedFilter() {
+    void testBasicNestedFilter() {
         util.verifyRelPlan("SELECT * FROM NestedTable WHERE deepNested.nested1.`value` > 2");
     }
 
     @Test
-    public void testNestedFilterWithDotInTheName() {
+    void testNestedFilterWithDotInTheName() {
         util.verifyRelPlan(
                 "SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.`.value` > 5");
     }
 
     @Test
-    public void testNestedFilterWithBacktickInTheName() {
+    void testNestedFilterWithBacktickInTheName() {
         util.verifyRelPlan(
                 "SELECT id FROM NestedTable WHERE `deepNestedWith.`.nested.```name` = 'foo'");
     }
 
     @Test
-    public void testNestedFilterOnMapKey() {
+    void testNestedFilterOnMapKey() {
         util.verifyRelPlan(
                 "SELECT * FROM NestedItemTable WHERE"
                         + " `Result`.`Mid`.data_map['item'].`value` = 3");
     }
 
     @Test
-    public void testNestedFilterOnArrayField() {
+    void testNestedFilterOnArrayField() {
         util.verifyRelPlan(
                 "SELECT * FROM NestedItemTable WHERE `Result`.`Mid`.data_arr[2].`value` = 3");
     }

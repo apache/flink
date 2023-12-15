@@ -23,15 +23,15 @@
             } ],
             "watermarkSpecs" : [ ],
             "primaryKey" : {
-              "name" : "PK_-147132882",
+              "name" : "PK_user_id",
               "type" : "PRIMARY_KEY",
               "columns" : [ "user_id" ]
             }
           },
           "partitionKeys" : [ ],
           "options" : {
-            "connector" : "values",
-            "changelog-mode" : "I,UA,UB,D"
+            "changelog-mode" : "I,UA,UB,D",
+            "connector" : "values"
           }
         }
       }
@@ -104,15 +104,15 @@
             } ],
             "watermarkSpecs" : [ ],
             "primaryKey" : {
-              "name" : "PK_96619451",
+              "name" : "PK_email",
               "type" : "PRIMARY_KEY",
               "columns" : [ "email" ]
             }
           },
           "partitionKeys" : [ ],
           "options" : {
-            "sink-insert-only" : "false",
-            "connector" : "values"
+            "connector" : "values",
+            "sink-insert-only" : "false"
           }
         }
       }

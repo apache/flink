@@ -45,7 +45,10 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.commons.lang3.ArrayUtils;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -76,7 +79,8 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
     protected boolean canPushDown(
             RelOptRuleCall call,
             BatchPhysicalGroupAggregateBase aggregate,
-            BatchPhysicalTableSourceScan tableSourceScan) {
+            BatchPhysicalTableSourceScan tableSourceScan,
+            @Nullable BatchPhysicalCalc calc) {
         TableConfig tableConfig = ShortcutUtils.unwrapContext(call.getPlanner()).getTableConfig();
         if (!tableConfig.get(
                 OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED)) {
@@ -86,9 +90,24 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
         if (aggregate.isFinal() || aggregate.getAggCallList().isEmpty()) {
             return false;
         }
+
         List<AggregateCall> aggCallList =
                 JavaScalaConversionUtil.toJava(aggregate.getAggCallList());
         for (AggregateCall aggCall : aggCallList) {
+            // We should try best to push down count(*) and count(n) even if it was optimized to a
+            // calc as '0 AS $f0' to reduce read cost.
+            if (aggCall.getAggregation().kind != SqlKind.COUNT && calc != null) {
+                if (!isInputRefOnly(calc) || !isProjectionNotPushedDown(tableSourceScan)) {
+                    return false;
+                }
+            } else if (aggCall.getAggregation().kind == SqlKind.COUNT && calc != null) {
+                // count(*) push down shouldn't have filter condition upon source. For example
+                // 'select count(*) from source where a > 10' cannot push down now.
+                if (calc.getProgram().getCondition() != null) {
+                    return false;
+                }
+            }
+
             if (aggCall.isDistinct()
                     || aggCall.isApproximate()
                     || aggCall.getArgList().size() > 1
@@ -108,20 +127,19 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
     protected void pushLocalAggregateIntoScan(
             RelOptRuleCall call,
             BatchPhysicalGroupAggregateBase localAgg,
-            BatchPhysicalTableSourceScan oldScan) {
-        pushLocalAggregateIntoScan(call, localAgg, oldScan, null);
-    }
-
-    protected void pushLocalAggregateIntoScan(
-            RelOptRuleCall call,
-            BatchPhysicalGroupAggregateBase localAgg,
             BatchPhysicalTableSourceScan oldScan,
-            int[] calcRefFields) {
+            @Nullable BatchPhysicalCalc calc) {
         RowType inputType = FlinkTypeFactory.toLogicalRowType(oldScan.getRowType());
         List<int[]> groupingSets =
                 Collections.singletonList(
                         ArrayUtils.addAll(localAgg.grouping(), localAgg.auxGrouping()));
         List<AggregateCall> aggCallList = JavaScalaConversionUtil.toJava(localAgg.getAggCallList());
+
+        // For count(*) and count(n) we need to ignore the calc.
+        int[] calcRefFields = null;
+        if (calc != null && isInputRefOnly(calc) && isProjectionNotPushedDown(oldScan)) {
+            calcRefFields = getRefFiledIndex(calc);
+        }
 
         // map arg index in aggregate to field index in scan through referred fields by calc.
         if (calcRefFields != null) {

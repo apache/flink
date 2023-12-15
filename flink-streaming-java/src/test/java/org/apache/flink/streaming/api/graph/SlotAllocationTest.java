@@ -53,7 +53,7 @@ public class SlotAllocationTest extends TestLogger {
                     }
                 };
 
-        env.generateSequence(1, 10)
+        env.fromSequence(1, 10)
                 .filter(dummyFilter)
                 .slotSharingGroup("isolated")
                 .filter(dummyFilter)
@@ -67,7 +67,7 @@ public class SlotAllocationTest extends TestLogger {
                 .disableChaining();
 
         // verify that a second pipeline does not inherit the groups from the first pipeline
-        env.generateSequence(1, 10)
+        env.fromSequence(1, 10)
                 .filter(dummyFilter)
                 .slotSharingGroup("isolated-2")
                 .filter(dummyFilter)
@@ -122,14 +122,14 @@ public class SlotAllocationTest extends TestLogger {
                     }
                 };
 
-        DataStream<Long> src1 = env.generateSequence(1, 10);
-        DataStream<Long> src2 = env.generateSequence(1, 10).slotSharingGroup("src-1");
+        DataStream<Long> src1 = env.fromSequence(1, 10);
+        DataStream<Long> src2 = env.fromSequence(1, 10).slotSharingGroup("src-1");
 
         // this should not inherit group "src-1"
         src1.union(src2).filter(dummyFilter);
 
-        DataStream<Long> src3 = env.generateSequence(1, 10).slotSharingGroup("group-1");
-        DataStream<Long> src4 = env.generateSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src3 = env.fromSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src4 = env.fromSequence(1, 10).slotSharingGroup("group-1");
 
         // this should inherit "group-1" now
         src3.union(src4).filter(dummyFilter);
@@ -165,8 +165,8 @@ public class SlotAllocationTest extends TestLogger {
                     }
                 };
 
-        DataStream<Long> src1 = env.generateSequence(1, 10).slotSharingGroup("group-1");
-        DataStream<Long> src2 = env.generateSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src1 = env.fromSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src2 = env.fromSequence(1, 10).slotSharingGroup("group-1");
 
         // this should not inherit group but be in "default"
         src1.union(src2).filter(dummyFilter).slotSharingGroup("default");
@@ -198,14 +198,14 @@ public class SlotAllocationTest extends TestLogger {
                     }
                 };
 
-        DataStream<Long> src1 = env.generateSequence(1, 10);
-        DataStream<Long> src2 = env.generateSequence(1, 10).slotSharingGroup("src-1");
+        DataStream<Long> src1 = env.fromSequence(1, 10);
+        DataStream<Long> src2 = env.fromSequence(1, 10).slotSharingGroup("src-1");
 
         // this should not inherit group "src-1"
         src1.connect(src2).map(dummyCoMap);
 
-        DataStream<Long> src3 = env.generateSequence(1, 10).slotSharingGroup("group-1");
-        DataStream<Long> src4 = env.generateSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src3 = env.fromSequence(1, 10).slotSharingGroup("group-1");
+        DataStream<Long> src4 = env.fromSequence(1, 10).slotSharingGroup("group-1");
 
         // this should inherit "group-1" now
         src3.connect(src4).map(dummyCoMap);

@@ -113,12 +113,12 @@ public class SavepointWriterITCase extends AbstractTestBase {
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         StateBootstrapTransformation<Account> transformation =
-                OperatorTransformation.bootstrapWith(env.fromCollection(accounts))
+                OperatorTransformation.bootstrapWith(env.fromData(accounts))
                         .keyBy(acc -> acc.id)
                         .transform(new AccountBootstrapper());
 
         StateBootstrapTransformation<CurrencyRate> broadcastTransformation =
-                OperatorTransformation.bootstrapWith(env.fromCollection(currencyRates))
+                OperatorTransformation.bootstrapWith(env.fromData(currencyRates))
                         .transform(new CurrencyBootstrapFunction());
 
         SavepointWriter writer =
@@ -141,15 +141,15 @@ public class SavepointWriterITCase extends AbstractTestBase {
         }
 
         DataStream<Account> stream =
-                env.fromCollection(accounts)
+                env.fromData(accounts)
                         .keyBy(acc -> acc.id)
                         .flatMap(new UpdateAndGetAccount())
                         .uid(ACCOUNT_UID);
 
         final CloseableIterator<Account> results = stream.collectAsync();
 
-        env.fromCollection(currencyRates)
-                .connect(env.fromCollection(currencyRates).broadcast(descriptor))
+        env.fromData(currencyRates)
+                .connect(env.fromData(currencyRates).broadcast(descriptor))
                 .process(new CurrencyValidationFunction())
                 .uid(CURRENCY_UID)
                 .sinkTo(new DiscardingSink<>());
@@ -170,7 +170,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
         StateBootstrapTransformation<Integer> transformation =
-                OperatorTransformation.bootstrapWith(env.fromElements(1, 2, 3))
+                OperatorTransformation.bootstrapWith(env.fromData(1, 2, 3))
                         .transform(new ModifyProcessFunction());
 
         SavepointWriter writer =
@@ -192,7 +192,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
         }
 
         DataStream<Account> stream =
-                sEnv.fromCollection(accounts)
+                sEnv.fromData(accounts)
                         .keyBy(acc -> acc.id)
                         .flatMap(new UpdateAndGetAccount())
                         .uid(ACCOUNT_UID);

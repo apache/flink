@@ -72,7 +72,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     private CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
-    private CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
+    private CompletableFuture<Void> cleanupAllDataFuture = new CompletableFuture<>();
 
     private volatile CompletableFuture<JobID> globalCleanupFuture;
 
@@ -142,9 +142,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         this.closeFuture = closeFuture;
     }
 
-    public void setCloseAndCleanupAllDataFuture(
-            CompletableFuture<Void> closeAndCleanupAllDataFuture) {
-        this.closeAndCleanupAllDataFuture = closeAndCleanupAllDataFuture;
+    public void setCleanupAllDataFuture(CompletableFuture<Void> cleanupAllDataFuture) {
+        this.cleanupAllDataFuture = cleanupAllDataFuture;
     }
 
     public void setGlobalCleanupFuture(CompletableFuture<JobID> globalCleanupFuture) {
@@ -280,8 +279,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public void closeAndCleanupAllData() throws Exception {
-        closeAndCleanupAllDataFuture.complete(null);
+    public void cleanupAllData() throws Exception {
+        cleanupAllDataFuture.complete(null);
     }
 
     @Override

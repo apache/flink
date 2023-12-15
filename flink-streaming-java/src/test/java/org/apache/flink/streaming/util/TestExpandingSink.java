@@ -60,7 +60,7 @@ public class TestExpandingSink
     }
 
     @Override
-    public Committer<Integer> createCommitter() {
+    public Committer<Integer> createCommitter(CommitterInitContext context) {
         return null;
     }
 

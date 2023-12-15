@@ -127,4 +127,12 @@ public class MetricNames {
 
     // FLIP-27 for split enumerator
     public static final String UNASSIGNED_SPLITS = "unassignedSplits";
+
+    // FLIP-371 for sink committer
+    public static final String TOTAL_COMMITTABLES = "totalCommittables";
+    public static final String SUCCESSFUL_COMMITTABLES = "successfulCommittables";
+    public static final String ALREADY_COMMITTED_COMMITTABLES = "alreadyCommittedCommittables";
+    public static final String FAILED_COMMITTABLES = "failedCommittables";
+    public static final String RETRIED_COMMITTABLES = "retriedCommittables";
+    public static final String PENDING_COMMITTABLES = "pendingCommittables";
 }

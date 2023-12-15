@@ -130,7 +130,8 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
         MessageType fileSchema = parquetFileReader.getFooter().getFileMetaData().getSchema();
         // Pruning unnecessary column, we should set the projection schema before running any
         // filtering (e.g. getting filtered record count) because projection impacts filtering
-        MessageType requestedSchema = clipParquetSchema(fileSchema, unknownFieldsIndices);
+        MessageType requestedSchema =
+                clipParquetSchema(fileSchema, unknownFieldsIndices, hadoopConfig.conf());
         parquetFileReader.setRequestedSchema(requestedSchema);
 
         checkSchema(fileSchema, requestedSchema);
@@ -173,7 +174,9 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
 
     /** Clips `parquetSchema` according to `fieldNames`. */
     private MessageType clipParquetSchema(
-            GroupType parquetSchema, Collection<Integer> unknownFieldsIndices) {
+            GroupType parquetSchema,
+            Collection<Integer> unknownFieldsIndices,
+            org.apache.hadoop.conf.Configuration config) {
         Type[] types = new Type[projectedFields.length];
         if (isCaseSensitive) {
             for (int i = 0; i < projectedFields.length; ++i) {
@@ -185,7 +188,7 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                             parquetSchema);
                     types[i] =
                             ParquetSchemaConverter.convertToParquetType(
-                                    fieldName, projectedTypes[i]);
+                                    fieldName, projectedTypes[i], config);
                     unknownFieldsIndices.add(i);
                 } else {
                     types[i] = parquetSchema.getType(fieldName);
@@ -215,7 +218,9 @@ public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceS
                             parquetSchema);
                     type =
                             ParquetSchemaConverter.convertToParquetType(
-                                    projectedFields[i].toLowerCase(Locale.ROOT), projectedTypes[i]);
+                                    projectedFields[i].toLowerCase(Locale.ROOT),
+                                    projectedTypes[i],
+                                    config);
                     unknownFieldsIndices.add(i);
                 }
                 // TODO clip for array,map,row types.

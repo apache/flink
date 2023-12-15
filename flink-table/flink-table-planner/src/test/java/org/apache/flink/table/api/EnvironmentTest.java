@@ -32,7 +32,6 @@ import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.GenericInMemoryCatalogStore;
 import org.apache.flink.table.catalog.listener.CatalogListener1;
 import org.apache.flink.table.catalog.listener.CatalogListener2;
-import org.apache.flink.types.Row;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,7 +41,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link TableEnvironment} that require a planner. */
 class EnvironmentTest {
@@ -63,11 +61,11 @@ class EnvironmentTest {
                                         ExecutionCheckpointingOptions.CHECKPOINTING_INTERVAL,
                                         Duration.ofSeconds(30)));
 
-        tEnv.createTemporaryView("test", env.fromElements(1, 2, 3));
+        tEnv.createTemporaryView("test", env.fromData(1, 2, 3));
 
         // trigger translation
         Table table = tEnv.sqlQuery("SELECT * FROM test");
-        tEnv.toAppendStream(table, Row.class);
+        tEnv.toDataStream(table);
 
         assertThat(env.getParallelism()).isEqualTo(128);
         assertThat(env.getConfig().getAutoWatermarkInterval()).isEqualTo(800);
@@ -169,6 +167,6 @@ class EnvironmentTest {
         configuration.setString("type", "generic_in_memory");
         tbEnv.createCatalog("test_catalog", CatalogDescriptor.of("test_catalog", configuration));
 
-        assertTrue(catalogStore.contains("test_catalog"));
+        assertThat(catalogStore.contains("test_catalog")).isTrue();
     }
 }

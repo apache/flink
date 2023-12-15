@@ -313,6 +313,11 @@ public class ConfigurationUtils {
      */
     @SuppressWarnings("unchecked")
     public static <T> T convertValue(Object rawValue, Class<?> clazz) {
+        return convertValue(rawValue, clazz, GlobalConfiguration.isStandardYaml());
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T convertValue(Object rawValue, Class<?> clazz, boolean standardYaml) {
         if (Integer.class.equals(clazz)) {
             return (T) convertToInt(rawValue);
         } else if (Long.class.equals(clazz)) {
@@ -324,7 +329,7 @@ public class ConfigurationUtils {
         } else if (Double.class.equals(clazz)) {
             return (T) convertToDouble(rawValue);
         } else if (String.class.equals(clazz)) {
-            return (T) convertToString(rawValue);
+            return (T) convertToString(rawValue, standardYaml);
         } else if (clazz.isEnum()) {
             return (T) convertToEnum(rawValue, (Class<? extends Enum<?>>) clazz);
         } else if (clazz == Duration.class) {
@@ -332,28 +337,48 @@ public class ConfigurationUtils {
         } else if (clazz == MemorySize.class) {
             return (T) convertToMemorySize(rawValue);
         } else if (clazz == Map.class) {
-            return (T) convertToProperties(rawValue);
+            return (T) convertToProperties(rawValue, standardYaml);
         }
 
         throw new IllegalArgumentException("Unsupported type: " + clazz);
     }
 
     @SuppressWarnings("unchecked")
-    static <T> T convertToList(Object rawValue, Class<?> atomicClass) {
+    static <T> T convertToList(Object rawValue, Class<?> atomicClass, boolean standardYaml) {
         if (rawValue instanceof List) {
             return (T) rawValue;
+        } else if (standardYaml) {
+            List<Object> data = YamlParserUtils.convertToObject(rawValue.toString(), List.class);
+            // The Yaml parser conversion results in data of type List<Map<Object, Object>>, such as
+            // List<Map<Object, Boolean>>. However, ConfigOption currently requires that the data
+            // for Map type be strictly of the type Map<String, String>. Therefore, we convert each
+            // map in the list to Map<String, String>.
+            if (atomicClass == Map.class) {
+                return (T)
+                        data.stream()
+                                .map(map -> convertToStringMap((Map<Object, Object>) map, true))
+                                .collect(Collectors.toList());
+            }
+
+            return (T)
+                    data.stream()
+                            .map(s -> convertValue(s, atomicClass, true))
+                            .collect(Collectors.toList());
         } else {
             return (T)
                     StructuredOptionsSplitter.splitEscaped(rawValue.toString(), ';').stream()
-                            .map(s -> convertValue(s, atomicClass))
+                            .map(s -> convertValue(s, atomicClass, false))
                             .collect(Collectors.toList());
         }
     }
 
     @SuppressWarnings("unchecked")
-    static Map<String, String> convertToProperties(Object o) {
+    static Map<String, String> convertToProperties(Object o, boolean standardYaml) {
         if (o instanceof Map) {
             return (Map<String, String>) o;
+        } else if (standardYaml) {
+            Map<Object, Object> map = YamlParserUtils.convertToObject(o.toString(), Map.class);
+            return convertToStringMap(map, true);
         } else {
             List<String> listOfRawProperties =
                     StructuredOptionsSplitter.splitEscaped(o.toString(), ',');
@@ -368,6 +393,15 @@ public class ConfigurationUtils {
                             })
                     .collect(Collectors.toMap(a -> a.get(0), a -> a.get(1)));
         }
+    }
+
+    private static Map<String, String> convertToStringMap(
+            Map<Object, Object> map, boolean standardYaml) {
+        return map.entrySet().stream()
+                .collect(
+                        Collectors.toMap(
+                                entry -> convertToString(entry.getKey(), standardYaml),
+                                entry -> convertToString(entry.getValue(), standardYaml)));
     }
 
     @SuppressWarnings("unchecked")
@@ -407,7 +441,15 @@ public class ConfigurationUtils {
         return MemorySize.parse(o.toString());
     }
 
-    static String convertToString(Object o) {
+    static String convertToString(Object o, boolean standardYaml) {
+        if (standardYaml) {
+            if (o.getClass() == String.class) {
+                return (String) o;
+            } else {
+                return YamlParserUtils.toYAMLString(o);
+            }
+        }
+
         if (o.getClass() == String.class) {
             return (String) o;
         } else if (o.getClass() == Duration.class) {
@@ -416,7 +458,7 @@ public class ConfigurationUtils {
         } else if (o instanceof List) {
             return ((List<?>) o)
                     .stream()
-                            .map(e -> escapeWithSingleQuote(convertToString(e), ";"))
+                            .map(e -> escapeWithSingleQuote(convertToString(e, false), ";"))
                             .collect(Collectors.joining(";"));
         } else if (o instanceof Map) {
             return ((Map<?, ?>) o)
@@ -544,14 +586,14 @@ public class ConfigurationUtils {
     }
 
     static Map<String, String> convertToPropertiesPrefixed(
-            Map<String, Object> confData, String key) {
+            Map<String, Object> confData, String key, boolean standardYaml) {
         final String prefixKey = key + ".";
         return confData.keySet().stream()
                 .filter(k -> k.startsWith(prefixKey))
                 .collect(
                         Collectors.toMap(
                                 k -> k.substring(prefixKey.length()),
-                                k -> convertToString(confData.get(k))));
+                                k -> convertToString(confData.get(k), standardYaml)));
     }
 
     static boolean containsPrefixMap(Map<String, Object> confData, String key) {

@@ -18,38 +18,37 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TimeUtils#formatWithHighestUnit(Duration)}. */
-@RunWith(Parameterized.class)
-public class TimeUtilsPrettyPrintingTest extends TestLogger {
-    @Parameterized.Parameters
-    public static Object[][] parameters() {
-        return new Object[][] {
-            new Object[] {Duration.ofMinutes(3).plusSeconds(30), "210 s"},
-            new Object[] {Duration.ofNanos(100), "100 ns"},
-            new Object[] {Duration.ofSeconds(120), "2 min"},
-            new Object[] {Duration.ofMillis(200), "200 ms"},
-            new Object[] {Duration.ofHours(1).plusSeconds(3), "3603 s"},
-            new Object[] {Duration.ofSeconds(0), "0 ms"},
-            new Object[] {Duration.ofMillis(60000), "1 min"}
-        };
+class TimeUtilsPrettyPrintingTest {
+
+    private static Stream<Arguments> testDurationAndExpectedString() {
+        return Stream.of(
+                Arguments.of(Duration.ofMinutes(3).plusSeconds(30), "210 s"),
+                Arguments.of(Duration.ofNanos(100), "100 ns"),
+                Arguments.of(Duration.ofSeconds(120), "2 min"),
+                Arguments.of(Duration.ofMillis(200), "200 ms"),
+                Arguments.of(Duration.ofHours(1).plusSeconds(3), "3603 s"),
+                Arguments.of(Duration.ofSeconds(0), "0 ms"),
+                Arguments.of(Duration.ofMillis(60000), "1 min"),
+                Arguments.of(Duration.ofHours(23), "23 h"),
+                Arguments.of(Duration.ofMillis(-1), "-1 ms"),
+                Arguments.of(Duration.ofMillis(TimeUnit.DAYS.toMillis(1)), "1 d"),
+                Arguments.of(Duration.ofHours(24), "1 d"));
     }
 
-    @Parameterized.Parameter public Duration duration;
-
-    @Parameterized.Parameter(1)
-    public String expectedString;
-
-    @Test
-    public void testFormatting() {
-        assertThat(TimeUtils.formatWithHighestUnit(duration), is(expectedString));
+    @ParameterizedTest
+    @MethodSource("testDurationAndExpectedString")
+    void testFormatting(Duration duration, String expectedString) {
+        assertThat(TimeUtils.formatWithHighestUnit(duration)).isEqualTo(expectedString);
     }
 }

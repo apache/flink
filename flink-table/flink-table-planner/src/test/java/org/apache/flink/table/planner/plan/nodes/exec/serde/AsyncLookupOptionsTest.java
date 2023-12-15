@@ -35,10 +35,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LookupJoinUtil.AsyncLookupOptions}. */
-public class AsyncLookupOptionsTest {
+class AsyncLookupOptionsTest {
 
     @Test
     void testSerdeAsyncLookupOptions() throws IOException {
@@ -78,29 +78,30 @@ public class AsyncLookupOptionsTest {
                         LookupJoinHintTestUtil.completeLookupHint,
                         TableConfig.getDefault(),
                         ChangelogMode.insertOnly());
-        assertTrue(asyncLookupOptions.asyncOutputMode == AsyncDataStream.OutputMode.UNORDERED);
+        assertThat(asyncLookupOptions.asyncOutputMode)
+                .isSameAs(AsyncDataStream.OutputMode.UNORDERED);
 
         asyncLookupOptions =
                 LookupJoinUtil.getMergedAsyncOptions(
                         LookupJoinHintTestUtil.completeLookupHint,
                         TableConfig.getDefault(),
                         ChangelogMode.all());
-        assertTrue(asyncLookupOptions.asyncOutputMode == AsyncDataStream.OutputMode.ORDERED);
+        assertThat(asyncLookupOptions.asyncOutputMode).isSameAs(AsyncDataStream.OutputMode.ORDERED);
 
         asyncLookupOptions =
                 LookupJoinUtil.getMergedAsyncOptions(
                         LookupJoinHintTestUtil.lookupHintWithTableOnly,
                         TableConfig.getDefault(),
                         ChangelogMode.insertOnly());
-        assertTrue(asyncLookupOptions.asyncOutputMode == AsyncDataStream.OutputMode.ORDERED);
-        assertTrue(
-                asyncLookupOptions.asyncTimeout
-                        == ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT
+        assertThat(asyncLookupOptions.asyncOutputMode).isSameAs(AsyncDataStream.OutputMode.ORDERED);
+        assertThat(asyncLookupOptions.asyncTimeout)
+                .isEqualTo(
+                        ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT
                                 .defaultValue()
                                 .toMillis());
-        assertTrue(
-                asyncLookupOptions.asyncBufferCapacity
-                        == ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY
+        assertThat(asyncLookupOptions.asyncBufferCapacity)
+                .isEqualTo(
+                        ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY
                                 .defaultValue());
 
         TableConfig userConf = TableConfig.getDefault();
@@ -118,13 +119,14 @@ public class AsyncLookupOptionsTest {
                                 .build(),
                         userConf,
                         ChangelogMode.insertOnly());
-        assertTrue(asyncLookupOptions.asyncOutputMode == AsyncDataStream.OutputMode.UNORDERED);
-        assertTrue(
-                asyncLookupOptions.asyncTimeout
-                        == ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT
+        assertThat(asyncLookupOptions.asyncOutputMode)
+                .isSameAs(AsyncDataStream.OutputMode.UNORDERED);
+        assertThat(asyncLookupOptions.asyncTimeout)
+                .isEqualTo(
+                        ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT
                                 .defaultValue()
                                 .toMillis());
-        assertTrue(asyncLookupOptions.asyncBufferCapacity == 1000);
+        assertThat(asyncLookupOptions.asyncBufferCapacity).isEqualTo(1000);
 
         asyncLookupOptions =
                 LookupJoinUtil.getMergedAsyncOptions(
@@ -133,6 +135,6 @@ public class AsyncLookupOptionsTest {
                                 .build(),
                         userConf,
                         ChangelogMode.all());
-        assertTrue(asyncLookupOptions.asyncOutputMode == AsyncDataStream.OutputMode.ORDERED);
+        assertThat(asyncLookupOptions.asyncOutputMode).isSameAs(AsyncDataStream.OutputMode.ORDERED);
     }
 }

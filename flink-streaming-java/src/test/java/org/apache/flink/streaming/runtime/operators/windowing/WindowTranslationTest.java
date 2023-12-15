@@ -89,7 +89,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         source.keyBy(0)
                 .window(
@@ -118,7 +118,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         source.keyBy(0)
                 .window(
@@ -140,7 +140,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         WindowedStream<String, String, TimeWindow> windowedStream =
-                env.fromElements("Hello", "Ciao")
+                env.fromData("Hello", "Ciao")
                         .keyBy(
                                 new KeySelector<String, String>() {
                                     private static final long serialVersionUID =
@@ -202,7 +202,7 @@ public class WindowTranslationTest {
     public void testMergingWindowsWithEvictor() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> source = env.fromElements(1, 2);
+        DataStream<Integer> source = env.fromData(1, 2);
 
         DataStream<String> window1 =
                 source.keyBy(
@@ -240,7 +240,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(new TupleKeySelector())
@@ -275,7 +275,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(new TupleKeySelector())
@@ -310,7 +310,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -364,7 +364,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple3<String, String, Integer>> window =
                 source.keyBy(new TupleKeySelector())
@@ -416,7 +416,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -470,7 +470,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple3<String, String, Integer>> window =
                 source.keyBy(new TupleKeySelector())
@@ -523,7 +523,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -578,7 +578,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -636,7 +636,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple3<String, String, Integer>> source =
-                env.fromElements(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
+                env.fromData(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
 
         DataStream<Integer> window1 =
                 source.keyBy(new Tuple3KeySelector())
@@ -673,7 +673,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple3<String, String, Integer>> source =
-                env.fromElements(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
+                env.fromData(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
 
         DataStream<Integer> window1 =
                 source.keyBy(new Tuple3KeySelector())
@@ -710,7 +710,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple3<String, String, Integer>> source =
-                env.fromElements(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
+                env.fromData(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -746,7 +746,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple3<String, String, Integer>> source =
-                env.fromElements(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
+                env.fromData(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
 
         DataStream<String> window =
                 source.keyBy(new Tuple3KeySelector())
@@ -780,7 +780,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple3<String, String, Integer>> source =
-                env.fromElements(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
+                env.fromData(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
 
         DataStream<String> window =
                 source.keyBy(new Tuple3KeySelector())
@@ -814,7 +814,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple3<String, String, Integer>> source =
-                env.fromElements(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
+                env.fromData(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
 
         DataStream<String> window =
                 source.keyBy(new Tuple3KeySelector())
@@ -853,7 +853,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(new TupleKeySelector())
@@ -904,7 +904,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(new TupleKeySelector())
@@ -955,7 +955,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(new TupleKeySelector())
@@ -1006,7 +1006,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(new TupleKeySelector())
@@ -1057,7 +1057,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -1095,7 +1095,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(new TupleKeySelector())
@@ -1147,7 +1147,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(new TupleKeySelector())
@@ -1199,7 +1199,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -1238,7 +1238,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DummyReducer reducer = new DummyReducer();
 
@@ -1294,7 +1294,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple3<String, String, Integer>> source =
-                env.fromElements(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
+                env.fromData(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
 
         DataStream<Integer> window1 =
                 source.keyBy(new Tuple3KeySelector())
@@ -1332,7 +1332,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple3<String, String, Integer>> source =
-                env.fromElements(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
+                env.fromData(Tuple3.of("hello", "hallo", 1), Tuple3.of("hello", "hallo", 2));
 
         DataStream<String> window1 =
                 source.keyBy(new Tuple3KeySelector())
@@ -1371,7 +1371,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(new TupleKeySelector())
@@ -1425,7 +1425,7 @@ public class WindowTranslationTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                env.fromData(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
         DataStream<Tuple2<String, Integer>> window1 =
                 source.keyBy(new TupleKeySelector())

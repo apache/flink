@@ -48,7 +48,7 @@ public class DataStreamCollectTestITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
-        DataStream<Integer> stream = env.fromElements(1, 2, 3);
+        DataStream<Integer> stream = env.fromData(1, 2, 3);
 
         try (CloseableIterator<Integer> iterator = stream.executeAndCollect()) {
             List<Integer> results = CollectionUtil.iteratorToList(iterator);
@@ -64,7 +64,7 @@ public class DataStreamCollectTestITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
-        DataStream<Integer> stream = env.fromElements(1, 2, 3, 4, 5);
+        DataStream<Integer> stream = env.fromData(1, 2, 3, 4, 5);
 
         List<Integer> results = stream.executeAndCollect(1);
         Assert.assertEquals(
@@ -78,7 +78,7 @@ public class DataStreamCollectTestITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 
-        DataStream<Integer> stream = env.fromElements(1, 2, 3);
+        DataStream<Integer> stream = env.fromData(1, 2, 3);
 
         Configuration config = new Configuration();
         config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
@@ -102,7 +102,7 @@ public class DataStreamCollectTestITCase extends TestLogger {
         config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH);
         env.configure(config, DataStreamCollectTestITCase.class.getClassLoader());
 
-        DataStream<Integer> stream = env.fromElements(1, 2, 3, 4, 5);
+        DataStream<Integer> stream = env.fromData(1, 2, 3, 4, 5);
 
         List<Integer> results = stream.executeAndCollect(1);
         Assert.assertEquals(
@@ -115,8 +115,8 @@ public class DataStreamCollectTestITCase extends TestLogger {
     public void testAsyncCollect() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        final DataStream<Integer> stream1 = env.fromElements(1, 2, 3, 4, 5);
-        final DataStream<Integer> stream2 = env.fromElements(6, 7, 8, 9, 10);
+        final DataStream<Integer> stream1 = env.fromData(1, 2, 3, 4, 5);
+        final DataStream<Integer> stream2 = env.fromData(6, 7, 8, 9, 10);
 
         try (final CloseableIterator<Integer> iterator1 = stream1.collectAsync();
                 final CloseableIterator<Integer> iterator2 = stream2.collectAsync()) {
@@ -174,8 +174,8 @@ public class DataStreamCollectTestITCase extends TestLogger {
             Consumer<DataStream<Integer>> sink1Applier,
             Consumer<DataStream<Integer>> sink2Applier) {
 
-        final DataStream<Integer> stream1 = env.fromElements(1, 2, 3, 4, 5);
-        final DataStream<Integer> stream2 = env.fromElements(6, 7, 8, 9, 10);
+        final DataStream<Integer> stream1 = env.fromData(1, 2, 3, 4, 5);
+        final DataStream<Integer> stream2 = env.fromData(6, 7, 8, 9, 10);
 
         sink1Applier.accept(stream1);
         sink2Applier.accept(stream2);

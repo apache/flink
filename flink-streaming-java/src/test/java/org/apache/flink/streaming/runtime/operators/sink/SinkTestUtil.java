@@ -52,7 +52,7 @@ class SinkTestUtil {
     static byte[] toBytes(String obj) {
         try {
             return SimpleVersionedSerialization.writeVersionAndSerialize(
-                    TestSink.StringCommittableSerializer.INSTANCE, obj);
+                    TestSinkV2.StringSerializer.INSTANCE, obj);
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -83,7 +83,7 @@ class SinkTestUtil {
     static String fromBytes(byte[] obj) {
         try {
             return SimpleVersionedSerialization.readVersionAndDeSerialize(
-                    TestSink.StringCommittableSerializer.INSTANCE, obj);
+                    TestSinkV2.StringSerializer.INSTANCE, obj);
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }

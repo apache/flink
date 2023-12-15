@@ -206,8 +206,7 @@ public class TieredResultPartitionFactory {
                             Math.max(
                                     2 * batchShuffleReadBufferPool.getNumBuffersPerRequest(),
                                     numberOfSubpartitions),
-                            tieredStorageConfiguration.getDiskIOSchedulerBufferRequestTimeout(),
-                            tieredStorageConfiguration.getDiskIOSchedulerMaxBuffersReadAhead());
+                            tieredStorageConfiguration.getDiskIOSchedulerBufferRequestTimeout());
             tierProducerAgents.add(producerAgent);
             tieredStorageMemorySpecs.add(
                     new TieredStorageMemorySpec(producerAgent, tierExclusiveBuffers.get(index)));

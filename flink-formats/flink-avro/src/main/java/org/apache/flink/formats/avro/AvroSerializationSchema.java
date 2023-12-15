@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
@@ -27,7 +28,7 @@ import org.apache.avro.Schema.Parser;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumWriter;
@@ -55,7 +56,19 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
      */
     public static <T extends SpecificRecord> AvroSerializationSchema<T> forSpecific(
             Class<T> tClass) {
-        return new AvroSerializationSchema<>(tClass, null);
+        return forSpecific(tClass, AvroEncoding.BINARY);
+    }
+
+    /**
+     * Creates {@link AvroSerializationSchema} that serializes {@link SpecificRecord} using provided
+     * schema.
+     *
+     * @param tClass the type to be serialized
+     * @return serialized record in form of byte array
+     */
+    public static <T extends SpecificRecord> AvroSerializationSchema<T> forSpecific(
+            Class<T> tClass, AvroEncoding encoding) {
+        return new AvroSerializationSchema<>(tClass, null, encoding);
     }
 
     /**
@@ -66,7 +79,19 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
      * @return serialized record in form of byte array
      */
     public static AvroSerializationSchema<GenericRecord> forGeneric(Schema schema) {
-        return new AvroSerializationSchema<>(GenericRecord.class, schema);
+        return forGeneric(schema, AvroEncoding.BINARY);
+    }
+
+    /**
+     * Creates {@link AvroSerializationSchema} that serializes {@link GenericRecord} using provided
+     * schema.
+     *
+     * @param schema the schema that will be used for serialization
+     * @return serialized record in form of byte array
+     */
+    public static AvroSerializationSchema<GenericRecord> forGeneric(
+            Schema schema, AvroEncoding encoding) {
+        return new AvroSerializationSchema<>(GenericRecord.class, schema, encoding);
     }
 
     private static final long serialVersionUID = -8766681879020862312L;
@@ -82,8 +107,11 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
     /** Output stream to write message to. */
     private transient ByteArrayOutputStream arrayOutputStream;
 
-    /** Avro encoder that encodes binary data. */
-    private transient BinaryEncoder encoder;
+    /** Config option for the serialization approach to use. */
+    private final AvroEncoding encoding;
+
+    /** Avro encoder that encodes data. */
+    private transient Encoder encoder;
 
     /**
      * Creates an Avro deserialization schema.
@@ -92,7 +120,8 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
      *     org.apache.avro.specific.SpecificRecord}, {@link org.apache.avro.generic.GenericRecord}.
      * @param schema writer Avro schema. Should be provided if recordClazz is {@link GenericRecord}
      */
-    protected AvroSerializationSchema(Class<T> recordClazz, @Nullable Schema schema) {
+    protected AvroSerializationSchema(
+            Class<T> recordClazz, @Nullable Schema schema, AvroEncoding encoding) {
         Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
         this.recordClazz = recordClazz;
         this.schema = schema;
@@ -101,13 +130,14 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
         } else {
             this.schemaString = null;
         }
+        this.encoding = encoding;
     }
 
     public Schema getSchema() {
         return schema;
     }
 
-    protected BinaryEncoder getEncoder() {
+    protected Encoder getEncoder() {
         return encoder;
     }
 
@@ -160,8 +190,17 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 
             this.datumWriter = new GenericDatumWriter<>(schema, genericData);
         }
+
         this.arrayOutputStream = new ByteArrayOutputStream();
-        this.encoder = EncoderFactory.get().directBinaryEncoder(arrayOutputStream, null);
+        if (encoding == AvroEncoding.JSON) {
+            try {
+                this.encoder = EncoderFactory.get().jsonEncoder(this.schema, arrayOutputStream);
+            } catch (IOException e) {
+                throw new WrappingRuntimeException("Failed to create Avro encoder.", e);
+            }
+        } else {
+            this.encoder = EncoderFactory.get().directBinaryEncoder(arrayOutputStream, null);
+        }
     }
 
     @Override

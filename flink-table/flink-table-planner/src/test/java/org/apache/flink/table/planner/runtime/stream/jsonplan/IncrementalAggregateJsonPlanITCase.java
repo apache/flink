@@ -72,7 +72,7 @@ class IncrementalAggregateJsonPlanITCase extends JsonPlanTestBase {
                                 + "from MyTable group by b")
                 .await();
 
-        List<String> result = TestValuesTableFactory.getResults("MySink");
+        List<String> result = TestValuesTableFactory.getResultsAsStrings("MySink");
         assertResult(Arrays.asList("+I[1, 1]", "+I[2, 2]"), result);
     }
 }
