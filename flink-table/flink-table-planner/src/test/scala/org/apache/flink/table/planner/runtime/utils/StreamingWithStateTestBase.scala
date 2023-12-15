@@ -27,20 +27,22 @@ import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.source.FromElementsFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
+import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
-import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters
+
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{AfterEach, BeforeEach}
 
 import java.nio.file.Files
 import java.util
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -60,7 +62,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     // set state backend
 
     val baseCheckpointPath = Files.createTempDirectory(getClass.getCanonicalName)
-    Files.deleteIfExists(baseCheckpointPath);
+    baseCheckpointPath.toFile.deleteOnExit();
     state match {
       case HEAP_BACKEND =>
         val conf = new Configuration()
