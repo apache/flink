@@ -89,8 +89,8 @@ public class CommittableCollector<CommT> {
     public static <CommT> CommittableCollector<CommT> of(
             RuntimeContext context, SinkCommitterMetricGroup metricGroup) {
         return new CommittableCollector<>(
-                context.getIndexOfThisSubtask(),
-                context.getNumberOfParallelSubtasks(),
+                context.getTaskInfo().getIndexOfThisSubtask(),
+                context.getTaskInfo().getNumberOfParallelSubtasks(),
                 metricGroup);
     }
 

@@ -424,8 +424,8 @@ class SpeculativeSchedulerITCase {
         public void run(SourceContext<Long> ctx) throws Exception {
             maybeSleep();
 
-            final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-            final int numSubtasks = getRuntimeContext().getNumberOfParallelSubtasks();
+            final int subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+            final int numSubtasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
 
             final long start = subtaskIndex * NUMBERS_TO_PRODUCE / numSubtasks;
             final long end = (subtaskIndex + 1) * NUMBERS_TO_PRODUCE / numSubtasks;
@@ -517,7 +517,8 @@ class SpeculativeSchedulerITCase {
 
         @Override
         public void finish() {
-            numberCountResults.put(getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+            numberCountResults.put(
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), numberCountResult);
         }
     }
 
@@ -648,9 +649,10 @@ class SpeculativeSchedulerITCase {
 
         @Override
         public void finish() {
-            if (getRuntimeContext().getAttemptNumber() == 0) {
+            if (getRuntimeContext().getTaskInfo().getAttemptNumber() == 0) {
                 numberCountResults.put(
-                        getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        numberCountResult);
             }
         }
     }
@@ -668,7 +670,8 @@ class SpeculativeSchedulerITCase {
 
         @Override
         public void finish() {
-            numberCountResults.put(getRuntimeContext().getIndexOfThisSubtask(), numberCountResult);
+            numberCountResults.put(
+                    getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), numberCountResult);
         }
     }
 

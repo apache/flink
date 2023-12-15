@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.JobInfo;
 import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -58,6 +59,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
 
+    private final JobInfo jobInfo;
+
     private final TaskInfo taskInfo;
 
     private final UserCodeClassLoader userCodeClassLoader;
@@ -71,12 +74,14 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
     private final OperatorMetricGroup metrics;
 
     public AbstractRuntimeUDFContext(
+            JobInfo jobInfo,
             TaskInfo taskInfo,
             UserCodeClassLoader userCodeClassLoader,
             ExecutionConfig executionConfig,
             Map<String, Accumulator<?, ?>> accumulators,
             Map<String, Future<Path>> cpTasks,
             OperatorMetricGroup metrics) {
+        this.jobInfo = checkNotNull(jobInfo);
         this.taskInfo = checkNotNull(taskInfo);
         this.userCodeClassLoader = userCodeClassLoader;
         this.executionConfig = executionConfig;
@@ -107,38 +112,8 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
     }
 
     @Override
-    public String getTaskName() {
-        return taskInfo.getTaskName();
-    }
-
-    @Override
-    public int getNumberOfParallelSubtasks() {
-        return taskInfo.getNumberOfParallelSubtasks();
-    }
-
-    @Override
-    public int getMaxNumberOfParallelSubtasks() {
-        return taskInfo.getMaxNumberOfParallelSubtasks();
-    }
-
-    @Override
-    public int getIndexOfThisSubtask() {
-        return taskInfo.getIndexOfThisSubtask();
-    }
-
-    @Override
     public OperatorMetricGroup getMetricGroup() {
         return metrics;
-    }
-
-    @Override
-    public int getAttemptNumber() {
-        return taskInfo.getAttemptNumber();
-    }
-
-    @Override
-    public String getTaskNameWithSubtasks() {
-        return taskInfo.getTaskNameWithSubtasks();
     }
 
     @Override
@@ -191,6 +166,16 @@ public abstract class AbstractRuntimeUDFContext implements RuntimeContext {
     @Override
     public DistributedCache getDistributedCache() {
         return this.distributedCache;
+    }
+
+    @Override
+    public JobInfo getJobInfo() {
+        return jobInfo;
+    }
+
+    @Override
+    public TaskInfo getTaskInfo() {
+        return taskInfo;
     }
 
     // --------------------------------------------------------------------------------------------

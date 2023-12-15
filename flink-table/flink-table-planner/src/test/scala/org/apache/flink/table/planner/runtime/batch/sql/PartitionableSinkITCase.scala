@@ -241,7 +241,7 @@ object PartitionableSinkITCase {
     private var resultSet: JLinkedList[String] = _
 
     override def open(openContext: OpenContext): Unit = {
-      val taskId = getRuntimeContext.getIndexOfThisSubtask
+      val taskId = getRuntimeContext.getTaskInfo.getIndexOfThisSubtask
       resultSet = RESULT_QUEUE.get(taskId)
     }
 

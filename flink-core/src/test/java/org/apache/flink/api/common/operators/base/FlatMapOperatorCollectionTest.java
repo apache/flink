@@ -110,9 +110,9 @@ public class FlatMapOperatorCollectionTest implements Serializable {
             isOpened = true;
 
             RuntimeContext ctx = getRuntimeContext();
-            Assert.assertEquals("Test UDF", ctx.getTaskName());
-            Assert.assertEquals(4, ctx.getNumberOfParallelSubtasks());
-            Assert.assertEquals(0, ctx.getIndexOfThisSubtask());
+            Assert.assertEquals("Test UDF", ctx.getTaskInfo().getTaskName());
+            Assert.assertEquals(4, ctx.getTaskInfo().getNumberOfParallelSubtasks());
+            Assert.assertEquals(0, ctx.getTaskInfo().getIndexOfThisSubtask());
         }
 
         @Override

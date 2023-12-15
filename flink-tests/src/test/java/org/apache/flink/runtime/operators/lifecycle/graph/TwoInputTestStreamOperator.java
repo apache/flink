@@ -64,8 +64,8 @@ class TwoInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         this.eventQueue.add(
                 new OperatorStartedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber()));
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber()));
     }
 
     @Override
@@ -73,8 +73,8 @@ class TwoInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         collectEvent(
                 new CheckpointStartedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         context.getCheckpointId()));
         super.snapshotState(context);
     }
@@ -84,8 +84,8 @@ class TwoInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         collectEvent(
                 new CheckpointCompletedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         checkpointId));
         super.notifyCheckpointComplete(checkpointId);
     }
@@ -95,8 +95,8 @@ class TwoInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         collectEvent(
                 new OperatorFinishedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         lastDataSent,
                         new LastReceivedVertexDataInfo(lastDataReceived)));
         super.finish();
@@ -113,7 +113,7 @@ class TwoInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
                 new StreamRecord<>(
                         new TestDataElement(
                                 operatorID,
-                                getRuntimeContext().getIndexOfThisSubtask(),
+                                getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
                                 ++lastDataSent)));
         if (!timerRegistered) {
             registerTimer();
@@ -126,8 +126,8 @@ class TwoInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         collectEvent(
                 new WatermarkReceivedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         mark.getTimestamp(),
                         1));
         super.processWatermark1(mark);
@@ -138,8 +138,8 @@ class TwoInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         collectEvent(
                 new WatermarkReceivedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         mark.getTimestamp(),
                         2));
         super.processWatermark2(mark);
@@ -160,8 +160,8 @@ class TwoInputTestStreamOperator extends AbstractStreamOperator<TestDataElement>
         collectEvent(
                 new InputEndedEvent(
                         operatorID,
-                        getRuntimeContext().getIndexOfThisSubtask(),
-                        getRuntimeContext().getAttemptNumber(),
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        getRuntimeContext().getTaskInfo().getAttemptNumber(),
                         inputId));
     }
 

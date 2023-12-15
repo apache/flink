@@ -55,7 +55,9 @@ class MiniClusterExtensionDefaultParallelismITCase {
                                 new RichMapFunction<Integer, Integer>() {
                                     @Override
                                     public Integer map(Integer value) {
-                                        return getRuntimeContext().getNumberOfParallelSubtasks();
+                                        return getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks();
                                     }
                                 })
                         .executeAndCollect(TARGET_PARALLELISM)

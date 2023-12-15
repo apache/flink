@@ -147,9 +147,10 @@ class GroupReduceOperatorTest implements Serializable {
                                 public void open(OpenContext openContext) throws Exception {
                                     opened.set(true);
                                     RuntimeContext ctx = getRuntimeContext();
-                                    assertThat(ctx.getIndexOfThisSubtask()).isZero();
-                                    assertThat(ctx.getNumberOfParallelSubtasks()).isOne();
-                                    assertThat(ctx.getTaskName()).isEqualTo(taskName);
+                                    assertThat(ctx.getTaskInfo().getIndexOfThisSubtask()).isZero();
+                                    assertThat(ctx.getTaskInfo().getNumberOfParallelSubtasks())
+                                            .isOne();
+                                    assertThat(ctx.getTaskInfo().getTaskName()).isEqualTo(taskName);
                                 }
 
                                 @Override

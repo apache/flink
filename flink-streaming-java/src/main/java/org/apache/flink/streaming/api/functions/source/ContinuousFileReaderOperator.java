@@ -268,7 +268,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
                 context.getOperatorStateStore()
                         .getListState(new ListStateDescriptor<>("splits", new JavaSerializer<>()));
 
-        int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+        int subtaskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
         if (!context.isRestored()) {
             LOG.info(
                     "No state to restore for the {} (taskIdx={}).",
@@ -525,7 +525,7 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
         checkState(
                 checkpointedState != null, "The operator state has not been properly initialized.");
 
-        int subtaskIdx = getRuntimeContext().getIndexOfThisSubtask();
+        int subtaskIdx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
 
         List<T> readerState = getReaderState();
 

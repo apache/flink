@@ -706,7 +706,7 @@ public class IterateITCase extends AbstractTestBase {
 
     private static final class IterationHead extends RichFlatMapFunction<Boolean, Boolean> {
         public void flatMap(Boolean value, Collector<Boolean> out) throws Exception {
-            int indx = getRuntimeContext().getIndexOfThisSubtask();
+            int indx = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (value) {
                 iterated[indx] = true;
             } else {

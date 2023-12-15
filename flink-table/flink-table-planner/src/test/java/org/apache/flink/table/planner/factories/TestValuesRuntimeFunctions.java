@@ -344,7 +344,7 @@ final class TestValuesRuntimeFunctions {
                     localRawResult.add(value);
                 }
             }
-            int taskId = getRuntimeContext().getIndexOfThisSubtask();
+            int taskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             synchronized (LOCK) {
                 globalRawResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
@@ -366,7 +366,9 @@ final class TestValuesRuntimeFunctions {
                     .forEach(
                             c ->
                                     c.accept(
-                                            getRuntimeContext().getIndexOfThisSubtask(),
+                                            getRuntimeContext()
+                                                    .getTaskInfo()
+                                                    .getIndexOfThisSubtask(),
                                             localRawResult));
         }
     }
@@ -538,7 +540,7 @@ final class TestValuesRuntimeFunctions {
                 }
             }
 
-            int taskId = getRuntimeContext().getIndexOfThisSubtask();
+            int taskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             synchronized (LOCK) {
                 globalRetractResult
                         .computeIfAbsent(tableName, k -> new HashMap<>())
@@ -620,7 +622,9 @@ final class TestValuesRuntimeFunctions {
                             .forEach(
                                     c ->
                                             c.accept(
-                                                    getRuntimeContext().getIndexOfThisSubtask(),
+                                                    getRuntimeContext()
+                                                            .getTaskInfo()
+                                                            .getIndexOfThisSubtask(),
                                                     localRawResult));
                 }
             } else {

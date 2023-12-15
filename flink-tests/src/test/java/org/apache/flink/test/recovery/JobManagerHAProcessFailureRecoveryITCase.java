@@ -171,7 +171,9 @@ class JobManagerHAProcessFailureRecoveryITCase {
                                     public Long map(Long value) throws Exception {
                                         if (!markerCreated) {
                                             int taskIndex =
-                                                    getRuntimeContext().getIndexOfThisSubtask();
+                                                    getRuntimeContext()
+                                                            .getTaskInfo()
+                                                            .getIndexOfThisSubtask();
                                             AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
                                                     new File(
                                                             coordinateDir,
@@ -209,7 +211,10 @@ class JobManagerHAProcessFailureRecoveryITCase {
                                         assertThat((long) value)
                                                 .isEqualTo(numElements * (numElements + 1L) / 2L);
 
-                                        int taskIndex = getRuntimeContext().getIndexOfThisSubtask();
+                                        int taskIndex =
+                                                getRuntimeContext()
+                                                        .getTaskInfo()
+                                                        .getIndexOfThisSubtask();
                                         AbstractTaskManagerProcessFailureRecoveryTest.touchFile(
                                                 new File(
                                                         coordinateDir,

@@ -94,7 +94,7 @@ public class StreamSource<OUT, SRC extends SourceFunction<OUT>>
                             collector::emitLatencyMarker,
                             latencyTrackingInterval,
                             this.getOperatorID(),
-                            getRuntimeContext().getIndexOfThisSubtask());
+                            getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
         }
 
         final long watermarkInterval = getExecutionConfig().getAutoWatermarkInterval();

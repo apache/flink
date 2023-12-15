@@ -244,7 +244,7 @@ public class CheckpointRestoreWithUidHashITCase {
             emitRecordsTill(maxNumber / 3, ctx);
 
             if (behavior.waitForCheckpointOnFirstRun
-                    && getRuntimeContext().getAttemptNumber() == 0) {
+                    && getRuntimeContext().getTaskInfo().getAttemptNumber() == 0) {
                 // Wait till one checkpoint is triggered and completed
                 isWaiting = true;
                 startWaitingForCheckpointLatch.get().countDown();

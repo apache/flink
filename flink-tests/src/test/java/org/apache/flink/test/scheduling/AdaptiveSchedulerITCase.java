@@ -393,7 +393,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         public void run(SourceContext<Integer> ctx) throws Exception {
             while (running && !hasFailedBefore) {
                 synchronized (ctx.getCheckpointLock()) {
-                    ctx.collect(getRuntimeContext().getIndexOfThisSubtask());
+                    ctx.collect(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
 
                     Thread.sleep(5L);
                 }
@@ -440,7 +440,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         public void run(SourceContext<Integer> ctx) throws Exception {
             while (running) {
                 synchronized (ctx.getCheckpointLock()) {
-                    ctx.collect(getRuntimeContext().getIndexOfThisSubtask());
+                    ctx.collect(getRuntimeContext().getTaskInfo().getIndexOfThisSubtask());
                     Thread.sleep(5L);
                 }
             }

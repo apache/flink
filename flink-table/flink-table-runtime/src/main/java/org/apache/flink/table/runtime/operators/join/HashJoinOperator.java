@@ -116,7 +116,7 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
                         .getTaskConfiguration()
                         .getBoolean(AlgorithmOptions.HASH_JOIN_BLOOM_FILTERS);
 
-        int parallel = getRuntimeContext().getNumberOfParallelSubtasks();
+        int parallel = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
 
         this.condition = parameter.condFuncCode.newInstance(cl);
         condition.setRuntimeContext(getRuntimeContext());

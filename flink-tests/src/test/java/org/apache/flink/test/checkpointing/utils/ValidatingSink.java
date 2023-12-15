@@ -79,7 +79,7 @@ public class ValidatingSink<T> extends RichSinkFunction<T>
     @Override
     public void open(OpenContext openContext) throws Exception {
         // this sink can only work with DOP 1
-        assertEquals(1, getRuntimeContext().getNumberOfParallelSubtasks());
+        assertEquals(1, getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks());
         if (usingProcessingTime && resultChecker.checkResult(windowCounts)) {
             throw new SuccessException();
         }

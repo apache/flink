@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.operator;
 
+import org.apache.flink.api.common.TaskInfoImpl;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.functions.AggregateFunction;
@@ -121,14 +122,15 @@ public class CepRuntimeContextTest extends TestLogger {
         final boolean isObjectReused = true;
 
         RuntimeContext mockedRuntimeContext = mock(RuntimeContext.class);
-
-        when(mockedRuntimeContext.getTaskName()).thenReturn(taskName);
+        TaskInfoImpl taskInfo =
+                new TaskInfoImpl(
+                        taskName,
+                        numberOfParallelSubtasks,
+                        indexOfSubtask,
+                        numberOfParallelSubtasks,
+                        attemptNumber);
+        when(mockedRuntimeContext.getTaskInfo()).thenReturn(taskInfo);
         when(mockedRuntimeContext.getMetricGroup()).thenReturn(metricGroup);
-        when(mockedRuntimeContext.getNumberOfParallelSubtasks())
-                .thenReturn(numberOfParallelSubtasks);
-        when(mockedRuntimeContext.getIndexOfThisSubtask()).thenReturn(indexOfSubtask);
-        when(mockedRuntimeContext.getAttemptNumber()).thenReturn(attemptNumber);
-        when(mockedRuntimeContext.getTaskNameWithSubtasks()).thenReturn(taskNameWithSubtask);
         when(mockedRuntimeContext.getGlobalJobParameters()).thenReturn(globalJobParameters);
         when(mockedRuntimeContext.isObjectReuseEnabled()).thenReturn(isObjectReused);
         when(mockedRuntimeContext.getUserCodeClassLoader()).thenReturn(userCodeClassLoader);
@@ -136,12 +138,14 @@ public class CepRuntimeContextTest extends TestLogger {
 
         RuntimeContext runtimeContext = new CepRuntimeContext(mockedRuntimeContext);
 
-        assertEquals(taskName, runtimeContext.getTaskName());
+        assertEquals(taskName, runtimeContext.getTaskInfo().getTaskName());
         assertEquals(metricGroup, runtimeContext.getMetricGroup());
-        assertEquals(numberOfParallelSubtasks, runtimeContext.getNumberOfParallelSubtasks());
-        assertEquals(indexOfSubtask, runtimeContext.getIndexOfThisSubtask());
-        assertEquals(attemptNumber, runtimeContext.getAttemptNumber());
-        assertEquals(taskNameWithSubtask, runtimeContext.getTaskNameWithSubtasks());
+        assertEquals(
+                numberOfParallelSubtasks,
+                runtimeContext.getTaskInfo().getNumberOfParallelSubtasks());
+        assertEquals(indexOfSubtask, runtimeContext.getTaskInfo().getIndexOfThisSubtask());
+        assertEquals(attemptNumber, runtimeContext.getTaskInfo().getAttemptNumber());
+        assertEquals(taskNameWithSubtask, runtimeContext.getTaskInfo().getTaskNameWithSubtasks());
         assertEquals(globalJobParameters, runtimeContext.getGlobalJobParameters());
         assertEquals(isObjectReused, runtimeContext.isObjectReuseEnabled());
         assertEquals(userCodeClassLoader, runtimeContext.getUserCodeClassLoader());

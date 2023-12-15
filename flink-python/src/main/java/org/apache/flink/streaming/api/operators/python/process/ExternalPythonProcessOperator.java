@@ -68,7 +68,7 @@ public class ExternalPythonProcessOperator<IN, OUT>
     @Override
     public PythonFunctionRunner createPythonFunctionRunner() throws Exception {
         return new BeamDataStreamPythonFunctionRunner(
-                getRuntimeContext().getTaskName(),
+                getRuntimeContext().getTaskInfo().getTaskName(),
                 createPythonEnvironmentManager(),
                 STATELESS_FUNCTION_URN,
                 ProtoUtils.createUserDefinedDataStreamFunctionProtos(

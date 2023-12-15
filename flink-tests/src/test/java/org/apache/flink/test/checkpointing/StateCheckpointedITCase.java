@@ -159,10 +159,10 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
             final Random rnd = new Random();
             final StringBuilder stringBuilder = new StringBuilder();
 
-            final int step = getRuntimeContext().getNumberOfParallelSubtasks();
+            final int step = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
 
             if (index == 0) {
-                index = getRuntimeContext().getIndexOfThisSubtask();
+                index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             }
 
             while (isRunning && index < numElements) {
@@ -226,7 +226,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override
@@ -259,7 +259,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override
@@ -292,7 +292,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() throws IOException {
-            counts[getRuntimeContext().getIndexOfThisSubtask()] = count;
+            counts[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = count;
         }
 
         @Override
@@ -339,7 +339,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
             count++;
             if (!hasFailed
                     && count >= failurePos
-                    && getRuntimeContext().getIndexOfThisSubtask() == 1) {
+                    && getRuntimeContext().getTaskInfo().getIndexOfThisSubtask() == 1) {
                 wasCheckpointedBeforeFailure = wasCheckpointed;
                 hasFailed = true;
                 throw new Exception("Test Failure");
@@ -401,7 +401,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
         @Override
         public void close() throws Exception {
-            maps[getRuntimeContext().getIndexOfThisSubtask()] = counts;
+            maps[getRuntimeContext().getTaskInfo().getIndexOfThisSubtask()] = counts;
         }
 
         @Override

@@ -114,7 +114,7 @@ public class RocksDBStateMemoryControlTestProgram {
 
         @Override
         public void open(OpenContext openContext) {
-            int index = getRuntimeContext().getIndexOfThisSubtask();
+            int index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (useValueState) {
                 valueState =
                         getRuntimeContext()
@@ -152,7 +152,7 @@ public class RocksDBStateMemoryControlTestProgram {
 
         @Override
         public void open(OpenContext openContext) {
-            int index = getRuntimeContext().getIndexOfThisSubtask();
+            int index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (useListState) {
                 listState =
                         getRuntimeContext()
@@ -185,7 +185,7 @@ public class RocksDBStateMemoryControlTestProgram {
 
         @Override
         public void open(OpenContext openContext) {
-            int index = getRuntimeContext().getIndexOfThisSubtask();
+            int index = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
             if (useMapState) {
                 mapState =
                         getRuntimeContext()
