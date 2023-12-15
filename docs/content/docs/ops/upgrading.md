@@ -55,10 +55,42 @@ This table lists the `source` / `binary` compatibility guarantees for each annot
 |  `Experimental`  |    {{< xmark >}}/{{< xmark >}}     |    {{< xmark >}}/{{< xmark >}}     |    {{< xmark >}}/{{< xmark >}}     |
 
 {{< hint info >}}
-{{< label Example >}}  
-Code written against a `PublicEvolving` API in 1.15.2 will continue to run in 1.15.3, without having to recompile the code.  
-That same code would have to be recompiled when upgrading to 1.16.0 though.
+{{< label Example >}}
+Consider the code written against a `Public` API in 1.15.2:
+* The code can continue to run when upgrading to Flink 1.15.3 without recompiling, because patch version upgrades for `Public` APIs guarantee `binary` compatibility.
+* The same code may have to be recompiled when upgrading from 1.15.x to 1.16.0, because minor version upgrades for `Public` APIs only provide `source` compatibility, not `binary` compatibility.
+* Code change may be required when upgrading from 1.x to 2.x because major version upgrades for `Public` APIs provide neither `source` nor `binary` compatibility.
+
+Consider the code written against a `PublicEvolving` API in 1.15.2:
+* The code can continue to run when upgrading to Flink 1.15.3 without recompiling, because patch version upgrades for `PublicEvolving` APIs guarantee `binary` compatibility.
+* A code change may be required when upgrading from 1.15.x to Flink 1.16.0, because minor version upgrades for `PublicEvolving` APIs provide neither `source` nor binary compatibility.
 {{< /hint >}}
+
+### Deprecated API Migration Period
+When an API is deprecated, it is marked with the `@Deprecated` annotation and a deprecation message is added to the Javadoc.
+According to [FLIP-321](https://cwiki.apache.org/confluence/display/FLINK/FLIP-321%3A+Introduce+an+API+deprecation+process), 
+starting from release 1.18, each deprecated API will have a guaranteed migration period depending on the API stability level:
+
+|    Annotation    |          Guaranteed Migration Period           |Could be removed after the migration period|
+|:----------------:|:----------------------------------------------:|:-----------------------------------------:|
+|     `Public`     |                2 minor releases                |            Next major version             |
+| `PublicEvolving` |                1 minor release                 |            Next minor version             |
+|  `Experimental`  | 1 patch release for the affected minor release |            Next patch version             |
+
+The source code of a deprecated API will be kept for at least the guaranteed migration period, 
+and may be removed at any point after the migration period has passed.
+
+{{< hint info >}}
+{{< label Example >}}
+Assuming a release sequence of 1.18, 1.19, 1.20, 2.0, 2.1, ..., 3.0,
+- if a `Public` API is deprecated in 1.18, it will not be removed until 2.0.
+- if a `Public` API is deprecated in 1.20, the source code will be kept in 2.0 because the migration period is 2 minor releases. Also, because a `Public` API must maintain source compatibility throughout a major version, the source code will be kept for all the 2.x versions and removed in 3.0 at the earliest.
+- if a `PublicEvolving` API is deprecated in 1.18, it will be removed in 1.20 at the earliest. 
+- if a `PublicEvolving` API is deprecated in 1.20, the source code will be kept in 2.0 because the migration period is 1 minor releases. The source code may be removed in 2.1 at the earliest.
+- if an `Experimental` API is deprecated in 1.18.0, the source code will be kept for 1.18.1 and removed in 1.18.2 at the earliest. Also, the source code can be removed in 1.19.0.  
+{{< /hint >}}
+
+Please check the [FLIP-321](https://cwiki.apache.org/confluence/display/FLINK/FLIP-321%3A+Introduce+an+API+deprecation+process) wiki for more details.
 
 ## Restarting Streaming Applications
 
