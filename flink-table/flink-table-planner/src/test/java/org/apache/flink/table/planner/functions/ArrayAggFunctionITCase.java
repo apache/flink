@@ -22,6 +22,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
@@ -61,8 +62,10 @@ class ArrayAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                         .testResult(
                                 source ->
                                         "SELECT f0, array_agg(f1) FROM " + source + " GROUP BY f0",
-                                source ->
-                                        source.groupBy($("f0")).select($("f0"), $("f1").arrayAgg()),
+                                TableApiAggSpec.groupBySelect(
+                                        Collections.singletonList($("f0")),
+                                        $("f0"),
+                                        $("f1").arrayAgg()),
                                 ROW(STRING(), ARRAY(INT())),
                                 ROW(STRING(), ARRAY(INT())),
                                 Arrays.asList(
@@ -76,9 +79,10 @@ class ArrayAggFunctionITCase extends BuiltInAggregateFunctionTestBase {
                                         "SELECT f0, array_agg(DISTINCT f1) FROM "
                                                 + source
                                                 + " GROUP BY f0",
-                                source ->
-                                        source.groupBy($("f0"))
-                                                .select($("f0"), $("f1").arrayAgg().distinct()),
+                                TableApiAggSpec.groupBySelect(
+                                        Collections.singletonList($("f0")),
+                                        $("f0"),
+                                        $("f1").arrayAgg().distinct()),
                                 ROW(STRING(), ARRAY(INT())),
                                 ROW(STRING(), ARRAY(INT())),
                                 Arrays.asList(

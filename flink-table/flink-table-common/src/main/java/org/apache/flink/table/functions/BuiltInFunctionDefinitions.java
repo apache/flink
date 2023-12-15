@@ -748,6 +748,7 @@ public final class BuiltInFunctionDefinitions {
     public static final BuiltInFunctionDefinition ARRAY_AGG =
             BuiltInFunctionDefinition.newBuilder()
                     .name("arrayAgg")
+                    .sqlName("ARRAY_AGG")
                     .kind(AGGREGATE)
                     .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ARRAY))
                     .build();
