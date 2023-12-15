@@ -76,12 +76,10 @@ class SortBufferAccumulatorTest {
         try (SortBufferAccumulator bufferAccumulator =
                 new SortBufferAccumulator(1, 2, BUFFER_SIZE_BYTES, memoryManager)) {
             bufferAccumulator.setup(
-                    ((subpartition, buffers) ->
-                            buffers.forEach(
-                                    buffer -> {
-                                        numReceivedFinishedBuffer.incrementAndGet();
-                                        buffer.recycleBuffer();
-                                    })));
+                    ((subpartition, buffer) -> {
+                        numReceivedFinishedBuffer.incrementAndGet();
+                        buffer.recycleBuffer();
+                    }));
             boolean isBroadcastForPreviousRecord = false;
             for (int i = 0; i < numRecords; i++) {
                 int numBytes = random.nextInt(BUFFER_SIZE_BYTES) + 1;
@@ -117,9 +115,9 @@ class SortBufferAccumulatorTest {
                 new SortBufferAccumulator(1, 2, BUFFER_SIZE_BYTES, memoryManager)) {
             AtomicInteger numReceivedBuffers = new AtomicInteger(0);
             bufferAccumulator.setup(
-                    (subpartitionIndex, buffers) -> {
-                        numReceivedBuffers.getAndAdd(buffers.size());
-                        buffers.forEach(Buffer::recycleBuffer);
+                    (subpartitionIndex, buffer) -> {
+                        numReceivedBuffers.getAndIncrement();
+                        buffer.recycleBuffer();
                     });
             ByteBuffer largeRecord = generateRandomData(BUFFER_SIZE_BYTES * numBuffers, random);
             bufferAccumulator.receive(
@@ -161,8 +159,7 @@ class SortBufferAccumulatorTest {
                 createStorageMemoryManager(numBuffers);
         SortBufferAccumulator bufferAccumulator =
                 new SortBufferAccumulator(1, 2, BUFFER_SIZE_BYTES, tieredStorageMemoryManager);
-        bufferAccumulator.setup(
-                ((subpartition, buffers) -> buffers.forEach(Buffer::recycleBuffer)));
+        bufferAccumulator.setup(((subpartition, buffer) -> buffer.recycleBuffer()));
         bufferAccumulator.receive(
                 generateRandomData(1, new Random()),
                 new TieredStorageSubpartitionId(0),

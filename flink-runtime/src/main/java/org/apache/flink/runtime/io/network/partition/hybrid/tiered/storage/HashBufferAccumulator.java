@@ -27,7 +27,6 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.List;
 import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -58,8 +57,7 @@ public class HashBufferAccumulator
      * construction, requiring the field to be initialized during setup. Therefore, it is necessary
      * to verify whether this field is null before using it.
      */
-    @Nullable
-    private BiConsumer<TieredStorageSubpartitionId, List<Buffer>> accumulatedBufferFlusher;
+    @Nullable private BiConsumer<TieredStorageSubpartitionId, Buffer> accumulatedBufferFlusher;
 
     public HashBufferAccumulator(
             int numSubpartitions, int bufferSize, TieredStorageMemoryManager memoryManager) {
@@ -74,8 +72,7 @@ public class HashBufferAccumulator
     }
 
     @Override
-    public void setup(
-            BiConsumer<TieredStorageSubpartitionId, List<Buffer>> accumulatedBufferFlusher) {
+    public void setup(BiConsumer<TieredStorageSubpartitionId, Buffer> accumulatedBufferFlusher) {
         this.accumulatedBufferFlusher = accumulatedBufferFlusher;
     }
 
@@ -102,8 +99,8 @@ public class HashBufferAccumulator
 
     @Override
     public void flushAccumulatedBuffers(
-            TieredStorageSubpartitionId subpartitionId, List<Buffer> accumulatedBuffers) {
-        checkNotNull(accumulatedBufferFlusher).accept(subpartitionId, accumulatedBuffers);
+            TieredStorageSubpartitionId subpartitionId, Buffer accumulatedBuffer) {
+        checkNotNull(accumulatedBufferFlusher).accept(subpartitionId, accumulatedBuffer);
     }
 
     private HashSubpartitionBufferAccumulator getSubpartitionAccumulator(

@@ -28,17 +28,15 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage.Buffe
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Collections;
-import java.util.List;
 import java.util.function.BiConsumer;
 
 /** Test implementation for {@link BufferAccumulator}. */
 public class TestingBufferAccumulator implements BufferAccumulator {
 
-    private BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher;
+    private BiConsumer<TieredStorageSubpartitionId, Buffer> bufferFlusher;
 
     @Override
-    public void setup(BiConsumer<TieredStorageSubpartitionId, List<Buffer>> bufferFlusher) {
+    public void setup(BiConsumer<TieredStorageSubpartitionId, Buffer> bufferFlusher) {
         this.bufferFlusher = bufferFlusher;
     }
 
@@ -52,12 +50,8 @@ public class TestingBufferAccumulator implements BufferAccumulator {
         MemorySegment recordData = MemorySegmentFactory.wrap(record.array());
         bufferFlusher.accept(
                 subpartitionId,
-                Collections.singletonList(
-                        new NetworkBuffer(
-                                recordData,
-                                FreeingBufferRecycler.INSTANCE,
-                                dataType,
-                                recordData.size())));
+                new NetworkBuffer(
+                        recordData, FreeingBufferRecycler.INSTANCE, dataType, recordData.size()));
     }
 
     @Override

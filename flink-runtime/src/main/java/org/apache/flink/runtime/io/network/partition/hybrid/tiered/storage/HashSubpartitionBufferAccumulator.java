@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.Tiered
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Optional;
 import java.util.Queue;
@@ -155,7 +154,6 @@ public class HashSubpartitionBufferAccumulator {
     }
 
     private void flushFinishedBuffer(Buffer finishedBuffer) {
-        bufferAccumulatorContext.flushAccumulatedBuffers(
-                subpartitionId, Collections.singletonList(finishedBuffer));
+        bufferAccumulatorContext.flushAccumulatedBuffers(subpartitionId, finishedBuffer);
     }
 }
