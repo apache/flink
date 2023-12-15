@@ -1,0 +1,59 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: "Selects Flink workflow configurations"
+description: "Loads the relevant workflow configuration from a given folder."
+inputs:
+  config-folder:
+    description: "The directory in which the workflow configurations are located."
+    required: true
+  profile:
+    description: >-
+      The profile that's used to access the desired workflow configuration 
+      file. Any invalid profile (i.e. no file exists) will lead to using 
+      the default workflow configurations. Configuration files are expected 
+      to have the name format 'flink-workflow.<profile>.json' and should be 
+      located in the folder that's specified through the 'config-folder' parameter.
+    required: true
+outputs:
+  workflow-configurations:
+    description: "A JSON representation of the workflow configurations."
+    value: "${{ steps.workflow-selection.outputs.configs }}"
+runs:
+  using: "composite"
+  steps:
+    - name: "Loads Flink workflow configurations"
+      id: workflow-selection
+      shell: bash
+      run: |
+        fallback_profile="default"
+        fallback_path="${{ inputs.config-folder }}/flink-workflow.${fallback_profile}.json"
+        
+        if [ ! -f $fallback_path ]; then
+          echo "ERROR: No fallback profile configuration file was found at '${fallback_path}'" 1>&2
+          exit 1
+        fi
+        
+        profile_config_path=$(echo "$fallback_path" | sed "s/\(.*\)$fallback_profile/\1${{ inputs.profile }}/")
+        if [ ! -f $profile_config_path ]; then
+          # use fallback configuration if no branch specific configuration is present
+          echo "INFO: No workflow configuration file '${profile_config_path}'. Fallback '${fallback_path}' will be used instead."
+          profile_config_path="${fallback_path}"
+        fi
+        
+        echo "configs=$(cat ${profile_config_path} | paste -sd' ')" >> $GITHUB_OUTPUT
