@@ -69,7 +69,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
     super.before()
     // set state backend
 
-    val baseCheckpointPath = Files.createTempDirectory(getClass.getCanonicalName)
+    baseCheckpointPath = Files.createTempDirectory(getClass.getCanonicalName)
     Files.deleteIfExists(baseCheckpointPath);
     state match {
       case HEAP_BACKEND =>
