@@ -42,8 +42,9 @@ public class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrateg
     }
 
     @Override
-    public void notifyFailure(Throwable cause) {
+    public boolean notifyFailure(Throwable cause) {
         // ignore
+        return true;
     }
 
     public void setCanRestart(final boolean canRestart) {

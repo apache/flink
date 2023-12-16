@@ -79,11 +79,12 @@ public class FailureRateRestartBackoffTimeStrategy implements RestartBackoffTime
     }
 
     @Override
-    public void notifyFailure(Throwable cause) {
+    public boolean notifyFailure(Throwable cause) {
         if (isFailureTimestampsQueueFull()) {
             failureTimestamps.remove();
         }
         failureTimestamps.add(clock.absoluteTimeMillis());
+        return true;
     }
 
     @Override
