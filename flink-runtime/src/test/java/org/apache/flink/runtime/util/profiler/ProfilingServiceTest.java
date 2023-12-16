@@ -22,11 +22,14 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.rest.messages.ProfilingInfo;
 import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.TestLogger;
 
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,28 +42,21 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /** Unit tests for {@link ProfilingService}. */
-public class ProfilingServiceTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ProfilingServiceTest.class);
-    private static final Configuration configs = new Configuration();
+public class ProfilingServiceTest extends TestLogger {
     private static final String NO_ACCESS_TO_PERF_EVENTS = "No access to perf events.";
     private static final String NO_ALLOC_SYMBOL_FOUND = "No AllocTracer symbols found.";
-    private static final String resourceID = "TestJobManager";
-    private static final long profilingDuration = 3L;
-    private static final int historySizeLimit = 3;
+    private static final String RESOURCE_ID = "TestJobManager";
+    private static final long DEFAULT_PROFILING_DURATION = 3L;
+    private static final int HISTORY_SIZE_LIMIT = 2;
 
     private ProfilingService profilingService;
-
-    @BeforeAll
-    static void beforeAll() {
-        configs.set(RestOptions.MAX_PROFILING_HISTORY_SIZE, historySizeLimit);
-    }
+    private final Configuration configs = new Configuration();
 
     @BeforeEach
     void setUp(@TempDir Path tempDir) {
+        configs.set(RestOptions.MAX_PROFILING_HISTORY_SIZE, HISTORY_SIZE_LIMIT);
         configs.set(RestOptions.PROFILING_RESULT_DIR, tempDir.toString());
         profilingService = ProfilingService.getInstance(configs);
-        verifyConfigsWorks(profilingService, tempDir);
     }
 
     @AfterEach
@@ -69,24 +65,31 @@ public class ProfilingServiceTest {
     }
 
     @Test
-    public void testSingleInstance() throws IOException {
-        ProfilingService instance = ProfilingService.getInstance(configs);
-        Assertions.assertEquals(profilingService, instance);
-        instance.close();
+    public void testSingleton() throws IOException {
+        try (ProfilingService testService = ProfilingService.getInstance(configs)) {
+            Assertions.assertEquals(profilingService, testService);
+        }
     }
 
     @Test
-    void testFailedRequestUnderProfiling() throws ExecutionException, InterruptedException {
-        ProfilingInfo profilingInfo =
-                profilingService
-                        .requestProfiling(resourceID, 10, ProfilingInfo.ProfilingMode.ITIMER)
-                        .get();
-        Assertions.assertEquals(ProfilingInfo.ProfilingStatus.RUNNING, profilingInfo.getStatus());
+    void testProfilingConfigurationWorkingAsExpected() throws IOException {
+        try (ProfilingService testService = ProfilingService.getInstance(configs)) {
+            Assertions.assertEquals(
+                    configs.get(RestOptions.PROFILING_RESULT_DIR),
+                    testService.getProfilingResultDir());
+            Assertions.assertEquals(
+                    configs.get(RestOptions.MAX_PROFILING_HISTORY_SIZE),
+                    testService.getHistorySizeLimit());
+        }
+    }
+
+    @Test
+    void testFailedRequestSinceStillUnderProfiling()
+            throws ExecutionException, InterruptedException {
+        requestSingleProfiling(ProfilingInfo.ProfilingMode.ITIMER, 10L, false);
         try {
-            profilingService
-                    .requestProfiling(
-                            resourceID, profilingDuration, ProfilingInfo.ProfilingMode.ITIMER)
-                    .get();
+            // request for another profiling right now, it should fail.
+            requestSingleProfiling(ProfilingInfo.ProfilingMode.ITIMER, 10L, false);
             Assertions.fail("Duplicate profiling request should throw with IllegalStateException.");
         } catch (Exception e) {
             Assertions.assertTrue(e.getCause() instanceof IllegalStateException);
@@ -97,21 +100,50 @@ public class ProfilingServiceTest {
     @Timeout(value = 1, unit = TimeUnit.MINUTES)
     public void testAllProfilingMode() throws ExecutionException, InterruptedException {
         for (ProfilingInfo.ProfilingMode mode : ProfilingInfo.ProfilingMode.values()) {
-            ProfilingInfo profilingInfo =
-                    profilingService.requestProfiling(resourceID, profilingDuration, mode).get();
-            if (isNoPermissionOrAllocateSymbol(profilingInfo)) {
-                LOG.warn(
-                        "Ignoring failed profiling instance in {} mode, which caused by no permission.",
-                        profilingInfo.getProfilingMode());
-                continue;
-            }
-            Assertions.assertEquals(
-                    ProfilingInfo.ProfilingStatus.RUNNING,
-                    profilingInfo.getStatus(),
-                    String.format(
-                            "Submitting profiling request should be succeed or no permission, but got errorMsg=%s",
-                            profilingInfo.getMessage()));
-            waitForProfilingFinished(profilingService);
+            requestSingleProfiling(mode, DEFAULT_PROFILING_DURATION, true);
+        }
+    }
+
+    @Test
+    @Timeout(value = 1, unit = TimeUnit.MINUTES)
+    public void testRollingDeletion() throws ExecutionException, InterruptedException {
+        // trigger 3 times ITIMER mode profiling
+        for (int i = 0; i < 3; i++) {
+            requestSingleProfiling(
+                    ProfilingInfo.ProfilingMode.ITIMER, DEFAULT_PROFILING_DURATION, true);
+        }
+        // Due to the configuration of MAX_PROFILING_HISTORY_SIZE=2,
+        // the profiling result directory should container no more than 2 files.
+        verifyRollingDeletionWorks();
+    }
+
+    /**
+     * Trigger a specific profiling instance for testing.
+     *
+     * @param mode target profiling mode
+     * @param duration target profiling duration
+     * @param waitUntilFinished flag of waiting for profiling finished or not
+     */
+    private void requestSingleProfiling(
+            ProfilingInfo.ProfilingMode mode, Long duration, Boolean waitUntilFinished)
+            throws InterruptedException, ExecutionException {
+        ProfilingInfo profilingInfo =
+                profilingService.requestProfiling(RESOURCE_ID, duration, mode).get();
+        if (isNoPermissionOrAllocateSymbol(profilingInfo)) {
+            log.warn(
+                    "Ignoring failed profiling instance in {} mode, which caused by {}.",
+                    profilingInfo.getProfilingMode(),
+                    profilingInfo.getMessage());
+            return;
+        }
+        Assertions.assertEquals(
+                ProfilingInfo.ProfilingStatus.RUNNING,
+                profilingInfo.getStatus(),
+                String.format(
+                        "Submitting profiling request should be started successfully or failed by no permission, but got errorMsg=%s",
+                        profilingInfo.getMessage()));
+        if (waitUntilFinished) {
+            waitForProfilingFinished();
             Assertions.assertEquals(
                     ProfilingInfo.ProfilingStatus.FINISHED,
                     profilingInfo.getStatus(),
@@ -119,20 +151,13 @@ public class ProfilingServiceTest {
                             "Profiling request should complete successful, but got errorMsg=%s",
                             profilingInfo.getMessage()));
         }
-
-        verifyRollingDeletion(profilingService);
     }
 
-    private void verifyConfigsWorks(ProfilingService profilingService, Path configuredDir) {
-        Assertions.assertEquals(configuredDir.toString(), profilingService.getProfilingResultDir());
-        Assertions.assertEquals(historySizeLimit, profilingService.getHistorySizeLimit());
-    }
-
-    private void verifyRollingDeletion(ProfilingService profilingService) {
+    private void verifyRollingDeletionWorks() {
         ArrayDeque<ProfilingInfo> profilingList =
-                profilingService.getProfilingListForTest(resourceID);
+                profilingService.getProfilingListForTest(RESOURCE_ID);
         // Profiling History shouldn't exceed history size limit.
-        Assertions.assertEquals(historySizeLimit, profilingList.size());
+        Assertions.assertTrue(profilingList.size() <= profilingService.getHistorySizeLimit());
         // Profiling History files should be rolling deleted.
         Set<String> resultFileNames = new HashSet<>();
         File configuredDir = new File(profilingService.getProfilingResultDir());
@@ -146,15 +171,17 @@ public class ProfilingServiceTest {
         }
     }
 
-    private void waitForProfilingFinished(ProfilingService profilingService) {
-        while (!profilingService.getProfilingFuture().isDone()) {}
+    private void waitForProfilingFinished() throws InterruptedException {
+        while (!profilingService.getProfilingFuture().isDone()) {
+            Thread.sleep(1000);
+        }
     }
 
     /**
      * Check profiling instance failed caused by no permission to perf_events or missing of JDK
      * debug symbols.
      *
-     * @return true if no permission to access perf_events.
+     * @return true if no permission to access perf_events or no AllocTracer symbols found.
      */
     private boolean isNoPermissionOrAllocateSymbol(ProfilingInfo profilingInfo) {
         boolean isNoPermission =

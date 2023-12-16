@@ -55,7 +55,7 @@ public class ProfilingService implements Closeable {
 
     protected static final Logger LOG = LoggerFactory.getLogger(ProfilingService.class);
     private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH_mm_ss");
-    private static ProfilingService instance;
+    private static volatile ProfilingService instance;
     private final Map<String, ArrayDeque<ProfilingInfo>> profilingMap;
     private final String profilingResultDir;
     private final int historySizeLimit;
@@ -80,7 +80,11 @@ public class ProfilingService implements Closeable {
 
     public static ProfilingService getInstance(Configuration configs) {
         if (instance == null) {
-            instance = new ProfilingService(configs);
+            synchronized (ProfilingService.class) {
+                if (instance == null) {
+                    instance = new ProfilingService(configs);
+                }
+            }
         }
         return instance;
     }
@@ -163,7 +167,9 @@ public class ProfilingService implements Closeable {
             if (profilingFuture != null && !profilingFuture.isDone()) {
                 profilingFuture.cancel();
             }
-            scheduledExecutor.shutdownNow();
+            if (!scheduledExecutor.isShutdown()) {
+                scheduledExecutor.shutdownNow();
+            }
             instance = null;
         } catch (Exception e) {
             LOG.error("Exception thrown during stopping profiling service. ", e);
