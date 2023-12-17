@@ -61,6 +61,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.FIXED_DELAY;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertNotNull;
@@ -89,7 +90,7 @@ public class BlobsCleanupITCase extends TestLogger {
 
         Configuration cfg = new Configuration();
         cfg.set(BlobServerOptions.STORAGE_DIRECTORY, blobBaseDir.getAbsolutePath());
-        cfg.set(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+        cfg.set(RestartStrategyOptions.RESTART_STRATEGY, FIXED_DELAY.getMainValue());
         cfg.set(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
         // BLOBs are deleted from BlobCache between 1s and 2s after last reference
         // -> the BlobCache may still have the BLOB or not (let's test both cases randomly)
