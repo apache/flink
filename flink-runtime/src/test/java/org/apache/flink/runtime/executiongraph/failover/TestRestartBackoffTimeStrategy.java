@@ -19,6 +19,8 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import java.util.function.Supplier;
+
 /** A RestartBackoffTimeStrategy implementation for tests. */
 public class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrategy {
 
@@ -26,9 +28,17 @@ public class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrateg
 
     private long backoffTime;
 
+    private Supplier<Boolean> isNewAttempt;
+
     public TestRestartBackoffTimeStrategy(boolean canRestart, long backoffTime) {
+        this(canRestart, backoffTime, () -> true);
+    }
+
+    public TestRestartBackoffTimeStrategy(
+            boolean canRestart, long backoffTime, Supplier<Boolean> isNewAttempt) {
         this.canRestart = canRestart;
         this.backoffTime = backoffTime;
+        this.isNewAttempt = isNewAttempt;
     }
 
     @Override
@@ -44,7 +54,7 @@ public class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrateg
     @Override
     public boolean notifyFailure(Throwable cause) {
         // ignore
-        return true;
+        return isNewAttempt.get();
     }
 
     public void setCanRestart(final boolean canRestart) {
@@ -53,5 +63,9 @@ public class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrateg
 
     public void setBackoffTime(final long backoffTime) {
         this.backoffTime = backoffTime;
+    }
+
+    public void setIsNewAttempt(Supplier<Boolean> isNewAttempt) {
+        this.isNewAttempt = isNewAttempt;
     }
 }

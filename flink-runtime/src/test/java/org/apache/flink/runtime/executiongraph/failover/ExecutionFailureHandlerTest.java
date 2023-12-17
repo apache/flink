@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,6 +58,8 @@ class ExecutionFailureHandlerTest {
 
     private TestFailoverStrategy failoverStrategy;
 
+    private AtomicBoolean isNewAttempt;
+
     private TestRestartBackoffTimeStrategy backoffTimeStrategy;
 
     private ExecutionFailureHandler executionFailureHandler;
@@ -71,7 +74,9 @@ class ExecutionFailureHandlerTest {
 
         failoverStrategy = new TestFailoverStrategy();
         testingFailureEnricher = new TestingFailureEnricher();
-        backoffTimeStrategy = new TestRestartBackoffTimeStrategy(true, RESTART_DELAY_MS);
+        isNewAttempt = new AtomicBoolean(true);
+        backoffTimeStrategy =
+                new TestRestartBackoffTimeStrategy(true, RESTART_DELAY_MS, isNewAttempt::get);
         executionFailureHandler =
                 new ExecutionFailureHandler(
                         schedulingTopology,
@@ -158,6 +163,8 @@ class ExecutionFailureHandlerTest {
         final Throwable error =
                 new Exception(new SuppressRestartsException(new Exception("test failure")));
         final long timestamp = System.currentTimeMillis();
+
+        isNewAttempt.set(false);
         final FailureHandlingResult result =
                 executionFailureHandler.getFailureHandlingResult(execution, error, timestamp);
 
@@ -171,6 +178,10 @@ class ExecutionFailureHandlerTest {
         assertThat(result.getFailureLabels().get())
                 .isEqualTo(testingFailureEnricher.getFailureLabels());
         assertThat(result.getTimestamp()).isEqualTo(timestamp);
+        assertThat(result.isRootCause())
+                .as(
+                        "A NonRecoverableFailure should be new attempt even if RestartBackoffTimeStrategy consider it's not new attempt.")
+                .isTrue();
 
         assertThatThrownBy(result::getVerticesToRestart)
                 .as("getVerticesToRestart is not allowed when restarting is suppressed")
@@ -181,6 +192,51 @@ class ExecutionFailureHandlerTest {
                 .isInstanceOf(IllegalStateException.class);
 
         assertThat(executionFailureHandler.getNumberOfRestarts()).isZero();
+    }
+
+    @Test
+    void testNewAttempt() throws Exception {
+        final Set<ExecutionVertexID> tasksToRestart =
+                Collections.singleton(new ExecutionVertexID(new JobVertexID(), 0));
+        failoverStrategy.setTasksToRestart(tasksToRestart);
+
+        Execution execution =
+                FailureHandlingResultTest.createExecution(EXECUTOR_RESOURCE.getExecutor());
+        final Throwable error = new Exception("expected test failure");
+
+        testHandlingRootException(execution, error);
+
+        isNewAttempt.set(false);
+        testHandlingConcurrentException(execution, error);
+        testHandlingConcurrentException(execution, error);
+
+        isNewAttempt.set(true);
+        testHandlingRootException(execution, error);
+        testHandlingRootException(execution, error);
+
+        isNewAttempt.set(false);
+        testHandlingConcurrentException(execution, error);
+        testHandlingConcurrentException(execution, error);
+    }
+
+    private void testHandlingRootException(Execution execution, Throwable error) {
+        FailureHandlingResult result =
+                executionFailureHandler.getFailureHandlingResult(
+                        execution, error, System.currentTimeMillis());
+        assertThat(result.isRootCause())
+                .as(
+                        "The FailureHandlingResult should be the root cause if exception is new attempt.")
+                .isTrue();
+    }
+
+    private void testHandlingConcurrentException(Execution execution, Throwable error) {
+        FailureHandlingResult result =
+                executionFailureHandler.getFailureHandlingResult(
+                        execution, error, System.currentTimeMillis());
+        assertThat(result.isRootCause())
+                .as(
+                        "The FailureHandlingResult shouldn't be the root cause if exception isn't new attempt.")
+                .isFalse();
     }
 
     /** Tests the check for unrecoverable error. */

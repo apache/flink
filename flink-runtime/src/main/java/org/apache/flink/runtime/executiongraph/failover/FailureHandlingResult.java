@@ -66,6 +66,9 @@ public class FailureHandlingResult {
     /** True if the original failure was a global failure. */
     private final boolean globalFailure;
 
+    /** True if current failure is the root cause instead of concurrent exceptions. */
+    private final boolean isRootCause;
+
     /**
      * Creates a result of a set of tasks to restart to recover from the failure.
      *
@@ -77,6 +80,7 @@ public class FailureHandlingResult {
      * @param verticesToRestart containing task vertices to restart to recover from the failure.
      *     {@code null} indicates that the failure is not restartable.
      * @param restartDelayMS indicate a delay before conducting the restart
+     * @param isRootCause indicate whether current failure is a new attempt.
      */
     private FailureHandlingResult(
             @Nullable Execution failedExecution,
@@ -85,7 +89,8 @@ public class FailureHandlingResult {
             CompletableFuture<Map<String, String>> failureLabels,
             @Nullable Set<ExecutionVertexID> verticesToRestart,
             long restartDelayMS,
-            boolean globalFailure) {
+            boolean globalFailure,
+            boolean isRootCause) {
         checkState(restartDelayMS >= 0);
 
         this.verticesToRestart = Collections.unmodifiableSet(checkNotNull(verticesToRestart));
@@ -95,6 +100,7 @@ public class FailureHandlingResult {
         this.failureLabels = failureLabels;
         this.timestamp = timestamp;
         this.globalFailure = globalFailure;
+        this.isRootCause = isRootCause;
     }
 
     /**
@@ -106,13 +112,16 @@ public class FailureHandlingResult {
      * @param timestamp the time the failure was handled.
      * @param failureLabels collection of tags characterizing the failure as produced by the
      *     FailureEnrichers
+     * @param isRootCause indicate whether current failure is a new attempt.
      */
     private FailureHandlingResult(
             @Nullable Execution failedExecution,
             @Nonnull Throwable error,
             long timestamp,
             CompletableFuture<Map<String, String>> failureLabels,
-            boolean globalFailure) {
+            boolean globalFailure,
+            boolean isRootCause) {
+        this.isRootCause = isRootCause;
         this.verticesToRestart = null;
         this.restartDelayMS = -1;
         this.failedExecution = failedExecution;
@@ -207,6 +216,16 @@ public class FailureHandlingResult {
     }
 
     /**
+     * @return True means that the current failure is a new attempt, false means that there has been
+     *     a failure before and has not been tried yet, and the current failure will be merged into
+     *     the previous attempt, and these merged exceptions will be considered as the concurrent
+     *     exceptions.
+     */
+    public boolean isRootCause() {
+        return isRootCause;
+    }
+
+    /**
      * Creates a result of a set of tasks to restart to recover from the failure.
      *
      * <p>The result can be flagged to be from a global failure triggered by the scheduler, rather
@@ -230,7 +249,8 @@ public class FailureHandlingResult {
             CompletableFuture<Map<String, String>> failureLabels,
             @Nullable Set<ExecutionVertexID> verticesToRestart,
             long restartDelayMS,
-            boolean globalFailure) {
+            boolean globalFailure,
+            boolean isRootCause) {
         return new FailureHandlingResult(
                 failedExecution,
                 cause,
@@ -238,7 +258,8 @@ public class FailureHandlingResult {
                 failureLabels,
                 verticesToRestart,
                 restartDelayMS,
-                globalFailure);
+                globalFailure,
+                isRootCause);
     }
 
     /**
@@ -260,8 +281,9 @@ public class FailureHandlingResult {
             @Nonnull Throwable error,
             long timestamp,
             CompletableFuture<Map<String, String>> failureLabels,
-            boolean globalFailure) {
+            boolean globalFailure,
+            boolean isRootCause) {
         return new FailureHandlingResult(
-                failedExecution, error, timestamp, failureLabels, globalFailure);
+                failedExecution, error, timestamp, failureLabels, globalFailure, isRootCause);
     }
 }

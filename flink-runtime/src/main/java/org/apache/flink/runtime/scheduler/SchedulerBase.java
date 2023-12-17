@@ -111,6 +111,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -128,6 +129,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Base class which can be used to implement {@link SchedulerNG}. */
 public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling {
@@ -165,6 +167,8 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
     private final ComponentMainThreadExecutor mainThreadExecutor;
 
     private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
+
+    private RootExceptionHistoryEntry latestRootExceptionEntry;
 
     private final ExecutionGraphFactory executionGraphFactory;
 
@@ -707,27 +711,40 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
             long timestamp,
             CompletableFuture<Map<String, String>> failureLabels,
             Iterable<Execution> executions) {
-        exceptionHistory.add(
+        latestRootExceptionEntry =
                 RootExceptionHistoryEntry.fromGlobalFailure(
-                        failure, timestamp, failureLabels, executions));
+                        failure, timestamp, failureLabels, executions);
+        exceptionHistory.add(latestRootExceptionEntry);
         log.debug("Archive global failure.", failure);
     }
 
     protected final void archiveFromFailureHandlingResult(
             FailureHandlingResultSnapshot failureHandlingResult) {
-        if (failureHandlingResult.getRootCauseExecution().isPresent()) {
+        if (!failureHandlingResult.isRootCause()) {
+            // Handle all subsequent exceptions as the concurrent exceptions when it's not a new
+            // attempt.
+            checkState(
+                    latestRootExceptionEntry != null,
+                    "A root exception entry should exist if failureHandlingResult wasn't "
+                            + "generated as part of a new error handling cycle.");
+            List<Execution> concurrentlyExecutions = new ArrayList<>();
+            failureHandlingResult.getRootCauseExecution().ifPresent(concurrentlyExecutions::add);
+            concurrentlyExecutions.addAll(failureHandlingResult.getConcurrentlyFailedExecution());
+
+            latestRootExceptionEntry.addConcurrentExceptions(concurrentlyExecutions);
+        } else if (failureHandlingResult.getRootCauseExecution().isPresent()) {
             final Execution rootCauseExecution =
                     failureHandlingResult.getRootCauseExecution().get();
 
-            final RootExceptionHistoryEntry rootEntry =
+            latestRootExceptionEntry =
                     RootExceptionHistoryEntry.fromFailureHandlingResultSnapshot(
                             failureHandlingResult);
-            exceptionHistory.add(rootEntry);
+            exceptionHistory.add(latestRootExceptionEntry);
 
             log.debug(
                     "Archive local failure causing attempt {} to fail: {}",
                     rootCauseExecution.getAttemptId(),
-                    rootEntry.getExceptionAsString());
+                    latestRootExceptionEntry.getExceptionAsString());
         } else {
             archiveGlobalFailure(
                     failureHandlingResult.getRootCause(),

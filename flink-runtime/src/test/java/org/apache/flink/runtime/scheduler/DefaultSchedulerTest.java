@@ -128,6 +128,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -1440,6 +1441,9 @@ public class DefaultSchedulerTest {
 
     @Test
     void testExceptionHistoryConcurrentRestart() throws Exception {
+        AtomicBoolean isNewAttempt = new AtomicBoolean(true);
+        testRestartBackoffTimeStrategy.setIsNewAttempt(isNewAttempt::get);
+
         final JobGraph jobGraph = singleJobVertexJobGraph(2);
 
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
@@ -1476,9 +1480,9 @@ public class DefaultSchedulerTest {
                         exception0);
 
         // multi-ExecutionVertex failure
+        isNewAttempt.set(false);
         final RuntimeException exception1 = new RuntimeException("failure #1");
-        failoverStrategyFactory.setTasksToRestart(
-                executionVertex1.getID(), executionVertex0.getID());
+        failoverStrategyFactory.setTasksToRestart(executionVertex1.getID());
         final long updateStateTriggeringRestartTimestamp1 =
                 initiateFailure(
                         scheduler,
@@ -1491,7 +1495,7 @@ public class DefaultSchedulerTest {
 
         delayExecutor.triggerNonPeriodicScheduledTasks();
 
-        assertThat(scheduler.getExceptionHistory()).hasSize(2);
+        assertThat(scheduler.getExceptionHistory()).hasSize(1);
         final Iterator<RootExceptionHistoryEntry> actualExceptionHistory =
                 scheduler.getExceptionHistory().iterator();
 
@@ -1513,17 +1517,6 @@ public class DefaultSchedulerTest {
                                         updateStateTriggeringRestartTimestamp1,
                                         executionVertex1.getTaskNameWithSubtaskIndex(),
                                         executionVertex1.getCurrentAssignedResourceLocation()));
-
-        final RootExceptionHistoryEntry entry1 = actualExceptionHistory.next();
-        assertThat(
-                        ExceptionHistoryEntryTestingUtils.matchesFailure(
-                                entry1,
-                                exception1,
-                                updateStateTriggeringRestartTimestamp1,
-                                executionVertex1.getTaskNameWithSubtaskIndex(),
-                                executionVertex1.getCurrentAssignedResourceLocation()))
-                .isTrue();
-        assertThat(entry1.getConcurrentExceptions()).isEmpty();
     }
 
     @Test
