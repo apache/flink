@@ -18,6 +18,7 @@
 
 package org.apache.flink.configuration;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
@@ -857,6 +858,7 @@ public class TaskManagerOptions {
          * TaskManagerOptions#TASK_MANAGER_LOAD_BALANCE_MODE} from {@link Configuration}, which is
          * compatible with {@link ClusterOptions#EVENLY_SPREAD_OUT_SLOTS_STRATEGY}.
          */
+        @Internal
         public static TaskManagerLoadBalanceMode loadFromConfiguration(
                 @Nonnull Configuration configuration) {
             Optional<TaskManagerLoadBalanceMode> taskManagerLoadBalanceModeOptional =
