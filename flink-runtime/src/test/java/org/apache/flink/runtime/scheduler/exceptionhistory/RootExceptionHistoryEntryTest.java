@@ -81,10 +81,11 @@ class RootExceptionHistoryEntryTest {
         final CompletableFuture<Map<String, String>> rootFailureLabels =
                 CompletableFuture.completedFuture(Collections.singletonMap("key", "value"));
 
-        final Throwable concurrentException = new IllegalStateException("Expected other failure");
-        final ExecutionVertex concurrentlyFailedExecutionVertex = extractExecutionVertex(1);
-        final long concurrentExceptionTimestamp =
-                triggerFailure(concurrentlyFailedExecutionVertex, concurrentException);
+        final Throwable concurrentException1 = new IllegalStateException("Expected other failure1");
+        final ExecutionVertex concurrentlyFailedExecutionVertex1 = extractExecutionVertex(1);
+        Predicate<ExceptionHistoryEntry> exception1Predicate =
+                triggerFailureAndCreateEntryMatcher(
+                        concurrentException1, concurrentlyFailedExecutionVertex1);
 
         final FailureHandlingResultSnapshot snapshot =
                 new FailureHandlingResultSnapshot(
@@ -93,7 +94,8 @@ class RootExceptionHistoryEntryTest {
                         rootTimestamp,
                         rootFailureLabels,
                         Collections.singleton(
-                                concurrentlyFailedExecutionVertex.getCurrentExecutionAttempt()));
+                                concurrentlyFailedExecutionVertex1.getCurrentExecutionAttempt()),
+                        true);
         final RootExceptionHistoryEntry actualEntry =
                 RootExceptionHistoryEntry.fromFailureHandlingResultSnapshot(snapshot);
 
@@ -105,15 +107,24 @@ class RootExceptionHistoryEntryTest {
                                 rootFailureLabels.get(),
                                 rootExecutionVertex.getTaskNameWithSubtaskIndex(),
                                 rootExecutionVertex.getCurrentAssignedResourceLocation()));
+
+        assertThat(actualEntry.getConcurrentExceptions()).hasSize(1).allMatch(exception1Predicate);
+
+        // Test for addConcurrentExceptions
+        final Throwable concurrentException2 = new IllegalStateException("Expected other failure2");
+        final ExecutionVertex concurrentlyFailedExecutionVertex2 = extractExecutionVertex(2);
+        Predicate<ExceptionHistoryEntry> exception2Predicate =
+                triggerFailureAndCreateEntryMatcher(
+                        concurrentException2, concurrentlyFailedExecutionVertex2);
+
+        actualEntry.addConcurrentExceptions(
+                concurrentlyFailedExecutionVertex2.getCurrentExecutions());
         assertThat(actualEntry.getConcurrentExceptions())
-                .hasSize(1)
+                .hasSize(2)
                 .allMatch(
-                        ExceptionHistoryEntryMatcher.matchesFailure(
-                                concurrentException,
-                                concurrentExceptionTimestamp,
-                                concurrentlyFailedExecutionVertex.getTaskNameWithSubtaskIndex(),
-                                concurrentlyFailedExecutionVertex
-                                        .getCurrentAssignedResourceLocation()));
+                        exceptionHistoryEntry ->
+                                exception1Predicate.test(exceptionHistoryEntry)
+                                        || exception2Predicate.test(exceptionHistoryEntry));
     }
 
     @Test
@@ -121,14 +132,16 @@ class RootExceptionHistoryEntryTest {
         final Throwable concurrentException0 =
                 new RuntimeException("Expected concurrent failure #0");
         final ExecutionVertex concurrentlyFailedExecutionVertex0 = extractExecutionVertex(0);
-        final long concurrentExceptionTimestamp0 =
-                triggerFailure(concurrentlyFailedExecutionVertex0, concurrentException0);
+        final Predicate<ExceptionHistoryEntry> exception0Predicate =
+                triggerFailureAndCreateEntryMatcher(
+                        concurrentException0, concurrentlyFailedExecutionVertex0);
 
         final Throwable concurrentException1 =
                 new IllegalStateException("Expected concurrent failure #1");
         final ExecutionVertex concurrentlyFailedExecutionVertex1 = extractExecutionVertex(1);
-        final long concurrentExceptionTimestamp1 =
-                triggerFailure(concurrentlyFailedExecutionVertex1, concurrentException1);
+        final Predicate<ExceptionHistoryEntry> exception1Predicate =
+                triggerFailureAndCreateEntryMatcher(
+                        concurrentException1, concurrentlyFailedExecutionVertex1);
 
         final Throwable rootCause = new Exception("Expected root failure");
         final long rootTimestamp = System.currentTimeMillis();
@@ -150,23 +163,22 @@ class RootExceptionHistoryEntryTest {
                         ExceptionHistoryEntryMatcher.matchesGlobalFailure(
                                 rootCause, rootTimestamp, rootFailureLabels.get()));
 
-        final Predicate<ExceptionHistoryEntry> exception0Predicate =
-                ExceptionHistoryEntryMatcher.matchesFailure(
-                        concurrentException0,
-                        concurrentExceptionTimestamp0,
-                        concurrentlyFailedExecutionVertex0.getTaskNameWithSubtaskIndex(),
-                        concurrentlyFailedExecutionVertex0.getCurrentAssignedResourceLocation());
-        final Predicate<ExceptionHistoryEntry> exception1Predicate =
-                ExceptionHistoryEntryMatcher.matchesFailure(
-                        concurrentException1,
-                        concurrentExceptionTimestamp1,
-                        concurrentlyFailedExecutionVertex1.getTaskNameWithSubtaskIndex(),
-                        concurrentlyFailedExecutionVertex1.getCurrentAssignedResourceLocation());
         assertThat(actualEntry.getConcurrentExceptions())
                 .allMatch(
                         exceptionHistoryEntry ->
                                 exception0Predicate.test(exceptionHistoryEntry)
                                         || exception1Predicate.test(exceptionHistoryEntry));
+    }
+
+    private Predicate<ExceptionHistoryEntry> triggerFailureAndCreateEntryMatcher(
+            Throwable concurrentException0, ExecutionVertex concurrentlyFailedExecutionVertex0) {
+        final long concurrentExceptionTimestamp0 =
+                triggerFailure(concurrentlyFailedExecutionVertex0, concurrentException0);
+        return ExceptionHistoryEntryMatcher.matchesFailure(
+                concurrentException0,
+                concurrentExceptionTimestamp0,
+                concurrentlyFailedExecutionVertex0.getTaskNameWithSubtaskIndex(),
+                concurrentlyFailedExecutionVertex0.getCurrentAssignedResourceLocation());
     }
 
     private long triggerFailure(ExecutionVertex executionVertex, Throwable throwable) {

@@ -24,8 +24,9 @@ import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -47,8 +48,9 @@ class FailureHandlingResultTest {
             TestingUtils.defaultExecutorExtension();
 
     /** Tests normal FailureHandlingResult. */
-    @Test
-    void testNormalFailureHandlingResult() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testNormalFailureHandlingResult(boolean isNewAttempt) throws Exception {
 
         // create a normal FailureHandlingResult
         Execution execution = createExecution(EXECUTOR_RESOURCE.getExecutor());
@@ -63,7 +65,14 @@ class FailureHandlingResultTest {
                 CompletableFuture.completedFuture(Collections.singletonMap("key", "value"));
         FailureHandlingResult result =
                 FailureHandlingResult.restartable(
-                        execution, error, timestamp, failureLabels, tasks, delay, false);
+                        execution,
+                        error,
+                        timestamp,
+                        failureLabels,
+                        tasks,
+                        delay,
+                        false,
+                        isNewAttempt);
 
         assertThat(result.canRestart()).isTrue();
         assertThat(delay).isEqualTo(result.getRestartDelayMS());
@@ -73,24 +82,29 @@ class FailureHandlingResultTest {
         assertThat(result.getTimestamp()).isEqualTo(timestamp);
         assertThat(result.getFailedExecution()).isPresent();
         assertThat(result.getFailedExecution().get()).isSameAs(execution);
+        assertThat(result.isRootCause()).isEqualTo(isNewAttempt);
     }
 
     /** Tests FailureHandlingResult which suppresses restarts. */
-    @Test
-    void testRestartingSuppressedFailureHandlingResultWithNoCausingExecutionVertexId() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testRestartingSuppressedFailureHandlingResultWithNoCausingExecutionVertexId(
+            boolean isNewAttempt) {
         // create a FailureHandlingResult with error
         final Throwable error = new Exception("test error");
         final long timestamp = System.currentTimeMillis();
         final CompletableFuture<Map<String, String>> failureLabels =
                 CompletableFuture.completedFuture(Collections.singletonMap("key", "value"));
         FailureHandlingResult result =
-                FailureHandlingResult.unrecoverable(null, error, timestamp, failureLabels, false);
+                FailureHandlingResult.unrecoverable(
+                        null, error, timestamp, failureLabels, false, isNewAttempt);
 
         assertThat(result.canRestart()).isFalse();
         assertThat(result.getError()).isSameAs(error);
         assertThat(result.getTimestamp()).isEqualTo(timestamp);
         assertThat(result.getFailureLabels()).isEqualTo(failureLabels);
         assertThat(result.getFailedExecution()).isNotPresent();
+        assertThat(result.isRootCause()).isEqualTo(isNewAttempt);
 
         assertThatThrownBy(result::getVerticesToRestart)
                 .as("getVerticesToRestart is not allowed when restarting is suppressed")
