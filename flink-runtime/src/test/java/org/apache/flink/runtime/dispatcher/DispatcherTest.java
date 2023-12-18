@@ -32,6 +32,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
@@ -75,6 +76,7 @@ import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.FlinkJobTerminatedWithoutCancellationException;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -681,6 +683,88 @@ public class DispatcherTest extends AbstractDispatcherTest {
                         () -> dispatcher.requestCheckpointStats(jobId, TIMEOUT));
         Assertions.assertThat(resultsFuture).succeedsWithin(Duration.ofSeconds(1));
         Assertions.assertThat(resultsFuture).isCompletedWithValue(snapshot);
+    }
+
+    @Test
+    public void testRetrieveCheckpointStatsOnFailedJob() throws Exception {
+        testRetrieveCheckpointStatsWithJobStatus(JobStatus.FAILED);
+    }
+
+    @Test
+    public void testRetrieveCheckpointStatsOnFinishedJob() throws Exception {
+        testRetrieveCheckpointStatsWithJobStatus(JobStatus.FINISHED);
+    }
+
+    @Test
+    public void testRetrieveCheckpointStatsOnCancelledJob() throws Exception {
+        testRetrieveCheckpointStatsWithJobStatus(JobStatus.CANCELED);
+    }
+
+    private void testRetrieveCheckpointStatsWithJobStatus(JobStatus jobStatus) throws Exception {
+        CheckpointStatsSnapshot snapshot = getTestCheckpointStatsSnapshotWithTwoFailedCheckpoints();
+        TestingJobMasterGateway testingJobMasterGateway =
+                new TestingJobMasterGatewayBuilder().build();
+
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new TestingJobMasterGatewayJobManagerRunnerFactory(
+                                testingJobMasterGateway));
+
+        ErrorInfo failureCause =
+                jobStatus == JobStatus.FAILED
+                        ? new ErrorInfo(new RuntimeException("expected"), 1L)
+                        : null;
+
+        final ExecutionGraphInfo completedExecutionGraphInfo =
+                new ExecutionGraphInfo(
+                        new ArchivedExecutionGraphBuilder()
+                                .setJobID(jobId)
+                                .setState(jobStatus)
+                                .setCheckpointStatsSnapshot(snapshot)
+                                .setFailureCause(failureCause)
+                                .build());
+        dispatcher.completeJobExecution(completedExecutionGraphInfo);
+
+        CompletableFuture<CheckpointStatsSnapshot> resultsFuture =
+                dispatcher.callAsyncInMainThread(
+                        () -> dispatcher.requestCheckpointStats(jobId, TIMEOUT));
+        Assertions.assertThat(resultsFuture).succeedsWithin(Duration.ofSeconds(1));
+        Assertions.assertThat(resultsFuture).isCompletedWithValue(snapshot);
+    }
+
+    private CheckpointStatsSnapshot getTestCheckpointStatsSnapshotWithTwoFailedCheckpoints() {
+        CheckpointStatsTracker checkpointStatsTracker =
+                new CheckpointStatsTracker(
+                        10, UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup());
+        checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress();
+        checkpointStatsTracker.reportFailedCheckpointsWithoutInProgress();
+        return checkpointStatsTracker.createSnapshot();
+    }
+
+    @Test
+    public void testRetrieveCheckpointStatsOnNonExistentJob() throws Exception {
+        TestingJobMasterGateway testingJobMasterGateway =
+                new TestingJobMasterGatewayBuilder().build();
+
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        new TestingJobMasterGatewayJobManagerRunnerFactory(
+                                testingJobMasterGateway));
+
+        CompletableFuture<CheckpointStatsSnapshot> resultsFuture =
+                dispatcher.callAsyncInMainThread(
+                        () -> dispatcher.requestCheckpointStats(jobId, TIMEOUT));
+
+        Assertions.assertThat(resultsFuture).failsWithin(Duration.ofSeconds(1));
+        Assertions.assertThat(resultsFuture).isCompletedExceptionally();
+
+        Assertions.assertThatThrownBy(resultsFuture::get)
+                .hasCauseInstanceOf(FlinkJobNotFoundException.class)
+                .hasMessageContaining("Could not find Flink job");
     }
 
     @Test
