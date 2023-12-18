@@ -486,7 +486,7 @@ public final class RocksDBResourceContainer implements AutoCloseable {
      * @param instanceRocksDBAbsolutePath The path where the rocksdb directory is located.
      * @return Resolved rocksdb log name prefix.
      */
-    public static String resolveRelocatedDbLogPrefix(String instanceRocksDBAbsolutePath) {
+    private String resolveRelocatedDbLogPrefix(String instanceRocksDBAbsolutePath) {
         if (!instanceRocksDBAbsolutePath.isEmpty()
                 && !instanceRocksDBAbsolutePath.matches("^[a-zA-Z0-9\\-._].*")) {
             instanceRocksDBAbsolutePath = instanceRocksDBAbsolutePath.substring(1);
