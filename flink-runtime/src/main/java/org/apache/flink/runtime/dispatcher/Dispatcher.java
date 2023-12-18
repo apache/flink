@@ -1557,7 +1557,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private void applyParallelismOverrides(JobGraph jobGraph) {
-        Map<String, String> overrides = configuration.get(PipelineOptions.PARALLELISM_OVERRIDES);
+        Map<String, String> overrides = new HashMap<>();
+        overrides.putAll(configuration.get(PipelineOptions.PARALLELISM_OVERRIDES));
+        overrides.putAll(jobGraph.getJobConfiguration().get(PipelineOptions.PARALLELISM_OVERRIDES));
         for (JobVertex vertex : jobGraph.getVertices()) {
             String override = overrides.get(vertex.getID().toHexString());
             if (override != null) {

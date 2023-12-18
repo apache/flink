@@ -28,6 +28,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -56,6 +57,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -87,7 +89,14 @@ class JarRunHandlerParameterTest
                     .set(CoreOptions.DEFAULT_PARALLELISM, 57)
                     .set(SavepointConfigOptions.SAVEPOINT_PATH, "/foo/bar/test")
                     .set(SavepointConfigOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE, false)
-                    .set(SavepointConfigOptions.RESTORE_MODE, RESTORE_MODE);
+                    .set(SavepointConfigOptions.RESTORE_MODE, RESTORE_MODE)
+                    .set(
+                            PipelineOptions.PARALLELISM_OVERRIDES,
+                            new HashMap<String, String>() {
+                                {
+                                    put("v1", "10");
+                                }
+                            });
 
     @BeforeAll
     static void setup(@TempDir File tempDir) throws Exception {
@@ -275,6 +284,21 @@ class JarRunHandlerParameterTest
         JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.get();
         assertThat(jobGraph.getSavepointRestoreSettings())
                 .isEqualTo(SavepointRestoreSettings.none());
+    }
+
+    @Test
+    void testConfigurationWithParallelismOverrides() throws Exception {
+        final JarRunRequestBody requestBody = getJarRequestWithConfiguration();
+        handleRequest(
+                createRequest(
+                        requestBody,
+                        getUnresolvedJarMessageParameters(),
+                        getUnresolvedJarMessageParameters(),
+                        jarWithManifest));
+        JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.get();
+        assertThat(jobGraph.getJobConfiguration().get(PipelineOptions.PARALLELISM_OVERRIDES))
+                .containsOnlyKeys("v1")
+                .containsEntry("v1", "10");
     }
 
     @Override
