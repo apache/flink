@@ -747,10 +747,11 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition ARRAY_AGG =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("arrayAgg")
-                    .sqlName("ARRAY_AGG")
+                    .name("ARRAY_AGG")
                     .kind(AGGREGATE)
                     .outputTypeStrategy(nullableIfArgs(SpecificTypeStrategies.ARRAY))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.aggregate.ArrayAggFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------

@@ -37,8 +37,6 @@ import org.apache.calcite.sql.SqlPostfixOperator;
 import org.apache.calcite.sql.SqlPrefixOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlSyntax;
-import org.apache.calcite.sql.fun.SqlBasicAggFunction;
-import org.apache.calcite.sql.fun.SqlLibraryOperators;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
@@ -1141,20 +1139,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlAggFunction SINGLE_VALUE = SqlStdOperatorTable.SINGLE_VALUE;
     public static final SqlAggFunction APPROX_COUNT_DISTINCT =
             SqlStdOperatorTable.APPROX_COUNT_DISTINCT;
-    /**
-     * Use the definitions in Flink instead of {@link SqlLibraryOperators#ARRAY_AGG}, because we
-     * ignore nulls and returns nullable ARRAY type. Order by clause like <code>
-     * ARRAY_AGG(x ORDER BY x, y)</code> for aggregate function is not supported yet, because the
-     * row data cannot be obtained inside the aggregate function.
-     */
-    public static final SqlAggFunction ARRAY_AGG =
-            SqlBasicAggFunction.create(
-                            SqlKind.ARRAY_AGG,
-                            ReturnTypes.cascade(
-                                    ReturnTypes.TO_ARRAY, SqlTypeTransforms.TO_NULLABLE),
-                            OperandTypes.ANY)
-                    .withFunctionType(SqlFunctionCategory.SYSTEM)
-                    .withSyntax(SqlSyntax.FUNCTION);
 
     // ARRAY OPERATORS
     public static final SqlOperator ARRAY_VALUE_CONSTRUCTOR = new SqlArrayConstructor();

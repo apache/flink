@@ -32,6 +32,7 @@ import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionRequirement;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
@@ -85,8 +86,6 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
         AGG_DEF_SQL_OPERATOR_MAPPING.put(
                 BuiltInFunctionDefinitions.COLLECT, FlinkSqlOperatorTable.COLLECT);
         AGG_DEF_SQL_OPERATOR_MAPPING.put(
-                BuiltInFunctionDefinitions.ARRAY_AGG, FlinkSqlOperatorTable.ARRAY_AGG);
-        AGG_DEF_SQL_OPERATOR_MAPPING.put(
                 BuiltInFunctionDefinitions.JSON_OBJECTAGG_NULL_ON_NULL,
                 FlinkSqlOperatorTable.JSON_OBJECTAGG_NULL_ON_NULL);
         AGG_DEF_SQL_OPERATOR_MAPPING.put(
@@ -138,11 +137,11 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
         }
 
         // new stack
-        final DataTypeFactory dataTypeFactory =
-                ShortcutUtils.unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
+        final FlinkContext context = ShortcutUtils.unwrapContext(relBuilder);
+        final DataTypeFactory dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
         final TypeInference typeInference = definition.getTypeInference(dataTypeFactory);
         return BridgingSqlAggFunction.of(
-                dataTypeFactory,
+                context,
                 ShortcutUtils.unwrapTypeFactory(relBuilder),
                 SqlKind.OTHER_FUNCTION,
                 ContextResolvedFunction.fromCallExpression(call),

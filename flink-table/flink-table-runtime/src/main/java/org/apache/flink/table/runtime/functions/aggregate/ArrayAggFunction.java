@@ -23,16 +23,21 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 
-import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
+import static org.apache.flink.table.api.Expressions.$;
 
 /** Built-in ARRAY_AGG aggregate function. */
 @Internal
@@ -41,20 +46,33 @@ public final class ArrayAggFunction<T>
 
     private static final long serialVersionUID = -5860934997657147836L;
 
-    private final transient DataType elementDataType;
+    private final SpecializedFunction.ExpressionEvaluator equalityEvaluator;
 
-    public ArrayAggFunction(LogicalType elementType) {
-        this.elementDataType = toInternalDataType(elementType);
+    private transient MethodHandle equalityHandle;
+
+    private transient DataType elementDataType;
+
+    public ArrayAggFunction(SpecializedFunction.SpecializedContext context) {
+        super(BuiltInFunctionDefinitions.ARRAY_AGG, context);
+        this.elementDataType =
+                DataTypeUtils.toInternalDataType(
+                        context.getCallContext().getArgumentDataTypes().get(0));
+        this.equalityEvaluator =
+                context.createEvaluator(
+                        $("element1").isEqual($("element2")),
+                        DataTypes.BOOLEAN(),
+                        DataTypes.FIELD("element1", elementDataType.notNull().toInternal()),
+                        DataTypes.FIELD("element2", elementDataType.notNull().toInternal()));
+    }
+
+    @Override
+    public void open(FunctionContext context) throws Exception {
+        equalityHandle = equalityEvaluator.open(context);
     }
 
     // --------------------------------------------------------------------------------------------
     // Planning
     // --------------------------------------------------------------------------------------------
-
-    @Override
-    public List<DataType> getArgumentDataTypes() {
-        return Collections.singletonList(elementDataType);
-    }
 
     @Override
     public DataType getAccumulatorDataType() {
@@ -63,11 +81,6 @@ public final class ArrayAggFunction<T>
                 DataTypes.FIELD("list", ListView.newListViewDataType(elementDataType.notNull())),
                 DataTypes.FIELD(
                         "retractList", ListView.newListViewDataType(elementDataType.notNull())));
-    }
-
-    @Override
-    public DataType getOutputDataType() {
-        return DataTypes.ARRAY(elementDataType).bridgedTo(ArrayData.class);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -113,7 +126,7 @@ public final class ArrayAggFunction<T>
 
     public void retract(ArrayAggAccumulator<T> acc, T value) throws Exception {
         if (value != null) {
-            if (!acc.list.remove(value)) {
+            if (!remove(acc.list.get(), value)) {
                 acc.retractList.add(value);
             }
         }
@@ -123,7 +136,7 @@ public final class ArrayAggFunction<T>
             throws Exception {
         for (ArrayAggAccumulator<T> otherAcc : its) {
             // merge list of acc and other
-            List<T> buffer = new ArrayList<>();
+            List<T> buffer = new LinkedList<>();
             for (T element : acc.list.get()) {
                 buffer.add(element);
             }
@@ -142,7 +155,7 @@ public final class ArrayAggFunction<T>
             // merge list & retract list
             List<T> newRetractBuffer = new ArrayList<>();
             for (T element : retractBuffer) {
-                if (!buffer.remove(element)) {
+                if (!remove(buffer, element)) {
                     newRetractBuffer.add(element);
                 }
             }
@@ -152,6 +165,21 @@ public final class ArrayAggFunction<T>
             acc.list.addAll(buffer);
             acc.retractList.clear();
             acc.retractList.addAll(newRetractBuffer);
+        }
+    }
+
+    private boolean remove(Iterable<T> iterable, T value) {
+        try {
+            Iterator<T> iterator = iterable.iterator();
+            while (iterator.hasNext()) {
+                if ((boolean) equalityHandle.invoke(iterator.next(), value)) {
+                    iterator.remove();
+                    return true;
+                }
+            }
+            return false;
+        } catch (Throwable t) {
+            throw new FlinkRuntimeException(t);
         }
     }
 
