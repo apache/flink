@@ -21,6 +21,7 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 /**
@@ -40,8 +41,18 @@ public final class FlinkPipelineTranslationUtil {
         FlinkPipelineTranslator pipelineTranslator =
                 getPipelineTranslator(userClassloader, pipeline);
 
-        return pipelineTranslator.translateToJobGraph(
-                pipeline, optimizerConfiguration, defaultParallelism);
+        JobGraph jobGraph =
+                pipelineTranslator.translateToJobGraph(
+                        pipeline, optimizerConfiguration, defaultParallelism);
+
+        optimizerConfiguration
+                .getOptional(PipelineOptions.PARALLELISM_OVERRIDES)
+                .ifPresent(
+                        map ->
+                                jobGraph.getJobConfiguration()
+                                        .set(PipelineOptions.PARALLELISM_OVERRIDES, map));
+
+        return jobGraph;
     }
 
     /**
