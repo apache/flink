@@ -57,6 +57,11 @@ public class TableApiTestStep implements TestStep {
                     public Table fromValues(AbstractDataType<?> dataType, Object... values) {
                         return env.fromValues(dataType, values);
                     }
+
+                    @Override
+                    public Table sqlQuery(String query) {
+                        return env.sqlQuery(query);
+                    }
                 });
     }
 
@@ -83,5 +88,8 @@ public class TableApiTestStep implements TestStep {
 
         /** See {@link TableEnvironment#fromValues(AbstractDataType, Object...)}. */
         Table fromValues(AbstractDataType<?> dataType, Object... values);
+
+        /** See {@link TableEnvironment#sqlQuery(String)}. */
+        Table sqlQuery(String query);
     }
 }

@@ -52,7 +52,8 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 QueryOperationTestPrograms.ORDER_BY_QUERY_OPERATION,
                 QueryOperationTestPrograms.WINDOW_AGGREGATE_QUERY_OPERATION,
                 QueryOperationTestPrograms.UNION_ALL_QUERY_OPERATION,
-                QueryOperationTestPrograms.LATERAL_JOIN_QUERY_OPERATION);
+                QueryOperationTestPrograms.LATERAL_JOIN_QUERY_OPERATION,
+                QueryOperationTestPrograms.SQL_QUERY_OPERATION);
     }
 
     @ParameterizedTest

@@ -1319,7 +1319,12 @@ public class SqlNodeToOperationConversion {
             }
         }
         // delete push down is not applicable, use row-level delete
-        PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+        PlannerQueryOperation queryOperation =
+                new PlannerQueryOperation(
+                        tableModify,
+                        () -> {
+                            throw new TableException("Delete statements are not SQL serializable.");
+                        });
         return new SinkModifyOperation(
                 contextResolvedTable,
                 queryOperation,
@@ -1340,7 +1345,12 @@ public class SqlNodeToOperationConversion {
                 catalogManager.getTableOrError(
                         catalogManager.qualifyIdentifier(unresolvedTableIdentifier));
         // get query
-        PlannerQueryOperation queryOperation = new PlannerQueryOperation(tableModify);
+        PlannerQueryOperation queryOperation =
+                new PlannerQueryOperation(
+                        tableModify,
+                        () -> {
+                            throw new TableException("Update statements are not SQL serializable.");
+                        });
 
         // TODO calc target column list to index array, currently only simple SqlIdentifiers are
         // available, this should be updated after FLINK-31344 fixed
@@ -1379,6 +1389,6 @@ public class SqlNodeToOperationConversion {
     private PlannerQueryOperation toQueryOperation(FlinkPlannerImpl planner, SqlNode validated) {
         // transform to a relational tree
         RelRoot relational = planner.rel(validated);
-        return new PlannerQueryOperation(relational.project());
+        return new PlannerQueryOperation(relational.project(), () -> getQuotedSqlString(validated));
     }
 }

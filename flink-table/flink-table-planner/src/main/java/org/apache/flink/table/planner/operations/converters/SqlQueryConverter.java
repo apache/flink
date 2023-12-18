@@ -46,6 +46,7 @@ public class SqlQueryConverter implements SqlNodeConverter<SqlNode> {
     public Operation convertSqlNode(SqlNode node, ConvertContext context) {
         // transform to a relational tree
         RelRoot relational = context.toRelRoot(node);
-        return new PlannerQueryOperation(relational.project());
+        return new PlannerQueryOperation(
+                relational.project(), () -> context.toQuotedSqlString(node));
     }
 }

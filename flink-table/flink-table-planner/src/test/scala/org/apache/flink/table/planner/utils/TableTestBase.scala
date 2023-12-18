@@ -77,7 +77,9 @@ import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
 import org.apache.calcite.avatica.util.TimeUnit
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.rel2sql.RelToSqlConverter
 import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
+import org.apache.calcite.sql.dialect.AnsiSqlDialect
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, fail}
 import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
@@ -1282,7 +1284,10 @@ case class StreamTableTestUtil(
       rowtimeFieldIdx,
       expr
     )
-    val queryOperation = new PlannerQueryOperation(watermarkAssigner)
+    val queryOperation = new PlannerQueryOperation(
+      watermarkAssigner,
+      () =>
+        throw new TableException("Cannot convert a LogicalWatermarkAssigner back to a SQL string."))
     testingTableEnv.createTemporaryView(tableName, testingTableEnv.createTable(queryOperation))
   }
 

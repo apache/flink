@@ -45,7 +45,8 @@ class SqlNodeConvertUtils {
     static PlannerQueryOperation toQueryOperation(SqlNode validated, ConvertContext context) {
         // transform to a relational tree
         RelRoot relational = context.toRelRoot(validated);
-        return new PlannerQueryOperation(relational.project());
+        return new PlannerQueryOperation(
+                relational.project(), () -> context.toQuotedSqlString(validated));
     }
 
     /** convert the query part of a VIEW statement into a {@link CatalogView}. */

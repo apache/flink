@@ -51,7 +51,9 @@ public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTa
         SqlNode asQuerySqlNode = sqlReplaceTableAs.getAsQuery();
         context.getSqlValidator().validate(asQuerySqlNode);
         QueryOperation query =
-                new PlannerQueryOperation(context.toRelRoot(asQuerySqlNode).project());
+                new PlannerQueryOperation(
+                        context.toRelRoot(asQuerySqlNode).project(),
+                        () -> context.toQuotedSqlString(asQuerySqlNode));
 
         // get table comment
         String tableComment =
