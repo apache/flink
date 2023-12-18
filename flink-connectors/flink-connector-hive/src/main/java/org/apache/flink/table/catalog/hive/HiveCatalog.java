@@ -121,6 +121,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
@@ -164,6 +165,8 @@ public class HiveCatalog extends AbstractCatalog {
     private final HiveShim hiveShim;
 
     @VisibleForTesting HiveMetastoreClientWrapper client;
+
+    private ConcurrentHashMap<String, Table> cacheTable = new ConcurrentHashMap<>();
 
     public HiveCatalog(
             String catalogName, @Nullable String defaultDatabase, @Nullable String hiveConfDir) {
@@ -318,6 +321,10 @@ public class HiveCatalog extends AbstractCatalog {
             client.close();
             client = null;
             LOG.info("Close connection to Hive metastore");
+        }
+
+        if (cacheTable != null) {
+            cacheTable.clear();
         }
     }
 
@@ -569,6 +576,7 @@ public class HiveCatalog extends AbstractCatalog {
                     table.setTableName(newTableName);
                     client.alter_table(
                             tablePath.getDatabaseName(), tablePath.getObjectName(), table);
+                    removeTableCache(tablePath);
                 }
             } else if (!ignoreIfNotExists) {
                 throw new TableNotExistException(getName(), tablePath);
@@ -644,6 +652,7 @@ public class HiveCatalog extends AbstractCatalog {
         }
         try {
             client.alter_table(tablePath.getDatabaseName(), tablePath.getObjectName(), hiveTable);
+            removeTableCache(tablePath);
         } catch (TException e) {
             throw new CatalogException(
                     String.format("Failed to alter table %s", tablePath.getFullName()), e);
@@ -664,6 +673,7 @@ public class HiveCatalog extends AbstractCatalog {
                     // be changed later if necessary
                     true,
                     ignoreIfNotExists);
+            removeTableCache(tablePath);
         } catch (NoSuchObjectException e) {
             if (!ignoreIfNotExists) {
                 throw new TableNotExistException(getName(), tablePath);
@@ -725,6 +735,11 @@ public class HiveCatalog extends AbstractCatalog {
 
     @Internal
     public Table getHiveTable(ObjectPath tablePath) throws TableNotExistException {
+        String tableNameWithDB = tablePath.getDatabaseName() + "." + tablePath.getObjectName();
+        if (cacheTable.get(tableNameWithDB) != null) {
+            LOG.debug(String.format("Get hive table %s from cache", tableNameWithDB));
+            return cacheTable.get(tableNameWithDB);
+        }
         try {
             Table table = client.getTable(tablePath.getDatabaseName(), tablePath.getObjectName());
             boolean isHiveTable = isHiveTable(table);
@@ -732,6 +747,10 @@ public class HiveCatalog extends AbstractCatalog {
             if (isHiveTable) {
                 table.getParameters().put(CONNECTOR.key(), IDENTIFIER);
             }
+            cacheTable.put(tableNameWithDB, table);
+            LOG.info(
+                    String.format(
+                            "Get hive table %s using hive metastore client", tableNameWithDB));
             return table;
         } catch (NoSuchObjectException e) {
             throw new TableNotExistException(getName(), tablePath);
@@ -1494,6 +1513,7 @@ public class HiveCatalog extends AbstractCatalog {
             // Set table stats
             if (HiveStatsUtil.statsChanged(tableStatistics, hiveTable.getParameters())) {
                 HiveStatsUtil.updateStats(tableStatistics, hiveTable.getParameters());
+                removeTableCache(tablePath);
                 client.alter_table(
                         tablePath.getDatabaseName(), tablePath.getObjectName(), hiveTable);
             }
@@ -1552,6 +1572,7 @@ public class HiveCatalog extends AbstractCatalog {
             // Set table stats
             if (HiveStatsUtil.statsChanged(partitionStatistics, hivePartition.getParameters())) {
                 HiveStatsUtil.updateStats(partitionStatistics, hivePartition.getParameters());
+                removeTableCache(tablePath);
                 client.alter_partition(
                         tablePath.getDatabaseName(), tablePath.getObjectName(), hivePartition);
             }
@@ -2006,5 +2027,10 @@ public class HiveCatalog extends AbstractCatalog {
         HIVE_TABLE,
         FLINK_MANAGED_TABLE,
         FLINK_NON_MANAGED_TABLE
+    }
+
+    public void removeTableCache(ObjectPath tablePath) {
+        String tableNameWithDB = tablePath.getDatabaseName() + "." + tablePath.getObjectName();
+        cacheTable.remove(tableNameWithDB);
     }
 }
