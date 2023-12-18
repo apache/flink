@@ -519,7 +519,9 @@ abstract class PlannerBase(
             val contextResolvedTable = catalogManager.getTableOrError(objectIdentifier)
             val modifyOperation = new SinkModifyOperation(
               contextResolvedTable,
-              new PlannerQueryOperation(modify.getInput)
+              new PlannerQueryOperation(
+                modify.getInput,
+                () => queryOperation.asSerializableString())
             )
             translateToRel(modifyOperation)
           case _ =>

@@ -183,10 +183,10 @@ public class ExpressionSerializationTest {
                         .expectStr("OVERLAY(`f0` PLACING 'ABC' FROM 2 FOR 5)"),
                 TestSpec.forExpr($("f0").substr(2))
                         .withField("f0", DataTypes.STRING())
-                        .expectStr("SUBSTR(`f0` FROM 2)"),
+                        .expectStr("SUBSTR(`f0`, 2)"),
                 TestSpec.forExpr($("f0").substr(2, 5))
                         .withField("f0", DataTypes.STRING())
-                        .expectStr("SUBSTR(`f0` FROM 2 FOR 5)"),
+                        .expectStr("SUBSTR(`f0`, 2, 5)"),
                 TestSpec.forExpr($("f0").substring(2))
                         .withField("f0", DataTypes.STRING())
                         .expectStr("SUBSTRING(`f0` FROM 2)"),

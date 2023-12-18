@@ -315,6 +315,30 @@ public class QueryOperationTestPrograms {
                                     + ") ORDER BY `a` ASC, `b` DESC OFFSET 1 ROWS FETCH NEXT 2 ROWS ONLY")
                     .build();
 
+    static final TableTestProgram SQL_QUERY_OPERATION =
+            TableTestProgram.of("sql-query-operation", "verifies sql serialization")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("s")
+                                    .addSchema("a bigint", "b string")
+                                    .producedValues(Row.of(1L, "abc"), Row.of(2L, "cde"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("a bigint", "b string")
+                                    .consumedValues(Row.of(3L, "bc"), Row.of(4L, "de"))
+                                    .build())
+                    .runTableApi(
+                            t ->
+                                    t.sqlQuery("SELECT a, b FROM s")
+                                            .select($("a").plus(2), $("b").substr(2, 3)),
+                            "sink")
+                    .runSql(
+                            "SELECT (`a` + 2) AS `_c0`, (SUBSTR(`b`, 2, 3)) AS `_c1` FROM (\n"
+                                    + "    SELECT `s`.`a`, `s`.`b`\n"
+                                    + "    FROM `default_catalog`.`default_database`.`s` AS `s`\n"
+                                    + ")")
+                    .build();
+
     static final TableTestProgram GROUP_HOP_WINDOW_EVENT_TIME =
             TableTestProgram.of(
                             "group-window-aggregate-hop-event-time",
