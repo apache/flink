@@ -273,8 +273,8 @@ class AggFunctionFactory(
     val valueType = argTypes(0)
     if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
-            TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | CHAR | VARCHAR |
+            DECIMAL | TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
             TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
           new MinWithRetractAggFunction(argTypes(0))
         case t =>
@@ -382,8 +382,8 @@ class AggFunctionFactory(
     val valueType = argTypes(0)
     if (aggCallNeedRetractions(index)) {
       valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL |
-            TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
+        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | CHAR | VARCHAR |
+            DECIMAL | TIME_WITHOUT_TIME_ZONE | DATE | TIMESTAMP_WITHOUT_TIME_ZONE |
             TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
           new MaxWithRetractAggFunction(argTypes(0))
         case t =>
@@ -407,7 +407,7 @@ class AggFunctionFactory(
           new MaxAggFunction.DoubleMaxAggFunction
         case BOOLEAN =>
           new MaxAggFunction.BooleanMaxAggFunction
-        case VARCHAR =>
+        case VARCHAR | CHAR =>
           new MaxAggFunction.StringMaxAggFunction
         case DATE =>
           new MaxAggFunction.DateMaxAggFunction
