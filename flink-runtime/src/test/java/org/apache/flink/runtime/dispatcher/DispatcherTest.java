@@ -1213,9 +1213,18 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 ImmutableMap.of(
                         v1.getID().toHexString(), "10",
                         // v2 is omitted
-                        v3.getID().toHexString(), "42",
+                        v3.getID().toHexString(), "21",
                         // unknown vertex added
                         new JobVertexID().toHexString(), "23"));
+
+        jobGraph.getJobConfiguration()
+                .set(
+                        PipelineOptions.PARALLELISM_OVERRIDES,
+                        ImmutableMap.of(
+                                // verifies that job graph configuration has higher priority
+                                v3.getID().toHexString(), "42",
+                                // unknown vertex added
+                                new JobVertexID().toHexString(), "25"));
 
         dispatcher =
                 createAndStartDispatcher(
