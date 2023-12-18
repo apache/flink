@@ -36,6 +36,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
 
+import java.time.Duration
+
 import scala.collection.mutable
 
 /** Tests of groupby (without window) aggregations */
@@ -45,7 +47,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   @BeforeEach
   override def before(): Unit = {
     super.before()
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
   }
 
   @TestTemplate

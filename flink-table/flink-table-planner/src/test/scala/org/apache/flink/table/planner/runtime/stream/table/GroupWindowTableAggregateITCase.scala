@@ -34,6 +34,7 @@ import org.junit.jupiter.api.TestTemplate
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.math.BigDecimal
+import java.time.Duration
 
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class GroupWindowTableAggregateITCase(mode: StateBackendMode)
@@ -59,7 +60,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
 
   @TestTemplate
   def testProcessingTimeSlidingGroupWindowOverCount(): Unit = {
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     val stream = failingDataSource(tupleData3)
     val table = stream.toTable(tEnv, 'int, 'long, 'string, 'proctime.proctime)
 
@@ -126,7 +127,7 @@ class GroupWindowTableAggregateITCase(mode: StateBackendMode)
 
   @TestTemplate
   def testAllProcessingTimeTumblingGroupWindowOverCount(): Unit = {
-    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    tEnv.getConfig.setIdleStateRetention(Duration.ofHours(1))
     val stream = failingDataSource(tupleData3)
     val table = stream.toTable(tEnv, 'int, 'long, 'string, 'proctime.proctime)
     val top3 = new Top3
