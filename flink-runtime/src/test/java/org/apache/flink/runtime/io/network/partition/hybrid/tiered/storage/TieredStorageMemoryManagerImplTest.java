@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** Tests for {@link TieredStorageMemoryManagerImpl}. */
-public class TieredStorageMemoryManagerImplTest {
+class TieredStorageMemoryManagerImplTest {
 
     private static final int NETWORK_BUFFER_SIZE = 1024;
 

@@ -105,10 +105,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SingleInputGate}. */
-public class SingleInputGateTest extends InputGateTestBase {
+class SingleInputGateTest extends InputGateTestBase {
 
     @Test
-    void testCheckpointsDeclinedUnlessAllChannelsAreKnown() throws CheckpointException {
+    void testCheckpointsDeclinedUnlessAllChannelsAreKnown() {
         SingleInputGate gate =
                 createInputGate(createNettyShuffleEnvironment(), 1, ResultPartitionType.PIPELINED);
         gate.setInputChannels(
@@ -124,7 +124,7 @@ public class SingleInputGateTest extends InputGateTestBase {
     }
 
     @Test
-    void testCheckpointsDeclinedUnlessStateConsumed() throws CheckpointException {
+    void testCheckpointsDeclinedUnlessStateConsumed() {
         SingleInputGate gate = createInputGate(createNettyShuffleEnvironment());
         checkState(!gate.getStateConsumedFuture().isDone());
         assertThatThrownBy(

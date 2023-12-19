@@ -58,22 +58,20 @@ import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava31.com.google.common.collect.Lists;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
@@ -100,18 +98,8 @@ import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtil
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.isA;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -120,10 +108,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for the {@link RemoteInputChannel}. */
-public class RemoteInputChannelTest {
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+class RemoteInputChannelTest {
+    @RegisterExtension
+    private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
+            TestingUtils.defaultExecutorExtension();
 
     private static final long CHECKPOINT_ID = 1L;
     private static final CheckpointOptions UNALIGNED =
@@ -132,7 +120,7 @@ public class RemoteInputChannelTest {
             alignedWithTimeout(CheckpointType.CHECKPOINT, getDefault(), 10);
 
     @Test
-    public void testGateNotifiedOnBarrierConversion() throws IOException, InterruptedException {
+    void testGateNotifiedOnBarrierConversion() throws IOException, InterruptedException {
         final int sequenceNumber = 0;
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(1, 4096);
         try {
@@ -164,7 +152,7 @@ public class RemoteInputChannelTest {
             inputGate.pollNext(); // process announcement to allow the gate remember the SQN
 
             channel.convertToPriorityEvent(sequenceNumber);
-            assertTrue(inputGate.getPriorityEventAvailableFuture().isDone());
+            assertThat(inputGate.getPriorityEventAvailableFuture()).isDone();
 
         } finally {
             networkBufferPool.destroy();
@@ -172,7 +160,7 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testExceptionOnReordering() throws Exception {
+    void testExceptionOnReordering() throws Exception {
         // Setup
         final SingleInputGate inputGate = createSingleInputGate(1);
         final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
@@ -184,20 +172,18 @@ public class RemoteInputChannelTest {
         // This does not yet throw the exception, but sets the error at the channel.
         inputChannel.onBuffer(buffer, 29, -1);
 
-        try {
-            inputChannel.getNextBuffer();
+        assertThatThrownBy(inputChannel::getNextBuffer)
+                .withFailMessage(
+                        "Did not throw expected exception after enqueuing an out-of-order buffer.");
 
-            fail("Did not throw expected exception after enqueuing an out-of-order buffer.");
-        } catch (Exception expected) {
-            assertFalse(buffer.isRecycled());
-            // free remaining buffer instances
-            inputChannel.releaseAllResources();
-            assertTrue(buffer.isRecycled());
-        }
+        assertThat(buffer.isRecycled()).isFalse();
+        // free remaining buffer instances
+        inputChannel.releaseAllResources();
+        assertThat(buffer.isRecycled()).isTrue();
     }
 
     @Test
-    public void testExceptionOnPersisting() throws Exception {
+    void testExceptionOnPersisting() throws Exception {
         // Setup
         final SingleInputGate inputGate = createSingleInputGate(1);
         final RemoteInputChannel inputChannel =
@@ -228,13 +214,10 @@ public class RemoteInputChannelTest {
 
         final Buffer buffer = createBuffer(TestBufferFactory.BUFFER_SIZE);
 
-        assertFalse(buffer.isRecycled());
-        try {
-            inputChannel.onBuffer(buffer, 0, -1);
-            fail("This should have failed");
-        } catch (ExpectedTestException ex) {
-            // ignore
-        }
+        assertThat(buffer.isRecycled()).isFalse();
+        assertThatThrownBy(() -> inputChannel.onBuffer(buffer, 0, -1))
+                .isInstanceOf(ExpectedTestException.class);
+
         // This check is not strictly speaking necessary. Generally speaking if exception happens
         // during persisting, there are two potentially correct outcomes:
         // 1. buffer is recycled only once, in #onBuffer call when handling exception
@@ -248,14 +231,14 @@ public class RemoteInputChannelTest {
         // In other words, if you end up reading this after refactoring RemoteInputChannel, it might
         // be safe to remove this assertion. Just make sure double recycling of the same buffer is
         // still throwing IllegalReferenceCountException.
-        assertFalse(buffer.isRecycled());
+        assertThat(buffer.isRecycled()).isFalse();
 
         inputChannel.releaseAllResources();
-        assertTrue(buffer.isRecycled());
+        assertThat(buffer.isRecycled()).isTrue();
     }
 
     @Test
-    public void testConcurrentOnBufferAndRelease() throws Exception {
+    void testConcurrentOnBufferAndRelease() throws Exception {
         testConcurrentReleaseAndSomething(
                 8192,
                 (inputChannel, buffer, j) -> {
@@ -265,7 +248,7 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testConcurrentNotifyBufferAvailableAndRelease() throws Exception {
+    void testConcurrentNotifyBufferAvailableAndRelease() throws Exception {
         testConcurrentReleaseAndSomething(
                 1024,
                 (inputChannel, buffer, j) ->
@@ -333,30 +316,31 @@ public class RemoteInputChannelTest {
                     result.get();
                 }
 
-                assertEquals(
-                        "Resource leak during concurrent release and notifyBufferAvailable.",
-                        0,
-                        inputChannel.getNumberOfQueuedBuffers());
+                assertThat(inputChannel.getNumberOfQueuedBuffers())
+                        .withFailMessage(
+                                "Resource leak during concurrent release and notifyBufferAvailable.")
+                        .isZero();
             }
         } finally {
             executor.shutdown();
-            assertFalse(buffer.isRecycled());
+            assertThat(buffer.isRecycled()).isFalse();
             buffer.recycleBuffer();
-            assertTrue(buffer.isRecycled());
+            assertThat(buffer.isRecycled()).isTrue();
         }
     }
 
-    @Test(expected = IllegalStateException.class)
-    public void testRetriggerWithoutPartitionRequest() throws Exception {
+    @Test
+    void testRetriggerWithoutPartitionRequest() {
         SingleInputGate inputGate = createSingleInputGate(1);
 
         RemoteInputChannel ch = createRemoteInputChannel(inputGate, 0, 500, 3000);
 
-        ch.retriggerSubpartitionRequest();
+        assertThatThrownBy(ch::retriggerSubpartitionRequest)
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void testPartitionRequestLinearBackoff() throws Exception {
+    void testPartitionRequestExponentialBackoff() throws Exception {
         // Start with initial backoff, then keep adding the partition request timeout, and cap at
         // max.
         int[] expectedDelays = {500, 1000, 1500, 2000};
@@ -376,20 +360,20 @@ public class RemoteInputChannelTest {
         // Request subpartition and verify that the actual back off.
         for (int expected : expectedDelays) {
             ch.retriggerSubpartitionRequest();
-            assertEquals(expected, ch.getCurrentBackoff());
+            assertThat(ch.getCurrentBackoff()).isEqualTo(expected);
         }
 
         // Exception after backoff is greater than the maximum backoff.
-        try {
-            ch.retriggerSubpartitionRequest();
-            ch.getNextBuffer();
-            fail("Did not throw expected exception.");
-        } catch (Exception expected) {
-        }
+        assertThatThrownBy(
+                        () -> {
+                            ch.retriggerSubpartitionRequest();
+                            ch.getNextBuffer();
+                        })
+                .isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testPartitionRequestSingleBackoff() throws Exception {
+    void testPartitionRequestSingleBackoff() throws Exception {
         // Setup
         SingleInputGate inputGate = createSingleInputGate(1);
         ResultPartitionID partitionId = new ResultPartitionID();
@@ -404,19 +388,15 @@ public class RemoteInputChannelTest {
 
         // The current backoff for second request
         ch.retriggerSubpartitionRequest();
-        assertEquals(500, ch.getCurrentBackoff());
+        assertThat(ch.getCurrentBackoff()).isEqualTo(500);
 
         // Exception after backoff is greater than the maximum backoff.
-        try {
-            ch.retriggerSubpartitionRequest();
-            ch.getNextBuffer();
-            fail("Did not throw expected exception.");
-        } catch (Exception expected) {
-        }
+        ch.retriggerSubpartitionRequest();
+        assertThatThrownBy(ch::getNextBuffer).isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testPartitionRequestNoBackoff() throws Exception {
+    void testPartitionRequestNoBackoff() throws Exception {
         // Setup
         SingleInputGate inputGate = createSingleInputGate(1);
         ResultPartitionID partitionId = new ResultPartitionID();
@@ -430,16 +410,12 @@ public class RemoteInputChannelTest {
         client.verifyResult(partitionId, 0, 0);
 
         // Exception, because backoff is disabled.
-        try {
-            ch.retriggerSubpartitionRequest();
-            ch.getNextBuffer();
-            fail("Did not throw expected exception.");
-        } catch (Exception expected) {
-        }
+        ch.retriggerSubpartitionRequest();
+        assertThatThrownBy(ch::getNextBuffer).isInstanceOf(IOException.class);
     }
 
     @Test
-    public void testOnFailedPartitionRequest() throws Exception {
+    void testOnFailedPartitionRequest() {
         final ResultPartitionID partitionId = new ResultPartitionID();
         final TestPartitionProducerStateProvider provider =
                 new TestPartitionProducerStateProvider(partitionId);
@@ -452,11 +428,11 @@ public class RemoteInputChannelTest {
 
         ch.onFailedPartitionRequest();
 
-        assertTrue(provider.isInvoked());
+        assertThat(provider.isInvoked()).isTrue();
     }
 
-    @Test(expected = CancelTaskException.class)
-    public void testProducerFailedException() throws Exception {
+    @Test
+    void testProducerFailedException() throws Exception {
 
         ConnectionManager connManager = mock(ConnectionManager.class);
         when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
@@ -471,11 +447,11 @@ public class RemoteInputChannelTest {
         ch.requestSubpartition();
 
         // Should throw an instance of CancelTaskException.
-        ch.getNextBuffer();
+        assertThatThrownBy(ch::getNextBuffer).isInstanceOf(CancelTaskException.class);
     }
 
-    @Test(expected = PartitionConnectionException.class)
-    public void testPartitionConnectionException() throws IOException {
+    @Test
+    void testPartitionConnectionException() {
         final ConnectionManager connManager = new TestingExceptionConnectionManager();
         final SingleInputGate gate = createSingleInputGate(1);
         final RemoteInputChannel ch =
@@ -484,7 +460,7 @@ public class RemoteInputChannelTest {
 
         gate.requestPartitions();
 
-        ch.getNextBuffer();
+        assertThatThrownBy(ch::getNextBuffer).isInstanceOf(PartitionConnectionException.class);
     }
 
     /**
@@ -498,7 +474,7 @@ public class RemoteInputChannelTest {
      * </ol>
      */
     @Test
-    public void testAvailableBuffersLessThanRequiredBuffers() throws Exception {
+    void testAvailableBuffersLessThanRequiredBuffers() throws Exception {
         // Setup
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(16, 32);
         final int numFloatingBuffers = 14;
@@ -516,14 +492,14 @@ public class RemoteInputChannelTest {
 
             // Prepare the exclusive and floating buffers to verify recycle logic later
             final Buffer exclusiveBuffer = inputChannel.requestBuffer();
-            assertNotNull(exclusiveBuffer);
+            assertThat(exclusiveBuffer).isNotNull();
 
             final int numRecycleFloatingBuffers = 2;
             final ArrayDeque<Buffer> floatingBufferQueue =
                     new ArrayDeque<>(numRecycleFloatingBuffers);
             for (int i = 0; i < numRecycleFloatingBuffers; i++) {
                 Buffer floatingBuffer = bufferPool.requestBuffer();
-                assertNotNull(floatingBuffer);
+                assertThat(floatingBuffer).isNotNull();
                 floatingBufferQueue.add(floatingBuffer);
             }
 
@@ -537,19 +513,16 @@ public class RemoteInputChannelTest {
             // It does not get enough floating buffers and register as buffer listener
             verify(bufferPool, times(15)).requestBuffer();
             verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 13 buffers available in the channel",
-                    13,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 16 buffers required in the channel",
-                    16,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 0 buffers available in local pool",
-                    0,
-                    bufferPool.getNumberOfAvailableMemorySegments());
-            assertTrue(inputChannel.isWaitingForFloatingBuffers());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 13 buffers available in the channel")
+                    .isEqualTo(13);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 16 buffers required in the channel")
+                    .isEqualTo(16);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 0 buffers available in local pool")
+                    .isZero();
+            assertThat(inputChannel.isWaitingForFloatingBuffers()).isTrue();
 
             // Increase the backlog
             inputChannel.onSenderBacklog(16);
@@ -558,19 +531,16 @@ public class RemoteInputChannelTest {
             // more
             verify(bufferPool, times(15)).requestBuffer();
             verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 13 buffers available in the channel",
-                    13,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 18 buffers required in the channel",
-                    18,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 0 buffers available in local pool",
-                    0,
-                    bufferPool.getNumberOfAvailableMemorySegments());
-            assertTrue(inputChannel.isWaitingForFloatingBuffers());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 13 buffers available in the channel")
+                    .isEqualTo(13);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 18 buffers required in the channel")
+                    .isEqualTo(18);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 0 buffers available in local pool")
+                    .isZero();
+            assertThat(inputChannel.isWaitingForFloatingBuffers()).isTrue();
 
             // Recycle one exclusive buffer
             exclusiveBuffer.recycleBuffer();
@@ -578,19 +548,16 @@ public class RemoteInputChannelTest {
             // The exclusive buffer is returned to the channel directly
             verify(bufferPool, times(15)).requestBuffer();
             verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 14 buffers available in the channel",
-                    14,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 18 buffers required in the channel",
-                    18,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 0 buffers available in local pool",
-                    0,
-                    bufferPool.getNumberOfAvailableMemorySegments());
-            assertTrue(inputChannel.isWaitingForFloatingBuffers());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 14 buffers available in the channel")
+                    .isEqualTo(14);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 18 buffers required in the channel")
+                    .isEqualTo(18);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 0 buffers available in local pool")
+                    .isZero();
+            assertThat(inputChannel.isWaitingForFloatingBuffers()).isTrue();
 
             // Recycle one floating buffer
             floatingBufferQueue.poll().recycleBuffer();
@@ -599,19 +566,16 @@ public class RemoteInputChannelTest {
             // floating buffers
             verify(bufferPool, times(16)).requestBuffer();
             verify(bufferPool, times(2)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 15 buffers available in the channel",
-                    15,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 18 buffers required in the channel",
-                    18,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 0 buffers available in local pool",
-                    0,
-                    bufferPool.getNumberOfAvailableMemorySegments());
-            assertTrue(inputChannel.isWaitingForFloatingBuffers());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 15 buffers available in the channel")
+                    .isEqualTo(15);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 18 buffers required in the channel")
+                    .isEqualTo(18);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 0 buffers available in local pool")
+                    .isZero();
+            assertThat(inputChannel.isWaitingForFloatingBuffers()).isTrue();
 
             // Decrease the backlog
             inputChannel.onSenderBacklog(13);
@@ -619,19 +583,16 @@ public class RemoteInputChannelTest {
             // Only the number of required buffers is changed by (backlog + numExclusiveBuffers)
             verify(bufferPool, times(16)).requestBuffer();
             verify(bufferPool, times(2)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 15 buffers available in the channel",
-                    15,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 15 buffers required in the channel",
-                    15,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 0 buffers available in local pool",
-                    0,
-                    bufferPool.getNumberOfAvailableMemorySegments());
-            assertTrue(inputChannel.isWaitingForFloatingBuffers());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 15 buffers available in the channel")
+                    .isEqualTo(15);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 15 buffers required in the channel")
+                    .isEqualTo(15);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 0 buffers available in local pool")
+                    .isZero();
+            assertThat(inputChannel.isWaitingForFloatingBuffers()).isTrue();
 
             // Recycle one more floating buffer
             floatingBufferQueue.poll().recycleBuffer();
@@ -640,19 +601,16 @@ public class RemoteInputChannelTest {
             // floating buffers
             verify(bufferPool, times(16)).requestBuffer();
             verify(bufferPool, times(2)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 15 buffers available in the channel",
-                    15,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 15 buffers required in the channel",
-                    15,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 1 buffers available in local pool",
-                    1,
-                    bufferPool.getNumberOfAvailableMemorySegments());
-            assertFalse(inputChannel.isWaitingForFloatingBuffers());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 15 buffers available in the channel")
+                    .isEqualTo(15);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 15 buffers required in the channel")
+                    .isEqualTo(15);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 1 buffers available in local pool")
+                    .isOne();
+            assertThat(inputChannel.isWaitingForFloatingBuffers()).isFalse();
 
             // Increase the backlog again
             inputChannel.onSenderBacklog(15);
@@ -661,19 +619,16 @@ public class RemoteInputChannelTest {
             // as listener again.
             verify(bufferPool, times(18)).requestBuffer();
             verify(bufferPool, times(3)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 16 buffers available in the channel",
-                    16,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 17 buffers required in the channel",
-                    17,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 0 buffers available in local pool",
-                    0,
-                    bufferPool.getNumberOfAvailableMemorySegments());
-            assertTrue(inputChannel.isWaitingForFloatingBuffers());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 16 buffers available in the channel")
+                    .isEqualTo(16);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 17 buffers required in the channel")
+                    .isEqualTo(17);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 0 buffers available in local pool")
+                    .isZero();
+            assertThat(inputChannel.isWaitingForFloatingBuffers()).isTrue();
         } catch (Throwable t) {
             thrown = t;
         } finally {
@@ -686,7 +641,7 @@ public class RemoteInputChannelTest {
      * available buffers equals to required buffers.
      */
     @Test
-    public void testAvailableBuffersEqualToRequiredBuffers() throws Exception {
+    void testAvailableBuffersEqualToRequiredBuffers() throws Exception {
         // Setup
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(16, 32);
         final int numFloatingBuffers = 14;
@@ -704,9 +659,9 @@ public class RemoteInputChannelTest {
 
             // Prepare the exclusive and floating buffers to verify recycle logic later
             final Buffer exclusiveBuffer = inputChannel.requestBuffer();
-            assertNotNull(exclusiveBuffer);
+            assertThat(exclusiveBuffer).isNotNull();
             final Buffer floatingBuffer = bufferPool.requestBuffer();
-            assertNotNull(floatingBuffer);
+            assertThat(floatingBuffer).isNotNull();
             verify(bufferPool, times(1)).requestBuffer();
 
             // Receive the producer's backlog
@@ -716,18 +671,15 @@ public class RemoteInputChannelTest {
             // and gets enough floating buffers
             verify(bufferPool, times(14)).requestBuffer();
             verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 14 buffers available in the channel",
-                    14,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 14 buffers required in the channel",
-                    14,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 0 buffers available in local pool",
-                    0,
-                    bufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 14 buffers available in the channel")
+                    .isEqualTo(14);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 14 buffers required in the channel")
+                    .isEqualTo(14);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 0 buffers available in local pool")
+                    .isZero();
 
             // Recycle one floating buffer
             floatingBuffer.recycleBuffer();
@@ -737,18 +689,15 @@ public class RemoteInputChannelTest {
             // for floating buffers
             verify(bufferPool, times(14)).requestBuffer();
             verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 14 buffers available in the channel",
-                    14,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 14 buffers required in the channel",
-                    14,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 1 buffer available in local pool",
-                    1,
-                    bufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 14 buffers available in the channel")
+                    .isEqualTo(14);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 14 buffers required in the channel")
+                    .isEqualTo(14);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 1 buffers available in local pool")
+                    .isOne();
 
             // Recycle one exclusive buffer
             exclusiveBuffer.recycleBuffer();
@@ -758,18 +707,15 @@ public class RemoteInputChannelTest {
             // already equals to required buffers
             verify(bufferPool, times(14)).requestBuffer();
             verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 14 buffers available in the channel",
-                    14,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 14 buffers required in the channel",
-                    14,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 2 buffers available in local pool",
-                    2,
-                    bufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 14 buffers available in the channel")
+                    .isEqualTo(14);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 14 buffers required in the channel")
+                    .isEqualTo(14);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 2 buffers available in local pool")
+                    .isEqualTo(2);
         } catch (Throwable t) {
             thrown = t;
         } finally {
@@ -782,7 +728,7 @@ public class RemoteInputChannelTest {
      * available buffers is more than required buffers by decreasing the sender's backlog.
      */
     @Test
-    public void testAvailableBuffersMoreThanRequiredBuffers() throws Exception {
+    void testAvailableBuffersMoreThanRequiredBuffers() throws Exception {
         // Setup
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(16, 32);
         final int numFloatingBuffers = 14;
@@ -800,10 +746,10 @@ public class RemoteInputChannelTest {
 
             // Prepare the exclusive and floating buffers to verify recycle logic later
             final Buffer exclusiveBuffer = inputChannel.requestBuffer();
-            assertNotNull(exclusiveBuffer);
+            assertThat(exclusiveBuffer).isNotNull();
 
             final Buffer floatingBuffer = bufferPool.requestBuffer();
-            assertNotNull(floatingBuffer);
+            assertThat(floatingBuffer).isNotNull();
 
             verify(bufferPool, times(1)).requestBuffer();
 
@@ -813,18 +759,15 @@ public class RemoteInputChannelTest {
             // The channel gets enough floating buffers from local pool
             verify(bufferPool, times(14)).requestBuffer();
             verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 14 buffers available in the channel",
-                    14,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 14 buffers required in the channel",
-                    14,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 0 buffers available in local pool",
-                    0,
-                    bufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 14 buffers available in the channel")
+                    .isEqualTo(14);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 14 buffers required in the channel")
+                    .isEqualTo(14);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 0 buffers available in local pool")
+                    .isZero();
 
             // Decrease the backlog to make the number of available buffers more than required
             // buffers
@@ -833,18 +776,15 @@ public class RemoteInputChannelTest {
             // Only the number of required buffers is changed by (backlog + numExclusiveBuffers)
             verify(bufferPool, times(14)).requestBuffer();
             verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 14 buffers available in the channel",
-                    14,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 12 buffers required in the channel",
-                    12,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 0 buffers available in local pool",
-                    0,
-                    bufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 14 buffers available in the channel")
+                    .isEqualTo(14);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 12 buffers required in the channel")
+                    .isEqualTo(12);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 0 buffers available in local pool")
+                    .isZero();
 
             // Recycle one exclusive buffer
             exclusiveBuffer.recycleBuffer();
@@ -854,18 +794,15 @@ public class RemoteInputChannelTest {
             // is more than required buffers
             verify(bufferPool, times(14)).requestBuffer();
             verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 14 buffers available in the channel",
-                    14,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 12 buffers required in the channel",
-                    12,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 1 buffer available in local pool",
-                    1,
-                    bufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 14 buffers available in the channel")
+                    .isEqualTo(14);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 12 buffers required in the channel")
+                    .isEqualTo(12);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 1 buffers available in local pool")
+                    .isOne();
 
             // Recycle one floating buffer
             floatingBuffer.recycleBuffer();
@@ -875,18 +812,15 @@ public class RemoteInputChannelTest {
             // floating buffers
             verify(bufferPool, times(14)).requestBuffer();
             verify(bufferPool, times(0)).addBufferListener(inputChannel.getBufferManager());
-            assertEquals(
-                    "There should be 14 buffers available in the channel",
-                    14,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 12 buffers required in the channel",
-                    12,
-                    inputChannel.getNumberOfRequiredBuffers());
-            assertEquals(
-                    "There should be 2 buffers available in local pool",
-                    2,
-                    bufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be 14 buffers available in the channel")
+                    .isEqualTo(14);
+            assertThat(inputChannel.getNumberOfRequiredBuffers())
+                    .withFailMessage("There should be 12 buffers required in the channel")
+                    .isEqualTo(12);
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 2 buffers available in local pool")
+                    .isEqualTo(2);
         } catch (Throwable t) {
             thrown = t;
         } finally {
@@ -899,7 +833,7 @@ public class RemoteInputChannelTest {
      * channel listeners in a fair way.
      */
     @Test
-    public void testFairDistributionFloatingBuffers() throws Exception {
+    void testFairDistributionFloatingBuffers() throws Exception {
         // Setup
         final int numExclusiveBuffers = 2;
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(12, 32);
@@ -926,7 +860,7 @@ public class RemoteInputChannelTest {
             final List<Buffer> floatingBuffers = new ArrayList<>(numFloatingBuffers);
             for (int i = 0; i < numFloatingBuffers; i++) {
                 Buffer buffer = bufferPool.requestBuffer();
-                assertNotNull(buffer);
+                assertThat(buffer).isNotNull();
                 floatingBuffers.add(buffer);
             }
 
@@ -935,12 +869,11 @@ public class RemoteInputChannelTest {
             for (RemoteInputChannel inputChannel : inputChannels) {
                 inputChannel.onSenderBacklog(8);
                 verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
-                assertEquals(
-                        "There should be "
-                                + numExclusiveBuffers
-                                + " buffers available in the channel",
-                        numExclusiveBuffers,
-                        inputChannel.getNumberOfAvailableBuffers());
+                assertThat(inputChannel.getNumberOfAvailableBuffers())
+                        .withFailMessage(
+                                "There should be %d buffers available in the channel",
+                                numExclusiveBuffers)
+                        .isEqualTo(numExclusiveBuffers);
             }
 
             // Recycle three floating buffers to trigger notify buffer available
@@ -949,14 +882,12 @@ public class RemoteInputChannelTest {
             }
 
             for (RemoteInputChannel inputChannel : inputChannels) {
-                assertEquals(
-                        "There should be 3 buffers available in the channel",
-                        3,
-                        inputChannel.getNumberOfAvailableBuffers());
-                assertEquals(
-                        "There should be 1 unannounced credits in the channel",
-                        1,
-                        inputChannel.getUnannouncedCredit());
+                assertThat(inputChannel.getNumberOfAvailableBuffers())
+                        .withFailMessage("There should be 3 buffers available in the channel")
+                        .isEqualTo(3);
+                assertThat(inputChannel.getUnannouncedCredit())
+                        .withFailMessage("There should be 1 unannounced credits in the channel")
+                        .isOne();
             }
         } catch (Throwable t) {
             thrown = t;
@@ -971,7 +902,7 @@ public class RemoteInputChannelTest {
      * listener will be notified in this case.
      */
     @Test
-    public void testFailureInNotifyBufferAvailable() throws Exception {
+    void testFailureInNotifyBufferAvailable() throws Exception {
         // Setup
         final int numExclusiveBuffers = 1;
         final int numFloatingBuffers = 1;
@@ -1003,24 +934,24 @@ public class RemoteInputChannelTest {
             // this exception will be swallowed and set as an error in failingRemoteIC
             buffer.recycleBuffer();
             buffer = null;
-            try {
-                failingRemoteIC.checkError();
-                fail(
-                        "The input channel should have an error based on the failure in RemoteInputChannel#notifyBufferAvailable()");
-            } catch (IOException e) {
-                assertThat(e, hasProperty("cause", isA(IllegalStateException.class)));
-            }
+
+            assertThatThrownBy(failingRemoteIC::checkError)
+                    .isInstanceOf(IOException.class)
+                    .hasCauseInstanceOf(IllegalStateException.class);
+
             // currently, the buffer is still enqueued in the bufferQueue of failingRemoteIC
-            assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isZero();
             buffer = successfulRemoteIC.requestBuffer();
-            assertNull("buffer should still remain in failingRemoteIC", buffer);
+            assertThat(buffer)
+                    .withFailMessage("buffer should still remain in failingRemoteIC")
+                    .isNull();
 
             // releasing resources in failingRemoteIC should free the buffer again and immediately
             // recycle it into successfulRemoteIC
             failingRemoteIC.releaseAllResources();
-            assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments()).isZero();
             buffer = successfulRemoteIC.requestBuffer();
-            assertNotNull("no buffer given to successfulRemoteIC", buffer);
+            assertThat(buffer).withFailMessage("no buffer given to successfulRemoteIC").isNotNull();
         } catch (Throwable t) {
             thrown = t;
         } finally {
@@ -1034,7 +965,7 @@ public class RemoteInputChannelTest {
      * channel.
      */
     @Test
-    public void testConcurrentOnSenderBacklogAndRelease() throws Exception {
+    void testConcurrentOnSenderBacklogAndRelease() throws Exception {
         // Setup
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(130, 32);
         final int numFloatingBuffers = 128;
@@ -1080,15 +1011,14 @@ public class RemoteInputChannelTest {
             // Submit tasks and wait to finish
             submitTasksAndWaitForResults(executor, new Callable[] {requestBufferTask, releaseTask});
 
-            assertEquals(
-                    "There should be no buffers available in the channel.",
-                    0,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be 130 buffers available in local pool.",
-                    130,
-                    bufferPool.getNumberOfAvailableMemorySegments()
-                            + networkBufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be no buffers available in the channel.")
+                    .isZero();
+            assertThat(
+                            bufferPool.getNumberOfAvailableMemorySegments()
+                                    + networkBufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be 130 buffers available in local pool.")
+                    .isEqualTo(130);
         } catch (Throwable t) {
             thrown = t;
         } finally {
@@ -1102,7 +1032,7 @@ public class RemoteInputChannelTest {
      * exclusive buffers.
      */
     @Test
-    public void testConcurrentOnSenderBacklogAndRecycle() throws Exception {
+    void testConcurrentOnSenderBacklogAndRecycle() throws Exception {
         // Setup
         final int numExclusiveSegments = 120;
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(248, 32);
@@ -1144,16 +1074,14 @@ public class RemoteInputChannelTest {
                         requestBufferTask
                     });
 
-            assertEquals(
-                    "There should be "
-                            + inputChannel.getNumberOfRequiredBuffers()
-                            + " buffers available in channel.",
-                    inputChannel.getNumberOfRequiredBuffers(),
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be no buffers available in local pool.",
-                    0,
-                    bufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage(
+                            "There should be %d buffers available in the channel.",
+                            numFloatingBuffers)
+                    .isEqualTo(inputChannel.getNumberOfRequiredBuffers());
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage("There should be no buffers available in local pool.")
+                    .isZero();
         } catch (Throwable t) {
             thrown = t;
         } finally {
@@ -1167,7 +1095,7 @@ public class RemoteInputChannelTest {
      * channel.
      */
     @Test
-    public void testConcurrentRecycleAndRelease() throws Exception {
+    void testConcurrentRecycleAndRelease() throws Exception {
         // Setup
         final int numExclusiveSegments = 120;
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(248, 32);
@@ -1206,20 +1134,19 @@ public class RemoteInputChannelTest {
                         releaseTask
                     });
 
-            assertEquals(
-                    "There should be no buffers available in the channel.",
-                    0,
-                    inputChannel.getNumberOfAvailableBuffers());
-            assertEquals(
-                    "There should be " + numFloatingBuffers + " buffers available in local pool.",
-                    numFloatingBuffers,
-                    bufferPool.getNumberOfAvailableMemorySegments());
-            assertEquals(
-                    "There should be "
-                            + numExclusiveSegments
-                            + " buffers available in global pool.",
-                    numExclusiveSegments,
-                    networkBufferPool.getNumberOfAvailableMemorySegments());
+            assertThat(inputChannel.getNumberOfAvailableBuffers())
+                    .withFailMessage("There should be no buffers available in the channel.")
+                    .isZero();
+            assertThat(bufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage(
+                            "There should be %d buffers available in local pool.",
+                            numFloatingBuffers)
+                    .isEqualTo(numFloatingBuffers);
+            assertThat(networkBufferPool.getNumberOfAvailableMemorySegments())
+                    .withFailMessage(
+                            "There should be %d buffers available in global pool.",
+                            numExclusiveSegments)
+                    .isEqualTo(numExclusiveSegments);
         } catch (Throwable t) {
             thrown = t;
         } finally {
@@ -1233,7 +1160,7 @@ public class RemoteInputChannelTest {
      * recycling of the exclusive buffer triggers recycling a floating buffer (FLINK-9676).
      */
     @Test
-    public void testConcurrentRecycleAndRelease2() throws Exception {
+    void testConcurrentRecycleAndRelease2() throws Exception {
         // Setup
         final int retries = 1_000;
         final int numExclusiveBuffers = 2;
@@ -1292,7 +1219,7 @@ public class RemoteInputChannelTest {
                                 floatingBuffers.forEach(Buffer::recycleBuffer);
                                 floatingBuffers.clear();
 
-                                assertEquals(numExclusiveBuffers, exclusiveBuffers.size());
+                                assertThat(exclusiveBuffers).hasSize(numExclusiveBuffers);
                                 inputChannel.onSenderBacklog(
                                         0); // trigger subscription to buffer pool
                                 // note: if we got a floating buffer by increasing the backlog, it
@@ -1319,7 +1246,7 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testConcurrentGetNextBufferAndRelease() throws Exception {
+    void testConcurrentGetNextBufferAndRelease() throws Exception {
         final int numTotalBuffers = 1_000;
         final int numFloatingBuffers = 998;
         final NetworkBufferPool networkBufferPool = new NetworkBufferPool(numTotalBuffers, 32);
@@ -1379,7 +1306,7 @@ public class RemoteInputChannelTest {
      * PartitionNotFoundException} if backoff is 0.
      */
     @Test
-    public void testPartitionNotFoundExceptionWhileRetriggeringRequest() throws Exception {
+    void testPartitionNotFoundExceptionWhileRetriggeringRequest() throws Exception {
         final RemoteInputChannel inputChannel =
                 InputChannelTestUtils.createRemoteInputChannel(
                         createSingleInputGate(1), 0, new TestingConnectionManager());
@@ -1389,13 +1316,12 @@ public class RemoteInputChannelTest {
         inputChannel.requestSubpartition();
         // The default backoff is 0 then it would set PartitionNotFoundException on this channel
         inputChannel.retriggerSubpartitionRequest();
-        try {
-            inputChannel.checkError();
-
-            fail("Should throw a PartitionNotFoundException.");
-        } catch (PartitionNotFoundException notFound) {
-            assertThat(inputChannel.getPartitionId(), is(notFound.getPartitionId()));
-        }
+        assertThatThrownBy(inputChannel::checkError)
+                .isInstanceOfSatisfying(
+                        PartitionNotFoundException.class,
+                        notFound ->
+                                assertThat(inputChannel.getPartitionId())
+                                        .isEqualTo(notFound.getPartitionId()));
     }
 
     /**
@@ -1404,38 +1330,40 @@ public class RemoteInputChannelTest {
      * PartitionConnectionException} during {@link RemoteInputChannel#requestSubpartition()}.
      */
     @Test
-    public void testPartitionConnectionExceptionWhileRequestingPartition() throws Exception {
+    void testPartitionConnectionExceptionWhileRequestingPartition() throws Exception {
         final RemoteInputChannel inputChannel =
                 InputChannelTestUtils.createRemoteInputChannel(
                         createSingleInputGate(1), 0, new TestingExceptionConnectionManager());
-        try {
-            inputChannel.requestSubpartition();
-            fail("Expected PartitionConnectionException.");
-        } catch (PartitionConnectionException ex) {
-            assertThat(inputChannel.getPartitionId(), is(ex.getPartitionId()));
-        }
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testUnblockReleasedChannel() throws Exception {
-        SingleInputGate inputGate = createSingleInputGate(1);
-        RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
-
-        remoteChannel.releaseAllResources();
-        remoteChannel.resumeConsumption();
-    }
-
-    @Test(expected = IllegalStateException.class)
-    public void testReleasedChannelAnnounceBufferSize() throws Exception {
-        SingleInputGate inputGate = createSingleInputGate(1);
-        RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
-
-        remoteChannel.releaseAllResources();
-        remoteChannel.announceBufferSize(10);
+        assertThatThrownBy(inputChannel::requestSubpartition)
+                .isInstanceOfSatisfying(
+                        PartitionConnectionException.class,
+                        ex ->
+                                assertThat(inputChannel.getPartitionId())
+                                        .isEqualTo(ex.getPartitionId()));
     }
 
     @Test
-    public void testOnUpstreamBlockedAndResumed() throws Exception {
+    void testUnblockReleasedChannel() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
+
+        remoteChannel.releaseAllResources();
+        assertThatThrownBy(remoteChannel::resumeConsumption)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testReleasedChannelAnnounceBufferSize() throws Exception {
+        SingleInputGate inputGate = createSingleInputGate(1);
+        RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
+
+        remoteChannel.releaseAllResources();
+        assertThatThrownBy(() -> remoteChannel.announceBufferSize(10))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testOnUpstreamBlockedAndResumed() throws Exception {
         BufferPool bufferPool = new TestBufferPool();
         SingleInputGate inputGate = createSingleInputGate(bufferPool);
 
@@ -1448,8 +1376,8 @@ public class RemoteInputChannelTest {
         remoteChannel1.onSenderBacklog(2);
         remoteChannel2.onSenderBacklog(2);
 
-        assertEquals(4, remoteChannel1.getNumberOfAvailableBuffers());
-        assertEquals(2, remoteChannel2.getNumberOfAvailableBuffers());
+        assertThat(remoteChannel1.getNumberOfAvailableBuffers()).isEqualTo(4);
+        assertThat(remoteChannel2.getNumberOfAvailableBuffers()).isEqualTo(2);
 
         Buffer barrier =
                 EventSerializer.toBuffer(
@@ -1464,27 +1392,27 @@ public class RemoteInputChannelTest {
         remoteChannel1.onBuffer(barrier, 0, 0);
         remoteChannel2.onBuffer(barrier, 0, 0);
 
-        assertEquals(4, remoteChannel1.getNumberOfAvailableBuffers());
-        assertEquals(0, remoteChannel2.getNumberOfAvailableBuffers());
+        assertThat(remoteChannel1.getNumberOfAvailableBuffers()).isEqualTo(4);
+        assertThat(remoteChannel2.getNumberOfAvailableBuffers()).isZero();
 
         remoteChannel1.resumeConsumption();
         remoteChannel2.resumeConsumption();
 
-        assertEquals(4, remoteChannel1.getUnannouncedCredit());
-        assertEquals(0, remoteChannel2.getUnannouncedCredit());
+        assertThat(remoteChannel1.getUnannouncedCredit()).isEqualTo(4);
+        assertThat(remoteChannel2.getUnannouncedCredit()).isZero();
 
         remoteChannel1.onSenderBacklog(4);
         remoteChannel2.onSenderBacklog(4);
 
-        assertEquals(6, remoteChannel1.getNumberOfAvailableBuffers());
-        assertEquals(4, remoteChannel2.getNumberOfAvailableBuffers());
+        assertThat(remoteChannel1.getNumberOfAvailableBuffers()).isEqualTo(6);
+        assertThat(remoteChannel2.getNumberOfAvailableBuffers()).isEqualTo(4);
 
-        assertEquals(6, remoteChannel1.getUnannouncedCredit());
-        assertEquals(4, remoteChannel2.getUnannouncedCredit());
+        assertThat(remoteChannel1.getUnannouncedCredit()).isEqualTo(6);
+        assertThat(remoteChannel2.getUnannouncedCredit()).isEqualTo(4);
     }
 
     @Test
-    public void testRequestBuffer() throws Exception {
+    void testRequestBuffer() throws Exception {
         BufferPool bufferPool = new TestBufferPool();
         SingleInputGate inputGate = createSingleInputGate(bufferPool);
 
@@ -1498,18 +1426,18 @@ public class RemoteInputChannelTest {
         remoteChannel2.onSenderBacklog(2);
 
         for (int i = 4; i >= 0; --i) {
-            assertEquals(i, remoteChannel1.getNumberOfRequiredBuffers());
+            assertThat(remoteChannel1.getNumberOfRequiredBuffers()).isEqualTo(i);
             remoteChannel1.requestBuffer();
         }
 
         for (int i = 2; i >= 0; --i) {
-            assertEquals(i, remoteChannel2.getNumberOfRequiredBuffers());
+            assertThat(remoteChannel2.getNumberOfRequiredBuffers()).isEqualTo(i);
             remoteChannel2.requestBuffer();
         }
     }
 
     @Test
-    public void testPrioritySequenceNumbers() throws Exception {
+    void testPrioritySequenceNumbers() throws Exception {
         int sequenceNumber = 0;
         int bufferSize = 1;
         final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
@@ -1523,7 +1451,7 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testGetInflightBuffers() throws Exception {
+    void testGetInflightBuffers() throws Exception {
         int bufferSize = 1;
         int sequenceNumber = 0;
         final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
@@ -1536,7 +1464,7 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testGetAllInflightBuffers() throws Exception {
+    void testGetAllInflightBuffers() throws Exception {
         int sequenceNumber = Integer.MAX_VALUE - 2;
         int bufferSize = 1;
         final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
@@ -1548,7 +1476,7 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testGetInflightBuffersOverflow() throws Exception {
+    void testGetInflightBuffersOverflow() throws Exception {
         for (int startingSequence = Integer.MAX_VALUE - 10;
                 startingSequence != Integer.MIN_VALUE + 2;
                 startingSequence++) {
@@ -1560,15 +1488,14 @@ public class RemoteInputChannelTest {
             sendBarrier(channel, sequenceNumber++, UNALIGNED);
             sendBuffer(channel, sequenceNumber++, bufferSize++);
             sendBuffer(channel, sequenceNumber++, bufferSize++);
-            assertThat(
-                    "For starting sequence " + startingSequence,
-                    toBufferSizes(channel.getInflightBuffers(CHECKPOINT_ID)),
-                    contains(1, 2));
+            assertThat(toBufferSizes(channel.getInflightBuffers(CHECKPOINT_ID)))
+                    .withFailMessage("For starting sequence " + startingSequence)
+                    .contains(1, 2);
         }
     }
 
     @Test
-    public void testGetInflightBuffersAfterPollingBuffer() throws Exception {
+    void testGetInflightBuffersAfterPollingBuffer() throws Exception {
         int bufferSize = 1;
         int sequenceNumber = 0;
         final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
@@ -1588,7 +1515,7 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testRequiresAnnouncement() throws Exception {
+    void testRequiresAnnouncement() throws Exception {
         int sequenceNumber = 0;
         int bufferSize = 1;
         final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
@@ -1599,23 +1526,23 @@ public class RemoteInputChannelTest {
         sendBuffer(channel, sequenceNumber++, bufferSize++);
 
         BufferAndAvailability nextBuffer = channel.getNextBuffer().get();
-        assertEquals(2, nextBuffer.getSequenceNumber());
-        assertFalse(nextBuffer.morePriorityEvents());
-        assertTrue(nextBuffer.moreAvailable());
-        assertEquals(DataType.PRIORITIZED_EVENT_BUFFER, nextBuffer.buffer().getDataType());
+        assertThat(nextBuffer.getSequenceNumber()).isEqualTo(2);
+        assertThat(nextBuffer.morePriorityEvents()).isFalse();
+        assertThat(nextBuffer.moreAvailable()).isTrue();
+        assertThat(nextBuffer.buffer().getDataType()).isEqualTo(DataType.PRIORITIZED_EVENT_BUFFER);
 
         assertGetNextBufferSequenceNumbers(channel, 0, 1);
 
         nextBuffer = channel.getNextBuffer().get();
-        assertEquals(2, nextBuffer.getSequenceNumber());
-        assertEquals(
-                DataType.TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER, nextBuffer.buffer().getDataType());
+        assertThat(nextBuffer.getSequenceNumber()).isEqualTo(2);
+        assertThat(nextBuffer.buffer().getDataType())
+                .isEqualTo(DataType.TIMEOUTABLE_ALIGNED_CHECKPOINT_BARRIER);
 
-        assertEquals(3, channel.getNextBuffer().get().getSequenceNumber());
+        assertThat(channel.getNextBuffer().get().getSequenceNumber()).isEqualTo(3);
     }
 
     @Test
-    public void testGetInflightBuffersBeforeProcessingAnnouncement() throws Exception {
+    void testGetInflightBuffersBeforeProcessingAnnouncement() throws Exception {
         int bufferSize = 1;
         int sequenceNumber = 0;
         final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
@@ -1628,7 +1555,7 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testGetInflightBuffersAfterProcessingAnnouncement() throws Exception {
+    void testGetInflightBuffersAfterProcessingAnnouncement() throws Exception {
         int bufferSize = 1;
         int sequenceNumber = 0;
         final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
@@ -1642,7 +1569,7 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testGetInflightBuffersAfterProcessingAnnouncementAndBuffer() throws Exception {
+    void testGetInflightBuffersAfterProcessingAnnouncementAndBuffer() throws Exception {
         int bufferSize = 1;
         int sequenceNumber = 0;
         final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
@@ -1656,18 +1583,18 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testSizeOfQueuedBuffers() throws Exception {
+    void testSizeOfQueuedBuffers() throws Exception {
         int sequenceNumber = 0;
         int bufferSize = 1;
         int queueSize = 0;
         final RemoteInputChannel channel = buildInputGateAndGetChannel(sequenceNumber);
-        assertEquals(0, channel.unsynchronizedGetSizeOfQueuedBuffers());
+        assertThat(channel.unsynchronizedGetSizeOfQueuedBuffers()).isZero();
 
         // Receive a couple of buffers.
         for (int i = 0; i < 2; i++) {
             queueSize += bufferSize;
             sendBuffer(channel, sequenceNumber++, bufferSize++);
-            assertEquals(queueSize, channel.unsynchronizedGetSizeOfQueuedBuffers());
+            assertThat(channel.unsynchronizedGetSizeOfQueuedBuffers()).isEqualTo(queueSize);
         }
 
         // Receive the event.
@@ -1675,16 +1602,16 @@ public class RemoteInputChannelTest {
                 EventSerializer.toSerializedEvent(new CheckpointBarrier(1L, 123L, UNALIGNED))
                         .remaining();
         sendBarrier(channel, sequenceNumber++, UNALIGNED);
-        assertEquals(queueSize, channel.unsynchronizedGetSizeOfQueuedBuffers());
+        assertThat(channel.unsynchronizedGetSizeOfQueuedBuffers()).isEqualTo(queueSize);
 
         // Poll all received buffers.
         for (int i = 0; i < 3; i++) {
             Optional<BufferAndAvailability> nextBuffer = channel.getNextBuffer();
             queueSize -= nextBuffer.get().buffer().getSize();
-            assertEquals(queueSize, channel.unsynchronizedGetSizeOfQueuedBuffers());
+            assertThat(channel.unsynchronizedGetSizeOfQueuedBuffers()).isEqualTo(queueSize);
         }
 
-        assertEquals(0, channel.unsynchronizedGetSizeOfQueuedBuffers());
+        assertThat(channel.unsynchronizedGetSizeOfQueuedBuffers()).isZero();
     }
 
     private void sendBarrier(
@@ -1711,9 +1638,8 @@ public class RemoteInputChannelTest {
 
     private void assertInflightBufferSizes(RemoteInputChannel channel, Integer... bufferSizes)
             throws CheckpointException {
-        assertEquals(
-                Arrays.asList(bufferSizes),
-                toBufferSizes(channel.getInflightBuffers(CHECKPOINT_ID)));
+        assertThat(toBufferSizes(channel.getInflightBuffers(CHECKPOINT_ID)))
+                .containsExactly(bufferSizes);
     }
 
     private void assertGetNextBufferSequenceNumbers(
@@ -1724,7 +1650,7 @@ public class RemoteInputChannelTest {
                     .map(BufferAndAvailability::getSequenceNumber)
                     .ifPresent(actualSequenceNumbers::add);
         }
-        assertThat(actualSequenceNumbers, contains(sequenceNumbers));
+        assertThat(actualSequenceNumbers).contains(sequenceNumbers);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -1793,7 +1719,7 @@ public class RemoteInputChannelTest {
 
     /** Test to guard against FLINK-13249. */
     @Test
-    public void testOnFailedPartitionRequestDoesNotBlockNetworkThreads() throws Exception {
+    void testOnFailedPartitionRequestDoesNotBlockNetworkThreads() throws Exception {
 
         final long testBlockedWaitTimeoutMillis = 30_000L;
 
@@ -1805,7 +1731,7 @@ public class RemoteInputChannelTest {
         final Task task =
                 new TestTaskBuilder(shuffleEnvironment)
                         .setPartitionProducerStateChecker(partitionProducerStateChecker)
-                        .build(EXECUTOR_RESOURCE.getExecutor());
+                        .build(EXECUTOR_EXTENSION.getExecutor());
         final SingleInputGate inputGate =
                 new SingleInputGateBuilder().setPartitionProducerStateProvider(task).build();
 
@@ -1865,13 +1791,14 @@ public class RemoteInputChannelTest {
 
         simulatedNetworkThread.join();
 
-        Assert.assertFalse(
-                "Test ended by timeout or interruption - this indicates that the network thread was blocked.",
-                timedOutOrInterrupted.get());
+        assertThat(timedOutOrInterrupted)
+                .withFailMessage(
+                        "Test ended by timeout or interruption - this indicates that the network thread was blocked.")
+                .isFalse();
     }
 
     @Test
-    public void testNotifyOnPriority() throws IOException {
+    void testNotifyOnPriority() throws IOException {
         SingleInputGate inputGate = new SingleInputGateBuilder().build();
         RemoteInputChannel channel = InputChannelTestUtils.createRemoteInputChannel(inputGate, 0);
 
@@ -1912,7 +1839,7 @@ public class RemoteInputChannelTest {
     }
 
     @Test
-    public void testBuffersInUseCount() throws Exception {
+    void testBuffersInUseCount() throws Exception {
         // Setup
         RemoteInputChannel remoteInputChannel = buildInputGateAndGetChannel();
 
@@ -1921,28 +1848,28 @@ public class RemoteInputChannelTest {
         // Receiving the buffer with backlog.
         remoteInputChannel.onBuffer(buffer.retainBuffer(), 0, 1);
         // 1 buffer + 1 backlog.
-        assertEquals(2, remoteInputChannel.getBuffersInUseCount());
+        assertThat(remoteInputChannel.getBuffersInUseCount()).isEqualTo(2);
 
         remoteInputChannel.onBuffer(buffer.retainBuffer(), 1, 3);
         // 2 buffer + 3 backlog.
-        assertEquals(5, remoteInputChannel.getBuffersInUseCount());
+        assertThat(remoteInputChannel.getBuffersInUseCount()).isEqualTo(5);
 
         // 1 buffer + 3 backlog.
         remoteInputChannel.getNextBuffer();
-        assertEquals(4, remoteInputChannel.getBuffersInUseCount());
+        assertThat(remoteInputChannel.getBuffersInUseCount()).isEqualTo(4);
 
         // 0 buffer + 3 backlog.
         remoteInputChannel.getNextBuffer();
-        assertEquals(3, remoteInputChannel.getBuffersInUseCount());
+        assertThat(remoteInputChannel.getBuffersInUseCount()).isEqualTo(3);
 
         // 0 buffer + 3 backlog. Nothing changes from previous case because receivedBuffers was
         // already empty.
         remoteInputChannel.getNextBuffer();
-        assertEquals(3, remoteInputChannel.getBuffersInUseCount());
+        assertThat(remoteInputChannel.getBuffersInUseCount()).isEqualTo(3);
     }
 
     @Test
-    public void testReleasedChannelNotifyRequiredSegmentId() throws Exception {
+    void testReleasedChannelNotifyRequiredSegmentId() throws Exception {
         SingleInputGate inputGate = createSingleInputGate(1);
         RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
 
@@ -1972,7 +1899,7 @@ public class RemoteInputChannelTest {
         // Exhaust all the exclusive buffers
         for (int i = 0; i < numExclusiveSegments; i++) {
             Buffer buffer = inputChannel.requestBuffer();
-            assertNotNull(buffer);
+            assertThat(buffer).isNotNull();
             exclusiveBuffers.add(buffer);
         }
 
@@ -1980,7 +1907,7 @@ public class RemoteInputChannelTest {
         // Exhaust all the floating buffers
         for (int i = 0; i < numFloatingBuffers; i++) {
             Buffer buffer = bufferPool.requestBuffer();
-            assertNotNull(buffer);
+            assertThat(buffer).isNotNull();
             floatingBuffers.add(buffer);
         }
 
@@ -2094,7 +2021,7 @@ public class RemoteInputChannelTest {
                 ResultPartitionID resultPartitionId,
                 Consumer<? super ResponseHandle> responseConsumer) {
 
-            assertEquals(partitionId, resultPartitionId);
+            assertThat(resultPartitionId).isEqualTo(partitionId);
             isInvoked = true;
         }
 
@@ -2135,9 +2062,9 @@ public class RemoteInputChannelTest {
 
         void verifyResult(
                 ResultPartitionID expectedId, int expectedSubpartitionIndex, int expectedDelayMs) {
-            assertEquals(expectedId, partitionId);
-            assertEquals(expectedSubpartitionIndex, subpartitionIndex);
-            assertEquals(expectedDelayMs, delayMs);
+            assertThat(partitionId).isEqualTo(expectedId);
+            assertThat(subpartitionIndex).isEqualTo(expectedSubpartitionIndex);
+            assertThat(delayMs).isEqualTo(expectedDelayMs);
         }
     }
 
