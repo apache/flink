@@ -68,7 +68,8 @@ public class TestingPartitionFileReader implements PartitionFileReader {
             TieredStorageSubpartitionId subpartitionId,
             int segmentId,
             int bufferIndex,
-            @Nullable ReadProgress readProgress) {
+            @Nullable ReadProgress readProgress)
+            throws IOException {
         return getPriorityFunction.apply(subpartitionId.getSubpartitionId());
     }
 
