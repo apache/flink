@@ -39,7 +39,7 @@ import org.apache.flink.runtime.throughput.ThroughputCalculator;
 import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -52,16 +52,14 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests verifying fairness in input gates. */
 public class InputGateFairnessTest {
 
     @Test
-    public void testFairConsumptionLocalChannelsPreFilled() throws Exception {
+    void testFairConsumptionLocalChannelsPreFilled() throws Exception {
         final int numberOfChannels = 37;
         final int buffersPerChannel = 27;
 
@@ -113,7 +111,7 @@ public class InputGateFairnessTest {
 
         // read all the buffers and the EOF event
         for (int i = numberOfChannels * (buffersPerChannel + 1); i > 0; --i) {
-            assertNotNull(gate.getNext());
+            assertThat(gate.getNext()).isNotNull();
 
             int min = Integer.MAX_VALUE;
             int max = 0;
@@ -124,14 +122,14 @@ public class InputGateFairnessTest {
                 max = Math.max(max, size);
             }
 
-            assertTrue(max == min || max == (min + 1));
+            assertThat(max == min || max == (min + 1)).isTrue();
         }
 
-        assertFalse(gate.getNext().isPresent());
+        assertThat(gate.getNext()).isNotPresent();
     }
 
     @Test
-    public void testFairConsumptionLocalChannels() throws Exception {
+    void testFairConsumptionLocalChannels() throws Exception {
         final int numberOfChannels = 37;
         final int buffersPerChannel = 27;
 
@@ -178,7 +176,7 @@ public class InputGateFairnessTest {
 
             // read all the buffers and the EOF event
             for (int i = 0; i < numberOfChannels * buffersPerChannel; i++) {
-                assertNotNull(gate.getNext());
+                assertThat(gate.getNext()).isNotNull();
 
                 int min = Integer.MAX_VALUE;
                 int max = 0;
@@ -189,7 +187,7 @@ public class InputGateFairnessTest {
                     max = Math.max(max, size);
                 }
 
-                assertTrue(max == min || max == min + 1);
+                assertThat(max == min || max == min + 1).isTrue();
 
                 if (i % (2 * numberOfChannels) == 0) {
                     // add three buffers to each channel, in random order
@@ -201,7 +199,7 @@ public class InputGateFairnessTest {
     }
 
     @Test
-    public void testFairConsumptionRemoteChannelsPreFilled() throws Exception {
+    void testFairConsumptionRemoteChannelsPreFilled() throws Exception {
         final int numberOfChannels = 37;
         final int buffersPerChannel = 27;
 
@@ -234,7 +232,7 @@ public class InputGateFairnessTest {
 
         // read all the buffers and the EOF event
         for (int i = numberOfChannels * (buffersPerChannel + 1); i > 0; --i) {
-            assertNotNull(gate.getNext());
+            assertThat(gate.getNext()).isNotNull();
 
             int min = Integer.MAX_VALUE;
             int max = 0;
@@ -245,14 +243,14 @@ public class InputGateFairnessTest {
                 max = Math.max(max, size);
             }
 
-            assertTrue(max == min || max == (min + 1));
+            assertThat(max == min || max == (min + 1)).isTrue();
         }
 
-        assertFalse(gate.getNext().isPresent());
+        assertThat(gate.getNext()).isNotPresent();
     }
 
     @Test
-    public void testFairConsumptionRemoteChannels() throws Exception {
+    void testFairConsumptionRemoteChannels() throws Exception {
         final int numberOfChannels = 37;
         final int buffersPerChannel = 27;
 
@@ -279,7 +277,7 @@ public class InputGateFairnessTest {
 
         // read all the buffers and the EOF event
         for (int i = 0; i < numberOfChannels * buffersPerChannel; i++) {
-            assertNotNull(gate.getNext());
+            assertThat(gate.getNext()).isPresent();
 
             int min = Integer.MAX_VALUE;
             int max = 0;
@@ -290,7 +288,7 @@ public class InputGateFairnessTest {
                 max = Math.max(max, size);
             }
 
-            assertTrue(max == min || max == (min + 1));
+            assertThat(max == min || max == (min + 1)).isTrue();
 
             if (i % (2 * numberOfChannels) == 0) {
                 // add three buffers to each channel, in random order
@@ -395,9 +393,9 @@ public class InputGateFairnessTest {
         @Override
         public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
             synchronized (channelsWithData) {
-                assertTrue(
-                        "too many input channels",
-                        channelsWithData.size() <= getNumberOfInputChannels());
+                assertThat(channelsWithData.size())
+                        .withFailMessage("too many input channels")
+                        .isLessThanOrEqualTo(getNumberOfInputChannels());
                 ensureUnique(channelsWithData.asUnmodifiableCollection());
             }
 
@@ -413,8 +411,9 @@ public class InputGateFairnessTest {
                 }
             }
 
-            assertTrue(
-                    "found duplicate input channels", uniquenessChecker.size() == channels.size());
+            assertThat(uniquenessChecker)
+                    .withFailMessage("found duplicate input channels")
+                    .hasSameSizeAs(channels);
             uniquenessChecker.clear();
         }
     }

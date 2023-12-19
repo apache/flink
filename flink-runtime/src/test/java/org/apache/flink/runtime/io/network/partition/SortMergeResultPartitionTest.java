@@ -62,7 +62,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link SortMergeResultPartition}. */
 @ExtendWith(ParameterizedTestExtension.class)
-public class SortMergeResultPartitionTest {
+class SortMergeResultPartitionTest {
 
     private static final int bufferSize = 1024;
 

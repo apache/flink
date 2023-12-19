@@ -24,32 +24,40 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
-import org.junit.Test;
-
-import java.io.IOException;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.unaligned;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link RecoveredInputChannel}. */
-public class RecoveredInputChannelTest {
+class RecoveredInputChannelTest {
 
-    @Test(expected = IllegalStateException.class)
-    public void testConversionOnlyPossibleAfterConsumed() throws IOException {
-        buildChannel().toInputChannel();
+    @Test
+    void testConversionOnlyPossibleAfterConsumed() {
+        assertThatThrownBy(() -> buildChannel().toInputChannel())
+                .isInstanceOf(IllegalStateException.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testRequestPartitionsImpossible() {
-        buildChannel().requestSubpartition();
+    @Test
+    void testRequestPartitionsImpossible() {
+        assertThatThrownBy(() -> buildChannel().requestSubpartition())
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test(expected = CheckpointException.class)
-    public void testCheckpointStartImpossible() throws CheckpointException {
-        buildChannel()
-                .checkpointStarted(
-                        new CheckpointBarrier(
-                                0L, 0L, unaligned(CheckpointType.CHECKPOINT, getDefault())));
+    @Test
+    void testCheckpointStartImpossible() {
+        assertThatThrownBy(
+                        () ->
+                                buildChannel()
+                                        .checkpointStarted(
+                                                new CheckpointBarrier(
+                                                        0L,
+                                                        0L,
+                                                        unaligned(
+                                                                CheckpointType.CHECKPOINT,
+                                                                getDefault()))))
+                .isInstanceOf(CheckpointException.class);
     }
 
     private RecoveredInputChannel buildChannel() {
