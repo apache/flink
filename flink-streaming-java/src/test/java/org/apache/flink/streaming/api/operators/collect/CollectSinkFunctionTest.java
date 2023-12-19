@@ -139,8 +139,6 @@ public class CollectSinkFunctionTest extends TestLogger {
                     .satisfies(
                             FlinkAssertions.anyCauseMatches(
                                     BindException.class, "Address already in use (Bind failed)"));
-        } finally {
-            functionWrapper.closeWrapper();
         }
     }
 
