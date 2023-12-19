@@ -27,8 +27,8 @@ import org.junit.Test;
 import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderAndConsumerTest.assertContent;
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderAndConsumerTest.toByteBuffer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.assertContent;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.toByteBuffer;
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;

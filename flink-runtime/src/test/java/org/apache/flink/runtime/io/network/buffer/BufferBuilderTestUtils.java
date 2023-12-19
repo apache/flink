@@ -21,11 +21,14 @@ package org.apache.flink.runtime.io.network.buffer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
+import javax.annotation.Nullable;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Utility class for create {@link BufferBuilder}, {@link BufferConsumer} and {@link Buffer}. */
 public class BufferBuilderTestUtils {
@@ -120,7 +123,7 @@ public class BufferBuilderTestUtils {
         final ByteBuffer bb = buffer.getNioBufferReadable().order(ByteOrder.LITTLE_ENDIAN);
 
         for (int i = 0; i < numInts; i++) {
-            assertEquals(nextValue++, bb.getInt());
+            assertThat(bb.getInt()).isEqualTo(nextValue++);
         }
     }
 
@@ -140,7 +143,7 @@ public class BufferBuilderTestUtils {
         final ByteBuffer bb = buffer.getNioBufferReadable().order(ByteOrder.LITTLE_ENDIAN);
 
         for (int i = 0; i < numLongs; i++) {
-            assertEquals(nextValue++, bb.getLong());
+            assertThat(bb.getLong()).isEqualTo(nextValue++);
         }
     }
 
@@ -157,5 +160,52 @@ public class BufferBuilderTestUtils {
         return new BufferBuilder(
                 MemorySegmentFactory.allocateUnpooledSegment(bufferSize),
                 FreeingBufferRecycler.INSTANCE);
+    }
+
+    public static ByteBuffer toByteBuffer(int... data) {
+        ByteBuffer byteBuffer = ByteBuffer.allocate(data.length * Integer.BYTES);
+        byteBuffer.asIntBuffer().put(data);
+        return byteBuffer;
+    }
+
+    public static void assertContent(BufferConsumer actualConsumer, int... expected) {
+        assertThat(actualConsumer.isFinished()).isFalse();
+        Buffer buffer = actualConsumer.build();
+        assertThat(buffer.isRecycled()).isFalse();
+        assertContent(buffer, FreeingBufferRecycler.INSTANCE, expected);
+        assertThat(buffer.getSize()).isEqualTo(expected.length * Integer.BYTES);
+        buffer.recycleBuffer();
+    }
+
+    public static void assertContent(
+            Buffer actualBuffer, @Nullable BufferRecycler recycler, int... expected) {
+        IntBuffer actualIntBuffer = actualBuffer.getNioBufferReadable().asIntBuffer();
+        int[] actual = new int[actualIntBuffer.limit()];
+        actualIntBuffer.get(actual);
+        assertThat(actual).containsExactly(expected);
+
+        if (recycler != null) {
+            assertThat(actualBuffer.getRecycler()).isEqualTo(recycler);
+        }
+    }
+
+    /**
+     * Returns whether the stack trace represents a Thread in a blocking buffer request.
+     *
+     * @param stackTrace Stack trace of the Thread to check
+     * @return Flag indicating whether the Thread is in a blocking buffer request or not
+     */
+    public static boolean isInBlockingBufferRequest(StackTraceElement[] stackTrace) {
+        if (stackTrace.length >= 8) {
+            for (int x = 0; x < stackTrace.length - 2; x++) {
+                if (stackTrace[x].getMethodName().equals("get")
+                        && stackTrace[x + 2]
+                                .getClassName()
+                                .equals(LocalBufferPool.class.getName())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
