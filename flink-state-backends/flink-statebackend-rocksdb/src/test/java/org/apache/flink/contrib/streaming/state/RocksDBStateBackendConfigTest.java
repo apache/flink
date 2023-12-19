@@ -394,8 +394,6 @@ public class RocksDBStateBackendConfigTest {
         final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
         RocksDBKeyedStateBackend<Integer> keyedBackend =
                 createKeyedStateBackend(rocksDbBackend, env, IntSerializer.INSTANCE);
-        // clear unused file
-        FileUtils.deleteFileOrDirectory(logFile);
 
         File instanceBasePath = keyedBackend.getInstanceBasePath();
         File instanceRocksDBPath =
@@ -407,7 +405,7 @@ public class RocksDBStateBackendConfigTest {
         java.nio.file.Path[] relocatedDbLogs;
         try {
             relocatedDbLogs = FileUtils.listDirectory(relocatedDBLogDir.toPath());
-            while (relocatedDbLogs.length <= 1) {
+            while (relocatedDbLogs.length <= 2) {
                 // If the default number of log files in rocksdb is not enough, add more logs.
                 try (FlushOptions flushOptions = new FlushOptions()) {
                     keyedBackend.db.put(RandomUtils.nextBytes(32), RandomUtils.nextBytes(512));
@@ -422,7 +420,8 @@ public class RocksDBStateBackendConfigTest {
         }
 
         relocatedDbLogs = FileUtils.listDirectory(relocatedDBLogDir.toPath());
-        assertEquals(0, relocatedDbLogs.length);
+        assertEquals(1, relocatedDbLogs.length);
+        assertEquals("taskManager.log", relocatedDbLogs[0].toFile().getName());
     }
 
     // ------------------------------------------------------------------------
