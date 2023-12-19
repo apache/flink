@@ -129,18 +129,19 @@ public class CollectSinkFunctionTest extends TestLogger {
 
     @Test
     void testConfiguredPortIsUsed() throws Exception {
-        int bindingPort = 50500;
-        functionWrapper
-                .getRuntimeContext()
-                .getTaskManagerRuntimeInfo()
-                .getConfiguration()
-                .setInteger(TaskManagerOptions.COLLECT_PORT, bindingPort);
-        functionWrapper.openFunction();
-        assertThatThrownBy(() -> new ServerSocket(bindingPort))
-                .satisfies(
-                        FlinkAssertions.anyCauseMatches(
-                                BindException.class, "Address already in use (Bind failed)"));
-        functionWrapper.closeFunctionNormally();
+        try (ServerSocket socket = new ServerSocket(0)) {
+            functionWrapper
+                    .getRuntimeContext()
+                    .getTaskManagerRuntimeInfo()
+                    .getConfiguration()
+                    .setInteger(TaskManagerOptions.COLLECT_PORT, socket.getLocalPort());
+            assertThatThrownBy(() -> functionWrapper.openFunction())
+                    .satisfies(
+                            FlinkAssertions.anyCauseMatches(
+                                    BindException.class, "Address already in use (Bind failed)"));
+        } finally {
+            functionWrapper.closeWrapper();
+        }
     }
 
     @Test
