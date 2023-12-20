@@ -187,6 +187,7 @@ public class TieredResultPartition extends ResultPartition {
 
     @Override
     public void close() {
+        storageMemoryManager.release();
         super.close();
     }
 

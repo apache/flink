@@ -44,6 +44,8 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
 
     private final Function<Object, Integer> getMaxNonReclaimableBuffersFunction;
 
+    private final Function<Integer, Boolean> ensureCapacityFunction;
+
     private final Function<Object, Integer> numOwnerRequestedBufferFunction;
 
     private final TriConsumer<Object, Object, Buffer> transferBufferOwnershipConsumer;
@@ -56,6 +58,7 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
             Consumer<Runnable> listenBufferReclaimRequestConsumer,
             Function<Object, BufferBuilder> requestBufferBlockingFunction,
             Function<Object, Integer> getMaxNonReclaimableBuffersFunction,
+            Function<Integer, Boolean> ensureCapacityFunction,
             Function<Object, Integer> numOwnerRequestedBufferFunction,
             TriConsumer<Object, Object, Buffer> transferBufferOwnershipConsumer,
             Runnable releaseRunnable) {
@@ -64,6 +67,7 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
         this.listenBufferReclaimRequestConsumer = listenBufferReclaimRequestConsumer;
         this.requestBufferBlockingFunction = requestBufferBlockingFunction;
         this.getMaxNonReclaimableBuffersFunction = getMaxNonReclaimableBuffersFunction;
+        this.ensureCapacityFunction = ensureCapacityFunction;
         this.numOwnerRequestedBufferFunction = numOwnerRequestedBufferFunction;
         this.transferBufferOwnershipConsumer = transferBufferOwnershipConsumer;
         this.releaseRunnable = releaseRunnable;
@@ -95,6 +99,11 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
     }
 
     @Override
+    public boolean ensureCapacity(int numAdditionalBuffers) {
+        return ensureCapacityFunction.apply(numAdditionalBuffers);
+    }
+
+    @Override
     public int numOwnerRequestedBuffer(Object owner) {
         return numOwnerRequestedBufferFunction.apply(owner);
     }
@@ -122,6 +131,8 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
         private Function<Object, BufferBuilder> requestBufferBlockingFunction = owner -> null;
 
         private Function<Object, Integer> getMaxNonReclaimableBuffersFunction = owner -> 0;
+
+        private Function<Integer, Boolean> ensureCapacityFunction = num -> true;
 
         private Function<Object, Integer> numOwnerRequestedBufferFunction = owner -> 0;
 
@@ -156,6 +167,12 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
             return this;
         }
 
+        public TestingTieredStorageMemoryManager.Builder setEnsureCapacityFunction(
+                Function<Integer, Boolean> ensureCapacityFunction) {
+            this.ensureCapacityFunction = ensureCapacityFunction;
+            return this;
+        }
+
         public TestingTieredStorageMemoryManager.Builder setNumOwnerRequestedBufferFunction(
                 Function<Object, Integer> numOwnerRequestedBufferFunction) {
             this.numOwnerRequestedBufferFunction = numOwnerRequestedBufferFunction;
@@ -181,6 +198,7 @@ public class TestingTieredStorageMemoryManager implements TieredStorageMemoryMan
                     listenBufferReclaimRequestConsumer,
                     requestBufferBlockingFunction,
                     getMaxNonReclaimableBuffersFunction,
+                    ensureCapacityFunction,
                     numOwnerRequestedBufferFunction,
                     transferBufferOwnershipConsumer,
                     releaseRunnable);
