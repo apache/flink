@@ -32,34 +32,31 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.types.Nothing;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.concurrent.Future;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Fail.fail;
 
 /** Checks the GenericDataSinkBase operator for both Rich and non-Rich output formats. */
-@SuppressWarnings("serial")
-public class GenericDataSinkBaseTest implements java.io.Serializable {
+class GenericDataSinkBaseTest implements java.io.Serializable {
 
-    private static TestNonRichInputFormat in = new TestNonRichInputFormat();
-    GenericDataSourceBase<String, TestNonRichInputFormat> source =
-            new GenericDataSourceBase<String, TestNonRichInputFormat>(
-                    in,
-                    new OperatorInformation<String>(BasicTypeInfo.STRING_TYPE_INFO),
-                    "testSource");
+    private static final TestNonRichInputFormat in = new TestNonRichInputFormat();
+    final GenericDataSourceBase<String, TestNonRichInputFormat> source =
+            new GenericDataSourceBase<>(
+                    in, new OperatorInformation<>(BasicTypeInfo.STRING_TYPE_INFO), "testSource");
 
     @Test
-    public void testDataSourcePlain() {
+    void testDataSourcePlain() {
         try {
             TestNonRichOutputFormat out = new TestNonRichOutputFormat();
             GenericDataSinkBase<String> sink =
-                    new GenericDataSinkBase<String>(
+                    new GenericDataSinkBase<>(
                             out,
-                            new UnaryOperatorInformation<String, Nothing>(
+                            new UnaryOperatorInformation<>(
                                     BasicTypeInfo.STRING_TYPE_INFO,
                                     BasicTypeInfo.getInfoFor(Nothing.class)),
                             "test_sink");
@@ -69,13 +66,13 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
             executionConfig.disableObjectReuse();
             in.reset();
             sink.executeOnCollections(asList(TestIOData.NAMES), null, executionConfig);
-            assertEquals(out.output, asList(TestIOData.NAMES));
+            assertThat(asList(TestIOData.NAMES)).isEqualTo(out.output);
 
             executionConfig.enableObjectReuse();
             out.clear();
             in.reset();
             sink.executeOnCollections(asList(TestIOData.NAMES), null, executionConfig);
-            assertEquals(out.output, asList(TestIOData.NAMES));
+            assertThat(asList(TestIOData.NAMES)).isEqualTo(out.output);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -83,21 +80,20 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
     }
 
     @Test
-    public void testDataSourceWithRuntimeContext() {
+    void testDataSourceWithRuntimeContext() {
         try {
             TestRichOutputFormat out = new TestRichOutputFormat();
             GenericDataSinkBase<String> sink =
-                    new GenericDataSinkBase<String>(
+                    new GenericDataSinkBase<>(
                             out,
-                            new UnaryOperatorInformation<String, Nothing>(
+                            new UnaryOperatorInformation<>(
                                     BasicTypeInfo.STRING_TYPE_INFO,
                                     BasicTypeInfo.getInfoFor(Nothing.class)),
                             "test_sink");
             sink.setInput(source);
 
             ExecutionConfig executionConfig = new ExecutionConfig();
-            final HashMap<String, Accumulator<?, ?>> accumulatorMap =
-                    new HashMap<String, Accumulator<?, ?>>();
+            final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
             final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
             final TaskInfo taskInfo = new TaskInfoImpl("test_sink", 1, 0, 1, 0);
             executionConfig.disableObjectReuse();
@@ -114,7 +110,7 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
                             UnregisteredMetricsGroup.createOperatorMetricGroup()),
                     executionConfig);
 
-            assertEquals(out.output, asList(TestIOData.RICH_NAMES));
+            assertThat(asList(TestIOData.RICH_NAMES)).isEqualTo(out.output);
 
             executionConfig.enableObjectReuse();
             out.clear();
@@ -130,7 +126,7 @@ public class GenericDataSinkBaseTest implements java.io.Serializable {
                             accumulatorMap,
                             UnregisteredMetricsGroup.createOperatorMetricGroup()),
                     executionConfig);
-            assertEquals(out.output, asList(TestIOData.RICH_NAMES));
+            assertThat(asList(TestIOData.RICH_NAMES)).isEqualTo(out.output);
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

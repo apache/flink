@@ -29,40 +29,37 @@ import org.apache.flink.types.Value;
 
 import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.apache.commons.lang3.StringUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.Arrays;
+import java.nio.file.Files;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPOutputStream;
 
 import static org.apache.flink.api.common.io.DelimitedInputFormatTest.createTempFile;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Fail.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class GenericCsvInputFormatTest {
+class GenericCsvInputFormatTest {
 
     private TestCsvInputFormat format;
 
     // --------------------------------------------------------------------------------------------
 
-    @Before
+    @BeforeEach
     public void setup() {
         format = new TestCsvInputFormat();
         format.setFilePath("file:///some/file/that/will/not/be/read");
     }
 
-    @After
+    @AfterEach
     public void setdown() throws Exception {
         if (this.format != null) {
             this.format.close();
@@ -70,7 +67,7 @@ public class GenericCsvInputFormatTest {
     }
 
     @Test
-    public void testSparseFieldArray() {
+    void testSparseFieldArray() {
 
         @SuppressWarnings("unchecked")
         Class<? extends Value>[] originalTypes =
@@ -79,14 +76,14 @@ public class GenericCsvInputFormatTest {
                 };
 
         format.setFieldTypesGeneric(originalTypes);
-        assertEquals(3, format.getNumberOfNonNullFields());
-        assertEquals(6, format.getNumberOfFieldsTotal());
+        assertThat(format.getNumberOfNonNullFields()).isEqualTo(3);
+        assertThat(format.getNumberOfFieldsTotal()).isEqualTo(6);
 
-        assertTrue(Arrays.equals(originalTypes, format.getGenericFieldTypes()));
+        assertThat(format.getGenericFieldTypes()).isEqualTo(originalTypes);
     }
 
     @Test
-    public void testReadNoPosAll() throws IOException {
+    void testReadNoPosAll() {
         try {
             final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
             final FileInputSplit split = createTempFile(fileContent);
@@ -103,30 +100,30 @@ public class GenericCsvInputFormatTest {
             Value[] values = createIntValues(5);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(111, ((IntValue) values[0]).getValue());
-            assertEquals(222, ((IntValue) values[1]).getValue());
-            assertEquals(333, ((IntValue) values[2]).getValue());
-            assertEquals(444, ((IntValue) values[3]).getValue());
-            assertEquals(555, ((IntValue) values[4]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(111);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(222);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(333);
+            assertThat(((IntValue) values[3]).getValue()).isEqualTo(444);
+            assertThat(((IntValue) values[4]).getValue()).isEqualTo(555);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(666, ((IntValue) values[0]).getValue());
-            assertEquals(777, ((IntValue) values[1]).getValue());
-            assertEquals(888, ((IntValue) values[2]).getValue());
-            assertEquals(999, ((IntValue) values[3]).getValue());
-            assertEquals(000, ((IntValue) values[4]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(666);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(777);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(888);
+            assertThat(((IntValue) values[3]).getValue()).isEqualTo(999);
+            assertThat(((IntValue) values[4]).getValue()).isEqualTo(000);
 
-            assertNull(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadNoPosAllDeflate() throws IOException {
+    void testReadNoPosAllDeflate() {
         try {
             final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
             final FileInputSplit split = createTempDeflateFile(fileContent);
@@ -143,30 +140,30 @@ public class GenericCsvInputFormatTest {
             Value[] values = createIntValues(5);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(111, ((IntValue) values[0]).getValue());
-            assertEquals(222, ((IntValue) values[1]).getValue());
-            assertEquals(333, ((IntValue) values[2]).getValue());
-            assertEquals(444, ((IntValue) values[3]).getValue());
-            assertEquals(555, ((IntValue) values[4]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(111);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(222);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(333);
+            assertThat(((IntValue) values[3]).getValue()).isEqualTo(444);
+            assertThat(((IntValue) values[4]).getValue()).isEqualTo(555);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(666, ((IntValue) values[0]).getValue());
-            assertEquals(777, ((IntValue) values[1]).getValue());
-            assertEquals(888, ((IntValue) values[2]).getValue());
-            assertEquals(999, ((IntValue) values[3]).getValue());
-            assertEquals(000, ((IntValue) values[4]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(666);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(777);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(888);
+            assertThat(((IntValue) values[3]).getValue()).isEqualTo(999);
+            assertThat(((IntValue) values[4]).getValue()).isEqualTo(000);
 
-            assertNull(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadNoPosAllGzip() throws IOException {
+    void testReadNoPosAllGzip() {
         try {
             final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
             final FileInputSplit split = createTempGzipFile(fileContent);
@@ -183,30 +180,30 @@ public class GenericCsvInputFormatTest {
             Value[] values = createIntValues(5);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(111, ((IntValue) values[0]).getValue());
-            assertEquals(222, ((IntValue) values[1]).getValue());
-            assertEquals(333, ((IntValue) values[2]).getValue());
-            assertEquals(444, ((IntValue) values[3]).getValue());
-            assertEquals(555, ((IntValue) values[4]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(111);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(222);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(333);
+            assertThat(((IntValue) values[3]).getValue()).isEqualTo(444);
+            assertThat(((IntValue) values[4]).getValue()).isEqualTo(555);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(666, ((IntValue) values[0]).getValue());
-            assertEquals(777, ((IntValue) values[1]).getValue());
-            assertEquals(888, ((IntValue) values[2]).getValue());
-            assertEquals(999, ((IntValue) values[3]).getValue());
-            assertEquals(000, ((IntValue) values[4]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(666);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(777);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(888);
+            assertThat(((IntValue) values[3]).getValue()).isEqualTo(999);
+            assertThat(((IntValue) values[4]).getValue()).isEqualTo(000);
 
-            assertNull(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadNoPosAllZStandard() throws IOException {
+    void testReadNoPosAllZStandard() {
         try {
             final String fileContent = "111|222|333|444|555\n666|777|888|999|000|";
             final FileInputSplit split = createTempZStandardFile(fileContent);
@@ -223,30 +220,30 @@ public class GenericCsvInputFormatTest {
             Value[] values = createIntValues(5);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(111, ((IntValue) values[0]).getValue());
-            assertEquals(222, ((IntValue) values[1]).getValue());
-            assertEquals(333, ((IntValue) values[2]).getValue());
-            assertEquals(444, ((IntValue) values[3]).getValue());
-            assertEquals(555, ((IntValue) values[4]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(111);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(222);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(333);
+            assertThat(((IntValue) values[3]).getValue()).isEqualTo(444);
+            assertThat(((IntValue) values[4]).getValue()).isEqualTo(555);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(666, ((IntValue) values[0]).getValue());
-            assertEquals(777, ((IntValue) values[1]).getValue());
-            assertEquals(888, ((IntValue) values[2]).getValue());
-            assertEquals(999, ((IntValue) values[3]).getValue());
-            assertEquals(000, ((IntValue) values[4]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(666);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(777);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(888);
+            assertThat(((IntValue) values[3]).getValue()).isEqualTo(999);
+            assertThat(((IntValue) values[4]).getValue()).isEqualTo(000);
 
-            assertNull(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadNoPosFirstN() throws IOException {
+    void testReadNoPosFirstN() {
         try {
             final String fileContent = "111|222|333|444|555|\n666|777|888|999|000|";
             final FileInputSplit split = createTempFile(fileContent);
@@ -263,24 +260,24 @@ public class GenericCsvInputFormatTest {
 
             // if this would parse all, we would get an index out of bounds exception
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(111, ((IntValue) values[0]).getValue());
-            assertEquals(222, ((IntValue) values[1]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(111);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(222);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(666, ((IntValue) values[0]).getValue());
-            assertEquals(777, ((IntValue) values[1]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(666);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(777);
 
-            assertNull(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testSparseParse() {
+    void testSparseParse() {
         try {
             final String fileContent =
                     "111|222|333|444|555|666|777|888|999|000|\n"
@@ -299,19 +296,19 @@ public class GenericCsvInputFormatTest {
             Value[] values = createIntValues(3);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(111, ((IntValue) values[0]).getValue());
-            assertEquals(444, ((IntValue) values[1]).getValue());
-            assertEquals(888, ((IntValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(111);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(444);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(888);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(000, ((IntValue) values[0]).getValue());
-            assertEquals(777, ((IntValue) values[1]).getValue());
-            assertEquals(333, ((IntValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(000);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(777);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(333);
 
-            assertNull(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             System.err.println(ex.getMessage());
             ex.printStackTrace();
@@ -320,7 +317,7 @@ public class GenericCsvInputFormatTest {
     }
 
     @Test
-    public void testLongLongLong() {
+    void testLongLongLong() {
         try {
             final String fileContent = "1,2,3\n3,2,1";
             final FileInputSplit split = createTempFile(fileContent);
@@ -335,19 +332,19 @@ public class GenericCsvInputFormatTest {
             Value[] values = createLongValues(3);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(1L, ((LongValue) values[0]).getValue());
-            assertEquals(2L, ((LongValue) values[1]).getValue());
-            assertEquals(3L, ((LongValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((LongValue) values[0]).getValue()).isEqualTo(1L);
+            assertThat(((LongValue) values[1]).getValue()).isEqualTo(2L);
+            assertThat(((LongValue) values[2]).getValue()).isEqualTo(3L);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(3L, ((LongValue) values[0]).getValue());
-            assertEquals(2L, ((LongValue) values[1]).getValue());
-            assertEquals(1L, ((LongValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((LongValue) values[0]).getValue()).isEqualTo(3L);
+            assertThat(((LongValue) values[1]).getValue()).isEqualTo(2L);
+            assertThat(((LongValue) values[2]).getValue()).isEqualTo(1L);
 
-            assertNull(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             System.err.println(ex.getMessage());
             ex.printStackTrace();
@@ -357,7 +354,7 @@ public class GenericCsvInputFormatTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testSparseParseWithIndices() {
+    void testSparseParseWithIndices() {
         try {
             final String fileContent =
                     "111|222|333|444|555|666|777|888|999|000|\n000|999|888|777|666|555|444|333|222|111|";
@@ -368,27 +365,26 @@ public class GenericCsvInputFormatTest {
             format.setFieldDelimiter("|");
             format.setFieldsGeneric(
                     new int[] {0, 3, 7},
-                    (Class<? extends Value>[])
-                            new Class[] {IntValue.class, IntValue.class, IntValue.class});
+                    new Class[] {IntValue.class, IntValue.class, IntValue.class});
             format.configure(parameters);
             format.open(split);
 
             Value[] values = createIntValues(3);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(111, ((IntValue) values[0]).getValue());
-            assertEquals(444, ((IntValue) values[1]).getValue());
-            assertEquals(888, ((IntValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(111);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(444);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(888);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(000, ((IntValue) values[0]).getValue());
-            assertEquals(777, ((IntValue) values[1]).getValue());
-            assertEquals(333, ((IntValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(000);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(777);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(333);
 
-            assertNull(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             System.err.println(ex.getMessage());
             ex.printStackTrace();
@@ -398,7 +394,7 @@ public class GenericCsvInputFormatTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testSparseParseWithIndicesMultiCharDelimiter() {
+    void testSparseParseWithIndicesMultiCharDelimiter() {
         try {
             final String fileContent =
                     "111|-|222|-|333|-|444|-|555|-|666|-|777|-|888|-|999|-|000|-|\n"
@@ -413,39 +409,38 @@ public class GenericCsvInputFormatTest {
             format.setFieldDelimiter("|-|");
             format.setFieldsGeneric(
                     new int[] {0, 3, 7},
-                    (Class<? extends Value>[])
-                            new Class[] {IntValue.class, IntValue.class, IntValue.class});
+                    new Class[] {IntValue.class, IntValue.class, IntValue.class});
             format.configure(parameters);
             format.open(split);
 
             Value[] values = createIntValues(3);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(111, ((IntValue) values[0]).getValue());
-            assertEquals(444, ((IntValue) values[1]).getValue());
-            assertEquals(888, ((IntValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(111);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(444);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(888);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(000, ((IntValue) values[0]).getValue());
-            assertEquals(777, ((IntValue) values[1]).getValue());
-            assertEquals(333, ((IntValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(000);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(777);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(333);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(555, ((IntValue) values[0]).getValue());
-            assertEquals(111, ((IntValue) values[1]).getValue());
-            assertEquals(777, ((IntValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(555);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(111);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(777);
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals(22222, ((IntValue) values[0]).getValue());
-            assertEquals(99999999, ((IntValue) values[1]).getValue());
-            assertEquals(8, ((IntValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((IntValue) values[0]).getValue()).isEqualTo(22222);
+            assertThat(((IntValue) values[1]).getValue()).isEqualTo(99999999);
+            assertThat(((IntValue) values[2]).getValue()).isEqualTo(8);
 
-            assertNull(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } catch (Exception ex) {
             System.err.println(ex.getMessage());
             ex.printStackTrace();
@@ -454,7 +449,7 @@ public class GenericCsvInputFormatTest {
     }
 
     @Test
-    public void testReadTooShortInput() throws IOException {
+    void testReadTooShortInput() {
         try {
             final String fileContent = "111|222|333|444\n666|777|888|999";
             final FileInputSplit split = createTempFile(fileContent);
@@ -481,7 +476,7 @@ public class GenericCsvInputFormatTest {
     }
 
     @Test
-    public void testReadTooShortInputLenient() throws IOException {
+    void testReadTooShortInputLenient() {
         try {
             final String fileContent = "666|777|888|999|555\n111|222|333|444\n666|777|888|999|555";
             final FileInputSplit split = createTempFile(fileContent);
@@ -497,16 +492,16 @@ public class GenericCsvInputFormatTest {
 
             Value[] values = createIntValues(5);
 
-            assertNotNull(format.nextRecord(values)); // line okay
-            assertNull(format.nextRecord(values)); // line too short
-            assertNotNull(format.nextRecord(values)); // line okay
+            assertThat(format.nextRecord(values)).isNotNull(); // line okay
+            assertThat(format.nextRecord(values)).isNull(); // line too short
+            assertThat(format.nextRecord(values)).isNotNull(); // line okay
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadInvalidContents() throws IOException {
+    void testReadInvalidContents() {
         try {
             final String fileContent = "abc|222|def|444\nkkz|777|888|hhg";
             final FileInputSplit split = createTempFile(fileContent);
@@ -525,7 +520,7 @@ public class GenericCsvInputFormatTest {
                         new StringValue(), new IntValue(), new StringValue(), new IntValue()
                     };
 
-            assertNotNull(format.nextRecord(values));
+            assertThat(format.nextRecord(values)).isNotNull();
 
             try {
                 format.nextRecord(values);
@@ -538,7 +533,7 @@ public class GenericCsvInputFormatTest {
     }
 
     @Test
-    public void testReadInvalidContentsLenient() {
+    void testReadInvalidContentsLenient() {
         try {
             final String fileContent = "abc|222|def|444\nkkz|777|888|hhg";
             final FileInputSplit split = createTempFile(fileContent);
@@ -558,15 +553,15 @@ public class GenericCsvInputFormatTest {
                         new StringValue(), new IntValue(), new StringValue(), new IntValue()
                     };
 
-            assertNotNull(format.nextRecord(values));
-            assertNull(format.nextRecord(values));
+            assertThat(format.nextRecord(values)).isNotNull();
+            assertThat(format.nextRecord(values)).isNull();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadInvalidContentsLenientWithSkipping() {
+    void testReadInvalidContentsLenientWithSkipping() {
         try {
             final String fileContent =
                     "abc|dfgsdf|777|444\n"
@@ -589,17 +584,17 @@ public class GenericCsvInputFormatTest {
 
             Value[] values = new Value[] {new StringValue(), new IntValue()};
 
-            assertNotNull(format.nextRecord(values));
-            assertNull(format.nextRecord(values));
-            assertNull(format.nextRecord(values));
-            assertNotNull(format.nextRecord(values));
+            assertThat(format.nextRecord(values)).isNotNull();
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.nextRecord(values)).isNotNull();
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void testReadWithCharset() throws IOException {
+    void testReadWithCharset() throws IOException {
         // Unicode row fragments
         String[] records = new String[] {"\u020e\u021f", "Flink", "\u020b\u020f"};
 
@@ -613,8 +608,7 @@ public class GenericCsvInputFormatTest {
                 new GenericCsvInputFormat<String[]>() {
                     @Override
                     public String[] readRecord(
-                            String[] target, byte[] bytes, int offset, int numBytes)
-                            throws IOException {
+                            String[] target, byte[] bytes, int offset, int numBytes) {
                         return parseRecord(target, bytes, offset, numBytes) ? target : null;
                     }
                 };
@@ -625,7 +619,8 @@ public class GenericCsvInputFormatTest {
             tempFile.deleteOnExit();
 
             // write string with proper encoding
-            try (Writer out = new OutputStreamWriter(new FileOutputStream(tempFile), charset)) {
+            try (Writer out =
+                    new OutputStreamWriter(Files.newOutputStream(tempFile.toPath()), charset)) {
                 out.write(fileContent);
             }
 
@@ -649,20 +644,20 @@ public class GenericCsvInputFormatTest {
             values = format.nextRecord(values);
 
             // validate results
-            assertNotNull(values);
+            assertThat(values).isNotNull();
             for (int i = 0; i < records.length; i++) {
-                assertEquals(records[i], values[i]);
+                assertThat(values[i]).isEqualTo(records[i]);
             }
 
-            assertNull(format.nextRecord(values));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(values)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         }
 
         format.close();
     }
 
     @Test
-    public void readWithEmptyField() {
+    void readWithEmptyField() {
         try {
             final String fileContent = "abc|def|ghijk\nabc||hhg\n|||";
             final FileInputSplit split = createTempFile(fileContent);
@@ -678,19 +673,19 @@ public class GenericCsvInputFormatTest {
             Value[] values = new Value[] {new StringValue(), new StringValue(), new StringValue()};
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals("abc", ((StringValue) values[0]).getValue());
-            assertEquals("def", ((StringValue) values[1]).getValue());
-            assertEquals("ghijk", ((StringValue) values[2]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((StringValue) values[0]).getValue()).isEqualTo("abc");
+            assertThat(((StringValue) values[1]).getValue()).isEqualTo("def");
+            assertThat(((StringValue) values[2]).getValue()).isEqualTo("ghijk");
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals("abc", ((StringValue) values[0]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((StringValue) values[0]).getValue()).isEqualTo("abc");
             assertEquals("", ((StringValue) values[1]).getValue());
-            assertEquals("hhg", ((StringValue) values[2]).getValue());
+            assertThat(((StringValue) values[2]).getValue()).isEqualTo("hhg");
 
             values = format.nextRecord(values);
-            assertNotNull(values);
+            assertThat(values).isNotNull();
             assertEquals("", ((StringValue) values[0]).getValue());
             assertEquals("", ((StringValue) values[1]).getValue());
             assertEquals("", ((StringValue) values[2]).getValue());
@@ -701,7 +696,7 @@ public class GenericCsvInputFormatTest {
     }
 
     @Test
-    public void readWithParseQuotedStrings() {
+    void readWithParseQuotedStrings() {
         try {
             final String fileContent = "\"ab\\\"c\"|\"def\"\n\"ghijk\"|\"abc\"";
             final FileInputSplit split = createTempFile(fileContent);
@@ -718,14 +713,14 @@ public class GenericCsvInputFormatTest {
             Value[] values = new Value[] {new StringValue(), new StringValue()};
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals("ab\\\"c", ((StringValue) values[0]).getValue());
-            assertEquals("def", ((StringValue) values[1]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((StringValue) values[0]).getValue()).isEqualTo("ab\\\"c");
+            assertThat(((StringValue) values[1]).getValue()).isEqualTo("def");
 
             values = format.nextRecord(values);
-            assertNotNull(values);
-            assertEquals("ghijk", ((StringValue) values[0]).getValue());
-            assertEquals("abc", ((StringValue) values[1]).getValue());
+            assertThat(values).isNotNull();
+            assertThat(((StringValue) values[0]).getValue()).isEqualTo("ghijk");
+            assertThat(((StringValue) values[1]).getValue()).isEqualTo("abc");
 
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
@@ -733,7 +728,7 @@ public class GenericCsvInputFormatTest {
     }
 
     @Test
-    public void readWithHeaderLine() {
+    void readWithHeaderLine() {
         try {
             final String fileContent =
                     "colname-1|colname-2|some name 3|column four|\n"
@@ -758,17 +753,17 @@ public class GenericCsvInputFormatTest {
                     };
 
             // first line is skipped as header
-            assertNotNull(format.nextRecord(values)); //  first row (= second line)
-            assertNotNull(format.nextRecord(values)); // second row (= third line)
-            assertNull(format.nextRecord(values)); // exhausted
-            assertTrue(format.reachedEnd()); // exhausted
+            assertThat(format.nextRecord(values)); //  first row (= second line).isNotNull()
+            assertThat(format.nextRecord(values)); // second row (= third line).isNotNull()
+            assertThat(format.nextRecord(values)).isNull(); // exhausted
+            assertThat(format.reachedEnd()).isTrue(); // exhausted
         } catch (Exception ex) {
             fail("Test failed due to a " + ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
     @Test
-    public void readWithHeaderLineAndInvalidIntermediate() {
+    void readWithHeaderLineAndInvalidIntermediate() {
         try {
             final String fileContent =
                     "colname-1|colname-2|some name 3|column four|\n"
@@ -795,7 +790,7 @@ public class GenericCsvInputFormatTest {
                     };
 
             // first line is skipped as header
-            assertNotNull(format.nextRecord(values)); //  first row (= second line)
+            assertThat(format.nextRecord(values)); //  first row (= second line).isNotNull()
 
             try {
                 format.nextRecord(values);
@@ -813,7 +808,8 @@ public class GenericCsvInputFormatTest {
         tempFile.deleteOnExit();
 
         DataOutputStream dos =
-                new DataOutputStream(new DeflaterOutputStream(new FileOutputStream(tempFile)));
+                new DataOutputStream(
+                        new DeflaterOutputStream(Files.newOutputStream(tempFile.toPath())));
         dos.writeBytes(content);
         dos.close();
 
@@ -830,7 +826,8 @@ public class GenericCsvInputFormatTest {
         tempFile.deleteOnExit();
 
         DataOutputStream dos =
-                new DataOutputStream(new GZIPOutputStream(new FileOutputStream(tempFile)));
+                new DataOutputStream(
+                        new GZIPOutputStream(Files.newOutputStream(tempFile.toPath())));
         dos.writeBytes(content);
         dos.close();
 
@@ -848,7 +845,7 @@ public class GenericCsvInputFormatTest {
 
         DataOutputStream dos =
                 new DataOutputStream(
-                        new ZstdCompressorOutputStream(new FileOutputStream(tempFile)));
+                        new ZstdCompressorOutputStream(Files.newOutputStream(tempFile.toPath())));
         dos.writeBytes(content);
         dos.close();
 

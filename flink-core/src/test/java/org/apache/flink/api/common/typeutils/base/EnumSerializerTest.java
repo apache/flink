@@ -27,24 +27,24 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class EnumSerializerTest extends TestLogger {
 
     @Test
-    public void testPublicEnum() {
+    void testPublicEnum() {
         testEnumSerializer(PrivateEnum.ONE, PrivateEnum.TWO, PrivateEnum.THREE);
     }
 
     @Test
-    public void testPrivateEnum() {
+    void testPrivateEnum() {
         testEnumSerializer(
                 PublicEnum.FOO,
                 PublicEnum.BAR,
@@ -54,13 +54,14 @@ public class EnumSerializerTest extends TestLogger {
                 PublicEnum.PAULA);
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testEmptyEnum() {
-        new EnumSerializer<>(EmptyEnum.class);
+    @Test
+    void testEmptyEnum() {
+        assertThatThrownBy(() -> new EnumSerializer<>(EmptyEnum.class))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testReconfiguration() {
+    void testReconfiguration() {
         // mock the previous ordering of enum constants to be BAR, PAULA, NATHANIEL
         PublicEnum[] mockPreviousOrder = {PublicEnum.BAR, PublicEnum.PAULA, PublicEnum.NATHANIEL};
 
@@ -94,7 +95,7 @@ public class EnumSerializerTest extends TestLogger {
                 new EnumSerializer.EnumSerializerSnapshot(PublicEnum.class, mockPreviousOrder);
         TypeSerializerSchemaCompatibility compatibility =
                 serializer.snapshotConfiguration().resolveSchemaCompatibility(serializerSnapshot);
-        assertTrue(compatibility.isCompatibleWithReconfiguredSerializer());
+        assertThat(compatibility.isCompatibleWithReconfiguredSerializer()).isTrue();
 
         // after reconfiguration, the order should be first the original BAR, PAULA, NATHANIEL,
         // followed by the "new enum constants" FOO, PETER, EMMA
@@ -115,11 +116,11 @@ public class EnumSerializerTest extends TestLogger {
             i++;
         }
 
-        assertTrue(Arrays.equals(expectedOrder, configuredSerializer.getValues()));
+        assertThat(configuredSerializer.getValues()).isEqualTo(expectedOrder);
     }
 
     @Test
-    public void testConfigurationSnapshotSerialization() throws Exception {
+    void testConfigurationSnapshotSerialization() throws Exception {
         EnumSerializer<PublicEnum> serializer = new EnumSerializer<>(PublicEnum.class);
 
         byte[] serializedConfig;
@@ -139,7 +140,7 @@ public class EnumSerializerTest extends TestLogger {
 
         TypeSerializerSchemaCompatibility<PublicEnum> compatResult =
                 serializer.snapshotConfiguration().resolveSchemaCompatibility(restoredConfig);
-        assertTrue(compatResult.isCompatibleAsIs());
+        assertThat(compatResult.isCompatibleAsIs()).isTrue();
 
         assertEquals(
                 PublicEnum.FOO.ordinal(),
@@ -159,11 +160,11 @@ public class EnumSerializerTest extends TestLogger {
         assertEquals(
                 PublicEnum.PAULA.ordinal(),
                 serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
-        assertTrue(Arrays.equals(PublicEnum.values(), serializer.getValues()));
+        assertThat(serializer.getValues()).isEqualTo(PublicEnum.values());
     }
 
     @Test
-    public void testSerializeEnumSerializer() throws Exception {
+    void testSerializeEnumSerializer() throws Exception {
         EnumSerializer<PublicEnum> serializer = new EnumSerializer<>(PublicEnum.class);
 
         // verify original transient parameters
@@ -185,7 +186,7 @@ public class EnumSerializerTest extends TestLogger {
         assertEquals(
                 PublicEnum.PAULA.ordinal(),
                 serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
-        assertTrue(Arrays.equals(PublicEnum.values(), serializer.getValues()));
+        assertThat(serializer.getValues()).isEqualTo(PublicEnum.values());
 
         byte[] serializedSerializer = InstantiationUtil.serializeObject(serializer);
 
@@ -211,11 +212,11 @@ public class EnumSerializerTest extends TestLogger {
         assertEquals(
                 PublicEnum.PAULA.ordinal(),
                 serializer.getValueToOrdinal().get(PublicEnum.PAULA).intValue());
-        assertTrue(Arrays.equals(PublicEnum.values(), serializer.getValues()));
+        assertThat(serializer.getValues()).isEqualTo(PublicEnum.values());
     }
 
     @Test
-    public void testSerializeReconfiguredEnumSerializer() throws Exception {
+    void testSerializeReconfiguredEnumSerializer() {
         // mock the previous ordering of enum constants to be BAR, PAULA, NATHANIEL
         PublicEnum[] mockPreviousOrder = {PublicEnum.BAR, PublicEnum.PAULA, PublicEnum.NATHANIEL};
 
@@ -249,7 +250,7 @@ public class EnumSerializerTest extends TestLogger {
                 new EnumSerializer.EnumSerializerSnapshot(PublicEnum.class, mockPreviousOrder);
         TypeSerializerSchemaCompatibility compatibility =
                 serializer.snapshotConfiguration().resolveSchemaCompatibility(serializerSnapshot);
-        assertTrue(compatibility.isCompatibleWithReconfiguredSerializer());
+        assertThat(compatibility.isCompatibleWithReconfiguredSerializer()).isTrue();
 
         // verify that after the serializer was read, the reconfigured constant ordering is
         // untouched
@@ -270,7 +271,7 @@ public class EnumSerializerTest extends TestLogger {
             i++;
         }
 
-        assertTrue(Arrays.equals(expectedOrder, configuredSerializer.getValues()));
+        assertThat(configuredSerializer.getValues()).isEqualTo(expectedOrder);
     }
 
     @SafeVarargs
@@ -279,7 +280,7 @@ public class EnumSerializerTest extends TestLogger {
         final Class<T> clazz = (Class<T>) data.getClass().getComponentType();
 
         SerializerTestInstance<T> tester =
-                new SerializerTestInstance<T>(new EnumSerializer<T>(clazz), clazz, 4, data) {};
+                new SerializerTestInstance<T>(new EnumSerializer<>(clazz), clazz, 4, data) {};
 
         tester.testAll();
     }

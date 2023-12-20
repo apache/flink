@@ -32,7 +32,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,33 +41,25 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Fail.fail;
 
 /** The test for map operator. */
-@SuppressWarnings("serial")
 public class MapOperatorTest implements java.io.Serializable {
 
     @Test
-    public void testMapPlain() {
+    void testMapPlain() {
         try {
-            final MapFunction<String, Integer> parser =
-                    new MapFunction<String, Integer>() {
-                        @Override
-                        public Integer map(String value) {
-                            return Integer.parseInt(value);
-                        }
-                    };
+            final MapFunction<String, Integer> parser = Integer::parseInt;
 
             MapOperatorBase<String, Integer, MapFunction<String, Integer>> op =
-                    new MapOperatorBase<String, Integer, MapFunction<String, Integer>>(
+                    new MapOperatorBase<>(
                             parser,
-                            new UnaryOperatorInformation<String, Integer>(
+                            new UnaryOperatorInformation<>(
                                     BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
                             "TestMapper");
 
-            List<String> input = new ArrayList<String>(asList("1", "2", "3", "4", "5", "6"));
+            List<String> input = new ArrayList<>(asList("1", "2", "3", "4", "5", "6"));
 
             ExecutionConfig executionConfig = new ExecutionConfig();
             executionConfig.disableObjectReuse();
@@ -75,8 +67,8 @@ public class MapOperatorTest implements java.io.Serializable {
             executionConfig.enableObjectReuse();
             List<Integer> resultRegular = op.executeOnCollections(input, null, executionConfig);
 
-            assertEquals(asList(1, 2, 3, 4, 5, 6), resultMutableSafe);
-            assertEquals(asList(1, 2, 3, 4, 5, 6), resultRegular);
+            assertThat(resultMutableSafe).isEqualTo(asList(1, 2, 3, 4, 5, 6));
+            assertThat(resultRegular).isEqualTo(asList(1, 2, 3, 4, 5, 6));
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -84,7 +76,7 @@ public class MapOperatorTest implements java.io.Serializable {
     }
 
     @Test
-    public void testMapWithRuntimeContext() {
+    void testMapWithRuntimeContext() {
         try {
             final String taskName = "Test Task";
             final AtomicBoolean opened = new AtomicBoolean();
@@ -94,12 +86,12 @@ public class MapOperatorTest implements java.io.Serializable {
                     new RichMapFunction<String, Integer>() {
 
                         @Override
-                        public void open(OpenContext openContext) throws Exception {
+                        public void open(OpenContext openContext) {
                             opened.set(true);
                             RuntimeContext ctx = getRuntimeContext();
-                            assertEquals(0, ctx.getTaskInfo().getIndexOfThisSubtask());
-                            assertEquals(1, ctx.getTaskInfo().getNumberOfParallelSubtasks());
-                            assertEquals(taskName, ctx.getTaskInfo().getTaskName());
+                            assertThat(ctx.getTaskInfo().getIndexOfThisSubtask()).isEqualTo(0);
+                            assertThat(ctx.getTaskInfo().getNumberOfParallelSubtasks()).isEqualTo(1);
+                            assertThat(ctx.getTaskInfo().getTaskName()).isEqualTo(taskName);
                         }
 
                         @Override
@@ -108,21 +100,20 @@ public class MapOperatorTest implements java.io.Serializable {
                         }
 
                         @Override
-                        public void close() throws Exception {
+                        public void close() {
                             closed.set(true);
                         }
                     };
 
             MapOperatorBase<String, Integer, MapFunction<String, Integer>> op =
-                    new MapOperatorBase<String, Integer, MapFunction<String, Integer>>(
+                    new MapOperatorBase<>(
                             parser,
-                            new UnaryOperatorInformation<String, Integer>(
+                            new UnaryOperatorInformation<>(
                                     BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO),
                             taskName);
 
-            List<String> input = new ArrayList<String>(asList("1", "2", "3", "4", "5", "6"));
-            final HashMap<String, Accumulator<?, ?>> accumulatorMap =
-                    new HashMap<String, Accumulator<?, ?>>();
+            List<String> input = new ArrayList<>(asList("1", "2", "3", "4", "5", "6"));
+            final HashMap<String, Accumulator<?, ?>> accumulatorMap = new HashMap<>();
             final HashMap<String, Future<Path>> cpTasks = new HashMap<>();
             final TaskInfo taskInfo = new TaskInfoImpl(taskName, 1, 0, 1, 0);
             ExecutionConfig executionConfig = new ExecutionConfig();
@@ -153,11 +144,11 @@ public class MapOperatorTest implements java.io.Serializable {
                                     UnregisteredMetricsGroup.createOperatorMetricGroup()),
                             executionConfig);
 
-            assertEquals(asList(1, 2, 3, 4, 5, 6), resultMutableSafe);
-            assertEquals(asList(1, 2, 3, 4, 5, 6), resultRegular);
+            assertThat(resultMutableSafe).isEqualTo(asList(1, 2, 3, 4, 5, 6));
+            assertThat(resultRegular).isEqualTo(asList(1, 2, 3, 4, 5, 6));
 
-            assertTrue(opened.get());
-            assertTrue(closed.get());
+            assertThat(opened.get()).isTrue();
+            assertThat(closed.get()).isTrue();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

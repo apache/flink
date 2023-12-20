@@ -25,8 +25,6 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.GenericInputSplit;
 
-import java.io.IOException;
-
 /**
  * Generic base class for all inputs that are not based on files. This is copied from {@link
  * org.apache.flink.api.common.io.GenericInputFormat} This class doesn't provide access to
@@ -47,13 +45,13 @@ public abstract class NonRichGenericInputFormat<OT> implements InputFormat<OT, G
     }
 
     @Override
-    public BaseStatistics getStatistics(BaseStatistics cachedStatistics) throws IOException {
+    public BaseStatistics getStatistics(BaseStatistics cachedStatistics) {
         // no statistics available, by default.
         return cachedStatistics;
     }
 
     @Override
-    public GenericInputSplit[] createInputSplits(int numSplits) throws IOException {
+    public GenericInputSplit[] createInputSplits(int numSplits) {
         if (numSplits < 1) {
             throw new IllegalArgumentException("Number of input splits has to be at least 1.");
         }
@@ -74,10 +72,10 @@ public abstract class NonRichGenericInputFormat<OT> implements InputFormat<OT, G
     // --------------------------------------------------------------------------------------------
 
     @Override
-    public void open(GenericInputSplit split) throws IOException {
+    public void open(GenericInputSplit split) {
         this.partitionNumber = split.getSplitNumber();
     }
 
     @Override
-    public void close() throws IOException {}
+    public void close() {}
 }

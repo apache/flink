@@ -22,26 +22,27 @@ import org.apache.flink.api.common.state.StateTtlConfig.IncrementalCleanupStrate
 import org.apache.flink.api.common.state.StateTtlConfig.RocksdbCompactFilterCleanupStrategy;
 import org.apache.flink.api.common.time.Time;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
+import static org.assertj.core.api.Fail.fail;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link StateTtlConfig}. */
-public class StateTtlConfigTest {
+class StateTtlConfigTest {
 
     @Test
-    public void testStateTtlConfigBuildWithoutCleanupInBackground() {
+    void testStateTtlConfigBuildWithoutCleanupInBackground() {
         StateTtlConfig ttlConfig =
                 StateTtlConfig.newBuilder(Time.seconds(1)).disableCleanupInBackground().build();
 
-        assertThat(ttlConfig.getCleanupStrategies(), notNullValue());
+        MatcherAssert.assertThat(ttlConfig.getCleanupStrategies(), notNullValue());
 
         CleanupStrategies cleanupStrategies = ttlConfig.getCleanupStrategies();
         IncrementalCleanupStrategy incrementalCleanupStrategy =
@@ -49,17 +50,17 @@ public class StateTtlConfigTest {
         RocksdbCompactFilterCleanupStrategy rocksdbCleanupStrategy =
                 cleanupStrategies.getRocksdbCompactFilterCleanupStrategy();
 
-        assertThat(cleanupStrategies.isCleanupInBackground(), is(false));
-        assertThat(incrementalCleanupStrategy, nullValue());
-        assertThat(rocksdbCleanupStrategy, nullValue());
-        assertThat(cleanupStrategies.inRocksdbCompactFilter(), is(false));
+        MatcherAssert.assertThat(cleanupStrategies.isCleanupInBackground(), is(false));
+        MatcherAssert.assertThat(incrementalCleanupStrategy, nullValue());
+        MatcherAssert.assertThat(rocksdbCleanupStrategy, nullValue());
+        MatcherAssert.assertThat(cleanupStrategies.inRocksdbCompactFilter(), is(false));
     }
 
     @Test
-    public void testStateTtlConfigBuildWithCleanupInBackground() {
+    void testStateTtlConfigBuildWithCleanupInBackground() {
         StateTtlConfig ttlConfig = StateTtlConfig.newBuilder(Time.seconds(1)).build();
 
-        assertThat(ttlConfig.getCleanupStrategies(), notNullValue());
+        MatcherAssert.assertThat(ttlConfig.getCleanupStrategies(), notNullValue());
 
         CleanupStrategies cleanupStrategies = ttlConfig.getCleanupStrategies();
         IncrementalCleanupStrategy incrementalCleanupStrategy =
@@ -67,18 +68,19 @@ public class StateTtlConfigTest {
         RocksdbCompactFilterCleanupStrategy rocksdbCleanupStrategy =
                 cleanupStrategies.getRocksdbCompactFilterCleanupStrategy();
 
-        assertThat(cleanupStrategies.isCleanupInBackground(), is(true));
-        assertThat(incrementalCleanupStrategy, notNullValue());
-        assertThat(rocksdbCleanupStrategy, notNullValue());
-        assertThat(cleanupStrategies.inRocksdbCompactFilter(), is(true));
-        assertThat(incrementalCleanupStrategy.getCleanupSize(), is(5));
-        assertThat(incrementalCleanupStrategy.runCleanupForEveryRecord(), is(false));
-        assertThat(rocksdbCleanupStrategy.getQueryTimeAfterNumEntries(), is(1000L));
-        assertThat(rocksdbCleanupStrategy.getPeriodicCompactionTime(), is(Time.days(30)));
+        MatcherAssert.assertThat(cleanupStrategies.isCleanupInBackground(), is(true));
+        MatcherAssert.assertThat(incrementalCleanupStrategy, notNullValue());
+        MatcherAssert.assertThat(rocksdbCleanupStrategy, notNullValue());
+        MatcherAssert.assertThat(cleanupStrategies.inRocksdbCompactFilter(), is(true));
+        MatcherAssert.assertThat(incrementalCleanupStrategy.getCleanupSize(), is(5));
+        MatcherAssert.assertThat(incrementalCleanupStrategy.runCleanupForEveryRecord(), is(false));
+        MatcherAssert.assertThat(rocksdbCleanupStrategy.getQueryTimeAfterNumEntries(), is(1000L));
+        MatcherAssert.assertThat(
+                rocksdbCleanupStrategy.getPeriodicCompactionTime(), is(Time.days(30)));
     }
 
     @Test
-    public void testStateTtlConfigBuildWithNonPositiveCleanupIncrementalSize() {
+    void testStateTtlConfigBuildWithNonPositiveCleanupIncrementalSize() {
         List<Integer> illegalCleanUpSizes = Arrays.asList(0, -2);
 
         for (Integer illegalCleanUpSize : illegalCleanUpSizes) {
@@ -87,7 +89,7 @@ public class StateTtlConfigTest {
                         StateTtlConfig.newBuilder(Time.seconds(1))
                                 .cleanupIncrementally(illegalCleanUpSize, false)
                                 .build();
-                Assert.fail();
+                fail();
             } catch (IllegalArgumentException e) {
             }
         }

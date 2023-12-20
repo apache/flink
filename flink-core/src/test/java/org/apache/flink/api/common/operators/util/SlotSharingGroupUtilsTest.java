@@ -22,15 +22,16 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.resources.ExternalResource;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 /** Tests for {@link SlotSharingGroupUtils}. */
 public class SlotSharingGroupUtilsTest {
     @Test
-    public void testCovertToResourceSpec() {
+    void testCovertToResourceSpec() {
         final ExternalResource gpu = new ExternalResource("gpu", 1);
         final ResourceSpec resourceSpec =
                 ResourceSpec.newBuilder(1.0, 100)

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,10 +26,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class InputStreamFSInputWrapperTest {
+class InputStreamFSInputWrapperTest {
 
     @Test
-    public void testClose() throws Exception {
+    void testClose() throws Exception {
         final AtomicBoolean closeCalled = new AtomicBoolean(false);
         InputStream mockedInputStream =
                 new InputStream() {

@@ -34,8 +34,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Fail.fail;
 
 /**
  * Abstract test base for comparators.
@@ -68,7 +68,7 @@ public abstract class ComparatorTestBase<T> {
     // -------------------------------- test duplication ------------------------------------------
 
     @Test
-    public void testDuplicate() {
+    protected void testDuplicate() {
         try {
             boolean ascending = isAscending(getTestedOrder()[0]);
             TypeComparator<T> comparator = getComparator(ascending);
@@ -92,7 +92,7 @@ public abstract class ComparatorTestBase<T> {
     // --------------------------------- equality tests -------------------------------------------
 
     @Test
-    public void testEquality() {
+    protected void testEquality() {
         for (Order order : getTestedOrder()) {
             boolean ascending = isAscending(order);
             testEquals(ascending);
@@ -131,7 +131,7 @@ public abstract class ComparatorTestBase<T> {
     }
 
     @Test
-    public void testEqualityWithReference() {
+    protected void testEqualityWithReference() {
         try {
             TypeSerializer<T> serializer = createSerializer();
             boolean ascending = isAscending(getTestedOrder()[0]);
@@ -157,7 +157,7 @@ public abstract class ComparatorTestBase<T> {
 
     // --------------------------------- inequality tests ----------------------------------------
     @Test
-    public void testInequality() {
+    protected void testInequality() {
         for (Order order : getTestedOrder()) {
             boolean ascending = isAscending(order);
             testGreatSmallAscDesc(ascending, true);
@@ -209,7 +209,7 @@ public abstract class ComparatorTestBase<T> {
     }
 
     @Test
-    public void testInequalityWithReference() {
+    protected void testInequalityWithReference() {
         for (Order order : getTestedOrder()) {
             boolean ascending = isAscending(order);
             testGreatSmallAscDescWithReference(ascending, true);
@@ -271,8 +271,7 @@ public abstract class ComparatorTestBase<T> {
 
     // Help Function which return a normalizedKeyLength, either as done in the NormalizedKeySorter
     // or it's half
-    private int getNormKeyLen(boolean halfLength, T[] data, TypeComparator<T> comparator)
-            throws Exception {
+    private int getNormKeyLen(boolean halfLength, T[] data, TypeComparator<T> comparator) {
         // Same as in the NormalizedKeySorter
         int keyLen = Math.min(comparator.getNormalizeKeyLen(), DEFAULT_MAX_NORMALIZED_KEY_LEN);
         if (keyLen < comparator.getNormalizeKeyLen()) {
@@ -287,7 +286,7 @@ public abstract class ComparatorTestBase<T> {
     }
 
     @Test
-    public void testNormalizedKeysEqualsFullLength() {
+    protected void testNormalizedKeysEqualsFullLength() {
         // Ascending or descending does not matter in this case
         boolean ascending = isAscending(getTestedOrder()[0]);
         TypeComparator<T> comparator = getComparator(ascending);
@@ -298,7 +297,7 @@ public abstract class ComparatorTestBase<T> {
     }
 
     @Test
-    public void testNormalizedKeysEqualsHalfLength() {
+    protected void testNormalizedKeysEqualsHalfLength() {
         boolean ascending = isAscending(getTestedOrder()[0]);
         TypeComparator<T> comparator = getComparator(ascending);
         if (!comparator.supportsNormalizedKey()) {
@@ -329,7 +328,7 @@ public abstract class ComparatorTestBase<T> {
     }
 
     @Test
-    public void testNormalizedKeysGreatSmallFullLength() {
+    protected void testNormalizedKeysGreatSmallFullLength() {
         // ascending/descending in comparator doesn't matter for normalized keys
         boolean ascending = isAscending(getTestedOrder()[0]);
         TypeComparator<T> comparator = getComparator(ascending);
@@ -341,7 +340,7 @@ public abstract class ComparatorTestBase<T> {
     }
 
     @Test
-    public void testNormalizedKeysGreatSmallAscDescHalfLength() {
+    protected void testNormalizedKeysGreatSmallAscDescHalfLength() {
         // ascending/descending in comparator doesn't matter for normalized keys
         boolean ascending = isAscending(getTestedOrder()[0]);
         TypeComparator<T> comparator = getComparator(ascending);
@@ -398,7 +397,7 @@ public abstract class ComparatorTestBase<T> {
     }
 
     @Test
-    public void testNormalizedKeyReadWriter() {
+    protected void testNormalizedKeyReadWriter() {
         try {
             T[] data = getSortedData();
             T reuse = getSortedData()[0];

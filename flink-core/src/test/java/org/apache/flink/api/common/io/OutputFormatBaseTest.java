@@ -36,8 +36,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Tests for the {@link OutputFormatBase}. */
 class OutputFormatBaseTest {
@@ -52,13 +52,13 @@ class OutputFormatBaseTest {
             testOutputFormat.enqueueCompletableFuture(CompletableFuture.completedFuture(null));
 
             final int originalPermits = testOutputFormat.getAvailablePermits();
-            assertThat(originalPermits).isGreaterThan(0);
-            assertThat(testOutputFormat.getAcquiredPermits()).isEqualTo(0);
+            assertThat(originalPermits).isPositive();
+            assertThat(testOutputFormat.getAcquiredPermits()).isZero();
 
             testOutputFormat.writeRecord("hello");
 
             assertThat(testOutputFormat.getAvailablePermits()).isEqualTo(originalPermits);
-            assertThat(testOutputFormat.getAcquiredPermits()).isEqualTo(0);
+            assertThat(testOutputFormat.getAcquiredPermits()).isZero();
         }
     }
 
@@ -71,7 +71,7 @@ class OutputFormatBaseTest {
         testOutputFormat.enqueueCompletableFuture(FutureUtils.completedExceptionally(cause));
         testOutputFormat.writeRecord("none");
 
-        assertThatThrownBy(() -> testOutputFormat.close())
+        assertThatThrownBy(testOutputFormat::close)
                 .isInstanceOf(IOException.class)
                 .hasCauseReference(cause);
     }
@@ -91,7 +91,7 @@ class OutputFormatBaseTest {
                             "Sending of second value should have failed.")
                     .isInstanceOf(IOException.class)
                     .hasCauseReference(cause);
-            assertThat(testOutputFormat.getAcquiredPermits()).isEqualTo(0);
+            assertThat(testOutputFormat.getAcquiredPermits()).isZero();
         }
     }
 
@@ -122,7 +122,7 @@ class OutputFormatBaseTest {
             completableFuture.complete(null);
             // wait for the close
             checkedThread.sync();
-            assertThat(testOutputFormat.getAcquiredPermits()).isEqualTo(0);
+            assertThat(testOutputFormat.getAcquiredPermits()).isZero();
         }
     }
 
@@ -131,20 +131,20 @@ class OutputFormatBaseTest {
         try (TestOutputFormat openedTestOutputFormat = createOpenedTestOutputFormat()) {
 
             assertThat(openedTestOutputFormat.getAvailablePermits()).isEqualTo(1);
-            assertThat(openedTestOutputFormat.getAcquiredPermits()).isEqualTo(0);
+            assertThat(openedTestOutputFormat.getAcquiredPermits()).isZero();
 
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
             openedTestOutputFormat.enqueueCompletableFuture(completableFuture);
             openedTestOutputFormat.writeRecord("hello");
 
-            assertThat(openedTestOutputFormat.getAvailablePermits()).isEqualTo(0);
+            assertThat(openedTestOutputFormat.getAvailablePermits()).isZero();
             assertThat(openedTestOutputFormat.getAcquiredPermits()).isEqualTo(1);
 
             // start writing
             completableFuture.complete(null);
 
             assertThat(openedTestOutputFormat.getAvailablePermits()).isEqualTo(1);
-            assertThat(openedTestOutputFormat.getAcquiredPermits()).isEqualTo(0);
+            assertThat(openedTestOutputFormat.getAcquiredPermits()).isZero();
         }
     }
 
@@ -153,20 +153,20 @@ class OutputFormatBaseTest {
         TestOutputFormat testOutputFormat = createOpenedTestOutputFormat();
 
         assertThat(testOutputFormat.getAvailablePermits()).isEqualTo(1);
-        assertThat(testOutputFormat.getAcquiredPermits()).isEqualTo(0);
+        assertThat(testOutputFormat.getAcquiredPermits()).isZero();
 
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         testOutputFormat.enqueueCompletableFuture(completableFuture);
         testOutputFormat.writeRecord("none");
 
-        assertThat(testOutputFormat.getAvailablePermits()).isEqualTo(0);
+        assertThat(testOutputFormat.getAvailablePermits()).isZero();
         assertThat(testOutputFormat.getAcquiredPermits()).isEqualTo(1);
 
         completableFuture.completeExceptionally(new RuntimeException());
 
         assertThat(testOutputFormat.getAvailablePermits()).isEqualTo(1);
-        assertThat(testOutputFormat.getAcquiredPermits()).isEqualTo(0);
-        assertThatThrownBy(() -> testOutputFormat.close());
+        assertThat(testOutputFormat.getAcquiredPermits()).isZero();
+        assertThatThrownBy(testOutputFormat::close);
     }
 
     @Test
@@ -180,7 +180,7 @@ class OutputFormatBaseTest {
                 createOpenedTestOutputFormat(failingSendFunction)) {
 
             assertThat(testOutputFormat.getAvailablePermits()).isEqualTo(1);
-            assertThat(testOutputFormat.getAcquiredPermits()).isEqualTo(0);
+            assertThat(testOutputFormat.getAcquiredPermits()).isZero();
 
             try {
                 testOutputFormat.writeRecord("none");
@@ -190,7 +190,7 @@ class OutputFormatBaseTest {
             }
             // writeRecord acquires a permit that is then released when send fails
             assertThat(testOutputFormat.getAvailablePermits()).isEqualTo(1);
-            assertThat(testOutputFormat.getAcquiredPermits()).isEqualTo(0);
+            assertThat(testOutputFormat.getAcquiredPermits()).isZero();
         }
     }
 

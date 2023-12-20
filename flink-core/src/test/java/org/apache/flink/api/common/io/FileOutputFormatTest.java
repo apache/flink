@@ -24,18 +24,18 @@ import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.IntValue;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
-public class FileOutputFormatTest {
+class FileOutputFormatTest {
 
     @Test
-    public void testCreateNonParallelLocalFS() throws IOException {
+    void testCreateNonParallelLocalFS() throws IOException {
 
         File tmpOutPath = File.createTempFile("fileOutputFormatTest", "Test1");
         File tmpOutFile = new File(tmpOutPath.getAbsolutePath() + "/1");
@@ -60,7 +60,7 @@ public class FileOutputFormatTest {
         tmpOutPath.delete();
 
         // check fail if directory exists
-        Assert.assertTrue("Directory could not be created.", tmpOutPath.mkdir());
+        assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
         dfof = new DummyFileOutputFormat();
         dfof.setOutputFilePath(new Path(tmpFilePath));
@@ -92,7 +92,7 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
         tmpOutPath.delete();
 
         // check fail for path with tailing '/'
@@ -109,7 +109,7 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
         tmpOutPath.delete();
 
         // ----------- test again with always directory mode
@@ -134,7 +134,7 @@ public class FileOutputFormatTest {
         tmpOutPath.delete();
 
         // check success if directory exists
-        Assert.assertTrue("Directory could not be created.", tmpOutPath.mkdir());
+        assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
         dfof = new DummyFileOutputFormat();
         dfof.setOutputFilePath(new Path(tmpFilePath));
@@ -149,8 +149,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
 
         // check custom file name inside directory if directory exists
@@ -169,8 +169,8 @@ public class FileOutputFormatTest {
             fail();
         }
         File customOutFile = new File(tmpOutPath.getAbsolutePath() + "/fancy-1-0.avro");
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(customOutFile.exists() && customOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(customOutFile.exists() && customOutFile.isFile()).isTrue();
         customOutFile.delete();
 
         // check fail if file in directory exists
@@ -209,8 +209,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
         tmpOutPath.delete();
 
@@ -228,17 +228,17 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
         tmpOutPath.delete();
     }
 
     @Test
-    public void testCreateParallelLocalFS() throws IOException {
+    void testCreateParallelLocalFS() throws IOException {
 
-        File tmpOutPath = null;
-        File tmpOutFile = null;
+        File tmpOutPath;
+        File tmpOutFile;
 
         tmpOutPath = File.createTempFile("fileOutputFormatTest", "Test1");
         tmpOutFile = new File(tmpOutPath.getAbsolutePath() + "/1");
@@ -263,7 +263,7 @@ public class FileOutputFormatTest {
         tmpOutPath.delete();
 
         // check success if directory exists
-        Assert.assertTrue("Directory could not be created.", tmpOutPath.mkdir());
+        assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
         dfof = new DummyFileOutputFormat();
         dfof.setOutputFilePath(new Path(tmpFilePath));
@@ -278,8 +278,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -318,8 +318,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -337,17 +337,17 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutFile.delete();
         tmpOutPath.delete();
     }
 
     @Test
-    public void testOverwriteNonParallelLocalFS() throws IOException {
+    void testOverwriteNonParallelLocalFS() throws IOException {
 
-        File tmpOutPath = null;
-        File tmpOutFile = null;
+        File tmpOutPath;
+        File tmpOutFile;
 
         tmpOutPath = File.createTempFile("fileOutputFormatTest", "Test1");
         tmpOutFile = new File(tmpOutPath.getAbsolutePath() + "/1");
@@ -368,11 +368,11 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
 
         // check success if directory exists
         tmpOutPath.delete();
-        Assert.assertTrue("Directory could not be created.", tmpOutPath.mkdir());
+        assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
         dfof = new DummyFileOutputFormat();
         dfof.setOutputFilePath(new Path(tmpFilePath));
@@ -387,7 +387,7 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
         tmpOutPath.delete();
 
         // check success
@@ -404,7 +404,7 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
         tmpOutPath.delete();
 
         // check fail for path with tailing '/'
@@ -421,7 +421,7 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isFile()).isTrue();
         tmpOutPath.delete();
 
         // ----------- test again with always directory mode
@@ -442,14 +442,14 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
 
         tmpOutFile.delete();
         tmpOutPath.delete();
 
         // check success if directory exists
-        Assert.assertTrue("Directory could not be created.", tmpOutPath.mkdir());
+        assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
         dfof = new DummyFileOutputFormat();
         dfof.setOutputFilePath(new Path(tmpFilePath));
@@ -464,8 +464,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutPath.delete();
         tmpOutFile.delete();
 
@@ -486,8 +486,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutPath.delete();
         tmpOutFile.delete();
 
@@ -505,8 +505,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -524,17 +524,17 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutFile.delete();
         tmpOutPath.delete();
     }
 
     @Test
-    public void testOverwriteParallelLocalFS() throws IOException {
+    void testOverwriteParallelLocalFS() throws IOException {
 
-        File tmpOutPath = null;
-        File tmpOutFile = null;
+        File tmpOutPath;
+        File tmpOutFile;
 
         tmpOutPath = File.createTempFile("fileOutputFormatTest", "Test1");
         tmpOutFile = new File(tmpOutPath.getAbsolutePath() + "/1");
@@ -555,13 +555,13 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
         // check success if directory exists
-        Assert.assertTrue("Directory could not be created.", tmpOutPath.mkdir());
+        assertThat(tmpOutPath.mkdir()).as("Directory could not be created.").isTrue();
 
         dfof = new DummyFileOutputFormat();
         dfof.setOutputFilePath(new Path(tmpFilePath));
@@ -576,8 +576,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -598,8 +598,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         (new File(tmpOutPath.getAbsoluteFile() + "/1")).delete();
         tmpOutPath.delete();
 
@@ -617,8 +617,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutFile.delete();
         tmpOutPath.delete();
 
@@ -636,8 +636,8 @@ public class FileOutputFormatTest {
         } catch (Exception e) {
             fail();
         }
-        Assert.assertTrue(tmpOutPath.exists() && tmpOutPath.isDirectory());
-        Assert.assertTrue(tmpOutFile.exists() && tmpOutFile.isFile());
+        assertThat(tmpOutPath.exists() && tmpOutPath.isDirectory()).isTrue();
+        assertThat(tmpOutFile.exists() && tmpOutFile.isFile()).isTrue();
         tmpOutFile.delete();
         tmpOutPath.delete();
     }
@@ -650,7 +650,7 @@ public class FileOutputFormatTest {
         public boolean testFileName = false;
 
         @Override
-        public void writeRecord(IntValue record) throws IOException {
+        public void writeRecord(IntValue record) {
             // DO NOTHING
         }
 

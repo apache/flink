@@ -20,25 +20,28 @@ package org.apache.flink.api.common.resources;
 
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for {@link CPUResource}. */
-public class CPUResourceTest extends TestLogger {
+class CPUResourceTest extends TestLogger {
     @Test
-    public void toHumanReadableString() {
-        assertThat(new CPUResource(0).toHumanReadableString(), is("0.00 cores"));
-        assertThat(new CPUResource(1).toHumanReadableString(), is("1.00 cores"));
-        assertThat(new CPUResource(1.2).toHumanReadableString(), is("1.20 cores"));
-        assertThat(new CPUResource(1.23).toHumanReadableString(), is("1.23 cores"));
-        assertThat(new CPUResource(1.234).toHumanReadableString(), is("1.23 cores"));
-        assertThat(new CPUResource(1.235).toHumanReadableString(), is("1.24 cores"));
-        assertThat(new CPUResource(10).toHumanReadableString(), is("10.00 cores"));
-        assertThat(new CPUResource(100).toHumanReadableString(), is("100.00 cores"));
-        assertThat(new CPUResource(1000).toHumanReadableString(), is("1000.00 cores"));
-        assertThat(new CPUResource(123456789).toHumanReadableString(), is("123456789.00 cores"));
-        assertThat(new CPUResource(12345.6789).toHumanReadableString(), is("12345.68 cores"));
+    void toHumanReadableString() {
+        MatcherAssert.assertThat(new CPUResource(0).toHumanReadableString(), is("0.00 cores"));
+        MatcherAssert.assertThat(new CPUResource(1).toHumanReadableString(), is("1.00 cores"));
+        MatcherAssert.assertThat(new CPUResource(1.2).toHumanReadableString(), is("1.20 cores"));
+        MatcherAssert.assertThat(new CPUResource(1.23).toHumanReadableString(), is("1.23 cores"));
+        MatcherAssert.assertThat(new CPUResource(1.234).toHumanReadableString(), is("1.23 cores"));
+        MatcherAssert.assertThat(new CPUResource(1.235).toHumanReadableString(), is("1.24 cores"));
+        MatcherAssert.assertThat(new CPUResource(10).toHumanReadableString(), is("10.00 cores"));
+        MatcherAssert.assertThat(new CPUResource(100).toHumanReadableString(), is("100.00 cores"));
+        MatcherAssert.assertThat(
+                new CPUResource(1000).toHumanReadableString(), is("1000.00 cores"));
+        MatcherAssert.assertThat(
+                new CPUResource(123456789).toHumanReadableString(), is("123456789.00 cores"));
+        MatcherAssert.assertThat(
+                new CPUResource(12345.6789).toHumanReadableString(), is("12345.68 cores"));
     }
 }

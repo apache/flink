@@ -46,7 +46,7 @@ class MapSerializerTest extends SerializerTestBase<Map<Long, String>> {
         return (Class<Map<Long, String>>) (Class<?>) Map.class;
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({"unchecked"})
     @Override
     protected Map<Long, String>[] getTestData() {
         final Random rnd = new Random(123654789);

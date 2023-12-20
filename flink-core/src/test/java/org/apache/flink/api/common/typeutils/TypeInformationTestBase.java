@@ -29,7 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 /** Abstract test base for type information. */
 @ExtendWith(TestLoggerExtension.class)
@@ -115,7 +115,7 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> {
         for (T typeInfo : testData) {
             assertThat(typeInfo.getTotalFields())
                     .as("Number of total fields must be at least 1")
-                    .isGreaterThan(0);
+                    .isPositive();
         }
     }
 
